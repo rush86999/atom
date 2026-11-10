@@ -1,0 +1,295 @@
+{
+  "status": "PASS",
+  "world": "grad_ordinary_ui_6da_1794315411_4d66ed51fe",
+  "run_dir": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe/runs/run-9c939f4aeb4d",
+  "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+  "canvas_id": "507e8792-6976-4cd5-840e-fea764f94af0",
+  "action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+  "seeded_training_sessions": [],
+  "api": {
+    "self_directed_after_seed": {
+      "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+      "agent_name": "Graduation UI Candidate 4d66ed51fe",
+      "category": "operations",
+      "tier": "student",
+      "confidence": 0.62,
+      "evidence": {
+        "episodes": 10,
+        "successes": 10,
+        "success_ratio": 1.0,
+        "required_episodes": 10
+      },
+      "episode_progress": 1.0,
+      "success_ratio_ok": true,
+      "confidence_ok": true,
+      "evidence_floor_met": true,
+      "ready_for_review": true,
+      "assessment": {
+        "required": true,
+        "policy_revision": "1",
+        "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+        "policy_source": "default",
+        "policy_row_updated_at": null,
+        "candidate_capability_qualified": true,
+        "allowed": true,
+        "state": "valid",
+        "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+        "reviewed_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+        "review_action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+        "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805",
+        "receipt_fingerprint": "4dded4816912a3ee8dcef167ce3a49e063a892f30d6412ff984f2903969efafb",
+        "review_fingerprint": "ba3b10fce20687cff139a7981b1d46fc4633072bf431fda2a171b2ccaa56bbc1",
+        "message": "A passed scoped capability qualification receipt is recorded.",
+        "next_action": null
+      },
+      "completed_sessions": 3,
+      "trigger_health": {
+        "blocked_triggers": 0,
+        "last_fired_at": null,
+        "last_trigger_type": null,
+        "last_trigger_source": null
+      },
+      "readiness": {
+        "ready": true,
+        "pathway": "self_directed",
+        "reason": null,
+        "required_training_sessions": 3,
+        "required_episodes": 10,
+        "success_ratio": 1.0
+      },
+      "recent_episodes": [
+        {
+          "id": "4d66ed51fe-ep-09",
+          "task": "Controlled held-out work 9 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:07:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-08",
+          "task": "Controlled held-out work 8 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:06:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-07",
+          "task": "Controlled held-out work 7 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:05:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-06",
+          "task": "Controlled held-out work 6 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:04:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-05",
+          "task": "Controlled held-out work 5 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:03:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-04",
+          "task": "Controlled held-out work 4 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:02:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-03",
+          "task": "Controlled held-out work 3 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:01:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-02",
+          "task": "Controlled held-out work 2 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:00:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-01",
+          "task": "Controlled held-out work 1 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T12:59:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-00",
+          "task": "Controlled held-out work 0 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T12:58:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        }
+      ],
+      "guidance": [
+        {
+          "label": "Real work recorded: 10/10 episodes",
+          "done": true,
+          "detail": "Every piece of real work the agent completes is outcome-tracked here \u2014 successes and failures alike."
+        },
+        {
+          "label": "Success ratio: 100% (needs \u2265 70%)",
+          "done": true,
+          "detail": "Derived from execution results, not self-reported \u2014 failed tool calls and errors count against it."
+        },
+        {
+          "label": "Confidence \u2265 50%: 62%",
+          "done": true,
+          "detail": "Grows from teaching, feedback and completed work; teaching alone never promotes."
+        },
+        {
+          "label": "Completed training sessions: 3/3",
+          "done": true,
+          "detail": "Sessions you completed appear here; keep going until 3."
+        },
+        {
+          "label": "No automated trigger has fired yet",
+          "done": false,
+          "detail": "Training proposals are created when an AUTOMATED task (workflow, AI coordinator, data ingestion) is blocked by the STUDENT gate. Manual chat and canvas work never trigger it \u2014 run an automated workflow that targets this agent to open a proposal."
+        },
+        {
+          "label": "Ready \u2014 review the work below, then Promote to INTERN",
+          "done": true,
+          "detail": "Promotion is your judgment call as supervisor; the episodes below are the evidence."
+        }
+      ]
+    }
+  },
+  "ui": {
+    "onboarding_dismissed_on_canvas": true,
+    "valid_state": {
+      "text": "Qualified",
+      "raw_title": "valid",
+      "pending_copy": 0
+    },
+    "promote_controls": {
+      "count": 1,
+      "enabled": [
+        0
+      ]
+    },
+    "fresh_reload": {
+      "tier_badge": "INTERN",
+      "state_title": "unresolved_scope",
+      "pending_copy": 0
+    }
+  },
+  "db": {
+    "agent": {
+      "status": "intern",
+      "last_exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+      "promotion_count": 1
+    },
+    "history": [
+      {
+        "id": "1177d21d-9164-415b-a2cc-9d9223002213",
+        "from_level": "student",
+        "to_level": "intern",
+        "exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+        "promoted_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+        "justification": "public graduation; assessment=valid"
+      }
+    ],
+    "exam_count": 1,
+    "graduation_notifications": [
+      {
+        "id": "6969f91c-2ccf-4711-a1cf-71f146d890bf",
+        "user_id": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+        "tenant_id": "default",
+        "workspace_id": "default",
+        "metadata_json": "{\"notification_type\": \"agent_graduated\", \"agent_id\": \"4cca507d-fe5c-43e6-bf2c-cd158f32bd62\", \"new_maturity\": \"INTERN\"}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "step": "promote_retained_agent",
+      "method": "POST",
+      "path": "/api/episodes/graduation/promote",
+      "status": 200,
+      "body": null,
+      "response": {
+        "success": true,
+        "data": {
+          "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+          "new_maturity": "INTERN",
+          "promoted": true,
+          "agent_status": "intern",
+          "assessment": {
+            "required": true,
+            "policy_revision": "1",
+            "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+            "policy_source": "default",
+            "policy_row_updated_at": null,
+            "candidate_capability_qualified": true,
+            "allowed": true,
+            "state": "valid",
+            "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+            "reviewed_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+            "review_action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+            "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805",
+            "receipt_fingerprint": "4dded4816912a3ee8dcef167ce3a49e063a892f30d6412ff984f2903969efafb",
+            "review_fingerprint": "ba3b10fce20687cff139a7981b1d46fc4633072bf431fda2a171b2ccaa56bbc1",
+            "message": "A passed scoped capability qualification receipt is recorded.",
+            "next_action": null
+          },
+          "promotion_history_id": "1177d21d-9164-415b-a2cc-9d9223002213",
+          "verification": {
+            "status": "verified",
+            "effect": "committed",
+            "audit_id": "agent:graduate:9848343e408c4e958c27c240bd5dc5a6"
+          },
+          "operation_id": "agent:graduate:9848343e408c4e958c27c240bd5dc5a6",
+          "audit_id": "agent:graduate:9848343e408c4e958c27c240bd5dc5a6"
+        },
+        "timestamp": "2026-11-10T13:19:06.453654+00:00",
+        "message": "Agent promoted to INTERN"
+      }
+    }
+  ],
+  "errors": [],
+  "seeded_agent_confidence": {
+    "before": 0.35,
+    "after": 0.62,
+    "note": "controlled exposure precondition; not model competence"
+  },
+  "admin_id": "e260f8b0-e322-4590-8a47-40b6f01c5dc6"
+}

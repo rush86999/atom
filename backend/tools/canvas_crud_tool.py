@@ -1061,22 +1061,33 @@ def visible_canvas_material(db: Any, canvas_id: str) -> Dict[str, Any]:
     # Email draft-state read (same normalization as the reader).
     try:
         _draft = details.get("draft")
-        if (
-            isinstance(content, dict)
-            and isinstance(_draft, dict)
-            and isinstance(content.get("body"), str)
-            and not content.get("body").strip()
-            and str(_draft.get("body") or "").strip()
-        ):
-            content = {
-                **content,
-                "body": _draft.get("body"),
-                "subject": content.get("subject")
-                or _draft.get("subject")
-                or "",
-                "to": content.get("to")
-                or ", ".join(_draft.get("to_emails") or []),
-            }
+        if isinstance(content, dict) and isinstance(_draft, dict):
+            updates = {}
+            # Legacy Canvas-row content (no content-bearing audit) may carry
+            # the draft body only. For a content-bearing audit, a present
+            # canonical key is authoritative — an explicit empty body/to/cc/
+            # subject must not be resurrected from stale nested draft data.
+            if content_audit is None or "body" not in content:
+                current_body = content.get("body")
+                if (not isinstance(current_body, str)
+                        or not current_body.strip()):
+                    draft_body = _draft.get("body")
+                    if isinstance(draft_body, str) and draft_body.strip():
+                        updates["body"] = draft_body
+            if "subject" not in content:
+                draft_subject = _draft.get("subject")
+                if draft_subject:
+                    updates["subject"] = draft_subject
+            if "to" not in content:
+                draft_to = _draft.get("to_emails")
+                if draft_to:
+                    updates["to"] = ", ".join(str(item) for item in draft_to)
+            if "cc" not in content:
+                draft_cc = _draft.get("cc_emails")
+                if draft_cc:
+                    updates["cc"] = ", ".join(str(item) for item in draft_cc)
+            if updates:
+                content = {**content, **updates}
     except Exception:  # noqa: BLE001 — read normalization only
         pass
 

@@ -1,0 +1,78 @@
+{
+  "baseline_audit_commit": "84e0a6362453e865fb63aab8e251867460977338",
+  "branch": "codex/web-goal11-email-draft-readback-20261110",
+  "caller_inventory": {
+    "create_email_canvas": [
+      "api/canvas_email_routes.py",
+      "tools/canvas_email_tool.py",
+      "core/pdf_canvas_service.py",
+      "tests"
+    ],
+    "read": "frontend ordinary reload uses generic GET; email-specific GET uses shared visible material projection",
+    "save_draft": [
+      "public route migrated to update_canvas_verified",
+      "service method retired typed refusal",
+      "no production caller"
+    ]
+  },
+  "evidence_files": {
+    "README.md": "45c275b52cc260e07f533d84ecaa9f7dc54d648f946d36fb95ff3ba6329ca5b2",
+    "baseline/preserved_audit.json": "ac3056ca0ef0b186ae9cd0711ff20143097f76adef41f1ce3fb9ca28bb9ae7c4",
+    "gates/affected_email_139.proof": "90021117e9f7415a25156636a6f129bbe2ae0769c336196658c6e1a415d15866",
+    "gates/legacy_route_9_pre_existing.proof": "65e157c780f4668d05b87600bd11afd7d1b06fee1b03894f5c644dc303df39c9",
+    "gates/shared_writer_12.proof": "b66396a0d8804da90cbf96bf9a56f4a1b9b664b3c51db0b8a807162a34960586",
+    "root_projection/controls.proof": "393b1ce499628de39be37d4d49989641ab37aed16f88b078d2ea08a9f2fa77b1",
+    "root_projection/review.sanitized.json": "efa5c982e644a6dd6fbcb0c3cabb3e03dd9c4d91860ed4fc1f3d376355bacac5"
+  },
+  "gates": {
+    "affected_email_group": "139 passed",
+    "attachment_review_send": "green inside affected group",
+    "legacy_route_shape": "10 passed, 9 pre-existing fixture failures",
+    "new_shared_writer": "12 passed"
+  },
+  "kind": "goal11_email_draft_shared_writer_repair_manifest",
+  "non_claims": [
+    "API/component scope, not browser or whole-GOAL-11 acceptance.",
+    "No CI/PR/merge/live DB/provider/model/browser/send/new deps.",
+    "Root independent review remains required before PR."
+  ],
+  "packet": "docs/acceptance/evidence/goal11_email_draft_shared_writer_8167d919e/",
+  "preserved_baseline": {
+    "commit": "84e0a6362453e865fb63aab8e251867460977338",
+    "manifest_sha256": "37b6e19308e55666871dc1153a5b864767cffb4bcd8b8a60a811b8c2567b5c5e",
+    "packet": "docs/acceptance/evidence/goal11_email_draft_readback_audit_0d5132c2e/"
+  },
+  "repair_commit": "8167d919e9e247b24d9fef6507f8f653011b084e",
+  "root_owned_unchanged_hashes": {
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/assignment_executor.py": "945226cce24c4fa41dad75123f0c7e362598a7967d2f29506b5da1a4b80654b3"
+  },
+  "root_projection": {
+    "actual_exit": 0,
+    "controls": "root_projection/controls.proof",
+    "result": "2 passed in 4.21s",
+    "review": "root_projection/review.sanitized.json",
+    "run": "root-email-projection-independent-20261110-9nlb_0gv",
+    "same_source": true,
+    "source_hashes": {
+      "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+      "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+      "backend/core/canvas_email_service.py": "d9a7ae87e985c9cd350d6d49c30a3ee3b482ce074e8b8f1358cf17a8cc16229f",
+      "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+      "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249"
+    }
+  },
+  "shared_mechanism_hashes": {
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249"
+  },
+  "source_hashes": {
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "d9a7ae87e985c9cd350d6d49c30a3ee3b482ce074e8b8f1358cf17a8cc16229f",
+    "backend/tests/api/test_canvas_email_routes.py": "1ba91daaff7ceae515b1b3d02277511f9f5616f384cd13815bdd28b0df181801",
+    "backend/tests/helpers/email_draft_readback_child.py": "05e9dc0d9e4890f97da9ae6d031538f7b75e221f034879070602435b324854cb",
+    "backend/tests/test_email_draft_shared_writer.py": "42962bf751b9100a9ec1d8e902ebbca8a323f201c41096356ae635dbd449b3a4"
+  },
+  "source_main": "0d5132c2e060a5f2ac338bca143c5e138e607658"
+}

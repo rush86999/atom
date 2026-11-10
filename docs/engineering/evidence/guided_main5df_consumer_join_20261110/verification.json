@@ -1,0 +1,48 @@
+{
+  "parents": [
+    "492e41ea1d2e04be13f2f0eb265e6109852c0b60",
+    "43102ed3df1bd9733dae77ba26569cb9c7d1c8b4"
+  ],
+  "result": "137 passed",
+  "local_log": "/private/tmp/root-guided-main5df-complete-backend-kwx_0gf1/gate.log",
+  "log_sha256": "64622f04cf0023cc1b9e93f47dcdc62de5edeb60705d685feb2c34b1b5bed700",
+  "tested_source_sha256": {
+    "backend/core/hitl_resume.py": "a39f409f138c1b297aacf19014ce1d2bf122fe0dc557143196a8ef036124832c",
+    "backend/core/agent_decision_write_service.py": "7f9e83bdb2485650b3d3d68ad85c1fbb4a6e45f410180b7f3a955e13b4275a4a",
+    "backend/api/agent_onboarding_routes.py": "2a697a7e578e5dc26095c816b63f2c2b4dc3a0391c582bd8b433ded62edb0319",
+    ".github/workflows/ci.yml": "a08de0560e2e592b06be065b714752a1d93beac6fed55552207ddb59ca13400d",
+    "backend/tests/fixtures/ci_backend_additions.json": "d0d6e1fc032110973cac88a04b2d0e304f702c0566cd3ef5b222eb27b482ad73"
+  },
+  "CI_union": [
+    {
+      "parent": "492e41ea1d2e04be13f2f0eb265e6109852c0b60",
+      "all_job_properties": true,
+      "step_names": true,
+      "backend_steps_exact": true,
+      "additions_exact": true
+    },
+    {
+      "parent": "43102ed3df1bd9733dae77ba26569cb9c7d1c8b4",
+      "all_job_properties": true,
+      "step_names": true,
+      "backend_steps_exact": true,
+      "additions_exact": true
+    }
+  ],
+  "scope": [
+    "guided create/direct and reviewed",
+    "custom create exact nullable material",
+    "qualification public review and promotion",
+    "HITL dispatch",
+    "real public workflow approval",
+    "separate OS scheduled restart and resume",
+    "independent acting-parent commit races"
+  ],
+  "collection_disclosure": "Initial sparse checkout omitted tracked backend dependencies and collection failed with duplicate metadata; complete tracked backend materialized; no runtime/test change or skipped test. Retained initial local log /private/tmp/root-guided-main5df-combined-r222t9l0/gate.log.",
+  "limits": [
+    "No live model quality",
+    "No universal autonomy",
+    "No whole-app completion",
+    "Fresh all13 exact-head CI required"
+  ]
+}

@@ -109,6 +109,46 @@ class EmailCanvasService:
     def __init__(self, db: Session):
         self.db = db
 
+    def _resolve_actor_scope(
+        self,
+        user_id: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> tuple:
+        """Freeze the existing authoritative actor and its displayed scope.
+
+        Reuses ``active_canvas_actor`` for validation/snapshot and
+        ``claim_canvas_actor`` for the transactional raw claim. The raw
+        tenant/workspace snapshot is what the claim compares; Personal
+        Edition's NULL->default display normalization is applied separately
+        for the Canvas/audit scope only. Supplied scope must agree with the
+        normalized authoritative scope and never overrides it.
+        """
+        from core.models import User
+        from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+        from tools.canvas_crud_tool import active_canvas_actor
+
+        # Refresh the identity map before the authoritative read; the request
+        # may already hold this User from an auth dependency.
+        self.db.query(User).filter(
+            User.id == str(user_id)).populate_existing().first()
+        actor = active_canvas_actor(self.db, user_id)
+        if not actor.get("ok"):
+            raise PermissionError(
+                str(actor.get("error") or "Acting user could not be verified"))
+        user = actor["user"]
+        authoritative_tenant = resolve_tenant_id(user)
+        authoritative_workspace = resolve_workspace_id(user)
+        supplied_tenant = str(tenant_id or "").strip()
+        supplied_workspace = str(workspace_id or "").strip()
+        if supplied_tenant and supplied_tenant != authoritative_tenant:
+            raise PermissionError(
+                "Caller scope does not match the current acting user")
+        if supplied_workspace and supplied_workspace != authoritative_workspace:
+            raise PermissionError(
+                "Caller scope does not match the current acting user")
+        return (authoritative_tenant, authoritative_workspace, actor)
+
     def create_email_canvas(
         self,
         user_id: str,
@@ -117,7 +157,9 @@ class EmailCanvasService:
         canvas_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         layout: str = "conversation",
-        template: Optional[str] = None
+        template: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new email canvas.
@@ -135,6 +177,13 @@ class EmailCanvasService:
             Dict with canvas details
         """
         try:
+            tenant_id, workspace_id, actor = self._resolve_actor_scope(
+                user_id, tenant_id, workspace_id)
+            from tools.canvas_crud_tool import claim_canvas_actor
+
+            if not claim_canvas_actor(self.db, actor):
+                raise PermissionError(
+                    "Acting user changed before the canvas could be created")
             canvas_id = canvas_id or str(uuid.uuid4())
             thread_id = str(uuid.uuid4())
 
@@ -149,7 +198,7 @@ class EmailCanvasService:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
                 created_at=_audit_now(),
-                tenant_id="default",
+                tenant_id=tenant_id,
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
@@ -205,6 +254,8 @@ class EmailCanvasService:
                             Canvas.created_by == str(user_id),
                             Canvas.canvas_type == "email",
                             Canvas.status == "active",
+                            Canvas.tenant_id == tenant_id,
+                            Canvas.workspace_id == workspace_id,
                         )
                         .order_by(desc(Canvas.updated_at))
                         .limit(50)
@@ -249,8 +300,8 @@ class EmailCanvasService:
 
             canvas_row = Canvas(
                 id=canvas_id,
-                tenant_id="default",
-                workspace_id="default",
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
                 created_by=str(user_id),
                 name=subject or "Untitled email",
                 description=f"Email canvas: {subject}" if subject else None,
@@ -549,96 +600,20 @@ class EmailCanvasService:
         to_emails: List[str],
         cc_emails: List[str] = None,
         subject: str = "",
-        body: str = ""
+        body: str = "",
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Retired direct writer.
+
+        The public draft route and all real callers use the shared verified
+        Canvas writer. This method remains only as a typed refusal so a stale
+        internal/test caller cannot mutate the Canvas mirror outside actor
+        scope, optimistic concurrency and the shared postcondition envelope.
         """
-        Save an email draft.
-
-        Args:
-            canvas_id: Canvas ID
-            user_id: User ID
-            to_emails: To recipients
-            cc_emails: CC recipients
-            subject: Subject
-            body: Email body
-
-        Returns:
-            Dict with draft details
-        """
-        try:
-            if self._canvas_owner_id(canvas_id) != str(user_id):
-                return {"success": False, "error": "Not the canvas owner"}
-
-            audit = self.db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-                CanvasAudit.canvas_type == "email"
-            ).order_by(desc(CanvasAudit.created_at)).first()
-
-            if not audit:
-                return {"success": False, "error": "Email canvas not found"}
-
-            metadata = audit.details_json or {}
-
-            # Update draft
-            draft = EmailDraft(
-                draft_id=metadata.get("draft", {}).get("draft_id", str(uuid.uuid4())),
-                to_emails=to_emails,
-                cc_emails=cc_emails or [],
-                subject=subject,
-                body=body
-            )
-
-            metadata["draft"] = self._draft_to_dict(draft)
-            metadata["last_saved"] = datetime.now().isoformat()
-
-            # The Canvas row is the public read surface. A save_draft that
-            # only appends an audit row returned success while GET /api/canvas
-            # kept serving the pre-edit body.
-            canvas_row = self.db.query(Canvas).filter(Canvas.id == canvas_id).first()
-            if canvas_row is not None:
-                content = dict(canvas_row.content or {}) if isinstance(canvas_row.content, dict) else {}
-                content.update({
-                    "to": ", ".join(to_emails or []),
-                    "cc": ", ".join(cc_emails or []),
-                    "subject": subject,
-                    "body": body,
-                })
-                canvas_row.content = content
-                canvas_row.last_edited_by = str(user_id)
-                canvas_row.last_edited_at = datetime.now(timezone.utc)
-
-            # Create draft audit entry
-            draft_audit = CanvasAudit(
-                id=str(uuid.uuid4()),
-                created_at=_audit_now(),
-                tenant_id="default",
-                user_id=user_id,
-                canvas_id=canvas_id,
-                action_type="save_draft",
-                canvas_type="email",
-                details_json={
-                    "canvas_type": "email",
-                    "component_type": "compose_form",
-                    **metadata,
-                    "content": dict(canvas_row.content or {}) if canvas_row is not None else {},
-                }
-            )
-
-            self.db.add(draft_audit)
-            self.db.commit()
-
-            logger.info(f"Saved draft for canvas {canvas_id}")
-
-            return {
-                "success": True,
-                "draft_id": draft.draft_id,
-                "message": "Draft saved"
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to save draft: {e}")
-            self.db.rollback()
-            return {"success": False, "error": str(e)}
+        raise RuntimeError(
+            "EmailCanvasService.save_draft is retired; use the public "
+            "POST /api/canvas/email/{id}/draft shared verified writer")
 
     def categorize_email(
         self,

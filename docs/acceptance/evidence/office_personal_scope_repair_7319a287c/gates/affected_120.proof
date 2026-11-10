@@ -1,0 +1,479 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 06:13:48 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [    INFO] EscalationManager initialized
+2026-11-10 06:13:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:13:48 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [    INFO] EscalationManager initialized
+2026-11-10 06:13:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:13:48 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:13:48 [    INFO] MCP Service initialized
+2026-11-10 06:13:48 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+
+tests/test_personal_scope_authority.py::test_bootstrap_null_raw_scope_exports_default_canvas 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:13:53 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_personal_scope_authority.py::test_null_actor_foreign_real_tenant_workspace_refused PASSED [  1%]
+tests/test_personal_scope_authority.py::test_inactive_unknown_and_missing_default_tenant_refused PASSED [  2%]
+tests/test_personal_scope_authority.py::test_null_raw_scope_transition_cas_refuses[default] PASSED [  3%]
+tests/test_personal_scope_authority.py::test_null_raw_scope_transition_cas_refuses[] PASSED [  4%]
+tests/test_personal_scope_authority.py::test_real_opaque_scope_is_preserved PASSED [  5%]
+tests/test_personal_scope_authority.py::test_coding_and_sheets_create_use_effective_default_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:59 [    INFO] Created coding canvas 0a81bf30-7985-401c-a2c2-a034c6b8b3e3: example/repo
+2026-11-10 06:13:59 [    INFO] Created spreadsheet canvas b72af4a9-b254-4ab2-84c0-6195f1e3d0c7: Scope sheet
+PASSED                                                                   [  5%]
+tests/test_canvas_office_export.py::test_generated_document_exports_real_docx_with_stable_bytes PASSED [  6%]
+tests/test_canvas_office_export.py::test_generated_presentation_exports_real_pptx PASSED [  7%]
+tests/test_canvas_office_export.py::test_export_refuses_stale_foreign_withheld_empty_and_wrong_format PASSED [  8%]
+tests/test_canvas_office_export.py::test_export_stable_in_fresh_child_process PASSED [  9%]
+tests/test_canvas_office_export.py::test_presentation_stable_in_fresh_child_process PASSED [ 10%]
+tests/test_canvas_office_export.py::test_default_office_dir_is_anchored_across_launch_cwd PASSED [ 10%]
+tests/test_canvas_office_export.py::test_export_rechecks_source_and_retries_on_concurrent_save PASSED [ 11%]
+tests/test_canvas_office_export.py::test_export_has_no_canvas_or_business_write_effect PASSED [ 12%]
+tests/test_canvas_office_export.py::test_validators_refuse_wrong_same_shape_docx_and_missing_pptx_body PASSED [ 13%]
+tests/test_canvas_office_export.py::test_export_renderer_error_never_echoes_local_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:12 [ WARNING] Canvas office export renderer refused (stage=render)
+PASSED                                                                   [ 14%]
+tests/test_canvas_office_export.py::test_export_refuses_unresolved_assignment_business_result PASSED [ 15%]
+tests/test_canvas_office_export.py::test_copied_flags_for_a_missing_job_cannot_certify PASSED [ 15%]
+tests/test_canvas_office_export.py::test_nonempty_business_requirements_cannot_vanish 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:15 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+PASSED                                                                   [ 16%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[malformed] PASSED [ 17%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[non_list] PASSED [ 18%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:17 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+PASSED                                                                   [ 19%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[contradictory] PASSED [ 20%]
+tests/test_canvas_office_export.py::test_real_calculation_without_exact_output_binding_is_not_certified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:19 [    INFO] runtime identity: source_id=64ee7da546a1-dirty.d7cb6631539f revision=64ee7da546a1 dirty=True (5 modified, 0 untracked)
+PASSED                                                                   [ 20%]
+tests/test_canvas_office_export.py::test_real_executor_artifact_exports_as_verified PASSED [ 21%]
+tests/test_canvas_office_export.py::test_same_owner_unrelated_job_cannot_certify PASSED [ 22%]
+tests/test_canvas_office_export.py::test_foreign_workspace_job_binding_is_refused PASSED [ 23%]
+tests/test_canvas_office_export.py::test_stale_job_source_revision_is_refused PASSED [ 24%]
+tests/test_canvas_office_export.py::test_manual_edit_after_verified_artifact_is_refused PASSED [ 25%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[section_order] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:24 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+PASSED                                                                   [ 25%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[heading_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:25 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+PASSED                                                                   [ 26%]
+tests/test_canvas_office_export.py::test_export_rechecks_revoked_actor_with_fresh_authoritative_state PASSED [ 27%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_coding_canvas_success PASSED [ 28%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_coding_canvas_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: CODING_CANVAS_CREATE_FAILED - Invalid repository URL
+PASSED                                                                   [ 29%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_coding_canvas_with_all_params PASSED [ 30%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_coding_canvas_different_branches PASSED [ 30%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_coding_canvas_calls_service PASSED [ 31%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_file_success PASSED [ 32%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_file_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: ADD_FILE_FAILED - Invalid file path
+PASSED                                                                   [ 33%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_file_different_languages PASSED [ 34%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_file_calls_service PASSED [ 35%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_diff_success PASSED [ 35%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_diff_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: ADD_DIFF_FAILED - Cannot create diff
+PASSED                                                                   [ 36%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_diff_different_files PASSED [ 37%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_diff_calls_service PASSED [ 38%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_add_multiple_files PASSED [ 39%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_create_multiple_canvases PASSED [ 40%]
+tests/api/test_canvas_coding_routes.py::TestCanvasCodingRoutes::test_coding_endpoints_return_json PASSED [ 40%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_success PASSED [ 41%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: SPREADSHEET_CREATE_FAILED - Invalid data format
+PASSED                                                                   [ 42%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_with_formulas PASSED [ 43%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_with_all_params PASSED [ 44%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_calls_service PASSED [ 45%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_update_cell_success PASSED [ 45%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_update_cell_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: CELL_UPDATE_FAILED - Invalid cell reference
+PASSED                                                                   [ 46%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_update_cell_with_formula PASSED [ 47%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_update_cell_calls_service PASSED [ 48%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_add_chart_success PASSED [ 49%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_add_chart_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:26 [ WARNING] API Error: CHART_ADD_FAILED - Invalid data range
+PASSED                                                                   [ 50%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_add_chart_different_types PASSED [ 50%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_add_chart_calls_service PASSED [ 51%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_update_multiple_cells PASSED [ 52%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_multiple_spreadsheets PASSED [ 53%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_sheets_endpoints_return_json PASSED [ 54%]
+tests/api/test_canvas_sheets_routes.py::TestCanvasSheetsRoutes::test_create_spreadsheet_various_data_types PASSED [ 55%]
+tests/api/test_web_canvas_authority.py::test_owner_sheets_and_coding_positive_twins 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:27 [    INFO] Created spreadsheet canvas f57f36af-48c5-4fdb-942d-fbf1ffdaa721: Owner Sheet
+2026-11-10 06:14:27 [    INFO] Created coding canvas 9cfa7398-9491-4f0f-8231-19fa19242abc: owner/repo
+PASSED                                                                   [ 55%]
+tests/api/test_web_canvas_authority.py::test_same_tenant_peer_sheets_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:28 [    INFO] Created spreadsheet canvas 46a38a3d-5fdf-4b60-865e-15285d5b9fbe: Owner Sheet
+2026-11-10 06:14:28 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 46a38a3d-5fdf-4b60-865e-15285d5b9fbe not found
+2026-11-10 06:14:28 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 46a38a3d-5fdf-4b60-865e-15285d5b9fbe not found
+2026-11-10 06:14:28 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 46a38a3d-5fdf-4b60-865e-15285d5b9fbe not found
+PASSED                                                                   [ 56%]
+tests/api/test_web_canvas_authority.py::test_same_tenant_peer_coding_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:29 [    INFO] Created coding canvas 1e45da3f-47d8-4147-9ae6-6c00145c0908: owner/repo
+2026-11-10 06:14:29 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 1e45da3f-47d8-4147-9ae6-6c00145c0908 not found
+2026-11-10 06:14:29 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 1e45da3f-47d8-4147-9ae6-6c00145c0908 not found
+2026-11-10 06:14:29 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas 1e45da3f-47d8-4147-9ae6-6c00145c0908 not found
+PASSED                                                                   [ 57%]
+tests/api/test_web_canvas_authority.py::test_inactive_actor_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:29 [    INFO] Created spreadsheet canvas f7c4b48f-7b1b-4358-bb78-0023a4c42dee: Owner Sheet
+2026-11-10 06:14:29 [    INFO] Created coding canvas 1e96b863-ff34-4a09-95e4-71ea327c49a3: owner/repo
+2026-11-10 06:14:29 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+2026-11-10 06:14:29 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+2026-11-10 06:14:29 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+PASSED                                                                   [ 58%]
+tests/api/test_web_canvas_authority.py::test_same_scope_coeditor_still_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:30 [    INFO] Created spreadsheet canvas 55d08892-0566-4e9f-a8b8-55c26722d8d1: Owner Sheet
+2026-11-10 06:14:30 [    INFO] Created coding canvas ce5955c1-66cd-40c6-92f3-32aaa6654c28: owner/repo
+PASSED                                                                   [ 59%]
+tests/api/test_web_canvas_authority.py::test_foreign_scope_coeditor_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:31 [    INFO] Created spreadsheet canvas 0d5dd9e4-6fbc-49f3-8e83-9032d2f6f699: Owner Sheet
+2026-11-10 06:14:31 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+2026-11-10 06:14:31 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+PASSED                                                                   [ 60%]
+tests/api/test_web_canvas_authority.py::test_create_collision_same_family_cross_family_and_same_owner 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:32 [    INFO] Created spreadsheet canvas 3bb711b4-00f7-444c-a2b6-3edb64d5a1ef: Owner Sheet
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 3bb711b4-00f7-444c-a2b6-3edb64d5a1ef already exists
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 3bb711b4-00f7-444c-a2b6-3edb64d5a1ef already exists
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 3bb711b4-00f7-444c-a2b6-3edb64d5a1ef already exists
+2026-11-10 06:14:32 [    INFO] Created coding canvas 2f1719d7-c50b-48f0-8677-426a4d485d56: owner/repo
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 2f1719d7-c50b-48f0-8677-426a4d485d56 already exists
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 2f1719d7-c50b-48f0-8677-426a4d485d56 already exists
+2026-11-10 06:14:32 [    INFO] Created spreadsheet canvas fresh-explicit-id: Fresh
+2026-11-10 06:14:32 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id fresh-explicit-id already exists
+PASSED                                                                   [ 60%]
+tests/api/test_web_canvas_authority.py::test_body_user_id_is_not_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:33 [    INFO] Created spreadsheet canvas eda56420-84f7-4dd9-988d-593f3f0abf19: Body Spoof
+PASSED                                                                   [ 61%]
+tests/api/test_web_canvas_authority.py::test_direct_service_calls_cannot_bypass_route_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:33 [    INFO] Created spreadsheet canvas 0410121d-f569-4c4a-947f-7dbdce8fea85: Owner Sheet
+2026-11-10 06:14:33 [    INFO] Created coding canvas fc0444bc-c48c-4003-8f80-cbb226be0b37: owner/repo
+PASSED                                                                   [ 62%]
+tests/api/test_web_canvas_authority.py::test_missing_actor_refused_but_null_default_is_valid_personal 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:34 [    INFO] Created spreadsheet canvas a551e85c-6d33-413d-96a6-688d207a49d2: No Tenant
+2026-11-10 06:14:34 [    INFO] Created spreadsheet canvas 43575fe1-01c8-4588-8184-998a5517e6fb: No Tenant
+PASSED                                                                   [ 63%]
+tests/api/test_web_canvas_authority.py::test_stale_actor_deactivation_before_claim_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:35 [    INFO] Created spreadsheet canvas da6a760c-f4aa-4ef6-9d34-5e6be00ce6bd: Owner Sheet
+2026-11-10 06:14:35 [ WARNING] API Error: CANVAS_AUTHORITY_CHANGED - Actor authority changed before canvas write
+PASSED                                                                   [ 64%]
+tests/api/test_web_canvas_authority.py::test_target_canvas_scope_move_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:36 [    INFO] Created spreadsheet canvas 02b0b5cc-97ee-4468-a73c-ca5a74346342: Owner Sheet
+2026-11-10 06:14:36 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+PASSED                                                                   [ 65%]
+tests/api/test_web_canvas_authority.py::test_legacy_audit_only_target_scope_move_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:36 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+PASSED                                                                   [ 65%]
+tests/api/test_web_canvas_authority.py::test_canvas_scope_move_between_check_and_cas_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:37 [    INFO] Created spreadsheet canvas 0213f34f-1712-4eca-8e58-5f05551ca41f: Owner Sheet
+2026-11-10 06:14:37 [ WARNING] API Error: CANVAS_TARGET_CHANGED - Canvas target changed before write
+PASSED                                                                   [ 66%]
+tests/api/test_web_canvas_authority.py::test_audit_only_append_between_check_and_cas_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:38 [ WARNING] API Error: CANVAS_TARGET_CHANGED - Canvas target changed before write
+PASSED                                                                   [ 67%]
+tests/api/test_web_canvas_authority.py::test_concurrent_same_id_create_has_one_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:39 [    INFO] Created spreadsheet canvas race-same-id: Race Sheet
+PASSED                                                                   [ 68%]
+tests/api/test_web_canvas_authority.py::test_fresh_session_and_child_process_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Created spreadsheet canvas 90ef8cd1-c54e-47a2-bdc8-ff03125f29a9: Owner Sheet
+PASSED                                                                   [ 69%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasSheetsService::test_dataclasses PASSED [ 70%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasSheetsService::test_create_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Created spreadsheet canvas cid: Sheet
+2026-11-10 06:14:40 [   ERROR] Failed to create spreadsheet: boom
+PASSED                                                                   [ 70%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasSheetsService::test_update_cell_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to update cell: db down
+PASSED                                                                   [ 71%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasSheetsService::test_update_cell_transactional_commit_and_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Started sandbox transaction on <scratch-path> Snapshot saved to <scratch-path>
+2026-11-10 06:14:40 [    INFO] Committed sandbox transaction on <scratch-path>
+2026-11-10 06:14:40 [    INFO] Started sandbox transaction on <scratch-path> Snapshot saved to <scratch-path>
+2026-11-10 06:14:40 [ WARNING] Aborting sandbox transaction on <scratch-path> due to exception: Transactional failure: formula validation breached limits
+2026-11-10 06:14:40 [    INFO] Rolled back sandbox transaction on <scratch-path>
+2026-11-10 06:14:40 [ WARNING] Canvas transaction rolled back: Transactional failure: formula validation breached limits
+PASSED                                                                   [ 72%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasSheetsService::test_add_chart_and_pivot 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to add chart: x
+2026-11-10 06:14:40 [   ERROR] Failed to add pivot table to canvas: x
+PASSED                                                                   [ 73%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasCodingService::test_dataclasses PASSED [ 74%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasCodingService::test_create_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Created coding canvas cid: atom/backend
+2026-11-10 06:14:40 [   ERROR] Failed to create coding canvas: boom
+PASSED                                                                   [ 75%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasCodingService::test_add_file 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to add file: x
+PASSED                                                                   [ 75%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasCodingService::test_add_diff 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to add diff: x
+PASSED                                                                   [ 76%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasTerminalService::test_dataclasses PASSED [ 77%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasTerminalService::test_create_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Created terminal canvas cid
+2026-11-10 06:14:40 [   ERROR] Failed to create terminal canvas: boom
+PASSED                                                                   [ 78%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasTerminalService::test_add_output 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to add output: x
+PASSED                                                                   [ 79%]
+tests/test_covpush_w105_gaps_b.py::TestCanvasTerminalService::test_update_file_tree 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to update file tree: x
+PASSED                                                                   [ 80%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_agent_lookup_exact_fuzzy_template_none 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Agent look up failed: db
+PASSED                                                                   [ 80%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_get_orchestrator_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [   ERROR] Failed to initialize ChatOrchestrator: no orchestrator
+PASSED                                                                   [ 81%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_standardize_platforms PASSED [ 82%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_process_orchestrator_unavailable_and_route_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: hello from u
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: hello from u
+2026-11-10 06:14:40 [   ERROR] Failed to route response back to slack: route fail
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [   ERROR] Error in Universal Bridge (slack): bad payload
+PASSED                                                                   [ 83%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_run_command_success_and_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /run finance analyze spending from u
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'run' with args ['finance', 'analyze spending']
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /run myagent do from u1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'run' with args ['myagent', 'do']
+2026-11-10 06:14:40 [   ERROR] Failed to trigger agent command: nope
+PASSED                                                                   [ 84%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_run_command_no_args_falls_through 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'run' with args []
+PASSED                                                                   [ 85%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_workflow_command 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /workflow wf-1 from u
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'workflow' with args ['wf-1']
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /workflow wf from u1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'workflow' with args ['wf']
+2026-11-10 06:14:40 [   ERROR] Failed to trigger workflow: import of advanced_workflow_orchestrator halted; None in sys.modules
+PASSED                                                                   [ 85%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_agents_command 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /agents from u
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'agents' with args []
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /agents from u1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'agents' with args []
+2026-11-10 06:14:40 [   ERROR] Failed to list agents: db
+PASSED                                                                   [ 86%]
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_help_and_status_commands 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /help from u
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'help' with args []
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from whatsapp
+2026-11-10 06:14:40 [    INFO] Standardized message: /status from +1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'status' with args []
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /status from u1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'status' with args []
+2026-11-10 06:14:40 [   ERROR] Failed to get status: nope
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Processing message from slack
+2026-11-10 06:14:40 [    INFO] Standardized message: /bogus from u1
+2026-11-10 06:14:40 [    INFO] Universal Bridge: Handling command 'bogus' with args []
+PASSED                                                                   [ 87%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_mcp_tool_to_dict PASSED [ 88%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_resolve_route PASSED [ 89%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_list_models PASSED [ 90%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_compress_text PASSED [ 90%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_set_compression PASSED [ 91%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_get_spend PASSED [ 92%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_get_health PASSED [ 93%]
+tests/test_covpush_w105_gaps_b.py::TestMCPTools::test_handle_fusion_generate PASSED [ 94%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_step_and_chain_basics PASSED [ 95%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_to_mermaid_and_to_dict PASSED [ 95%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_tracker_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Completed reasoning chain exec-1: 2 steps
+PASSED                                                                   [ 96%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_submit_step_feedback_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [ WARNING] Chain nope not found
+2026-11-10 06:14:40 [ WARNING] Step nope not found in chain fb-chain
+2026-11-10 06:14:40 [    INFO] Feedback submitted on step 49de2c35-ef3a-421d-9935-6c6a6101c452: reject (trusted=True)
+2026-11-10 06:14:40 [    INFO] Feedback submitted on step 49de2c35-ef3a-421d-9935-6c6a6101c452: suggest (trusted=False)
+PASSED                                                                   [ 97%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_check_user_trust 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [ WARNING] Could not check user trust: db
+PASSED                                                                   [ 98%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:14:40 [    INFO] Applied feedback to agent ag learning
+2026-11-10 06:14:40 [    INFO] Applied feedback to agent ag2 learning
+2026-11-10 06:14:40 [    INFO] Applied feedback to agent ag3 learning
+2026-11-10 06:14:40 [   ERROR] Failed to apply feedback to agent: import of core.agent_governance_service halted; None in sys.modules
+PASSED                                                                   [ 99%]
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_global_tracker PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  <scratch-path> PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  <scratch-path> FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  <scratch-path> PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_standardize_platforms
+  tests/test_covpush_w105_gaps_b.py:347: PytestWarning: The test <Function test_standardize_platforms> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove asyncio marker. If the test is not marked explicitly, check for global markers applied via 'pytestmark'.
+    def test_standardize_platforms(self):
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_agents_command
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2133: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_agents_command
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2133: RuntimeWarning: coroutine 'execute_agent_task' was never awaited
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 120 passed, 16 warnings in 70.01s (0:01:10) ==================

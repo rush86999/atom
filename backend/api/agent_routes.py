@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_decision_write_service import (
     admit_agent_run as _admit_agent_run,
+    create_agent as _create_agent_decision,
     delete_agent as _delete_agent_decision,
     promote_agent as _promote_agent_decision,
     replace_agent as _replace_agent_decision,
@@ -128,6 +129,20 @@ def _safe_decision_observation(
 def _raise_agent_decision(result: Dict[str, Any]) -> None:
     """Map the verified agent-decision envelope to a safe HTTP error."""
     status_value = str(result.get("status") or "")
+    if status_value == "unresolved":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "success": False,
+                "error": {
+                    "code": "QUALIFICATION_REQUIRED",
+                    "message": result.get("error")
+                    or "Capability qualification is unresolved.",
+                },
+                "assessment": result.get("assessment"),
+                "verification": result.get("verification"),
+            },
+        )
     if status_value == "refused":
         raise HTTPException(
             status_code=int(result.get("http_status") or 403),
@@ -1000,8 +1015,10 @@ async def decide_hitl_action(
     if already_resolved:
         _is_info_wait = str(action.action_type or "") in (
             _INFORMATION_WAIT_ACTIONS)
-        if _is_info_wait:
-            if (
+        _is_qualification = (
+            str(action.action_type or "") == "agent_qualification_review")
+        if _is_info_wait or _is_qualification:
+            if _is_info_wait and (
                 action.status == HITLActionStatus.APPROVED.value
                 and action.user_feedback is not None
                 and req.feedback is not None
@@ -1030,6 +1047,7 @@ async def decide_hitl_action(
                         approved=True,
                         reviewer_id=str(user.id),
                         guidance=review_guidance,
+                        bind=db.get_bind(),
                     )
                 except Exception as resume_err:  # noqa: BLE001
                     logger.exception(
@@ -1106,6 +1124,7 @@ async def decide_hitl_action(
             approved=req.decision.lower() == "approved",
             reviewer_id=str(user.id),
             guidance=req.feedback,
+            bind=db.get_bind(),
         )
     except Exception as resume_err:  # noqa: BLE001 — decision already committed
         logger.exception("HITL %s decided but resume bridge failed: %s", action_id, resume_err)
@@ -3604,49 +3623,41 @@ class AgentReplaceRequest(BaseModel):
 @router.post("/custom", status_code=201)
 async def create_custom_agent(
     req: CustomAgentRequest,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a fully custom agent with configuration and schedule.
 
-    Returns 201 Created on success (HTTP standard for resource creation).
+    The verified decision binds the current actor/scope, forces STUDENT, writes
+    one durable audit receipt, replays idempotently, and refuses a concurrent
+    actor change. Create remains create: no name-based upsert or uniqueness
+    policy is introduced.
     """
-    # 1. Create Agent. The employee's scope is the authenticated user's
-    # effective scope, not NULL: assignment start resolves an agent by
-    # workspace + tenant, so an unscoped hire was visible in the list but
-    # could not be given work on a fresh install.
-    workspace_id = getattr(current_user, "workspace_id", None) or "default"
-    tenant_id = getattr(current_user, "tenant_id", None) or "default"
-    registry_entry = AgentRegistry(
+    result = _create_agent_decision(
+        db,
+        actor=current_user,
         name=req.name,
-        description=req.description,
         category=req.category,
+        description=req.description,
         configuration=req.configuration,
         schedule_config=req.schedule_config,
-        module_path="core.generic_agent",
-        class_name="GenericAgent",
-        status=AgentStatus.STUDENT.value,
-        workspace_id=workspace_id,
-        tenant_id=tenant_id,
-        # Round 86: start hires below the INTERN band floor (0.5). The old
-        # 0.5 default put every new employee one graded rehearsal away from
-        # promotion — confidence should reflect demonstrated work, and the
-        # evidence gate (student_training_service) now requires it anyway.
-        confidence_score=NEW_AGENT_CONFIDENCE,
+        operation_id=operation_id,
     )
-    db.add(registry_entry)
-    db.commit()
-    db.refresh(registry_entry)
-    
-    # 2. Schedule if needed
-    if req.schedule_config and req.schedule_config.get("active"):
+    _raise_agent_decision(result)
+    data = dict(result.get("data") or {})
+
+    # Schedule only on the first verified create; a replay must not schedule
+    # a second time.
+    if (result.get("status") == "verified"
+            and req.schedule_config and req.schedule_config.get("active")):
         from core.scheduler import AgentScheduler
         scheduler = AgentScheduler.get_instance()
-        scheduler.schedule_agent(registry_entry.id, req.schedule_config)
-        
+        scheduler.schedule_agent(data["agent_id"], req.schedule_config)
+
     return router.success_response(
-        data={"agent_id": registry_entry.id},
+        data=data,
         message=f"Custom agent {req.name} created successfully"
     )
 

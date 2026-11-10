@@ -32,12 +32,21 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ.setdefault("TESTING", "1")
 
+from api.agent_routes import router as agent_router
 from api.episode_routes import router
 from core.agent_graduation_service import AgentGraduationService
 from core.auth import get_current_user
-from core.database import get_db
+from core.database import Base, get_db
 from core.episode_service import EpisodeService
-from core.models import AgentEpisode, AgentRegistry, AgentStatus, AuditLog, User, UserRole
+from core.models import (
+    AgentEpisode,
+    AgentExecution,
+    AgentRegistry,
+    AgentStatus,
+    AuditLog,
+    User,
+    UserRole,
+)
 
 
 @pytest.fixture()
@@ -46,10 +55,7 @@ def db_session(tmp_path):
         f"sqlite:///{tmp_path}/readiness_tenant_test.db",
         connect_args={"check_same_thread": False},
     )
-    User.__table__.create(engine)
-    AgentRegistry.__table__.create(engine)
-    AgentEpisode.__table__.create(engine)
-    AuditLog.__table__.create(engine)
+    Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as session:
         yield session
@@ -119,9 +125,56 @@ def make_user(db, user_id, tenant_id, workspace_id, role=UserRole.TEAM_LEAD.valu
 def make_client(db, user):
     app = FastAPI()
     app.include_router(router)
+    app.include_router(agent_router)
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app)
+
+
+def grant_real_qualification(db, requester, reviewer, agent, target):
+    """Use the real qualification request/review path to unlock promotion.
+
+    The old positives created only readiness evidence; the graduation contract
+    intentionally requires a scoped capability review/receipt for every upward
+    transition. This seeds a real held-out execution and drives the same
+    request -> approval -> receipt path the server uses, without fabricating a
+    passed receipt or weakening the gate.
+    """
+    execution = AgentExecution(
+        id=f"exec-{uuid.uuid4().hex[:10]}",
+        agent_id=agent.id,
+        tenant_id=agent.tenant_id,
+        workspace_id=agent.workspace_id,
+        status="completed",
+        input_summary="held-out qualification task",
+        result_summary="actual durable qualification output",
+        completed_at=datetime.now(timezone.utc),
+    )
+    db.add(execution)
+    db.commit()
+
+    requested = make_client(db, requester).post(
+        "/api/episodes/graduation/qualification/request",
+        json={
+            "agent_id": agent.id,
+            "target_maturity": target,
+            "evidence_refs": [
+                {"kind": "agent_execution", "id": execution.id}
+            ],
+            "rubric_version": "heldout-v1",
+        },
+    )
+    assert requested.status_code == 200, requested.text
+    action_id = requested.json()["data"]["action_id"]
+
+    approved = make_client(db, reviewer).post(
+        f"/api/agents/approvals/{action_id}",
+        json={"decision": "approved", "feedback": "held-out work reviewed"},
+    )
+    assert approved.status_code == 200, approved.text
+    resume = (approved.json().get("data") or {}).get("resume") or {}
+    assert resume.get("resumed") is True, approved.json()
+    db.expire_all()
 
 
 @pytest.fixture()
@@ -389,6 +442,12 @@ class TestPromotionReadinessGate:
             constitutional_score=1.0,
             confidence_score=1.0,
         )
+        reviewer = make_user(
+            db_session, "gate-admin", "tenant-1", "workspace-1",
+            role=UserRole.WORKSPACE_ADMIN.value,
+        )
+        grant_real_qualification(
+            db_session, user, reviewer, agent, target)
         client = make_client(db_session, user)
 
         response = client.post(
@@ -396,7 +455,7 @@ class TestPromotionReadinessGate:
             params={"agent_id": agent.id, "new_maturity": target},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["data"]["promoted"] is True
         db_session.expire_all()
         assert db_session.get(AgentRegistry, agent.id).status == target.lower()
@@ -435,9 +494,16 @@ class TestPromotionReadinessGate:
             constitutional_score=1.0,
             confidence_score=1.0,
         )
+        reviewer = make_user(
+            db_session, "gate-admin", "tenant-1", "workspace-1",
+            role=UserRole.WORKSPACE_ADMIN.value,
+        )
+        grant_real_qualification(
+            db_session, user, reviewer, agent, "INTERN")
         promoted = client.post("/api/episodes/graduation/promote", params=params)
 
         assert blocked.json()["data"]["promoted"] is False
+        assert promoted.status_code == 200, promoted.text
         assert promoted.json()["data"]["promoted"] is True
 
     def test_unreadable_evidence_fails_closed(self, db_session, isolated_promotion):

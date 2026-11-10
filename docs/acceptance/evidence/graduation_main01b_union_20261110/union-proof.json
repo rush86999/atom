@@ -1,0 +1,29 @@
+{
+  "parents": [
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844",
+    "01b554c55045334fa562cd2858c278f5bb3e1545"
+  ],
+  "checks": {
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:syntax-gate": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:full-app-boots": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:quickstart-install": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:quickstart": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:backend-core": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:backend-oracle": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:backend-tests": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:e2e-journey": "preserved",
+    "d6362a756e0dffaa7218e6fb3f44ac8ccb7fa844:frontend-typecheck": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:syntax-gate": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:full-app-boots": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:quickstart-install": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:quickstart": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:backend-core": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:backend-oracle": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:backend-tests": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:e2e-journey": "preserved",
+    "01b554c55045334fa562cd2858c278f5bb3e1545:frontend-typecheck": "preserved"
+  },
+  "all_parent_steps_preserved": true,
+  "immutable_ci_ledger_preserved": true,
+  "goal_catalog_unchanged": true
+}

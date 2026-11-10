@@ -7909,6 +7909,7 @@ class AssignmentExecutor:
             "summary": _bounded(result.get("summary") or "", 500),
             "evidence": result.get("evidence") or [],
             "artifact": result.get("artifact"),
+            "content_sha256": result.get("content_sha256"),
             "artifact_revision": (
                 (result.get("artifact") or {}).get("revision")
                 if isinstance(result.get("artifact"), dict) else None),
@@ -10225,6 +10226,8 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
     return {
         "status": "applied",
         "summary": f"rendered {Path(path).name}",
+        "content_sha256": hashlib.sha256(
+            content.encode("utf-8")).hexdigest(),
         "artifact": {
             "kind": "document",
             "path": path,
@@ -10322,6 +10325,8 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
     return {
         "status": "applied",
         "summary": f"rendered {Path(path).name}",
+        "content_sha256": hashlib.sha256(
+            content.encode("utf-8")).hexdigest(),
         "artifact": {
             "kind": "presentation",
             "path": path,

@@ -276,7 +276,27 @@ def test_update_replay_changed_material_and_later_revision(env):
     assert later.json()["detail"]["error"]["code"] == "AGENT_COMMITTED_UNVERIFIED"
 
 
+def _allow_manual_test_agents(monkeypatch):
+    """Explicit exact-agent owner exception for receipt/CAS controls only."""
+    from core.promotion_policy_service import AssessmentPolicy, ASSESSMENT_POLICY_KEY
+    policy = AssessmentPolicy().model_dump()
+    policy["exceptions"]["manual"].update(
+        allowed=True, agent_ids=["a1", "a2"],
+        reason="Owner-authorized exact test agents for decision receipt controls")
+    monkeypatch.setenv(ASSESSMENT_POLICY_KEY, json.dumps(policy))
+
+
+def test_unqualified_manual_promotion_is_not_an_authority_bypass(env):
+    response = env.client(env.actors["wsa-1"]).post(
+        "/api/agents/a1/promote?operation_id=unqualified")
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"]["code"] == "QUALIFICATION_REQUIRED"
+    assert _agent(env, "a1").status == "student"
+    assert _audits(env) == []
+
+
 def test_promote_transitions_replay_and_stale(env, monkeypatch):
+    _allow_manual_test_agents(monkeypatch)
     client = env.client(env.actors["wsa-1"])
     first = client.post("/api/agents/a1/promote?operation_id=promote-one")
     assert first.status_code == 200, first.text
@@ -306,6 +326,20 @@ def test_promote_transitions_replay_and_stale(env, monkeypatch):
     assert stale.status_code == 409, stale.text
     assert stale.json()["detail"]["error"]["code"] == "STALE_TARGET"
     assert _agent(env, "a2").status == "graduated"
+
+
+@pytest.mark.parametrize("changed", ["last_exam_id", "promotion_count"])
+def test_promote_replay_refutes_changed_qualification_material(env, monkeypatch, changed):
+    _allow_manual_test_agents(monkeypatch)
+    client = env.client(env.actors["wsa-1"])
+    path = "/api/agents/a1/promote?operation_id=qualification-material"
+    assert client.post(path).status_code == 200
+    _peer_update(env, "a1", **{changed: "changed-receipt" if changed == "last_exam_id" else 99})
+    response = client.post(path)
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"]["verification"]["effect"] == "committed"
+    assert len(_audits(env)) == 1
+    assert getattr(_agent(env, "a1"), changed) == ("changed-receipt" if changed == "last_exam_id" else 99)
 
 
 @pytest.mark.parametrize("kind", ["update", "promote"])
@@ -349,6 +383,8 @@ def test_authority_change_before_claim_refuses(env, monkeypatch, kind, change):
 
 @pytest.mark.parametrize("kind", ["update", "promote"])
 def test_confirmed_audit_rollback_reports_effect_none(env, monkeypatch, kind):
+    if kind == "promote":
+        _allow_manual_test_agents(monkeypatch)
     original = service._audit_row
 
     def invalid_audit(**kwargs):

@@ -1,0 +1,37 @@
+{
+  "schema": "atom-oracle-agent-create-routes-1",
+  "executed_source": "9dc1e84a9",
+  "base_main": "01b554c55045334fa562cd2858c278f5bb3e1545",
+  "prefix": "/api/agents",
+  "route": {
+    "method": "POST",
+    "path": "/api/agents/custom",
+    "handler": "api.agent_routes.create_custom_agent",
+    "service": "core.agent_decision_write_service.create_agent",
+    "semantics": "create-only custom agent; optional operation_id; no name-based upsert or uniqueness policy"
+  },
+  "authority": {
+    "route": "require_permission(Permission.AGENT_MANAGE) plus get_current_user",
+    "service": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the create transaction",
+    "scope": "created row uses the actor's resolved tenant/workspace; body identity/scope/tier fields are ignored",
+    "authority_change": "409 AUTHORITY_CHANGED with effect=none and no row"
+  },
+  "material": {
+    "request": ["name", "category", "description", "configuration digest", "schedule digest"],
+    "created": ["id", "tenant_id", "workspace_id", "name", "description", "category", "configuration digest", "schedule digest", "module_path", "class_name", "status", "confidence_score"],
+    "forced": ["status=student", "confidence_score=0.35"],
+    "sensitive_material": "no raw configuration, schedule or secret in the receipt or logs"
+  },
+  "effect": {
+    "write": "one AgentRegistry insert",
+    "receipt": "one AuditLog action=agent_created in the same transaction",
+    "readback": "fresh session; receipt and exact created-material digest must verify",
+    "scheduler": "only after the first verified create; never on replay",
+    "states": "verified; already_applied; refused 401/403/422; conflict 409 AUTHORITY_CHANGED/OPERATION_CONFLICT; not_applied 409; committed_unverified 503"
+  },
+  "parallel_writers": {
+    "guided": "POST /api/agents/guided still direct-commits; not repaired in this slice",
+    "spawn": "POST /api/agents/spawn persists through register_or_update_agent (create-or-upsert); not repaired in this slice",
+    "registration": "AgentGovernanceService.register_or_update_agent unchanged; create-versus-upsert preserved"
+  }
+}

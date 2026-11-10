@@ -14,18 +14,22 @@ Design goal (per Brennan Machinery product direction):
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.agent_decision_write_service import create_agent as _create_agent_decision
 from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.guided_automation_service import (
+    GUIDED_CREATE_REVIEW_SCHEMA,
     get_automation_suggestion_service,
     get_guided_agent_factory,
+    guided_create_review_digest,
 )
-from core.models import AgentRegistry, AgentStatus
+from core.models import AgentRegistry, AgentStatus, UserRole
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.service_factory import ServiceFactory
 
 logger = logging.getLogger(__name__)
@@ -77,6 +81,7 @@ class SuggestionCreateRequest(BaseModel):
 @router.post("/guided", status_code=201)
 async def create_guided_agent(
     req: GuidedAgentRequest,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -92,45 +97,6 @@ async def create_guided_agent(
     """
     workspace_id = getattr(current_user, "workspace_id", None) or "default"
     tenant_id = getattr(current_user, "tenant_id", None) or "default"
-
-    # --- Trust/maturity gate for agent-initiated creation ---
-    if req.acting_agent_id:
-        governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
-        decision = await governance.can_perform_action_async(
-            agent_id=req.acting_agent_id,
-            action_type="create_agent",
-        )
-        allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
-        if not allowed:
-            reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Trust policy requires human approval for agent creation"
-            hitl_action_id = None
-            try:
-                hitl_action_id = governance.request_approval(
-                    agent_id=req.acting_agent_id,
-                    action_type="create_agent",
-                    params={
-                        "goal": req.goal,
-                        "context": req.context,
-                        "created_by_user": str(getattr(current_user, "id", "unknown")),
-                        "tenant_id": tenant_id,
-                    },
-                    reason=reason,
-                )
-            except Exception as e:
-                logger.error(f"Failed to create HITL action for guided agent creation: {e}")
-            # 202 Accepted: creation is queued behind human review, not done.
-            from fastapi.responses import JSONResponse
-            return JSONResponse(
-                status_code=202,
-                content=router.success_response(
-                    data={
-                        "status": "pending_approval",
-                        "hitl_action_id": hitl_action_id,
-                        "reason": reason,
-                    },
-                    message="Agent creation requires human approval — request queued for review",
-                ),
-            )
 
     # --- Design the agent from the goal ---
     factory = get_guided_agent_factory()
@@ -150,51 +116,167 @@ async def create_guided_agent(
         "curriculum": ROLE_CURRICULUM.get(role, []),
     }
 
-    registry_entry = AgentRegistry(
+    # --- Trust/maturity gate for agent-initiated creation ---
+    if req.acting_agent_id:
+        governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        visible_agents = {
+            agent.id: agent for agent in governance.list_agents()
+        }
+        acting_agent = visible_agents.get(req.acting_agent_id)
+        if (
+            acting_agent is None
+            or resolve_tenant_id(acting_agent) != str(tenant_id)
+        ):
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
+        decision = await governance.can_perform_action_async(
+            agent_id=req.acting_agent_id,
+            action_type="create_agent",
+        )
+        allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
+        if not allowed:
+            reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Trust policy requires human approval for agent creation"
+            created_by = str(getattr(current_user, "id", "unknown"))
+            review_params = {
+                "schema": GUIDED_CREATE_REVIEW_SCHEMA,
+                "goal": req.goal,
+                "context": req.context,
+                "name": blueprint["name"],
+                "description": blueprint.get("description"),
+                "category": blueprint["category"],
+                "capabilities": blueprint.get("capabilities"),
+                "configuration": configuration,
+                "template": blueprint.get("template"),
+                "schedule_config": req.schedule_config,
+                "acting_agent_id": req.acting_agent_id,
+                "created_by_user": created_by,
+                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
+            }
+            review_params["review_digest"] = guided_create_review_digest(
+                review_params)
+            hitl_action_id = None
+            try:
+                hitl_action_id = governance.request_approval(
+                    agent_id=req.acting_agent_id,
+                    action_type="create_agent",
+                    params=review_params,
+                    reason=reason,
+                    execution_context={
+                        "workspace_id": workspace_id,
+                        "tenant_id": tenant_id,
+                        "actor_id": created_by,
+                        "user_id": created_by,
+                    },
+                    user_id=created_by,
+                )
+            except Exception as e:
+                logger.error(f"Failed to create HITL action for guided agent creation: {e}")
+            # 202 Accepted: creation is queued behind human review, not done.
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=202,
+                content=router.success_response(
+                    data={
+                        "status": "pending_approval",
+                        "hitl_action_id": hitl_action_id,
+                        "reason": reason,
+                    },
+                    message="Agent creation requires human approval — request queued for review",
+                ),
+            )
+
+    parent_authority = None
+    if req.acting_agent_id:
+        # Generation may await. Read the exact acting-agent material after it
+        # returns; the create transaction conditionally claims this snapshot,
+        # so a peer move/demote/delete after this read loses the claim instead
+        # of creating a child with stale authority.
+        parent_row = (
+            db.query(AgentRegistry)
+            .filter(AgentRegistry.id == req.acting_agent_id)
+            .populate_existing()
+            .first()
+        )
+        if parent_row is None:
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
+        expected_workspace = (
+            "default" if str(workspace_id) == "default"
+            else str(workspace_id))
+        if (
+            str(resolve_workspace_id(parent_row)) != expected_workspace
+            or resolve_tenant_id(parent_row) != str(tenant_id)
+        ):
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
+        parent_authority = {
+            "id": str(parent_row.id),
+            "tenant_id": parent_row.tenant_id,
+            "workspace_id": parent_row.workspace_id,
+            "status": parent_row.status,
+            "confidence_score": parent_row.confidence_score,
+            "enabled": parent_row.enabled,
+            "last_exam_id": parent_row.last_exam_id,
+            "configuration": parent_row.configuration,
+            "capabilities": parent_row.capabilities,
+        }
+
+    result = _create_agent_decision(
+        db,
+        actor=current_user,
         name=blueprint["name"],
-        description=blueprint["description"],
         category=blueprint["category"],
-        capabilities=blueprint.get("capabilities"),
+        description=blueprint.get("description"),
         configuration=configuration,
         schedule_config=req.schedule_config,
-        module_path="core.generic_agent",
-        class_name="GenericAgent",
-        # Always spoon-fed to start: employees and autonomous agents alike
-        # get a STUDENT that must graduate before acting unattended.
-        status=AgentStatus.STUDENT.value,
-        # Spoon-fed start: fresh students begin with low confidence and earn
-        # it through teaching/observation (capped below the promotion
-        # threshold) — the model default of 0.5 would already sit at the
-        # training-review boundary.
+        # Server-owned student qualification contract: the caller cannot
+        # submit status/confidence/user/scope, and the generated blueprint
+        # cannot choose them either.
         confidence_score=0.1,
         user_id=str(getattr(current_user, "id", "unknown")),
-        workspace_id=workspace_id,
-        tenant_id=tenant_id,
+        parent_agent_id=req.acting_agent_id,
+        parent_authority=parent_authority,
+        capabilities=blueprint.get("capabilities"),
+        minimum_role=UserRole.GUEST,
+        authority_label="GUIDED_CREATE",
+        operation_id=operation_id,
     )
-    if req.acting_agent_id:
-        registry_entry.parent_agent_id = req.acting_agent_id
+    from api.agent_routes import _raise_agent_decision
 
-    db.add(registry_entry)
-    db.commit()
-    db.refresh(registry_entry)
+    _raise_agent_decision(result)
+    data = dict(result.get("data") or {})
 
-    if req.schedule_config and req.schedule_config.get("active"):
+    # A followup effect only after the first verified create; replay must not
+    # schedule the same agent a second time.
+    if (
+        result.get("status") == "verified"
+        and req.schedule_config
+        and req.schedule_config.get("active")
+    ):
         try:
             from core.scheduler import AgentScheduler
-            AgentScheduler.get_instance().schedule_agent(registry_entry.id, req.schedule_config)
+            AgentScheduler.get_instance().schedule_agent(
+                data["agent_id"], req.schedule_config)
         except Exception as e:
-            logger.warning(f"Failed to schedule guided agent {registry_entry.id}: {e}")
+            logger.warning(
+                f"Failed to schedule guided agent {data['agent_id']}: {e}")
 
     return router.success_response(
         data={
-            "agent_id": registry_entry.id,
-            "name": registry_entry.name,
-            "category": registry_entry.category,
+            "agent_id": data["agent_id"],
+            "name": data.get("agent_name") or blueprint["name"],
+            "category": data.get("category") or blueprint["category"],
             "template": blueprint.get("template"),
-            "maturity": AgentStatus.STUDENT.value,
+            "maturity": data.get("agent_status") or AgentStatus.STUDENT.value,
             "created_by": "agent" if req.acting_agent_id else "employee",
+            "operation_id": data.get("operation_id"),
+            "audit_id": data.get("audit_id"),
+            "verification": data.get("verification"),
         },
-        message=f"Agent '{registry_entry.name}' created — it starts as a STUDENT and learns with guidance",
+        message=(
+            f"Agent '{data.get('agent_name') or blueprint['name']}' created "
+            "— it starts as a STUDENT and learns with guidance"),
     )
 
 
@@ -257,9 +339,9 @@ MATURITY_LEVELS_USER_GUIDE = [
 
 _LEVEL_ORDER = ["student", "intern", "supervised", "autonomous"]
 _ADVANCEMENT = {
-    "student": "Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this.",
-    "intern": "25+ quality episodes with <20% human intervention and constitutional score ≥ 0.85.",
-    "supervised": "50+ quality episodes with very low intervention rate — earned through consistent, corrected real work.",
+    "student": "Complete training sessions, then request a scoped capability qualification review. A human-reviewed held-out work receipt is required before INTERN; confidence alone never promotes.",
+    "intern": "25+ quality episodes with <20% human intervention, constitutional score ≥ 0.85, and a scoped capability qualification review for the next tier.",
+    "supervised": "50+ quality episodes with very low intervention rate, plus a scoped capability qualification review for AUTONOMOUS.",
 }
 
 
@@ -325,13 +407,29 @@ async def get_agent_maturity_guide(
         "confidence": round(confidence, 3),
         "confidence_needed_for_training_review": learning_ceiling,
         "note": (
-            "Learning is capped here on purpose — a training session and "
-            "graduation exam confer maturity, learning alone never does."
+            "Learning is capped here on purpose — a training session and a "
+            "scoped capability qualification review confer maturity; learning "
+            "alone never does."
         ) if at_ceiling else (
             f"{round((learning_ceiling - confidence) / 0.01)} more observations "
             f"(or {round((learning_ceiling - confidence) / 0.05)} lessons) roughly reach the review threshold."
         ),
     }
+
+    assessment = None
+    if next_level:
+        try:
+            from core.agent_graduation_service import (
+                evaluate_qualification_gate,
+            )
+
+            assessment = evaluate_qualification_gate(db, agent, next_level)
+        except Exception as exc:  # pragma: no cover — never 500 the guide
+            assessment = {
+                "allowed": False, "required": True,
+                "state": "configuration_required",
+                "message": str(exc)[:500],
+            }
 
     return router.success_response(
         data={
@@ -352,6 +450,7 @@ async def get_agent_maturity_guide(
             },
             "mastery": mastery,
             "readiness": readiness,
+            "assessment": assessment,
             "next_level": next_level,
             "how_to_advance": _ADVANCEMENT.get(status, "Top maturity level reached."),
         },

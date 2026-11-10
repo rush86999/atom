@@ -1,0 +1,34 @@
+jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
+  Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
+  Error: Watchman error: watchman::QueryExecError: query failed: synchronization failed: syncToNow: timed out waiting for cookie file to be observed by watcher within 60000 milliseconds: Operation timed out. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/approvals-page.test.tsx
+  ApprovalsPage
+    ✓ loads and renders the HITL action queue with the auth token (48 ms)
+    ✓ renders pending training proposals with agent name and gap count (13 ms)
+    ✓ renders a bounded, redacted text preview before approval (8 ms)
+    ✓ requires a reason for action rejection and passes it to the mutation (43 ms)
+    ✓ guards duplicate approvals per proposal while execution is pending (15 ms)
+    ✓ renders failed execution separately from a successful approval (16 ms)
+    ✓ shows backend non-2xx decision failures and never renders them as empty (14 ms)
+    ✓ shows an authoritative error instead of a zero-proposal empty state (4 ms)
+    ✓ posts approval to the training approve endpoint (10 ms)
+    ✓ posts rejection to the training reject endpoint with a reason (9 ms)
+    ✓ surfaces a supervisor-permission error when training decisions are rejected (12 ms)
+    ✓ surfaces a stale goal-approval conflict with the refresh message (14 ms)
+    ✓ shows the empty states when nothing is waiting (5 ms)
+  Self-directed graduation queue
+    ✓ renders STUDENT evidence cards from the queue endpoint (7 ms)
+    ✓ promotes from the queue via the graduation endpoint and refreshes (8 ms)
+    ✓ does not announce a denied promotion from the queue (12 ms)
+    ✓ renders qualification rubric and scoped evidence details (7 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        1.707 s
+Ran all test suites matching tests/pages/approvals-page.test.tsx.

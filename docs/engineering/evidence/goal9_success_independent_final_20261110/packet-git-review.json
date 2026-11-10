@@ -1,0 +1,7 @@
+{
+  "ref": "1aa6416da",
+  "checks": 14,
+  "passed": 14,
+  "ci_ledger_fix_added": "Run ordinary BYOK success settlement controls",
+  "runtime_unchanged": true
+}

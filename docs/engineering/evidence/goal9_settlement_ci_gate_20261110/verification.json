@@ -1,0 +1,14 @@
+{
+  "parent": "df3b7747b32dcbedb36422e9869d2be03575454a",
+  "scope": "one additive backend-core CIstep, existingjobs/steps parsedidentical; no runtimechange",
+  "tests": "56passed117warnings38.49s",
+  "actual_exit": 0,
+  "source_files": {
+    ".github/workflows/ci.yml": "8304906b3ae7f7208eeb4066fe6369ddbb6484c230923d4dfd8260748ce8fe8d",
+    "backend/tests/fixtures/ci_backend_additions.json": "dce4a4911392c3e1c6abef7874d16d54f6c3e377c37a032fcb367fd918e94dab"
+  },
+  "artifacts": {
+    "tests.log": "f501e7fa8152cee58d6d4609a527ad3e6651ee82edb807a161e68a77c0e347b3"
+  },
+  "boundary": "scratchSQLite + existingtestenvironment; no model/provider/liveDB/deployment; not atomicbudgetreservation"
+}

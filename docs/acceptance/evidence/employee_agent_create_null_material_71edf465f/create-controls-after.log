@@ -1,0 +1,121 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 10:35:58 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/api/test_agent_create_goal14.py::test_custom_create_forged_body_is_ignored_and_receipt_replays 
+-------------------------------- live log setup --------------------------------
+2026-11-10 10:35:59 [    INFO] EscalationManager initialized
+2026-11-10 10:35:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:35:59 [    INFO] EscalationManager initialized
+2026-11-10 10:35:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:35:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:35:59 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+2026-11-10 10:36:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+PASSED                                                                   [  6%]
+tests/api/test_agent_create_goal14.py::test_custom_create_refuses_concurrent_actor_demotion 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:00 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-race "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/api/test_agent_create_goal14.py::test_custom_create_member_is_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:01 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-member "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/api/test_agent_create_goal14.py::test_custom_create_replay_with_changed_material_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:02 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-bound "HTTP/1.1 201 Created"
+2026-11-10 10:36:02 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-bound "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[None-changed0-null-to-empty-configuration] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:03 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 10:36:03 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-null-to-empty "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[None-changed0-null-to-empty-schedule_config] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:03 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 10:36:03 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-null-to-empty "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[first1-None-empty-to-null-configuration] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:04 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 10:36:04 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-empty-to-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[first1-None-empty-to-null-schedule_config] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:05 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 10:36:05 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-empty-to-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[None-changed0-null-to-empty-configuration] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:06 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 10:36:06 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-null-to-empty "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[None-changed0-null-to-empty-schedule_config] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:06 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 10:36:06 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-null-to-empty "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[first1-None-empty-to-null-configuration] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:08 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 10:36:08 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-empty-to-null "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 73%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[first1-None-empty-to-null-schedule_config] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:08 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 10:36:08 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-empty-to-null "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/api/test_agent_create_goal14.py::test_custom_create_unchanged_null_empty_replays_once[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:09 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-null "HTTP/1.1 201 Created"
+2026-11-10 10:36:09 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-null "HTTP/1.1 201 Created"
+PASSED                                                                   [ 86%]
+tests/api/test_agent_create_goal14.py::test_custom_create_unchanged_null_empty_replays_once[value1] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:10 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-empty "HTTP/1.1 201 Created"
+2026-11-10 10:36:10 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-empty "HTTP/1.1 201 Created"
+PASSED                                                                   [ 93%]
+tests/api/test_agent_create_goal14.py::test_custom_create_scheduler_runs_only_on_first_verified_create 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:36:11 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 201 Created"
+2026-11-10 10:36:11 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 201 Created"
+2026-11-10 10:36:11 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 30 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/api/test_agent_create_goal14.py::test_custom_create_forged_body_is_ignored_and_receipt_replays
+  /private/tmp/atom-pr833-null-repair-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 15 passed, 36 warnings in 28.68s =======================

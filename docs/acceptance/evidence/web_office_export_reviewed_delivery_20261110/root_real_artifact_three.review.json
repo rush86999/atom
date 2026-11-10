@@ -1,0 +1,60 @@
+{
+  "world": "/private/tmp/root-canvas-office-real-artifact-independent-20261110-axm6r__p",
+  "source_before": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5",
+    "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/assignment_executor.py": "b5866bf46e8ab457a1138dc584ee639d0bb615b043e6a8ff3d3a5b99ea89b9a6",
+    "backend/tests/test_canvas_office_export.py": "a8fe4753c081be904e3866c881642212772dfbb286063a80d136fb35d38d107f",
+    "backend/core/task_lifecycle.py": "9e81f3a422ed491489765dbf56ce9dbcb7a9ec4bf42c48f66ea02347ca8a0076",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260"
+  },
+  "capture_head": "50d11d81154251a7de3dc794bce03177b22a1781",
+  "probe_sha256": "d85cfe614d320432d53b8551b9fc0326a6ab4e1f2213330024babf214c189fad",
+  "frozen_fixture_sha256": "6ad16a0be72089eec66da893e855323bf5202a7837eb0a99f4d0512839e09c5d",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal11-canvas-export-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-canvas-office-real-artifact-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5",
+    "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/assignment_executor.py": "b5866bf46e8ab457a1138dc584ee639d0bb615b043e6a8ff3d3a5b99ea89b9a6",
+    "backend/tests/test_canvas_office_export.py": "a8fe4753c081be904e3866c881642212772dfbb286063a80d136fb35d38d107f",
+    "backend/core/task_lifecycle.py": "9e81f3a422ed491489765dbf56ce9dbcb7a9ec4bf42c48f66ea02347ca8a0076",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260"
+  },
+  "at": "2026-11-10T09:38:50.861240+00:00",
+  "same_source": true,
+  "frozen_commit_parity": {
+    "backend/api/canvas_routes.py": true,
+    "backend/core/office_service.py": true,
+    "backend/core/employee_business_outcomes.py": true,
+    "backend/core/canvas_authority.py": true,
+    "backend/core/assignment_executor.py": true,
+    "backend/tests/test_canvas_office_export.py": true,
+    "backend/core/task_lifecycle.py": true,
+    "backend/core/goals/goal_run_service.py": true
+  },
+  "verified_code_commit": "50d11d81154251a7de3dc794bce03177b22a1781"
+}

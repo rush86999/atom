@@ -1,0 +1,4 @@
+command: node node_modules/typescript/bin/tsc --noEmit --incremental false
+node: /Users/rushiparikh/.nvm/versions/node/v20.20.2/bin/node
+result: TSC_EXIT=0
+output: (empty)

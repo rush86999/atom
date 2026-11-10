@@ -1,0 +1,10 @@
+[
+  {
+    "content_length": "36875",
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "disposition": "attachment; filename=\"canvas-Office-Export-DOCX-cf0fd722.docx\"",
+    "etag": "\"sha256:54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038\"",
+    "status": 200,
+    "url": "http://localhost:8037/api/canvas/9bdfe77a-c44b-44e6-8bee-8210388a9573/export/office?format=docx&expected_audit_id=cf0fd722-49b4-42b0-a06a-d8e89d7f328b"
+  }
+]

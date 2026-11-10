@@ -1,0 +1,22 @@
+{
+  "runtime_source": "b3505b2b325dc163834b71e04660bc5c69e5b692",
+  "source_files": {
+    ".github/workflows/ci.yml": "c3e5db6c8c64d137337f86c40aec512e603d6b83d677940a91d3e4d35d794deb",
+    "backend/tests/fixtures/ci_backend_additions.json": "09aac9edd5d1f791f954d195420e1917de44d8efa18a52b28b5bb2c2d3cfee79",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/canvas_authority.py": "bc90f12b2c16a097d0d0d893e492f30f27e40721f2b64d5205e294d9209bbebf",
+    "backend/api/canvas_routes.py": "1fb9fdcd4a50265d15d390b4dc8eeb4550ba80513a63e8dc81daa18b6582198d",
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "682175983ee3a1b09438391dcd166b06003f6e94a313ddfee625ad5426ea3ace",
+    "backend/core/canvas_coding_service.py": "2ee49128bf9a46c8418ca9f01051a643bf90da6b6ff3e2c819dd8a7c1b5ba612",
+    "backend/core/canvas_sheets_service.py": "c5061ce27128bcef3100c2ca4100eac1e05cab4c28d69e154ed524ed3534973c",
+    "backend/tests/test_personal_scope_authority.py": "a0d14311c6748f1e6b154ea25e2de7bf4a0878180603b0cdc3b49a7090fa4ccd",
+    "backend/tests/test_email_draft_shared_writer.py": "433a49f75f163db5a7b346b5961bc0fd49854d20cc32afa6933ca0a53bd047d3"
+  },
+  "evidence_files": {
+    "restored_ci_27.proof": "a37c2c001869506cb34dbb48acb533700a79fc2cead3871b749f8a3596750b34",
+    "application_and_ci_initial.proof": "703c2fea70363a8519e35c749c0d431cc412e0b0f3a403873f12af5e39a9eaaa",
+    "independent_12.proof": "9df66070ce90402d154119fc21ab0e933d68247bb1dac071fdb1cad0dc82c614",
+    "verification.json": "f992e50801f12189febb5a56c2c4b0dd3117e2864de3f4d1e12699ff305bc510"
+  }
+}

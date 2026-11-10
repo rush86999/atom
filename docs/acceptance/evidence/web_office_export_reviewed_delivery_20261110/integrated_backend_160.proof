@@ -1,0 +1,362 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 04:42:03 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [    INFO] EscalationManager initialized
+2026-11-10 04:42:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:42:03 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [    INFO] EscalationManager initialized
+2026-11-10 04:42:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:42:03 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 04:42:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 04:42:03 [    INFO] MCP Service initialized
+
+tests/test_canvas_office_export.py::test_generated_document_exports_real_docx_with_stable_bytes 
+-------------------------------- live log setup --------------------------------
+2026-11-10 04:42:04 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:05 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-f9ec1fafe4/export/office?format=docx&expected_audit_id=audit-6072c62891 "HTTP/1.1 200 OK"
+2026-11-10 04:42:05 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-f9ec1fafe4/export/office?format=docx&expected_audit_id=audit-6072c62891 "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_canvas_office_export.py::test_generated_presentation_exports_real_pptx 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-47327aa384/export/office?format=pptx&expected_audit_id=audit-c22fcdd84e "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_canvas_office_export.py::test_export_refuses_stale_foreign_withheld_empty_and_wrong_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-7ab5ae861d/export/office?format=docx&expected_audit_id=different-audit "HTTP/1.1 409 Conflict"
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-7ab5ae861d/export/office?format=docx "HTTP/1.1 404 Not Found"
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-8d02015781/export/office?format=docx&expected_audit_id=audit-932ada7d81 "HTTP/1.1 409 Conflict"
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-b54d402547/export/office?format=docx&expected_audit_id=audit-3b52e41d1c "HTTP/1.1 409 Conflict"
+2026-11-10 04:42:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-7ab5ae861d/export/office?format=pptx&expected_audit_id=audit-38fe237e93 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  1%]
+tests/test_canvas_office_export.py::test_export_stable_in_fresh_child_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:07 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-4f0a4bbeba/export/office?format=docx&expected_audit_id=audit-e2d5b6ddc6 "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_canvas_office_export.py::test_presentation_stable_in_fresh_child_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:12 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-681648fc93/export/office?format=pptx&expected_audit_id=audit-138cd5f29b "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_canvas_office_export.py::test_default_office_dir_is_anchored_across_launch_cwd 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-e22cfaacab/export/office?format=docx&expected_audit_id=audit-09f3be50f6 "HTTP/1.1 200 OK"
+2026-11-10 04:42:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-e22cfaacab/export/office?format=docx&expected_audit_id=audit-09f3be50f6 "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_canvas_office_export.py::test_export_rechecks_source_and_retries_on_concurrent_save 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-7a80ee183f/export/office?format=docx&expected_audit_id=audit-23e7a76421 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_canvas_office_export.py::test_export_has_no_canvas_or_business_write_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-f6f7af404b/export/office?format=docx&expected_audit_id=audit-6a119a3c4c "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_canvas_office_export.py::test_validators_refuse_wrong_same_shape_docx_and_missing_pptx_body PASSED [  5%]
+tests/test_canvas_office_export.py::test_export_renderer_error_never_echoes_local_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:18 [ WARNING] Canvas office export renderer refused (stage=render)
+2026-11-10 04:42:18 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-173daad6e8/export/office?format=docx&expected_audit_id=audit-da7ebb4cf3 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  6%]
+tests/test_canvas_office_export.py::test_export_refuses_unresolved_assignment_business_result 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:19 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-e36db2a0a4/export/office?format=docx&expected_audit_id=audit-0e6869821d "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_canvas_office_export.py::test_copied_flags_for_a_missing_job_cannot_certify 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:20 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-b4cc88910a/export/office?format=docx&expected_audit_id=audit-df6a85bdf6 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_canvas_office_export.py::test_nonempty_business_requirements_cannot_vanish 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:20 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+2026-11-10 04:42:20 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-af7046ac1d/export/office?format=docx&expected_audit_id=audit-1ade66e190 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[malformed] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:21 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-cb97e30d9e/export/office?format=docx&expected_audit_id=audit-d5c421030a "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[non_list] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:22 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-2c293ab9f1/export/office?format=docx&expected_audit_id=audit-725abbfc66 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:22 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+2026-11-10 04:42:22 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-d167e10b76/export/office?format=docx&expected_audit_id=audit-b4f595429c "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[contradictory] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:23 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-ca6745d4a4/export/office?format=docx&expected_audit_id=audit-c30f8b87aa "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/test_canvas_office_export.py::test_real_calculation_without_exact_output_binding_is_not_certified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:24 [    INFO] runtime identity: source_id=02ecb5fda77b-dirty.13c2172ee123 revision=02ecb5fda77b dirty=True (3 modified, 0 untracked)
+2026-11-10 04:42:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-233420ddb8/export/office?format=docx&expected_audit_id=audit-e5b1c71fcf "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 11%]
+tests/test_canvas_office_export.py::test_real_executor_artifact_exports_as_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-898f7a3162/export/office?format=docx&expected_audit_id=audit-bf9a7b3f96 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_canvas_office_export.py::test_same_owner_unrelated_job_cannot_certify 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:26 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-4010882744/export/office?format=docx&expected_audit_id=audit-cf643e5f78 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_canvas_office_export.py::test_foreign_workspace_job_binding_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:27 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-a6a7ba9238/export/office?format=docx&expected_audit_id=audit-dd9f9f9942 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_office_export.py::test_stale_job_source_revision_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-5159dedb9d/export/office?format=docx&expected_audit_id=audit-40955a8e4f "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_office_export.py::test_manual_edit_after_verified_artifact_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:29 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-8cb72f772a/export/office?format=docx&expected_audit_id=audit-1800fef38a "HTTP/1.1 200 OK"
+2026-11-10 04:42:29 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-8cb72f772a/export/office?format=docx "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[section_order] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:30 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+2026-11-10 04:42:30 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-08818bf402/export/office?format=docx&expected_audit_id=audit-9e2a1218fc "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 15%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[heading_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:31 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+2026-11-10 04:42:31 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-df11e2455c/export/office?format=docx&expected_audit_id=audit-8d7132b2a6 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 15%]
+tests/test_canvas_office_export.py::test_export_rechecks_revoked_actor_with_fresh_authoritative_state 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:31 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-a724d6ee44/export/office?format=docx&expected_audit_id=audit-554fe5b15f "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 16%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 16%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 17%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 18%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 18%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 20%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 20%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 21%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 21%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 22%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 23%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 23%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 24%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 25%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 25%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 26%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 26%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 27%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 28%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 28%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 29%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 30%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 30%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 31%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 31%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 32%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 33%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 33%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 34%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 35%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 35%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 36%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 36%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 37%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 38%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 38%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 39%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 40%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 40%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 41%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:45 [    INFO] Created HITL action 4b9e0d4c-20a3-470a-ae8b-cd0b59dd5b36 for agent None
+PASSED                                                                   [ 41%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:45 [    INFO] Created HITL action c1e97463-e92c-4342-971d-07416dd0b973 for agent None
+PASSED                                                                   [ 42%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:46 [    INFO] Created HITL action 0bcd9924-32b5-405e-a85a-5fe7d1d38db9 for agent None
+PASSED                                                                   [ 43%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:46 [    INFO] Created HITL action c76ef42e-c438-41f4-905b-ea49e1a4b8c6 for agent None
+PASSED                                                                   [ 43%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:46 [    INFO] Created HITL action f48d8144-6967-4243-bced-356648076882 for agent None
+PASSED                                                                   [ 44%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 45%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 45%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 46%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 46%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 47%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 48%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 48%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 49%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 50%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 50%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 51%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 51%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 52%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 53%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 53%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 54%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 55%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 55%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 56%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 56%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 57%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 58%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 58%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 59%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:50 [    INFO] Created HITL action afeb36f1-8543-40e5-8b97-b6d0edf1dd1b for agent None
+2026-11-10 04:42:50 [    INFO] Created HITL action 604ee8eb-baf1-482d-8a0e-65cf53bc0710 for agent None
+PASSED                                                                   [ 60%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 60%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 61%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 61%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 62%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 63%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 63%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 64%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 65%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 65%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 66%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 66%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:50 [    INFO] Created HITL action 766d730d-34a5-4b80-9880-4b97c9bd6401 for agent None
+PASSED                                                                   [ 67%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 68%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:50 [    INFO] Created HITL action 04dc6867-2214-457e-be00-db60049b144a for agent None
+PASSED                                                                   [ 68%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 69%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 70%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 70%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof2-verified_proof_missing_fields] PASSED [ 71%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof3-verified_coverage_truncated] PASSED [ 71%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof4-verified_coverage_unknown] PASSED [ 72%]
+tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 73%]
+tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:51 [    INFO] Created HITL action 34675653-4a59-481f-9a45-fa1c14d3e80e for agent None
+PASSED                                                                   [ 73%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:51 [    INFO] Created HITL action 3f577421-5a47-4002-b883-27eb8c6c6317 for agent None
+PASSED                                                                   [ 74%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:51 [    INFO] Created HITL action 36c47a46-3c80-4270-addb-17e6deee9061 for agent None
+PASSED                                                                   [ 75%]
+tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:42:51 [    INFO] Created HITL action bcaa1418-b45e-4ccd-8b50-cb210712221d for agent None
+PASSED                                                                   [ 75%]
+tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 76%]
+tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 76%]
+tests/test_assignment_executor.py::test_plan_patch_rewires_invalidated_work_and_refuses_applied_update PASSED [ 77%]
+tests/test_assignment_executor.py::test_plan_patch_rejects_stale_base_and_immutable_effects PASSED [ 78%]
+tests/test_assignment_executor.py::test_plan_patch_duplicate_is_idempotent_and_survives_restart PASSED [ 78%]
+tests/test_assignment_executor.py::test_adaptation_invalidates_only_affected_branch PASSED [ 79%]
+tests/test_assignment_executor.py::test_replayed_observation_does_not_reopen_work_twice PASSED [ 80%]
+tests/test_assignment_executor.py::test_observation_reopens_affected_work_and_reruns_only_that_branch PASSED [ 80%]
+tests/test_assignment_executor.py::test_adaptation_missing_qualification_asks_instead_of_guessing PASSED [ 81%]
+tests/test_assignment_executor.py::test_adaptation_model_choice_is_scoped_and_uncertain_reconciles PASSED [ 81%]
+tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_and_effect_relabel PASSED [ 82%]
+tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 320 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 160 passed, 325 warnings in 69.40s (0:01:09) =================

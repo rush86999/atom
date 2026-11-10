@@ -1,0 +1,53 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "guided create binds exact acting-agent authority in the child-create transaction; root parent-commit negatives closed; submitted for independent review",
+  "branch": "codex/web-goal14-guided-create-20261110",
+  "parent": "ba497c196",
+  "executed_source": "9d2ba566c",
+  "original_ba_evidence_preserved": true,
+  "root_negative_preserved": true,
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "fa76576470d8d9f5cedc0744b8c713bda5c49a81fe98a8ffae121948a896dec8",
+    "backend/api/agent_onboarding_routes.py": "04f5494860d248da63efc22837cd71c2a13cbb30c6f27fa40c9acdd38101d0b9",
+    "backend/tests/api/test_agent_guided_create_goal14.py": "b2fd81e23ce23c1f49214c56296b3f258223f3d26a63278c39ef3da33abdc5a4",
+    "backend/tests/api/test_agent_onboarding_routes.py": "a1ae2d50303389fe1e23a2de18cab1a5a75e2eadd88a4ac48f176d1d7ce4d81d",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/agent_governance_service.py": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+    "backend/api/agent_routes.py": "53f3678d294e80e95b205aaffd5c7dbb79419704b03715aefaa394283aa31105"
+  },
+  "artifacts": {
+    "README.md": "8ed6946be0b6e0a0299a897fa11cc0ee7ec9e1afb11d62248a03bbf07af079ca",
+    "TEST_RESULTS.md": "ac4f364c0117f89014312ca715230322ae3cd3f96a5356d184dffd4278b1801d",
+    "affected-after.log": "08a87f5737d33c94f66a87fe9cc0b0485fb583f25bbc810ef45abbe3b58ffd71",
+    "guided-after.log": "c1a9fc15010874894b1157589460c9664e39f04bff32b03960a678099ed3432b",
+    "root-negative/root-parent-commit-before.log": "cea3f5ac50ed904f57a9d184ea21e5475fe5f1cb8981925adc519ec331f2ed82",
+    "root-negative/root-parent-commit-probe.py": "e3d295f180c33b1ed420d14170a73ff73d67baaf7bf36cf06349ef3c6ea53698",
+    "root-negative/root-parent-commit-review.json": "cae2786a10da840c65ad440829bcbece3571bcd72181e96b6b5889daf122f9de",
+    "root-probe-after.log": "98682172331d397ec9882126c02da0f33e6103ba1278617107c4f9c7d830f963",
+    "source-fix.diff": "7459ee517d54117c0fb86c3dd959e21824fe7049d882bef489fa6c632c98b474",
+    "verification.json": "276238b16f9b672345bc90c2446c67d7474cdb10984023c647b0ea362cd3b2e8"
+  },
+  "checks": {
+    "root_probe_before": "2 failed",
+    "root_probe_after": "2 passed",
+    "guided_after": "19 passed",
+    "affected_after": "265 passed",
+    "transaction_parent_claim": true,
+    "zero_child_audit_scheduler_on_loser": true,
+    "replay_parent_authority_rechecked": true,
+    "no_hardcoded_maturity_fork": true,
+    "human_direct_guided_policy_unchanged": true,
+    "no_new_review_engine": true,
+    "no_budget_or_byok_file_change": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "remaining": [
+    "pending scoped create_agent HITL resume handler"
+  ],
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "guided generation is a controlled double; no live product model was called",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}

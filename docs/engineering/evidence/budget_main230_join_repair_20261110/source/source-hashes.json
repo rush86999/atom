@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-10",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "9ea76916583fe4452831bfba60649c6073cddc8b4b24bfa009fc42832e2eab97",
+      "before_sha256": "3cdfc7b93e00fcc1ff36046e0a038f4e38f5518f6dfb90ad3dba54158b33c686",
+      "changed": true
+    },
+    "backend/core/learning_llm_router.py": {
+      "after_sha256": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+      "before_sha256": "b756d72b73eae099dfa1d083e7095cf275ddc3427c14184cea54930a003c0627",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "ec3da553f4e66936517209cb0093d82f9e0bf5f7f13ef57fc03ea32c6b5dab15",
+      "before_sha256": "59428afd3f48178bd39e4b6045d8639d86bb68efbe8c558df2e4394f3c42ad4f",
+      "changed": true
+    },
+    "backend/tests/test_learning_router_live_session_factory.py": {
+      "after_sha256": "b71057abd323145b679dcadddcd52b0a859aee1b5d7d62b6ba0bdd9ffe94e71d",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "hash_matches_root": true,
+  "learning_router_sha256": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+  "parents": [
+    "ce70203da1969fb614b99cf39bed869938f55089",
+    "230231f5114612f4b31a602190c318667e94f2f1"
+  ],
+  "root_verified_sha256": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+  "schema": "budget_main230_join_repair_source"
+}

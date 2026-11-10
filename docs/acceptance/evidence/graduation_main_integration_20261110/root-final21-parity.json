@@ -1,0 +1,23 @@
+{
+  "frozen": "f3c284aae",
+  "actual_exit": 0,
+  "same_source": true,
+  "review": "/private/tmp/root-graduation-f3-frozen21-independent-20261110-l_6mptmj/review.json",
+  "source_checks": {
+    "backend/core/notification_service.py": true,
+    "backend/core/supervision_service.py": true,
+    "backend/api/supervision_routes.py": true,
+    "backend/core/agent_context_resolver.py": true,
+    "backend/core/student_training_service.py": true,
+    "backend/core/graduation_exam.py": true,
+    "backend/core/hitl_resume.py": true,
+    "backend/core/agent_governance_service.py": true,
+    "backend/core/settings_catalog.py": true,
+    "backend/api/episode_routes.py": true,
+    "backend/core/agent_graduation_service.py": true,
+    "backend/core/auth.py": true,
+    "backend/core/promotion_policy_service.py": true,
+    "backend/core/agent_decision_write_service.py": true,
+    "backend/core/runtime_settings.py": true
+  }
+}

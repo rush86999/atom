@@ -1,0 +1,189 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 06:13:17 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 06:13:17 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [    INFO] EscalationManager initialized
+2026-11-10 06:13:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:13:17 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [    INFO] EscalationManager initialized
+2026-11-10 06:13:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:13:17 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:13:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:13:17 [    INFO] MCP Service initialized
+
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[tenant] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:13:18 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:19 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:19 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 5e85caec-d015-43a0-95aa-f53a3f2b6382
+2026-11-10 06:13:19 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5e85caec-d015-43a0-95aa-f53a3f2b6382 "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:19 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/77ea621f-41de-4e95-afde-ed31857fc39b "HTTP/1.1 200 OK"
+2026-11-10 06:13:19 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:19 [    INFO] Initialized global governance cache
+2026-11-10 06:13:19 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:20 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:20 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 953f364a-90e1-4353-b1b3-221ad3d0cd4d
+2026-11-10 06:13:20 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/953f364a-90e1-4353-b1b3-221ad3d0cd4d "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:20 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/9cace3d0-33bb-467b-ba00-e70c80da51ee "HTTP/1.1 200 OK"
+2026-11-10 06:13:20 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:20 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:21 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:21 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 56368422-83c7-416a-ab8c-d6555aecd82a
+2026-11-10 06:13:21 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/56368422-83c7-416a-ab8c-d6555aecd82a "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:21 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f8904a84-7b73-4a19-bba6-21ee62a0be27 "HTTP/1.1 200 OK"
+2026-11-10 06:13:21 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:21 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:22 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:22 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:22 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:22 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 766a05ec-7991-47b4-b829-20f16b67ef54
+2026-11-10 06:13:22 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/766a05ec-7991-47b4-b829-20f16b67ef54 "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:22 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1c996816-bea1-4e64-bb89-fd525507f42d "HTTP/1.1 200 OK"
+2026-11-10 06:13:22 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:22 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:22 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:23 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:23 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 71b958c7-da88-42dd-941c-ab330acb33dc
+2026-11-10 06:13:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/71b958c7-da88-42dd-941c-ab330acb33dc "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/c81ba171-99d4-4ca0-93d4-15cd6e70fdd5 "HTTP/1.1 200 OK"
+2026-11-10 06:13:23 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:23 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:24 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:13:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:24 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 5826e802-417c-4374-a086-02eb6ce30065
+2026-11-10 06:13:24 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5826e802-417c-4374-a086-02eb6ce30065 "HTTP/1.1 404 Not Found"
+2026-11-10 06:13:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:13:24 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/31dda85f-b739-46dd-8252-3ed6deba3ce5 "HTTP/1.1 200 OK"
+2026-11-10 06:13:24 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:13:24 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): This event loop is already running
+2026-11-10 06:13:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:13:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:13:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_exact_duplicate_reuses_same_action 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:13:25 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:13:25 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/episode_routes.py:417
+  /private/tmp/atom-web-graduation-qualification-join-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[tenant]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[workspace]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_tenant]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_workspace]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_tenant]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_workspace]
+  /usr/local/lib/python3.11/site-packages/_pytest/stash.py:108: RuntimeWarning: coroutine 'NotificationService.send_notification' was never awaited
+    del self._storage[key]
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 7 passed, 12 warnings in 24.42s ========================

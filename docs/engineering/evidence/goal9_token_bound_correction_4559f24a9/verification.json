@@ -1,0 +1,18 @@
+{
+  "executed_source": "4559f24a9988fa891776883257507affc41b9f82",
+  "negative_source": "192d21a9ce3d19761293f72cfeaccc70a5a32700",
+  "before": "1 failed: estimated=True did not apply UTF8 fallback;265 input estimate for2000 UTF8bytes",
+  "after": "135 passed",
+  "scope": "Byte-aligned text/schema bounds use at leastUTF8bytes for either generic counter estimated flag. No tokenizer-brand exception, no actual provider invocation/overspend.",
+  "open": [
+    "Streaming/gateway perphysicalattempt reservation",
+    "Authoritative image/multimodal bounds",
+    "PostgreSQL runtime concurrency",
+    "General adaptive competence",
+    "Wholeapp completion"
+  ],
+  "source_files": {
+    "backend/core/llm/byok_handler.py": "7d0df56acd0690688863da1a7a89b8ffd741ab12c85a9b72444fa83cb5ac1096",
+    "backend/tests/test_goal9_atomic_cap.py": "0982f39ca902b090d02fb6813d9aed3fce21b9c0ae499091116df0cc227453c5"
+  }
+}

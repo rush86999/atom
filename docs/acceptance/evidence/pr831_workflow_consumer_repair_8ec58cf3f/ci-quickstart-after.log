@@ -1,0 +1,47 @@
+
+tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.11] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 10:17:25 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 10:17:25 [    INFO] EscalationManager initialized
+2026-11-10 10:17:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:17:25 [    INFO] EscalationManager initialized
+2026-11-10 10:17:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:17:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:17:25 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 20%]
+tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.12] PASSED [ 40%]
+tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.13] PASSED [ 60%]
+tests/test_quickstart_python_guard.py::test_quickstart_rejects_unsupported_python_with_actionable_message[3.10] PASSED [ 80%]
+tests/test_quickstart_python_guard.py::test_quickstart_rejects_unsupported_python_with_actionable_message[3.14] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 10 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 passed, 15 warnings in 16.94s ========================

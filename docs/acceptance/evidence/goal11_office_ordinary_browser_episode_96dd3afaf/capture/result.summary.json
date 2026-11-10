@@ -1,0 +1,70 @@
+{
+  "downloads": {},
+  "failure": "Download DOCX visible control produced browser GET export/office -> 403; no download event.",
+  "kind": "office_ordinary_browser_episode_summary",
+  "requests": [],
+  "run": "run-b98fa7605360",
+  "source_head": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "steps": [
+    {
+      "checks": {
+        "db_in_run": true,
+        "ok": true
+      },
+      "name": "backend_health",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email": true,
+        "status": true,
+        "token": true
+      },
+      "name": "admin_api_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "doc_content_saved": true,
+        "doc_created": true,
+        "slide_created": true,
+        "slide_outline_saved": true
+      },
+      "name": "api_seeded_supported_canvases",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "login_ok": true,
+        "onboarding_durable": true
+      },
+      "name": "ordinary_ui_login_and_onboarding",
+      "status": "PASS"
+    }
+  ],
+  "stops": {
+    "backend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 98062,
+      "poll": -15,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    },
+    "frontend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 98132,
+      "poll": 0,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    }
+  },
+  "world": "office_ordinary_browser_96dd3afaf6_1794307192"
+}

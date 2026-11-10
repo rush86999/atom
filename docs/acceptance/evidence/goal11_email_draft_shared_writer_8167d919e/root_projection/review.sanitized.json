@@ -1,0 +1,23 @@
+{
+  "actual_exit": 0,
+  "capture_head": "84e0a6362453e865fb63aab8e251867460977338",
+  "frozen_fixture_sha256": "dbb2cd14e025b038d5f2cd4b058c38bf348e16edbc2cbc55b3c352401d8da09a",
+  "kind": "root_email_projection_review_sanitized",
+  "probe_sha256": "c545e7c0f8dbed2867e1534ebec910786d7f17f87ba4419c351ca90efa994d30",
+  "same_source": true,
+  "source_after": {
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/canvas_email_service.py": "d9a7ae87e985c9cd350d6d49c30a3ee3b482ce074e8b8f1358cf17a8cc16229f",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249"
+  },
+  "source_before": {
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/canvas_email_service.py": "d9a7ae87e985c9cd350d6d49c30a3ee3b482ce074e8b8f1358cf17a8cc16229f",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249"
+  },
+  "world": "<root-world>/"
+}

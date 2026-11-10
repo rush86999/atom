@@ -1,0 +1,192 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 05:18:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [    INFO] EscalationManager initialized
+2026-11-10 05:18:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:18:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [    INFO] EscalationManager initialized
+2026-11-10 05:18:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:18:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:18:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 05:18:47 [    INFO] MCP Service initialized
+
+tests/test_email_draft_shared_writer.py::test_requires_prior_and_roundtrips_exact_body 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:18:47 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:48 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-7af3b2e22d/draft "HTTP/1.1 409 Conflict"
+2026-11-10 05:18:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-b421307e'. type='canvas:update'
+2026-11-10 05:18:48 [    INFO] Updated canvas canvas-7af3b2e22d (email)
+2026-11-10 05:18:48 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-7af3b2e22d/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-7af3b2e22d "HTTP/1.1 200 OK"
+2026-11-10 05:18:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-7af3b2e22d "HTTP/1.1 200 OK"
+2026-11-10 05:18:48 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-7af3b2e22d/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:48 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-7af3b2e22d/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_email_draft_shared_writer.py::test_stale_prior_refuses_without_overwriting_peer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-9f570188'. type='canvas:update'
+2026-11-10 05:18:49 [    INFO] Updated canvas canvas-5b3ee4f028 (email)
+2026-11-10 05:18:49 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5b3ee4f028/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:49 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5b3ee4f028/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_email_draft_shared_writer.py::test_inactive_moved_actor_and_moved_target_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:49 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-fe5a6022cc/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:18:49 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-fe5a6022cc/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:18:49 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-fe5a6022cc/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:18:49 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-fe5a6022cc "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 18%]
+tests/test_email_draft_shared_writer.py::test_scoped_create_is_ordinary_put_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:50 [    INFO] Created email canvas a9c0d73a-01e1-472e-9735-2988eddd1f3e: Scoped Draft
+2026-11-10 05:18:50 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:18:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-007d421f'. type='canvas:update'
+2026-11-10 05:18:50 [    INFO] Updated canvas a9c0d73a-01e1-472e-9735-2988eddd1f3e (email)
+2026-11-10 05:18:50 [    INFO] HTTP Request: PUT http://testserver/api/canvas/a9c0d73a-01e1-472e-9735-2988eddd1f3e?expected_prior_audit_id=70d4471a-81db-4e5d-b25c-faf2494cce5d "HTTP/1.1 200 OK"
+2026-11-10 05:18:50 [    INFO] HTTP Request: GET http://testserver/api/canvas/a9c0d73a-01e1-472e-9735-2988eddd1f3e "HTTP/1.1 200 OK"
+2026-11-10 05:18:50 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/a9c0d73a-01e1-472e-9735-2988eddd1f3e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_email_draft_shared_writer.py::test_email_get_projects_native_thread_and_attachments 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-eea8e807'. type='canvas:update'
+2026-11-10 05:18:51 [    INFO] Updated canvas canvas-35d2c54656 (email)
+2026-11-10 05:18:51 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-35d2c54656?expected_prior_audit_id=audit-9f94963b69 "HTTP/1.1 200 OK"
+2026-11-10 05:18:51 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-35d2c54656 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_email_draft_shared_writer.py::test_uncertain_and_refused_writes_are_truthful 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:52 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-091f4b8c1a/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:52 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-091f4b8c1a/draft "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 37%]
+tests/test_email_draft_shared_writer.py::test_fresh_process_reads_exact_saved_body 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-331006fb'. type='canvas:update'
+2026-11-10 05:18:52 [    INFO] Updated canvas canvas-cf13741d09 (email)
+2026-11-10 05:18:52 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-cf13741d09/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_email_draft_shared_writer.py::test_generic_put_explicit_empty_does_not_resurrect_native_values 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-54b07328'. type='canvas:update'
+2026-11-10 05:18:55 [    INFO] Updated canvas canvas-bb517b57a9 (email)
+2026-11-10 05:18:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-bb517b57a9/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-54b07328'. type='canvas:update'
+2026-11-10 05:18:55 [    INFO] Updated canvas canvas-bb517b57a9 (email)
+2026-11-10 05:18:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-bb517b57a9?expected_prior_audit_id=082f7d54-98e2-4673-bd74-303447a20140 "HTTP/1.1 200 OK"
+2026-11-10 05:18:55 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-bb517b57a9 "HTTP/1.1 200 OK"
+2026-11-10 05:18:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-54b07328'. type='canvas:update'
+2026-11-10 05:18:58 [    INFO] Updated canvas canvas-bb517b57a9 (email)
+2026-11-10 05:18:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-bb517b57a9/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:58 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-bb517b57a9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_email_draft_shared_writer.py::test_native_attachment_identity_is_preserved_without_duplication 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-8414808f'. type='canvas:update'
+2026-11-10 05:18:58 [    INFO] Updated canvas canvas-5598dd823c (email)
+2026-11-10 05:18:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5598dd823c/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-8414808f'. type='canvas:update'
+2026-11-10 05:18:58 [    INFO] Updated canvas canvas-5598dd823c (email)
+2026-11-10 05:18:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5598dd823c/draft "HTTP/1.1 200 OK"
+2026-11-10 05:18:58 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-5598dd823c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:18:59 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 05:18:59 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 05:18:59 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 62%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[move] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:00 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 05:19:00 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 05:19:00 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 68%]
+tests/test_email_draft_shared_writer.py::test_created_draft_survives_ordinary_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:01 [    INFO] Created email canvas 009af697-3009-4036-8a3f-724132acf6fb: Restart Draft
+2026-11-10 05:19:01 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:19:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-dcdff063'. type='canvas:update'
+2026-11-10 05:19:01 [    INFO] Updated canvas 009af697-3009-4036-8a3f-724132acf6fb (email)
+2026-11-10 05:19:01 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/009af697-3009-4036-8a3f-724132acf6fb/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/test_email_draft_shared_writer.py::test_create_rejects_scope_disagreement_and_unknown_user 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:04 [   ERROR] Failed to create email canvas: Caller scope does not match the current acting user
+2026-11-10 05:19:04 [   ERROR] Failed to create email canvas: Acting user not found
+PASSED                                                                   [ 81%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:05 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [ 87%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:05 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [ 93%]
+tests/test_email_draft_shared_writer.py::test_active_personal_default_create_is_ordinary_put_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:19:06 [    INFO] Created email canvas 5b6a710b-7626-4ad4-93b2-735a46ea55fa: Personal Draft
+2026-11-10 05:19:06 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:19:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:personal-default'. type='canvas:update'
+2026-11-10 05:19:06 [    INFO] Updated canvas 5b6a710b-7626-4ad4-93b2-735a46ea55fa (email)
+2026-11-10 05:19:06 [    INFO] HTTP Request: PUT http://testserver/api/canvas/5b6a710b-7626-4ad4-93b2-735a46ea55fa?expected_prior_audit_id=3baf919a-95c9-4fdb-83c4-21f88f204d8a "HTTP/1.1 200 OK"
+2026-11-10 05:19:06 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/5b6a710b-7626-4ad4-93b2-735a46ea55fa "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 16 passed, 5 warnings in 35.33s ========================

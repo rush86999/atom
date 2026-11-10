@@ -1,0 +1,266 @@
+{
+  "schema": "atom-graduation-main-integration-1",
+  "status": "focused integrated checkpoint submitted for independent root verification; no full-app, ordinary-UI-journey, live-model-competence or marketing claim",
+  "branch": "codex/web-graduation-main-integration-20261110",
+  "worktree": "/private/tmp/atom-web-graduation-qualification-join-20261110",
+  "commits": {
+    "main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+    "merge": "8c3f1483ff68f7d4d2ac00b88e6df67604e386d2",
+    "merge_tree": "840f142947d6334bbe4c72c2c2815efe8bdcaa6a",
+    "backend_final": "f3c284aaee856220d44e6c41e74806542b1f4ffb",
+    "test_docs_successor": "cef304a18d994c14a770b3df2a02f6cb22a5474a",
+    "prior_frozen_packet": "7be407677a2d66908228c3b9464eabf739dbf372",
+    "prior_graduation_successor": "c37cd3dfd0df247733cf12830aa20d1c4be45639"
+  },
+  "source_files": [
+    {
+      "path": "backend/core/agent_graduation_service.py",
+      "sha256": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/promotion_policy_service.py",
+      "sha256": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/notification_service.py",
+      "sha256": "38d0e901eea6ad3ef2b76a41baf83160cf49be7be18d0c8cdb36ebc22c19dd32",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/supervision_service.py",
+      "sha256": "c35198ae17c8a8069d7f792a95adafbebb777e96f91a57a5df387a6983713e9a",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/api/supervision_routes.py",
+      "sha256": "d69dc8d2aae52c6ed0cc5714f7e4fad5f8d07df7c7045fc0f7115011e4989b83",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/agent_context_resolver.py",
+      "sha256": "c512f6726520d2e66ddb8e25fc2c34a1c2cdeefe0fd4eecff9995a26c98f74a1",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/student_training_service.py",
+      "sha256": "0ac012234404efc7c17bc59318654b4eadd53c726e1f2ee8955a4f8ace9eb884",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/graduation_exam.py",
+      "sha256": "e065adda53980dc73e96006597cf60649135d589b1709bfea2e57068a3d2dadd",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/hitl_resume.py",
+      "sha256": "6754896f7e1aa4415937155fa993c068909ee81b02d1160bae935f69f863571b",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/agent_governance_service.py",
+      "sha256": "af5e889fc83aff4a2c58460c0e55a853bbce5a2d81a198ece02475465b559b6c",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/settings_catalog.py",
+      "sha256": "9a115e45a033bc16078fbe9c665e2e8b19631f9f1a6da7ac9c4a1c2bfe77aad8",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/api/episode_routes.py",
+      "sha256": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/auth.py",
+      "sha256": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/agent_decision_write_service.py",
+      "sha256": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/core/runtime_settings.py",
+      "sha256": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/tests/api/test_graduation_qualification_join.py",
+      "sha256": "62e5427cbd536900f46014e814a76dbb2d589184b25f91db9577c1d856320465",
+      "bound_commit": "f3c284aaee856220d44e6c41e74806542b1f4ffb"
+    },
+    {
+      "path": "backend/tests/core/test_supervision_service.py",
+      "sha256": "4cc1701f42acc50741a61a9238a2dfba1204014644100f949f3597b593a5909f",
+      "bound_commit": "cef304a18d994c14a770b3df2a02f6cb22a5474a"
+    },
+    {
+      "path": "backend/tests/test_governance_graduation_integration.py",
+      "sha256": "3898200d1504e6793eac407cab1987e503aa4b45bb30279898c4cb3802784c13",
+      "bound_commit": "cef304a18d994c14a770b3df2a02f6cb22a5474a"
+    },
+    {
+      "path": "docs/agents/graduation.md",
+      "sha256": "38845e1136b0749165754ad41402803d74f5b19fac94f709caf7821645fb4b12",
+      "bound_commit": "cef304a18d994c14a770b3df2a02f6cb22a5474a"
+    },
+    {
+      "path": "docs/agents/TRAINING_AND_GRADUATION.md",
+      "sha256": "2261bf2c07663403b2527aa8aac76845672cd8016bde1c88b84f067e72b54a18",
+      "bound_commit": "cef304a18d994c14a770b3df2a02f6cb22a5474a"
+    }
+  ],
+  "root_final21_proof": {
+    "review": "root-final21-review.json",
+    "controls": "root-final21-controls.log",
+    "parity": "root-final21-parity.json",
+    "result": "21 passed",
+    "actual_exit": 0,
+    "same_source": true,
+    "source_parity": "15/15 captured runtime files match f3c284aa",
+    "authoritative": true
+  },
+  "gates": {
+    "backend_policy_qualification": {
+      "command": "pytest qualification join + assessment rules + notification service; scratch SQLite",
+      "result": "73 passed",
+      "log": "backend-policy-qualification-73.log"
+    },
+    "root_final21": {
+      "review": "root-final21-review.json",
+      "controls": "root-final21-controls.log",
+      "parity": "root-final21-parity.json",
+      "result": "21 passed",
+      "actual_exit": 0,
+      "same_source": true,
+      "source_parity": "15/15 captured runtime files match f3c284aa",
+      "authoritative": true
+    },
+    "local_supporting_reruns": {
+      "rubric": "backend-rubric-3.log (3 passed)",
+      "original10": "backend-original10.log (10 passed)",
+      "combined5": "backend-combined5.log (5 passed)",
+      "personal3": "backend-personal3.log (3 passed)"
+    },
+    "candidate_fixture_fixes": {
+      "result": "3 passed",
+      "log": "backend-candidate-fixes-9.log"
+    },
+    "integration_initial": {
+      "result": "309 passed / 9 failed",
+      "log": "integration-initial-309-9.log"
+    },
+    "integration_final": {
+      "result": "316 passed / 7 failed",
+      "log": "integration-final-316-7.log"
+    },
+    "docs_source_link_check": {
+      "result": "PASS",
+      "log": "docs-source-check.log"
+    },
+    "frontend": {
+      "result": "exact source parity; prior tsc exit 0 and 90 UI/API tests reused",
+      "log": "frontend-parity.txt",
+      "prior_packet": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/"
+    }
+  },
+  "failure_classification": {
+    "main_baseline_7": [
+      "tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status",
+      "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern",
+      "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost"
+    ],
+    "main_baseline_probe": "root-main8-baseline-review.json: 7 failed / 1 passed at 0d5132c2e, same_source true",
+    "candidate_supervision_fix": "old test passed on main but correctly failed under the new gate; explicit authorized + missing-receipt fixtures now pass",
+    "candidate_governance_fix": "candidate-only test not on main; complete id/pending-query/non-excepted fixture now passes",
+    "final_remaining": "only the exact 7 main-baseline student-training identities",
+    "no_test_deletion_skip_xfail_or_global_exemption": true
+  },
+  "baselines": {
+    "root_rubric_pre_repair": {
+      "review": "root-rubric-baseline-review.json",
+      "result": "2 failed / 1 passed"
+    },
+    "root_policy_pre_repair": {
+      "review": "root-policy-baseline-review.json",
+      "result": "2 failed / 1 passed"
+    },
+    "root_notification_pre_repair": {
+      "review": "root-notification-baseline-review.json",
+      "result": "1 failed / 1 passed"
+    },
+    "root_main8": {
+      "review": "root-main8-baseline-review.json",
+      "controls": "root-main8-baseline-controls.log",
+      "result": "7 failed / 1 passed at 0d5132c2e"
+    }
+  },
+  "personal_path": {
+    "root_personal_probe": "root-personal-review.json: 3 passed",
+    "permanent_regression_twin": "actual ensure_admin_user/default bootstrap, raw-NULL admin, request/review/promotion, foreign/inactive negatives"
+  },
+  "docs": {
+    "files": [
+      "docs/agents/graduation.md",
+      "docs/agents/TRAINING_AND_GRADUATION.md"
+    ],
+    "check_log": "docs-source-check.log",
+    "links": "41 links, 0 missing against Git index",
+    "source_signatures": "11/11 PASS"
+  },
+  "frontend": {
+    "changed_files_vs_c37": 0,
+    "prior_packet": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/",
+    "prior_gates": "tsc exit 0; 90 UI/API tests passed"
+  },
+  "checkout_only_gap": [
+    "scripts/acceptance/substantive_assessment_campaign.py",
+    "scripts/acceptance/deterministic_assessment_qualification.py",
+    "scripts/acceptance/qualification/assessment_qualification_set_2026-10-31.json",
+    "scripts/acceptance/qualification/assessment_scoring_v2_2026-10-31.json",
+    "docs/agents/"
+  ],
+  "preserved_prior_packets": [
+    "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/",
+    "docs/acceptance/evidence/graduation_policy_notification_followthrough_20261110/"
+  ],
+  "exclusions": [
+    "no live DB, provider, model, browser, external email/notification send, download or deployment",
+    "no PR or merge to main; no CI yaml, goal index, new engine/store/schema/judge/router/lifecycle",
+    "no test deletion, skip, xfail or new global exemption",
+    "no full-app, ordinary-UI-journey, live-model-competence or marketing claim"
+  ],
+  "artifacts": {
+    "README.md": "931f5bf1ab471ddcbe6301dceea8c0fd0e86a7750f7012c4c003266394ec54b7",
+    "backend-candidate-fixes-9.log": "5c0992f0d1b8bbfd7e7195b2a2c44ab6648cb860bee7ab59510d684503669403",
+    "backend-combined5.log": "c63bb75d8c04243dc7afc919c13405fc57df1e898dc06e1d47adfaa7cb0aa9f0",
+    "backend-original10.log": "5da9d29627cedcb09ec8d409b68abedb9d8d4bcd5db39fb2ea133d6a47987a54",
+    "backend-personal3.log": "f0e54b2bf67b69b68c76a67f3a7e10ed6bfb76ead46525e82124e8abb8aabe32",
+    "backend-policy-qualification-73.log": "19488d9cec635b01c858f76873c69256fc3dcc1df509c42b56744654237e1194",
+    "backend-rubric-3.log": "282d094fd70b19f272c8ae4fd422b49bf8bcf914721ad5a68ffc22429879e7cd",
+    "docs-source-check.log": "ceb8a9600e8728dfaca79a2a76b3e309ec7db16eca232463ae185c3545fb90a0",
+    "frontend-parity.txt": "3c480fcf7c39dd5ac549e911513454dd6b6aa75d1d8e4b0ffd58d92db7848346",
+    "integration-final-316-7.log": "8f38d3494566f0de4eb6830d33c937e183ce2305a60744333d6c633c06e2d0c7",
+    "integration-initial-309-9.log": "1186555309b18fe02fe69f0376bacb38dfd97c264d691bd4a4491cdb11f1a707",
+    "integration-nine-7fail3pass.log": "df8dc96c7bb9b12ec492dd02bc7e7683f3c5424715f0d63c520eabf80923574a",
+    "root-final21-controls.log": "bc15da292a0cb72e0da60e0b7b1dd79d1d46e4f2b07631077f94f1ff93b30226",
+    "root-final21-parity.json": "9f901ae676b5d5874095f02c324a6c3e0b7d91f4b5907fcb42f76516a5992cdd",
+    "root-final21-review.json": "30d8bb26756a46adb70dd848e8f636757a0d7f7228380bc758b0cf0634366984",
+    "root-main8-baseline-controls.log": "fc43c1d81aaa9eee072153a560af0ee82bef0000970f7b08dbe2145f5b7dff79",
+    "root-main8-baseline-review.json": "46bc230ce25244b5b1f5fcd72cb548815b905c684d8dab548c5a04741f99cf56",
+    "root-notification-baseline-review.json": "77833c8cf55847d19c90d253399cf313ee23c021a021c04a8c07a12acda02af5",
+    "root-personal-controls.log": "83248814391dc8974f146efcf6cd22ad8e372575527287fc817b1ef51fac7871",
+    "root-personal-review.json": "3cc2001036e0e19bf249cba21ade386801baee2bb1fc97fc36c244574e728abc",
+    "root-policy-baseline-review.json": "19c435b9f9b4f08fe211ca8aeb4126abd5c4f6d86cb358f8162e516d4299382b",
+    "root-rubric-baseline-review.json": "545e017765e4fff8230eb0424a89faab16f8db43141673cf731aa57546977d79",
+    "verification.json": "53051e976b3bec791a367b7b283f781e9931b522d42e2ebad620f31ca90c037f"
+  }
+}

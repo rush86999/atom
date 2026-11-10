@@ -1,7 +1,8 @@
 """Email Canvas API Routes"""
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, File, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -39,6 +40,206 @@ def _get_owned_email_canvas_or_error(db, canvas_id: str, current_user) -> None:
         )
 
 
+def _require_email_actor(db, current_user, canvas_id: Optional[str] = None):
+    """Resolve the current authoritative actor and exact canvas scope.
+
+    Reuses the shared Canvas authority adapter: inactive API/status, moved
+    actor scope, foreign/moved target and missing tenant all refuse before any
+    create/save/read effect.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError, require_active_actor, require_canvas_read,
+    )
+
+    try:
+        actor = require_active_actor(db, str(current_user.id))
+        if canvas_id:
+            require_canvas_read(db, canvas_id, actor)
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={
+            "error": exc.code,
+            "message": str(exc),
+        }) from exc
+    return actor
+
+
+def _split_recipients(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [item.strip() for item in str(value or "").split(",")
+            if item.strip()]
+
+
+def _native_email_content(material: Dict[str, Any], request) -> Dict[str, Any]:
+    """Compose the native email dict while preserving thread/attachment data."""
+    content = material.get("content")
+    base = dict(content) if isinstance(content, dict) else {}
+    details = material.get("details") if isinstance(
+        material.get("details"), dict) else {}
+    prior_draft = details.get("draft") if isinstance(
+        details.get("draft"), dict) else {}
+    if "attachments" in base:
+        attachments = base.get("attachments") or []
+    elif "attachments" in prior_draft:
+        attachments = prior_draft.get("attachments") or []
+    elif "attachments" in details:
+        attachments = details.get("attachments") or []
+    else:
+        attachments = []
+    draft_id = (
+        str(prior_draft.get("draft_id") or base.get("draft_id") or "")
+        or str(uuid.uuid4())
+    )
+    to_emails = list(request.to_emails or [])
+    cc_emails = list(request.cc_emails or [])
+    subject = str(request.subject or "")
+    body = str(request.body or "")
+    native = dict(base)
+    native.update({
+        "to": ", ".join(to_emails),
+        "cc": ", ".join(cc_emails),
+        "subject": subject,
+        "body": body,
+        "attachments": attachments,
+        "draft": {
+            "draft_id": draft_id,
+            "to_emails": to_emails,
+            "cc_emails": cc_emails,
+            "subject": subject,
+            "body": body,
+            "attachments": attachments,
+        },
+    })
+    for key in (
+        "thread_id", "in_reply_to", "references", "source_message_id",
+        "source_identity", "imported_from", "imported_to", "imported_cc",
+        "imported_subject", "imported_sent_at", "template",
+    ):
+        if key in native:
+            continue
+        value = details.get(key)
+        if value in (None, "", [], {}):
+            value = prior_draft.get(key)
+        if value not in (None, "", [], {}):
+            native[key] = value
+    return native
+
+
+def _email_canvas_view(material: Dict[str, Any]) -> Dict[str, Any]:
+    """Project visible canvas content into the native email read shape.
+
+    Canonical top-level ``content`` fields win by KEY PRESENCE (an explicit
+    empty string/list is a value, not a reason to fall back). Nested/legacy
+    ``draft`` metadata is only used when the corresponding key is absent.
+    Thread and attachment identity come from the same visible material; no
+    implicit reattachment, send or second store.
+    """
+    details = material.get("details") if isinstance(
+        material.get("details"), dict) else {}
+    content = material.get("content")
+    if not isinstance(content, dict):
+        return dict(details)
+    draft = content.get("draft") if isinstance(
+        content.get("draft"), dict) else {}
+    prior_draft = details.get("draft") if isinstance(
+        details.get("draft"), dict) else {}
+
+    if "to" in content:
+        to_emails = _split_recipients(content.get("to"))
+    elif "to_emails" in draft:
+        to_emails = list(draft.get("to_emails") or [])
+    elif "to_emails" in prior_draft:
+        to_emails = list(prior_draft.get("to_emails") or [])
+    else:
+        to_emails = []
+
+    if "cc" in content:
+        cc_emails = _split_recipients(content.get("cc"))
+    elif "cc_emails" in draft:
+        cc_emails = list(draft.get("cc_emails") or [])
+    elif "cc_emails" in prior_draft:
+        cc_emails = list(prior_draft.get("cc_emails") or [])
+    else:
+        cc_emails = []
+
+    if "subject" in content:
+        subject = str(content.get("subject") or "")
+    elif "subject" in draft:
+        subject = str(draft.get("subject") or "")
+    else:
+        subject = str(prior_draft.get("subject") or "")
+
+    if "body" in content:
+        body = str(content.get("body") or "")
+    elif "body" in draft:
+        body = str(draft.get("body") or "")
+    else:
+        body = str(prior_draft.get("body") or "")
+
+    if "attachments" in content:
+        attachments = list(content.get("attachments") or [])
+    elif "attachments" in draft:
+        attachments = list(draft.get("attachments") or [])
+    elif "attachments" in prior_draft:
+        attachments = list(prior_draft.get("attachments") or [])
+    elif "attachments" in details:
+        attachments = list(details.get("attachments") or [])
+    else:
+        attachments = []
+
+    draft_id = str(
+        draft.get("draft_id")
+        or prior_draft.get("draft_id")
+        or content.get("draft_id")
+        or ""
+    )
+    if "messages" in content:
+        messages = list(content.get("messages") or [])
+    elif "messages" in details:
+        messages = list(details.get("messages") or [])
+    else:
+        messages = []
+
+    view = dict(details)
+    view.update({
+        "canvas_type": "email",
+        "component_type": details.get("component_type") or "compose_form",
+        "subject": subject,
+        "draft": {
+            "draft_id": draft_id,
+            "to_emails": to_emails,
+            "cc_emails": cc_emails,
+            "subject": subject,
+            "body": body,
+            "attachments": attachments,
+        },
+        "attachments": attachments,
+        "messages": messages,
+    })
+    if "thread_id" in content:
+        view["thread_id"] = content.get("thread_id")
+    else:
+        thread_id = (
+            draft.get("thread_id")
+            or prior_draft.get("thread_id")
+            or details.get("thread_id")
+        )
+        if thread_id:
+            view["thread_id"] = thread_id
+    for key in (
+        "in_reply_to", "references", "source_message_id", "source_identity",
+        "imported_from", "imported_to", "imported_cc", "imported_subject",
+        "imported_sent_at", "template", "content",
+    ):
+        if key in content:
+            value = content.get(key)
+        else:
+            value = details.get(key)
+        if value not in (None, "", [], {}):
+            view[key] = value
+    return view
+
+
 class CreateEmailRequest(BaseModel):
     user_id: str
     subject: str
@@ -64,6 +265,12 @@ class SaveDraftRequest(BaseModel):
     cc_emails: Optional[List[str]] = None
     subject: str = ""
     body: str = ""
+    # Required for public draft edits: the audit row the client planned
+    # against. A missing token is a typed 409; a stale token is a 409
+    # conflict from the shared canvas write service.
+    expected_prior_audit_id: Optional[str] = None
+    # Optional stable identity for an idempotent retry of the same edit.
+    operation_id: Optional[str] = None
 
 
 class CategorizeRequest(BaseModel):
@@ -197,7 +404,8 @@ async def send_email_canvas(
 
 @router.post("/create")
 async def create_email_canvas(request: CreateEmailRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Create a new email canvas."""
+    """Create a new email canvas in the current actor's authoritative scope."""
+    actor = _require_email_actor(db, current_user)
     service = EmailCanvasService(db)
     result = service.create_email_canvas(
         user_id=current_user.id,
@@ -206,7 +414,9 @@ async def create_email_canvas(request: CreateEmailRequest, current_user: User = 
         canvas_id=request.canvas_id,
         agent_id=request.agent_id,
         layout=request.layout,
-        template=request.template
+        template=request.template,
+        tenant_id=str(actor.get("tenant_id") or ""),
+        workspace_id=str(actor.get("workspace_id") or ""),
     )
     if not result.get("success"):
         raise router.error_response(
@@ -274,23 +484,51 @@ async def add_message(canvas_id: str, request: AddMessageRequest, current_user: 
 
 @router.post("/{canvas_id}/draft")
 async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Save an email draft."""
-    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
-    service = EmailCanvasService(db)
-    result = service.save_draft(
+    """Save an email draft through the shared verified canvas writer.
+
+    Public edits require ``expected_prior_audit_id``. The existing
+    ``canvas_write_service.update_canvas_verified`` owns the transactional
+    authority claim, optimistic concurrency, append/readback and uncertainty
+    envelope; this route only composes the native email payload.
+    """
+    from core.canvas_write_service import update_canvas_verified
+    from tools.canvas_crud_tool import visible_canvas_material
+
+    actor = _require_email_actor(db, current_user, canvas_id)
+    material = visible_canvas_material(db, canvas_id)
+    if not material.get("success"):
+        raise HTTPException(status_code=404, detail="Email canvas not found")
+    prior = str(material.get("revision_audit_id") or "")
+    expected = str(request.expected_prior_audit_id or "").strip()
+    if not expected:
+        raise HTTPException(status_code=409, detail={
+            "error": "expected_prior_audit_id_required",
+            "message": (
+                "Saving an email draft requires the audit id the edit was "
+                "planned against."),
+            "current_audit_id": prior,
+        })
+    content = _native_email_content(material, request)
+    result = await update_canvas_verified(
+        user_id=str(current_user.id),
         canvas_id=canvas_id,
-        user_id=current_user.id,
-        to_emails=request.to_emails,
-        cc_emails=request.cc_emails,
-        subject=request.subject,
-        body=request.body
+        content=content,
+        canvas_type="email",
+        operation_id=request.operation_id,
+        expected_prior_audit_id=expected,
+        tenant_id=str(actor.get("tenant_id") or ""),
+        workspace_id=str(actor.get("workspace_id") or ""),
     )
-    if not result.get("success"):
-        raise router.error_response(
-            error_code="EMAIL_DRAFT_SAVE_FAILED",
-            message=result.get("error", "Failed to save email draft"),
-            status_code=400
-        )
+    if result.get("status") == "refused":
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else 400))
+        raise HTTPException(status_code=status, detail={
+            "error": "email_draft_save_refused",
+            "message": str(
+                result.get("error") or "The draft save was refused."),
+            "current_audit_id": prior,
+        })
+    result.setdefault("draft_id", content["draft"]["draft_id"])
     return result
 
 
@@ -316,23 +554,14 @@ async def categorize_email(canvas_id: str, request: CategorizeRequest, current_u
 
 @router.get("/{canvas_id}")
 async def get_email_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Get an email canvas by ID."""
-    from sqlalchemy import desc
+    """Read the exact visible email draft under the shared Canvas authority."""
+    from tools.canvas_crud_tool import visible_canvas_material
 
-    from core.models import CanvasAudit
-
-    # R66: only the canvas owner may read email canvas state.
-    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
-
-    audit = db.query(CanvasAudit).filter(
-        CanvasAudit.canvas_id == canvas_id,
-        CanvasAudit.canvas_type == "email"
-    ).order_by(desc(CanvasAudit.created_at)).first()
-
-    if not audit:
-        raise router.not_found_error("Email Canvas", canvas_id)
-
-    return audit.details_json or {}
+    _require_email_actor(db, current_user, canvas_id)
+    material = visible_canvas_material(db, canvas_id)
+    if not material.get("success"):
+        raise HTTPException(status_code=404, detail="Email canvas not found")
+    return _email_canvas_view(material)
 
 
 # ─── Attachment CRUD (docs/canvas/EMAIL_ATTACHMENT_CRUD_PLAN.md §5) ────────

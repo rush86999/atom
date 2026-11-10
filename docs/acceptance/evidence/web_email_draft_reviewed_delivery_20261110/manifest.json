@@ -1,0 +1,21 @@
+{
+  "runtime_source": "7625389eb874b2ffe804d24f0f5eb6fa0a15fd93",
+  "integrated_code_source": "3163762ab",
+  "evidence_files": {
+    "README.md": "3b8edd6f928dbdbe587c9b20afd1e693cb98e15850f17aea5e2a6812d3381c5e",
+    "git_source_review.json": "b40bf8f2e94df3981de8a1eb1231749f858932477ff799ff4ca0fbb88ad96387",
+    "integrated_email_182.proof": "9db6486c7661e213123701c0a29b7b6424e0de63e9170f3ca791e5faf65dab9b",
+    "root_independent_eight.proof": "10eeebbcedb864b0e0f171054852ff37449b36e491d0028bb0ef8479a960bddb",
+    "root_independent_eight.review.json": "035b006b71a8f7318a4e9c9ed893bb1905d740d1c971c5d6de5aa0adf728c47a"
+  },
+  "source_files": {
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "682175983ee3a1b09438391dcd166b06003f6e94a313ddfee625ad5426ea3ace",
+    "backend/tests/test_email_draft_shared_writer.py": "7e93a12c986e296b9d81a74ccf1341792409a53d21c189b10ad8e48af3457621",
+    "backend/tests/helpers/email_draft_readback_child.py": "05e9dc0d9e4890f97da9ae6d031538f7b75e221f034879070602435b324854cb"
+  },
+  "integrated_passed": 182,
+  "independent_passed": 8,
+  "actual_exit": 0,
+  "scope": "scratch SQLite/public JWT/current scope/shared writer/fresh process; no live provider/send/browser claim"
+}

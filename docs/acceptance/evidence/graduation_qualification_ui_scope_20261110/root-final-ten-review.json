@@ -1,0 +1,50 @@
+{
+  "world": "/private/tmp/root-graduation-cf2-frozen-independent-20261110-ksm_s7i4",
+  "source_before": {
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "backend/core/agent_graduation_service.py": "9a4954ee168ed6a2d2c5de1e975393f8e9acdae06b90916d331d4baf3c9dbfac",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+    "backend/core/runtime_settings.py": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66"
+  },
+  "capture_head": "015515ad140c642185a652915a52b1740bac9dc4",
+  "probe_sha256": "66c9f5a96160dc4fc1daaf8570918082bff82d5e677503c2b83735c7ae606e63",
+  "frozen_fixture_sha256": "a389cdd98090a410881228293ad72c06dbb4a00210e5ce401cafb27841d20147",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-graduation-qualification-join-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-graduation-pending-policy-independent-20261110.py",
+    "/private/tmp/root-graduation-pending-scope-independent-20261110.py",
+    "/private/tmp/root-graduation-positive-replay-independent-20261110.py",
+    "/private/tmp/root-graduation-inactive-request-independent-20261110.py",
+    "/private/tmp/root-graduation-history-only-independent-20261110.py",
+    "/private/tmp/root-graduation-upward-writers-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "backend/core/agent_graduation_service.py": "9a4954ee168ed6a2d2c5de1e975393f8e9acdae06b90916d331d4baf3c9dbfac",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+    "backend/core/runtime_settings.py": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66"
+  },
+  "at": "2026-11-10T11:20:24.359465+00:00",
+  "same_source": true
+}
