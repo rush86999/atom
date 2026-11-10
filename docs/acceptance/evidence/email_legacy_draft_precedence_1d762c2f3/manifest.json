@@ -1,0 +1,50 @@
+{
+  "base_commit": "013209bfab6d4d48e1b377e5781ad1be33f12b94",
+  "base_source": "product 1d762c2f3 (matches clean PR829 7fb2645c9; evidence/CI deltas only)",
+  "branch": "codex/email-normalizer-legacy-draft-precedence-20261110",
+  "compatibility_negative": {
+    "classification": "pre-existing stale 4-key expectations; base implementation already returned **content; aligned to provenance-preserving contract",
+    "existing_exact_dict_tests": [
+      "tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_doc_shape_body",
+      "tests/test_chat_draft_classifier.py::TestReadCanvasCoercion::test_email_canvas_service_details_normalized"
+    ],
+    "precedence_change": "details dict with divergent top-level subject and draft subject now resolves top-level; in-repo callers traced"
+  },
+  "defect": "normalize_email_content rebuilt canonical fields from a nested draft even when canonical top-level keys were present; read side uses key presence",
+  "evidence_files": {
+    "README.md": "0d7843dc587662a177f5a5cdbe94defa9550ff9d264bf88db76e40e72d6b1c86",
+    "diagnosis/compatibility-negative.md": "b9833fbb57756ce7eb8f57ab1bde7b02aff23d6c6f94f8a756e6f4429d67f0dc",
+    "diagnosis/pre-existing-test-negative.txt": "2582c4b5e8a1802a3b100abb3d2d47d5515770c9dddc6d49110eff65bf86377a",
+    "diagnosis/pre-fix-negative.txt": "ffed95a10a5cb91a23a337607946a39081b45e13204ed1db2d60bc0cb8fd619c",
+    "gates/bounded-focused-rerun.log": "574d900ec33efc05dbacfc1cb8d595e3d2108e1232992bb71cfdebea2f82f613",
+    "gates/bounded-full-first.log": "15fe1545d5e65a8a18d67481fc695ff3b53251666aa4946a0a35a3bcb07d543b",
+    "source/fix.diff": "e6fbdf7191d9e5ee75631f8da6a28035888bcf104c582e1d6f548f7f60d1a949",
+    "source/source-hashes.json": "0f1ad78056c82a1958f25401a63e838e181d04933d25c9341faa50916bf2a234"
+  },
+  "fix": "top-level key presence wins incl. explicit empty; nested draft is legacy-only fallback; nested view refreshed; provenance/draft_id preserved; read fallback no longer resurrects present-but-empty keys",
+  "gate": {
+    "focused_rerun": {
+      "exit": 0,
+      "log": "gates/bounded-focused-rerun.log",
+      "result": "9 passed"
+    },
+    "full_first": {
+      "exit": 1,
+      "log": "gates/bounded-full-first.log",
+      "result": "110 passed, 2 failed (pre-existing exact-dict tests)"
+    },
+    "runner": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py --profile bounded"
+  },
+  "kind": "email_legacy_draft_precedence_fix",
+  "non_claims": [
+    "not whole-GOAL-11/app",
+    "no product-wide compatibility proof",
+    "no CI/PR/merge",
+    "no send/provider/model/browser/live DB"
+  ],
+  "preserved_packets": [
+    "docs/acceptance/evidence/office_email_ordinary_browser_1d762c2f3/",
+    "docs/acceptance/evidence/email_draft_ordinary_browser_1d762c2f3/ (013209bfa, 14/14 Git-verified)"
+  ],
+  "status": "passed_bounded_normalizer_and_public_readback"
+}

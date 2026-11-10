@@ -588,46 +588,89 @@ def _style_markdown_tables(body: str) -> str:
     return "\n".join(out)
 
 
+def _recipient_string(value: Any) -> str:
+    """Canonical comma-separated To/Cc text from a string or list."""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item).strip() for item in value if str(item).strip())
+    return str(value or "")
+
+
+def _recipient_list(value: Any) -> List[str]:
+    """Canonical To/Cc list from a comma string or list (explicit empty -> [])."""
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [item.strip() for item in str(value or "").split(",") if item.strip()]
+
+
 def normalize_email_content(content: Any) -> Dict[str, Any]:
-    """Normalize any stored email-canvas content into ``{to, subject, body}``.
+    """Normalize any stored email-canvas content into ``{to, cc, subject, body}``.
 
     Handles the shapes that historically land on email canvases:
-    ``{to, subject, body}`` (canvas composer / classifier output — returned
+    ``{to, cc, subject, body}`` (canvas composer / classifier output — returned
     with defaults filled), ``{"draft": {"to_emails": [...], ...}}``
     (EmailCanvasService.create_email_canvas details), a bare body string,
     and ``{"type": "doc", "content": str}`` doc bodies. The body passes
     through markdown-table styling last: fresh drafts must open styled on
     the first try, not after a "fix the table styling" follow-up turn.
+
+    Precedence: a **present** canonical top-level key wins by key presence,
+    even when its value is explicitly empty. Nested ``draft`` metadata is a
+    legacy fallback only for keys that are absent, matching the read-side
+    view. When a draft is present, its canonical fields are refreshed from
+    the resolved top-level values so a later reader cannot resurrect stale
+    nested data; ``draft_id`` and other provenance keys are preserved.
     """
     if isinstance(content, str):
         return {"to": "", "cc": "", "subject": "", "body": _style_markdown_tables(content)}
-    if isinstance(content, dict):
-        draft = content.get("draft")
-        if isinstance(draft, dict):
-            to = draft.get("to_emails")
-            cc = draft.get("cc_emails")
-            # Preserve provenance/binding fields (thread refs, source
-            # identity, attachment records). The old normalizer rebuilt only
-            # the four composer fields, so an imported/reloaded email lost
-            # its source association on the first read.
-            return {
-                **content,
-                "to": ", ".join(to) if isinstance(to, list) else str(to or ""),
-                "cc": ", ".join(cc) if isinstance(cc, list) else str(cc or ""),
-                "subject": str(draft.get("subject") or content.get("subject") or ""),
-                "body": _style_markdown_tables(str(draft.get("body") or "")),
-            }
-        body = content.get("body")
-        if not isinstance(body, str):
-            body = content.get("content") if isinstance(content.get("content"), str) else ""
-        return {
-            **content,
-            "to": str(content.get("to") or ""),
-            "cc": str(content.get("cc") or ""),
-            "subject": str(content.get("subject") or ""),
-            "body": _style_markdown_tables(body),
-        }
-    return {"to": "", "cc": "", "subject": "", "body": ""}
+    if not isinstance(content, dict):
+        return {"to": "", "cc": "", "subject": "", "body": ""}
+
+    draft = content.get("draft") if isinstance(content.get("draft"), dict) else None
+
+    # Canonical top-level key presence wins; an explicit ""/[]/None is a
+    # value, not a reason to fall back to the nested draft.
+    if "to" in content:
+        to = _recipient_string(content.get("to"))
+    elif draft is not None and "to_emails" in draft:
+        to = _recipient_string(draft.get("to_emails"))
+    else:
+        to = ""
+
+    if "cc" in content:
+        cc = _recipient_string(content.get("cc"))
+    elif draft is not None and "cc_emails" in draft:
+        cc = _recipient_string(draft.get("cc_emails"))
+    else:
+        cc = ""
+
+    if "subject" in content:
+        subject = str(content.get("subject") or "")
+    elif draft is not None and "subject" in draft:
+        subject = str(draft.get("subject") or "")
+    else:
+        subject = ""
+
+    if "body" in content:
+        raw_body = content.get("body")
+    elif draft is not None and "body" in draft:
+        raw_body = draft.get("body")
+    else:
+        raw_body = content.get("content")
+    body = _style_markdown_tables(str(raw_body or ""))
+
+    normalized: Dict[str, Any] = {
+        **content, "to": to, "cc": cc, "subject": subject, "body": body,
+    }
+    if draft is not None:
+        refreshed = dict(draft)
+        refreshed["to_emails"] = _recipient_list(to)
+        refreshed["cc_emails"] = _recipient_list(cc)
+        refreshed["subject"] = subject
+        refreshed["body"] = body
+        if "attachments" in content:
+            refreshed["attachments"] = list(content.get("attachments") or [])
+        normalized["draft"] = refreshed
+    return normalized
 
 
 def coerce_email_canvas(canvas_type: Optional[str], content: Any) -> Tuple[str, Any]:
