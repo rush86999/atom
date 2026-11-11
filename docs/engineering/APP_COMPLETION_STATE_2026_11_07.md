@@ -1,5 +1,48 @@
 # App completion state — 2026-11-07
 
+## Verified checkpoint — 2026-11-11, main `ef91be756`
+
+Leading checkpoint for this sparse readiness worktree at `ef91be756a1beb00fd6a2705611272835f119a89`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
+
+### Merged exact heads
+
+- **PR #840:** reviewed head `e0e8029ce087012277ee2250b9f71f61b6ccd602`, merged `b8d84615ea15e3b05f0c725106476fe096db9949`, actual main tree `2b1c11632c47e0ff850acf48ba2c457426979125`; all 13 exact-head checks passed.
+- **PR #847:** reviewed head `691a1878a`, merged `8c2dcc0eb1d6a80b3e6784007f93b826bf4e00d8`, main tree `934dd8801b6ff5a0a5058bcc70454d2de31498bd`; all 13 checks passed. Clean Python 3.14 Presidio/NumPy lock and redaction lineage.
+- **PR #841:** reviewed head `f212481aa`, merged `ddc1f282e701524d7ffb1493a7c2f00144217306`; all 13 checks passed, including GitGuardian, backend-core, ORACLE, E2E and Docker. Synthetic isolated document deletion/restart lineage.
+- **PR #849:** reviewed head `d0d0c1790`, merged `ef91be756a1beb00fd6a2705611272835f119a89`, final main tree `8ad86a38694366b3b24126d417a0eb470e99de89`; all 13 exact-head checks passed. #840 is its prerequisite.
+
+### Controlled same-job and late wait
+
+- The source-answer fixture candidate `a6eb7886a` passed 32/32 controlled browser steps: ordinary login, automatic initial question, inert upload, same world/job after restart, one verified effect and duplicate replay inert.
+- Combined late-wait candidate `178776e7e12d89751a8c123755ef9e8d3b961e82` (tree `2631663f05e610acce15b26fb0aac896edbbb42f`) passed 32/32 steps with a 110-second authored first-question delay. The real backend recorded 41 same-job GETs before its first durable outcome broadcast; the ordinary UI displayed the exact question 115 seconds after admission without the manual Refresh fallback. It then uploaded, restarted against the same world, resumed once, produced one verified task and rejected duplicate effects.
+- The separate ordinary two-question Agents browser driver passed 29/29 steps on the same lineage: first and second durable questions, restart, stale-answer refusal, reload recovery, one verified task and no duplicate effect. This exercised one controlled question order; the existing `9e3bf045c` process evidence remains the separate both-orders episode.
+- These are controlled-transport browser proofs, not served-model quality or whole-app generalization. The production late-wait source is the #849 lineage; hosted integration remains the gate.
+
+### Spreadsheet engines
+
+- Draft PR #850 at `846cd3c35` (tree `729a90166e95e3de84f33587b58af11e3f650a38`) passed all 144 focused checks.
+- The Python `formulas 1.3.4` engine browser lineage at `a91281b12` completed both real edits with complete recalc, zero gaps, same-DB backend restart, fresh login and byte-identical downloads (SHA-256 `6b38faa75b43a9450497eab4ed95b9ec7e067934ac1f05420d60f308a048df3c`).
+- The native-failure fallback browser run at browser source `ec0a0c043`, whose implementation bytes match #850 `846cd3c35`, used the original failing bundled LibreOffice. The binary exited 134 on upload and both edits; the existing formulas fallback recorded complete recalc with zero gaps each time. The same DB was reopened by a different backend PID and fresh login; downloads matched (SHA-256 `79a8f2f95a54353b332c0ce2660735428ed954a3cbaa6e9adb1b3620d44e31c3`).
+- Native LibreOffice itself remains broken. Only the validated fallback and the Python engine are claimed as working; they are separate source lineages.
+
+### Python 3.14 document lineage
+
+- Ordinary Data upload/reopen passed on exact `b8d84615` (tree `2b1c11632c47e0ff850acf48ba2c457426979125`) with Python 3.14.7, `lance 13.0.0` and `lancedb 0.38.0`: real login, scoped onboarding dismissal, native file chooser, exactly one upload POST, newest card and bound detail, and a same-origin authenticated stored-text export whose body and both digest headers matched the upload bytes (`c1f159255e60719271a3dd58495da96a75052fec79e714da1d0a5c9dcbb1e7b1`). A different backend PID opened the same DB; fresh login reopened the same document without another upload. Core Search remained disabled and visibly deferred. Evidence: `/private/tmp/document-upload-worker.JjPCvP/run-v2/`.
+- Seeded deletion/restart passed separately at exact-source v3 on `b8d84615`, canonical export `ba5b37ca25ca62b92abe0441a78174aee80dddea49b77aa1849dd5f1eed35584`: exactly one authenticated DELETE with a verified committed receipt, bound target detail/export 404s after a same-DB backend restart, and unchanged peer export digest. Evidence: `/private/tmp/document-py314-attempt3.GyLPyH/journey_result_py314.json`. It is synthetically seeded and API-triggered, not a UI delete; it does not join upload and deletion on a single document.
+- The earlier seeded-delete v2 is supporting evidence only: its legacy copy excluded two tracked Python files and both health source IDs were unknown. It is not exact-source qualification.
+
+### OPS-01 restored child
+
+- On clean `b8d84615` with the prepared Python 3.14 runtime, 94 focused backup/restore/rollback contract controls passed.
+- The isolated restored-child acceptance passed with the current release kit: a synthetic backup passed SQLite integrity, restore published a verified target, and a tampered office archive was refused before creating any target. With the source path absent, the loopback-only child authenticated and read the expected canvas, goal, durable document row/managed path and office bytes; a fresh process on the same target DB agreed with zero mismatches. The operator removed its generated password and released its listener. Evidence: `/private/tmp/ops-child-worker.VuP1IG/run-20261111T092939Z`.
+- This run excluded vector memory, live service rollback, external accounts and provider calls. The separate 94 controls cover the bounded restore/rollback contracts.
+
+### Deferred surfaces and open gates
+
+- Core-profile Search, Tasks and Boards remain deferred. The EXPO-01 inspection confirmed Tasks and Boards are not enabled in the default core profile; the scratch board driver refuses without an explicit full-profile switch, and no such switch was authorized. Search remains deferred. The Goals surface gap remains open under the actual profile.
+- Full usage readiness remains OPEN. #849's postmerge main CI `42989526567` and Docker `42989526549` were observed running; terminal postmerge readback is separate. #840's postmerge CI `42982736201` and Docker `42982736341` were also observed running at this checkpoint and are not inherited as green. #848 current-base `cb5db68d` and #850 current-base `1d961531` remain local candidates pending their next hosted gates. #850 draft `846cd3c35` focused/browser evidence does not replace those hosted checks.
+- These bounded results do not establish whole-app completion, served multi-model quality, live connector breadth, operational soak or general business judgment. All historical 143 claims and 18 goal-map rows remain unchanged.
+
 ## Production HTTPS follow-through — 2026-11-09
 
 PR803 merged as c8f8183e8 after all13required checks and strict11packet/167source/56artifact review; actual squash tree/parent match the pre-merge proof. Review was COMMENT plus the explicitly authorized review-only admin path, never separate-account approval; settings/deployment unchanged. Post-merge main CI is observed separately.
