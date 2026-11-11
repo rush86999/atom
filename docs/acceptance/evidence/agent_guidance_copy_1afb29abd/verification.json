@@ -1,0 +1,71 @@
+{
+  "schema": "atom-agent-guidance-copy-verification-1",
+  "status": "ordinary Agents-page guidance aligns with reviewed qualification/readiness policy and core/full connector scope; frozen copy/presentation candidate for independent review",
+  "candidate": {
+    "branch": "codex/agent-copy-guidance-20261110",
+    "base_current_main": "230231f5114612f4b31a602190c318667e94f2f1",
+    "executed_source": "1afb29abd32e52b22f2d524cdfb22d1bac018ac3",
+    "backend_integration_worktree_edited": false,
+    "ui_branch_mutated": false,
+    "runtime": "Node 20 + existing linked frontend node_modules; Jest/RTL/jsdom; no live connector/model/DB"
+  },
+  "confirmed_gap": {
+    "automatic_graduation": "EmployeeOnboardingGuide said clean runs made employees graduate automatically; guided creator implied regular use alone moved tiers",
+    "all_action_approval": "EmployeeOnboardingGuide said STUDENT employees need approval for every action",
+    "score_only_promotion": "AgentLaunchGuide train step said a performance score promotes",
+    "server_secret_hints": "AgentLaunchGuide showed ZOHO_CLIENT_ID/ZOHO_CLIENT_SECRET-style names in ordinary onboarding",
+    "policy_evidence": [
+      "docs/agents/graduation.md: readiness is necessary but not sufficient; scoped capability qualification of actual work required",
+      "docs/agents/TRAINING_AND_GRADUATION.md: autonomy still subject to data/action/budget/HITL boundaries and domain exceptions",
+      "backend/core/product_profile.py: core release defers connectors capability; /settings remains enabled"
+    ]
+  },
+  "repair": {
+    "onboarding_guide": "distinguishes experience/readiness from reviewed promotion; STUDENT read-only; supervised work still subject to action policy and high-risk/domain review; memory copy includes available company data",
+    "creator_success": "promotion is not automatic; readiness and current scoped qualification review required; AUTONOMOUS product goal with domain exceptions",
+    "launch_guide_full": "connector setup remains; unconfigured provider asks workspace admin in Settings; no env-var names",
+    "launch_guide_core": "connector setup explicitly deferred; supported Data upload next action; guide completes after role employee without unavailable connectors",
+    "train_step": "readiness plus scoped qualification review required; score alone does not promote"
+  },
+  "controls": {
+    "no_automatic_graduation_claim": true,
+    "readiness_and_review_required": true,
+    "student_read_only_not_all_action_approval": true,
+    "no_score_only_promotion": true,
+    "no_server_secret_env_names": true,
+    "full_profile_connectors_keep_setup": true,
+    "core_profile_connectors_explicitly_deferred": true,
+    "core_profile_supported_data_path": true,
+    "core_guide_completes_without_unavailable_connectors": true,
+    "no_maturity_authority_runtime_change": true,
+    "no_action_policy_change": true,
+    "no_connector_runtime_or_profile_capability_change": true,
+    "no_graduation_employee_browser_campaign_rerun": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "results": {
+    "focused_copy_profile_tier": {
+      "passed": 19
+    },
+    "focused_including_agents_page": {
+      "passed": 54,
+      "log": "focused-at-1afb29abd.log"
+    },
+    "tsc": {
+      "errors": 0,
+      "log": "tsc-at-1afb29abd.log"
+    }
+  },
+  "checks": {
+    "no_backend_change": true,
+    "no_new_dependency": true,
+    "no_new_api_client_store_or_review_engine": true,
+    "no_pr_merge_or_self_acceptance": true
+  },
+  "boundaries": [
+    "frontend copy/tests/evidence only",
+    "no maturity/authority/action-policy/connector runtime change",
+    "root owns integration and final review; no merge"
+  ]
+}
