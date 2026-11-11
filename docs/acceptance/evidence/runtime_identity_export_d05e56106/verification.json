@@ -1,0 +1,132 @@
+{
+  "schema": "atom-runtime-identity-export-verification-1",
+  "status": "loaded export identity is content-bound to the existing code_manifest contract; ancestor checkout cannot certify an export; drift is rejected; native checkouts remain attributable; frozen candidate for independent review",
+  "candidate": {
+    "branch": "codex/runtime-identity-export-20261110",
+    "base_current_main": "230231f5114612f4b31a602190c318667e94f2f1",
+    "first_repair": "9d3d3de5a",
+    "executed_source": "d05e56106806b6f331ff5c3b166848948e66bc10",
+    "backend_integration_worktree_edited": false,
+    "ui_branch_mutated": false,
+    "runtime": "Python 3.14 existing venv; scratch temp repos/files; read-only retained-world metadata; no live DB/model/provider"
+  },
+  "confirmed_gaps": {
+    "ancestor_identity": {
+      "source": "core/runtime_identity.py derived repo_dir lexically and ran git -C repo_dir rev-parse HEAD without checking Git top-level",
+      "effect": "export nested under canonical repo reported ancestor HEAD/dirty",
+      "retained_ui_example": "health ec69e24f4385-dirty vs verified export b4aa64ed...; mismatch was metadata, not proof wrong bytes ran"
+    },
+    "metadata_only": {
+      "source": "first repair validated MANIFEST/code_manifest shapes/non-empty and hashed metadata files, not actual exported/loaded bytes",
+      "effect": "root drift probe changed code/backend/app.py with retained manifests; capture still returned the same clean export identity"
+    },
+    "build_print": {
+      "source": "run_isolated printed PINNED_REV unconditionally in snapshot mode",
+      "effect": "farm line named a historical pin, not the working-tree export hash"
+    }
+  },
+  "repair": {
+    "git_trust": "only when rev-parse --show-toplevel resolves to the loaded source root; otherwise ancestor is diagnostic only",
+    "export_contract": "reuses MANIFEST.json + per-file code_manifest.json; no second store",
+    "content_verification": [
+      "manifest paths relative/non-escaping/valid 64-hex",
+      "export files exist under code root and match hash; symlink realpath stays inside",
+      "loaded backend files exist, resolve to the exact export file, and match hash",
+      "missing/changed/invalid/path-escape/extra-code report unknown with explicit error",
+      "mutable data/logs and narrow runtime artifacts are excluded from loaded-code mapping; manifest export bytes still verified"
+    ],
+    "unknown_policy": "noGit install and unverifiable export are identity_kind=unknown, not clean and not ancestor",
+    "native": "clean/dirty native checkouts remain attributable",
+    "build_label": "snapshot mode prints snapshot-sha256:<actual>; archive mode keeps archive:<PINNED_REV>"
+  },
+  "controls": {
+    "ancestor_cannot_certify_export": true,
+    "actual_export_bytes_verified": true,
+    "actual_loaded_bytes_verified": true,
+    "unrelated_farm_rejected": true,
+    "missing_file_rejected": true,
+    "changed_file_rejected": true,
+    "path_escape_rejected": true,
+    "invalid_entry_rejected": true,
+    "extra_loaded_code_rejected": true,
+    "missing_malformed_conflicting_manifest_unknown": true,
+    "nogit_unknown_not_clean": true,
+    "native_clean_dirty_attributable": true,
+    "snapshot_archive_symlink_twins_supported": true,
+    "runtime_artifacts_do_not_break_unchanged_export": true,
+    "drift_same_source_id_rejected": true,
+    "build_print_actual_export": true,
+    "no_second_provenance_store": true,
+    "no_schema_router_store_dependency_change": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "no_world_build_or_deletion": true,
+    "no_historic_browser_rerun": true
+  },
+  "results": {
+    "failure_first": {
+      "failed": 11,
+      "log": "failure-first-ancestor.log"
+    },
+    "root_drift_original_negative": {
+      "same_id_after_changed_bytes": true,
+      "accepted_changed_export": true,
+      "artifact": "root-drift-probe-original-negative.json"
+    },
+    "root_drift_after": {
+      "first_kind": "export",
+      "after_kind": "unknown",
+      "error": "export file content changed: backend/app.py",
+      "same_id_after_changed_bytes": false,
+      "accepted_changed_export": false,
+      "artifact": "root-drift-probe-after.json"
+    },
+    "identity_tests": {
+      "passed": 19
+    },
+    "focused_identity_health": {
+      "passed": 63,
+      "log": "focused-d05e56106.log"
+    },
+    "actual_retained_world": {
+      "identity_kind": "export",
+      "source_id": "export-sha256:86ff63fda943",
+      "export_sha256": "86ff63fda943c572b35208377076ada28082075aeca2f8cf00c6dd617e131078",
+      "export_verified_files": 7847,
+      "export_loaded_files": 7837,
+      "ancestor_head_rejected": true,
+      "elapsed_seconds": 2.229,
+      "artifact": "actual-retained-world-identity.json"
+    },
+    "preexisting_task_lifecycle": {
+      "combined_passed": 199,
+      "failed": 4,
+      "baseline_reproduced_with_fix_stashed": true,
+      "log": "task-lifecycle-baseline-4-preexisting-failures.log"
+    }
+  },
+  "source_identity": {
+    "base_current_main": "230231f5114612f4b31a602190c318667e94f2f1",
+    "executed_source": "d05e56106806b6f331ff5c3b166848948e66bc10",
+    "first_repair": "9d3d3de5a",
+    "product_files": [
+      "backend/core/runtime_identity.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/tests/test_runtime_identity_export.py"
+    ]
+  },
+  "checks": {
+    "original_143_claims_18_goals_unchanged": true,
+    "ui_raw_capture_and_missing_health_limits_preserved": true,
+    "root_budget_worktree_untouched": true,
+    "no_pr_merge_or_self_acceptance": true
+  },
+  "boundaries": [
+    "backend source/tests only; no backend integration worktree edit",
+    "no new schema, router, store, dependency or provenance engine",
+    "existing code_manifest/MANIFEST contract reused",
+    "no live DB/model/provider/credential/send/spend",
+    "no world build or deletion; retained-world read-only",
+    "no historic UI browser rerun",
+    "root owns integration and final review; no merge"
+  ]
+}
