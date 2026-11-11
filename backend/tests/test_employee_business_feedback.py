@@ -49,6 +49,20 @@ def feedback_db(tmp_path, monkeypatch):
         f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
+    # Model generation is now admitted through the real durable budget
+    # writer. The scoped feedback fixtures must own actual tenant/workspace
+    # rows, not only label strings in routing metadata.
+    from core.models import Tenant, Workspace
+    with Session() as db:
+        db.add_all([
+            Tenant(id="tenant-ctrl", name="Feedback control", subdomain="feedback-ctrl"),
+            Tenant(id="tenant-wait", name="Feedback wait", subdomain="feedback-wait"),
+        ])
+        db.add_all([
+            Workspace(id="ws-ctrl", name="Feedback control", tenant_id="tenant-ctrl"),
+            Workspace(id="ws-wait", name="Feedback wait", tenant_id="tenant-wait"),
+        ])
+        db.commit()
     monkeypatch.setattr(database, "SessionLocal", Session)
     reset_capability_evidence_cache()
     yield {"engine": engine, "Session": Session, "path": db_path}

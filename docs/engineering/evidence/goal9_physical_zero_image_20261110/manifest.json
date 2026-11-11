@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-10",
+  "files": {
+    "README.md": "27bae78a8355ca7804cb8837afc997bb0507a3ad3bb4e80cde8fe5a1d15fae89",
+    "after/ci-lane.log": "a807e61effc7c9668306be0c02ab9f85268a4b4f86ac0a71e0ede32cf8fa0c53",
+    "after/gates.log": "bd1cae87d7a0e918ca98bdd9e59f6a9bc89fe64c0be9ec7ffd6ae49588b64daf",
+    "after/root-counterprobes-after.log": "13a68a615bee7315b1ac883e15a0b57845e19db39d7aa1d2b57dfd35100e1a3b",
+    "before/pre-existing-missing-tenant-structured.log": "fb416d54bad1d858084d048eae0abd5e5a0dfe218ed21a4c8d4c4ae7666f24dc",
+    "before/root-free-image-negative.log": "0a4ef1e8d76f34081012e69760586c7f429ea3c90921949b3af7a6b3645c88be",
+    "before/root-free-image-probe.py": "bb3dff75e4633803fefe3e6f87a597a6ffef0595d18530eedb9287d00e267c2d",
+    "before/root-price-material-negative.json": "7d3e025b5f1bddb6def53649f4b0bb9e04adc6cee7438405a6a059edaf89d68a",
+    "before/root-price-material-negative.log": "3b7fcffa35ba2e32ca406f9391c7a5fb66bafa991ad840d05d6a42c92d28f85d",
+    "before/root-price-material-probe.py": "ab699ed90a63d6bd081f13557f23108c8f24dddf338b0e2da97fba98788d38c5",
+    "source/fix.diff": "f1951d8af6c78833f76405359a683bf6ecac9ab4c711ef2838ae330bf0d947fb",
+    "source/source-hashes.json": "82418de1349b40d06db8847fa91e110faf89eb437bd5fbe7a5586c47ff42ca35",
+    "verification.json": "a37579a7624286fc11fcada3734724b84b3e842c79c04b03f3baf825702e8738"
+  },
+  "schema": "goal9_physical_zero_image_evidence"
+}

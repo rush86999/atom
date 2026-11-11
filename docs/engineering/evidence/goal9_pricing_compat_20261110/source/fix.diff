@@ -1,0 +1,431 @@
+diff --git a/backend/api/byok_routes.py b/backend/api/byok_routes.py
+index 7ec19f2c7..fbc9ce5e3 100644
+--- a/backend/api/byok_routes.py
++++ b/backend/api/byok_routes.py
+@@ -2192,21 +2192,15 @@ async def estimate_request_cost(request_data: Dict[str, Any], current_user: User
+                 "estimated_cost_usd": estimated_cost
+             })
+         else:
+-            # Try to find similar model
+-            pricing = fetcher.get_model_price(model)
+-            if pricing:
+-                input_cost = pricing.get("input_cost_per_token", 0) * input_tokens
+-                output_cost = pricing.get("output_cost_per_token", 0) * output_tokens
+-                return ApiResponse(success=True, data={
+-                    "model": model,
+-                    "input_tokens": input_tokens,
+-                    "output_tokens": output_tokens,
+-                    "estimated_cost_usd": input_cost + output_cost
+-                })
+-            
+-            return ApiResponse(success=False, message="Model pricing not found. Refresh pricing cache.", data={
+-                "model": model
+-            })
++            # Unknown monetary material is UNKNOWN, never a $0 estimate. A row
++            # may still exist (with context metadata) while its charge is not
++            # determinable; report that truthfully instead of summing defaults.
++            return ApiResponse(
++                success=False,
++                message=(
++                    "Model pricing is unknown or incomplete for this request. "
++                    "Refresh pricing or configure explicit rates."),
++                data={"model": model})
+     except Exception as e:
+         logger.error(f"Failed to estimate cost: {e}")
+         return ApiResponse(success=False, message="Failed to estimate cost")
+diff --git a/backend/core/byok_endpoints.py b/backend/core/byok_endpoints.py
+index a12b71d43..02d650dae 100644
+--- a/backend/core/byok_endpoints.py
++++ b/backend/core/byok_endpoints.py
+@@ -863,15 +863,16 @@ class BYOKManager:
+                     pricing = fetcher.get_model_price(provider.model)
+ 
+                     if pricing:
+-                        input_cost = pricing.get("input_cost_per_token", 0)
+-                        output_cost = pricing.get("output_cost_per_token", 0)
+-
+-                        # Update cost if we have valid data (average of input and output as single metric)
+-                        if input_cost > 0 or output_cost > 0:
+-                            new_cost = (input_cost + output_cost) / 2
+-                            if new_cost > 0:
+-                                provider.cost_per_token = new_cost
+-                                updated_count += 1
++                        # Only a complete valid rate pair updates the display
++                        # cost; unknown monetary material is not $0.
++                        rates = fetcher.material_rates(pricing)
++                        if rates is not None:
++                            input_cost, output_cost = rates
++                            if input_cost > 0 or output_cost > 0:
++                                new_cost = (input_cost + output_cost) / 2
++                                if new_cost > 0:
++                                    provider.cost_per_token = new_cost
++                                    updated_count += 1
+ 
+             if updated_count > 0:
+                 logger.info(f"Updated costs for {updated_count} providers from dynamic pricing")
+diff --git a/backend/core/dynamic_pricing_fetcher.py b/backend/core/dynamic_pricing_fetcher.py
+index 6e744c66f..044577838 100644
+--- a/backend/core/dynamic_pricing_fetcher.py
++++ b/backend/core/dynamic_pricing_fetcher.py
+@@ -157,16 +157,20 @@ class DynamicPricingFetcher:
+                 for model_name, model_data in data.items():
+                     if not isinstance(model_data, dict):
+                         continue
+-                    # Never fabricate a $0 rate by defaulting a missing one.
+-                    if not self.rates_are_material({
+-                            "input_cost_per_token": model_data.get(
+-                                "input_cost_per_token"),
+-                            "output_cost_per_token": model_data.get(
+-                                "output_cost_per_token")}):
+-                        continue
++                    # PRESERVE the catalog row/metadata even when monetary
++                    # price is unknown; only OMIT an invalid provided rate
++                    # (never default it to 0). Context-window consumers read
++                    # max_input_tokens/max_tokens from this row.
++                    _rates = {}
++                    for _rk in ("input_cost_per_token",
++                                "output_cost_per_token"):
++                        _rv = model_data.get(_rk)
++                        if _rv is None:
++                            continue
++                        if self.rate_is_valid(_rv):
++                            _rates[_rk] = float(_rv)
+                     pricing[model_name] = {
+-                        "input_cost_per_token": model_data["input_cost_per_token"],
+-                        "output_cost_per_token": model_data["output_cost_per_token"],
++                        **_rates,
+                         "max_tokens": model_data.get("max_tokens", 0),
+                         "max_input_tokens": model_data.get("max_input_tokens", 0),
+                         "max_output_tokens": model_data.get("max_output_tokens", 0),
+@@ -269,14 +273,18 @@ class DynamicPricingFetcher:
+                 for model in data.get("data", []):
+                     model_id = model.get("id", "")
+                     model_pricing = model.get("pricing", {})
+-                    if not self.rates_are_material({
+-                            "input_cost_per_token": model_pricing.get("prompt"),
+-                            "output_cost_per_token": model_pricing.get(
+-                                "completion")}):
+-                        continue
++                    # Preserve the catalog row; omit only an invalid/missing
++                    # monetary rate so the charge stays unknown.
++                    _rates = {}
++                    for _rk, _src in (("input_cost_per_token", "prompt"),
++                                      ("output_cost_per_token", "completion")):
++                        _rv = model_pricing.get(_src)
++                        if _rv is None:
++                            continue
++                        if self.rate_is_valid(_rv):
++                            _rates[_rk] = float(_rv)
+                     pricing[model_id] = {
+-                        "input_cost_per_token": float(model_pricing["prompt"]),
+-                        "output_cost_per_token": float(model_pricing["completion"]),
++                        **_rates,
+                         "max_tokens": model.get("context_length", 0),
+                         "name": model.get("name", model_id),
+                         "description": model.get("description", ""),
+@@ -577,12 +585,18 @@ class DynamicPricingFetcher:
+         return models
+     
+     def get_cheapest_models(self, limit: int = 10) -> List[Dict[str, Any]]:
+-        """Get the cheapest models across all providers"""
++        """Get the cheapest models across all providers.
++
++        Only rows with a COMPLETE valid rate pair participate; a row whose
++        monetary price is unknown is not ranked as if it were free.
++        """
+         models = []
+         
+         for model_name, pricing in self.pricing_cache.items():
+-            input_cost = pricing.get("input_cost_per_token", 0)
+-            output_cost = pricing.get("output_cost_per_token", 0)
++            rates = self.material_rates(pricing)
++            if rates is None:
++                continue
++            input_cost, output_cost = rates
+             
+             # Skip models with zero cost (usually local/self-hosted)
+             if input_cost > 0 or output_cost > 0:
+@@ -614,8 +628,10 @@ class DynamicPricingFetcher:
+                 else:
+                     provider = "other"
+             
+-            input_cost = pricing.get("input_cost_per_token", 0)
+-            output_cost = pricing.get("output_cost_per_token", 0)
++            rates = self.material_rates(pricing)
++            if rates is None:
++                continue
++            input_cost, output_cost = rates
+             
+             if input_cost > 0:
+                 if provider not in provider_costs:
+@@ -636,44 +652,76 @@ class DynamicPricingFetcher:
+         return comparison
+     
+     @staticmethod
+-    def rates_are_material(pricing: Any) -> bool:
+-        """True only when BOTH per-token rates are explicit valid numbers.
+-
+-        Missing rates, ``None``, bools (``False`` is numerically 0), negative
+-        values and non-finite values are INVALID pricing material, not free.
+-        ``pricing.get(rate, 0)`` used to turn a missing/partial entry into an
+-        authoritative-looking $0 and arithmetic could even cancel a negative
+-        input rate against a positive output rate. The correct-price no-
+-        fabricated-free gate requires unknown here so hard_stop refuses.
++    def rate_is_valid(value: Any) -> bool:
++        """A monetary rate is material only when explicit, finite, >= 0, non-bool."""
++        if value is None or isinstance(value, bool):
++            return False
++        try:
++            rate = float(value)
++        except (TypeError, ValueError):
++            return False
++        return math.isfinite(rate) and rate >= 0
++
++    @classmethod
++    def material_rates(cls, pricing: Any) -> Optional[tuple]:
++        """``(input_rate, output_rate)`` only when BOTH are explicit material.
++
++        Used by consumers that need a complete price pair for ranking/display
++        (cache router, provider-cost sync). Absence is unknown, never 0.
+         """
+         if not isinstance(pricing, dict):
+-            return False
++            return None
++        values = []
+         for key in ("input_cost_per_token", "output_cost_per_token"):
+             value = pricing.get(key)
+-            if value is None or isinstance(value, bool):
+-                return False
+-            try:
+-                rate = float(value)
+-            except (TypeError, ValueError):
+-                return False
+-            if not math.isfinite(rate) or rate < 0:
+-                return False
+-        return True
++            if not cls.rate_is_valid(value):
++                return None
++            values.append(float(value))
++        return values[0], values[1]
+ 
+-    def estimate_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> Optional[float]:
+-        """Estimate cost for a specific request.
++    @classmethod
++    def rates_are_material(cls, pricing: Any) -> bool:
++        """True only when BOTH rates are explicit valid numbers."""
++        return cls.material_rates(pricing) is not None
+ 
+-        Returns ``None`` (unknown) unless the configured entry carries explicit
+-        finite non-negative material for BOTH rates. A genuine explicit 0/0
+-        entry remains authoritative free; absence is never free.
++    def estimate_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> Optional[float]:
++        """Quantity-aware configured cost, or ``None`` when not chargeable.
++
++        Contract:
++        * every PROVIDED rate must be explicit, finite, non-negative, non-bool;
++        * a rate is REQUIRED only for a dimension with positive quantity (a
++          chat reservation has positive input and output cap, so both are
++          required there);
++        * an ABSENT rate for a zero-quantity dimension is genuinely unused
++          basis, not a reason to invent a 0 output price — legitimate
++          input-only (e.g. embedding) charges keep their known input cost;
++        * explicit 0 rates are authoritative free; absence is never free.
+         """
++        if isinstance(input_tokens, bool) or isinstance(output_tokens, bool):
++            return None
++        try:
++            in_qty = int(input_tokens or 0)
++            out_qty = int(output_tokens or 0)
++        except (TypeError, ValueError):
++            return None
++        if in_qty < 0 or out_qty < 0:
++            return None
+         pricing = self.get_model_price(model_name)
+-        if not pricing or not self.rates_are_material(pricing):
++        if not isinstance(pricing, dict):
+             return None
+-
+-        input_cost = float(pricing["input_cost_per_token"]) * input_tokens
+-        output_cost = float(pricing["output_cost_per_token"]) * output_tokens
+-        total = input_cost + output_cost
++        total = 0.0
++        for key, qty in (("input_cost_per_token", in_qty),
++                         ("output_cost_per_token", out_qty)):
++            value = pricing.get(key)
++            if value is not None:
++                # Validate every PROVIDED rate, even for a zero quantity.
++                if not self.rate_is_valid(value):
++                    return None
++                total += float(value) * qty
++            elif qty > 0:
++                # A positive charge needs this dimension's price.
++                return None
++            # qty == 0 and absent: unused basis, contributes exactly 0.
+         if not math.isfinite(total) or total < 0:
+             return None
+         return total
+diff --git a/backend/core/llm/cache_aware_router.py b/backend/core/llm/cache_aware_router.py
+index e0d909996..e61b20cc9 100644
+--- a/backend/core/llm/cache_aware_router.py
++++ b/backend/core/llm/cache_aware_router.py
+@@ -121,8 +121,13 @@ class CacheAwareRouter:
+             from core.llm.byok_handler import AwaitableResult
+             return AwaitableResult(float("inf"))
+ 
+-        input_cost = pricing.get("input_cost_per_token", 0)
+-        output_cost = pricing.get("output_cost_per_token", 0)
++        rates = self.pricing_fetcher.material_rates(pricing)
++        if rates is None:
++            # Incomplete/invalid monetary material is unknown cost, not free;
++            # keep such a route unranked by effective cost.
++            from core.llm.byok_handler import AwaitableResult
++            return AwaitableResult(float("inf"))
++        input_cost, output_cost = rates
+ 
+         # Get provider cache capabilities
+         cache_info = self.get_provider_cache_capability(provider)
+diff --git a/backend/tests/test_goal9_pricing_material.py b/backend/tests/test_goal9_pricing_material.py
+index 7147a2f3b..59af027fa 100644
+--- a/backend/tests/test_goal9_pricing_material.py
++++ b/backend/tests/test_goal9_pricing_material.py
+@@ -66,6 +66,61 @@ def test_explicit_free_and_priced_rates_remain_supported(rates, expected):
+         "controlled-no-static-alias", 100, 100) == expected
+ 
+ 
++def test_known_input_only_charge_is_not_lost_for_zero_output():
++    """A legitimate embedding/input-only row keeps its known input charge."""
++    fetcher = _bare_fetcher({
++        "mode": "embedding", "input_cost_per_token": 0.01,
++        "max_input_tokens": 8192})
++    assert fetcher.estimate_cost("controlled-input-only", 100, 0) == 1.0
++
++
++@pytest.mark.parametrize("pricing,input_tokens,output_tokens", [
++    # Provided invalid rate is refused even when that dimension is unused.
++    ({"input_cost_per_token": 0.01, "output_cost_per_token": False}, 100, 0),
++    ({"input_cost_per_token": 0.01, "output_cost_per_token": -0.02}, 100, 0),
++    # Absent rate for a POSITIVE quantity is unknown.
++    ({"input_cost_per_token": 0.01}, 100, 1),
++    ({"output_cost_per_token": 0.02}, 1, 100),
++    # Negative/boolean quantities are invalid.
++    ({"input_cost_per_token": 0.01,
++      "output_cost_per_token": 0.02}, -1, 0),
++])
++def test_quantity_aware_material_contract(
++        pricing, input_tokens, output_tokens):
++    assert _bare_fetcher(pricing).estimate_cost(
++        "controlled-quantity", input_tokens, output_tokens) is None
++
++
++def test_preserved_context_metadata_reaches_read_consumers(monkeypatch):
++    """Unknown price must not erase the known context window."""
++    from core.llm.byok_handler import BYOKHandler
++    from core.dynamic_pricing_fetcher import get_pricing_fetcher
++
++    fetcher = get_pricing_fetcher()
++    saved = dict(fetcher.pricing_cache)
++    fetcher.pricing_cache["controlled-context-row"] = {
++        "input_cost_per_token": 0.01,
++        "max_input_tokens": 8192,
++        "max_tokens": 4096,
++        "mode": "embedding",
++    }
++    try:
++        handler = object.__new__(BYOKHandler)
++        assert handler.get_context_window("controlled-context-row") == 8192
++        assert handler._pinned_model_fits("controlled-context-row", 7000) is True
++        assert handler._pinned_model_fits(
++            "controlled-context-row", 9000) is False
++        # The charge for an output-bearing request is unknown, not free.
++        assert fetcher.estimate_cost(
++            "controlled-context-row", 100, 1) is None
++        # And an input-only request keeps its known charge.
++        assert fetcher.estimate_cost(
++            "controlled-context-row", 100, 0) == 1.0
++    finally:
++        fetcher.pricing_cache.clear()
++        fetcher.pricing_cache.update(saved)
++
++
+ class _FakeResponse:
+     def __init__(self, payload):
+         self._payload = payload
+@@ -91,7 +146,7 @@ class _FakeAsyncClient:
+         return _FakeResponse(self._payload)
+ 
+ 
+-def test_litellm_normalization_skips_incomplete_rates(monkeypatch):
++def test_litellm_normalization_preserves_rows_with_unknown_price(monkeypatch):
+     import core.dynamic_pricing_fetcher as dpf
+ 
+     payload = {
+@@ -99,36 +154,58 @@ def test_litellm_normalization_skips_incomplete_rates(monkeypatch):
+                       "output_cost_per_token": 0.0},
+         "good-paid": {"input_cost_per_token": 0.01,
+                       "output_cost_per_token": 0.02},
+-        "missing-both": {},
+-        "missing-output": {"input_cost_per_token": 0.01},
++        "missing-both": {"max_input_tokens": 4096, "mode": "chat"},
++        "missing-output": {"input_cost_per_token": 0.01,
++                           "max_input_tokens": 8192, "mode": "embedding"},
+         "bool-rates": {"input_cost_per_token": False,
+-                       "output_cost_per_token": False},
++                       "output_cost_per_token": False,
++                       "max_input_tokens": 2048, "mode": "chat"},
+     }
+     monkeypatch.setattr(dpf.httpx, "AsyncClient",
+                         lambda **kw: _FakeAsyncClient(payload, **kw))
+     fetcher = object.__new__(DynamicPricingFetcher)
+     result = asyncio.run(fetcher.fetch_litellm_pricing())
+     assert set(result) >= {"good-free", "good-paid"}
+-    assert not ({"missing-both", "missing-output", "bool-rates"} & set(result))
++    # Metadata survives; monetary material is simply absent.
++    assert result["missing-both"]["max_input_tokens"] == 4096
++    assert "input_cost_per_token" not in result["missing-both"]
++    assert result["missing-output"]["max_input_tokens"] == 8192
++    assert result["missing-output"]["input_cost_per_token"] == 0.01
++    assert "output_cost_per_token" not in result["missing-output"]
++    assert result["bool-rates"]["max_input_tokens"] == 2048
++    assert "input_cost_per_token" not in result["bool-rates"]
+     assert result["good-free"]["input_cost_per_token"] == 0.0
+ 
++    # Context/read consumers keep working off the preserved metadata.
++    fetcher.get_model_price = lambda model: result.get(model)
++    assert fetcher.estimate_cost("missing-output", 100, 0) == 1.0
++    assert fetcher.estimate_cost("missing-output", 100, 1) is None
++    assert fetcher.estimate_cost("missing-both", 100, 0) is None
++    assert fetcher.estimate_cost("bool-rates", 1, 1) is None
++
+ 
+-def test_openrouter_normalization_skips_incomplete_rates(monkeypatch):
++def test_openrouter_normalization_preserves_rows_with_unknown_price(monkeypatch):
+     import core.dynamic_pricing_fetcher as dpf
+ 
+     payload = {"data": [
+-        {"id": "good-free", "pricing": {"prompt": "0", "completion": "0"}},
+-        {"id": "good-paid", "pricing": {"prompt": "0.01", "completion": "0.02"}},
+-        {"id": "missing-completion", "pricing": {"prompt": "0.01"}},
+-        {"id": "negative", "pricing": {"prompt": "-0.01", "completion": "0.02"}},
++        {"id": "good-free", "pricing": {"prompt": "0", "completion": "0"},
++         "context_length": 4096},
++        {"id": "good-paid", "pricing": {"prompt": "0.01", "completion": "0.02"},
++         "context_length": 8192},
++        {"id": "missing-completion", "pricing": {"prompt": "0.01"},
++         "context_length": 16384},
++        {"id": "negative", "pricing": {"prompt": "-0.01", "completion": "0.02"},
++         "context_length": 2048},
+     ]}
+     monkeypatch.setattr(dpf.httpx, "AsyncClient",
+                         lambda **kw: _FakeAsyncClient(payload, **kw))
+     fetcher = object.__new__(DynamicPricingFetcher)
+     result = asyncio.run(fetcher.fetch_openrouter_pricing())
+     assert "good-free" in result and "good-paid" in result
+-    assert "missing-completion" not in result
+-    assert "negative" not in result
++    assert result["missing-completion"]["max_tokens"] == 16384
++    assert "output_cost_per_token" not in result["missing-completion"]
++    assert result["negative"]["max_tokens"] == 2048
++    assert "input_cost_per_token" not in result["negative"]
+ 
+ 
+ def _seed_real_pricing(monkeypatch, entries):

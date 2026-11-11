@@ -1,0 +1,174 @@
+
+tests/test_goal9_token_usage_upgrade.py::test_pre_upgrade_sqlite_token_usage_upgrades_via_startup_hook
+-------------------------------- live log setup --------------------------------
+2026-11-10 10:19:37 [    INFO] EscalationManager initialized
+2026-11-10 10:19:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:19:37 [    INFO] EscalationManager initialized
+2026-11-10 10:19:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:19:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:19:37 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:37 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [  3%]
+tests/test_goal9_token_usage_upgrade.py::test_partial_upgrade_preserves_pricing_status_and_custom_index
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:37 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [  6%]
+tests/test_goal9_token_usage_upgrade.py::test_failed_upgrade_is_recorded_and_retryable
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:37 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+PASSED                                                                   [ 10%]
+tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:38 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:38 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 13%]
+tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:39 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:39 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 17%]
+tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:40 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:40 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 20%]
+tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 24%]
+tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 27%]
+tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:42 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:42 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 31%]
+tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:43 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 10:19:43 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 34%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 37%]
+tests/test_goal9_durable_settlement.py::test_known_free_contract_is_authoritative_zero_without_usage PASSED [ 41%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unpriced_read_failure_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:45 [   ERROR] [SpendAggregationService] Error updating spend: unpriced read unavailable
+2026-11-10 10:19:45 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unpriced read unavailable
+PASSED                                                                   [ 44%]
+tests/test_goal9_durable_settlement.py::test_upgrade_failure_keeps_hard_stop_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:46 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+2026-11-10 10:19:46 [ WARNING] [BudgetEnforcementService] Durable ledger upgrade unavailable for tenant tenant-goal9: upgrade_failed:RuntimeError
+PASSED                                                                   [ 48%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 10:19:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 51%]
+tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:48 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 55%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:48 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 58%]
+tests/test_goal9_durable_settlement.py::test_unresolved_scope_unknown_is_visible_to_hardstop
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:49 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 62%]
+tests/test_goal9_durable_settlement.py::test_trusted_handler_scope_carrier
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:50 [    INFO] EscalationManager initialized
+2026-11-10 10:19:50 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+2026-11-10 10:19:50 [    INFO] LLM Cost Attributed: controlled-model - $0.010000 (Saved: $0.000000)
+PASSED                                                                   [ 65%]
+tests/test_goal9_durable_settlement.py::test_llm_service_scope_carrier_and_unresolved_refusal
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:51 [    INFO] EscalationManager initialized
+2026-11-10 10:19:51 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+PASSED                                                                   [ 68%]
+tests/test_goal9_durable_settlement.py::test_settlement_persistence_failure_does_not_fake_success
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:51 [   ERROR] durable LLM settlement degraded: settlement_write_failed:RuntimeError
+2026-11-10 10:19:51 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 10:19:51 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:51 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+2026-11-10 10:19:51 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+PASSED                                                                   [ 72%]
+tests/test_goal9_durable_settlement.py::test_structured_no_trace_calls_get_distinct_server_identities
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:52 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 10:19:52 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:19:52 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-7c8c4178bd52 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:19:52 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-7c8c4178bd52 attempt=1
+2026-11-10 10:19:52 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:52 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:19:52 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-1742143f2c1a attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:19:52 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-1742143f2c1a attempt=1
+2026-11-10 10:19:52 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 75%]
+tests/test_goal9_durable_settlement.py::test_durable_intent_survives_restart_when_settlement_write_fails
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:53 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:19:53 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-3bd9a8ec9604 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:19:53 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-3bd9a8ec9604 attempt=1
+2026-11-10 10:19:53 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 10:19:53 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 10:19:53 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+2026-11-10 10:19:53 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 79%]
+tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:54 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 10:19:54 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 10:19:54 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 10:19:54 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 82%]
+tests/test_goal9_durable_settlement.py::test_settle_exact_intent_once
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:54 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 86%]
+tests/test_goal9_durable_settlement.py::test_pending_cas_two_sessions_actual_survives_stale_writers PASSED [ 89%]
+tests/test_goal9_durable_settlement.py::test_null_cost_nonunknown_status_is_liability_not_free
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:56 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 93%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 96%]
+tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 58 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 29 passed, 63 warnings in 36.88s =======================

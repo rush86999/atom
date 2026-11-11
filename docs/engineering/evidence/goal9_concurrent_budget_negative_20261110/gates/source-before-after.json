@@ -1,0 +1,15 @@
+{
+  "same_product": true,
+  "source_after": {
+    "changed_files": [
+      "backend/tests/test_goal9_budget_ledger_negative.py",
+      "backend/tests/integration/budget/test_concurrent_budget_checks.py"
+    ],
+    "head": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+    "product_unchanged": true
+  },
+  "source_before": {
+    "head": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+    "status": "clean at capture before edits"
+  }
+}

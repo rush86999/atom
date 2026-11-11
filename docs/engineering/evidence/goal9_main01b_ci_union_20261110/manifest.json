@@ -1,0 +1,9 @@
+{
+  "executed_source": "18f407681a08817ab86a3ced391db69fc9fc9110",
+  "artifacts": {
+    "union-proof.json": "74ac0830b04c182db57a120b81c928d32e342f365b3faeb0fa750aede51b2c63",
+    "README.md": "c1d09f4163185cd2c45dc21d508bf24f0d15e2ed1003cae073fe5e4a31d1dfcc",
+    "tests.log": "c7906aa7e1d7791597ef58fea72d8b6c085cb384a94ff16a4dd5dfcc2666cce5",
+    "review.json": "0614d2690b0d6297c59fc9dd851cd13d6ec8eb0a573bf8d51bbb27b6e778dd26"
+  }
+}

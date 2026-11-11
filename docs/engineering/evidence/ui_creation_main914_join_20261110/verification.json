@@ -1,0 +1,33 @@
+{
+  "schema": "ui-creation-main914-composition-1",
+  "reviewed_ui_head": "88fdf3ce1812e7bb2e32fb6a3f8a0995bf86d504",
+  "verified_main": "914b9470d254293369475cd9f0fecdbf76acd650",
+  "subtree_proof": {
+    "frontend-nextjs": {
+      "actual": "00c7669eb53679d21c2b65b70d41cb036323684b",
+      "expected_parent": "88fdf3ce1812e7bb2e32fb6a3f8a0995bf86d504",
+      "expected": "00c7669eb53679d21c2b65b70d41cb036323684b",
+      "equal": true
+    },
+    "backend": {
+      "actual": "e6ed02a470eacf8546939093b05734ecbe799b6f",
+      "expected_parent": "914b9470d254293369475cd9f0fecdbf76acd650",
+      "expected": "e6ed02a470eacf8546939093b05734ecbe799b6f",
+      "equal": true
+    },
+    ".github": {
+      "actual": "06c3be9cd0a872fe1e75ad3f90025e514064b620",
+      "expected_parent": "914b9470d254293369475cd9f0fecdbf76acd650",
+      "expected": "06c3be9cd0a872fe1e75ad3f90025e514064b620",
+      "equal": true
+    }
+  },
+  "conflict_resolution": "COORDINATION.md only; retain both historical blocks; no runtime/test/CI conflict",
+  "original_UI_evidence_ref": "88fdf3ce1812e7bb2e32fb6a3f8a0995bf86d504",
+  "original_UI_checks": "root5counterprobes51Jest+14source34artifactGitchecks; not rerun for byte-identical frontend",
+  "backend_evidence": "main914 tree is exact reviewed PR836 tree;155 joinedcontrols and13requiredchecks passed before that merge",
+  "fresh_head_CI": "required after push; no inherited green",
+  "browser_scope": "original708 customHire23 controls, rawhealthpayloadmissing disclosed; no new browser execution claim",
+  "no_runtime_changes_beyond_verified_parents": true,
+  "deployment": false
+}

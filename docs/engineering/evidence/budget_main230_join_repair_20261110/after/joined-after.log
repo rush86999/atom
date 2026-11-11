@@ -1,0 +1,1663 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 14:05:51 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [    INFO] EscalationManager initialized
+2026-11-10 14:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:05:51 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [    INFO] EscalationManager initialized
+2026-11-10 14:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:05:51 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:05:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:05:51 [    INFO] MCP Service initialized
+2026-11-10 14:05:51 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 14:05:51 [    INFO] No token storage file found, starting empty
+2026-11-10 14:05:51 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 14:05:51 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:05:52 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [  0%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [  0%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [  1%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [  1%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [  1%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [  3%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [  3%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [  3%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [  6%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [  6%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [  6%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [  8%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [  8%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [  8%]
+tests/test_goal9_atomic_cap.py::test_concurrent_two_seven_reservations_one_refuses PASSED [  9%]
+tests/test_goal9_atomic_cap.py::test_single_reservation_settles_actual_7_to_97 PASSED [  9%]
+tests/test_goal9_atomic_cap.py::test_second_reservation_after_97_refuses PASSED [  9%]
+tests/test_goal9_atomic_cap.py::test_actual_less_than_reservation_releases_difference PASSED [ 10%]
+tests/test_goal9_atomic_cap.py::test_scope_isolation_between_tenants PASSED [ 10%]
+tests/test_goal9_atomic_cap.py::test_duplicate_reservation_idempotent_and_binding_conflict
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:05:58 [   ERROR] durable LLM settlement degraded: intent_write_failed:DurableUsageIntentError
+2026-11-10 14:05:58 [   ERROR] durable LLM settlement degraded: intent_write_failed:DurableUsageIntentError
+PASSED                                                                   [ 10%]
+tests/test_goal9_atomic_cap.py::test_restart_active_reservation_blocks_new_reservation PASSED [ 11%]
+tests/test_goal9_atomic_cap.py::test_reservation_write_failure_refuses_provider_dispatch
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:05:59 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 14:05:59 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:05:59 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 14:05:59 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (DurableUsageIntentError)
+2026-11-10 14:05:59 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 14:05:59 [ WARNING] [structured-pool] depth=0 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 14:05:59 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-10 14:05:59 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"openai": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-494ecce010b7"}
+2026-11-10 14:05:59 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:05:59 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 14:05:59 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (DurableUsageIntentError)
+2026-11-10 14:05:59 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 14:05:59 [ WARNING] [structured-pool] depth=1 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 14:05:59 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:05:59 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 11%]
+tests/test_goal9_atomic_cap.py::test_known_free_zero_reservation_allowed PASSED [ 11%]
+tests/test_goal9_atomic_cap.py::test_unknown_pricing_hard_stop_refuses_soft_stop_allows PASSED [ 12%]
+tests/test_goal9_atomic_cap.py::test_timeout_uncertain_reservation_is_retained PASSED [ 12%]
+tests/test_goal9_atomic_cap.py::test_exact_attempt_settles_once_and_conflict_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:03 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 12%]
+tests/test_goal9_atomic_cap.py::test_concurrent_structured_only_one_provider_call
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:03 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:03 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:03 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-4592b85b2422 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:06:03 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-4592b85b2422 attempt=1
+2026-11-10 14:06:03 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (BudgetReservationRefused)
+2026-11-10 14:06:03 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 14:06:03 [ WARNING] [structured-pool] depth=0 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 14:06:03 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-10 14:06:03 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"openai": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-7c614b5c1047"}
+2026-11-10 14:06:03 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:03 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (BudgetReservationRefused)
+2026-11-10 14:06:03 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 14:06:03 [ WARNING] [structured-pool] depth=1 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 14:06:03 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:06:03 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:06:03 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 12%]
+tests/test_goal9_atomic_cap.py::test_invalid_or_unreadable_policy_fails_closed PASSED [ 13%]
+tests/test_goal9_atomic_cap.py::test_database_read_failure_fails_closed PASSED [ 13%]
+tests/test_goal9_atomic_cap.py::test_unresolved_scope_reservation_remains_unattributed_liability
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:06 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 13%]
+tests/test_goal9_atomic_cap.py::test_no_limit_or_observe_policy_is_not_blanket_denied PASSED [ 14%]
+tests/test_goal9_atomic_cap.py::test_budget_revision_after_reservation_keeps_liability PASSED [ 14%]
+tests/test_goal9_atomic_cap.py::test_reservation_bound_covers_unicode_schema_and_output[False] PASSED [ 14%]
+tests/test_goal9_atomic_cap.py::test_reservation_bound_covers_unicode_schema_and_output[True] PASSED [ 15%]
+tests/test_goal9_atomic_cap.py::test_route_binding_conflict_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:09 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 15%]
+tests/test_goal9_atomic_cap.py::test_reservation_does_not_commit_caller_work PASSED [ 15%]
+tests/test_goal9_atomic_cap.py::test_default_scope_without_tenant_is_intentional_no_limit PASSED [ 16%]
+tests/test_goal9_atomic_cap.py::test_supported_upgrade_adds_reservation_columns_preserving_old_rows
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:11 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 16%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[-1.0] PASSED [ 16%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[nan] PASSED [ 17%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[inf] PASSED [ 17%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[False] PASSED [ 17%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[True] PASSED [ 18%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[-1.0] PASSED [ 18%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[nan] PASSED [ 18%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[inf] PASSED [ 19%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[False] PASSED [ 19%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[True] PASSED [ 19%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[-1.0] PASSED [ 20%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[nan] PASSED [ 20%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[inf] PASSED [ 20%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[False] PASSED [ 21%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[True] PASSED [ 21%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0-0.0] PASSED [ 21%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0.0-0.0] PASSED [ 22%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0.25-0.3125] PASSED [ 22%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_direct_bounds_remain_valid PASSED [ 22%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_without_execution_context_uses_none
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:20 [    INFO] EscalationManager initialized
+2026-11-10 14:06:20 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:20 [    INFO] LocalOnlyGuard initialized
+2026-11-10 14:06:20 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:20 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:21 [    INFO] Initialized router with 30 models
+2026-11-10 14:06:21 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-10 14:06:21 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 23%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_with_execution_context_attribution
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:22 [    INFO] EscalationManager initialized
+2026-11-10 14:06:22 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:22 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:22 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:22 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6004271632'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5764617232'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 23%]
+tests/test_goal9_ci_execution_contract.py::test_intent_failure_does_not_fallback_to_second_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:23 [    INFO] EscalationManager initialized
+2026-11-10 14:06:23 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:23 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (RuntimeError)
+2026-11-10 14:06:23 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 23%]
+tests/test_goal9_ci_execution_contract.py::test_two_ordinary_successes_settle_ledger_once
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:23 [    INFO] EscalationManager initialized
+2026-11-10 14:06:23 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:23 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:06:23 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:23 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6004314448'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6004271632'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 14:06:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:23 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:06:23 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 24%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_uncertain_liability_not_released
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:24 [    INFO] EscalationManager initialized
+2026-11-10 14:06:24 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:24 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:24 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 24%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_keeps_reserved_liability_across_restart
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:25 [    INFO] EscalationManager initialized
+2026-11-10 14:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:25 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:25 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $1.600000 (Saved: $0.000000)
+2026-11-10 14:06:25 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:25 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:06:25 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6007252496'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6004314448'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 24%]
+tests/test_goal9_ci_execution_contract.py::test_concurrent_ordinary_cap_90_plus_7_plus_7
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:26 [    INFO] EscalationManager initialized
+2026-11-10 14:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:26 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:26 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:26 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:26 [   ERROR] All providers failed. Last error: None
+2026-11-10 14:06:26 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5956140752'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6007252496'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 25%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[-1.0]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:27 [    INFO] EscalationManager initialized
+2026-11-10 14:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:27 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:27 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 25%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[nan]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:28 [    INFO] EscalationManager initialized
+2026-11-10 14:06:28 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:28 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:28 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:28 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 25%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[inf]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:29 [    INFO] EscalationManager initialized
+2026-11-10 14:06:29 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:29 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:29 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:29 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 25%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[False]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:29 [    INFO] EscalationManager initialized
+2026-11-10 14:06:29 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:29 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:29 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:29 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 26%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[True]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:30 [    INFO] EscalationManager initialized
+2026-11-10 14:06:30 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:30 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:30 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 14:06:30 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 26%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_explicit_unknown
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:31 [    INFO] EscalationManager initialized
+2026-11-10 14:06:31 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:31 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:31 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 26%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_retains_intent_across_restart
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:06:32 [    INFO] EscalationManager initialized
+2026-11-10 14:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:32 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:06:32 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:06:32 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:06:32 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:06:32 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5783907408'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5956140752'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 14:06:32 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+2026-11-10 14:06:32 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+PASSED                                                                   [ 27%]
+tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 27%]
+tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 27%]
+tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 28%]
+tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:35 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:35 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 28%]
+tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:36 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 28%]
+tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:37 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:37 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 29%]
+tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:37 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 14:06:37 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 29%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 29%]
+tests/test_goal9_durable_settlement.py::test_known_free_contract_is_authoritative_zero_without_usage PASSED [ 30%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unpriced_read_failure_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:40 [   ERROR] [SpendAggregationService] Error updating spend: unpriced read unavailable
+2026-11-10 14:06:40 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unpriced read unavailable
+PASSED                                                                   [ 30%]
+tests/test_goal9_durable_settlement.py::test_upgrade_failure_keeps_hard_stop_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:40 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+2026-11-10 14:06:40 [ WARNING] [BudgetEnforcementService] Durable ledger upgrade unavailable for tenant tenant-goal9: upgrade_failed:RuntimeError
+PASSED                                                                   [ 30%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:41 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 14:06:41 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 31%]
+tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:42 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 31%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:43 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 31%]
+tests/test_goal9_durable_settlement.py::test_unresolved_scope_unknown_is_visible_to_hardstop
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:43 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 32%]
+tests/test_goal9_durable_settlement.py::test_trusted_handler_scope_carrier
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:44 [    INFO] EscalationManager initialized
+2026-11-10 14:06:44 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+2026-11-10 14:06:44 [    INFO] LLM Cost Attributed: controlled-model - $0.010000 (Saved: $0.000000)
+PASSED                                                                   [ 32%]
+tests/test_goal9_durable_settlement.py::test_llm_service_scope_carrier_and_unresolved_refusal
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:45 [    INFO] EscalationManager initialized
+2026-11-10 14:06:45 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+PASSED                                                                   [ 32%]
+tests/test_goal9_durable_settlement.py::test_settlement_persistence_failure_does_not_fake_success
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:46 [   ERROR] durable LLM settlement degraded: settlement_write_failed:RuntimeError
+2026-11-10 14:06:46 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:06:46 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:46 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+2026-11-10 14:06:46 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+PASSED                                                                   [ 33%]
+tests/test_goal9_durable_settlement.py::test_structured_no_trace_calls_get_distinct_server_identities
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:47 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:47 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-635b10235bf0 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:06:47 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-635b10235bf0 attempt=1
+2026-11-10 14:06:47 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 14:06:47 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:47 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-934e6ef5997e attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:06:47 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-934e6ef5997e attempt=1
+2026-11-10 14:06:47 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 33%]
+tests/test_goal9_durable_settlement.py::test_durable_intent_survives_restart_when_settlement_write_fails
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:48 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:06:48 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-5e423787981a attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:06:48 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-5e423787981a attempt=1
+2026-11-10 14:06:48 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:06:48 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 33%]
+tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:49 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 14:06:49 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 14:06:49 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:06:49 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 34%]
+tests/test_goal9_durable_settlement.py::test_settle_exact_intent_once
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:50 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 34%]
+tests/test_goal9_durable_settlement.py::test_pending_cas_two_sessions_actual_survives_stale_writers PASSED [ 34%]
+tests/test_goal9_durable_settlement.py::test_null_cost_nonunknown_status_is_liability_not_free
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:51 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 35%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 35%]
+tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [ 35%]
+tests/test_goal9_token_usage_upgrade.py::test_pre_upgrade_sqlite_token_usage_upgrades_via_startup_hook
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:54 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 36%]
+tests/test_goal9_token_usage_upgrade.py::test_partial_upgrade_preserves_pricing_status_and_custom_index
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:54 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 36%]
+tests/test_goal9_token_usage_upgrade.py::test_failed_upgrade_is_recorded_and_retryable
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:54 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+PASSED                                                                   [ 36%]
+::test_invalid_price_cannot_become_free_reservation[-1.0] PASSED         [ 37%]
+::test_invalid_price_cannot_become_free_reservation[nan] PASSED          [ 37%]
+::test_invalid_price_cannot_become_free_reservation[inf] PASSED          [ 37%]
+::test_invalid_price_cannot_become_free_reservation[False] PASSED        [ 37%]
+::test_invalid_price_cannot_become_free_reservation[True] PASSED         [ 38%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[-1.0] PASSED [ 38%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[nan] PASSED [ 38%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[inf] PASSED [ 39%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[False] PASSED [ 39%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[True] PASSED [ 39%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[provider_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:58 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 40%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[model_name]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:06:59 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 40%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[agent_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:00 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 40%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[workspace_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:01 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 41%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[tenant_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:01 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 41%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[execution_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:02 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 41%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[chain_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:03 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 42%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[request_id]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:04 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 42%]
+::test_exact_actual_settlement_replay_and_changed_material
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:05 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 42%]
+::test_two_ordinary_calls_have_distinct_durable_attempts
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:07:05 [    INFO] EscalationManager initialized
+2026-11-10 14:07:05 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:05 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:07:05 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:07:05 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:07:05 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:07:05 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:07:05 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 43%]
+::test_actual_intent_commit_failure_dispatches_no_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:07:06 [    INFO] EscalationManager initialized
+2026-11-10 14:07:06 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:06 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 14:07:06 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.3s
+2026-11-10 14:07:06 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (DurableUsageIntentError)
+2026-11-10 14:07:06 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 43%]
+::test_estimated_token_count_uses_real_utf8_upper_bound PASSED           [ 43%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_binds_current_scope_receipt_and_replay
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:07 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+2026-11-10 14:07:07 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_concurrent_deactivation_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:08 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_inactive_user_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:09 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 14:07:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_null_empty_schedule_material_conflicts
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 409 Conflict"
+2026-11-10 14:07:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_scheduler_runs_only_on_first_verified_create
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 14:07:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 14:07:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_foreign_acting_agent_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:11 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_same_scope_acting_agent_queues_scoped_review
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:12 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_is_create_only_and_preserves_existing_agent
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-create-only "HTTP/1.1 201 Created"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_generated_blueprint_cannot_mint_authority
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-forged-blueprint "HTTP/1.1 201 Created"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_replay_with_changed_generated_material_conflicts
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 201 Created"
+2026-11-10 14:07:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 47%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_readback_uncertainty_returns_503
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 47%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_commit_failure_reports_effect_unknown
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:16 [   ERROR] agent decision outcome unknown: operation_id=agent:create:guided-rollback target=e5481c05-b38e-5d0f-8e70-8bd9e2c58c52 error_class=RuntimeError
+2026-11-10 14:07:16 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-rollback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 47%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_acting_agent_deleted_during_generation_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:17 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-deleted "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 48%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[scope]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:18 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-scope "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[status]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:18 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-status "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[material]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:19 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-material "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 49%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[delete]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:20 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 49%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_valid_autonomous_acting_agent
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:21 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-valid-acting "HTTP/1.1 201 Created"
+PASSED                                                                   [ 49%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_replay_after_parent_material_change_conflicts
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:22 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 201 Created"
+2026-11-10 14:07:22 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_creates_one_reviewed_agent
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:23 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e2f3f903-7c2f-46be-bfe5-3c0c3ffb490c "HTTP/1.1 200 OK"
+2026-11-10 14:07:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e2f3f903-7c2f-46be-bfe5-3c0c3ffb490c "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 50%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_rejection_creates_nothing
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:24 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:24 [ WARNING] HITL 4875e208-83bd-4cd4-9819-de1228c0d621 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'status': 'rejected'}
+2026-11-10 14:07:24 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/4875e208-83bd-4cd4-9819-de1228c0d621 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_expired_does_not_create
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:24 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:24 [ WARNING] HITL 1d2f023f-3fe0-4d06-891c-13bd6f2557cf decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'reason': 'action_not_approved', 'status': 'expired'}
+PASSED                                                                   [ 50%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_wrong_scope_reviewer_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:25 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:25 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/b73ef7a6-d8e0-4c1c-9d26-a83e00b9e0af "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 51%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_modified_material_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:26 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:26 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/ab5f9034-8bc4-4f32-8225-552bbd40af6c "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 51%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_stored_material_mismatch_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:27 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e8566da5-7a06-4c1b-954a-d4a1890bb427 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 51%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_survives_fresh_session
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:28 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 14:07:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e7d861e2-7680-4a63-96a9-3c7897b672c9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/api/test_agent_create_goal14.py::test_custom_create_forged_body_is_ignored_and_receipt_replays
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:29 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+2026-11-10 14:07:29 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+PASSED                                                                   [ 52%]
+tests/api/test_agent_create_goal14.py::test_custom_create_refuses_concurrent_actor_demotion
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:30 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-race "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/api/test_agent_create_goal14.py::test_custom_create_member_is_forbidden
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:30 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-member "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_create_goal14.py::test_custom_create_replay_with_changed_material_conflicts
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:31 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-bound "HTTP/1.1 201 Created"
+2026-11-10 14:07:31 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-bound "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[None-changed0-null-to-empty-configuration]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:32 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 14:07:32 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-null-to-empty "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[None-changed0-null-to-empty-schedule_config]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:33 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 14:07:33 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-null-to-empty "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[first1-None-empty-to-null-configuration]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:34 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:34 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-configuration-empty-to-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/api/test_agent_create_goal14.py::test_custom_create_null_empty_request_change_conflicts[first1-None-empty-to-null-schedule_config]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:34 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:34 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-request-schedule_config-empty-to-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[None-changed0-null-to-empty-configuration]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:35 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 14:07:35 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-null-to-empty "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[None-changed0-null-to-empty-schedule_config]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:36 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-null-to-empty "HTTP/1.1 201 Created"
+2026-11-10 14:07:36 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-null-to-empty "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[first1-None-empty-to-null-configuration]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:37 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:37 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-configuration-empty-to-null "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/api/test_agent_create_goal14.py::test_custom_create_stored_null_empty_mutation_refutes[first1-None-empty-to-null-schedule_config]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:38 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-empty-to-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:38 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=null-empty-stored-schedule_config-empty-to-null "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/api/test_agent_create_goal14.py::test_custom_create_unchanged_null_empty_replays_once[None]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:39 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-null "HTTP/1.1 201 Created"
+2026-11-10 14:07:39 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-null "HTTP/1.1 201 Created"
+PASSED                                                                   [ 56%]
+tests/api/test_agent_create_goal14.py::test_custom_create_unchanged_null_empty_replays_once[value1]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:39 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-empty "HTTP/1.1 201 Created"
+2026-11-10 14:07:39 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=unchanged-empty "HTTP/1.1 201 Created"
+PASSED                                                                   [ 56%]
+tests/api/test_agent_create_goal14.py::test_custom_create_scheduler_runs_only_on_first_verified_create
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:40 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 201 Created"
+2026-11-10 14:07:40 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 201 Created"
+2026-11-10 14:07:40 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=scheduled-create "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/api/test_graduation_qualification_join.py::test_missing_receipt_blocks_then_review_unlocks_promotion
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:41 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:07:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:07:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:41 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/84cecf4a-9ad9-4173-bfd8-938b0e0d9582 "HTTP/1.1 200 OK"
+2026-11-10 14:07:41 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:07:41 [    INFO] Initialized global governance cache
+2026-11-10 14:07:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:07:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/api/test_graduation_qualification_join.py::test_exact_replay_after_fresh_session_and_changed_material
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:42 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:42 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:42 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/0421b50e-2736-4906-95e7-4f738c96de90 "HTTP/1.1 200 OK"
+2026-11-10 14:07:42 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:07:42 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:42 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:07:42 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:07:43 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:17f18abd4cd04818987947daf7d9079b "HTTP/1.1 200 OK"
+2026-11-10 14:07:43 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=SUPERVISED&operation_id=agent:graduate:17f18abd4cd04818987947daf7d9079b "HTTP/1.1 409 Conflict"
+2026-11-10 14:07:43 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:17f18abd4cd04818987947daf7d9079b "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/api/test_graduation_qualification_join.py::test_required_receipt_fields_and_review_authority
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:44 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:44 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d6b6cb8b-429d-4bf3-926a-f41341b23316 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_graduation_qualification_join.py::test_governance_hook_preserves_caller_work
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:45 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 14:07:45 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 14:07:45 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+PASSED                                                                   [ 58%]
+tests/api/test_graduation_qualification_join.py::test_policy_null_row_is_invalid_and_fresh_read_defeats_cache PASSED [ 58%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_change_before_target_dml_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:48 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:48 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f660a589-6439-4e9b-a0e3-9f0faced0d73 "HTTP/1.1 200 OK"
+2026-11-10 14:07:48 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/api/test_graduation_qualification_join.py::test_peer_receipt_and_evidence_change_before_target_dml_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:49 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:49 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/ccd17e5b-3e9e-4535-ae1c-d9ec8681c726 "HTTP/1.1 200 OK"
+2026-11-10 14:07:49 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:07:49 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/api/test_graduation_qualification_join.py::test_member_foreign_and_deactivated_controls
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 403 Forbidden"
+2026-11-10 14:07:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 404 Not Found"
+2026-11-10 14:07:50 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 404 Not Found"
+2026-11-10 14:07:50 [ WARNING] Rejected token for non-active user supervisor (status=inactive)
+2026-11-10 14:07:50 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 59%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exception_is_explicit_and_unassessed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:51 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:07:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:07:51 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_graduation_qualification_join.py::test_manual_promotion_requires_explicit_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:52 [    INFO] HTTP Request: POST http://testserver/api/agents/student-agent/promote "HTTP/1.1 409 Conflict"
+2026-11-10 14:07:52 [    INFO] HTTP Request: POST http://testserver/api/agents/student-agent/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_graduation_qualification_join.py::test_restart_readback_from_fresh_os_process
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:54 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/15f7c7e4-c6a5-498c-b775-23dbfb89ec85 "HTTP/1.1 200 OK"
+2026-11-10 14:07:54 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:07:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:07:54 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_graduation_qualification_join.py::test_training_completion_requires_receipt
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:55 [    INFO] Completed training session session-3 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.200 (0.620 → 0.820), Promoted: False
+2026-11-10 14:07:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+2026-11-10 14:07:55 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:55 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/de26a8c3-402f-459b-9481-783814aa2a8f "HTTP/1.1 200 OK"
+2026-11-10 14:07:55 [    INFO] Completed training session session-4 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.180 (0.820 → 1.000), Promoted: True
+2026-11-10 14:07:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+PASSED                                                                   [ 61%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exam_does_not_overwrite_qualification_pointer
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:57 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:07:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:07:57 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/04bf4360-4e0f-45ca-a369-fa32e20257f7 "HTTP/1.1 200 OK"
+2026-11-10 14:07:57 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:07:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:07:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:07:57 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:07:57 [ WARNING] EdgeCaseSimulator unavailable; skipping edge case simulations
+2026-11-10 14:07:57 [    INFO] Agent student-agent failed legacy graduation exam: readiness score below threshold, found 11 constitutional violations, skill mastery below threshold | Governance policy denied: confidence_score 0.62 below min_confidence_score 0.7; episode_count 11 below min_episodes 25
+PASSED                                                                   [ 61%]
+tests/api/test_graduation_qualification_join.py::test_peer_exception_revocation_before_dml_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:58 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 61%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_value_change_without_timestamp_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:07:59 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_same_passed_receipt_and_review_changes_before_dml_refuse
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/ffaf8efa-1e14-44f6-8346-4a45f737e646 "HTTP/1.1 200 OK"
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:00 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_inactive_status_active_requester_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:02 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 403 Forbidden"
+2026-11-10 14:08:02 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_history_only_episode_is_not_qualification
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:03 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:03 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_artifact_output_is_qualification
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:04 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:04 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3cd14216-7e74-4e4b-a714-40a5f29382b5 "HTTP/1.1 200 OK"
+2026-11-10 14:08:04 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:04 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/api/test_graduation_qualification_join.py::test_evidence_endpoint_excludes_history_only
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:05 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/qualification/evidence/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:05 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/api/test_graduation_qualification_join.py::test_peer_evidence_scope_move_before_dml_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:07 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:07 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5114ecd4-5bb1-43c3-8cd7-83b728fdf3fc "HTTP/1.1 200 OK"
+2026-11-10 14:08:07 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:08 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:08 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/84de4056-6c1e-44c0-afe7-18057cd1c67a "HTTP/1.1 200 OK"
+2026-11-10 14:08:08 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:10 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:10 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:10 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/7841c17d-2d75-47a2-be58-279a2cf716bc "HTTP/1.1 200 OK"
+2026-11-10 14:08:10 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:11 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:11 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/49a3125c-dc2a-47b8-bfee-fa4618341064 "HTTP/1.1 200 OK"
+2026-11-10 14:08:11 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:13 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:13 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/18bd3891-84ba-4f9c-a549-0e790ae6fa5b "HTTP/1.1 200 OK"
+2026-11-10 14:08:13 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 63%]
+tests/api/test_graduation_qualification_join.py::test_supervision_completion_requires_qualification
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:14 [    INFO] Session sup-1 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: False
+2026-11-10 14:08:14 [    INFO] EscalationManager initialized
+2026-11-10 14:08:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:08:14 [    INFO] Initiated supervision episode creation for session sup-1
+2026-11-10 14:08:14 [    INFO] Initiated two-way learning for session sup-1
+2026-11-10 14:08:14 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 14:08:14 [    INFO] Created supervision episode c2d3974b-1228-4320-ba1f-c7c02e9186fa from session sup-1
+2026-11-10 14:08:14 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:14 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:14 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/4899a16f-fc42-465c-a08b-21bb8424ce38 "HTTP/1.1 200 OK"
+2026-11-10 14:08:14 [    INFO] Session sup-2 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: True
+2026-11-10 14:08:14 [    INFO] EscalationManager initialized
+2026-11-10 14:08:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:08:14 [    INFO] Initiated supervision episode creation for session sup-2
+2026-11-10 14:08:14 [    INFO] Initiated two-way learning for session sup-2
+2026-11-10 14:08:14 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 14:08:14 [    INFO] Created supervision episode 3288a9ff-a7ea-4ac4-b051-971a8914291e from session sup-2
+PASSED                                                                   [ 64%]
+tests/api/test_graduation_qualification_join.py::test_existing_system_student_is_not_healed_even_with_flag
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:15 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 14:08:15 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 14:08:15 [    INFO] Creating system default Chat Assistant agent
+2026-11-10 14:08:15 [    INFO] Created system default agent: e62f2b9b-427e-4678-bd56-4b39484b9b59
+2026-11-10 14:08:15 [ WARNING] System default Chat Assistant e62f2b9b-427e-4678-bd56-4b39484b9b59 remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+PASSED                                                                   [ 64%]
+tests/api/test_graduation_qualification_join.py::test_supervision_entry_preserves_caller_work PASSED [ 64%]
+tests/api/test_graduation_qualification_join.py::test_enabled_exception_requires_nonblank_owner_reason
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:22 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+tests/api/test_graduation_qualification_join.py::test_blank_policy_identity_and_rubric_are_invalid PASSED [ 65%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_exact_duplicate_reuses_same_action
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_policy_change_creates_fresh_review_and_old_fails_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:26 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:26 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:26 [ WARNING] API Error: STALE_DECISION_REVIEW - The assessment policy revision changed after this review was requested.
+2026-11-10 14:08:26 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/6345b14c-6459-465f-b406-16abb8115aaa "HTTP/1.1 409 Conflict"
+2026-11-10 14:08:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:26 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1e7ae07c-9ed7-4d58-876f-80cdbbb76225 "HTTP/1.1 200 OK"
+2026-11-10 14:08:26 [   ERROR] Graduation finalization error: error_class=TypeError
+2026-11-10 14:08:26 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[tenant]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:28 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:28 [ WARNING] API Error: NOT_FOUND - HITLAction not found: fde9971e-58da-404f-a153-58a0950a3f40
+2026-11-10 14:08:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/fde9971e-58da-404f-a153-58a0950a3f40 "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1e1eaf9d-7d77-4fa5-8783-3a2cf0f1686a "HTTP/1.1 200 OK"
+2026-11-10 14:08:28 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[workspace]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:29 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:29 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:29 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:29 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 6c7a04db-88bf-409b-9925-b3980c628ba7
+2026-11-10 14:08:29 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/6c7a04db-88bf-409b-9925-b3980c628ba7 "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:29 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/6c35f965-54e8-4970-ade9-bc4223577e3e "HTTP/1.1 200 OK"
+2026-11-10 14:08:29 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:29 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_tenant]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:31 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:31 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 09d5e4ae-e2af-4666-a451-6aa29439b6fc
+2026-11-10 14:08:31 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/09d5e4ae-e2af-4666-a451-6aa29439b6fc "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:31 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/68b0cf6f-8bff-4fab-bed0-9f2fa4618875 "HTTP/1.1 200 OK"
+2026-11-10 14:08:31 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_workspace]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:34 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:35 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:35 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:35 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 7e828bce-b093-447c-bac0-1bf6d034fafa
+2026-11-10 14:08:35 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/7e828bce-b093-447c-bac0-1bf6d034fafa "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:35 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f75489d6-2ec4-447e-94b3-e875c8c2642b "HTTP/1.1 200 OK"
+2026-11-10 14:08:35 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:35 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_tenant]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:37 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:37 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:37 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:37 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 655f9f32-6590-4912-83ab-5598a71e658f
+2026-11-10 14:08:37 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/655f9f32-6590-4912-83ab-5598a71e658f "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:37 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/92fef765-ce7a-4dcc-965b-39cdc55c762b "HTTP/1.1 200 OK"
+2026-11-10 14:08:37 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:37 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_workspace]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:39 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:39 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 743f7a6e-e339-42cd-8c82-172d71762d60
+2026-11-10 14:08:39 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/743f7a6e-e339-42cd-8c82-172d71762d60 "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:39 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/c8116434-5034-4c9f-998d-82b72a2d1ada "HTTP/1.1 200 OK"
+2026-11-10 14:08:39 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/api/test_graduation_qualification_join.py::test_actual_graduation_notification_persists_once_without_nested_loop
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:41 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a5722774-8e1b-4a72-b0bc-8ad662c96130 "HTTP/1.1 200 OK"
+2026-11-10 14:08:41 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:41 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:c0db760c5a1c40ff92b8504dbd7d529a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[raise]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:43 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:43 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/588d9f15-2a15-47bb-8da9-7cbaf9d92263 "HTTP/1.1 200 OK"
+2026-11-10 14:08:43 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:43 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): controlled notification unavailable
+2026-11-10 14:08:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:43 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[soft_fail]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:44 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:44 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/15b16ab8-69be-48a0-b093-005f0a3a5f51 "HTTP/1.1 200 OK"
+2026-11-10 14:08:44 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 14:08:44 [ WARNING] Graduation notification not delivered for agent student-agent (promotion already committed): notification_failed
+2026-11-10 14:08:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 14:08:44 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_default_required_false_is_configuration_required PASSED [ 69%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[legacy] PASSED [ 69%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[manual] PASSED [ 70%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[system] PASSED [ 70%]
+tests/api/test_graduation_qualification_join.py::test_default_and_exact_agent_exception_remain_supported PASSED [ 70%]
+tests/api/test_graduation_qualification_join.py::test_tier_gate_false_remains_supported PASSED [ 71%]
+tests/api/test_graduation_qualification_join.py::test_personal_bootstrap_raw_null_admin_qualification_flow
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: User admin@example.com not found. Creating...
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: Created admin@example.com
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: Creating default tenant...
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: Creating default workspace...
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: Default tenant and workspace ensured.
+2026-11-10 14:08:53 [    INFO] BOOTSTRAP: Created onboarding Demo Assistant agent (id=c8e75e5e-1f6b-4f19-b04b-1fd090257c80)
+2026-11-10 14:08:53 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/qualification/evidence/personal-candidate?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 14:08:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 14:08:53 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/336d7bfe-ca8d-48ab-9d2f-beb05f803c2a "HTTP/1.1 200 OK"
+2026-11-10 14:08:53 [    INFO] Agent personal-candidate promoted to INTERN by 907143a5-9a2d-4323-ad62-ad9a2ecea1dc
+2026-11-10 14:08:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 14:08:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=personal-candidate&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:53 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/qualification/evidence/personal-candidate?target_maturity=INTERN "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 404 Not Found"
+2026-11-10 14:08:53 [ WARNING] Rejected token for non-active user 907143a5-9a2d-4323-ad62-ad9a2ecea1dc (status=inactive)
+2026-11-10 14:08:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 71%]
+tests/api/test_graduation_qualification_join.py::test_empty_rubric_criteria_is_configuration_required PASSED [ 71%]
+tests/api/test_graduation_qualification_join.py::test_duplicate_rubric_criterion_ids_is_configuration_required PASSED [ 72%]
+tests/api/test_graduation_qualification_join.py::test_distinct_owner_rubric_criteria_remain_supported PASSED [ 72%]
+tests/api/test_graduation_qualification_join.py::test_public_qualification_refuses_invalid_rubric_policy
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:58 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 14:08:58 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 72%]
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes PASSED [ 73%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [ 73%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution PASSED [ 73%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:58 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 74%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [ 74%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:58 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [ 74%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:58 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [ 75%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [ 75%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [ 75%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [ 75%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:58 [    INFO] Event bus started
+2026-11-10 14:08:58 [    INFO] Loaded analytics data: 12 workflows, 0 integrations
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [ WARNING] 🚫 Governance pause for execution 3d07affd-8e72-48da-833c-8588e337ce99 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [    INFO] HTTP Request: POST http://test/workflows/wf-local-03b8f71f94/execute "HTTP/1.1 200 OK"
+2026-11-10 14:08:58 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:08:58 [    INFO] HTTP Request: POST http://test/api/agents/approvals/06373637-3a24-4989-a887-ae45d091d111 "HTTP/1.1 200 OK"
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [    INFO] Workflow 3d07affd-8e72-48da-833c-8588e337ce99 step s1 authorized by durable HITL 06373637-3a24-4989-a887-ae45d091d111
+2026-11-10 14:08:58 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:58 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 14:08:58 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-03b8f71f94
+2026-11-10 14:08:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 14:08:59 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-03b8f71f94
+PASSED                                                                   [ 76%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:59 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 14:08:59 [    INFO] Scheduler started
+2026-11-10 14:08:59 [    INFO] WorkflowScheduler started
+2026-11-10 14:08:59 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 14:08:59 [    INFO] Removed job job_wf-local-52f5d1ee1b_1794337739.030898
+2026-11-10 14:08:59 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 19:08:59 UTC], next run at: 2026-11-10 19:08:59 UTC)" (scheduled at 2026-11-10 19:08:59.230891+00:00)
+2026-11-10 14:08:59 [    INFO] Executing scheduled workflow: wf-local-52f5d1ee1b
+2026-11-10 14:08:59 [    INFO] Scheduled execution 3d7df118-5563-4a4c-9423-67879ee18b79 started
+2026-11-10 14:08:59 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 19:08:59 UTC], next run at: 2026-11-10 19:08:59 UTC)" executed successfully
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] 🚫 Governance pause for execution 3d7df118-5563-4a4c-9423-67879ee18b79 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:08:59 [    INFO] HTTP Request: POST http://test/api/agents/approvals/f0eef2db-f170-460b-aa78-a3f25ea78fa2 "HTTP/1.1 200 OK"
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [    INFO] Workflow 3d7df118-5563-4a4c-9423-67879ee18b79 step s1 authorized by durable HITL f0eef2db-f170-460b-aa78-a3f25ea78fa2
+2026-11-10 14:08:59 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 14:08:59 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-52f5d1ee1b
+2026-11-10 14:08:59 [    INFO] WorkflowScheduler shutdown
+2026-11-10 14:08:59 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 76%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] 🚫 Governance pause for execution c0ab0f24-2426-431c-9419-d3d04ef36923 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [    INFO] HTTP Request: POST http://test/workflows/wf-local-244b1a0167/execute "HTTP/1.1 200 OK"
+2026-11-10 14:08:59 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:08:59 [    INFO] Workflow c0ab0f24-2426-431c-9419-d3d04ef36923 step s1 authorized by durable HITL 034b318a-3a3c-41e1-b6c8-11a8d491ffdd
+2026-11-10 14:08:59 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 14:08:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 14:09:00 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-244b1a0167
+PASSED                                                                   [ 76%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/workflows/wf-local-f4c1af1989/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] 🚫 Governance pause for execution 4b14fb79-478c-46c4-87cc-006cab0158fd at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/workflows/wf-local-db1aa9c2fd/execute "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [ WARNING] HITL 168f74e2-8d90-4934-aa8c-5d5581097042 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/api/agents/approvals/168f74e2-8d90-4934-aa8c-5d5581097042 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] 🚫 Governance pause for execution 2a9493d5-d0b1-4813-8384-f7ccec292596 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/workflows/wf-local-5798339f3d/execute "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/api/agents/approvals/81eb47cb-35c7-42d4-934f-6947d9474fe8 "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] workflow 2a9493d5-d0b1-4813-8384-f7ccec292596: durable approval 81eb47cb-35c7-42d4-934f-6947d9474fe8 does not bind the current step payload
+2026-11-10 14:09:00 [ WARNING] 🚫 Governance pause for execution 2a9493d5-d0b1-4813-8384-f7ccec292596 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 77%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] 🚫 Governance pause for execution 723cd451-d4a8-4c38-841b-67bb33c23f61 at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/workflows/wf-local-d7ef707586/execute "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/api/agents/approvals/2d37d9e8-377b-4e29-b31c-02499e3a52e4 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant]
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [ WARNING] 🚫 Governance pause for execution c23ccf0f-91bc-47d2-ad6a-f3a7ffee19ba at step s1: Maturity check failed. Required: supervised
+2026-11-10 14:09:00 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/workflows/wf-local-eb816ff6f4/execute "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:00 [    INFO] HTTP Request: POST http://test/api/agents/approvals/733afa95-e4fb-4a9d-ac4e-f2354c770bda "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/test_workflow_scheduled_process_restart.py::test_scheduled_approval_join_survives_a_separate_process_restart
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:00 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 14:09:00 [    INFO] Scheduler started
+2026-11-10 14:09:00 [    INFO] WorkflowScheduler started
+2026-11-10 14:09:00 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 14:09:00 [    INFO] WorkflowScheduler shutdown
+2026-11-10 14:09:16 [    INFO] Scheduler has been shut down
+2026-11-10 14:09:16 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 14:09:16 [    INFO] HTTP Request: POST http://test/api/agents/approvals/38c7a8ea-35a9-4c07-8469-eb51987bda3d "HTTP/1.1 200 OK"
+2026-11-10 14:09:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:16 [    INFO] Workflow 9deb359f-ae63-417a-8f4d-c35f298e80d0 step s1 authorized by durable HITL 38c7a8ea-35a9-4c07-8469-eb51987bda3d
+2026-11-10 14:09:16 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 14:09:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:16 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 14:09:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 14:09:16 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 14:09:16 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-79c5dc256b
+PASSED                                                                   [ 78%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_clients_raises PASSED [ 79%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_exceeded_fail_closed PASSED [ 79%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_tracker_error_fail_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:25 [   ERROR] Budget tracker unavailable for workspace ws1; blocking request (fail-closed): db down
+PASSED                                                                   [ 79%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_trial_expired PASSED [ 80%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_provider_order_raises PASSED [ 80%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_success_path
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:27 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 14:09:27 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 80%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_skips_non_serving_provider
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:28 [ WARNING] No client available for provider: anthropic
+2026-11-10 14:09:28 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 14:09:28 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 81%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_after_failure
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:29 [    INFO] Attempting completion with provider: deepseek (requested: openai)
+2026-11-10 14:09:29 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 81%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_all_failed_raises PASSED [ 81%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_success_stream
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:30 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:09:30 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 82%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_error_delta
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:31 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:09:31 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 14:09:31 [ WARNING] Streaming failed for openai/gpt-4o: 'str' object has no attribute 'choices'
+2026-11-10 14:09:31 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail='str' object has no attribute 'choices'
+2026-11-10 14:09:31 [   ERROR] All 1 providers failed for gpt-4o. Last error: 'str' object has no attribute 'choices'
+PASSED                                                                   [ 82%]
+tests/test_employee_business_feedback.py::test_context_floor_before_feedback_tests
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:31 [    INFO] EscalationManager initialized
+2026-11-10 14:09:31 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:31 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 14:09:31 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:31 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-10 14:09:31 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 82%]
+tests/test_employee_business_feedback.py::test_evaluated_bad_work_persists_and_changes_next_routing_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:32 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:32 [    INFO] EscalationManager initialized
+2026-11-10 14:09:32 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:32 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:32 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:32 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-321144547f96 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:32 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-321144547f96 attempt=1
+2026-11-10 14:09:32 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:32 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:32 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-75fc8f058202 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:32 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-75fc8f058202 attempt=1
+2026-11-10 14:09:32 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:32 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:32 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-50183184bd1c attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:32 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-50183184bd1c attempt=1
+2026-11-10 14:09:32 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:32 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:09:32 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-10 14:09:32 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-1156967823ca attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:32 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1156967823ca attempt=1
+PASSED                                                                   [ 83%]
+tests/test_employee_business_feedback.py::test_evaluated_business_failure_changes_next_routing_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:33 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:33 [    INFO] EscalationManager initialized
+2026-11-10 14:09:33 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:33 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:33 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:33 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-9eb244c2f686 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:33 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-9eb244c2f686 attempt=1
+2026-11-10 14:09:33 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:33 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:33 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-711c15d173ed attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:33 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-711c15d173ed attempt=1
+2026-11-10 14:09:33 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:33 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:33 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4679e5e7037b attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:33 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4679e5e7037b attempt=1
+2026-11-10 14:09:33 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:33 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:09:33 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-10 14:09:33 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-d237a5406908 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:33 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d237a5406908 attempt=1
+PASSED                                                                   [ 83%]
+tests/test_employee_business_feedback.py::test_strict_qualification_pin_fails_instead_of_escaping
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:34 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:34 [    INFO] EscalationManager initialized
+2026-11-10 14:09:34 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:34 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:34 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:34 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-a307383300ae attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:34 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-a307383300ae attempt=1
+2026-11-10 14:09:34 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:34 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:34 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-bc308dee9117 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:34 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-bc308dee9117 attempt=1
+2026-11-10 14:09:34 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:34 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:34 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d663fb73825f attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:34 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d663fb73825f attempt=1
+2026-11-10 14:09:34 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:34 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:34 [    INFO] BPC Ranking Successful for simple: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:09:34 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': the qualification pin does not meet the workload capability contract
+PASSED                                                                   [ 83%]
+tests/test_employee_business_feedback.py::test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:35 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:35 [    INFO] EscalationManager initialized
+2026-11-10 14:09:35 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:35 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:35 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:35 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c1255b8df6c6 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:35 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-c1255b8df6c6 attempt=1
+2026-11-10 14:09:35 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:35 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:35 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1cd44815748d attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:35 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-1cd44815748d attempt=1
+2026-11-10 14:09:35 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:35 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:35 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:35 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f82776326116 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:35 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f82776326116 attempt=1
+PASSED                                                                   [ 84%]
+tests/test_employee_business_feedback.py::test_satisfied_business_outcome_annotates_the_same_generation
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:36 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:36 [    INFO] EscalationManager initialized
+2026-11-10 14:09:36 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:36 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:36 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:36 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:36 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:36 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:36 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-433e7a6ee656 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:36 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-433e7a6ee656 attempt=1
+PASSED                                                                   [ 84%]
+tests/test_employee_business_feedback.py::test_compact_evaluation_stays_in_the_compact_profile
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:37 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 84%]
+tests/test_employee_business_feedback.py::test_wait_choice_origin_needs_an_explicit_verdict_and_is_never_auto_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:37 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 85%]
+tests/test_employee_business_feedback.py::test_deterministic_fallback_is_never_credited_as_model_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:38 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:38 [    INFO] EscalationManager initialized
+2026-11-10 14:09:38 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:38 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:38 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:38 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:38 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:38 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:38 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f6fc176bfa17 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:09:38 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f6fc176bfa17 attempt=1
+PASSED                                                                   [ 85%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_wrong_or_missing_receipt_fields
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:39 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:39 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-wrong_workspace
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_workspace
+2026-11-10 14:09:39 [ WARNING] business feedback refused: tenant binding mismatch for generation binding-wrong_tenant
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_tenant): tenant=tenant-other model=llama3.1:8b generation=binding-wrong_tenant
+2026-11-10 14:09:39 [ WARNING] business feedback refused: provider binding mismatch for generation binding-wrong_provider
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_provider
+2026-11-10 14:09:39 [ WARNING] business feedback refused: model binding mismatch for generation binding-wrong_model
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_model): tenant=tenant-ctrl model=other-model generation=binding-wrong_model
+2026-11-10 14:09:39 [ WARNING] business feedback refused: profile binding mismatch for generation binding-wrong_profile
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_profile
+2026-11-10 14:09:39 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-wrong_version
+2026-11-10 14:09:39 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_version
+PASSED                                                                   [ 85%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-workspace_id]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:40 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:40 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-type-workspace_id-int
+2026-11-10 14:09:40 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-workspace_id-int
+PASSED                                                                   [ 86%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-route_provider]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:41 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:41 [ WARNING] business feedback refused: provider binding mismatch for generation binding-type-route_provider-int
+2026-11-10 14:09:41 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-route_provider-int
+PASSED                                                                   [ 86%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-capability_profile]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:42 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:42 [ WARNING] business feedback refused: profile binding mismatch for generation binding-type-capability_profile-int
+2026-11-10 14:09:42 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-capability_profile-int
+PASSED                                                                   [ 86%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-profile_version]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:43 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:43 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-type-profile_version-int
+2026-11-10 14:09:43 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-profile_version-int
+PASSED                                                                   [ 87%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-workspace_id]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:43 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 87%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-route_provider]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:44 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 87%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-capability_profile]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:45 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 87%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-profile_version]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:46 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 88%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-workspace_id] PASSED [ 88%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-route_provider] PASSED [ 88%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-capability_profile] PASSED [ 89%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-profile_version] PASSED [ 89%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-workspace_id] PASSED [ 89%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-route_provider] PASSED [ 90%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-capability_profile] PASSED [ 90%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-profile_version] PASSED [ 90%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-workspace_id] PASSED [ 91%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-route_provider] PASSED [ 91%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-capability_profile] PASSED [ 91%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-profile_version] PASSED [ 92%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-workspace_id] PASSED [ 92%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-route_provider] PASSED [ 92%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-capability_profile] PASSED [ 93%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-profile_version] PASSED [ 93%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-workspace_id] PASSED [ 93%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-route_provider] PASSED [ 94%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-capability_profile] PASSED [ 94%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-profile_version] PASSED [ 94%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-workspace_id] PASSED [ 95%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-route_provider] PASSED [ 95%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-capability_profile] PASSED [ 95%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-profile_version] PASSED [ 96%]
+tests/test_employee_business_feedback.py::test_business_write_binding_annotates_exactly_the_receipt
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:47 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 96%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_unknown_generation
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:47 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:47 [ WARNING] business feedback skipped: no exact generation row for generation-does-not-exist
+2026-11-10 14:09:47 [ WARNING] business routing feedback not recorded (skipped_missing_generation): tenant=tenant-ctrl model=llama3.1:8b generation=generation-does-not-exist
+PASSED                                                                   [ 96%]
+tests/test_employee_business_feedback.py::test_business_write_binding_selects_the_exact_provider_for_same_model
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:48 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 97%]
+tests/test_employee_business_feedback.py::test_business_write_binding_duplicate_is_idempotent
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:49 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:49 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=binding-duplicate
+PASSED                                                                   [ 97%]
+tests/test_employee_business_feedback.py::test_business_write_binding_stronger_concurrent_evaluation_wins
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:50 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 97%]
+tests/test_employee_business_feedback.py::test_parsed_wait_choice_is_pending_not_business_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:51 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 98%]
+tests/test_employee_business_feedback.py::test_validated_wait_choice_is_a_scoped_positive_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:51 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 98%]
+tests/test_employee_business_feedback.py::test_rejected_wait_choice_is_semantic_failure_not_fallback_credit
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:52 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 98%]
+tests/test_employee_business_feedback.py::test_business_verdicts_do_not_enter_the_fabrication_numerator PASSED [ 99%]
+tests/test_employee_business_feedback.py::test_real_model_wait_choice_is_pending_not_business_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:53 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:53 [    INFO] EscalationManager initialized
+2026-11-10 14:09:53 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-10 14:09:53 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:53 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:53 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:53 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:53 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:53 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-e3b9307df88a attempt=1 prompt_chars=3940 cap=1200 instructor_retries=0
+2026-11-10 14:09:53 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-e3b9307df88a attempt=1
+PASSED                                                                   [ 99%]
+tests/test_employee_business_feedback.py::test_real_rejected_wait_choice_is_semantic_failure_not_fallback_credit
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:09:54 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:54 [    INFO] EscalationManager initialized
+2026-11-10 14:09:54 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-10 14:09:54 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:09:54 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:09:54 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:54 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:54 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:09:54 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-cdb1ee2f465b attempt=1 prompt_chars=3933 cap=1200 instructor_retries=0
+2026-11-10 14:09:54 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-cdb1ee2f465b attempt=1
+PASSED                                                                   [ 99%]
+tests/test_employee_business_feedback.py::test_context_floor_after_feedback_tests
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:09:54 [    INFO] EscalationManager initialized
+2026-11-10 14:09:54 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:09:54 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:09:54 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-10 14:09:54 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/episode_routes.py:417
+  <scratch>:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+core/token_storage.py:17
+  <scratch>:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 616 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 308 passed, 623 warnings in 269.58s (0:04:29) =================

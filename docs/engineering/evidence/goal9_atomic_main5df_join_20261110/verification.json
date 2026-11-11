@@ -1,0 +1,63 @@
+{
+  "parents": [
+    "0733a4d109edce9f4e757a7de434ecd18df32d7b",
+    "93a9b6b29a94fd87faa4df4f78cf7fdbb274979a"
+  ],
+  "result": "133 passed",
+  "log": "/private/tmp/root-atomic-main5df-final-xgl__ipc/gate.log",
+  "log_sha256": "f4c51c5f96cef5ddc859e1eeb4262d46c2dc32dfeab0c72918eceb24397aab87",
+  "tested_source_sha256": {
+    "backend/core/llm/byok_handler.py": "cbb6f77544cd25e9eb903b870812d8e51567d54e57c292715670128c39987833",
+    "backend/core/spend_aggregation_service.py": "944c6596d7cc8d00f30e5e15e99123637d620ee890f069f4f6fd0c244fe710b0",
+    "backend/core/models.py": "b0f61491ae307ddd1e5697a6d45042eb172cda1d3fb6e2c1b143f97555228c79",
+    "backend/core/sqlite_schema_repair.py": "16d36b988570a534544ba03b3a398186ce8e2be727d19a9ccb1dfcba52875237",
+    "backend/core/budget_enforcement_service.py": "f5c408338f40e8a727813377023a8c1169898fe4071c7e1a05cbc36fb1ec25ef",
+    "backend/tests/test_goal9_ci_execution_contract.py": "3c793b9d1496826de231248ad2d8f6f93e5fd91650358978c8b488e3d60372ce",
+    ".github/workflows/ci.yml": "3cdfc7b93e00fcc1ff36046e0a038f4e38f5518f6dfb90ad3dba54158b33c686",
+    "backend/tests/fixtures/ci_backend_additions.json": "59428afd3f48178bd39e4b6045d8639d86bb68efbe8c558df2e4394f3c42ad4f"
+  },
+  "union": [
+    {
+      "parent": "0733a4d10",
+      "job_properties_and_names_preserved": true,
+      "backend_steps_exact": true,
+      "all_original_ordinary_test_names_preserved": true
+    },
+    {
+      "parent": "93a9b6b29",
+      "job_properties_and_names_preserved": true,
+      "backend_steps_exact": true,
+      "all_original_ordinary_test_names_preserved": true
+    }
+  ],
+  "independent_frozen_review": {
+    "source": "0733a4d10",
+    "controls": 75,
+    "Git_checks": 41
+  },
+  "retained_attempts": [
+    {
+      "log": "/private/tmp/root-atomic-main5df-joined-gpklwayi/gate.log",
+      "result": "132 passed1failed",
+      "reason": "Original pre-reservation test lacked finite price under hard_stop; admission correctly refused before intended settlement failure."
+    },
+    {
+      "log": "/private/tmp/root-atomic-main5df-finite-price-e_6sxo8q/gate.log",
+      "result": "132 passed1failed",
+      "reason": "After finite price, known active bound was safely counted below cap; original unpriced refusal assertion did not model an unbounded liability."
+    },
+    {
+      "log": "/private/tmp/root-atomic-main5df-liability-twins-tlcaseyf/gate.log",
+      "result": "132 passed1failed",
+      "reason": "Root used unsupported policy mode observe; strict parser correctly refused. Corrected test setup to supported alert_only."
+    }
+  ],
+  "exact_twin": "/private/tmp/root-unbounded-liability-exact-8rsp_wkt/gate.log:1 passed",
+  "test_adaptation": "Retain original test names and assertions. The unbounded liability twin admits under supported alert_only with boundNone, then changes owner policy to hard_stop and proves refusal live/across restart. Existing bounded reservation-at-cap twin remains unchanged. No production guard relaxed.",
+  "open": [
+    "Per-physical-attempt streaming/gateway retry admission",
+    "PostgreSQL runtime concurrency",
+    "Served provider quality",
+    "All app goals"
+  ]
+}

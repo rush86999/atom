@@ -1,0 +1,334 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL lib/__tests__/agent-creation-retry.test.ts
+  creation POST retry safety
+    ✓ does not auto-retry a guided creation after a 503 confirmation loss (21 ms)
+    ✓ does not auto-retry a custom hire after a 503 confirmation loss (2 ms)
+  creation response integrity
+    ✓ returns a guided verified result and preserves the receipt (2 ms)
+    ✓ returns guided pending without inventing an agent id (2 ms)
+    ✓ rejects a 2xx success:false instead of treating it as verified (2 ms)
+    ✓ rejects a 2xx guided response with no exact agent id (1 ms)
+    ✓ rejects a 2xx guided response without verified verification (4 ms)
+    ✓ returns a custom verified result and rejects malformed/unverified 2xx (3 ms)
+  creation receipt binding
+    ✕ rejects guided wrong operation identity instead of treating it as created (3 ms)
+    ✕ rejects guided missing operation and audit instead of treating it as created (2 ms)
+    ✕ rejects guided operation/audit disagreement instead of treating it as created (1 ms)
+    ✕ rejects guided verification audit disagreement instead of treating it as created (1 ms)
+    ✕ rejects guided contradictory effect instead of treating it as created (1 ms)
+    ✕ rejects custom wrong operation identity instead of treating it as hired (1 ms)
+    ✕ rejects custom missing operation and audit instead of treating it as hired (1 ms)
+    ✕ rejects custom operation/audit disagreement instead of treating it as hired (1 ms)
+    ✕ rejects custom verification audit disagreement instead of treating it as hired (1 ms)
+    ✕ rejects custom contradictory effect instead of treating it as hired
+    ✓ accepts a guided verified twin with the exact submitted receipt
+    ✓ accepts a custom already_applied twin with committed effect
+    ✕ binds an internally generated operation id when the caller supplies none (1 ms)
+    ✕ rejects a wrong-operation receipt through the real interceptor with one POST (3 ms)
+    ✕ rejects a contradictory-effect hire through the real interceptor with one POST (2 ms)
+
+  ● creation receipt binding › rejects guided wrong operation identity instead of treating it as created
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "audit_id": "agent:create:other-intent", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "operation_id": "agent:create:other-intent", "verification": {"audit_id": "agent:create:other-intent", "effect": "committed", "status": "verified"}}
+
+      335 |     async (_label, receipt) => {
+      336 |       respond(guidedData(receipt));
+    > 337 |       await expect(
+          |             ^
+      338 |         createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      339 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      340 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:337:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:335:27
+
+  ● creation receipt binding › rejects guided missing operation and audit instead of treating it as created
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "committed", "status": "verified"}}
+
+      335 |     async (_label, receipt) => {
+      336 |       respond(guidedData(receipt));
+    > 337 |       await expect(
+          |             ^
+      338 |         createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      339 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      340 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:337:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:335:27
+
+  ● creation receipt binding › rejects guided operation/audit disagreement instead of treating it as created
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "audit_id": "agent:create:other-audit", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "committed", "status": "verified"}}
+
+      335 |     async (_label, receipt) => {
+      336 |       respond(guidedData(receipt));
+    > 337 |       await expect(
+          |             ^
+      338 |         createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      339 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      340 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:337:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:335:27
+
+  ● creation receipt binding › rejects guided verification audit disagreement instead of treating it as created
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "audit_id": "agent:create:intent-receipt-1", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:other-audit", "effect": "committed", "status": "verified"}}
+
+      335 |     async (_label, receipt) => {
+      336 |       respond(guidedData(receipt));
+    > 337 |       await expect(
+          |             ^
+      338 |         createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      339 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      340 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:337:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:335:27
+
+  ● creation receipt binding › rejects guided contradictory effect instead of treating it as created
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "audit_id": "agent:create:intent-receipt-1", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "none", "status": "verified"}}
+
+      335 |     async (_label, receipt) => {
+      336 |       respond(guidedData(receipt));
+    > 337 |       await expect(
+          |             ^
+      338 |         createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      339 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      340 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:337:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:335:27
+
+  ● creation receipt binding › rejects custom wrong operation identity instead of treating it as hired
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "audit_id": "agent:create:other-intent", "category": "Operations", "operation_id": "agent:create:other-intent", "verification": {"audit_id": "agent:create:other-intent", "effect": "committed", "status": "verified"}}
+
+      345 |     async (_label, receipt) => {
+      346 |       respond(customData(receipt));
+    > 347 |       await expect(
+          |             ^
+      348 |         createCustomAgent(customPayload, { operationId: intent })
+      349 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      350 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:347:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:345:27
+
+  ● creation receipt binding › rejects custom missing operation and audit instead of treating it as hired
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "category": "Operations", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "committed", "status": "verified"}}
+
+      345 |     async (_label, receipt) => {
+      346 |       respond(customData(receipt));
+    > 347 |       await expect(
+          |             ^
+      348 |         createCustomAgent(customPayload, { operationId: intent })
+      349 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      350 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:347:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:345:27
+
+  ● creation receipt binding › rejects custom operation/audit disagreement instead of treating it as hired
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "audit_id": "agent:create:other-audit", "category": "Operations", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "committed", "status": "verified"}}
+
+      345 |     async (_label, receipt) => {
+      346 |       respond(customData(receipt));
+    > 347 |       await expect(
+          |             ^
+      348 |         createCustomAgent(customPayload, { operationId: intent })
+      349 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      350 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:347:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:345:27
+
+  ● creation receipt binding › rejects custom verification audit disagreement instead of treating it as hired
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "audit_id": "agent:create:intent-receipt-1", "category": "Operations", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:other-audit", "effect": "committed", "status": "verified"}}
+
+      345 |     async (_label, receipt) => {
+      346 |       respond(customData(receipt));
+    > 347 |       await expect(
+          |             ^
+      348 |         createCustomAgent(customPayload, { operationId: intent })
+      349 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      350 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:347:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:345:27
+
+  ● creation receipt binding › rejects custom contradictory effect instead of treating it as hired
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "audit_id": "agent:create:intent-receipt-1", "category": "Operations", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "none", "status": "verified"}}
+
+      345 |     async (_label, receipt) => {
+      346 |       respond(customData(receipt));
+    > 347 |       await expect(
+          |             ^
+      348 |         createCustomAgent(customPayload, { operationId: intent })
+      349 |       ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      350 |     }
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:347:13
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at lib/__tests__/agent-creation-retry.test.ts:345:27
+
+  ● creation receipt binding › binds an internally generated operation id when the caller supplies none
+
+    expect(received).toMatch(expected)
+
+    Expected pattern: /.+/
+    Received string:  ""
+
+      396 |     };
+      397 |     const result = await createCustomAgent(customPayload);
+    > 398 |     expect(seenQuery).toMatch(/.+/);
+          |                       ^
+      399 |     expect(result.agent_id).toBe('agent-receipt-custom');
+      400 |   });
+      401 |
+
+      at lib/__tests__/agent-creation-retry.test.ts:398:23
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at fulfilled (lib/__tests__/agent-creation-retry.test.ts:16:58)
+
+  ● creation receipt binding › rejects a wrong-operation receipt through the real interceptor with one POST
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-guided", "audit_id": "agent:create:other-intent", "category": "Operations", "created_by": "employee", "maturity": "student", "name": "Receipt Guided", "operation_id": "agent:create:other-intent", "verification": {"audit_id": "agent:create:other-intent", "effect": "committed", "status": "verified"}}
+
+      422 |       };
+      423 |     };
+    > 424 |     await expect(
+          |           ^
+      425 |       createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      426 |     ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      427 |     expect(posts).toBe(1);
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:424:11
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at Object.<anonymous> (lib/__tests__/agent-creation-retry.test.ts:402:86)
+
+  ● creation receipt binding › rejects a contradictory-effect hire through the real interceptor with one POST
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"agent_id": "agent-receipt-custom", "agent_name": "Receipt Custom", "audit_id": "agent:create:intent-receipt-1", "category": "Operations", "operation_id": "agent:create:intent-receipt-1", "verification": {"audit_id": "agent:create:intent-receipt-1", "effect": "none", "status": "verified"}}
+
+      448 |       };
+      449 |     };
+    > 450 |     await expect(
+          |           ^
+      451 |       createCustomAgent(customPayload, { operationId: intent })
+      452 |     ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+      453 |     expect(posts).toBe(1);
+
+      at expect (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/expect/build/index.js:2116:15)
+      at lib/__tests__/agent-creation-retry.test.ts:450:11
+      at step (lib/__tests__/agent-creation-retry.test.ts:44:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:25:53)
+      at lib/__tests__/agent-creation-retry.test.ts:19:71
+      at __awaiter (lib/__tests__/agent-creation-retry.test.ts:15:12)
+      at Object.<anonymous> (lib/__tests__/agent-creation-retry.test.ts:430:88)
+
+Test Suites: 1 failed, 1 total
+Tests:       13 failed, 10 passed, 23 total
+Snapshots:   0 total
+Time:        1.573 s
+Ran all test suites matching lib/__tests__/agent-creation-retry.test.ts.

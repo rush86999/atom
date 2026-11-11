@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-10",
+  "files": {
+    "README.md": "8ca1f0d0b743f080130f343cf4e1071d8a051fe0e0a7a681a1bcb250a7a45ad9",
+    "after/broad-affected.log": "7e38808dec429d6b681f7212789fd354e4879bbd2352c12dac2086234d5244aa",
+    "after/joined-after.log": "f2ffc0eff64edcfa1e4f32c63f8ef09e4fc0b5ddd2ae0eb737d7d32ee3674561",
+    "after/permanent-regression.log": "2f7789da28673a0b5df7a21488fe9485d02c3a7be45b1928832ec760309e3571",
+    "after/root-independent-after.json": "875ad55a8cd6c98b9e30d680fea69358a6ea0dab1d1e86acff991a14ab634d72",
+    "before/first-failure-trace.log": "97be519348e74232ee87e8bd652a6566ccbd3d499cfc2a6d8ff2aa9a73610b4f",
+    "before/joined-failed-tests.txt": "2d2a6123315d304c8257931fbd889bf6104b336759be1d2cb309c7120ccfbe12",
+    "before/permanent-regression-negative.log": "be1bad982ab0c43c5520681ce80d64c09882a29fd7010e8f9831cb7a676ef10e",
+    "before/root-independent-before.json": "14ce780b98127847f118d64e9494e263f395ded077579fb7e15988bf9fc22702",
+    "source/fix.diff": "b79c47aa9df8468a119747c9180ac103cf3e6cdf018e1117150bd1a3bbab6c90",
+    "source/source-hashes.json": "527d223fa99b3dc4d594c05560af1fa272253ddc5e1735ab595627271e9691eb",
+    "verification.json": "ec5e34bd2dc20e39786b3605b8537189a6b963e55b49a1a7984b6f945b10a7f3"
+  },
+  "schema": "budget_main230_join_repair_evidence"
+}

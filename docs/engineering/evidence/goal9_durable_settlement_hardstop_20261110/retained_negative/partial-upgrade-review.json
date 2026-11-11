@@ -1,0 +1,12 @@
+{
+  "note": "Reviewer negative proof, pre-fix: a partially upgraded legacy table (NOT NULL agent/tenant/model + pricing_status unknown/cost NULL) was rebuilt to pricing_status=priced. Retained verbatim except path sanitization; the fixed full startup-hook twin is in backend/tests/test_goal9_token_usage_upgrade.py.",
+  "row_after": {
+    "cost_usd": null,
+    "id": "prior-unknown",
+    "pricing_status": "priced"
+  },
+  "scope": "isolated function loaded from actual current source; scratch SQLite; no startup/live DB",
+  "source_hash": "dc64566e9acb7d6e20e7512fd30b11843bab951ded4f18f0a7d4226f0358833b",
+  "source_path": "<worktree>/backend/core/sqlite_schema_repair.py",
+  "unknown_preserved": false
+}

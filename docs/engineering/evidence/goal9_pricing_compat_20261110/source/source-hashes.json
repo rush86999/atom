@@ -1,0 +1,31 @@
+{
+  "files": {
+    "backend/api/byok_routes.py": {
+      "after_sha256": "52303c232ba290fc547c265c3e3de44530282649c2bfe8a64bd3849e6416aa91",
+      "before_sha256": "5ab600c813454f290b784ebd08e697485e9c0a291961c819ed602e48f431db3a",
+      "changed": true
+    },
+    "backend/core/byok_endpoints.py": {
+      "after_sha256": "db4da5b06b39b1d5eccbe7e80847271f1b201d253d5e00a7fa879592af23d08e",
+      "before_sha256": "0d11a520be9c11b8c43e894a3774949c7e240f64e0d97b8fb05a27036c6a3eb5",
+      "changed": true
+    },
+    "backend/core/dynamic_pricing_fetcher.py": {
+      "after_sha256": "a49dd938e99dd22150c9a4311596702a3ce5a92a59c945cc2d08030219f8fa30",
+      "before_sha256": "7c56826724285e2f0702dd88474c5e84df89d20c54ec9019b19061841cc12567",
+      "changed": true
+    },
+    "backend/core/llm/cache_aware_router.py": {
+      "after_sha256": "7a37998e574707db5e6c87fcb69793ea8786115e516440f6ee20ac5248989a19",
+      "before_sha256": "607c2463284d7219d098867144404fc8e35d715c0e4b6cd1d9ff67682b2def01",
+      "changed": true
+    },
+    "backend/tests/test_goal9_pricing_material.py": {
+      "after_sha256": "54b372e56d2efd3ca912ccb9bce9dfc8d0668d7ab6bf8dcad7d4bfb970cac353",
+      "before_sha256": "78fa669e8657ea6f5ad7565c9c612d18a4100aac94b8e388670048f8fb76811e",
+      "changed": true
+    }
+  },
+  "schema": "goal9_pricing_compat_source",
+  "withheld": "8deaf95159c908da56e34491685936ef419236ec"
+}

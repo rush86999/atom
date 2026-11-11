@@ -1,0 +1,2416 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 48ede3e6c..4e54b3729 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -500,6 +500,17 @@ jobs:
+         run: |
+           python -m pytest tests/test_goal9_atomic_cap.py tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
++      - name: Run per-physical-attempt reservation controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "goal9_ci_physical_attempts"
++          DATABASE_URL: "sqlite:///test_ci_goal9_physical_attempts.db"
++          ATOM_DATA_DIR: "${{ runner.temp }}/atom-goal9-physical"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/test_goal9_physical_attempts.py -q --tb=short --timeout=300 --timeout-method=thread
++
+   backend-oracle:
+     runs-on: ubuntu-latest
+     defaults:
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index bc99cecc4..c65958d96 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -813,6 +813,17 @@ class _DurableUsageIntentUnavailable(RuntimeError):
+     """A paid dispatch was refused because its durable intent could not persist."""
+ 
+ 
++class _AccountingBlockedError(RuntimeError):
++    """A physical attempt could not be admitted for accounting reasons.
++
++    Distinct from a provider failure by design: a missing/refused
++    reservation (unknown pricing under hard_stop, invalid configured price,
++    or an unavailable ledger) must stop the request before dispatch. It must
++    never look like a failed provider and trigger a hidden provider/model
++    fallback that spends without an authorized bound.
++    """
++
++
+ class _StreamInactivityError(RuntimeError):
+     """A streaming response produced no chunk for longer than the idle bound.
+ 
+@@ -844,6 +855,15 @@ class _StreamRequestState:
+       one free->paid sibling retry per free pair. Both are bounded separately
+       and never restart the sweep.
+     * ``attempts`` — per-pair dispatch counter for attribution and evidence.
++    * ``request_id`` / ``attempt_seq`` — one server-owned job identity and a
++      request-wide monotonically increasing sequence. Every physical paid
++      transport attempt (initial, self-heal, paid sibling, reasoning-budget
++      retry, ranked-route hop) reserves/settles under
++      ``f"{request_id}:{attempt_seq}"`` so nested frames can never reuse one
++      authorization for a different route.
++    * ``accounting_blocked`` — a reservation could not be admitted. Later
++      frames must not dispatch or fall back; the request stops with the
++      accounting refusal instead of spending unauthorized.
+ 
+     This is state, not a router: every candidate still passes the existing
+     policy, catalogue, pin, capability and local-only gates.
+@@ -854,6 +874,14 @@ class _StreamRequestState:
+     self_heal_used: Set[Tuple[str, str]] = field(default_factory=set)
+     paid_retry_used: Set[Tuple[str, str]] = field(default_factory=set)
+     attempts: Dict[Tuple[str, str], int] = field(default_factory=dict)
++    request_id: str = ""
++    attempt_seq: int = 0
++    accounting_blocked: bool = False
++
++    def next_attempt_id(self) -> Tuple[str, str]:
++        """Server-owned ``(request_id, attempt_id)`` for one physical call."""
++        self.attempt_seq += 1
++        return self.request_id, f"{self.request_id}:{self.attempt_seq}"
+ 
+     def mark_attempt(self, provider_id: str, model: str) -> None:
+         pair = (str(provider_id or ""), str(model or ""))
+@@ -1107,6 +1135,93 @@ def _usage_value(usage: Any, *names: str) -> int:
+         return 0
+ 
+ 
++def _payload_token_upper(
++    provider_id: Optional[str], model: Optional[str], text: Any) -> int:
++    """Proven token upper bound for ONE text payload fragment.
++
++    ``core.llm.prompt_budget.count_tokens`` returns
++    ``(token_count, estimated)``. ``estimated=True`` means the count came from
++    the chars/4 heuristic — it is NEVER a bound (the pre-fix estimator treated
++    the flag as "exact" and used the nominal count for the heuristic branch,
++    under-reserving unicode prompts by ~8x).
++
++    No brand/provider mapping in this repo proves a served model's tokenizer
++    (o200k is not mathematically monotone against cl100k, and a provider id is
++    not a model contract), so the only bound used is the UTF-8 byte length:
++    every supported byte/char-aligned text tokenizer emits at most one token
++    per input byte, therefore ``tokens <= utf-8 bytes``. This deliberately
++    over-reserves rather than guessing a smaller "exact" count; under
++    hard_stop that can refuse a call near the cap, which is the safe
++    direction. Unknown *pricing* is handled separately (explicit refusal),
++    never as a fabricated zero.
++    """
++    text = "" if text is None else str(text)
++    if not text:
++        return 0
++    from core.llm.prompt_budget import count_tokens
++
++    counted, _estimated = count_tokens(text)
++    # Reviewed finite contract (root prerequisite 4559f24a): keep the
++    # model-independent UTF-8 floor for EITHER flag value. `estimated=True`
++    # means the count is a chars/4 heuristic and must never lower this bound.
++    return max(int(counted or 0), len(text.encode("utf-8")), 1)
++
++
++def _serialized_payload_for_bound(
++    messages: Any, extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
++    """Serialize the ACTUAL chat payload for the reservation bound.
++
++    Roles, tool/function schemas, stop sequences and the request body shape
++    all consume tokens. Inline image data is replaced with a fixed marker (a
++    base64 blob is not tokenized proportionally by any provider); a bounded
++    per-image allowance is added by the caller instead.
++    """
++    def _sanitize(value: Any) -> Any:
++        if isinstance(value, list):
++            return [_sanitize(item) for item in value]
++        if isinstance(value, dict):
++            clean = {}
++            for key, item in value.items():
++                if key == "image_url":
++                    url = item.get("url") if isinstance(item, dict) else item
++                    clean[key] = {
++                        "url": "<inline-image>"
++                        if isinstance(url, str) and url.startswith("data:")
++                        else url,
++                    }
++                else:
++                    clean[key] = _sanitize(item)
++            return clean
++        return value
++
++    payload: Dict[str, Any] = {"messages": _sanitize(messages)}
++    if extra_kwargs:
++        payload["request"] = _sanitize(extra_kwargs)
++    try:
++        return json.dumps(payload, ensure_ascii=False, default=str)
++    except Exception:
++        return str(payload)
++
++
++def _has_inline_image(messages: Any) -> bool:
++    """True when the request carries a multimodal image part.
++
++    There is no proven upper bound here for an arbitrary image/resolution/
++    provider combination, so such a request is admitted with an explicit
++    UNKNOWN bound: hard_stop refuses it before dispatch, while no-limit or
++    observe modes still run with the unknown liability retained. A fixed
++    per-image token allowance would be a fabricated bound.
++    """
++    for message in messages or []:
++        content = message.get("content") if isinstance(message, dict) else None
++        if isinstance(content, list):
++            for part in content:
++                if (isinstance(part, dict)
++                        and part.get("type") in {"image_url", "input_image"}):
++                    return True
++    return False
++
++
+ # Completion cap for plain (non-streaming) completions — same rationale as
+ # the structured path's ATOM_STRUCTURED_MAX_TOKENS: reasoning models burn
+ # 750–3,155+ tokens thinking BEFORE the visible answer (measured on
+@@ -1115,6 +1230,12 @@ def _usage_value(usage: Any, *names: str) -> int:
+ # a ceiling, not a target — short answers are unaffected.
+ _DEFAULT_COMPLETION_MAX_TOKENS = int(os.getenv("ATOM_COMPLETION_MAX_TOKENS", "6000"))
+ 
++# One admitted physical attempt == one HTTP request. The OpenAI SDK otherwise
++# retries connection/408/409/429/5xx up to 2 times per call, which are hidden
++# physical requests that no reservation covers. The application's own
++# provider/model ladder is the single retry owner.
++_SDK_MAX_RETRIES = 0
++
+ # Providers that speak OpenRouter's unified ``reasoning`` object (the field is
+ # an OpenRouter extension, passed through ``extra_body`` for SDK requests).
+ _REASONING_GATEWAY_PROVIDERS = frozenset(
+@@ -3621,9 +3742,11 @@ class BYOKHandler:
+                 api_key = lux_config.get_anthropic_key() or self.byok_manager.get_api_key("lux")
+                 if api_key:
+                     try:
+-                        self.clients["lux"] = OpenAI(api_key=api_key)
++                        self.clients["lux"] = OpenAI(
++                            api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+                         if AsyncOpenAI:
+-                            self.async_clients["lux"] = AsyncOpenAI(api_key=api_key)
++                            self.async_clients["lux"] = AsyncOpenAI(
++                                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+                         logger.info("Initialized LUX provider with Anthropic client")
+                     except Exception as e:
+                         logger.error(f"Failed to initialize LUX client: {e}")
+@@ -3638,12 +3761,14 @@ class BYOKHandler:
+                         api_key="ollama",  # Dummy key — server ignores it
+                         base_url=ollama_base_url,
+                         timeout=_ollama_request_timeout(),
++                        max_retries=_SDK_MAX_RETRIES,
+                     )
+                     if AsyncOpenAI:
+                         self.async_clients["ollama"] = AsyncOpenAI(
+                             api_key="ollama",
+                             base_url=ollama_base_url,
+                             timeout=_ollama_request_timeout(),
++                            max_retries=_SDK_MAX_RETRIES,
+                         )
+                     logger.info(f"Initialized Ollama (local) client at {ollama_base_url}")
+                 except Exception as e:
+@@ -3741,6 +3866,7 @@ class BYOKHandler:
+                         "api_key": api_key,
+                         "base_url": config["base_url"],  # can be None for OpenAI
+                         "timeout": _llm_request_timeout(),
++                        "max_retries": _SDK_MAX_RETRIES,
+                     }
+                     if provider_id == "openrouter":
+                         client_kwargs["default_headers"] = {
+@@ -4089,8 +4215,12 @@ class BYOKHandler:
+                     base_url = provider.base_url.rstrip("/")
+ 
+                     try:
+-                        self.clients[provider_key] = OpenAI(api_key=api_key, base_url=base_url)
+-                        self.async_clients[provider_key] = AsyncOpenAI(api_key=api_key, base_url=base_url)
++                        self.clients[provider_key] = OpenAI(
++                            api_key=api_key, base_url=base_url,
++                            max_retries=_SDK_MAX_RETRIES)
++                        self.async_clients[provider_key] = AsyncOpenAI(
++                            api_key=api_key, base_url=base_url,
++                            max_retries=_SDK_MAX_RETRIES)
+                         logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
+                     except Exception as e:
+                         logger.warning(f"Could not create client for local provider '{provider.name}': {e}")
+@@ -4183,37 +4313,36 @@ class BYOKHandler:
+         input_texts,
+         max_output_tokens: Optional[int],
+         schema_text: Optional[str] = None,
++        extra_text: Optional[str] = None,
+     ) -> Optional[float]:
+-        """Conservative configured USD bound for one paid attempt.
+-
+-        Inputs use the existing token counter (exact when tiktoken is
+-        available); the fallback uses UTF-8 byte length as an upper bound,
+-        plus explicit message/schema overhead. Output uses the request's
+-        completion cap. The pricing contract then estimates the cost; a
+-        missing price returns None so hard-stop refuses rather than silently
+-        under-reserving.
++        """Conservative configured USD bound for ONE paid physical attempt.
++
++        Input tokens use a per-model upper bound: the provider family
++        tokenizer for proven OpenAI ids, otherwise the UTF-8 byte bound that
++        any byte/char-aligned tokenizer cannot exceed. ``input_texts`` should
++        carry the ACTUAL serialized payload (messages/roles/tool schemas); the
++        callers pass ``_serialized_payload_for_bound``. ``schema_text`` and
++        ``extra_text`` add tool schema / request-body fragments. A missing or
++        invalid price returns None so hard-stop refuses rather than silently
++        under-reserving or admitting a fabricated zero.
+         """
+         try:
+-            from core.llm.prompt_budget import count_tokens
+-
+             if isinstance(input_texts, str):
+                 input_texts = [input_texts]
+             input_tokens_upper = 0
++            input_texts = list(input_texts or [])
+             for text in input_texts:
+-                text = str(text or "")
+-                counted, exact = count_tokens(text)
+-                if not exact:
+-                    counted = max(counted, len(text.encode("utf-8")))
+-                input_tokens_upper += counted
++                input_tokens_upper += _payload_token_upper(
++                    provider_id, model, text)
+             input_tokens_upper += int(os.getenv(
+                 "ATOM_LLM_RESERVATION_OVERHEAD_TOKENS", "256"))
+             input_tokens_upper += 8 * max(1, len(input_texts))
+             if schema_text:
+-                schema_count, schema_exact = count_tokens(str(schema_text))
+-                if not schema_exact:
+-                    schema_count = max(
+-                        schema_count, len(str(schema_text).encode("utf-8")))
+-                input_tokens_upper += schema_count
++                input_tokens_upper += _payload_token_upper(
++                    provider_id, model, schema_text)
++            if extra_text:
++                input_tokens_upper += _payload_token_upper(
++                    provider_id, model, extra_text)
+             input_tokens_upper = max(1, input_tokens_upper)
+ 
+             output_tokens = max(
+@@ -4251,6 +4380,173 @@ class BYOKHandler:
+         except Exception:
+             return None
+ 
++    def _admit_physical_attempt(
++        self,
++        *,
++        request_id: str,
++        attempt_id: str,
++        provider_id: str,
++        model: str,
++        messages: Any,
++        max_output_tokens: Optional[int],
++        agent_id: Optional[str] = None,
++        execution_id: Optional[str] = None,
++        chain_id: Optional[str] = None,
++        extra_kwargs: Optional[Dict[str, Any]] = None,
++        schema_text: Optional[str] = None,
++    ) -> Optional[float]:
++        """Reserve/authorize ONE physical paid transport attempt before dispatch.
++
++        The bound is computed from the ACTUAL payload the transport will send
++        (serialized messages/roles, request body, schema) and the request's
++        real output cap. Under configured hard_stop a missing/unknown price,
++        invalid price or unavailable ledger raises before any provider call.
++        Accounting refusal is deliberately NOT a provider failure: callers
++        must stop the request rather than fall back to another route.
++        """
++        payload = _serialized_payload_for_bound(messages, extra_kwargs)
++        bound = self._estimate_reservation_bound(
++            provider_id, model, [payload],
++            max_output_tokens,
++            schema_text=schema_text,
++        )
++        if _has_inline_image(messages):
++            # No proven bound exists for arbitrary image/resolution/provider
++            # combinations. Explicit unknown (not a fabricated allowance):
++            # hard_stop refuses before dispatch; observe/no-limit modes run
++            # with the unknown liability retained.
++            logger.warning(
++                "[reservation] multimodal request for %s/%s has no proven "
++                "image token bound; admitting as explicit unknown",
++                provider_id, model)
++            bound = None
++        try:
++            from core.spend_aggregation_service import begin_llm_usage
++
++            begin_llm_usage(
++                provider_id=provider_id,
++                model_name=model,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                execution_id=execution_id,
++                chain_id=chain_id,
++                request_id=request_id,
++                attempt_id=attempt_id,
++                reserved_cost_usd=bound,
++                enforce_budget=True,
++            )
++        except Exception as intent_err:
++            raise _AccountingBlockedError(
++                f"physical attempt admission refused for "
++                f"{provider_id}/{model} ({type(intent_err).__name__})"
++            ) from intent_err
++        return bound
++
++    def _settle_physical_response(
++        self,
++        *,
++        provider_id: str,
++        model: str,
++        response: Any,
++        request_id: str,
++        attempt_id: str,
++        agent_id: Optional[str] = None,
++        execution_id: Optional[str] = None,
++        chain_id: Optional[str] = None,
++        unknown: bool = False,
++    ) -> Optional[float]:
++        """Settle ONE physical response under its exact attempt identity.
++
++        Uses the response's authoritative usage when present; missing usage
++        becomes explicit unknown liability (never a fabricated free). Does
++        not duplicate the caller's in-memory tracker/feedback writes.
++        """
++        usage = _response_usage(response)
++        if usage is None:
++            prompt_tokens = completion_tokens = 0
++            cost: Optional[float] = None
++        else:
++            prompt_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
++            completion_tokens = _usage_value(
++                usage, "completion_tokens", "output_tokens")
++            cost = None
++            try:
++                fetcher = get_pricing_fetcher()
++                cost = fetcher.estimate_cost(
++                    model, prompt_tokens, completion_tokens)
++                if cost is None:
++                    cost = get_llm_cost(model, prompt_tokens, completion_tokens)
++            except Exception:
++                cost = None
++            cost = _valid_cost(cost)
++        if unknown:
++            # No proven bound/price existed for this attempt shape (e.g.
++            # multimodal image tokens). The settlement is explicit unknown
++            # liability, never a guess derived from a partial estimate.
++            cost = None
++        try:
++            from core.spend_aggregation_service import record_llm_usage
++
++            record_llm_usage(
++                provider_id=provider_id,
++                model_name=model,
++                prompt_tokens=prompt_tokens,
++                completion_tokens=completion_tokens,
++                cost_usd=cost,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                execution_id=execution_id,
++                chain_id=chain_id,
++                request_id=request_id,
++                attempt_id=attempt_id,
++            )
++        except Exception as settle_err:
++            logger.error(
++                "LLM durable usage settlement failed (%s)",
++                type(settle_err).__name__)
++        return cost
++
++    def _settle_stream_attempt(
++        self,
++        *,
++        provider_id: str,
++        model: str,
++        request_id: str,
++        attempt_id: str,
++        reserved_bound: Optional[float],
++        agent_id: Optional[str] = None,
++    ) -> None:
++        """Settle a successful stream attempt as actual-free or unknown.
++
++        Streaming providers do not expose authoritative usage on this path,
++        so the settlement is explicit unknown liability (the conservative
++        reservation stays on the ledger and is not silently released). The
++        one exception is a trusted numeric-zero bound: authoritative
++        known-free settles at 0.0.
++        """
++        cost = 0.0 if reserved_bound == 0.0 else None
++        try:
++            from core.spend_aggregation_service import record_llm_usage
++
++            record_llm_usage(
++                provider_id=provider_id,
++                model_name=model,
++                prompt_tokens=0,
++                completion_tokens=0,
++                cost_usd=cost,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                request_id=request_id,
++                attempt_id=attempt_id,
++            )
++        except Exception as settle_err:
++            logger.error(
++                "LLM stream settlement failed (%s)",
++                type(settle_err).__name__)
++
+     def _record_provider_usage(
+         self,
+         provider_id: str,
+@@ -6793,8 +7089,11 @@ class BYOKHandler:
+             # otherwise every retry stacked another image or another copy of
+             # the user's text onto the same conversation.
+             _pristine_messages = [dict(m) for m in messages] if messages else None
++            _request_has_image = bool(image_payload) or _has_inline_image(
++                messages)
+             _settlement_request_id = str(uuid.uuid4())
+-            _settlement_attempt = 0
++            _settlement_attempts = [0]
++            _accounting_blocked = False
+             for provider_id, model in options:
+                 if provider_id in failed_providers:
+                     continue
+@@ -6965,39 +7264,34 @@ class BYOKHandler:
+ 
+                     # Durable paid-liability intent BEFORE dispatch. If it
+                     # cannot be persisted, do not dispatch (fail closed).
+-                    _settlement_attempt += 1
++                    _settlement_attempts[0] += 1
+                     _attempt_id = (
+-                        f"{_settlement_request_id}:{_settlement_attempt}")
+-                    _reservation_bound = self._estimate_reservation_bound(
+-                        provider_id, model,
+-                        [str(m.get("content") or "") for m in messages],
+-                        _cap)
++                        f"{_settlement_request_id}:"
++                        f"{_settlement_attempts[0]}")
+                     try:
+-                        from core.spend_aggregation_service import (
+-                            begin_llm_usage,
+-                        )
+-
+-                        begin_llm_usage(
++                        _reservation_bound = self._admit_physical_attempt(
++                            request_id=_settlement_request_id,
++                            attempt_id=_attempt_id,
+                             provider_id=provider_id,
+-                            model_name=model,
++                            model=model,
++                            messages=messages,
++                            max_output_tokens=_cap,
+                             agent_id=agent_id,
+-                            workspace_id=getattr(self, "workspace_id", None),
+-                            tenant_id=getattr(self, "tenant_id", None),
+                             execution_id=execution_id,
+                             chain_id=chain_id,
+-                            request_id=_settlement_request_id,
+-                            attempt_id=_attempt_id,
+-                            reserved_cost_usd=_reservation_bound,
+-                            enforce_budget=True,
++                            extra_kwargs={
++                                k: v for k, v in _req_kwargs.items()
++                                if k not in ("messages", "model")
++                            },
+                         )
+-                    except Exception as intent_err:
++                    except _AccountingBlockedError:
+                         _release_once()
+                         logger.error(
+                             "Durable usage intent unavailable; refusing "
+-                            "dispatch of %s/%s (%s)",
+-                            provider_id, model, type(intent_err).__name__)
++                            "dispatch of %s/%s", provider_id, model)
+                         # A ledger/scope failure is not a provider failure:
+                         # do not silently fall through to another route.
++                        _accounting_blocked = True
+                         break
+ 
+                     try:
+@@ -7183,7 +7477,8 @@ class BYOKHandler:
+                                 usage, "prompt_tokens", "input_tokens"),
+                             completion_tokens=_usage_value(
+                                 usage, "completion_tokens", "output_tokens"),
+-                            cost_usd=observed_cost,
++                            cost_usd=(
++                                None if _request_has_image else observed_cost),
+                             agent_id=agent_id,
+                             workspace_id=getattr(self, "workspace_id", None),
+                             tenant_id=getattr(self, "tenant_id", None),
+@@ -7240,6 +7535,9 @@ class BYOKHandler:
+                     return result
+ 
+                 except Exception as attempt_err:
++                    if isinstance(attempt_err, _AccountingBlockedError):
++                        _accounting_blocked = True
++                        break
+                     if isinstance(attempt_err, _EmptyCompletionError):
+                         self._bench_model(provider_id, model)
+                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
+@@ -7277,15 +7575,49 @@ class BYOKHandler:
+                         try:
+                             _t_kwargs = dict(_req_kwargs)
+                             _t_kwargs["temperature"] = _locked_value
++                            _settlement_attempts[0] += 1
++                            _t_attempt_id = (
++                                f"{_settlement_request_id}:"
++                                f"{_settlement_attempts[0]}")
++                            self._admit_physical_attempt(
++                                request_id=_settlement_request_id,
++                                attempt_id=_t_attempt_id,
++                                provider_id=provider_id,
++                                model=model,
++                                messages=messages,
++                                max_output_tokens=_t_kwargs.get(
++                                    "max_tokens")
++                                or _DEFAULT_COMPLETION_MAX_TOKENS,
++                                agent_id=agent_id,
++                                execution_id=execution_id,
++                                chain_id=chain_id,
++                                extra_kwargs={
++                                    k: v for k, v in _t_kwargs.items()
++                                    if k not in ("messages", "model")
++                                },
++                            )
+                             response = await _to_thread_safe(
+                                 client.chat.completions.create, **_t_kwargs)
+                             self._capture_echoed_model(response)
+                             self._stash_last_reasoning(response)
+                             result = response.choices[0].message.content
+                             if not _visible_content_missing(result):
++                                self._settle_physical_response(
++                                    provider_id=provider_id,
++                                    model=model,
++                                    response=response,
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_t_attempt_id,
++                                    agent_id=agent_id,
++                                    execution_id=execution_id,
++                                    chain_id=chain_id,
++                                        unknown=_request_has_image,
++                                )
+                                 self._last_used_model = model
+                                 self._last_used_provider = provider_id
+                                 return result
++                        except _AccountingBlockedError:
++                            raise
+                         except Exception as _temp_retry_err:
+                             logger.warning(
+                                 f"temperature={_locked_value} retry also "
+@@ -7314,15 +7646,37 @@ class BYOKHandler:
+                                 f"retrying with {fallback_model}"
+                             )
+                             try:
+-                                response = await _to_thread_safe(
+-                                    client.chat.completions.create,
+-                                    model=fallback_model,
+-                                    messages=messages,
+-                                    temperature=_required_temperature(
++                                _fb_kwargs = {
++                                    "model": fallback_model,
++                                    "messages": messages,
++                                    "temperature": _required_temperature(
+                                         provider_id, fallback_model,
+                                         temperature),
+-                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
++                                    "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
++                                }
++                                _settlement_attempts[0] += 1
++                                _fb_attempt_id = (
++                                    f"{_settlement_request_id}:"
++                                    f"{_settlement_attempts[0]}")
++                                self._admit_physical_attempt(
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_fb_attempt_id,
++                                    provider_id=provider_id,
++                                    model=fallback_model,
++                                    messages=messages,
++                                    max_output_tokens=_fb_kwargs[
++                                        "max_tokens"],
++                                    agent_id=agent_id,
++                                    execution_id=execution_id,
++                                    chain_id=chain_id,
++                                    extra_kwargs={
++                                        k: v for k, v in _fb_kwargs.items()
++                                        if k not in ("messages", "model")
++                                    },
+                                 )
++                                response = await _to_thread_safe(
++                                    client.chat.completions.create,
++                                    **_fb_kwargs)
+                                 self._capture_echoed_model(response)
+                                 self._stash_last_reasoning(response)
+                                 result = response.choices[0].message.content
+@@ -7330,12 +7684,25 @@ class BYOKHandler:
+                                     raise _EmptyCompletionError(
+                                         f"fallback {fallback_model} returned no visible content"
+                                     )
++                                self._settle_physical_response(
++                                    provider_id=provider_id,
++                                    model=fallback_model,
++                                    response=response,
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_fb_attempt_id,
++                                    agent_id=agent_id,
++                                    execution_id=execution_id,
++                                    chain_id=chain_id,
++                                        unknown=_request_has_image,
++                                )
+                                 self._last_used_model = fallback_model
+                                 self._last_used_provider = provider_id
+                                 logger.info(
+                                     f"Fallback succeeded: {provider_id}/{fallback_model}"
+                                 )
+                                 return result
++                            except _AccountingBlockedError:
++                                raise
+                             except Exception as fb_err:
+                                 logger.warning(
+                                     f"Fallback {fallback_model} also failed: {fb_err}"
+@@ -7415,6 +7782,29 @@ class BYOKHandler:
+                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
+                                 )
+                                 try:
++                                    _settlement_attempts[0] += 1
++                                    _heal_attempt_id = (
++                                        f"{_settlement_request_id}:"
++                                        f"{_settlement_attempts[0]}")
++                                    self._admit_physical_attempt(
++                                        request_id=_settlement_request_id,
++                                        attempt_id=_heal_attempt_id,
++                                        provider_id=provider_id,
++                                        model=model,
++                                        messages=messages,
++                                        max_output_tokens=(
++                                            heal_result.patched_kwargs.get(
++                                                "max_tokens")
++                                            or _DEFAULT_COMPLETION_MAX_TOKENS),
++                                        agent_id=agent_id,
++                                        execution_id=execution_id,
++                                        chain_id=chain_id,
++                                        extra_kwargs={
++                                            k: v for k, v in
++                                            heal_result.patched_kwargs.items()
++                                            if k not in ("messages", "model")
++                                        },
++                                    )
+                                     response = await _to_thread_safe(
+                                         client.chat.completions.create,
+                                         **heal_result.patched_kwargs
+@@ -7450,15 +7840,30 @@ class BYOKHandler:
+                                         success=True, cost=None, latency_ms=latency_ms,
+                                         routing_result_id=decision_id_for_feedback,
+                                     )
++                                    self._settle_physical_response(
++                                        provider_id=provider_id,
++                                        model=model,
++                                        response=response,
++                                        request_id=_settlement_request_id,
++                                        attempt_id=_heal_attempt_id,
++                                        agent_id=agent_id,
++                                        execution_id=execution_id,
++                                        chain_id=chain_id,
++                                        unknown=_request_has_image,
++                                    )
+                                     self._last_used_model = model
+                                     self._last_used_provider = provider_id
+                                     return result
++                                except _AccountingBlockedError:
++                                    raise
+                                 except Exception as retry_err:
+                                     logger.warning(
+                                         f"[SelfHeal] retry FAILED for {provider_id}/{model}: "
+                                         f"{retry_err} (rule={heal_result.rule})"
+                                     )
+                                     last_error = retry_err
++                        except _AccountingBlockedError:
++                            raise
+                         except Exception:
+                             logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+ 
+@@ -7478,14 +7883,36 @@ class BYOKHandler:
+                         paid_model = _opencode_paid_fallback_model(model)
+                         if paid_model and paid_model != model:
+                             try:
+-                                response = await _to_thread_safe(
+-                                    client.chat.completions.create,
++                                _paid_kwargs = {
++                                    "model": paid_model,
++                                    "messages": messages,
++                                    "temperature": _required_temperature(
++                                        provider_id, paid_model, temperature),
++                                    "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
++                                }
++                                _settlement_attempts[0] += 1
++                                _paid_attempt_id = (
++                                    f"{_settlement_request_id}:"
++                                    f"{_settlement_attempts[0]}")
++                                self._admit_physical_attempt(
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_paid_attempt_id,
++                                    provider_id=provider_id,
+                                     model=paid_model,
+                                     messages=messages,
+-                                    temperature=_required_temperature(
+-                                        provider_id, paid_model, temperature),
+-                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
++                                    max_output_tokens=_paid_kwargs[
++                                        "max_tokens"],
++                                    agent_id=agent_id,
++                                    execution_id=execution_id,
++                                    chain_id=chain_id,
++                                    extra_kwargs={
++                                        k: v for k, v in _paid_kwargs.items()
++                                        if k not in ("messages", "model")
++                                    },
+                                 )
++                                response = await _to_thread_safe(
++                                    client.chat.completions.create,
++                                    **_paid_kwargs)
+                                 self._capture_echoed_model(response)
+                                 self._stash_last_reasoning(response)
+                                 result = response.choices[0].message.content
+@@ -7516,9 +7943,22 @@ class BYOKHandler:
+                                     success=True, cost=None, latency_ms=latency_ms,
+                                     routing_result_id=decision_id_for_feedback,
+                                 )
++                                self._settle_physical_response(
++                                    provider_id=provider_id,
++                                    model=paid_model,
++                                    response=response,
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_paid_attempt_id,
++                                    agent_id=agent_id,
++                                    execution_id=execution_id,
++                                    chain_id=chain_id,
++                                        unknown=_request_has_image,
++                                )
+                                 self._last_used_model = paid_model
+                                 self._last_used_provider = provider_id
+                                 return result
++                            except _AccountingBlockedError:
++                                raise
+                             except Exception as paid_err:
+                                 logger.warning(
+                                     f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
+@@ -7540,6 +7980,11 @@ class BYOKHandler:
+                     )
+                     continue # Try next provider
+             
++            if _accounting_blocked:
++                raise _AccountingBlockedError(
++                    "budget authorization unavailable for this request; no "
++                    "provider was dispatched without an authorized bound")
++
+             logger.error(f"All providers failed. Last error: {last_error}")
+ 
+             # LAST-RESORT CATALOG SWEEP for the non-stream path (2026-10-03,
+@@ -7612,6 +8057,25 @@ class BYOKHandler:
+                             _sp, _sm, _sweep_kwargs["max_tokens"])
+                         if _reasoning_body:
+                             _sweep_kwargs["extra_body"] = _reasoning_body
++                        _settlement_attempts[0] += 1
++                        _sweep_attempt_id = (
++                            f"{_settlement_request_id}:"
++                            f"{_settlement_attempts[0]}")
++                        self._admit_physical_attempt(
++                            request_id=_settlement_request_id,
++                            attempt_id=_sweep_attempt_id,
++                            provider_id=_sp,
++                            model=_sm,
++                            messages=_sweep_kwargs["messages"],
++                            max_output_tokens=_sweep_kwargs["max_tokens"],
++                            agent_id=agent_id,
++                            execution_id=execution_id,
++                            chain_id=chain_id,
++                            extra_kwargs={
++                                k: v for k, v in _sweep_kwargs.items()
++                                if k not in ("messages", "model")
++                            },
++                        )
+                         response = await _to_thread_safe(
+                             _client.chat.completions.create, **_sweep_kwargs)
+                         self._capture_echoed_model(response)
+@@ -7619,6 +8083,17 @@ class BYOKHandler:
+                         if _visible_content_missing(_sweep_result):
+                             raise _EmptyCompletionError(
+                                 _sweep_result or "")
++                        self._settle_physical_response(
++                            provider_id=_sp,
++                            model=_sm,
++                            response=response,
++                            request_id=_settlement_request_id,
++                            attempt_id=_sweep_attempt_id,
++                            agent_id=agent_id,
++                            execution_id=execution_id,
++                            chain_id=chain_id,
++                                        unknown=_request_has_image,
++                        )
+                         logger.warning(
+                             "completion ladder sweep SUCCEEDED on %s/%s",
+                             _sp, _sm)
+@@ -7678,6 +8153,16 @@ class BYOKHandler:
+                 f"failed. Last error: {_cause}. Check provider status or "
+                 "credentials in Settings and try again.")
+ 
++        except _AccountingBlockedError as accounting_err:
++            logger.error(
++                "LLM generation blocked by accounting refusal: %s",
++                accounting_err)
++            return (
++                "I couldn't generate a response — this request could not be "
++                "authorized against the configured budget/pricing (unknown "
++                "or invalid model price, or the budget ledger is "
++                "unavailable). Check the model pricing and budget "
++                "configuration, then retry.")
+         except Exception as e:
+             logger.error(f"LLM Generation failed: {e}")
+             logger.error(f"LLM Generation failed: {e}", exc_info=True)
+@@ -10603,41 +11088,18 @@ class BYOKHandler:
+                 break
+         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
+         # The learning-router decision id is optional (None when the router is
+-        # off). Settlement still needs a unique server-owned request identity:
+-        # reusing "None:stream:request" made every stream collide on the
+-        # ledger's unique attempt_id.
+-        _stream_identity = (
+-            stream_decision_id or f"stream-{uuid.uuid4().hex}")
+-        # Streaming token/cost usage is not currently exposed by every
+-        # provider stream. Reserve a conservative configured bound before the
+-        # stream; it remains an active liability until authoritative
+-        # reconciliation (never auto-released as zero).
+-        _stream_reservation_bound = self._estimate_reservation_bound(
+-            provider_id, model,
+-            [str(m.get("content") or "") for m in messages],
+-            max_tokens or _DEFAULT_COMPLETION_MAX_TOKENS)
+-        try:
+-            from core.spend_aggregation_service import begin_llm_usage
+-
+-            begin_llm_usage(
+-                provider_id=provider_id,
+-                model_name=model,
+-                agent_id=agent_id,
+-                workspace_id=getattr(self, "workspace_id", None),
+-                tenant_id=getattr(self, "tenant_id", None),
+-                request_id=_stream_identity,
+-                attempt_id=f"{_stream_identity}:stream:request",
+-                reserved_cost_usd=_stream_reservation_bound,
+-                enforce_budget=True,
+-            )
+-        except Exception as stream_settle_err:
+-            logger.error(
+-                "Stream usage reservation failed (%s)",
+-                type(stream_settle_err).__name__)
+-            # No durable reservation: do not start the stream. Never silently
+-            # stream an unaccounted paid call.
+-            raise RuntimeError(
+-                "durable stream usage reservation unavailable") from None
++        # off). Settlement still needs a unique server-owned request identity.
++        # One request-owned identity + sequence spans every nested frame
++        # (provider loop, self-heal, paid sibling, ranked-route hop, sweep) so
++        # each PHYSICAL transport call reserves under its own attempt id and
++        # can never reuse another route's authorization.
++        if not state.request_id:
++            state.request_id = (
++                stream_decision_id or f"stream-{uuid.uuid4().hex}")
++        _stream_identity = state.request_id
++
++        # No request-level reservation: admission happens immediately before
++        # each physical paid transport call (see _admit_physical_attempt).
+ 
+         # P4 prompt-taint gate (shadow by default; blocks under enforce).
+         _taint_block = self._llm_taint_check(
+@@ -10847,6 +11309,33 @@ class BYOKHandler:
+                 # This pair actually reaches transport. The request-wide
+                 # ledger is what later ranked-route/sweep hops consult.
+                 state.mark_attempt(attempt_provider_id, model)
++                _stream_request_id, _stream_attempt_id = (
++                    state.next_attempt_id())
++                try:
++                    _stream_attempt_bound = self._admit_physical_attempt(
++                        request_id=_stream_request_id,
++                        attempt_id=_stream_attempt_id,
++                        provider_id=attempt_provider_id,
++                        model=model,
++                        messages=messages,
++                        max_output_tokens=_attempt_max_tokens,
++                        agent_id=agent_id,
++                        extra_kwargs={
++                            k: v for k, v in create_kwargs.items()
++                            if k not in ("messages", "model")
++                        },
++                    )
++                except _AccountingBlockedError as _admit_err:
++                    self._release_model_attempt(
++                        attempt_provider_id, model, holder=_claim_holder,
++                        token=_claim_token)
++                    logger.error(
++                        "Stream physical-attempt admission refused for "
++                        "%s/%s; no dispatch (%s)",
++                        attempt_provider_id, model, type(_admit_err).__name__)
++                    state.accounting_blocked = True
++                    last_error = _admit_err
++                    break
+                 try:
+                     _connect_s = _stream_connect_timeout_seconds()
+                     if _connect_s and _connect_s > 0:
+@@ -10987,6 +11476,20 @@ class BYOKHandler:
+                         "(finish_reason=%s); caller will fall back",
+                         attempt_provider_id, model, _stream_finish_reason)
+ 
++                # Durable settlement of THIS physical stream attempt. Stream
++                # usage is not authoritative on this path, so the settlement
++                # is explicit unknown liability (or 0.0 for a trusted
++                # numeric-zero bound); the conservative reservation is never
++                # silently released.
++                self._settle_stream_attempt(
++                    provider_id=attempt_provider_id,
++                    model=model,
++                    request_id=_stream_request_id,
++                    attempt_id=_stream_attempt_id,
++                    reserved_bound=_stream_attempt_bound,
++                    agent_id=agent_id,
++                )
++
+                 # Success! Return from the function
+                 return
+ 
+@@ -10994,6 +11497,12 @@ class BYOKHandler:
+                 last_error = e
+                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+ 
++                # Accounting refusal is not a provider failure: no hidden
++                # fallback, no unauthorized spend.
++                if isinstance(e, _AccountingBlockedError):
++                    state.accounting_blocked = True
++                    break
++
+                 # Classify BEFORE deciding what to do next: a rejected
+                 # credential and an unsupported model look alike in a status
+                 # code and demand opposite responses.
+@@ -11123,6 +11632,24 @@ class BYOKHandler:
+                             )
+                             try:
+                                 state.mark_attempt(attempt_provider_id, model)
++                                _heal_request_id, _heal_attempt_id = (
++                                    state.next_attempt_id())
++                                _heal_bound = self._admit_physical_attempt(
++                                    request_id=_heal_request_id,
++                                    attempt_id=_heal_attempt_id,
++                                    provider_id=attempt_provider_id,
++                                    model=model,
++                                    messages=messages,
++                                    max_output_tokens=(
++                                        heal_result.patched_kwargs.get(
++                                            "max_tokens") or max_tokens),
++                                    agent_id=agent_id,
++                                    extra_kwargs={
++                                        k: v for k, v in
++                                        heal_result.patched_kwargs.items()
++                                        if k not in ("messages", "model")
++                                    },
++                                )
+                                 stream = await client.chat.completions.create(
+                                     **heal_result.patched_kwargs
+                                 )
+@@ -11179,7 +11706,17 @@ class BYOKHandler:
+                                     success=True, cost=None, latency_ms=latency_ms,
+                                     routing_result_id=stream_decision_id,
+                                 )
++                                self._settle_stream_attempt(
++                                    provider_id=attempt_provider_id,
++                                    model=model,
++                                    request_id=_heal_request_id,
++                                    attempt_id=_heal_attempt_id,
++                                    reserved_bound=_heal_bound,
++                                    agent_id=agent_id,
++                                )
+                                 return
++                            except _AccountingBlockedError:
++                                raise
+                             except Exception as retry_err:
+                                 logger.warning(
+                                     f"[SelfHeal-stream] retry FAILED for "
+@@ -11187,6 +11724,8 @@ class BYOKHandler:
+                                     f"(rule={heal_result.rule})"
+                                 )
+                                 last_error = retry_err
++                    except _AccountingBlockedError:
++                        raise
+                     except Exception:
+                         logger.debug("[SelfHeal-stream] healer raised; skipping", exc_info=True)
+ 
+@@ -11226,6 +11765,23 @@ class BYOKHandler:
+                                     {k: v for k, v in extra_kwargs.items() if v is not None}
+                                 )
+                             state.mark_attempt(attempt_provider_id, paid_model)
++                            _paid_request_id, _paid_attempt_id = (
++                                state.next_attempt_id())
++                            _paid_bound = self._admit_physical_attempt(
++                                request_id=_paid_request_id,
++                                attempt_id=_paid_attempt_id,
++                                provider_id=attempt_provider_id,
++                                model=paid_model,
++                                messages=messages,
++                                max_output_tokens=(
++                                    retry_kwargs.get("max_tokens")
++                                    or _DEFAULT_COMPLETION_MAX_TOKENS),
++                                agent_id=agent_id,
++                                extra_kwargs={
++                                    k: v for k, v in retry_kwargs.items()
++                                    if k not in ("messages", "model")
++                                },
++                            )
+                             stream = await client.chat.completions.create(**retry_kwargs)
+                             logger.info(
+                                 f"OpenCode Go free-model stream retry started on paid model "
+@@ -11275,7 +11831,17 @@ class BYOKHandler:
+                                 success=True, cost=None, latency_ms=latency_ms,
+                                 routing_result_id=stream_decision_id,
+                             )
++                            self._settle_stream_attempt(
++                                provider_id=attempt_provider_id,
++                                model=paid_model,
++                                request_id=_paid_request_id,
++                                attempt_id=_paid_attempt_id,
++                                reserved_bound=_paid_bound,
++                                agent_id=agent_id,
++                            )
+                             return
++                        except _AccountingBlockedError:
++                            raise
+                         except Exception as retry_err:
+                             logger.warning(
+                                 f"OpenCode Go free-model stream retry FAILED on paid model "
+@@ -11344,6 +11910,20 @@ class BYOKHandler:
+         if state.visible_yielded:
+             return
+ 
++        # Accounting refusal is not a provider failure. Never replay an
++        # unauthorized physical request on a ranked route or a catalogue
++        # sweep: surface the bounded refusal instead.
++        if state.accounting_blocked:
++            logger.error(
++                "accounting refusal for %s/%s — no route/sweep replay",
++                provider_id, model)
++            yield (
++                "\n\n[Error: LLM budget authorization is unavailable for "
++                "this request (unknown or invalid model price, or the budget "
++                "ledger could not be read). Check the model pricing and "
++                "budget configuration, then retry.]")
++            return
++
+         _next_routes = list(fallback_routes or [])
+         if not _next_routes and fallback_models:
+             # Legacy shape: names only. The provider that serves them is not
+@@ -11510,6 +12090,8 @@ class BYOKHandler:
+         extra_kwargs: Optional[Dict[str, Any]] = None,
+         _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
+         explicit_route: Optional[bool] = None,
++        _settlement_request_id: Optional[str] = None,  # job identity (internal)
++        _attempt_seq: Optional[List[int]] = None,  # shared physical counter
+     ) -> Dict[str, Any]:
+         """Non-streaming chat completion with fallback + self-heal (gateway).
+ 
+@@ -11586,8 +12168,12 @@ class BYOKHandler:
+                 prompt_str = content if isinstance(content, str) else str(content)
+                 break
+         decision_id = self._stash_decision_features(prompt_str, task_type)
+-        _settlement_request_id = str(decision_id or uuid.uuid4())
+-        _settlement_attempt = 0
++        if not _settlement_request_id:
++            _settlement_request_id = str(decision_id or uuid.uuid4())
++        if _attempt_seq is None:
++            _attempt_seq = [0]
++        _accounting_blocked = False
++        _request_has_image = _has_inline_image(messages)
+ 
+         # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
+         # a 4xx by the gateway's error mapping).
+@@ -11673,41 +12259,35 @@ class BYOKHandler:
+                         attempt_provider_id, model,
+                     )
+                     continue
+-                _settlement_attempt += 1
+-                _attempt_id = (
+-                    f"{_settlement_request_id}:{_settlement_attempt}")
+-                _chat_reservation_bound = self._estimate_reservation_bound(
+-                    attempt_provider_id, model,
+-                    [str(m.get("content") or "") for m in messages],
+-                    _attempt_kwargs.get("max_tokens")
+-                    or _DEFAULT_COMPLETION_MAX_TOKENS)
++                _attempt_seq[0] += 1
++                _attempt_id = f"{_settlement_request_id}:{_attempt_seq[0]}"
+                 try:
+-                    from core.spend_aggregation_service import (
+-                        begin_llm_usage,
+-                    )
+-
+-                    begin_llm_usage(
+-                        provider_id=attempt_provider_id,
+-                        model_name=model,
+-                        agent_id=agent_id,
+-                        workspace_id=getattr(self, "workspace_id", None),
+-                        tenant_id=getattr(self, "tenant_id", None),
++                    _chat_reservation_bound = self._admit_physical_attempt(
+                         request_id=_settlement_request_id,
+                         attempt_id=_attempt_id,
+-                        reserved_cost_usd=_chat_reservation_bound,
+-                        enforce_budget=True,
++                        provider_id=attempt_provider_id,
++                        model=model,
++                        messages=messages,
++                        max_output_tokens=(
++                            _attempt_kwargs.get("max_tokens")
++                            or _DEFAULT_COMPLETION_MAX_TOKENS),
++                        agent_id=agent_id,
++                        extra_kwargs={
++                            k: v for k, v in _attempt_kwargs.items()
++                            if k not in ("messages", "model")
++                        },
+                     )
+-                except Exception as intent_err:
++                except _AccountingBlockedError:
+                     self._release_model_attempt(
+                         attempt_provider_id, model, holder=_claim_holder,
+                         token=_claim_token)
+                     logger.error(
+                         "Durable usage intent unavailable; refusing "
+-                        "completion dispatch of %s/%s (%s)",
+-                        attempt_provider_id, model,
+-                        type(intent_err).__name__)
++                        "completion dispatch of %s/%s",
++                        attempt_provider_id, model)
+                     # Accounting/scope failure must not trigger a hidden
+                     # fallback to another provider/model.
++                    _accounting_blocked = True
+                     break
+                 try:
+                     response = await client.chat.completions.create(**_attempt_kwargs)
+@@ -11783,7 +12363,9 @@ class BYOKHandler:
+                             model_name=model,
+                             prompt_tokens=prompt_tokens or 0,
+                             completion_tokens=completion_tokens or 0,
+-                            cost_usd=cost,
++                            # A multimodal attempt has no proven image bound;
++                            # keep its settlement explicitly unknown.
++                            cost_usd=(None if _request_has_image else cost),
+                             agent_id=agent_id,
+                             workspace_id=getattr(self, "workspace_id", None),
+                             tenant_id=getattr(self, "tenant_id", None),
+@@ -11842,6 +12424,9 @@ class BYOKHandler:
+                 }
+ 
+             except Exception as e:
++                if isinstance(e, _AccountingBlockedError):
++                    _accounting_blocked = True
++                    break
+                 if isinstance(e, _EmptyCompletionError):
+                     self._bench_model(attempt_provider_id, model)
+                 last_error = e
+@@ -11867,6 +12452,24 @@ class BYOKHandler:
+                         "model": _direct_api_model_name(attempt_provider_id, model),
+                     }
+                     try:
++                        _attempt_seq[0] += 1
++                        _t1_attempt_id = (
++                            f"{_settlement_request_id}:{_attempt_seq[0]}")
++                        _t1_bound = self._admit_physical_attempt(
++                            request_id=_settlement_request_id,
++                            attempt_id=_t1_attempt_id,
++                            provider_id=attempt_provider_id,
++                            model=model,
++                            messages=messages,
++                            max_output_tokens=(
++                                _retry_at_1.get("max_tokens")
++                                or _DEFAULT_COMPLETION_MAX_TOKENS),
++                            agent_id=agent_id,
++                            extra_kwargs={
++                                k: v for k, v in _retry_at_1.items()
++                                if k not in ("messages", "model")
++                            },
++                        )
+                         response = await client.chat.completions.create(
+                             **_retry_at_1)
+                         _choice = (response.choices[0]
+@@ -11877,6 +12480,15 @@ class BYOKHandler:
+                             raise _EmptyCompletionError(
+                                 f"temperature retry on {model} returned no completion payload"
+                             )
++                        self._settle_physical_response(
++                            provider_id=attempt_provider_id,
++                            model=model,
++                            response=response,
++                            request_id=_settlement_request_id,
++                            attempt_id=_t1_attempt_id,
++                            agent_id=agent_id,
++                            unknown=_request_has_image,
++                        )
+                         self._clear_model_cooldown(attempt_provider_id, model)
+                         last_error = None
+                         self._last_used_model = model
+@@ -11904,6 +12516,8 @@ class BYOKHandler:
+                                 "total_tokens": getattr(_usage, "total_tokens", 0) or 0,
+                             },
+                         }
++                    except _AccountingBlockedError:
++                        raise
+                     except Exception as _t1_err:
+                         logger.warning(
+                             f"temperature=1 retry also failed: {_t1_err}")
+@@ -11957,6 +12571,25 @@ class BYOKHandler:
+                                     "model": _direct_api_model_name(
+                                         attempt_provider_id, model),
+                                 }
++                                _attempt_seq[0] += 1
++                                _heal_attempt_id = (
++                                    f"{_settlement_request_id}:"
++                                    f"{_attempt_seq[0]}")
++                                self._admit_physical_attempt(
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_heal_attempt_id,
++                                    provider_id=attempt_provider_id,
++                                    model=model,
++                                    messages=messages,
++                                    max_output_tokens=(
++                                        healed_kwargs.get("max_tokens")
++                                        or _DEFAULT_COMPLETION_MAX_TOKENS),
++                                    agent_id=agent_id,
++                                    extra_kwargs={
++                                        k: v for k, v in healed_kwargs.items()
++                                        if k not in ("messages", "model")
++                                    },
++                                )
+                                 healed_response = await client.chat.completions.create(**healed_kwargs)
+                                 self._capture_echoed_model(healed_response)
+                                 healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
+@@ -11993,6 +12626,15 @@ class BYOKHandler:
+                                     success=True, cost=heal_cost, latency_ms=0.0,
+                                     routing_result_id=decision_id,
+                                 )
++                                self._settle_physical_response(
++                                    provider_id=attempt_provider_id,
++                                    model=model,
++                                    response=healed_response,
++                                    request_id=_settlement_request_id,
++                                    attempt_id=_heal_attempt_id,
++                                    agent_id=agent_id,
++                                    unknown=_request_has_image,
++                                )
+                                 self._last_used_model = model
+                                 self._last_used_provider = attempt_provider_id
+                                 return {
+@@ -12015,12 +12657,16 @@ class BYOKHandler:
+                                         "total_tokens": hp + hc,
+                                     },
+                                 }
++                            except _AccountingBlockedError:
++                                raise
+                             except Exception as retry_err:
+                                 logger.warning(
+                                     f"[SelfHeal] retry FAILED for {attempt_provider_id}/{model}: {retry_err} "
+                                     f"(rule={heal_result.rule})"
+                                 )
+                                 last_error = retry_err
++                    except _AccountingBlockedError:
++                        raise
+                     except Exception:
+                         logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+ 
+@@ -12047,6 +12693,25 @@ class BYOKHandler:
+                                 k: v for k, v in base_kwargs.items() if k != "model"
+                             }
+                             retry_kwargs["model"] = paid_model
++                            _attempt_seq[0] += 1
++                            _paid_attempt_id = (
++                                f"{_settlement_request_id}:"
++                                f"{_attempt_seq[0]}")
++                            self._admit_physical_attempt(
++                                request_id=_settlement_request_id,
++                                attempt_id=_paid_attempt_id,
++                                provider_id=attempt_provider_id,
++                                model=paid_model,
++                                messages=messages,
++                                max_output_tokens=(
++                                    retry_kwargs.get("max_tokens")
++                                    or _DEFAULT_COMPLETION_MAX_TOKENS),
++                                agent_id=agent_id,
++                                extra_kwargs={
++                                    k: v for k, v in retry_kwargs.items()
++                                    if k not in ("messages", "model")
++                                },
++                            )
+                             paid_response = await client.chat.completions.create(**retry_kwargs)
+                             self._capture_echoed_model(paid_response)
+                             p_choice = (
+@@ -12115,6 +12780,15 @@ class BYOKHandler:
+                                 success=True, cost=paid_cost, latency_ms=latency_ms,
+                                 routing_result_id=decision_id,
+                             )
++                            self._settle_physical_response(
++                                provider_id=attempt_provider_id,
++                                model=paid_model,
++                                response=paid_response,
++                                request_id=_settlement_request_id,
++                                attempt_id=_paid_attempt_id,
++                                agent_id=agent_id,
++                                unknown=_request_has_image,
++                            )
+                             self._last_used_model = paid_model
+                             self._last_used_provider = attempt_provider_id
+                             logger.info(
+@@ -12141,6 +12815,8 @@ class BYOKHandler:
+                                     "total_tokens": (pp or 0) + (pc or 0),
+                                 },
+                             }
++                        except _AccountingBlockedError:
++                            raise
+                         except Exception as paid_err:
+                             logger.warning(
+                                 f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
+@@ -12165,7 +12841,7 @@ class BYOKHandler:
+         # dead, walk the untried providers' catalog-served models directly
+         # (no re-ranking — BPC + the learning router were what kept dead
+         # rungs on top). One pass, no nested sweeps.
+-        if _allow_ladder_sweep:
++        if _allow_ladder_sweep and not _accounting_blocked:
+             try:
+                 from core.llm.model_route_registry import (
+                     get_provider_model_catalog,
+@@ -12206,10 +12882,22 @@ class BYOKHandler:
+                         temperature=temperature, max_tokens=max_tokens,
+                         task_type=task_type, agent_id=agent_id,
+                         extra_kwargs=extra_kwargs, _allow_ladder_sweep=False,
++                        _settlement_request_id=_settlement_request_id,
++                        _attempt_seq=_attempt_seq,
+                     )
++                except _AccountingBlockedError:
++                    raise
+                 except Exception as _sweep_call_err:
+                     last_error = _sweep_call_err
+ 
++        if _accounting_blocked:
++            raise AllProvidersFailedError(
++                "LLM budget authorization is unavailable for this request "
++                "(unknown or invalid model price, or the budget ledger could "
++                "not be read). No provider was dispatched without an "
++                "authorized bound."
++            ) from last_error
++
+         raise AllProvidersFailedError(
+             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"
+         )
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index 10525c1b4..7ccf273b9 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -145,5 +145,17 @@
+       "ENVIRONMENT": "development"
+     },
+     "run": "python -m pytest tests/test_goal9_atomic_cap.py tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++  },
++  {
++    "name": "Run per-physical-attempt reservation controls",
++    "env": {
++      "TESTING": "1",
++      "PYTEST_CURRENT_TEST": "goal9_ci_physical_attempts",
++      "DATABASE_URL": "sqlite:///test_ci_goal9_physical_attempts.db",
++      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-goal9-physical",
++      "SECRET_KEY": "ci-test-secret-key",
++      "ENVIRONMENT": "development"
++    },
++    "run": "python -m pytest tests/test_goal9_physical_attempts.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   }
+ ]
+diff --git a/backend/tests/test_goal9_atomic_cap.py b/backend/tests/test_goal9_atomic_cap.py
+index 5697ef581..62c794c39 100644
+--- a/backend/tests/test_goal9_atomic_cap.py
++++ b/backend/tests/test_goal9_atomic_cap.py
+@@ -475,7 +475,9 @@ def test_budget_revision_after_reservation_keeps_liability(host):
+                 "active")
+ 
+ 
+-def test_reservation_bound_covers_unicode_schema_and_output(host, monkeypatch):
++@pytest.mark.parametrize("estimated", [False, True])
++def test_reservation_bound_covers_unicode_schema_and_output(
++        host, monkeypatch, estimated):
+     from core.llm import byok_handler, prompt_budget
+ 
+     recorded = {}
+@@ -491,9 +493,11 @@ def test_reservation_bound_covers_unicode_schema_and_output(host, monkeypatch):
+         byok_handler, "get_pricing_fetcher", lambda: _Pricing())
+     # Force the non-exact fallback: the helper must use UTF-8 bytes, not a
+     # nominal chars/4 estimate.
++    # count_tokens returns (count, estimated). Both the real-tokenizer and
++    # heuristic flags must retain the model-independent UTF-8 text bound.
+     monkeypatch.setattr(
+         prompt_budget, "count_tokens",
+-        lambda text: (max(1, len(str(text or "")) // 4), False))
++        lambda text: (max(1, len(str(text or "")) // 4), estimated))
+     handler = object.__new__(byok_handler.BYOKHandler)
+     bound = handler._estimate_reservation_bound(
+         "openai", "gpt-4o-mini",
+diff --git a/backend/tests/test_goal9_physical_attempts.py b/backend/tests/test_goal9_physical_attempts.py
+new file mode 100644
+index 000000000..4cd439794
+--- /dev/null
++++ b/backend/tests/test_goal9_physical_attempts.py
+@@ -0,0 +1,953 @@
++"""Goal 9 per-physical-attempt admission controls (doubled consumers).
++
++Every physical paid transport attempt — streaming initial/self-heal/paid/
++reasoning-budget retry/route hop, gateway ``chat_completion``
++temperature/self-heal/paid retry, and ordinary ``generate_response`` nested
++retries — must carry its own server-owned attempt identity, actual route
++binding, conservative authorized bound before dispatch, and a durable
++actual/unknown settlement after it.
++
++Failure-first: the retained negative shows the pre-repair behavior (one
++request-level reservation shared by several physical dispatches, or no
++reservation at all for a nested retry). All transport is doubled; ledger and
++policy are the real scratch SQLite store. No live provider/model/DB.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++from datetime import datetime
++from types import SimpleNamespace
++from unittest.mock import AsyncMock, MagicMock, patch
++
++import pytest
++
++from tests._llm_route_catalog import install_route_catalog
++from tests.test_oracle_mini_app_host_mutations import host
++from tests.test_opencode_go_provider import _insufficient_balance_error
++from core.llm.byok_handler import BYOKHandler
++from core.models import Tenant, TenantSetting, TokenUsage, Workspace
++
++TENANT = "tenant-goal9-physical"
++WORKSPACE = "ws-goal9-physical"
++
++
++@pytest.fixture(autouse=True)
++def _clean_transport_state():
++    """Provider failures/cooldowns/temperature memos are process-wide."""
++    from core.llm import byok_handler as bh
++    from core.spend_aggregation_service import clear_settlement_failure
++
++    saved_temperatures = dict(bh._MODEL_TEMPERATURE)
++    clear_settlement_failure()
++    BYOKHandler.invalidate_provider_failures()
++    yield
++    BYOKHandler.invalidate_provider_failures()
++    # The temperature-lock retry memoizes a per-pair value; leaking it would
++    # change an unrelated consumer's expected temperature in the same process.
++    bh._MODEL_TEMPERATURE.clear()
++    bh._MODEL_TEMPERATURE.update(saved_temperatures)
++    # Deliberate settlement-failure controls set a process marker that would
++    # otherwise make unrelated consumers fail closed.
++    clear_settlement_failure()
++
++
++# --------------------------------------------------------------------------
++# scratch ledger / policy
++# --------------------------------------------------------------------------
++def _seed(host, *, spend=90.0, limit=100.0):
++    with host.Session() as db:
++        db.add(Tenant(id=TENANT, name=TENANT, subdomain="goal9-physical"))
++        db.add(Workspace(id=WORKSPACE, name=WORKSPACE, tenant_id=TENANT))
++        db.add(TenantSetting(
++            tenant_id=TENANT, setting_key="billing",
++            setting_value=json.dumps({
++                "budget_limit_usd": limit,
++                "enforcement": {"mode": "hard_stop"},
++            })))
++        if spend:
++            db.add(TokenUsage(
++                agent_id=None, workspace_id=WORKSPACE, tenant_id=TENANT,
++                model_name="controlled-seed", cost_usd=spend,
++                pricing_status="priced", reservation_status="none",
++                timestamp=datetime.now()))
++        db.commit()
++
++
++def _attempt_rows(host):
++    with host.Session() as db:
++        return (
++            db.query(TokenUsage)
++            .filter(TokenUsage.tenant_id == TENANT,
++                    TokenUsage.attempt_id.isnot(None))
++            .order_by(TokenUsage.timestamp)
++            .all()
++        )
++
++
++def _make_handler(monkeypatch, tmp_path, catalog, *, sync=None, async_=None):
++    manager = MagicMock()
++    manager.is_configured.return_value = False
++    manager.get_api_key.return_value = None
++    with patch("core.llm.byok_handler.get_byok_manager",
++               return_value=manager), \
++         patch("core.llm.byok_handler.get_db_session",
++               return_value=MagicMock()):
++        handler = BYOKHandler()
++    install_route_catalog(monkeypatch, tmp_path, catalog)
++    handler.clients = dict(sync or {})
++    handler.async_clients = dict(async_ or {})
++    handler.workspace_id = WORKSPACE
++    handler.tenant_id = TENANT
++    handler._record_outcome_feedback = AsyncMock()
++    handler._stash_decision_features = MagicMock(return_value="decision")
++    handler._provider_models_cached = lambda pid: []
++    return handler
++
++
++def _pricing(monkeypatch, fn):
++    monkeypatch.setattr(
++        "core.llm.byok_handler.get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=fn))
++
++
++def _reservation_pricing(monkeypatch, *, bound_at=7.0, reserve_output=1000,
++                         actual=7.0):
++    """Reserve ``bound_at`` for the request cap, settle ``actual`` for usage."""
++    def _estimate(model, input_tokens, output_tokens):
++        if int(output_tokens or 0) == int(reserve_output):
++            return bound_at / 1.25
++        return actual
++    _pricing(monkeypatch, _estimate)
++
++
++# --------------------------------------------------------------------------
++# doubled transports
++# --------------------------------------------------------------------------
++class _ScriptedStream:
++    def __init__(self, chunks):
++        self._chunks = list(chunks)
++        self._index = 0
++
++    def __aiter__(self):
++        return self
++
++    async def __anext__(self):
++        if self._index >= len(self._chunks):
++            raise StopAsyncIteration
++        chunk = self._chunks[self._index]
++        self._index += 1
++        return chunk
++
++
++def _visible(text):
++    return SimpleNamespace(choices=[SimpleNamespace(
++        delta=SimpleNamespace(content=text, reasoning=None),
++        finish_reason="stop")])
++
++
++def _reasoning_length():
++    return SimpleNamespace(choices=[SimpleNamespace(
++        delta=SimpleNamespace(content=None, reasoning="hidden"),
++        finish_reason="length")])
++
++
++class _StreamClient:
++    def __init__(self, provider_id, script, calls):
++        self._provider_id = provider_id
++        self._script = list(script)
++        self._calls = calls
++        self.chat = SimpleNamespace(completions=SimpleNamespace(
++            create=self._create))
++
++    async def _create(self, **kwargs):
++        self._calls.append((self._provider_id, kwargs.get("model"), kwargs))
++        if not self._script:
++            raise RuntimeError("unexpected physical dispatch")
++        action = self._script.pop(0)
++        if action.get("raise") is not None:
++            raise action["raise"]
++        return _ScriptedStream(action.get("chunks") or [])
++
++
++def _response(content="ok"):
++    return SimpleNamespace(
++        choices=[SimpleNamespace(
++            message=SimpleNamespace(
++                content=content, tool_calls=None, function_call=None,
++                reasoning_content=None),
++            finish_reason="stop",
++        )],
++        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
++    )
++
++
++class _ChatClient:
++    def __init__(self, script, calls):
++        self._script = list(script)
++        self._calls = calls
++        self.chat = SimpleNamespace(completions=SimpleNamespace(
++            create=AsyncMock(side_effect=self._next)))
++
++    def _next(self, **kwargs):
++        self._calls.append(kwargs)
++        if not self._script:
++            raise RuntimeError("unexpected physical dispatch")
++        action = self._script.pop(0)
++        if action.get("raise") is not None:
++            raise action["raise"]
++        return action["response"]
++
++
++def _stream(handler, model, provider_id, **kwargs):
++    async def _collect():
++        return [part async for part in handler.stream_completion(
++            [{"role": "user", "content": "hello"}],
++            model=model, provider_id=provider_id,
++            max_tokens=kwargs.pop("max_tokens", 1000), **kwargs)]
++    return asyncio.run(_collect())
++
++
++# --------------------------------------------------------------------------
++# failure-first: second physical attempt must refuse before dispatch at cap
++# --------------------------------------------------------------------------
++def test_stream_second_paid_attempt_refused_before_second_provider(
++        host, monkeypatch, tmp_path):
++    """90/100: first attempt reserves 7 and fails; the second reservation
++    (90+7+7) must refuse before the second provider is dispatched."""
++    _seed(host, spend=90.0)
++    _reservation_pricing(monkeypatch)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"openai": ["shared-model"], "deepseek": ["shared-model"]},
++        async_={
++            "openai": _StreamClient(
++                "openai", [{"raise": RuntimeError("controlled failure")}],
++                calls),
++            "deepseek": _StreamClient(
++                "deepseek", [{"chunks": [_visible("SECOND")]}], calls),
++        })
++    text = "".join(_stream(handler, "shared-model", "openai"))
++    assert [c[0] for c in calls] == ["openai"], (
++        f"second provider dispatched before admission: {calls}")
++    assert "SECOND" not in text
++    rows = _attempt_rows(host)
++    assert len(rows) == 1, [r.attempt_id for r in rows]
++    assert rows[0].reservation_status == "active"
++    assert float(rows[0].reserved_cost_usd) == pytest.approx(7.0)
++
++
++def test_chat_second_provider_refused_before_dispatch_at_cap(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=90.0)
++    _reservation_pricing(monkeypatch)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"openai": ["shared-model"], "deepseek": ["shared-model"]},
++        async_={
++            "openai": _ChatClient(
++                [{"raise": RuntimeError("controlled failure")}], calls),
++            "deepseek": _ChatClient(
++                [{"response": _response("SECOND")}], calls),
++        })
++    with pytest.raises(Exception):
++        asyncio.run(handler.chat_completion(
++            [{"role": "user", "content": "hello"}],
++            "shared-model", "openai", max_tokens=1000))
++    assert len(calls) == 1, calls
++    rows = _attempt_rows(host)
++    assert len(rows) == 1, [r.attempt_id for r in rows]
++    assert rows[0].reservation_status == "active"
++    assert float(rows[0].reserved_cost_usd) == pytest.approx(7.0)
++
++
++# --------------------------------------------------------------------------
++# failure-first: nested retries need their own attempt/route/settlement
++# --------------------------------------------------------------------------
++def test_chat_temperature_retry_gets_own_intent_and_settlement(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient([
++            {"raise": RuntimeError("invalid temperature: only 1 is allowed")},
++            {"response": _response("locked retry")},
++        ], calls)})
++    result = asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++        max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "locked retry"
++    assert len(calls) == 2, calls
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.attempt_id for r in rows}) == 2
++    assert len({r.request_id for r in rows}) == 1, "same job binding"
++    retry = [r for r in rows if r.reservation_status == "settled"]
++    assert len(retry) == 1
++    assert retry[0].cost_usd == pytest.approx(0.25)
++
++
++def test_chat_selfheal_retry_gets_own_intent_and_settlement(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    monkeypatch.setattr(
++        "core.llm.routing.request_healer.get_request_healer",
++        lambda: SimpleNamespace(heal=lambda *a, **k: SimpleNamespace(
++            patched_kwargs={"model": "gpt-4o",
++                            "messages": [{"role": "user", "content": "hello"}],
++                            "temperature": 1,
++                            "max_tokens": 1000},
++            rule="param-rename", patched_keys=["max_completion_tokens"])))
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient([
++            {"raise": RuntimeError("unsupported parameter")},
++            {"response": _response("healed")},
++        ], calls)})
++    result = asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++        max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "healed"
++    assert len(calls) == 2
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.request_id for r in rows}) == 1
++    assert any(r.reservation_status == "settled" for r in rows)
++
++
++def test_chat_paid_substitution_gets_own_route_intent(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"opencode-go": ["deepseek-v4-flash-free", "deepseek-v4-flash"]},
++        async_={"opencode-go": _ChatClient([
++            {"raise": _insufficient_balance_error()},
++            {"response": _response("paid answer")},
++        ], calls)})
++    result = asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}],
++        "deepseek-v4-flash-free", "opencode-go", max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "paid answer"
++    assert [c["model"] for c in calls] == [
++        "deepseek-v4-flash-free", "deepseek-v4-flash"], calls
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    by_model = {r.model_name: r for r in rows}
++    assert set(by_model) == {"deepseek-v4-flash-free", "deepseek-v4-flash"}
++    assert by_model["deepseek-v4-flash"].reservation_status == "settled"
++    assert float(by_model["deepseek-v4-flash-free"].reserved_cost_usd) > 0
++
++
++def test_stream_selfheal_gets_own_intent(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    monkeypatch.setattr(
++        "core.llm.routing.request_healer.get_request_healer",
++        lambda: SimpleNamespace(heal=lambda *a, **k: SimpleNamespace(
++            patched_kwargs={"model": "gpt-4o",
++                            "messages": [{"role": "user", "content": "hello"}],
++                            "temperature": 1,
++                            "max_tokens": 1000,
++                            "stream": True},
++            rule="param-rename", patched_keys=["max_tokens"])))
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _StreamClient("openai", [
++            {"raise": RuntimeError("unsupported parameter")},
++            {"chunks": [_visible("HEALED")]},
++        ], calls)})
++    text = "".join(_stream(handler, "gpt-4o", "openai"))
++    assert text == "HEALED"
++    assert len(calls) == 2
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.request_id for r in rows}) == 1
++
++
++def test_stream_paid_substitution_gets_own_route_intent(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"opencode-go": ["deepseek-v4-flash-free", "deepseek-v4-flash"]},
++        async_={"opencode-go": _StreamClient("opencode-go", [
++            {"raise": _insufficient_balance_error()},
++            {"chunks": [_visible("PAID")]},
++        ], calls)})
++    text = "".join(_stream(
++        handler, "deepseek-v4-flash-free", "opencode-go"))
++    assert text == "PAID"
++    assert [c[1] for c in calls] == [
++        "deepseek-v4-flash-free", "deepseek-v4-flash"], calls
++    rows = _attempt_rows(host)
++    assert {r.model_name for r in rows} == {
++        "deepseek-v4-flash-free", "deepseek-v4-flash"}, (
++            [r.model_name for r in rows])
++
++
++def test_stream_reasoning_budget_retry_gets_own_larger_bound(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(o) / 1000.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _StreamClient("openai", [
++            {"chunks": [_reasoning_length()]},
++            {"chunks": [_visible("BIGGER")]},
++        ], calls)})
++    text = "".join(_stream(handler, "gpt-4o", "openai", max_tokens=100))
++    assert text == "BIGGER"
++    assert len(calls) == 2
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    first, second = sorted(rows, key=lambda r: float(r.reserved_cost_usd))
++    assert float(second.reserved_cost_usd) > float(first.reserved_cost_usd)
++
++
++def test_stream_route_hop_has_unique_attempts_same_request(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"openai": ["gpt-4o"], "deepseek": ["deepseek-chat"]},
++        async_={
++            "openai": _StreamClient(
++                "openai", [{"raise": RuntimeError("controlled failure")}],
++                calls),
++            "deepseek": _StreamClient(
++                "deepseek", [{"chunks": [_visible("ROUTE")]}], calls),
++        })
++    text = "".join(_stream(
++        handler, "gpt-4o", "openai",
++        fallback_routes=[("deepseek", "deepseek-chat")]))
++    assert text == "ROUTE"
++    assert len(calls) == 2
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.attempt_id for r in rows}) == 2
++    assert len({r.request_id for r in rows}) == 1
++
++
++def test_generate_response_temperature_retry_gets_own_intent(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    client = MagicMock()
++    script = [
++        RuntimeError("invalid temperature: only 1 is allowed"),
++        _response("ordinary locked"),
++    ]
++
++    def _next(**kwargs):
++        calls.append(kwargs)
++        action = script.pop(0)
++        if isinstance(action, Exception):
++            raise action
++        return action
++
++    client.chat.completions.create.side_effect = _next
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"opencode-go": ["deepseek-v4-flash"]},
++        sync={"opencode-go": client})
++    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
++        [("opencode-go", "deepseek-v4-flash")])
++    result = asyncio.run(handler.generate_response("hello"))
++    assert result == "ordinary locked"
++    assert len(calls) == 2
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.request_id for r in rows}) == 1
++    assert any(r.reservation_status == "settled" for r in rows)
++
++
++class _AwaitableResult:
++    def __init__(self, value):
++        self._value = value
++
++    def __await__(self):
++        async def _inner():
++            return self._value
++        return _inner().__await__()
++
++
++def test_generate_response_tier_fallback_gets_own_route_intent(
++        host, monkeypatch, tmp_path):
++    """Free->paid tier substitution is a new physical attempt on a new model."""
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    client = MagicMock()
++    script = [_insufficient_balance_error(), _response("tier paid")]
++
++    def _next(**kwargs):
++        calls.append(kwargs.get("model"))
++        action = script.pop(0)
++        if isinstance(action, Exception):
++            raise action
++        return action
++
++    client.chat.completions.create.side_effect = _next
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"opencode-go": ["deepseek-v4-flash-free", "deepseek-v4-flash"]},
++        sync={"opencode-go": client})
++    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
++        [("opencode-go", "deepseek-v4-flash-free")])
++    result = asyncio.run(handler.generate_response("hello"))
++    assert result == "tier paid"
++    assert calls == ["deepseek-v4-flash-free", "deepseek-v4-flash"], calls
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.request_id for r in rows}) == 1
++    assert {r.model_name for r in rows} == {
++        "deepseek-v4-flash-free", "deepseek-v4-flash"}
++
++
++def test_generate_response_selfheal_gets_own_intent(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    monkeypatch.setattr(
++        "core.llm.routing.request_healer.get_request_healer",
++        lambda: SimpleNamespace(heal=lambda *a, **k: SimpleNamespace(
++            patched_kwargs={"model": "gpt-4o",
++                            "messages": [{"role": "user", "content": "hello"}],
++                            "temperature": 0.7,
++                            "max_tokens": 1000},
++            rule="param-rename", patched_keys=["max_tokens"])))
++    calls = []
++    client = MagicMock()
++    script = [RuntimeError("unsupported parameter"), _response("healed")]
++
++    def _next(**kwargs):
++        calls.append(kwargs.get("model"))
++        action = script.pop(0)
++        if isinstance(action, Exception):
++            raise action
++        return action
++
++    client.chat.completions.create.side_effect = _next
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        sync={"openai": client})
++    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
++        [("openai", "gpt-4o")])
++    result = asyncio.run(handler.generate_response("hello"))
++    assert result == "healed"
++    assert calls == ["gpt-4o", "gpt-4o"]
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.request_id for r in rows}) == 1
++
++
++def test_chat_sweep_gets_unique_attempts_same_request(
++        host, monkeypatch, tmp_path):
++    """The catalogue sweep is another physical attempt, not a free replay."""
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"openai": ["shared-model"], "deepseek": ["deepseek-chat"]},
++        async_={
++            "openai": _ChatClient(
++                [{"raise": RuntimeError("controlled failure")}], calls),
++            "deepseek": _ChatClient(
++                [{"response": _response("SWEEP")}], calls),
++        })
++    # Both providers are visible to the fallback order; deepseek does not
++    # serve the fixed model, so only the sweep can reach its own model.
++    handler.clients = {"openai": object(), "deepseek": object()}
++    result = asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "shared-model", "openai",
++        max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "SWEEP"
++    assert len(calls) == 2, calls
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.attempt_id for r in rows}) == 2
++    assert len({r.request_id for r in rows}) == 1
++    assert {r.model_name for r in rows} == {"shared-model", "deepseek-chat"}
++
++
++# --------------------------------------------------------------------------
++# valid twins: settlement, known free, unknown liability
++# --------------------------------------------------------------------------
++def test_chat_success_at_cap_settles_actual_97(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=90.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("paid ok")}], calls)})
++    result = asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++        max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "paid ok"
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    assert rows[0].reservation_status == "settled"
++    assert rows[0].cost_usd == pytest.approx(7.0)
++    with host.Session() as db:
++        from core.spend_aggregation_service import SpendAggregationService
++        spend = SpendAggregationService(db).update_tenant_spend(
++            TENANT, persist=False, include_liabilities=True)
++    assert spend["current_spend_usd"] == pytest.approx(97.0)
++
++
++def test_stream_success_retains_unknown_liability(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=90.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _StreamClient(
++            "openai", [{"chunks": [_visible("STREAMED")]}], calls)})
++    text = "".join(_stream(handler, "gpt-4o", "openai"))
++    assert text == "STREAMED"
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    assert rows[0].billed is True
++    assert rows[0].cost_usd is None
++    assert rows[0].pricing_status == "unknown"
++    assert rows[0].reservation_status == "uncertain"
++    assert float(rows[0].reserved_cost_usd) == pytest.approx(7.0)
++
++
++def test_stream_known_free_numeric_zero_is_supported(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=90.0)
++    _pricing(monkeypatch, lambda *a, **k: 0.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _StreamClient(
++            "openai", [{"chunks": [_visible("LOCAL")]}], calls)})
++    text = "".join(_stream(handler, "gpt-4o", "openai"))
++    assert text == "LOCAL"
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    assert rows[0].reservation_status == "settled"
++    assert rows[0].pricing_status == "free"
++    assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
++
++
++# --------------------------------------------------------------------------
++# replay / restart / scope binding of one physical attempt
++# --------------------------------------------------------------------------
++def test_physical_attempt_replay_idempotent_and_conflict_refused(
++        host, monkeypatch, tmp_path):
++    from core.spend_aggregation_service import record_llm_usage
++
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("settled once")}], calls)})
++    asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++        max_tokens=1000))
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    row = rows[0]
++    replay = record_llm_usage(
++        provider_id=row.provider_id, model_name=row.model_name,
++        prompt_tokens=row.prompt_tokens, completion_tokens=row.completion_tokens,
++        cost_usd=row.cost_usd, agent_id=row.agent_id,
++        workspace_id=row.workspace_id, tenant_id=row.tenant_id,
++        execution_id=row.execution_id, chain_id=row.chain_id,
++        request_id=row.request_id, attempt_id=row.attempt_id)
++    assert replay == row.id
++    assert len(_attempt_rows(host)) == 1
++    with pytest.raises(Exception):
++        record_llm_usage(
++            provider_id=row.provider_id, model_name=row.model_name,
++            prompt_tokens=row.prompt_tokens + 1,
++            completion_tokens=row.completion_tokens + 1,
++            cost_usd=row.cost_usd, agent_id=row.agent_id,
++            workspace_id=row.workspace_id, tenant_id=row.tenant_id,
++            request_id=row.request_id, attempt_id=row.attempt_id)
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == row.attempt_id).count() == 1
++
++
++def test_failed_physical_attempt_survives_restart_as_liability(
++        host, monkeypatch, tmp_path):
++    from sqlalchemy import create_engine
++    from sqlalchemy.orm import sessionmaker
++    from core.spend_aggregation_service import (
++        BudgetReservationRefused, begin_llm_usage)
++
++    _seed(host, spend=90.0)
++    _reservation_pricing(monkeypatch)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"raise": RuntimeError("provider may have charged")}], calls)})
++    with pytest.raises(Exception):
++        asyncio.run(handler.chat_completion(
++            [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++            max_tokens=1000))
++    assert len(calls) == 1
++    engine = create_engine(str(host.engine.url))
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    try:
++        with Session() as db:
++            row = db.query(TokenUsage).filter(
++                TokenUsage.tenant_id == TENANT,
++                TokenUsage.attempt_id.isnot(None)).one()
++            assert row.reservation_status == "active"
++            assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++            with pytest.raises(BudgetReservationRefused):
++                begin_llm_usage(
++                    provider_id="openai", model_name="gpt-4o",
++                    workspace_id=WORKSPACE, tenant_id=TENANT,
++                    request_id="post-restart", attempt_id="post-restart",
++                    reserved_cost_usd=7.0, enforce_budget=True)
++    finally:
++        engine.dispose()
++
++
++def test_attempt_settlement_refuses_cross_scope_binding(
++        host, monkeypatch, tmp_path):
++    from core.spend_aggregation_service import record_llm_usage
++
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("scoped")}], calls)})
++    asyncio.run(handler.chat_completion(
++        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
++        max_tokens=1000))
++    row = _attempt_rows(host)[0]
++    with pytest.raises(Exception):
++        record_llm_usage(
++            provider_id=row.provider_id, model_name=row.model_name,
++            prompt_tokens=row.prompt_tokens,
++            completion_tokens=row.completion_tokens,
++            cost_usd=row.cost_usd, agent_id=row.agent_id,
++            workspace_id="ws-other-tenant", tenant_id="tenant-other",
++            request_id=row.request_id, attempt_id=row.attempt_id)
++    with host.Session() as db:
++        fresh = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == row.attempt_id).one()
++        assert fresh.tenant_id == TENANT
++        assert fresh.workspace_id == WORKSPACE
++
++
++# --------------------------------------------------------------------------
++# explicit refusals: pre-intent DB failure / invalid price
++# --------------------------------------------------------------------------
++@pytest.mark.parametrize("surface", ["stream", "chat"])
++def test_preintent_db_failure_dispatches_nothing(
++        host, monkeypatch, tmp_path, surface):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch)
++    calls = []
++    if surface == "stream":
++        handler = _make_handler(
++            monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++            async_={"openai": _StreamClient(
++                "openai", [{"chunks": [_visible("NOPE")]}], calls)})
++    else:
++        handler = _make_handler(
++            monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++            async_={"openai": _ChatClient(
++                [{"response": _response("NOPE")}], calls)})
++    from core import spend_aggregation_service as spend_module
++
++    monkeypatch.setattr(
++        spend_module, "begin_llm_usage",
++        lambda *a, **k: (_ for _ in ()).throw(
++            RuntimeError("intent store unavailable")))
++    if surface == "stream":
++        text = "".join(_stream(handler, "gpt-4o", "openai"))
++        assert "budget authorization" in text.lower(), text
++    else:
++        with pytest.raises(Exception):
++            asyncio.run(handler.chat_completion(
++                [{"role": "user", "content": "hello"}], "gpt-4o",
++                "openai", max_tokens=1000))
++    assert calls == []
++    assert _attempt_rows(host) == []
++
++
++@pytest.mark.parametrize("surface", ["stream", "chat"])
++@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
++def test_invalid_price_hardstop_zero_dispatch(
++        host, monkeypatch, tmp_path, surface, price):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda *a, **k: price)
++    calls = []
++    if surface == "stream":
++        handler = _make_handler(
++            monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++            async_={"openai": _StreamClient(
++                "openai", [{"chunks": [_visible("NOPE")]}], calls)})
++        text = "".join(_stream(handler, "gpt-4o", "openai"))
++        assert "budget authorization" in text.lower(), text
++    else:
++        handler = _make_handler(
++            monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++            async_={"openai": _ChatClient(
++                [{"response": _response("NOPE")}], calls)})
++        with pytest.raises(Exception):
++            asyncio.run(handler.chat_completion(
++                [{"role": "user", "content": "hello"}], "gpt-4o",
++                "openai", max_tokens=1000))
++    assert calls == []
++    assert _attempt_rows(host) == []
++
++
++# --------------------------------------------------------------------------
++# SDK hidden retries: one admission == one physical HTTP request
++# --------------------------------------------------------------------------
++def test_provider_clients_disable_sdk_hidden_retries():
++    """The OpenAI SDK retries 5xx/429/connection errors by default.
++
++    Those are physical requests that no reservation covers, and they create a
++    second retry owner. Every handler client construction must disable them so
++    the application ladder remains the only retry owner.
++    """
++    import inspect
++
++    from core.llm import byok_handler as bh
++
++    src = inspect.getsource(bh)
++    assert bh._SDK_MAX_RETRIES == 0
++    # 7 construction sites: lux sync/async, ollama sync/async, the shared
++    # provider client_kwargs dict, and registered-local sync/async.
++    assert src.count("_SDK_MAX_RETRIES") == 8
++    assert src.count("max_retries=_SDK_MAX_RETRIES") == 6
++    assert '"max_retries": _SDK_MAX_RETRIES' in src
++
++
++# --------------------------------------------------------------------------
++# multimodal: no proven image bound -> explicit unknown, never a guess
++# --------------------------------------------------------------------------
++_IMAGE_MESSAGES = [{
++    "role": "user",
++    "content": [
++        {"type": "text", "text": "what is this"},
++        {"type": "image_url",
++         "image_url": {"url": "data:image/png;base64,AAAA"}},
++    ],
++}]
++
++
++def test_multimodal_hardstop_refuses_without_fabricated_image_bound(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=10.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("IMAGE ANSWER")}], calls)})
++    with pytest.raises(Exception):
++        asyncio.run(handler.chat_completion(
++            _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    assert calls == [], "no dispatch without a proven image bound"
++    # The refusal happens inside the admission transaction, which rolls back:
++    # no reservation row and no physical dispatch.
++    assert _attempt_rows(host) == []
++
++
++def test_multimodal_observe_admits_with_unknown_liability(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=10.0, limit=0.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("IMAGE ANSWER")}], calls)})
++    result = asyncio.run(handler.chat_completion(
++        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    assert result["choices"][0]["message"]["content"] == "IMAGE ANSWER"
++    assert len(calls) == 1
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    assert rows[0].pricing_status == "unknown"
++    assert rows[0].reservation_status == "uncertain"
++    assert rows[0].reserved_cost_usd is None
++
++
++# --------------------------------------------------------------------------
++# conservative payload/tokenizer bound
++# --------------------------------------------------------------------------
++def test_bound_uses_byte_upper_for_every_text_model(
++        host, monkeypatch, tmp_path):
++    """No provider brand is tokenizer proof: every text model uses bytes.
++
++    The second ``count_tokens`` value means ``estimated`` (True = heuristic),
++    not ``exact``; a heuristic count is never a bound. Root owns the finite
++    estimated-flag corrective commit on the atomic branch; this control only
++    asserts the physical-attempt bound never guesses smaller than UTF-8 bytes.
++    """
++    from core.llm import prompt_budget
++
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: (i + o) * 0.000001)
++    handler = _make_handler(monkeypatch, tmp_path, {})
++    text = "日本語テキストです" * 20
++    byte_upper = len(text.encode("utf-8"))
++    literal_floor = (byte_upper + 256 + 8 + 10) * 0.000001 * 1.25
++    for provider, model in (("openrouter", "vendor/unknown-model"),
++                            ("openai", "gpt-4o")):
++        for flag in (True, False):
++            monkeypatch.setattr(
++                prompt_budget, "count_tokens",
++                lambda text, _flag=flag: (1, _flag))
++            bound = handler._estimate_reservation_bound(
++                provider, model, [text], 10)
++            assert bound == pytest.approx(literal_floor, rel=1e-6), (
++                provider, model, flag)
++
++
++def test_bound_counts_serialized_payload_and_schema(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: (i + o) * 0.000001)
++    handler = _make_handler(monkeypatch, tmp_path, {})
++    messages = [
++        {"role": "system", "content": "x" * 10},
++        {"role": "user", "content": "y" * 10},
++    ]
++    payload = json.dumps(messages)
++    without_schema = handler._estimate_reservation_bound(
++        "openrouter", "vendor/model", [payload], 10)
++    with_schema = handler._estimate_reservation_bound(
++        "openrouter", "vendor/model", [payload], 10,
++        schema_text="s" * 500)
++    assert with_schema > without_schema
++    # The serialized message shape (roles/braces), not just content, is counted.
++    assert without_schema >= (
++        len(payload.encode("utf-8")) + 256 + 8 + 10) * 0.000001 * 1.25

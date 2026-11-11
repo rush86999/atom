@@ -315,32 +315,40 @@ class TestSpawnAgent:
     async def test_custom_spawn_persist(self):
         agent = make_tool_agent()
         registered = SimpleNamespace(id="reg-1")
-        gov = MagicMock()
-        gov.register_or_update_agent.return_value = registered
+        actor = SimpleNamespace(id="actor-1")
+        db = MagicMock()
+        db.get.return_value = registered
+        agent.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified", "data": {"agent_id": "reg-1"}})
         with patch("core.atom_meta_agent.AgentRegistry",
-                   lambda **kw: SimpleNamespace(**kw)), \
-             patch("core.atom_meta_agent.AgentGovernanceService",
-                   return_value=gov):
+                   lambda **kw: SimpleNamespace(**kw)):
             result = await agent.spawn_agent(
                 "custom",
                 {"name": "Custom", "category": "Ops",
                  "description": "d", "default_params": {"x": 1}},
-                persist=True, db=MagicMock())
+                persist=True, db=db, actor=actor)
         assert result.id == "reg-1"
+        agent.spawn_agent_decision.assert_awaited_once()
 
     async def test_template_spawn_persist_no_db(self):
         agent = make_tool_agent()
         registered = SimpleNamespace(id="reg-2")
-        gov = MagicMock()
-        gov.register_or_update_agent.return_value = registered
+        actor = SimpleNamespace(id="actor-1")
+        agent.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified", "data": {"agent_id": "reg-2"}})
         with patch("core.atom_meta_agent.AgentRegistry",
                    lambda **kw: SimpleNamespace(**kw)), \
-             patch("core.atom_meta_agent.SessionLocal") as sl, \
-             patch("core.atom_meta_agent.AgentGovernanceService",
-                   return_value=gov):
-            sl.return_value.__enter__.return_value = MagicMock()
-            result = await agent.spawn_agent("sales_assistant", persist=True)
+             patch("core.atom_meta_agent.SessionLocal") as sl:
+            session = sl.return_value.__enter__.return_value
+            session.get.return_value = registered
+            result = await agent.spawn_agent(
+                "sales_assistant", persist=True, actor=actor)
         assert result.id == "reg-2"
+
+    async def test_persist_requires_actor(self):
+        agent = make_tool_agent()
+        with pytest.raises(ValueError, match="authenticated actor"):
+            await agent.spawn_agent("sales_assistant", persist=True)
 
 
 class TestQueryMemoryAndMentorship:

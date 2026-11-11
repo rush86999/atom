@@ -1,0 +1,193 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 12:45:20 [    INFO] MCP Service initialized
+
+tests/api/test_agent_spawn_goal14.py::test_spawn_persist_true_uses_caller_scope_and_exact_material 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:45:20 [    INFO] EscalationManager initialized
+2026-11-10 12:45:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:20 [    INFO] EscalationManager initialized
+2026-11-10 12:45:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:45:20 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:21 [    INFO] Creating isolated LanceDBHandler for workspace: ws-a at ./data/atom_memory/ws-a
+2026-11-10 12:45:21 [    INFO] EscalationManager initialized
+2026-11-10 12:45:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:45:21 [    INFO] LanceDBHandler initialized. ID: 5806100240. LANCEDB_AVAILABLE: True
+2026-11-10 12:45:21 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:21 [    INFO] EscalationManager initialized
+2026-11-10 12:45:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:21 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-op-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_distinct_operations_create_distinct_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:22 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:22 [    INFO] EscalationManager initialized
+2026-11-10 12:45:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:22 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:22 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-a "HTTP/1.1 200 OK"
+2026-11-10 12:45:22 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:22 [    INFO] EscalationManager initialized
+2026-11-10 12:45:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:22 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:22 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_duplicate_exact_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:22 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:22 [    INFO] EscalationManager initialized
+2026-11-10 12:45:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:22 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:22 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+2026-11-10 12:45:22 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:22 [    INFO] EscalationManager initialized
+2026-11-10 12:45:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:22 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:22 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_changed_material_same_operation_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:23 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:23 [    INFO] EscalationManager initialized
+2026-11-10 12:45:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:23 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:23 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 200 OK"
+2026-11-10 12:45:23 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:23 [    INFO] EscalationManager initialized
+2026-11-10 12:45:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:23 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:23 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_foreign_admin_uses_own_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:24 [    INFO] Creating isolated LanceDBHandler for workspace: ws-b at ./data/atom_memory/ws-b
+2026-11-10 12:45:24 [    INFO] EscalationManager initialized
+2026-11-10 12:45:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:45:24 [    INFO] LanceDBHandler initialized. ID: 5820845712. LANCEDB_AVAILABLE: True
+2026-11-10 12:45:24 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:24 [    INFO] EscalationManager initialized
+2026-11-10 12:45:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:24 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:24 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-foreign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_custom_params_cannot_forge_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:25 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:25 [    INFO] EscalationManager initialized
+2026-11-10 12:45:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:25 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:25 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-forged "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_concurrent_authority_change_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:25 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:25 [    INFO] EscalationManager initialized
+2026-11-10 12:45:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:25 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:25 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-race "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_inactive_or_member_is_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:26 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 12:45:26 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-inactive "HTTP/1.1 401 Unauthorized"
+2026-11-10 12:45:26 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-member "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 61%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_null_and_empty_template_material_is_exact 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:27 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:27 [    INFO] EscalationManager initialized
+2026-11-10 12:45:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:27 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:27 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-null "HTTP/1.1 200 OK"
+2026-11-10 12:45:27 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:27 [    INFO] EscalationManager initialized
+2026-11-10 12:45:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:27 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:27 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-null "HTTP/1.1 200 OK"
+2026-11-10 12:45:27 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:27 [    INFO] EscalationManager initialized
+2026-11-10 12:45:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:27 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:27 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 69%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_rollback_and_readback_uncertainty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:28 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:28 [    INFO] EscalationManager initialized
+2026-11-10 12:45:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:28 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:28 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-rollback "HTTP/1.1 409 Conflict"
+2026-11-10 12:45:28 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:28 [    INFO] EscalationManager initialized
+2026-11-10 12:45:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:28 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:28 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 76%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_persist_false_is_honest_nondurable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:29 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:29 [    INFO] EscalationManager initialized
+2026-11-10 12:45:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:29 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:29 [    INFO] Created ephemeral agent: spawned_finance_analyst_9132c8f3
+2026-11-10 12:45:29 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-ephemeral "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_personal_scope_matches_shared_writer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:29 [    INFO] Creating isolated LanceDBHandler for workspace: personal-ws at ./data/atom_memory/personal-ws
+2026-11-10 12:45:29 [    INFO] EscalationManager initialized
+2026-11-10 12:45:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:45:29 [    INFO] LanceDBHandler initialized. ID: 5818150416. LANCEDB_AVAILABLE: True
+2026-11-10 12:45:29 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:29 [    INFO] EscalationManager initialized
+2026-11-10 12:45:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:29 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:29 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-personal "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_ephemeral_personal_scope_matches_writer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:45:30 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:45:30 [    INFO] EscalationManager initialized
+2026-11-10 12:45:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:45:30 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:45:30 [    INFO] Created ephemeral agent: spawned_finance_analyst_b6ece12e
+2026-11-10 12:45:30 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-personal-ephemeral "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 26 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 13 passed, 31 warnings in 26.24s =======================

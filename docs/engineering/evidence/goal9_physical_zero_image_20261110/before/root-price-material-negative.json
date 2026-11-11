@@ -1,0 +1,8 @@
+{
+  "source": "973bea2f52f47c589b28e938f1771bb1709a1a39",
+  "probe": "<scratch>",
+  "log": "<scratch>",
+  "exit": 1,
+  "scope": "actualestimate_cost method; configuredrate lookup only doubled; no providercalls",
+  "result": "4failed2passed: missingboth/partial/bool/negativecancellation return0; explicitfree+priced validtwins pass"
+}
