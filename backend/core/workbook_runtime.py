@@ -106,7 +106,11 @@ class WorkbookRuntime:
                 handled the recalc ("libreoffice", "formulas", "openpyxl" or
                 "none"). The selected engine may differ after a native
                 failure; callers that expose it publicly must read this
-                instead of `engine`.
+                instead of `engine`. "formulas" is only reported when the
+                Python fallback actually finished (save and cached-value
+                patch both succeeded); a fallback failure downgrades the
+                report to "none" so callers never see formulas success for
+                a recalc that did not happen.
 
         Returns:
             Path to the recalculated file.
@@ -133,14 +137,19 @@ class WorkbookRuntime:
                     "fallback for %s", file_path.name)
                 if engine_out is not None:
                     engine_out["engine"] = "formulas"
-                return await self._recalc_with_formulas(file_path)
+                # The fallback owns the final verdict: a failed save or
+                # cached-value patch downgrades engine_out to "none" below
+                # instead of leaving the pre-assigned "formulas" in place.
+                return await self._recalc_with_formulas(
+                    file_path, engine_out=engine_out)
             if engine_out is not None:
                 engine_out["engine"] = "none"
             return file_path
         if self._has_formulas:
             if engine_out is not None:
                 engine_out["engine"] = "formulas"
-            return await self._recalc_with_formulas(file_path)
+            return await self._recalc_with_formulas(
+                file_path, engine_out=engine_out)
         if engine_out is not None:
             engine_out["engine"] = "openpyxl"
         logger.debug("No formula engine available — skipping recalc")
@@ -268,7 +277,12 @@ class WorkbookRuntime:
         except Exception:  # noqa: BLE001 - cleanup must not mask recalc failure
             pass
 
-    async def _recalc_with_formulas(self, file_path: Path) -> Path:
+    async def _recalc_with_formulas(
+        self,
+        file_path: Path,
+        *,
+        engine_out: Optional[Dict[str, str]] = None,
+    ) -> Path:
         """Use the `formulas` Python library to evaluate and cache results.
 
         The formula strings must survive the recalc (they are the file's
@@ -276,7 +290,20 @@ class WorkbookRuntime:
         loss). The computed values are injected as cached <v> elements in the
         saved sheet XML instead, so `data_only=True` reads return fresh
         values while raw reads keep '=...'.
+
+        Failure contract:
+          * The openpyxl save is staged beside the target and the
+            cached-value patch is applied to that staged copy; a single
+            ``os.replace`` then installs the finished workbook only after
+            the save and the patch both succeeded. The authoritative
+            workbook is untouched until that point, so a failed recalc
+            leaves the original bytes exactly as they were.
+          * On any failure ``engine_out`` is downgraded to "none" so callers
+            never see a "formulas" success for a recalc that did not
+            happen. The Path return value is kept in every case for
+            callers (and mocks) that predate this contract.
         """
+        staged: Optional[Path] = None
         try:
             import formulas
             from openpyxl import load_workbook
@@ -316,14 +343,47 @@ class WorkbookRuntime:
                                 pass
                         if val is not None:
                             computed[(sheet_name, cell.coordinate)] = val
-            wb.save(file_path)
-            if computed:
-                self._write_cached_values(file_path, computed)
+
+            # Stage the plain save beside the target, apply the cached-value
+            # patch to the staged copy, and install the finished workbook
+            # with one atomic replace (same pattern as the native path): a
+            # failed save or patch must never replace the authoritative
+            # workbook. The evaluation above ran against the original file
+            # and the refs are keyed by its name, so the filename reference
+            # semantics are unchanged by the staging.
+            with tempfile.NamedTemporaryFile(
+                prefix=f".{file_path.name}.",
+                suffix=".xlsx",
+                dir=str(file_path.parent),
+                delete=False,
+            ) as stage:
+                staged = Path(stage.name)
+            wb.save(staged)
+
+            if computed and not self._write_cached_values(staged, computed):
+                # A verified patch could not be produced; keep the
+                # authoritative workbook untouched and report the recalc
+                # as failed instead of installing a stale plain save.
+                raise RuntimeError(
+                    "Cached-value injection did not produce a verified patch"
+                )
+            os.replace(staged, file_path)
+
+            if engine_out is not None:
+                engine_out["engine"] = "formulas"
             logger.info(f"Recalculated workbook via formulas lib: {file_path.name}")
             return file_path
         except Exception as e:
             logger.warning(f"Formulas recalc failed: {e}")
+            if engine_out is not None:
+                engine_out["engine"] = "none"
             return file_path
+        finally:
+            if staged is not None:
+                try:
+                    staged.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     @staticmethod
     def _write_cached_values(file_path: Path, computed: Dict[Tuple[str, str], Any]) -> bool:
@@ -333,8 +393,10 @@ class WorkbookRuntime:
         (assigning cell.value REPLACES the formula), so the saved sheet XML
         is patched at the zip level: each <c> carrying an <f> gains a <v>.
         The patched file is verified with openpyxl before it replaces the
-        original; on any failure the plain save (formulas intact, no cached
-        values) is kept. Best-effort — returns False when injection failed.
+        staged save. Best-effort — returns False when no verified patch could
+        be produced, in which case the caller keeps the authoritative
+        workbook untouched (the staged save is discarded) and reports the
+        recalc as failed rather than installing an unverified plain save.
         """
         import zipfile
         from xml.etree import ElementTree as ET

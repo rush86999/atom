@@ -169,7 +169,12 @@ class TestRecalculate:
         # cached-value injector instead of overwriting cell.value (the old
         # behavior erased every formula it evaluated).
         assert cell.value == "=A1+A2"
-        inject.assert_called_once_with(Path(xlsx), {("Data", "A3"): 30})
+        inject.assert_called_once()
+        staged_arg, computed_arg = inject.call_args.args
+        assert staged_arg != Path(xlsx)
+        assert staged_arg.parent == Path(xlsx).parent
+        assert staged_arg.name.startswith(f".{xlsx.name}.")
+        assert computed_arg == {("Data", "A3"): 30}
         wb.save.assert_called_once()
 
 

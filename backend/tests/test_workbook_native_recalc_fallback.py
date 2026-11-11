@@ -282,3 +282,134 @@ def test_explicit_recalculate_reports_failure_when_engine_none(
 
     assert result["success"] is False
     assert "No formula engine" in result["error"]
+
+
+# --------------------------------------------------------------------------
+# PR850 repair: the newly activated Python fallback on native failure must
+# not touch the authoritative workbook until its save AND cached-value patch
+# have both succeeded on a staged copy (installed with one os.replace), and
+# must never report a "formulas" success for a recalc that did not happen.
+# --------------------------------------------------------------------------
+
+def _partial_write_then_fail(_wb, target):
+    """A Workbook.save that half-writes its target before dying (disk full)."""
+    with open(target, "wb") as fh:
+        fh.write(b"PK\x03\x04truncated-archive")
+    raise OSError("simulated disk full mid-write")
+
+
+def test_fallback_save_failure_preserves_original_bytes_and_reports_none(
+        tmp_path, monkeypatch):
+    """A partial fallback save must never truncate the authoritative workbook."""
+    from openpyxl.workbook.workbook import Workbook
+
+    from core.workbook_runtime import WorkbookRuntime
+
+    path = _book(tmp_path / "book.xlsx")
+    before = path.read_bytes()
+    rt = WorkbookRuntime()
+    rt._soffice = str(_failing_soffice(tmp_path))
+    rt._has_formulas = True
+
+    def _observing_partial_save(wb, target):
+        # The authoritative workbook must still hold the original bytes
+        # while the staged save is being written.
+        assert path.read_bytes() == before
+        _partial_write_then_fail(wb, target)
+
+    monkeypatch.setattr(Workbook, "save", _observing_partial_save)
+
+    engine = {}
+    result = asyncio.run(rt.recalculate(path, engine_out=engine))
+
+    assert result == path
+    # The failure is reported truthfully, never as a formulas success.
+    assert engine == {"engine": "none"}
+    # The half-written archive went to the staged file, not the original.
+    assert path.read_bytes() == before
+    assert load_workbook(path, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+    # The stage is cleaned up; no partial-write litter beside the workbook.
+    assert list(tmp_path.glob(".book.xlsx.*")) == []
+
+
+def test_fallback_cache_patch_failure_keeps_original_bytes_untouched(
+        tmp_path, monkeypatch):
+    """A failed cached-value patch must not install a silently stale workbook.
+
+    The patch runs on the staged copy, so the authoritative workbook still
+    carries the original bytes throughout the injection and after the
+    failure — nothing is installed and no restore is needed.
+    """
+    from core.workbook_runtime import WorkbookRuntime
+
+    path = _book(tmp_path / "book.xlsx")
+    before = path.read_bytes()
+    rt = WorkbookRuntime()
+    rt._soffice = str(_failing_soffice(tmp_path))
+    rt._has_formulas = True
+
+    for patch_mode in ("raise", "false"):
+        def _failing_patch(_staged, _computed, _mode=patch_mode):
+            # Throughout cache injection the authoritative workbook must
+            # still hold the original bytes: the patch operates on the
+            # staged copy only.
+            assert path.read_bytes() == before
+            if _mode == "raise":
+                raise OSError("zip write failed")
+            return False
+
+        rt._write_cached_values = Mock(side_effect=_failing_patch)
+        engine = {}
+        result = asyncio.run(rt.recalculate(path, engine_out=engine))
+
+        assert result == path, patch_mode
+        assert engine == {"engine": "none"}, patch_mode
+        # Nothing was installed: a failed recalc is a no-op on the file.
+        assert path.read_bytes() == before, patch_mode
+        assert load_workbook(
+            path, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+        assert list(tmp_path.glob(".book.xlsx.*")) == [], patch_mode
+
+
+def test_explicit_recalculate_after_fallback_failure_reports_failure(
+        tmp_path, monkeypatch):
+    """The public route must not report formulas success when the fallback died."""
+    from openpyxl.workbook.workbook import Workbook
+
+    from core.office_service import ExcelManager
+    from core.workbook_runtime import WorkbookRuntime
+
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    path = _book(tmp_path / "book.xlsx")
+    before = path.read_bytes()
+    rt = WorkbookRuntime()
+    rt._soffice = str(_failing_soffice(tmp_path))
+    rt._has_formulas = True
+    monkeypatch.setattr(Workbook, "save", _partial_write_then_fail)
+
+    with patch("core.workbook_runtime.get_workbook_runtime", return_value=rt):
+        result = asyncio.run(ExcelManager.recalculate(str(path)))
+
+    assert result["success"] is False
+    assert path.read_bytes() == before
+
+
+def test_fallback_success_still_reports_formulas_and_leaves_no_stage_files(
+        tmp_path):
+    """Success counterpart on the staged flow: verified install, clean workdir."""
+    from core.workbook_runtime import WorkbookRuntime
+
+    path = _book(tmp_path / "book.xlsx")
+    rt = WorkbookRuntime()
+    rt._soffice = str(_failing_soffice(tmp_path))
+    rt._has_formulas = True
+
+    engine = {}
+    result = asyncio.run(rt.recalculate(path, engine_out=engine))
+
+    assert result == path
+    assert engine == {"engine": "formulas"}
+    assert load_workbook(path, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+    assert load_workbook(path, data_only=True)["Sheet1"]["A3"].value == 3
+    assert list(tmp_path.glob(".book.xlsx.*")) == []
+    assert not (tmp_path / "book.recalc.xlsx").exists()
