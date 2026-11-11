@@ -14,7 +14,7 @@ import json
 import math
 import uuid
 from typing import Dict, Any, Optional
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, update, text
@@ -168,11 +168,24 @@ def read_billing_policy(
     return float(limit or 0.0), mode
 
 
+def _utc_today() -> date:
+    """Current date on the same clock that stamps TokenUsage rows.
+
+    ``TokenUsage.timestamp`` defaults to ``func.now()``, which SQLite stores
+    as UTC. Every cycle/admission window over that column must therefore be
+    derived from the UTC date, never the local date: after ~19:00 in UTC-5
+    the local date lags the UTC date, and a local-date window silently
+    excludes rows settled seconds ago (observed as current_spend dropping
+    the newest settlement between 00:00 UTC and local midnight).
+    """
+    return datetime.now(timezone.utc).date()
+
+
 def _admission_totals(
     session: Session, tenant_id: str,
 ) -> tuple[float, float]:
     """Return (actual, active_reserved) in the configured cycle window."""
-    today = date.today()
+    today = _utc_today()
     cycle_start = date(today.year, today.month, 1)
     spend = SpendAggregationService(session).get_total_spend(
         tenant_id=tenant_id, start_date=cycle_start, end_date=today)
@@ -751,7 +764,7 @@ class SpendAggregationService:
         Rows without a tenant are not attributed to any tenant budget.
         """
         try:
-            today = date.today()
+            today = _utc_today()
             start = start_date or date(today.year, today.month, 1)
             end = end_date or today
             start_dt = datetime.combine(start, datetime.min.time())
@@ -786,7 +799,7 @@ class SpendAggregationService:
         silently disappear.
         """
         try:
-            today = date.today()
+            today = _utc_today()
             start = start_date or date(today.year, today.month, 1)
             end = end_date or today
             start_dt = datetime.combine(start, datetime.min.time())
@@ -819,7 +832,7 @@ class SpendAggregationService:
             if not tenant: return {"error": f"Tenant {tenant_id} not found"}
 
             # Calculate current cycle start (Simplified for parity)
-            today = date.today()
+            today = _utc_today()
             cycle_start = date(today.year, today.month, 1) # Default to 1st of month for Upstream
 
             spend_data = self.get_total_spend(
