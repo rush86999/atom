@@ -525,7 +525,12 @@ def _audit_expected(
         "resource": f"agent:{agent.id}",
     }
     if extra:
-        expected["extra"] = dict(extra)
+        # Audit metadata is durable JSON. Normalize with the file's canonical
+        # semantics (_canonical: sorted keys, default=str) so non-JSON types
+        # in decision material — e.g. the qualification assessment's
+        # policy_row_updated_at datetime — serialize at _audit_row and match
+        # the JSON-parsed material during _verify_audit read-back.
+        expected["extra"] = json.loads(_canonical(extra))
     return expected
 
 

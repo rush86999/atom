@@ -261,4 +261,48 @@ async def _assert_real_promotion(sessions, prior, target):
         assert agent.configuration["accepted"] == "original"
 
 
+def test_manual_promotion_audit_survives_datetime_assessment_material(graduation_world, monkeypatch):
+    """The promotion audit must commit with datetime-bearing gate material.
+
+    evaluate_qualification_gate returns policy_row_updated_at (a raw datetime
+    from the policy row) inside its assessment dict. That dict reaches the
+    audit ledger as decision extra; the ledger normalizes it with the shared
+    canonical JSON semantics instead of failing before commit.
+    """
+    import json
+    from datetime import datetime, timezone
+
+    from core import agent_decision_write_service as writes
+    from core.models import AuditLog
+
+    assessment = {
+        "allowed": True,
+        "state": "legacy_unassessed",
+        "required": True,
+        "policy_revision": "test-experience-only-1",
+        "policy_row_updated_at": datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
+    }
+    monkeypatch.setattr(graduation, "evaluate_qualification_gate",
+                        lambda db, agent, level, manual=False: dict(assessment))
+    sessions = graduation_world
+    with sessions() as caller:
+        # Manual promotion via the write service carries AGENT_MANAGE
+        # authority (WORKSPACE_ADMIN, as the API route enforces); the shared
+        # fixture supervisor is a team_lead for the graduation path.
+        supervisor = caller.get(User, "supervisor")
+        supervisor.role = "workspace_admin"
+        caller.commit()
+        result = writes.promote_agent(
+            caller, actor=caller.get(User, "supervisor"), agent_id="graduate")
+        assert result["status"] == "verified", result
+        # success payload is nested under "data" by _commit_and_verify
+        assert result["data"]["agent_status"] == "autonomous"
+    with sessions() as fresh:
+        assert fresh.get(AgentRegistry, "graduate").status == "autonomous"
+        row = fresh.get(AuditLog, result["operation_id"])
+        metadata = json.loads(row.metadata_json)
+        assert metadata["extra"]["assessment"]["policy_row_updated_at"] == (
+            "2026-01-02 03:04:05+00:00")
+
+
 pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")
