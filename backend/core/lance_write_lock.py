@@ -204,6 +204,11 @@ def process_table_write_lock(
             return
 
         if not local:
+            if required:
+                raise WriteLockUnavailable(
+                    f"store {db_path} is not a local filesystem; no exclusive "
+                    f"write lock can be taken for '{table_name}'"
+                )
             yield False
             return
 

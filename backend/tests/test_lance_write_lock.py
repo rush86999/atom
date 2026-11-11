@@ -243,7 +243,7 @@ class TestLocalLockFailureFailsClosed:
             thread.start()
             thread.join(timeout=15)
             assert not thread.is_alive(), (
-                "writer blocked instead of failing closed; not a scratch case"
+                "writer blocked instead of failing closed"
             )
         finally:
             _stop_holder(proc, release)
@@ -328,3 +328,31 @@ class TestLocalLockFailureFailsClosed:
         assert embedding_registry.get("docs_t") == {
             "provider": "old", "model": "m0", "dim": 384,
         }
+
+
+class TestRawHandleMaintenanceTakesTheLock:
+    def test_version_cleanup_fails_closed_when_lock_unavailable(
+        self, tmp_path, monkeypatch
+    ):
+        """db_safety mutates through a raw handle; it must not bypass the lock."""
+        import lancedb
+
+        import core.lance_write_lock as lock_mod
+
+        store = tmp_path / "store"
+        store.mkdir()
+        lancedb.connect(str(store)).create_table("docs", data=[{"id": "1"}])
+
+        monkeypatch.delenv("TESTING", raising=False)
+
+        def _boom(fd):
+            raise OSError("injected lock failure")
+
+        monkeypatch.setattr(lock_mod, "_acquire", _boom)
+
+        from core.db_safety import lance_version_cleanup_step
+
+        out = lance_version_cleanup_step(retention_hours=0, root=str(tmp_path))
+        assert out["tables"] == 1
+        assert out["cleaned"] == 0
+        assert out["errors"] == 1

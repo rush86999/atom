@@ -1230,7 +1230,11 @@ class TestLanceDBMemoryManager:
 
     def test_ingest_communication_failure(self, mm):
         mm.initialize()
-        with patch.object(mm.connections_table, "add", side_effect=RuntimeError("disk full")):
+        # Writers resolve the live handle inside the guard; make that handle
+        # fail so the failure path is what this test exercises.
+        failing = Mock()
+        failing.add.side_effect = RuntimeError("disk full")
+        with patch.object(mm, "_live_table", return_value=failing):
             assert mm.ingest_communication(comm_data()) is False
 
     def test_ingest_generic_record(self, mm):
@@ -1245,7 +1249,9 @@ class TestLanceDBMemoryManager:
 
     def test_ingest_generic_record_failure(self, mm):
         mm.initialize()
-        with patch.object(mm.connections_table, "add", side_effect=RuntimeError("nope")):
+        failing = Mock()
+        failing.add.side_effect = RuntimeError("nope")
+        with patch.object(mm, "_live_table", return_value=failing):
             assert mm.ingest_generic_record(SimpleNamespace(
                 id="r", app_type="crm", timestamp=datetime(2026, 1, 1),
                 record_type=RecordType.LEAD, content="x", metadata=None, vector_embedding=None)) is False

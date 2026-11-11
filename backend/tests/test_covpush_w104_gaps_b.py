@@ -3265,6 +3265,13 @@ class TestCommunicationIngestionPipelineGaps:
             mgr = ip.LanceDBMemoryManager(db_path="/tmp/covpush_lance")
         mgr.connections_table = MagicMock()
         mgr.metadata_table = MagicMock()
+        # Writers re-resolve the live handle inside the mutation guard; make
+        # the (patched) connection hand back these same mocks so assertions
+        # and side_effects on them still describe the write.
+        mgr.db = MagicMock()
+        mgr.db.open_table.side_effect = lambda name: (
+            mgr.metadata_table if name == "ingestion_metadata" else mgr.connections_table
+        )
         mgr.model = None
         return mgr
 
