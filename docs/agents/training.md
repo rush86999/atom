@@ -613,13 +613,57 @@ ran (the evidence gate then counted those self-declared sessions).
 - Kill switch: `ATOM_TRAINING_REQUIRE_EVIDENCE=0` restores the legacy
   behavior for deployments/tests that need it.
 
-This stacks on the Round 86 promotion gate (min completed sessions, min
+This stacks on the Round 86 readiness floors (min completed sessions, min
 episodes, min success ratio — env-tunable, dynamically tuned per domain by
-`core/promotion_policy_service.py`). Session completion evidence is what the
-gate counts; the supervisor panel (`MaturityApprovalPanel`) now renders the
+`core/promotion_policy_service.py`). Session completion evidence is what those
+floors count; the supervisor panel (`MaturityApprovalPanel`) now renders the
 live evidence counts and keeps "Mark completed" disabled until the floor is
 met. Tests: `backend/tests/test_promotion_evidence_gate.py` (14 cases
-incl. rejection, score-cap, and kill-switch).
+incl. rejection, score-cap, kill-switch, and readiness-vs-qualification).
+
+### Training evidence establishes readiness, not the tier change
+
+**Current contract (verified 2026-11-11).** Completing sessions with recorded
+work makes an agent *ready*; it does not authorize the tier change.
+`StudentTrainingService._evaluate_intern_readiness()` reports `ready` plus the
+satisfied pathway (`self_directed`, `mentor_taught`, or the system-agent
+exemption). When readiness and confidence are satisfied,
+`complete_training_session()` delegates the STUDENT → INTERN write to
+`commit_qualified_transition()`, which calls the shared
+`evaluate_qualification_gate()` used by every upward writer. With no allowed
+assessment the result is `unresolved`, `promoted_to_intern` stays `false`, and
+the agent remains STUDENT even though `promotion.ready` is `true`.
+
+The shared scoped qualification gate requires a current, passed **capability
+qualification receipt** for held-out capability work
+(`receipt_kind=capability_qualification`,
+`assessment_scope=held_out_capability`). It is produced only by the
+server-owned request → human review → receipt path:
+`POST /api/episodes/graduation/qualification/request`, then approval of the
+resulting HITL action at `POST /api/agents/approvals/{action_id}`. The reviewer
+must inspect a selected task/context plus the agent's actual durable output;
+history-only statistics, a confidence score, or a legacy exam are not
+qualification. The receipt binds the exact agent, tenant/workspace,
+current → target tier, policy revision/digest, rubric version/criteria,
+evidence digests/source revision, and reviewer. Missing, failed, stale,
+foreign-scope, or unreadable material blocks the transition (`unresolved_*`,
+`configuration_required`).
+
+Supported policy exceptions are distinct from readiness pathways:
+
+- `ATOM_GRADUATION_ASSESSMENT_POLICY` may mark a specific tier `not_required`
+  (`tiers.*`), or name **exact agent ids** in an owner exception
+  (`legacy_unassessed`, `manual_override`, `system_exempt`) with a nonblank
+  reason. Such an exception allows an unassessed transition but records
+  `candidate_capability_qualified=false` and never claims qualification.
+- `default_required=false` and nonempty `exceptions.*.domains` are **not
+  supported selectors**; they are rejected as `configuration_required` rather
+  than treated as a broad or domain exemption.
+
+The `system_agent` readiness exemption and the mentor-halved episode floor
+change only how readiness is earned; they do not bypass the receipt. These are
+promotion-governance controls and do not imply runtime model routing has
+shipped.
 
 ---
 
