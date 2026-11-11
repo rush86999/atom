@@ -475,3 +475,24 @@ Status: guided direct create and approved create_agent HITL both use the
 shared decision writer; acting-agent references are scoped; the reviewed
 HITL material is digest-bound and resumes to one agent/receipt.
 ## Session: PR831 workflow consumer repair (2026-11-10)
+
+## Session: default login recovery-link parity (2026-11-11)
+
+Worktree `/private/tmp/account-recovery-worker.Gntba0/tree` at `ef91be756`.
+Checked the active-sessions table first; no one owns `/login` or its test.
+
+Files touched: `frontend-nextjs/pages/login.tsx`,
+`frontend-nextjs/tests/pages/__tests__/login.test.tsx`, this note.
+
+Finding: the default guarded login (`/login`, middleware redirect target)
+rendered no password-recovery affordance, while the alternate
+`/auth/signin` already linked `/auth/forgot-password`. Routes and the
+forgot/reset API already exist; only the default-page entry point was
+missing. Added one ordinary `next/link` in sign-in mode only (absent in
+registration mode), reusing the page's link styling. No recovery logic was
+duplicated or changed.
+
+Status: focused failing test reproduced the gap first, then passed with the
+fix. `login.test.tsx` 24/24, `tests/auth` 165/165 and the two affected
+accessibility suites 41/41 pass on linked `node_modules`. No live
+SMTP/account/app run, no push.
