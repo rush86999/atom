@@ -199,7 +199,7 @@ def sheet_grid_from_parquet(parquet_path: str
             # Blanks materialize as None, NaN AND empty strings — all
             # three are the known-blank set; anything else is a value.
             if v is None or str(v).strip() == "" or (
-                    hasattr(v, "item") and _pd.isna(v)):
+                    not isinstance(v, str) and _pd.isna(v)):
                 empty.add(addr)
                 continue
             s = str(v)
@@ -508,6 +508,10 @@ class FormulaResult:
     #: content version, teaching id…). The engine records; it does not
     #: interpret.
     origin: Dict[str, str] = field(default_factory=dict)
+    #: Application-level required-input gaps found in the formula's
+    #: dependencies. Separate from Excel blank-as-zero arithmetic: a blank
+    #: required business input must not publish a complete total.
+    required_input_gaps: List[Dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
