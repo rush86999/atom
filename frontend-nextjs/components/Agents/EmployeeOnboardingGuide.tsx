@@ -101,9 +101,13 @@ export function EmployeeOnboardingGuide() {
                             ) : (
                                 <>Create an employee, then run it on real tasks.</>
                             )}{' '}
-                            Every clean run builds confidence; employees graduate
-                            Student → Intern → Supervised → Autonomous
-                            automatically as they earn trust.
+                            Clean runs build experience toward the next stage, but
+                            they do not promote an employee by themselves. Normal
+                            promotion also needs the readiness requirements for that
+                            stage and a review of the employee&apos;s actual work for
+                            the role. An allowed owner exception is recorded with its
+                            reason; domain selectors do not create exemptions. Domain
+                            rules can still require human review.
                         </p>
                     </section>
 
@@ -112,10 +116,12 @@ export function EmployeeOnboardingGuide() {
                             <ShieldQuestion className="w-4 h-4 text-purple-500" /> 2. Supervise by tier
                         </h3>
                         <p>
-                            <strong>Student</strong> employees need approval for every
-                            action. <strong>Interns</strong> propose plans you start.
-                            <strong> Supervised</strong> run automatically except
-                            high-risk steps. Review requests in{' '}
+                            <strong>Student</strong> employees are read-only: they
+                            search, read and summarize but cannot change anything.
+                            <strong> Interns</strong> draft and propose work for you to
+                            start. <strong>Supervised</strong> employees handle routine
+                            work under the current action policy; high-risk steps and
+                            domain rules still pause for review. Review requests in{' '}
                             <Link href="/approvals" className="text-blue-600 underline">Approvals</Link> and
                             correct mistakes via 👍/👎 on reasoning steps — feedback
                             directly shapes what they learn.
@@ -129,9 +135,10 @@ export function EmployeeOnboardingGuide() {
                         <p>
                             An employee&apos;s <em>category</em> (its role) and
                             <em> description</em> (its job description) decide which
-                            synced integration data — invoices, leads, tickets — it
-                            recalls at work. Keep both specific: a &ldquo;Finance&rdquo;
-                            employee sees the books, not the support inbox.
+                            company data you make available — invoices, leads, tickets
+                            — it recalls at work. Keep both specific: a
+                            &ldquo;Finance&rdquo; employee sees the books, not the
+                            support inbox.
                         </p>
                     </section>
                 </div>

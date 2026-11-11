@@ -101,6 +101,10 @@ describe('GuidedAgentCreator', () => {
     expect(screen.getByText(/Invoice Watchdog is here/)).toBeInTheDocument();
     expect(success.textContent).toContain('Student');
     expect(success.textContent).toContain('When will it be useful?');
+    expect(success.textContent).toMatch(/review of the employee's actual work for the role/i);
+    expect(success.textContent).toMatch(/not automatic/i);
+    expect(success.textContent).toMatch(/owner exception/i);
+    expect(success.textContent).not.toMatch(/graduates to an|automatically as they earn trust/i);
     expect(onAgentCreated).toHaveBeenCalledWith('agent-1');
     expect(mockedCreate).toHaveBeenCalledWith(
       'watch invoices and flag overdue ones', undefined,

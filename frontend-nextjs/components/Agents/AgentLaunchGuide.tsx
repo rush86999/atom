@@ -33,6 +33,7 @@ import {
 } from '@/lib/agent-onboarding-api';
 import { notifyIngestionUpdated } from '@/lib/ingestion-events';
 import { listTrainingProposals } from '@/lib/maturity-api';
+import { useProductProfile } from '@/lib/product-profile';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 const DISMISS_KEY = 'atom.agent_launch_guide.dismissed.v1';
@@ -202,12 +203,12 @@ const ROLES: Record<RoleId, {
 const MAX_APPS = 3;
 
 const CONFIG_HINTS: Record<string, string> = {
-    zoho: 'Needs ZOHO_CLIENT_ID / ZOHO_CLIENT_SECRET on the server first.',
-    microsoft: 'Needs MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET on the server first.',
-    google: 'Needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the server first.',
-    slack: 'Needs SLACK_CLIENT_ID / SLACK_CLIENT_SECRET on the server first.',
-    salesforce: 'Needs SALESFORCE_CLIENT_ID / SALESFORCE_CLIENT_SECRET on the server first.',
-    notion: 'Needs NOTION_CLIENT_ID / NOTION_CLIENT_SECRET on the server first.',
+    zoho: 'Zoho is not enabled for this workspace yet.',
+    microsoft: 'Microsoft 365 is not enabled for this workspace yet.',
+    google: 'Google is not enabled for this workspace yet.',
+    slack: 'Slack is not enabled for this workspace yet.',
+    salesforce: 'Salesforce is not enabled for this workspace yet.',
+    notion: 'Notion is not enabled for this workspace yet.',
 };
 
 const SOURCE_ICONS: Record<string, React.ReactNode> = {
@@ -230,6 +231,8 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
  */
 export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuideProps) {
     const { toast } = useToast();
+    const { isCapabilityEnabled } = useProductProfile();
+    const connectorsEnabled = isCapabilityEnabled('connectors');
     const [dismissed, setDismissed] = useState(true); // SSR-safe: hidden until mounted
     const [roleId, setRoleId] = useState<RoleId>('sales');
     const [connections, setConnections] = useState<Record<string, boolean>>({});
@@ -532,7 +535,9 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
     };
 
     const allSourcesConnected = recommendedApps.every(app => connections[app.id]);
-    const coreDone = registryIds !== null && recommendedApps.length > 0 && allSourcesConnected && !!primaryAgent;
+    const coreDone = connectorsEnabled
+        ? (registryIds !== null && recommendedApps.length > 0 && allSourcesConnected && !!primaryAgent)
+        : !!primaryAgent;
     if (dismissed && !coreDone) {
         return (
             <button
@@ -549,8 +554,11 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
     }
     if (coreDone) return null;
 
-    const doneCount = recommendedApps.filter(app => connections[app.id]).length + (primaryAgent ? 1 : 0);
-    const totalSteps = recommendedApps.length + 1;
+    const connectorStepCount = connectorsEnabled ? recommendedApps.length : 0;
+    const doneCount = (connectorsEnabled
+        ? recommendedApps.filter(app => connections[app.id]).length
+        : 0) + (primaryAgent ? 1 : 0);
+    const totalSteps = connectorStepCount + 1;
 
     const stepHeader = (icon: React.ReactNode, title: string, done: boolean) => (
         <>
@@ -608,8 +616,17 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
             </div>
 
             <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {/* Matched-app connect steps */}
-                {recommendedApps.map((app, idx) => {
+                {!connectorsEnabled && (
+                    <div className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400" data-testid="launch-connectors-deferred">
+                        Connector setup is not part of this release. Hire and train
+                        your employee now; upload company records from{' '}
+                        <Link href="/documents" className="text-blue-600 underline">Data</Link>{' '}
+                        to give it context.
+                    </div>
+                )}
+
+                {/* Matched-app connect steps (full profile) */}
+                {connectorsEnabled && recommendedApps.map((app, idx) => {
                     const connected = !!connections[app.id];
                     const configured = app.oauth ? serverConfigured[app.oauth] !== false : true;
                     return (
@@ -627,8 +644,10 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                                         </Button>
                                     )
                                 ) : (
-                                    <span className="text-xs text-amber-600 dark:text-amber-400">
-                                        {CONFIG_HINTS[app.oauth || '']}
+                                    <span className="text-xs text-amber-600 dark:text-amber-400" data-testid={`provider-setup-${app.id}`}>
+                                        {CONFIG_HINTS[app.oauth || '']}{' '}
+                                        Ask your workspace admin to enable it in{' '}
+                                        <Link href="/settings" className="underline">Settings</Link>.
                                     </span>
                                 )
                             )}
@@ -660,8 +679,11 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Give it your business context</p>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Synced records are tagged with this employee&rsquo;s role, so when you ask it something it recalls the records, threads and messages that belong to its job.
+                        {connectorsEnabled
+                            ? 'Synced records are tagged with this employee’s role, so when you ask it something it recalls the records, threads and messages that belong to its job.'
+                            : 'Connector sync is not part of this release. Upload company records from Data so the employee recalls the files that belong to its job.'}
                     </p>
+                    {connectorsEnabled ? (
                     <div className="flex flex-wrap gap-2">
                         {recommendedApps.map(app => {
                             const busy = busySource === app.id;
@@ -710,6 +732,13 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                             );
                         })}
                     </div>
+                    ) : (
+                        <Link href="/documents">
+                            <Button size="sm" variant="outline" data-testid="open-data-cta">
+                                Open Data
+                            </Button>
+                        </Link>
+                    )}
                     {ingestResults.length > 0 && (
                         <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/40 rounded p-2 space-y-0.5" data-testid="ingest-results">
                             {ingestResults.map((line, i) => <p key={i}>{line}</p>)}
@@ -731,9 +760,9 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                         )}
                     </div>
                     <ul className="text-xs text-gray-500 dark:text-gray-400 list-disc pl-4 space-y-0.5">
-                        <li>New employees are trainees: they show you what they plan to do and ask before acting.</li>
+                        <li>New employees are trainees: they start read-only and show you what they plan to do before any change.</li>
                         <li>Run tasks with the Run button; approve their training plans under <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.</li>
-                        <li>Finish training with a performance score to promote them — each level unlocks more they can do on their own.</li>
+                        <li>Normal promotion needs readiness and a review of the employee&rsquo;s actual work for the role. An allowed owner exception is recorded with its reason; domain selectors do not create exemptions. A score alone does not promote.</li>
                     </ul>
                     <div className="pt-1">
                         <PlayCircle className="inline w-3.5 h-3.5 mr-1 text-gray-400" />

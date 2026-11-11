@@ -1,0 +1,356 @@
+diff --git a/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx b/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
+index 45bf60520..14dc5343c 100644
+--- a/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
++++ b/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
+@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
+ import { apiClient } from '@/lib/api';
+ import { notifyIngestionUpdated } from '@/lib/ingestion-events';
+ import { listTrainingProposals } from '@/lib/maturity-api';
++import { useProductProfile } from '@/lib/product-profile';
+ 
+ const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+ const DISMISS_KEY = 'atom.agent_launch_guide.dismissed.v1';
+@@ -198,12 +199,12 @@ const ROLES: Record<RoleId, {
+ const MAX_APPS = 3;
+ 
+ const CONFIG_HINTS: Record<string, string> = {
+-    zoho: 'Needs ZOHO_CLIENT_ID / ZOHO_CLIENT_SECRET on the server first.',
+-    microsoft: 'Needs MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET on the server first.',
+-    google: 'Needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the server first.',
+-    slack: 'Needs SLACK_CLIENT_ID / SLACK_CLIENT_SECRET on the server first.',
+-    salesforce: 'Needs SALESFORCE_CLIENT_ID / SALESFORCE_CLIENT_SECRET on the server first.',
+-    notion: 'Needs NOTION_CLIENT_ID / NOTION_CLIENT_SECRET on the server first.',
++    zoho: 'Zoho is not enabled for this workspace yet.',
++    microsoft: 'Microsoft 365 is not enabled for this workspace yet.',
++    google: 'Google is not enabled for this workspace yet.',
++    slack: 'Slack is not enabled for this workspace yet.',
++    salesforce: 'Salesforce is not enabled for this workspace yet.',
++    notion: 'Notion is not enabled for this workspace yet.',
+ };
+ 
+ const SOURCE_ICONS: Record<string, React.ReactNode> = {
+@@ -226,6 +227,8 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
+  */
+ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuideProps) {
+     const { toast } = useToast();
++    const { isCapabilityEnabled } = useProductProfile();
++    const connectorsEnabled = isCapabilityEnabled('connectors');
+     const [dismissed, setDismissed] = useState(true); // SSR-safe: hidden until mounted
+     const [roleId, setRoleId] = useState<RoleId>('sales');
+     const [connections, setConnections] = useState<Record<string, boolean>>({});
+@@ -499,7 +502,9 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+     };
+ 
+     const allSourcesConnected = recommendedApps.every(app => connections[app.id]);
+-    const coreDone = registryIds !== null && recommendedApps.length > 0 && allSourcesConnected && !!primaryAgent;
++    const coreDone = connectorsEnabled
++        ? (registryIds !== null && recommendedApps.length > 0 && allSourcesConnected && !!primaryAgent)
++        : !!primaryAgent;
+     if (dismissed && !coreDone) {
+         return (
+             <button
+@@ -516,8 +521,11 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+     }
+     if (coreDone) return null;
+ 
+-    const doneCount = recommendedApps.filter(app => connections[app.id]).length + (primaryAgent ? 1 : 0);
+-    const totalSteps = recommendedApps.length + 1;
++    const connectorStepCount = connectorsEnabled ? recommendedApps.length : 0;
++    const doneCount = (connectorsEnabled
++        ? recommendedApps.filter(app => connections[app.id]).length
++        : 0) + (primaryAgent ? 1 : 0);
++    const totalSteps = connectorStepCount + 1;
+ 
+     const stepHeader = (icon: React.ReactNode, title: string, done: boolean) => (
+         <>
+@@ -575,8 +583,17 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+             </div>
+ 
+             <div className="divide-y divide-gray-100 dark:divide-gray-700">
+-                {/* Matched-app connect steps */}
+-                {recommendedApps.map((app, idx) => {
++                {!connectorsEnabled && (
++                    <div className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400" data-testid="launch-connectors-deferred">
++                        Connector setup is not part of this release. Hire and train
++                        your employee now; upload company records from{' '}
++                        <Link href="/documents" className="text-blue-600 underline">Data</Link>{' '}
++                        to give it context.
++                    </div>
++                )}
++
++                {/* Matched-app connect steps (full profile) */}
++                {connectorsEnabled && recommendedApps.map((app, idx) => {
+                     const connected = !!connections[app.id];
+                     const configured = app.oauth ? serverConfigured[app.oauth] !== false : true;
+                     return (
+@@ -594,8 +611,10 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+                                         </Button>
+                                     )
+                                 ) : (
+-                                    <span className="text-xs text-amber-600 dark:text-amber-400">
+-                                        {CONFIG_HINTS[app.oauth || '']}
++                                    <span className="text-xs text-amber-600 dark:text-amber-400" data-testid={`provider-setup-${app.id}`}>
++                                        {CONFIG_HINTS[app.oauth || '']}{' '}
++                                        Ask your workspace admin to enable it in{' '}
++                                        <Link href="/settings" className="underline">Settings</Link>.
+                                     </span>
+                                 )
+                             )}
+@@ -627,8 +646,11 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+                         <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Give it your business context</p>
+                     </div>
+                     <p className="text-xs text-gray-500 dark:text-gray-400">
+-                        Synced records are tagged with this employee&rsquo;s role, so when you ask it something it recalls the records, threads and messages that belong to its job.
++                        {connectorsEnabled
++                            ? 'Synced records are tagged with this employee’s role, so when you ask it something it recalls the records, threads and messages that belong to its job.'
++                            : 'Connector sync is not part of this release. Upload company records from Data so the employee recalls the files that belong to its job.'}
+                     </p>
++                    {connectorsEnabled ? (
+                     <div className="flex flex-wrap gap-2">
+                         {recommendedApps.map(app => {
+                             const busy = busySource === app.id;
+@@ -677,6 +699,13 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+                             );
+                         })}
+                     </div>
++                    ) : (
++                        <Link href="/documents">
++                            <Button size="sm" variant="outline" data-testid="open-data-cta">
++                                Open Data
++                            </Button>
++                        </Link>
++                    )}
+                     {ingestResults.length > 0 && (
+                         <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/40 rounded p-2 space-y-0.5" data-testid="ingest-results">
+                             {ingestResults.map((line, i) => <p key={i}>{line}</p>)}
+@@ -698,9 +727,9 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+                         )}
+                     </div>
+                     <ul className="text-xs text-gray-500 dark:text-gray-400 list-disc pl-4 space-y-0.5">
+-                        <li>New employees are trainees: they show you what they plan to do and ask before acting.</li>
++                        <li>New employees are trainees: they start read-only and show you what they plan to do before any change.</li>
+                         <li>Run tasks with the Run button; approve their training plans under <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.</li>
+-                        <li>Finish training with a performance score to promote them — each level unlocks more they can do on their own.</li>
++                        <li>Readiness and a current scoped qualification review of actual work are both required before promotion. A score alone does not promote.</li>
+                     </ul>
+                     <div className="pt-1">
+                         <PlayCircle className="inline w-3.5 h-3.5 mr-1 text-gray-400" />
+diff --git a/frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx b/frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx
+index 73a4bfb35..23f50bb59 100644
+--- a/frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx
++++ b/frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx
+@@ -101,9 +101,11 @@ export function EmployeeOnboardingGuide() {
+                             ) : (
+                                 <>Create an employee, then run it on real tasks.</>
+                             )}{' '}
+-                            Every clean run builds confidence; employees graduate
+-                            Student → Intern → Supervised → Autonomous
+-                            automatically as they earn trust.
++                            Clean runs build experience toward the next stage, but
++                            they do not promote an employee by themselves. A promotion
++                            also needs the readiness requirements for that stage and a
++                            current scoped qualification review of the employee&apos;s
++                            actual work. Domain rules can still require human review.
+                         </p>
+                     </section>
+ 
+@@ -112,10 +114,12 @@ export function EmployeeOnboardingGuide() {
+                             <ShieldQuestion className="w-4 h-4 text-purple-500" /> 2. Supervise by tier
+                         </h3>
+                         <p>
+-                            <strong>Student</strong> employees need approval for every
+-                            action. <strong>Interns</strong> propose plans you start.
+-                            <strong> Supervised</strong> run automatically except
+-                            high-risk steps. Review requests in{' '}
++                            <strong>Student</strong> employees are read-only: they
++                            search, read and summarize but cannot change anything.
++                            <strong> Interns</strong> draft and propose work for you to
++                            start. <strong>Supervised</strong> employees handle routine
++                            work under the current action policy; high-risk steps and
++                            domain rules still pause for review. Review requests in{' '}
+                             <Link href="/approvals" className="text-blue-600 underline">Approvals</Link> and
+                             correct mistakes via 👍/👎 on reasoning steps — feedback
+                             directly shapes what they learn.
+@@ -129,9 +133,10 @@ export function EmployeeOnboardingGuide() {
+                         <p>
+                             An employee&apos;s <em>category</em> (its role) and
+                             <em> description</em> (its job description) decide which
+-                            synced integration data — invoices, leads, tickets — it
+-                            recalls at work. Keep both specific: a &ldquo;Finance&rdquo;
+-                            employee sees the books, not the support inbox.
++                            company data you make available — invoices, leads, tickets
++                            — it recalls at work. Keep both specific: a
++                            &ldquo;Finance&rdquo; employee sees the books, not the
++                            support inbox.
+                         </p>
+                     </section>
+                 </div>
+diff --git a/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx b/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
+index 5fa370531..8b09e8b09 100644
+--- a/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
++++ b/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
+@@ -201,10 +201,15 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
+               <div className="text-sm text-gray-600 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded p-3">
+                 <p className="font-medium text-blue-800 dark:text-blue-200">When will it be useful?</p>
+                 <p className="mt-1">
+-                  Right now it watches and learns — from your feedback and from what gets
+-                  approved in this workspace. With regular use it graduates to an
+-                  <strong> Intern</strong> (drafts work for you), then <strong>Supervised</strong>
+-                  (does the work, you approve), and finally <strong>Autonomous</strong> (runs on its own).
++                  Right now it watches and learns from your feedback and approved
++                  work. Regular use builds experience toward the next stage, but
++                  promotion is not automatic: the readiness requirements for that
++                  stage and a current scoped qualification review of the
++                  employee&apos;s actual work must both be satisfied. At{' '}
++                  <strong>Intern</strong> it drafts for you; at{' '}
++                  <strong>Supervised</strong> it handles routine work under policy.
++                  <strong> Autonomous</strong> is the product goal, with domain
++                  exceptions still reviewed.
+                 </p>
+               </div>
+             </div>
+diff --git a/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx b/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
+index 10ffe3bae..529257360 100644
+--- a/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
++++ b/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
+@@ -39,6 +39,13 @@ jest.mock('../../../lib/maturity-api', () => ({
+   listTrainingProposals: mockApi.listTrainingProposals,
+ }));
+ 
++const mockIsCapabilityEnabled = jest.fn();
++
++jest.mock('@/lib/product-profile', () => ({
++  __esModule: true,
++  useProductProfile: () => ({ isCapabilityEnabled: mockIsCapabilityEnabled }),
++}));
++
+ import { AgentLaunchGuide } from '../AgentLaunchGuide';
+ 
+ const connectedBoth = {
+@@ -72,6 +79,7 @@ const fullRegistry = {
+ 
+ beforeEach(() => {
+   jest.resetAllMocks();
++  mockIsCapabilityEnabled.mockReturnValue(true);
+   localStorage.clear();
+   // Default world: OAuth configured server-side, nothing connected yet,
+   // standard ingestion registry available.
+@@ -163,7 +171,7 @@ describe('AgentLaunchGuide', () => {
+     });
+   });
+ 
+-  test('shows env-var guidance instead of consent redirect when provider is unconfigured server-side', async () => {
++  test('shows workspace-admin setup guidance instead of server env-var names when provider is unconfigured', async () => {
+     mockApiClient.get.mockImplementation((url: string) => {
+       if (url.includes('/oauth/tokens')) return Promise.resolve(nothingConnected);
+       if (url.includes('/config-status'))
+@@ -175,13 +183,46 @@ describe('AgentLaunchGuide', () => {
+     render(<AgentLaunchGuide agents={[]} />);
+ 
+     await waitFor(() => {
+-      expect(screen.getByText(/ZOHO_CLIENT_ID/)).toBeInTheDocument();
++      expect(screen.getByTestId('provider-setup-zoho')).toHaveTextContent(/workspace admin/i);
+     });
+-    expect(screen.getByText(/MICROSOFT_CLIENT_ID/)).toBeInTheDocument();
++    expect(screen.getByTestId('provider-setup-outlook')).toHaveTextContent(/workspace admin/i);
+     expect(screen.queryByTestId('connect-zoho-cta')).not.toBeInTheDocument();
++    expect(screen.queryByText(/ZOHO_CLIENT_ID|MICROSOFT_CLIENT_ID/)).not.toBeInTheDocument();
++    expect(screen.getAllByRole('link', { name: 'Settings' }).length).toBeGreaterThan(0);
+     expect(screen.queryByTestId('connect-outlook-cta')).not.toBeInTheDocument();
+   });
+ 
++  test('core profile marks connector setup as deferred and keeps hire available', async () => {
++    mockIsCapabilityEnabled.mockImplementation(
++      (capability: string) => capability !== 'connectors'
++    );
++    render(<AgentLaunchGuide agents={[]} />);
++
++    await screen.findByTestId('agent-launch-guide');
++    expect(screen.getByTestId('launch-connectors-deferred')).toHaveTextContent(
++      /not part of this release/i
++    );
++    expect(screen.queryByTestId('launch-step-zoho')).not.toBeInTheDocument();
++    expect(screen.queryByTestId('connect-zoho-cta')).not.toBeInTheDocument();
++    expect(screen.getByTestId('create-agent-cta')).toBeInTheDocument();
++    expect(screen.getByTestId('open-data-cta')).toBeInTheDocument();
++  });
++
++  test('core profile hides the guide once the role employee exists without connectors', async () => {
++    mockIsCapabilityEnabled.mockImplementation(
++      (capability: string) => capability !== 'connectors'
++    );
++    render(
++      <AgentLaunchGuide
++        agents={[{ id: 'sales-1', name: 'Sales Employee', category: 'sales' }]}
++      />
++    );
++
++    await waitFor(() => {
++      expect(screen.queryByTestId('agent-launch-guide')).not.toBeInTheDocument();
++    });
++  });
++
+   test('hire flow posts the role category and notifies parent', async () => {
+     const onAgentsChanged = jest.fn();
+     mockApiClient.post.mockResolvedValue({
+diff --git a/frontend-nextjs/components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx b/frontend-nextjs/components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx
+new file mode 100644
+index 000000000..7fd195e0a
+--- /dev/null
++++ b/frontend-nextjs/components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx
+@@ -0,0 +1,41 @@
++/**
++ * Agents-page guidance must distinguish training/readiness from a reviewed
++ * promotion, and must not promise approval for every action.
++ */
++import React from 'react';
++import { fireEvent, render, screen } from '@testing-library/react';
++import '@testing-library/jest-dom';
++
++import { EmployeeOnboardingGuide } from '../EmployeeOnboardingGuide';
++
++function renderGuide() {
++  render(<EmployeeOnboardingGuide />);
++  const restore = screen.queryByTestId('agent-guide-restore');
++  if (restore) fireEvent.click(restore);
++}
++
++describe('EmployeeOnboardingGuide truthful lifecycle copy', () => {
++  beforeEach(() => {
++    localStorage.clear();
++  });
++
++  it('requires readiness and a scoped qualification review, not automatic graduation', () => {
++    renderGuide();
++    const lifecycle = screen.getByTestId('agent-guide-lifecycle');
++    expect(lifecycle).toHaveTextContent(/readiness requirements/i);
++    expect(lifecycle).toHaveTextContent(/scoped qualification review/i);
++    expect(lifecycle).toHaveTextContent(/actual work/i);
++    expect(lifecycle).toHaveTextContent(/domain rules can still require human review/i);
++    expect(lifecycle).not.toHaveTextContent(/every clean run builds confidence/i);
++    expect(lifecycle).not.toHaveTextContent(/automatically as they earn trust/i);
++  });
++
++  it('describes STUDENT as read-only instead of inventing approval for every action', () => {
++    renderGuide();
++    const supervision = screen.getByTestId('agent-guide-supervision');
++    expect(supervision).toHaveTextContent(/read-only/i);
++    expect(supervision).toHaveTextContent(/cannot change anything/i);
++    expect(supervision).toHaveTextContent(/high-risk steps and domain rules still pause for review/i);
++    expect(supervision).not.toHaveTextContent(/approval for every action/i);
++  });
++});
+diff --git a/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx b/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
+index 92066d2d7..eecaeacb9 100644
+--- a/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
++++ b/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
+@@ -94,6 +94,9 @@ describe('GuidedAgentCreator', () => {
+     expect(screen.getByText(/Invoice Watchdog is here/)).toBeInTheDocument();
+     expect(success.textContent).toContain('Student');
+     expect(success.textContent).toContain('When will it be useful?');
++    expect(success.textContent).toMatch(/qualification review/i);
++    expect(success.textContent).toMatch(/not automatic/i);
++    expect(success.textContent).not.toMatch(/graduates to an|automatically as they earn trust/i);
+   });
+ 
+   it('shows pending-approval state for agent-initiated creation', async () => {

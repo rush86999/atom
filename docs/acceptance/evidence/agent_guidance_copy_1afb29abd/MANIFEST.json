@@ -1,0 +1,54 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "ordinary Agents-page guidance aligns with reviewed qualification/readiness policy and core/full connector scope; frozen copy candidate for independent review",
+  "branch": "codex/agent-copy-guidance-20261110",
+  "base_current_main": "230231f5114612f4b31a602190c318667e94f2f1",
+  "executed_source": "1afb29abd32e52b22f2d524cdfb22d1bac018ac3",
+  "backend_integration_worktree_edited": false,
+  "ui_branch_mutated": false,
+  "source_files": {
+    "frontend-nextjs/components/Agents/AgentLaunchGuide.tsx": "e04c2653a845337f76307d0bf964cf5d42bb368998a28aaa19f24b0dbcd30de5",
+    "frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx": "6b2942d14ed1cbd7ae638794420306f68c105c65007c4c99ddb5d95083467051",
+    "frontend-nextjs/components/Agents/GuidedAgentCreator.tsx": "c810d855bc21dedf6d38b82de8d2c2f4075275d3229364aa230f2ec124faf781",
+    "frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx": "37fb520aa1b28bad7fda21b64c90428ff0cf691c4f0e7e2f787d77bb82fac5dc",
+    "frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx": "35d2bcb0be9f65a87bcd67e832a7ea00a7ccb703c25d0b410396150d0615e274",
+    "frontend-nextjs/components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx": "8345c8ab3c514197c862c428f463c77a4fb5d62704a25b08cab2d870be572d68"
+  },
+  "artifacts": {
+    "README.md": "4a268f1ffee2d59b8d70aba000896dbfe3c29bf0fa3fd065dc87d7c328fdbe0c",
+    "TEST_RESULTS.md": "f25418d27f38ac952fcdf9963856459511607dd2f5bfa85bdad6b3d84e8d7fcc",
+    "before-copy-excerpt.txt": "aa09afb8217744723e7203bb819d0f02e929e8aa5dc72fd1a5e3cb0dfe69b2b7",
+    "focused-at-1afb29abd.log": "61a6cfad47a2ee59f5bccf6ec71d7d200a09d0086d604fb24ae0eb5e33e44339",
+    "source-fix.diff": "066d3b1993753ab52c7b57fbc43cdab272471294414f4048d65a5247874898e0",
+    "tsc-at-1afb29abd.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "300a06cb6a336e534a026be9d9e6e6c0fb229dc3b530e34fc707e5498383b14f"
+  },
+  "checks": {
+    "focused_copy_profile_tier": "19 passed",
+    "focused_including_agents_page": "54 passed",
+    "tsc_errors": 0,
+    "no_automatic_graduation_claim": true,
+    "readiness_and_review_required": true,
+    "student_read_only_not_all_action_approval": true,
+    "no_score_only_promotion": true,
+    "no_server_secret_env_names": true,
+    "full_profile_connectors_keep_setup": true,
+    "core_profile_connectors_explicitly_deferred": true,
+    "core_profile_supported_data_path": true,
+    "core_guide_completes_without_unavailable_connectors": true,
+    "no_maturity_authority_runtime_change": true,
+    "no_action_policy_change": true,
+    "no_connector_runtime_or_profile_capability_change": true,
+    "no_graduation_employee_browser_campaign_rerun": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "original_143_claims_18_goals_unchanged": true,
+    "no_backend_change": true,
+    "no_new_dependency": true,
+    "no_pr_merge_or_self_acceptance": true
+  },
+  "boundaries": [
+    "frontend copy/tests/evidence only",
+    "no maturity/authority/action-policy/connector runtime change",
+    "root owns integration and final review; no merge"
+  ]
+}
