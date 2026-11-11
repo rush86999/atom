@@ -174,6 +174,9 @@ class TestMetadataThrottle:
             delete=lambda f: deleted.append(f),
             add=lambda rows: added.append(rows),
         )
+        # The flush re-resolves the live handle inside the mutation guard
+        # (initialize() is skipped in this unit fixture, so provide the db).
+        mgr.db = SimpleNamespace(open_table=lambda name: mgr.metadata_table)
 
         for _ in range(50):
             mgr._update_metadata("outlook", 1)

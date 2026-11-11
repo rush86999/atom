@@ -42,6 +42,7 @@ from pathlib import Path
 
 from core.knowledge_ingestion import get_knowledge_ingestion
 from core.lancedb_index_selfheal import ensure_fts_index
+from core.lance_write_lock import process_table_write_lock
 from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
@@ -652,6 +653,14 @@ class LanceDBMemoryManager:
             return False
     
     def _create_connections_table(self):
+        # Cross-process guard: a re-embed migration in another process can
+        # replace this table with one commit, and this routine may DROP and
+        # recreate it for a dimension change. Take the same per-table lock the
+        # handler's writers take so the two cannot interleave.
+        with process_table_write_lock(str(self.db_path), "atom_communications"):
+            self._create_connections_table_unlocked()
+
+    def _create_connections_table_unlocked(self):
         """Create communications table with vector search"""
         dim = getattr(self, "embedding_dim", 384)
         schema = pa.schema([
@@ -745,7 +754,32 @@ class LanceDBMemoryManager:
         else:
             logger.warning("Could not create FTS index (non-fatal)")
     
+    def _live_table(self, table_name: str):
+        """Re-open a comms table inside a ``process_table_write_lock``.
+
+        Handles cached at ``initialize()`` are pinned to the dataset version
+        they opened; a re-embed swap (this process or another) replaces the
+        dataset with one commit, and a write through the old handle would
+        target the replaced version. Writers must re-resolve after taking the
+        lock, exactly like ``LanceDBHandler._resolve_table_for_write``.
+        """
+        if self.db is None:
+            return None
+        try:
+            table = self.db.open_table(table_name)
+        except Exception:
+            return None
+        if table_name == "atom_communications":
+            self.connections_table = table
+        elif table_name == "ingestion_metadata":
+            self.metadata_table = table
+        return table
+
     def _create_metadata_table(self):
+        with process_table_write_lock(str(self.db_path), "ingestion_metadata"):
+            self._create_metadata_table_unlocked()
+
+    def _create_metadata_table_unlocked(self):
         """Create metadata table for ingestion pipeline"""
         schema = pa.schema([
             pa.field("app_type", pa.string()),
@@ -868,6 +902,13 @@ class LanceDBMemoryManager:
     _HEAL_MARKER = "__store_heal_comms_dedup_v1"
 
     def _heal_duplicate_rows(self) -> None:
+        # The scan and the _rowid-precise deletes must not be separated by a
+        # whole-table re-embed swap (rowids would refer to the replaced
+        # dataset) — nor by this process's own concurrent writes.
+        with process_table_write_lock(str(self.db_path), "atom_communications"):
+            self._heal_duplicate_rows_unlocked()
+
+    def _heal_duplicate_rows_unlocked(self) -> None:
         """One-shot startup reconciliation: drop rows the store gate would
         now refuse, so an existing install converges to the state a fresh
         one starts in — id twins from the multi-process double-poll (Sep 5:
@@ -879,6 +920,10 @@ class LanceDBMemoryManager:
         row lives in ingestion_metadata — so fresh installs pay one empty
         scan. Fault-isolated: on failure the store keeps its duplicates and
         the next startup retries."""
+        if self._live_table("atom_communications") is None:
+            return
+        if self._live_table("ingestion_metadata") is None:
+            return
         if self.connections_table is None or self.metadata_table is None:
             return
         try:
@@ -971,17 +1016,21 @@ class LanceDBMemoryManager:
 
     def _write_heal_marker(self, removed: int, id_dups: int, content_dups: int, scanned: int) -> None:
         try:
-            self.metadata_table.add([{
-                "app_type": self._HEAL_MARKER,
-                "last_ingested": datetime.now(),
-                "total_messages": int(removed),
-                "config": json.dumps({
-                    "id_duplicates_removed": id_dups,
-                    "content_duplicates_removed": content_dups,
-                    "rows_scanned": scanned,
-                }),
-                "status": "done",
-            }])
+            with process_table_write_lock(str(self.db_path), "ingestion_metadata"):
+                table = self._live_table("ingestion_metadata")
+                if table is None:
+                    return
+                table.add([{
+                    "app_type": self._HEAL_MARKER,
+                    "last_ingested": datetime.now(),
+                    "total_messages": int(removed),
+                    "config": json.dumps({
+                        "id_duplicates_removed": id_dups,
+                        "content_duplicates_removed": content_dups,
+                        "rows_scanned": scanned,
+                    }),
+                    "status": "done",
+                }])
         except Exception as marker_err:
             # Without the marker the heal re-runs next startup — harmless
             # (a healed store scans clean) but noisy.
@@ -1044,7 +1093,11 @@ class LanceDBMemoryManager:
                 "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
             }
 
-            self.connections_table.add([record])
+            with process_table_write_lock(str(self.db_path), "atom_communications"):
+                table = self._live_table("atom_communications")
+                if table is None:
+                    raise RuntimeError("atom_communications table unavailable")
+                table.add([record])
             self._update_metadata(data.app_type, 1)
             self._invalidate_vfs_rows_cache()
             try:
@@ -1111,7 +1164,11 @@ class LanceDBMemoryManager:
             }
             
             # Add to database
-            self.connections_table.add([record])
+            with process_table_write_lock(str(self.db_path), "atom_communications"):
+                table = self._live_table("atom_communications")
+                if table is None:
+                    raise RuntimeError("atom_communications table unavailable")
+                table.add([record])
             
             # Update metadata
             self._update_metadata(record_data.app_type, 1)
@@ -1359,6 +1416,12 @@ class LanceDBMemoryManager:
             self._flush_metadata()
 
     def _flush_metadata(self):
+        with process_table_write_lock(str(self.db_path), "ingestion_metadata"):
+            if self._live_table("ingestion_metadata") is None:
+                return
+            self._flush_metadata_unlocked()
+
+    def _flush_metadata_unlocked(self):
         """Write accumulated per-app counts to ingestion_metadata. Best-effort:
         a crash can lose the last minute of stats (never message data)."""
         if getattr(self, "metadata_table", None) is None:
@@ -1414,15 +1477,19 @@ class LanceDBMemoryManager:
             if name not in table_names:
                 continue
             try:
-                table = self.db.open_table(name)
-                table.optimize()
-                try:
-                    table.cleanup_old_versions(older_than=timedelta(days=7))
-                except ImportError:
-                    logger.info(
-                        "pylance not installed — skipping version cleanup "
-                        "(pip install pylance)"
-                    )
+                # Compaction rewrites fragments (may renumber _rowids) and
+                # cleanup deletes versions; both must exclude a concurrent
+                # re-embed swap in this or another process.
+                with process_table_write_lock(str(self.db_path), name):
+                    table = self.db.open_table(name)
+                    table.optimize()
+                    try:
+                        table.cleanup_old_versions(older_than=timedelta(days=7))
+                    except ImportError:
+                        logger.info(
+                            "pylance not installed — skipping version cleanup "
+                            "(pip install pylance)"
+                        )
                 logger.info(f"LanceDB maintenance: {name} ok")
             except Exception as e:
                 logger.warning(f"LanceDB maintenance for {name} failed: {e}")
@@ -1677,6 +1744,14 @@ class CommunicationIngestionPipeline:
         return restamp
 
     def _apply_owner_restamp(
+        self, table: Any, restamp_map: Dict[str, str]
+    ) -> int:
+        mm = self.memory_manager
+        with process_table_write_lock(str(mm.db_path), "atom_communications"):
+            live = mm._live_table("atom_communications") or table
+            return self._apply_owner_restamp_unlocked(live, restamp_map)
+
+    def _apply_owner_restamp_unlocked(
         self, table: Any, restamp_map: Dict[str, str]
     ) -> int:
         """Re-stamp rows whose metadata.user_id is a dead user to the live
@@ -4242,7 +4317,9 @@ class CommunicationIngestionPipeline:
             if table is None:
                 return 0
             safe_id = str(message_id).replace("'", "''")
-            table.delete(f"id = '{safe_id}'")
+            with process_table_write_lock(str(mm.db_path), "atom_communications"):
+                table = mm._live_table("atom_communications") or table
+                table.delete(f"id = '{safe_id}'")
             return 1
         except Exception as e:  # noqa: BLE001
             logger.debug(f"drop stored message skipped: {e}")

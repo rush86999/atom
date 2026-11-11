@@ -271,3 +271,59 @@ table load per memory search (it previously re-loaded the full documents
 table PER HIT, up to 8 loads per query, on the loop). The loop-stall
 regression test (`test_mailbox_lines_offload_keeps_loop_responsive`) fails
 if a scan ever goes back on-loop.
+
+## 7. Re-embedding: cross-process commit protocol and storage limits (2026-11-11)
+
+When the active embedding model changes, `LanceDBHandler._reembed_table_worker`
+rebuilds a table and replaces it with ONE `mode="overwrite"` commit. That
+whole-table commit is only safe if no writer can commit between the worker's
+final live read and the overwrite. An in-process `RLock` cannot promise that:
+the GLM two-process probe (`/private/tmp/atom-reembed-probe-2proc`) showed
+process B's `add_document` returning True and reading back its own row, then
+being erased by A's overwrite; a delete in the same window was resurrected.
+
+**Protocol (all participants):**
+
+1. Every handler mutation takes `LanceDBHandler._write_guard(table)` — the
+   per-table `RLock` **plus** an OS advisory exclusive lock (`flock` on POSIX,
+   `msvcrt.locking` on Windows) on
+   `<realpath(store)>.atom-write-locks/<table>-<hash>.lock`, a *sibling* of the
+   dataset directory. Locks are keyed by `(realpath(store), table)` and are
+   released by the kernel if the holder dies.
+   On a **local** store the lock is fail-closed: if it cannot be created or
+   acquired, `process_table_write_lock` raises `WriteLockUnavailable` before
+   the mutation body runs, so the writer reports failure and nothing is
+   committed. A nested guarded call reuses the outer acquisition (a second
+   `flock` on a fresh fd would deadlock) and therefore fails with the outer
+   guard rather than falling through. Only a non-local store, or a local store
+   directory that does not exist yet (no dataset to lose), yields `False`.
+2. The migration still snapshots/embeds without the lock (reads keep serving,
+   writes keep flowing), then under the guard re-reads the live table, builds
+   the result from the CURRENT rows, and commits.
+3. A dataset-version fence re-opens the table immediately before the overwrite;
+   if an uncoordinated writer committed meanwhile, the swap retries (3×) instead
+   of clobbering. If it still detects a clobber after commit, it logs CRITICAL
+   with the recoverable parent version (`table.checkout_version(n)`). The swap
+   refuses to run at all when the guard yields `False` (non-local store): there
+   is no supported shared commit protocol to fence other hosts.
+4. Version cleanup (`core/db_safety.lance_version_cleanup_step`, which uses a
+   raw handle and `delete_unverified=True`) takes the same per-table lock, so
+   it cannot reclaim files under an in-flight mutation or swap.
+
+**Topology limits — read before deploying to object storage:**
+
+| Topology | Cross-process safety | Notes |
+|---|---|---|
+| Local dir / symlinked local volume (default) | Yes | `flock` needs the same inode; NFS must provide working advisory locks |
+| Multiple hosts on a shared network FS | Only if the FS implements `flock` correctly | Do not assume it does |
+| S3/GCS/Azure/`db://` object store | **No file lock** | Ordinary writes proceed best-effort (as before). The re-embed **refuses** the whole-table overwrite: a distributed commit lock (Lance `commit_lock` backed by DynamoDB/Redis) is required for it and is not shipped here |
+
+`write_lock()` is retained for compatibility but only serializes threads in one
+process; use `mutation_guard()` for raw `table.add`/`table.delete` code. The
+communication ingestion pipeline mutates `atom_communications` /
+`ingestion_metadata` through a raw `lancedb.connect()` and therefore takes
+`core.lance_write_lock.process_table_write_lock` directly, re-opening its
+cached table handles inside the guard (a local lock failure aborts that
+initialize/mutation). Tables the handler can migrate but that are written by
+*unmodified* raw code are outside the protocol; do not add one.
+Keep new store access on `LanceDBHandler`.

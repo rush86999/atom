@@ -447,11 +447,19 @@ def lance_version_cleanup_step(retention_hours: Optional[float] = None,
     for parent, table in sorted(tables):
         out["tables"] += 1
         try:
-            tbl = lancedb.connect(parent).open_table(table)
-            # lancedb 0.24: the legacy call survives with `delete_unverified`
-            # (the modern path is tbl.optimize(); both land in the same
-            # cleanup — keep the legacy one for its CleanupStats return).
-            tbl.cleanup_old_versions(older_than=older_than, delete_unverified=True)
+            # Version cleanup is a dataset mutation and `delete_unverified`
+            # may reclaim files an in-flight writer has not committed yet.
+            # Take the same per-(store, table) lock every handler mutation and
+            # the re-embed swap take; a local lock failure fails closed (this
+            # table is skipped, not cleaned unguarded).
+            from core.lance_write_lock import process_table_write_lock
+
+            with process_table_write_lock(parent, table):
+                tbl = lancedb.connect(parent).open_table(table)
+                # lancedb 0.24: the legacy call survives with `delete_unverified`
+                # (the modern path is tbl.optimize(); both land in the same
+                # cleanup — keep the legacy one for its CleanupStats return).
+                tbl.cleanup_old_versions(older_than=older_than, delete_unverified=True)
             out["cleaned"] += 1
         except Exception as e:
             out["errors"] += 1

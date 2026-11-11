@@ -634,13 +634,17 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                     logger.info(f"[LanceDBSink] [UPDATE] Updated {item.id}: {success}")
                     
                 elif op_type == "DELETE":
-                    # Delete logic - remove the row by id via the underlying table
-                    table = self.handler.get_table(self.table_name)
-                    if table is None:
-                        success = False
-                    else:
-                        table.delete(f"id = '{item.id}'")
-                        success = True
+                    # Delete logic - remove the row by id via the underlying table.
+                    # The guard is cross-process: a re-embed swap in another
+                    # backend process replaces the whole table, and an
+                    # unguarded delete would be undone by it.
+                    with self.handler.mutation_guard(self.table_name):
+                        table = self.handler.get_table(self.table_name)
+                        if table is None:
+                            success = False
+                        else:
+                            table.delete(f"id = '{item.id}'")
+                            success = True
                     logger.info(f"[LanceDBSink] [DELETE] Deleted {item.id}: {success}")
                     
                 else:

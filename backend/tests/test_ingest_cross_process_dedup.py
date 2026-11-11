@@ -50,6 +50,7 @@ SCHEMA = pa.schema([
 def _manager_with_store(rows):
     tmp = tempfile.mkdtemp()
     mgr = LanceDBMemoryManager.__new__(LanceDBMemoryManager)
+    mgr.db_path = tmp
     mgr.db = MagicMock()
     mgr.embedding_dim = 4
     mgr.metadata_table = MagicMock()
@@ -59,6 +60,9 @@ def _manager_with_store(rows):
     mgr.connections_table = MagicMock()
     real = mgr.connections_table
     real.add = MagicMock()
+    # Writers re-resolve the live handle inside the mutation guard, so the
+    # mocked connection must hand back the same table assertions inspect.
+    mgr.db.open_table.return_value = real
     # A real arrow-backed table so the where() point lookup executes.
     if rows:
         real.to_arrow = MagicMock(return_value=pa.Table.from_pylist(rows, schema=SCHEMA))
@@ -273,6 +277,7 @@ def _real_store(rows):
         table.add(rows)
     metadata = db.create_table("ingestion_metadata", schema=_META_SCHEMA)
     mgr = LanceDBMemoryManager.__new__(LanceDBMemoryManager)
+    mgr.db_path = tmp
     mgr.db = db
     mgr.connections_table = table
     mgr.metadata_table = metadata
@@ -306,7 +311,9 @@ def test_heal_removes_id_twin_and_restamped_twin_keeps_legit_rows():
 
     mgr._heal_duplicate_rows()
 
-    kept = table.to_arrow().to_pylist()
+    # Writers/readers re-resolve after a mutation: the handle captured before
+    # the heal is pinned to the pre-delete version.
+    kept = mgr.db.open_table("atom_communications").to_arrow().to_pylist()
     kept_ids = sorted(r["id"] + "|" + r["metadata"] for r in kept)
     assert kept_ids == sorted([
         "dup-1|" + json.dumps({"user_id": "rush@x.com"}),
@@ -315,7 +322,7 @@ def test_heal_removes_id_twin_and_restamped_twin_keeps_legit_rows():
         "unique-1|" + json.dumps({"user_id": "rush@x.com"}),
         "resent|" + json.dumps({"user_id": "rush@x.com"}),
     ])
-    markers = metadata.search().where(
+    markers = mgr.db.open_table("ingestion_metadata").search().where(
         f"app_type = '{mgr._HEAL_MARKER}'", prefilter=True
     ).limit(5).to_arrow().to_pylist()
     assert len(markers) == 1 and markers[0]["total_messages"] == 2
@@ -326,20 +333,21 @@ def test_heal_is_once_per_store():
     mgr, table, metadata = _real_store(rows)
 
     mgr._heal_duplicate_rows()
-    assert table.count_rows() == 1
+    assert mgr.db.open_table("atom_communications").count_rows() == 1
 
     # A second twin arriving after the heal must survive it — the heal is
-    # once-per-store, the write-time guards own everything after.
-    table.add([_store_row("dup-1")])
+    # once-per-store, the write-time guards own everything after. Resolve a
+    # fresh handle first, exactly like the guarded write path does.
+    mgr.db.open_table("atom_communications").add([_store_row("dup-1")])
     mgr._heal_duplicate_rows()
-    assert table.count_rows() == 2
+    assert mgr.db.open_table("atom_communications").count_rows() == 2
 
 
 def test_heal_on_fresh_store_is_a_clean_noop():
     mgr, table, metadata = _real_store([])
     mgr._heal_duplicate_rows()
-    assert table.count_rows() == 0
-    markers = metadata.search().where(
+    assert mgr.db.open_table("atom_communications").count_rows() == 0
+    markers = mgr.db.open_table("ingestion_metadata").search().where(
         f"app_type = '{mgr._HEAL_MARKER}'", prefilter=True
     ).limit(5).to_arrow().to_pylist()
     assert len(markers) == 1 and markers[0]["total_messages"] == 0
