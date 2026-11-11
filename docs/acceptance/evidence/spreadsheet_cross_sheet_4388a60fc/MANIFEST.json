@@ -1,0 +1,41 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "cross-sheet formula required-input validation with per-sheet role/blank data, same-version catalog isolation, explicit-zero/raw semantics preserved",
+  "branch": "codex/agentA-spreadsheet-repair-20261111",
+  "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+  "prior_repair_source": "db0b52d0fba5dd8b7604930539d021f9c2abf1a8",
+  "cross_sheet_source": "7bd2731075c71a65130aea9def8b942982fc6c70",
+  "final_test_source": "4388a60fc7c2e12e2fd93551df24776d05223043",
+  "source_files": {
+    "backend/core/dataset_aggregation.py": "fed08e5092c75aa0641b35088e27489bdca2ea3fc35f120e263e66ef90fb30af",
+    "backend/core/pricing_calculation.py": "588d4603f2cc3127605aaa39e48a59257ced248894a08a70f6287ee1d5d409a6",
+    "backend/tests/test_spreadsheet_dispatch_formula_repair.py": "bab0cf277166ae34d430774e730cd1cb0800bc275931f171618694ab285ac714"
+  },
+  "artifacts": {
+    "README.md": "5f3d790924ce912f93addbd428cd49587161dc7eabd8bf1318389348eba6e38a",
+    "TEST_RESULTS.md": "526494ac5004a304993d22f6046b4f40243f433b6bc4a89aa5e8bdda879b320e",
+    "bounded-gate-4388a60fc.log": "d2324c0186a10cc359739e2a5f19139a81ccf784e85e2abeb603b5fd81a11e58",
+    "new-cross-sheet-controls.log": "348b18c3503a41dc527173ffe88a98fbfa350daecac8f6a9a40a5cdffff8aad4",
+    "root-cross-sheet-probe.log": "d565ae6f40ecf878975e63a12557db257e6180957a96f168aa05c2d93951ee05",
+    "source-fix.diff": "4a5c1196f9b6b1862b380df0cabb612e9689f57087a2e22d788ae87b4cbf21c7",
+    "verification.json": "d997d191ebfe5cb735349b40722eafdde85e8ece2fdf9373d1e3f59d6226f81c"
+  },
+  "checks": {
+    "root_cross_sheet_probe": "1 passed",
+    "new_controls": "10 passed",
+    "bounded_gate": "118 passed",
+    "same_version_catalog_resolution": true,
+    "explicit_zero_preserved": true,
+    "raw_blank_as_zero_preserved": true,
+    "gap_sheet_cell_attribution": true,
+    "aggregate_dispatch_preserved": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_install": true,
+    "pr843_844_untouched": true
+  },
+  "boundaries": [
+    "supported workbook/formula path only",
+    "prior 113-test gate preserved and expanded; unchanged failure-first campaign not rerun",
+    "root owns PR843/844 integration"
+  ]
+}
