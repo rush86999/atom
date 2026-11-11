@@ -51,6 +51,28 @@ def _vendor_frame():
     ])
 
 
+def _inventory_frame():
+    return pd.DataFrame([
+        {"Item": "TX-4400", "On Hand": 12, "Status": "Active",
+         "__sheet_row": 2},
+        {"Item": "TX-4401", "On Hand": 8, "Status": "Active",
+         "__sheet_row": 3},
+        {"Item": "TX-4402", "On Hand": 5, "Status": "Retired",
+         "__sheet_row": 4},
+    ])
+
+
+def _stock_frame():
+    return pd.DataFrame([
+        {"Item": "TX-4400", "On Hand": 12, "Status": "Active",
+         "__sheet_row": 2},
+        {"Item": "TX-4401", "On Hand": 8, "Status": "Active",
+         "__sheet_row": 3},
+        {"Item": "TX-4402", "On Hand": 5, "Status": "Active",
+         "__sheet_row": 4},
+    ])
+
+
 @pytest.mark.asyncio
 async def test_captured_sum_ask_succeeds_with_model_planner_unavailable(
         tmp_path):
@@ -225,6 +247,82 @@ async def test_count_uses_the_same_bound_rows(tmp_path):
         "rows": 3, "value": "3.00"}
     assert [row["identity"] for row in result["rows"]] == [
         "IN-7301", "IN-7302", "IN-7303"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query, expected_selected",
+    [
+        # A numeric measure named as a condition must not turn an explicit
+        # row/record count into a sum, with or without a predicate.
+        ("How many records have an Invoice Amount in vendor_loop.csv? "
+         "Use a count.", 4),
+        ("How many Open records have an Invoice Amount in vendor_loop.csv? "
+         "Use a count.", 3),
+        ("How many rows carry an Invoice Amount in vendor_loop.csv? "
+         "Use a count.", 4),
+    ],
+)
+async def test_explicit_row_count_keeps_count_when_measure_is_named(
+        tmp_path, query, expected_selected):
+    entry = _write_entry(tmp_path, _vendor_frame())
+    result = await aggregate_named_dataset(
+        [entry], query, None, file_name="vendor_loop.csv")
+    assert result["status"] == "complete"
+    assert result["operation"] == "count"
+    assert result["measure"] == "row count"
+    assert result["selected_count"] == expected_selected
+    assert result["subtotals"]["(unstated)"] == {
+        "rows": expected_selected, "value": f"{expected_selected}.00"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query, expected_selected, expected_total",
+    [
+        ("How many On Hand units are in inventory.csv? Use a count.",
+         3, "25.00"),
+        ("How many Active On Hand units are in inventory.csv? Use a count.",
+         2, "20.00"),
+    ],
+)
+async def test_quantity_ask_still_sums_the_named_measure(
+        tmp_path, query, expected_selected, expected_total):
+    entry = _write_entry(
+        tmp_path, _inventory_frame(), name="inventory",
+        file_name="inventory.csv")
+    result = await aggregate_named_dataset(
+        [entry], query, None, file_name="inventory.csv")
+    assert result["status"] == "complete"
+    assert result["operation"] == "sum"
+    assert result["measure"] == "On Hand"
+    assert result["selected_count"] == expected_selected
+    assert result["subtotals"]["(unstated)"]["value"] == expected_total
+
+
+@pytest.mark.asyncio
+async def test_quantity_ask_across_active_rows_is_not_a_row_count(tmp_path):
+    """Verifier regression: "rows" locates the quantity, it is not the unit.
+
+    Before scoping the row-word check to the counted noun, the location
+    phrase "in the active rows" made this ask a row count (3 rows) and the
+    On Hand quantity was never summed (25 units).
+    """
+    entry = _write_entry(
+        tmp_path, _stock_frame(), name="stock", file_name="stock.csv")
+    result = await aggregate_named_dataset(
+        [entry],
+        "How many On Hand units are in the active rows in stock.csv? "
+        "Use a count.",
+        None,
+        file_name="stock.csv",
+    )
+    assert result["status"] == "complete"
+    assert result["operation"] == "sum"
+    assert result["measure"] == "On Hand"
+    assert result["selected_count"] == 3
+    assert result["subtotals"]["(unstated)"] == {
+        "rows": 3, "value": "25.00"}
 
 
 @pytest.mark.asyncio

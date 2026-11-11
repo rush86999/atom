@@ -1320,6 +1320,53 @@ _EXPLICIT_SUM_RE = re.compile(
     r"\b(?:sum|sums|summed|summing|add\s+up)\b", re.IGNORECASE)
 _EXPLICIT_COUNT_RE = re.compile(
     r"\b(?:count|counts|counted|counting|how\s+many)\b", re.IGNORECASE)
+#: A row/record noun is the head of the phrase the ask counts: "how many
+#: records ...", "count the rows ...". It is NOT any row word elsewhere in
+#: the sentence — "how many On Hand units are in the active rows" counts
+#: units, and "rows" merely locates them.
+_FILE_REFERENCE_RE = re.compile(
+    r"\S+\.(?:csv|xlsx|xls|tsv|json|parquet)\b", re.IGNORECASE)
+_COUNTED_NOUN_RE = re.compile(
+    r"\b(?P<trigger>how\s+many|count|counts|counted|counting)\b"
+    r"(?:\s+(?:the|a|an|all|any|total|number|of))*"
+    r"\s+(?P<noun>[^.;:,!?()\[\]\n]*?)"
+    r"(?=\s+(?:are|is|was|were|be|been|being|have|has|had|"
+    r"carry|carries|carrying|contain|contains|containing|"
+    r"include|includes|including|match|matches|matching|"
+    r"with|without|whose|where|which|that|who|"
+    r"from|of|in|on|at|for|to|by|do|does|did|"
+    r"can|could|should|would|will|there)\b"
+    r"|[.;:,!?()\[\]\n]|$)",
+    re.IGNORECASE)
+_ROW_COUNT_NOUN_RE = re.compile(
+    r"(?:rows?|records?|entries|entry|line\s+items?)\s*$", re.IGNORECASE)
+
+
+def _row_unit_is_counted(query: str) -> bool:
+    """Whether the ask counts ROWS rather than a quantity in those rows.
+
+    Scoped to the counted noun so a location phrase cannot override the
+    measure: "how many records have an Invoice Amount" is a row count, while
+    "how many On Hand units are in the active rows" sums On Hand. File
+    references are removed first so a name like ``rows.csv`` is never read
+    as the counted noun.
+    """
+    text = " ".join(str(query or "").split())
+    text = _FILE_REFERENCE_RE.sub(" ", text)
+    if not text:
+        return False
+    matches = list(_COUNTED_NOUN_RE.finditer(text))
+    # "How many X" is the question's own counted noun; a trailing "Use a
+    # count." or "count the rows" elsewhere cannot redefine it.
+    how_many = [
+        match for match in matches
+        if re.match(r"how\s+many", match.group("trigger"), re.IGNORECASE)
+    ]
+    for match in how_many or matches:
+        noun = str(match.group("noun") or "").strip()
+        if _ROW_COUNT_NOUN_RE.search(noun):
+            return True
+    return False
 
 
 def _explicit_aggregate_operation(query: str) -> Optional[str]:
@@ -1663,6 +1710,10 @@ async def _try_deterministic_aggregate(
     if operation == "count":
         predicate_column = str(
             (predicate or {}).get("column") or "")
+        # An EXPLICIT row/record word keeps the ask a row count even when it
+        # also names a numeric column ("how many records have an Invoice
+        # Amount"). The column is then a condition on rows, not a quantity.
+        row_unit_named = _row_unit_is_counted(query)
         # The measure must be NAMED by the ask's own field words. Selection
         # can include a numeric column merely because the sentence mentions
         # a related noun ("Open invoices" pulls Invoice Amount), and that is
@@ -1683,6 +1734,7 @@ async def _try_deterministic_aggregate(
             except Exception:  # noqa: BLE001 — fail closed to a row count
                 measure_named = False
         if (measure_named
+                and not row_unit_named
                 and measure_candidates[0] != predicate_column):
             operation = "sum"
             value_column = measure_candidates[0]
