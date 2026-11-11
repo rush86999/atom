@@ -311,10 +311,19 @@ Output: {json.dumps(example_output)}
         # a LIKE clause on the embedded formula_id (mirrors the search filter).
         if self._lancedb:
             try:
-                table = self._lancedb.get_table(FORMULA_CARDS_TABLE)
-                if table is not None:
-                    safe_id = formula_id.replace("'", "''")
-                    table.delete(f"metadata LIKE '%\"formula_id\": \"{safe_id}\"%'")
+                safe_id = formula_id.replace("'", "''")
+                filter_expr = f"metadata LIKE '%\"formula_id\": \"{safe_id}\"%'"
+                # Route through the handler's locked delete: a concurrent
+                # re-embed migration replaces the whole table with one commit,
+                # and an unlocked delete would be overwritten by it (card
+                # resurrected) or delete from the replaced version.
+                delete_rows = getattr(self._lancedb, "delete_rows_by_filter", None)
+                if delete_rows is not None:
+                    delete_rows(FORMULA_CARDS_TABLE, filter_expr)
+                else:
+                    table = self._lancedb.get_table(FORMULA_CARDS_TABLE)
+                    if table is not None:
+                        table.delete(filter_expr)
             except Exception as e:
                 logger.warning(f"LanceDB delete for formula {formula_id} failed (best-effort): {e}")
         return success

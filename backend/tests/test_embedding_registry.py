@@ -13,7 +13,9 @@ corrupt) vector search:
 """
 
 import json
+import threading
 
+import numpy as np
 import pyarrow as pa
 import pytest
 
@@ -168,6 +170,62 @@ class TestReembedMigration:
         assert len(rows) == 1 and rows[0]["vector"] == [0.0] * 384  # untouched
         assert embedding_registry.get("docs_t")["model"] == "m0"
 
+    def test_numpy_array_embeddings_migrate(self, handler):
+        # REGRESSION: embed_text returns a NumPy array whenever numpy is
+        # installed (async_embed_text wraps generate_embedding in np.array) —
+        # i.e. the normal production path. The migration's `if not sample`
+        # raised "The truth value of an array with more than one element is
+        # ambiguous", aborting EVERY document re-embed before it touched the
+        # table: vectors stayed on the old model while the registry kept
+        # reporting the old identity.
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0)])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+        handler.embed_text = lambda text: np.array([0.25] * 384, dtype=np.float32)
+
+        handler._reembed_table_worker("docs_t")
+
+        rows = handler.get_table("docs_t").to_arrow().to_pylist()
+        assert len(rows) == 1
+        assert rows[0]["vector"] == [0.25] * 384  # re-embedded, not stale
+        assert embedding_registry.get("docs_t") == {
+            "provider": "test",
+            "model": "m1",
+            "dim": 384,
+        }
+
+    def test_empty_numpy_sample_aborts_without_data_loss(self, handler):
+        # Empty embedder output must stay an abort signal (not a 0-dim table):
+        # the original table and its registry identity survive untouched.
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0)])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+        handler.embed_text = lambda text: np.array([], dtype=np.float32)
+
+        handler._reembed_table_worker("docs_t")
+
+        rows = handler.get_table("docs_t").to_arrow().to_pylist()
+        assert len(rows) == 1 and rows[0]["vector"] == [0.0] * 384
+        assert embedding_registry.get("docs_t")["model"] == "m0"
+
+    def test_empty_numpy_row_vector_gets_zero_fill(self, handler):
+        # The probe resolves the active dim, so a single row whose embed comes
+        # back empty is zero-filled at that dim — the migration still completes.
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0)])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+        handler.embed_text = lambda text: np.array(
+            [0.5] * 384 if text == "embedding model migration probe" else [],
+            dtype=np.float32,
+        )
+
+        handler._reembed_table_worker("docs_t")
+
+        rows = handler.get_table("docs_t").to_arrow().to_pylist()
+        assert len(rows) == 1
+        assert rows[0]["vector"] == [0.0] * 384
+        assert embedding_registry.get("docs_t")["model"] == "m1"
+
     def test_dual_vector_column_preserved(self, handler):
         # Tables with a vector_fastembed column keep that column (built by a
         # different embedder) across migration.
@@ -226,3 +284,198 @@ class TestReembedMigration:
 
         handler.get_table("docs_t")  # identity check hook
         assert scheduled == ["docs_t"]
+
+
+class TestReembedConcurrentMutations:
+    """Deterministic overlap between a live mutation and the migration swap.
+
+    The old worker snapshot the table, DROPPED it, then rebuilt a canonical
+    table and appended the snapshot. Any write between snapshot and drop was
+    erased; any delete was resurrected by the rebuild; any failure after the
+    drop (embedder error, a row carrying a table-specific column the canonical
+    schema lacks) left an empty/partial table where the data used to be.
+
+    These tests pause the worker immediately AFTER its snapshot (a real
+    synchronisation point, not fixture metadata) and perform the mutation
+    while the worker is provably in flight. On the old code the assertion
+    fails deterministically: the mutation happened before its drop.
+    """
+
+    @staticmethod
+    def _start_worker(handler, table_name):
+        with LanceDBHandler._reembed_lock:
+            assert table_name not in LanceDBHandler._reembed_inflight
+            LanceDBHandler._reembed_inflight.add(table_name)
+        worker = threading.Thread(
+            target=handler._reembed_table_worker,
+            args=(table_name,),
+            daemon=True,
+        )
+        worker.start()
+        return worker
+
+    @staticmethod
+    def _pause_after_snapshot(handler, monkeypatch, started, release):
+        """Wrap the snapshot read: return only after the test releases it.
+
+        The second (swap-phase) read is not gated — by then the overlapping
+        mutation has already been performed and released.
+        """
+        real_read = handler._read_rows_with_rowid
+
+        def gated_read(table):
+            rows = real_read(table)
+            if not started.is_set():
+                started.set()
+                assert release.wait(timeout=15), "test never released the worker"
+            return rows
+
+        monkeypatch.setattr(handler, "_read_rows_with_rowid", gated_read)
+
+    @staticmethod
+    def _rows(handler, table_name="docs_t"):
+        return handler.get_table_nocheck(table_name).to_arrow().to_pylist()
+
+    def test_write_during_migration_is_not_lost(self, handler, monkeypatch):
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0, doc_id="seed")])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+
+        started, release = threading.Event(), threading.Event()
+        self._pause_after_snapshot(handler, monkeypatch, started, release)
+        worker = self._start_worker(handler, "docs_t")
+        assert started.wait(timeout=15), "worker never took its snapshot"
+
+        # OVERLAP: the snapshot exists; the swap has not happened. This write
+        # used to be erased by the worker's drop_table.
+        assert handler.add_document(
+            "docs_t", "written while vectors were being rebuilt",
+            source="overlap", doc_id="late-write",
+        )
+        release.set()
+        worker.join(timeout=20)
+        assert not worker.is_alive(), "migration did not finish"
+
+        rows = {row["id"]: row for row in self._rows(handler)}
+        assert set(rows) == {"seed", "late-write"}
+        assert rows["late-write"]["text"] == "written while vectors were being rebuilt"
+        # Both the snapshot row and the overlapping write carry the NEW model.
+        assert rows["seed"]["vector"] == [0.5] * 384
+        assert rows["late-write"]["vector"] == [0.5] * 384
+        assert embedding_registry.get("docs_t") == {
+            "provider": "test", "model": "m1", "dim": 384,
+        }
+
+    def test_batch_write_during_migration_is_not_lost(self, handler, monkeypatch):
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0, doc_id="seed")])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+
+        started, release = threading.Event(), threading.Event()
+        self._pause_after_snapshot(handler, monkeypatch, started, release)
+        worker = self._start_worker(handler, "docs_t")
+        assert started.wait(timeout=15)
+
+        added = handler.add_documents_batch("docs_t", [
+            {"id": "late-batch-1", "text": "batch one", "source": "overlap"},
+            {"id": "late-batch-2", "text": "batch two", "source": "overlap"},
+        ])
+        assert added == 2
+        release.set()
+        worker.join(timeout=20)
+        assert not worker.is_alive()
+
+        rows = {row["id"]: row for row in self._rows(handler)}
+        assert set(rows) == {"seed", "late-batch-1", "late-batch-2"}
+        assert all(row["vector"] == [0.5] * 384 for row in rows.values())
+        assert embedding_registry.get("docs_t")["model"] == "m1"
+
+    @pytest.mark.parametrize(
+        "mode,expected",
+        [("by-id", {"doc-a::c0", "doc-a::c1"}), ("by-prefix", {"doc-a"})],
+    )
+    def test_delete_during_migration_is_not_resurrected(
+            self, handler, monkeypatch, mode, expected):
+        t = handler.create_table("docs_t")
+        t.add([
+            _std_row(dim=384, marker=0.0, doc_id="doc-a"),
+            _std_row(dim=384, marker=0.0, doc_id="doc-a::c0"),
+            _std_row(dim=384, marker=0.0, doc_id="doc-a::c1"),
+        ])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+
+        started, release = threading.Event(), threading.Event()
+        self._pause_after_snapshot(handler, monkeypatch, started, release)
+        worker = self._start_worker(handler, "docs_t")
+        assert started.wait(timeout=15)
+
+        # OVERLAP: the snapshot still contains these rows. The old rebuild
+        # appended the snapshot after the delete and brought them back.
+        if mode == "by-id":
+            assert handler.delete_documents_by_id("docs_t", "doc-a") is True
+        else:
+            assert handler.delete_documents_by_prefix("docs_t", "doc-a::") is True
+        release.set()
+        worker.join(timeout=20)
+        assert not worker.is_alive()
+
+        remaining = {row["id"] for row in self._rows(handler)}
+        assert remaining == expected
+
+    def test_embedder_failure_midway_leaves_live_table_intact(
+            self, handler, monkeypatch):
+        t = handler.create_table("docs_t")
+        t.add([_std_row(dim=384, marker=0.0, doc_id="one")])
+        t.add([_std_row(dim=384, marker=0.0, doc_id="two")])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+
+        def broken_embed(text):
+            if text == "hello world":
+                raise RuntimeError("embedding provider died mid-migration")
+            return [0.5] * 384
+
+        handler.embed_text = broken_embed
+
+        # No exception escapes (daemon worker), but nothing may be lost.
+        handler._reembed_table_worker("docs_t")
+
+        rows = {row["id"]: row for row in self._rows(handler)}
+        assert set(rows) == {"one", "two"}
+        assert rows["one"]["vector"] == [0.0] * 384  # old vectors untouched
+        assert rows["two"]["vector"] == [0.0] * 384
+        assert embedding_registry.get("docs_t")["model"] == "m0"
+
+    def test_table_specific_columns_survive_migration(self, handler):
+        # Episodes/app tables carry columns the canonical document schema does
+        # not (outcome, agent_id, …). The old rebuild dropped them and then
+        # failed to append the rows carrying them — after dropping the table.
+        schema = pa.schema([
+            pa.field("id", pa.string()),
+            pa.field("user_id", pa.string()),
+            pa.field("workspace_id", pa.string()),
+            pa.field("text", pa.string()),
+            pa.field("source", pa.string()),
+            pa.field("metadata", pa.string()),
+            pa.field("created_at", pa.string()),
+            pa.field("agent_id", pa.string()),
+            pa.field("outcome", pa.string()),
+            pa.field("vector", pa.list_(pa.float32(), 384)),
+        ])
+        t = handler.create_table("docs_t", schema=schema)
+        row = _std_row(dim=384, marker=0.0, doc_id="episode-1")
+        row["agent_id"] = "agent-7"
+        row["outcome"] = "pass"
+        t.add([row])
+        embedding_registry.set_identity("docs_t", "test", "m0", 384)
+
+        handler._reembed_table_worker("docs_t")
+
+        live = handler.get_table_nocheck("docs_t")
+        names = {field.name for field in live.schema}
+        assert {"agent_id", "outcome", "vector"} <= names
+        rows = live.to_arrow().to_pylist()
+        assert len(rows) == 1
+        assert rows[0]["agent_id"] == "agent-7"
+        assert rows[0]["outcome"] == "pass"
+        assert rows[0]["vector"] == [0.5] * 384
+        assert embedding_registry.get("docs_t")["model"] == "m1"

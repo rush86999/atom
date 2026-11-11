@@ -268,6 +268,32 @@ def isolate_environment():
             os.environ.pop(var, None)
 
 
+@pytest.fixture(autouse=True)
+def isolate_embedding_registry(tmp_path, monkeypatch):
+    """Keep the embedding-identity registry out of durable dev state.
+
+    The registry is a process-global JSON cache keyed by TABLE NAME. Without
+    isolation, a test that creates a 4-dim ``documents`` table records
+    ``documents: 4-dim`` in ``backend/data/embedding_registry.json`` — durable
+    dev state — and every later run/test that opens a real 384-dim
+    ``documents`` table sees a phantom model mismatch and schedules a
+    background re-embed. That is exactly how the document-delete truth test
+    started failing in a combined run (the "polluted registry" precondition),
+    and it also means a bare pytest mutates the developer's store.
+    """
+    from core import embedding_registry
+
+    monkeypatch.setenv(
+        "EMBEDDING_REGISTRY_FILE",
+        str(tmp_path / "embedding_registry.json"),
+    )
+    embedding_registry.reload()
+    try:
+        yield
+    finally:
+        embedding_registry.reload()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_byok_test_env():
     """

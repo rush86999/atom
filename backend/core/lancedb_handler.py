@@ -6,6 +6,7 @@ Provides comprehensive vector database operations with LanceDB
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -34,6 +35,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from core.doc_freshness_service import FRESHNESS_FILTER_ENABLED
+from core.lance_write_lock import process_table_write_lock, store_identity
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from core.chat_context_manager import ChatContextManager
@@ -369,14 +371,15 @@ class LanceDBHandler:
         already present); False when the table is absent or repair failed.
         """
         try:
-            table = self.get_table(table_name)
-            if table is None:
-                return False
-            existing = {f.name for f in table.schema}
-            missing = {c: t for c, t in columns.items() if c not in existing}
-            if not missing:
-                return True
-            table.add_columns(missing)
+            with self._write_guard(table_name):
+                table = self.get_table(table_name)
+                if table is None:
+                    return False
+                existing = {f.name for f in table.schema}
+                missing = {c: t for c, t in columns.items() if c not in existing}
+                if not missing:
+                    return True
+                table.add_columns(missing)
             logger.info(
                 f"LanceDB schema repair: added {sorted(missing)} to '{table_name}'"
             )
@@ -415,17 +418,20 @@ class LanceDBHandler:
             if table_name not in names:
                 continue
             try:
-                table = self.get_table_nocheck(table_name)
-                if table is None:
-                    continue
-                existing = {f.name for f in table.schema}
-                missing = {c: expr for c, expr in columns.items() if c not in existing}
-                if not missing:
-                    continue
-                try:
-                    table.add_columns(missing)
-                except Exception:  # noqa: BLE001 — expression unsupported: plain empty strings
-                    table.add_columns({c: "''" for c in missing})
+                # Schema evolution is a table mutation: hold the same lock a
+                # re-embed swap holds so the two cannot interleave.
+                with self._write_guard(table_name):
+                    table = self.get_table_nocheck(table_name)
+                    if table is None:
+                        continue
+                    existing = {f.name for f in table.schema}
+                    missing = {c: expr for c, expr in columns.items() if c not in existing}
+                    if not missing:
+                        continue
+                    try:
+                        table.add_columns(missing)
+                    except Exception:  # noqa: BLE001 — expression unsupported: plain empty strings
+                        table.add_columns({c: "''" for c in missing})
                 logger.info(
                     f"LanceDB schema repair: added {sorted(missing)} to "
                     f"'{table_name}' in {self.db_path}"
@@ -558,33 +564,38 @@ class LanceDBHandler:
             # row in it) whenever this method ran against a table that
             # already existed, e.g. on handler re-init after an embedding
             # provider switch. Overwrite is now an explicit opt-in.
-            try:
-                existing = self.db.open_table(table_name)
-            except Exception:
-                existing = None
-
-            if existing is not None and not overwrite:
-                logger.info(
-                    f"Table '{table_name}' already exists — opening it "
-                    f"(pass overwrite=True to explicitly reset it)"
-                )
+            # Create/open under the per-table write lock: a concurrent
+            # re-embed swap also replaces this table with one commit, and an
+            # unlocked create would either collide with it or append to a
+            # dataset the swap then overwrites.
+            with self._write_guard(table_name):
                 try:
-                    self._check_embedding_identity(table_name, existing)
+                    existing = self.db.open_table(table_name)
+                except Exception:
+                    existing = None
+
+                if existing is not None and not overwrite:
+                    logger.info(
+                        f"Table '{table_name}' already exists — opening it "
+                        f"(pass overwrite=True to explicitly reset it)"
+                    )
+                    try:
+                        self._check_embedding_identity(table_name, existing)
+                    except Exception:
+                        pass
+                    return existing
+
+                if existing is not None and overwrite:
+                    self.db.drop_table(table_name)
+                    logger.warning(f"Table '{table_name}' explicitly reset (overwrite=True)")
+
+                table = self.db.create_table(table_name, schema=schema)
+                logger.info(f"Table '{table_name}' created successfully")
+                try:
+                    self._register_identity_from_schema(table_name, table.schema)
                 except Exception:
                     pass
-                return existing
-
-            if existing is not None and overwrite:
-                self.db.drop_table(table_name)
-                logger.warning(f"Table '{table_name}' explicitly reset (overwrite=True)")
-
-            table = self.db.create_table(table_name, schema=schema)
-            logger.info(f"Table '{table_name}' created successfully")
-            try:
-                self._register_identity_from_schema(table_name, table.schema)
-            except Exception:
-                pass
-            return table
+                return table
 
         except Exception as e:
             logger.error(f"Failed to create table '{table_name}': {e}")
@@ -645,26 +656,100 @@ class LanceDBHandler:
     # write_failed for hours (live: nothing newer than 2026-09-06 in memory).
     # lance discussions #1888: concurrent writes are unsafe; appends must be
     # serialized per table. Class-level so all handler instances share locks.
-    _TABLE_WRITE_LOCKS: Dict[str, "threading.Lock"] = {}
+    #
+    # The re-embed migration (2026-11-11) is the reason every mutation path
+    # takes these: it replaces the WHOLE table with a single commit, so a
+    # write/delete that lands between its snapshot and that commit would be
+    # silently overwritten.  Holding the lock across the final reconcile+commit
+    # (and re-resolving the live table INSIDE the lock, never a handle captured
+    # before it) makes same-process overlap safe.
+    #
+    # CROSS-PROCESS (2026-11-11): an RLock says nothing to a second OS process.
+    # A two-process probe reproduced the loss exactly: process B's
+    # ``add_document`` committed and read back its own row, then the migration's
+    # overwrite (built from A's snapshot) erased it.  ``_write_guard`` therefore
+    # holds BOTH the in-process RLock and an OS advisory lock on a per-(store,
+    # table) lock file (``core.lance_write_lock``) for every mutation and for
+    # the migration's reconcile+swap.  See that module for the local-FS
+    # topology limits.
+    #
+    # RLock because a writer that holds the lock may call create_table/
+    # ensure_columns, which take the same per-table lock.
+    _TABLE_WRITE_LOCKS: Dict[str, "threading.RLock"] = {}
     _TABLE_WRITE_LOCKS_GUARD = threading.Lock()
+    # Nesting depth of the cross-process lock per (store, table).  Guarded by
+    # the RLock itself: only the thread holding that RLock touches its entry.
+    _TABLE_WRITE_DEPTH: Dict[tuple, int] = {}
+    _TABLE_WRITE_HELD: Dict[tuple, bool] = {}
 
     # Commit-race error signatures worth one bounded retry.
     _TRANSIENT_COMMIT_RE = re.compile(r"(?i)file exists \(os error 17\)|_transactions|object writer|object store.*conflict")
 
     @classmethod
-    def _write_lock(cls, table_name: str) -> "threading.Lock":
+    def _write_lock(cls, table_name: str) -> "threading.RLock":
         with cls._TABLE_WRITE_LOCKS_GUARD:
             lock = cls._TABLE_WRITE_LOCKS.get(table_name)
             if lock is None:
-                lock = threading.Lock()
+                lock = threading.RLock()
                 cls._TABLE_WRITE_LOCKS[table_name] = lock
             return lock
 
+    @contextlib.contextmanager
+    def _write_guard(self, table_name: str):
+        """Hold the in-process AND cross-process mutation lock for a table.
+
+        Yields ``True`` when the OS lock is held.  A local store that cannot
+        take its lock raises ``WriteLockUnavailable`` before the mutation
+        runs, so the caller's exception path reports failure and nothing is
+        written.  Yields ``False`` only where there is no lock to take: a
+        non-local store (ordinary writes stay best effort, as before) or a
+        local store directory that does not exist yet.
+        """
+        key = (store_identity(self.db_path), table_name)
+        depth = self._TABLE_WRITE_DEPTH
+        held_flags = self._TABLE_WRITE_HELD
+        with self._write_lock(table_name):
+            if depth.get(key, 0) > 0:
+                depth[key] += 1
+                try:
+                    yield held_flags.get(key, False)
+                finally:
+                    depth[key] -= 1
+                return
+            with process_table_write_lock(self.db_path, table_name) as held:
+                depth[key] = 1
+                held_flags[key] = held
+                try:
+                    yield held
+                finally:
+                    depth[key] = 0
+                    held_flags[key] = False
+
+    def write_lock(self, table_name: str) -> "threading.RLock":
+        """Deprecated in-process-only handle on the per-table mutation lock.
+
+        It does NOT exclude other OS processes.  Use :meth:`mutation_guard`
+        (or a locked handler method such as ``delete_rows_by_filter``) for any
+        code that resolves and mutates a handler-owned table directly.
+        """
+        return self._write_lock(table_name)
+
+    def mutation_guard(self, table_name: str):
+        """Public cross-process mutation guard for handler-owned tables.
+
+        Any code that mutates a handler-owned table outside this class (e.g.
+        a raw ``table.add``/``table.delete`` through ``get_table``) MUST wrap
+        the resolve+mutate in ``with handler.mutation_guard(table_name):``.
+        Otherwise a concurrent re-embed migration in this OR another process
+        can replace the table underneath the mutation and drop it.
+        """
+        return self._write_guard(table_name)
+
     @classmethod
     def _add_with_retry(cls, table, records, *, attempts: int = 3, backoff_s: float = 0.25) -> bool:
-        """table.add() under the per-table lock, retrying transient commit
-        races (mid-commit manifest states from a concurrent writer outside
-        this process, or crashed-writer residue). Returns True on success."""
+        """table.add() under the per-table write guard, retrying transient
+        commit races (mid-commit manifest states from a concurrent writer in
+        another process, or crashed-writer residue). Returns True on success."""
         import time as _time
 
         last_err: Optional[Exception] = None
@@ -757,13 +842,122 @@ class LanceDBHandler:
         )
         thread.start()
 
+    #: Probe text used to learn the active embedder's true output dimension.
+    _REEMBED_PROBE = "embedding model migration probe"
+
+    def _read_rows_with_rowid(self, table: "Table") -> list[dict[str, Any]]:
+        """Read every row plus Lance's ``_rowid`` for reconciliation.
+
+        The migration snapshots outside the write lock so the live table keeps
+        serving while embeddings are computed. ``_rowid`` is the identity that
+        lets the final swap tell "row written while we were embedding" from
+        "row deleted while we were embedding" — without it the overwrite would
+        silently drop the write or resurrect the delete. Row ids are stable
+        across appends; if a compaction ever renumbers them the worst case is
+        re-embedding (rows classified as changed), never stale vectors.
+        """
+        return table.to_lance().to_table(with_row_id=True).to_pylist()
+
+    def _reembed_row(self, row: dict[str, Any], target_dim: int) -> dict[str, Any]:
+        """Return a copy of ``row`` whose ``vector`` is re-embedded.
+
+        A failed/empty/wrong-dimension embed degrades to the zero vector at
+        the table's dimension (the row must still exist), exactly as before.
+        """
+        text = row.get("text") or row.get("content") or ""
+        vec = self._coerce_embedding_vector(self.embed_text(text))
+        if vec is None or len(vec) != target_dim:
+            vec = [0.0] * target_dim
+        migrated = dict(row)
+        migrated["vector"] = vec
+        return migrated
+
+    @staticmethod
+    def _migrated_schema(original_schema: Any, target_dim: int) -> Any:
+        """The live schema with ONLY the ``vector`` column resized.
+
+        The old worker recreated the table from the canonical document schema,
+        which silently dropped every table-specific column (``outcome``,
+        ``agent_id``, ``freshness_*``, knowledge-graph edge columns, …). The
+        migrated rows then failed to append to the fresh table — AFTER the
+        live table had been dropped. Preserving the observed schema keeps
+        those columns (and their types, including null-only strings) intact.
+        """
+        fields = []
+        found = False
+        for field in original_schema:
+            if field.name == "vector":
+                fields.append(
+                    pa.field(
+                        "vector",
+                        pa.list_(pa.float32(), target_dim),
+                        nullable=field.nullable,
+                        metadata=field.metadata,
+                    )
+                )
+                found = True
+            else:
+                fields.append(field)
+        if not found:
+            raise ValueError("table has no 'vector' column to resize")
+        return pa.schema(fields, metadata=original_schema.metadata)
+
+    @staticmethod
+    def _table_version(table: "Table") -> Optional[int]:
+        """Dataset version of an open table handle (pinned at open time)."""
+        try:
+            version = getattr(table, "version", None)
+            if version is not None:
+                return int(version)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            return int(table.to_lance().version)
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
+    def _same_row_identity(old: dict[str, Any], new: dict[str, Any]) -> bool:
+        """True when two reads with the same ``_rowid`` describe the same row.
+
+        ``_rowid`` identifies a physical row, but a whole-table replacement
+        (another migration, a compaction) can make the same number refer to a
+        different row in a later version. Reusing a snapshot vector across
+        that boundary would paste one row's content onto another, so the
+        migration re-embeds whenever the identity fields differ.
+        """
+        keys = ("id", "text", "created_at")
+        return all(old.get(k) == new.get(k) for k in keys)
+
     def _reembed_table_worker(self, table_name: str) -> None:
         """Re-embed every row of ``table_name`` with the active embedder.
 
         Runs on a daemon thread so a model switch never blocks or fails
         requests: the old table keeps serving (stale) vectors until the
-        migrated one replaces it. Failures leave the original table intact.
+        migrated one replaces it.
+
+        Safety contract (2026-11-11 — the old drop-then-rebuild lost data):
+
+        1. Snapshot + embed WITHOUT the write lock, so normal writes continue.
+        2. Under the per-table write lock (in-process RLock **and** the
+           cross-process file lock, see ``core/lance_write_lock.py``), re-read
+           the live table and build the result from the CURRENT rows, reusing
+           snapshot vectors only where ``_rowid`` still identifies the same
+           row. Rows added meanwhile are embedded and kept; rows deleted
+           meanwhile are absent from the result (never resurrected).
+        3. Replace the table with ONE ``mode="overwrite"`` commit built from
+           the LIVE schema, fenced by the dataset version read under the
+           lock: if a writer that ignored the lock committed in between, the
+           swap is abandoned and re-reconciled instead of clobbering it.
+           Readers see the old version until that commit lands (there is no
+           window where the table is missing) and any failure before the
+           commit leaves the original table untouched.  A local store whose
+           lock cannot be acquired fails closed (no swap); a non-local store
+           has no supported shared commit protocol, so the swap is refused.
         """
+        from core import embedding_registry
+
+        attempts = 3
         try:
             self._ensure_db()
             if self.db is None:
@@ -772,10 +966,26 @@ class LanceDBHandler:
             if table is None:
                 return
 
+            # Re-check under the caller-visible identity: a previous worker
+            # may have completed this migration between schedule and start.
+            active = self._active_embedding_identity()
+            state = embedding_registry.classify(
+                embedding_registry.get(table_name),
+                active["provider"],
+                active["model"],
+                embedding_registry.dim_from_schema(table.schema),
+            )
+            if state == "match":
+                return
+
             # Learn the active embedder's true output dimension from a sample;
             # a dead embedder aborts the migration (original table untouched).
-            sample = self.embed_text("embedding model migration probe")
-            if not sample:
+            # Normalize first: embed_text returns a NumPy array whenever numpy
+            # is installed, and a bare truth-value test on one raises
+            # "truth value of an array ... is ambiguous" (numpy >= 1.25),
+            # aborting every re-embed before the table was touched.
+            sample = self._coerce_embedding_vector(self.embed_text(self._REEMBED_PROBE))
+            if sample is None or len(sample) == 0:
                 logger.error(
                     f"Re-embed of '{table_name}' aborted: active embedder "
                     f"returned no vector"
@@ -783,47 +993,161 @@ class LanceDBHandler:
                 return
             target_dim = len(sample)
 
-            rows = table.to_arrow().to_pylist()
-            had_dual = any(f.name == "vector_fastembed" for f in table.schema)
+            # ---- Phase 1: snapshot (live table keeps serving) --------------
+            snapshot = self._read_rows_with_rowid(table)
             logger.info(
-                f"Re-embedding '{table_name}': {len(rows)} rows -> {target_dim}-dim"
+                f"Re-embedding '{table_name}': {len(snapshot)} rows -> {target_dim}-dim"
             )
-            self.db.drop_table(table_name)
-            fresh = self.create_table(table_name, vector_size=target_dim, dual_vector=had_dual)
-            if fresh is None:
-                logger.error(f"Re-embed of '{table_name}' failed: recreate returned None")
-                return
 
-            batch: list[dict[str, Any]] = []
-            done = 0
-            for row in rows:
-                text = row.get("text") or row.get("content") or ""
-                vec = self.embed_text(text)
-                if vec is None or len(vec) != target_dim:
-                    vec = [0.0] * target_dim
-                row["vector"] = list(vec)
-                # Any other vector columns (e.g. vector_fastembed) were built
-                # by their own embedder — the values carried over from the old
-                # rows are still valid and are preserved untouched.
-                batch.append(row)
-                if len(batch) >= 100:
-                    fresh.add(batch)
-                    done += len(batch)
-                    batch = []
-            if batch:
-                fresh.add(batch)
-                done += len(batch)
+            # ---- Phase 2: embed outside the write lock ---------------------
+            migrated: dict[int, dict[str, Any]] = {}
+            for row in snapshot:
+                migrated[row["_rowid"]] = self._reembed_row(row, target_dim)
+            snapshot = None
 
-            active = self._active_embedding_identity()
-            from core import embedding_registry
+            # ---- Phase 3: reconcile overlapping mutations, then swap -------
+            for attempt in range(1, attempts + 1):
+                swapped = False
+                with self._write_guard(table_name) as exclusive:
+                    if not exclusive:
+                        # Local stores fail closed inside _write_guard: an
+                        # acquisition error raises before this body runs.  So
+                        # False means the store is not a local filesystem we
+                        # can fence (S3/GCS/Azure/db://), and there is no
+                        # supported shared commit protocol for a whole-table
+                        # overwrite.  REFUSE instead of trusting the version
+                        # fence against commits from other replicas.
+                        logger.error(
+                            f"Re-embed of '{table_name}' aborted: "
+                            f"'{self.db_path}' has no shared cross-process "
+                            f"commit protocol (no local advisory lock); the "
+                            f"whole-table overwrite is unsafe, live table "
+                            f"left untouched"
+                        )
+                        return
 
-            embedding_registry.set_identity(
-                table_name, active["provider"], active["model"], target_dim
-            )
-            logger.info(
-                f"Re-embed of '{table_name}' complete: {done} rows at "
-                f"{target_dim}-dim ({active['provider']}/{active['model']})"
-            )
+                    live = self.get_table_nocheck(table_name)
+                    if live is None:
+                        # Dropped by an explicit delete while we were embedding —
+                        # do not resurrect it from the snapshot.
+                        logger.warning(
+                            f"Re-embed of '{table_name}' aborted: table was "
+                            f"dropped while migration was in progress"
+                        )
+                        embedding_registry.forget(table_name)
+                        return
+
+                    base_version = self._table_version(live)
+                    current = self._read_rows_with_rowid(live)
+
+                    # Build the result from the rows that exist RIGHT NOW.
+                    # Deleted rows are simply absent (never resurrected); late
+                    # writes are embedded here; snapshot vectors are reused
+                    # only for the same identity, never across a rowid reuse.
+                    data: list[dict[str, Any]] = []
+                    reconciled = 0
+                    for row in current:
+                        previous = migrated.get(row["_rowid"])
+                        if previous is not None and self._same_row_identity(previous, row):
+                            migrated_row = dict(row)
+                            migrated_row["vector"] = previous.get(
+                                "vector", row.get("vector")
+                            )
+                        else:
+                            migrated_row = self._reembed_row(row, target_dim)
+                            reconciled += 1
+                        migrated_row.pop("_rowid", None)
+                        data.append(migrated_row)
+
+                    schema = self._migrated_schema(live.schema, target_dim)
+
+                    # Version fence: a writer that bypasses the lock (raw
+                    # lancedb handle, another host on an object store) can
+                    # commit between the read above and the overwrite below.
+                    # Re-open and compare the pinned dataset versions; on a
+                    # mismatch, reconcile again instead of overwriting.
+                    latest = self.get_table_nocheck(table_name)
+                    latest_version = (
+                        self._table_version(latest) if latest is not None else None
+                    )
+                    if (
+                        base_version is not None
+                        and latest_version is not None
+                        and latest_version != base_version
+                    ):
+                        logger.warning(
+                            f"Re-embed of '{table_name}': concurrent commit "
+                            f"v{base_version} -> v{latest_version} after the "
+                            f"reconcile read; retrying "
+                            f"({attempt}/{attempts})"
+                        )
+                        continue
+
+                    # ONE atomic commit built from the live schema. A failure
+                    # here (cast error, commit conflict, dead store)
+                    # propagates below with the live table still on its old
+                    # version.
+                    try:
+                        self.db.create_table(
+                            table_name, data=data, schema=schema, mode="overwrite"
+                        )
+                    except Exception as commit_err:  # noqa: BLE001
+                        if self._TRANSIENT_COMMIT_RE.search(str(commit_err)) and (
+                            attempt < attempts
+                        ):
+                            logger.warning(
+                                f"Re-embed of '{table_name}': transient commit "
+                                f"race ({commit_err}); retrying "
+                                f"({attempt}/{attempts})"
+                            )
+                            continue
+                        raise
+
+                    # Post-commit backstop for NON-participating writers: our
+                    # overwrite should land exactly one version after the
+                    # version it reconciled. More intervening versions means
+                    # a commit we never saw was replaced. The parent version
+                    # still exists in Lance history, so log the recovery
+                    # pointer instead of pretending the swap was safe.
+                    committed = self.get_table_nocheck(table_name)
+                    committed_version = (
+                        self._table_version(committed) if committed is not None else None
+                    )
+                    if (
+                        base_version is not None
+                        and committed_version is not None
+                        and committed_version > base_version + 1
+                    ):
+                        logger.critical(
+                            f"Re-embed of '{table_name}' overwrote "
+                            f"{committed_version - base_version - 1} commit(s) it "
+                            f"could not see (v{base_version} -> "
+                            f"v{committed_version}); rows are recoverable from "
+                            f"versions v{base_version + 1}..v{committed_version - 1} "
+                            f"via checkout_version()"
+                        )
+
+                    embedding_registry.set_identity(
+                        table_name, active["provider"], active["model"], target_dim
+                    )
+                    logger.info(
+                        f"Re-embed of '{table_name}' complete: {len(data)} rows at "
+                        f"{target_dim}-dim ({active['provider']}/{active['model']})"
+                        + (
+                            f" (+{reconciled} concurrent rows reconciled)"
+                            if reconciled
+                            else ""
+                        )
+                    )
+                    swapped = True
+                if swapped:
+                    break
+            else:
+                logger.error(
+                    f"Re-embed of '{table_name}' aborted after {attempts} "
+                    f"attempts: concurrent commits kept landing between the "
+                    f"reconcile read and the swap; live table left untouched"
+                )
         except Exception as e:
             logger.error(f"Re-embed of '{table_name}' failed: {e}")
         finally:
@@ -842,6 +1166,36 @@ class LanceDBHandler:
         except Exception as e:
             logger.error(f"Failed to get table '{table_name}': {e}")
         return None
+
+    def _resolve_table_for_write(
+        self,
+        table_name: str,
+        *,
+        vector_size: Union[int, None] = None,
+        dual_vector: bool = False,
+    ) -> Union[Table, None]:
+        """Re-resolve (or create) the live table for a mutation.
+
+        Callers MUST already hold ``self._write_guard(table_name)`` (or a
+        locked handler method that wraps it). Resolving
+        a table handle before taking the lock is unsafe: a re-embed swap
+        replaces the dataset in one commit, and the stale handle would either
+        fail with a commit conflict or write to a version the swap then
+        overwrites. Re-opening inside the lock always targets the live table.
+
+        Uses the public ``get_table`` (not ``get_table_nocheck``) so writers
+        keep the identity check/registration behaviour they had before the
+        lock was added — the migration's own swap uses the nocheck form.
+        """
+        table = self.get_table(table_name)
+        if table is None:
+            create_kwargs: Dict[str, Any] = {}
+            if vector_size is not None:
+                create_kwargs["vector_size"] = vector_size
+            if dual_vector:
+                create_kwargs["dual_vector"] = True
+            table = self.create_table(table_name, **create_kwargs)
+        return table
 
     @staticmethod
     def _has_column(table: "Table", column_name: str) -> bool:
@@ -866,9 +1220,10 @@ class LanceDBHandler:
             return False
 
         try:
-            if table_name in self.db.table_names():
-                self.db.drop_table(table_name)
-                logger.info(f"Table '{table_name}' dropped successfully")
+            with self._write_guard(table_name):
+                if table_name in self.db.table_names():
+                    self.db.drop_table(table_name)
+                    logger.info(f"Table '{table_name}' dropped successfully")
             return True
 
         except Exception as e:
@@ -941,6 +1296,27 @@ class LanceDBHandler:
             logger.error(f"Failed to generate embedding: {e}")
             return None
 
+    @staticmethod
+    def _coerce_embedding_vector(value: Any) -> Union[list[float], None]:
+        """Normalize an embedder output to a plain ``list[float]``.
+
+        ``embed_text``/``async_embed_text`` return a NumPy array whenever numpy
+        is installed — the normal production path — and NumPy arrays must not
+        be used in truth-value tests (ambiguous "truth value of an array",
+        numpy >= 1.25) or be handed to LanceDB raw. ``None`` passes through;
+        empty output becomes ``[]`` so callers can keep treating it as
+        "no vector". Non-numeric/malformed output also becomes ``None``
+        (callers degrade to their zero-vector fallback rather than crashing).
+        """
+        if value is None:
+            return None
+        try:
+            if hasattr(value, "tolist"):
+                value = value.tolist()
+            return [float(v) for v in value]
+        except (TypeError, ValueError):
+            return None
+
     def add_knowledge_edge(
         self,
         from_id: str,
@@ -956,40 +1332,13 @@ class LanceDBHandler:
 
         try:
             table_name = "knowledge_graph"
-            table = self.get_table(table_name)
-            if table is None:
-                table = self.create_table(table_name)
-                if table is None:
-                    return False
 
-            # Generate embedding of the relationship description
+            # Generate embedding of the relationship description BEFORE the
+            # write lock: model latency must not stall other writers. The
+            # vector is resized to the live table's dimension under the lock
+            # (a re-embed swap may change that dimension meanwhile).
             embedding = self.embed_text(description)
-            vector_size = self._table_vector_size(table)
-            if vector_size is None:
-                vector_size = self.vector_columns.get("vector_fastembed", 384) \
-                    if "fastembed" in str(self.embedding_provider).lower() else 1536
-            if embedding is None:
-                # Embedding failed (dead embedder / event-loop sync call).
-                # The zero-vector fallback MUST match the table's fixed-size
-                # vector column — a hardcoded 1536 against a 384-dim table
-                # failed the FixedSizeList cast and silently dropped the edge.
-                logger.warning(
-                    f"add_knowledge_edge: embed failed, writing {vector_size}-dim "
-                    "zero vector (edge unsearchable until re-embedded)"
-                )
-                embedding = [0.0] * vector_size
-            elif hasattr(embedding, "__len__") and len(embedding) != vector_size:
-                # A SUCCESSFUL embed with the wrong dimension fails the same
-                # cast at table.add() (LanceError Arrow: "ListType can only
-                # be casted to FixedSizeListType…" — live 2026-09-03, edges
-                # dropped on every write while the embedder/table dims
-                # disagreed). Align to the table; the edge stays writable.
-                logger.warning(
-                    f"add_knowledge_edge: embed dim {len(embedding)} != table "
-                    f"dim {vector_size} — resizing (edge unsearchable until "
-                    "re-embedded at the table's dim)"
-                )
-                embedding = (list(embedding) + [0.0] * vector_size)[:vector_size]
+            vec = self._coerce_embedding_vector(embedding)
 
             # Create unique edge ID
             edge_id = f"{from_id}_{rel_type}_{to_id}"
@@ -1010,11 +1359,42 @@ class LanceDBHandler:
                 "type": rel_type,
                 "metadata": json.dumps(metadata),
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "vector": embedding.tolist() if hasattr(embedding, "tolist") else embedding,
             }
 
-            # Add to table
-            table.add([record])
+            # Resolve + append under the per-table write lock so a concurrent
+            # re-embed swap cannot replace the table with our edge missing.
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name)
+                if table is None:
+                    return False
+                vector_size = self._table_vector_size(table)
+                if vector_size is None:
+                    vector_size = self.vector_columns.get("vector_fastembed", 384) \
+                        if "fastembed" in str(self.embedding_provider).lower() else 1536
+                if vec is None:
+                    # Embedding failed (dead embedder / event-loop sync call).
+                    # The zero-vector fallback MUST match the table's fixed-size
+                    # vector column — a hardcoded 1536 against a 384-dim table
+                    # failed the FixedSizeList cast and silently dropped the edge.
+                    logger.warning(
+                        f"add_knowledge_edge: embed failed, writing {vector_size}-dim "
+                        "zero vector (edge unsearchable until re-embedded)"
+                    )
+                    vec = [0.0] * vector_size
+                elif len(vec) != vector_size:
+                    # A SUCCESSFUL embed with the wrong dimension fails the same
+                    # cast at table.add() (LanceError Arrow: "ListType can only
+                    # be casted to FixedSizeListType…" — live 2026-09-03, edges
+                    # dropped on every write while the embedder/table dims
+                    # disagreed). Align to the table; the edge stays writable.
+                    logger.warning(
+                        f"add_knowledge_edge: embed dim {len(vec)} != table "
+                        f"dim {vector_size} — resizing (edge unsearchable until "
+                        "re-embedded at the table's dim)"
+                    )
+                    vec = (list(vec) + [0.0] * vector_size)[:vector_size]
+                record["vector"] = vec
+                self._add_with_retry(table, [record])
             logger.info(f"Knowledge edge added: {edge_id}")
             return True
 
@@ -1131,14 +1511,13 @@ class LanceDBHandler:
 
             # Add to table
             try:
-                table = self.get_table(table_name)
-                if table is None:
-                    # Create with the explicit schema (vector column sized to
-                    # the active embedding provider). Inferring from a plain
-                    # record fails: LanceDB cannot derive a FixedSizeList
-                    # vector column from a Python list of floats.
-                    table = self.create_table(table_name)
-                if table is not None:
+                # Resolve/create INSIDE the per-table write lock: a re-embed
+                # swap replaces the table with one commit, and a handle taken
+                # before the lock would be stale by the time we append.
+                with self._write_guard(table_name):
+                    table = self._resolve_table_for_write(table_name)
+                    if table is None:
+                        return False
                     # Tables created before a top-level column existed (e.g
                     # freshness_* on pre-feature documents tables) reject the
                     # write with "Field ... not found in target schema" —
@@ -1160,10 +1539,7 @@ class LanceDBHandler:
                                     f"Could not migrate columns {missing} on "
                                     f"'{table_name}': {col_err}"
                                 )
-                    with self._write_lock(table_name):
-                        self._add_with_retry(table, [record])
-                else:
-                    return False
+                    self._add_with_retry(table, [record])
                 logger.info(f"Document added to '{table_name}': {doc_id}")
                 return True
             except Exception as e:
@@ -1212,15 +1588,11 @@ class LanceDBHandler:
                 "vector": list(embedding),
             }
 
-            table = self.get_table(table_name)
-            if table is None:
-                # Explicit schema (provider-sized vector column) — inferred
-                # creation cannot derive a FixedSizeList from Python lists.
-                table = self.create_table(table_name)
-            if table is not None:
-                table.add([record])
-            else:
-                return False
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name)
+                if table is None:
+                    return False
+                self._add_with_retry(table, [record])
             logger.info(f"Document added to '{table_name}': {doc_id}")
             return True
         except Exception as e:
@@ -1270,31 +1642,23 @@ class LanceDBHandler:
             if not records:
                 return 0
 
-            # Get or Create Table
-            table = self.get_table(table_name)
-            if table is None:
-                # Create with the explicit provider-sized schema first; fall
-                # back to data-inference only for custom/extra columns the
-                # standard schema doesn't cover.
-                table = self.create_table(table_name)
-                try:
-                    if table is not None:
-                        with self._write_lock(table_name):
-                            self._add_with_retry(table, records)
-                        logger.info(f"Created table '{table_name}' and added {len(records)} documents")
-                        return len(records)
-                    table = self.db.create_table(table_name, data=records)
-                    logger.info(f"Created table '{table_name}' with inferred schema")
+            # Resolve/create and append under ONE per-table lock — the re-embed
+            # swap commits a whole new table, so a batch must not resolve its
+            # handle before the lock and append to the replaced dataset.
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name)
+                if table is not None:
+                    self._add_with_retry(table, records)
+                    logger.info(
+                        f"Created table '{table_name}' and added "
+                        f"{len(records)} documents"
+                    )
                     return len(records)
-                except Exception as create_err:
-                    logger.error(f"Failed to create table '{table_name}': {create_err}")
-                    return 0
-
-            # Add to existing
-            with self._write_lock(table_name):
-                self._add_with_retry(table, records)
-            logger.info(f"Added {len(records)} documents to '{table_name}'")
-            return len(records)
+                # Explicit-schema creation was unavailable: fall back to
+                # data inference for custom/extra columns.
+                table = self.db.create_table(table_name, data=records)
+                logger.info(f"Created table '{table_name}' with inferred schema")
+                return len(records)
 
         except Exception as e:
             logger.error(f"Failed to add batch documents to '{table_name}': {e}")
@@ -1659,11 +2023,16 @@ class LanceDBHandler:
             return False
 
         try:
-            table = self.get_table(table_name)
-            if table is None:
-                return False
-            safe_doc_id = str(doc_id).replace("'", "''")
-            table.delete(f"id = '{safe_doc_id}'")
+            with self._write_guard(table_name):
+                # Delete against the table that is live NOW: a re-embed swap
+                # replaces the dataset with one commit, so a handle resolved
+                # before the lock could delete from the old version and leave
+                # the row resurrected in the migrated table.
+                table = self._resolve_table_for_write(table_name)
+                if table is None:
+                    return False
+                safe_doc_id = str(doc_id).replace("'", "''")
+                table.delete(f"id = '{safe_doc_id}'")
             return True
         except Exception as e:
             logger.error(f"Failed to delete document {doc_id} from '{table_name}': {e}")
@@ -1683,14 +2052,38 @@ class LanceDBHandler:
             return False
 
         try:
-            table = self.get_table(table_name)
-            if table is None:
-                return False
-            safe_prefix = str(id_prefix).replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            table.delete(f"id LIKE '{safe_prefix}%'")
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name)
+                if table is None:
+                    return False
+                safe_prefix = str(id_prefix).replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
+                table.delete(f"id LIKE '{safe_prefix}%'")
             return True
         except Exception as e:
             logger.error(f"Failed to delete documents by prefix {id_prefix} from '{table_name}': {e}")
+            return False
+
+    def delete_rows_by_filter(self, table_name: str, filter_expr: str) -> bool:
+        """Delete rows matching a LanceDB predicate under the write lock.
+
+        For callers that mutate a handler-owned table directly (formula cards,
+        app records) instead of going through ``add_document``. Holding the
+        per-table lock and resolving the table inside it is what keeps a
+        concurrent re-embed migration from replacing the table after the
+        delete and resurrecting the deleted rows.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return False
+        try:
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name)
+                if table is None:
+                    return False
+                table.delete(filter_expr)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete rows from '{table_name}': {e}")
             return False
 
     def list_documents(
@@ -1968,15 +2361,6 @@ class LanceDBHandler:
                     f"expected {expected_dim}, got {len(vector)}"
                 )
 
-            # Get or create table
-            table = self.get_table(table_name)
-            if table is None:
-                # Create table with dual vector support
-                table = self.create_table(table_name, dual_vector=True)
-                if table is None:
-                    logger.error(f"Failed to create table '{table_name}'")
-                    return False
-
             # Create record
             record = {
                 "id": episode_id,
@@ -1989,8 +2373,14 @@ class LanceDBHandler:
                 vector_column: vector,  # Add to specified vector column
             }
 
-            # Add to table
-            table.add([record])
+            # Add to table — resolve inside the per-table write lock so a
+            # concurrent re-embed swap cannot replace the dataset first.
+            with self._write_guard(table_name):
+                table = self._resolve_table_for_write(table_name, dual_vector=True)
+                if table is None:
+                    logger.error(f"Failed to create table '{table_name}'")
+                    return False
+                self._add_with_retry(table, [record])
             logger.debug(
                 f"Added embedding to '{table_name}' (column: {vector_column}, "
                 f"dim: {len(vector)}, episode: {episode_id})"
