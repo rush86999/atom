@@ -22,6 +22,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
+import requests
 from playwright.sync_api import Page, expect
 
 from tests.e2e_ui.pages.journey_pages import (
@@ -37,6 +38,7 @@ from tests.e2e_ui.pages.journey_pages import (
     WorkflowBuilderJourneyPage,
 )
 from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401 (fixtures)
+    BACKEND_URL,
     journey_user_credentials,
     product_profile,
     route_enabled,
@@ -195,44 +197,57 @@ class TestCanonicalUserJourney:
         )
 
         # ------------------------------------------------------------------
-        # 10. LOGOUT — protected routes redirect to login when signed out
+        # 10. LOGOUT — the real sign-out path, at the boundary a user touches
         # ------------------------------------------------------------------
-        # Clear the session and navigate to a protected page; the app should
-        # bounce back to /login. Use a fresh page load so localStorage is cleared
-        # before any redirect-triggering navigation begins (avoids the
-        # "execution context destroyed" race when evaluating mid-redirect).
-        page.goto(f"{settings.base_url}/login", wait_until="domcontentloaded")
-        page.evaluate(
-            "() => { localStorage.removeItem('auth_token'); localStorage.removeItem('access_token'); }"
-        )
-        # Now visit a protected page with no session; it should redirect to login.
-        page.goto(f"{settings.base_url}/agents", wait_until="domcontentloaded")
-        redirected = False
-        try:
-            page.wait_for_url("**/login**", timeout=15000)
-            redirected = True
-        except Exception:
-            # Some protected pages render an empty state instead of redirecting;
-            # either way, the user must NOT see authenticated agent data.
-            pass
+        # Logging out is NOT "delete some localStorage keys". Since the web
+        # session cookie became the sign-in authority (login bridges into
+        # NextAuth), a storage-only wipe leaves the browser authenticated and
+        # the session→localStorage sync legitimately restores the bearer on the
+        # next page load. Drive the sidebar's sign-out handler instead; it
+        # revokes the bearer server-side as well as clearing local credentials.
+        dashboard = DashboardJourneyPage(page)
+        dashboard.navigate()
+        assert dashboard.is_loaded(), "Dashboard should load before sign-out"
+        pre_logout_token = page.evaluate("localStorage.getItem('auth_token')")
+        assert pre_logout_token, "auth_token should exist before sign-out"
 
-        # The session is gone: auth_token must remain absent. Wait for the page
-        # to be stable (post-redirect) before reading localStorage.
-        def _auth_token_gone():
+        dashboard.logout()
+
+        # Local credential contract: the bearer is gone from storage and from
+        # the legacy auth_token cookie the middleware also admits.
+        def _signed_out_locally() -> bool:
             try:
-                page.wait_for_load_state("domcontentloaded")
-                return not page.evaluate("localStorage.getItem('auth_token')")
+                cookie_names = {c["name"] for c in page.context.cookies()}
+                return (
+                    not page.evaluate("localStorage.getItem('auth_token')")
+                    and "auth_token" not in cookie_names
+                )
             except Exception:
-                return None  # transient — keep polling
+                return False  # navigation in flight — retry
 
-        gone = None
-        for _ in range(20):
-            gone = _auth_token_gone()
-            if gone is not None:
+        local_clear = False
+        for _ in range(40):
+            local_clear = _signed_out_locally()
+            if local_clear:
                 break
             page.wait_for_timeout(250)
-        assert gone, "auth_token must be cleared after logout"
-        # Document this branch explicitly.
-        if redirected:
-            auth = AuthPage(page)
-            assert auth.is_loaded(), "Should be back on the login page after sign-out"
+        assert local_clear, (
+            "auth_token (storage and cookie) must be cleared after logout")
+
+        # Revocation is part of logout: the bearer that authorized this journey
+        # must no longer authorize backend calls, not merely be forgotten.
+        revoked = requests.get(
+            f"{BACKEND_URL}/api/auth/me",
+            headers={"Authorization": f"Bearer {pre_logout_token}"},
+            timeout=15,
+        )
+        assert revoked.status_code == 401, (
+            "Logout must revoke the pre-logout bearer; "
+            f"/api/auth/me returned {revoked.status_code}")
+
+        # Browser authority is gone too: a protected route now bounces to login
+        # (the middleware gate checks the web session cookie, not just storage).
+        page.goto(f"{settings.base_url}/agents", wait_until="domcontentloaded")
+        page.wait_for_url("**/login**", timeout=15000)
+        auth = AuthPage(page)
+        assert auth.is_loaded(), "Should be back on the login page after sign-out"

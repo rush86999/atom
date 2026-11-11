@@ -317,6 +317,7 @@ describe('MyApp extended coverage', () => {
     }));
     document.documentElement.classList.remove('dark');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('atom_explicit_logout');
     server.resetHandlers();
     server.use(
       rest.get('/api/v1/preferences', (req, res, ctx) =>
@@ -348,6 +349,19 @@ describe('MyApp extended coverage', () => {
     // SessionSync reads useSession (mocked global), so set it before render
     expect(localStorage.getItem('auth_token')).toBe('tok-123');
     expect(document.cookie).toContain('auth_token=tok-123');
+  });
+
+  it('does not rehydrate auth_token while an explicit sign-out owns the session', async () => {
+    // The sign-out flow (Sidebar) sets this flag and clears localStorage before
+    // the SDK cookie clear settles. A still-readable session must never write
+    // the bearer back — that would undo the logout the user asked for.
+    localStorage.setItem('atom_explicit_logout', '1');
+    (global as any).__mockSession = { backendToken: 'tok-after-logout', user: { name: 'Rushi' } };
+
+    await renderSettled(makeProps('/auth/signin'));
+
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(document.cookie).not.toContain('auth_token=tok-after-logout');
   });
 
   it('applies the dark theme from stored preferences', async () => {
