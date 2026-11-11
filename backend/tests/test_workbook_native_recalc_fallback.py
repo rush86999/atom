@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import stat
+import zipfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -92,7 +93,7 @@ def test_native_success_is_kept_and_fallback_is_not_used(tmp_path):
     rt._recalc_with_formulas.assert_not_awaited()
 
 
-def test_native_corrupt_output_is_not_copied(tmp_path, monkeypatch):
+def test_native_valid_zip_but_not_xlsx_is_rejected(tmp_path, monkeypatch):
     from core import workbook_runtime as wb
 
     path = _book(tmp_path / "book.xlsx")
@@ -101,12 +102,13 @@ def test_native_corrupt_output_is_not_copied(tmp_path, monkeypatch):
     rt._has_formulas = True
     out_dir = tmp_path / "out"
     out_dir.mkdir()
-    (out_dir / path.name).write_bytes(b"not an xlsx zip")
+    with zipfile.ZipFile(out_dir / path.name, "w") as archive:
+        archive.writestr("readme.txt", "a valid ZIP, but not a workbook")
     rt._recalc_with_formulas = AsyncMock(return_value=path)
 
     proc = AsyncMock()
-    proc.communicate.return_value = (b"", b"conversion failed")
-    proc.returncode = 1
+    proc.communicate.return_value = (b"", b"")
+    proc.returncode = 0
 
     monkeypatch.setattr(
         wb.tempfile, "TemporaryDirectory",
@@ -120,8 +122,76 @@ def test_native_corrupt_output_is_not_copied(tmp_path, monkeypatch):
     assert result == path
     assert engine == {"engine": "formulas"}
     rt._recalc_with_formulas.assert_awaited_once()
-    # The corrupt native output never replaced the original workbook.
+    # The ZIP was not accepted as a workbook.
     assert load_workbook(path, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+
+
+def test_native_nonzero_exit_with_valid_workbook_is_rejected(tmp_path, monkeypatch):
+    from core import workbook_runtime as wb
+
+    path = _book(tmp_path / "book.xlsx")
+    rt = wb.WorkbookRuntime()
+    rt._soffice = "/usr/bin/soffice"
+    rt._has_formulas = True
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    # A readable workbook is still not acceptable when the CLI failed.
+    native = Workbook()
+    native.active["A1"] = "native-marker"
+    native.save(out_dir / path.name)
+    rt._recalc_with_formulas = AsyncMock(return_value=path)
+
+    proc = AsyncMock()
+    proc.communicate.return_value = (b"", b"RuntimeException")
+    proc.returncode = 2
+
+    monkeypatch.setattr(
+        wb.tempfile, "TemporaryDirectory",
+        lambda: _FakeTmpDir(out_dir))
+    monkeypatch.setattr(
+        wb.asyncio, "create_subprocess_exec", AsyncMock(return_value=proc))
+
+    engine = {}
+    result = asyncio.run(rt.recalculate(path, engine_out=engine))
+
+    assert result == path
+    assert engine == {"engine": "formulas"}
+    rt._recalc_with_formulas.assert_awaited_once()
+    # The failed native output never replaced the authoritative workbook.
+    assert load_workbook(path, data_only=False)["Sheet1"]["A1"].value == 1
+    assert load_workbook(path, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+
+
+def test_atomic_replace_failure_preserves_original_and_cleans_stage(
+        tmp_path, monkeypatch):
+    from core import workbook_runtime as wb
+
+    path = _book(tmp_path / "book.xlsx")
+    before = path.read_bytes()
+    rt = wb.WorkbookRuntime()
+    rt._soffice = "/usr/bin/soffice"
+    rt._has_formulas = True
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    _book(out_dir / path.name)
+
+    proc = AsyncMock()
+    proc.communicate.return_value = (b"", b"")
+    proc.returncode = 0
+
+    monkeypatch.setattr(
+        wb.tempfile, "TemporaryDirectory",
+        lambda: _FakeTmpDir(out_dir))
+    monkeypatch.setattr(
+        wb.asyncio, "create_subprocess_exec", AsyncMock(return_value=proc))
+    monkeypatch.setattr(
+        wb.os, "replace", Mock(side_effect=OSError("replace failed")))
+
+    result = asyncio.run(rt._recalc_with_soffice(path))
+
+    assert result is None
+    assert path.read_bytes() == before
+    assert list(tmp_path.glob(f".{path.name}.*")) == []
 
 
 def test_native_timeout_kills_and_reaps_the_child(tmp_path, monkeypatch):
@@ -190,3 +260,25 @@ def test_write_cell_after_native_failure_reports_formulas_complete(tmp_path, mon
     assert result["value"] == 3
     assert load_workbook(path, data_only=False)["Sheet1"]["C1"].value == "=A1+A2"
     assert load_workbook(path, data_only=True)["Sheet1"]["C1"].value == 3
+
+
+def test_explicit_recalculate_reports_failure_when_engine_none(
+        tmp_path, monkeypatch):
+    """The explicit route can express failure: engine_out none must not pass."""
+    from core.office_service import ExcelManager
+    from core.workbook_runtime import WorkbookRuntime
+
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    path = _book(tmp_path / "book.xlsx")
+    rt = WorkbookRuntime()
+
+    async def _no_engine(file_path, *, engine_out=None):
+        engine_out["engine"] = "none"
+        return Path(file_path)
+
+    rt.recalculate = _no_engine
+    with patch("core.workbook_runtime.get_workbook_runtime", return_value=rt):
+        result = asyncio.run(ExcelManager.recalculate(str(path)))
+
+    assert result["success"] is False
+    assert "No formula engine" in result["error"]

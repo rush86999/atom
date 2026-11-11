@@ -140,6 +140,7 @@ class TestRecalculate:
 
         proc = AsyncMock()
         proc.communicate.return_value = (b"", b"")
+        proc.returncode = 0
 
         class FakeTmpDir:
             def __enter__(self):
@@ -152,7 +153,9 @@ class TestRecalculate:
         monkeypatch.setattr(
             wb.asyncio, "create_subprocess_exec", AsyncMock(return_value=proc)
         )
-        monkeypatch.setattr(wb.shutil, "copy2", Mock())
+        real_copy2 = wb.shutil.copy2
+        monkeypatch.setattr(
+            wb.shutil, "copy2", Mock(side_effect=real_copy2))
 
         result = await rt._recalc_with_soffice(workbook)
         assert result == workbook
@@ -486,6 +489,7 @@ class TestRender:
 
         proc = AsyncMock()
         proc.communicate.return_value = (b"", b"")
+        proc.returncode = 0
 
         class FakeTmpDir:
             def __enter__(self):

@@ -25,7 +25,6 @@ import logging
 import os
 import shutil
 import tempfile
-import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -181,19 +180,47 @@ class WorkbookRuntime:
                     await self._kill_and_reap(proc)
                     return None
 
+                stderr_text = (stderr or b"").decode(errors="replace")
+                # A nonzero exit is a native failure even if a file exists:
+                # the conversion CLI reports success with 0, and a partial
+                # file is not evidence that Calc finished the workbook.
+                if proc.returncode != 0:
+                    logger.warning(
+                        "LibreOffice recalc failed (exit %s): %s",
+                        proc.returncode, stderr_text)
+                    return None
+
                 output_file = tmpdir / file_path.name
                 if (
                     output_file.exists()
                     and output_file.stat().st_size > 0
-                    and zipfile.is_zipfile(output_file)
+                    and self._is_readable_workbook(output_file)
                 ):
-                    # Replace the original with the recalculated version.
-                    shutil.copy2(output_file, file_path)
+                    # Stage beside the target and replace atomically: a
+                    # partial copy must never truncate the authoritative
+                    # workbook before the fallback can run.
+                    staged = None
+                    try:
+                        with tempfile.NamedTemporaryFile(
+                            prefix=f".{file_path.name}.",
+                            suffix=".recalc",
+                            dir=str(file_path.parent),
+                            delete=False,
+                        ) as stage:
+                            staged = Path(stage.name)
+                        shutil.copy2(output_file, staged)
+                        os.replace(staged, file_path)
+                    finally:
+                        if staged is not None:
+                            try:
+                                staged.unlink()
+                            except OSError:
+                                pass
                     logger.info(f"Recalculated workbook via LibreOffice: {file_path.name}")
                     return file_path
                 logger.warning(
                     "LibreOffice recalc produced no usable output: %s",
-                    (stderr or b"").decode(errors="replace"))
+                    stderr_text)
                 return None
         except Exception as e:
             logger.warning(f"LibreOffice recalc failed: {e}")
@@ -203,6 +230,27 @@ class WorkbookRuntime:
             # Reap it here so repeated native failures cannot accumulate
             # orphaned soffice processes holding the workbook or profile.
             await self._kill_and_reap(proc)
+
+    @staticmethod
+    def _is_readable_workbook(path: Path) -> bool:
+        """True only when OpenPyXL can open the native output as a workbook.
+
+        A ZIP signature alone is not enough: a ZIP of unrelated files, a
+        truncated package, or a non-spreadsheet package must fall back rather
+        than replace the authoritative workbook.
+        """
+        try:
+            from openpyxl import load_workbook
+
+            wb = load_workbook(path, read_only=True, data_only=True)
+            try:
+                return bool(wb.sheetnames)
+            finally:
+                wb.close()
+        except Exception as exc:  # noqa: BLE001 - unusable native output
+            logger.warning(
+                "LibreOffice output is not a readable workbook: %r", exc)
+            return False
 
     @staticmethod
     async def _kill_and_reap(proc: Any) -> None:

@@ -552,9 +552,19 @@ class ExcelManager:
         runtime = get_workbook_runtime()
         engine_info: Dict[str, str] = {}
         await runtime.recalculate(Path(file_path), engine_out=engine_info)
+        engine = engine_info.get("engine")
+        # The explicit recalculate route can express failure (400). A real
+        # runtime reports "none" only when no engine produced usable output,
+        # so do not claim success. An empty engine_info is kept permissive
+        # for callers/mocks that predate engine_out.
+        if engine == "none":
+            return {
+                "success": False,
+                "error": "No formula engine produced a usable recalculation",
+            }
         return {
             "success": True,
-            "engine": engine_info.get("engine") or runtime.engine,
+            "engine": engine or runtime.engine,
         }
 
     @staticmethod

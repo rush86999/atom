@@ -112,6 +112,7 @@ class TestRecalculate:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(out)
@@ -251,6 +252,7 @@ class TestRender:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
@@ -264,6 +266,7 @@ class TestRender:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
