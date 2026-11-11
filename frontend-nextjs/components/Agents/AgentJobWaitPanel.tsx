@@ -9,6 +9,23 @@ import { handleSessionExpired } from "@/lib/auth-headers";
 const API_BASE = getApiBase();
 const POLL_MS = 2500;
 const MAX_POLLS = 40;
+// A long admitted run can still be active when the bounded poll window is
+// spent (40 x 2.5s observed exhausting before the final lifecycle event).
+// Only the durable outcome frame can prompt an extra read: it names the exact
+// job and carries a non-active job_status. Generic chat/progress frames are
+// ignored. Reads are coalesced, never lifetime-capped — the same job may ask
+// several facts over its life.
+const EVENT_REFRESH_COALESCE_MS = 1000;
+const DURABLE_NON_ACTIVE_JOB_STATUSES = new Set([
+  "waiting",
+  "awaiting_information",
+  "awaiting_input",
+  "awaiting_approval",
+  "success",
+  "failed",
+  "cancelled",
+  "canceled",
+]);
 
 export type AgentJobWait = {
   id: string;
@@ -50,6 +67,15 @@ type Props = {
   agentId?: string | null;
   jobId?: string | null;
   onForget?: () => void;
+  /**
+   * Optional message registrar from the page's existing WebSocket hook.
+   * The page already subscribes to the workspace channel, so reusing its
+   * listener avoids opening a second socket. Only the durable outcome frame
+   * (exact job_id + agent_id + non-active job_status) triggers the same
+   * authorized GET used by polling/Refresh — it never claims, advances or
+   * re-sends anything. Generic chat/progress frames are ignored.
+   */
+  onMessage?: (handler: (message: any) => void) => () => void;
 };
 
 const statusLabel = (status?: string | null): string => {
@@ -105,7 +131,7 @@ function errorMessage(body: any, fallback: string): string {
  * the durable public result. Everything rendered here comes from an authorized
  * server read; cached job ids are locators only.
  */
-export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
+export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage }: Props) {
   const [job, setJob] = useState<AgentJobReadback | null>(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -166,8 +192,16 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
     let cancelled = false;
     let polls = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let loadSeq = 0;
+    let lastEventRefreshAt = 0;
+    let eventTimer: ReturnType<typeof setTimeout> | null = null;
 
     const stillCurrent = () => !cancelled && jobKeyRef.current === key;
+    // Only the newest read may apply. A status event can land while a poll
+    // request is in flight; without this ordering guard the older (stale)
+    // response could arrive last and overwrite the fresh state.
+    const current = (seq: number) =>
+      stillCurrent() && seq === loadSeq;
 
     const stopPolling = () => {
       if (timer) {
@@ -176,8 +210,16 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
       }
     };
 
+    const stopEventRefresh = () => {
+      if (eventTimer) {
+        clearTimeout(eventTimer);
+        eventTimer = null;
+      }
+    };
+
     const load = async () => {
       stopPolling();
+      const seq = ++loadSeq;
       try {
         const res = await fetch(
           `${API_BASE}/api/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(jobId)}`,
@@ -189,7 +231,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
             signal: controller.signal,
           },
         );
-        if (!stillCurrent()) return;
+        if (!current(seq)) return;
         if (res.status === 401) {
           handleSessionExpired();
           return;
@@ -205,7 +247,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
           return;
         }
         const body = await res.json();
-        if (!stillCurrent()) return;
+        if (!current(seq)) return;
         const next = (body?.data ?? body) as AgentJobReadback;
         if (!next || typeof next !== "object" || !next.job_status) {
           setError("The server returned no usable job state. Refresh to try again.");
@@ -219,25 +261,74 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
           timer = setTimeout(load, POLL_MS);
         }
       } catch (err: any) {
-        if (!stillCurrent() || err?.name === "AbortError") return;
+        if (!current(seq) || err?.name === "AbortError") return;
         setError(
           "Could not reach the server. Refresh the job state; no answer was re-sent.",
         );
       } finally {
-        if (stillCurrent()) setLoading(false);
+        if (current(seq)) setLoading(false);
       }
     };
 
+    // Only the durable outcome emitter identifies the exact job this panel
+    // owns: it carries the authoritative job_id, agent_id and a non-active
+    // job_status. Generic chat/progress frames (agent + execution/status
+    // only) can arrive many times per run and must never consume a read.
+    // A frame that does not prove the exact job is ignored.
+    const isSameDurableJobEvent = (message: any): boolean => {
+      if (!message || message.type !== "agent_status_change") return false;
+      const payload =
+        message.data && typeof message.data === "object" ? message.data : message;
+      const eventJob = payload.job_id ?? message.job_id;
+      const eventAgent = payload.agent_id ?? message.agent_id;
+      const jobStatus = payload.job_status ?? message.job_status;
+      if (!eventJob || String(eventJob) !== String(jobId)) return false;
+      if (!agentId || !eventAgent || String(eventAgent) !== String(agentId)) {
+        return false;
+      }
+      return (
+        typeof jobStatus === "string" &&
+        DURABLE_NON_ACTIVE_JOB_STATUSES.has(jobStatus)
+      );
+    };
+
+    const runEventRefresh = () => {
+      if (!stillCurrent()) return;
+      lastEventRefreshAt = Date.now();
+      void load();
+    };
+
+    const onStatusEvent = (message: any) => {
+      if (!stillCurrent() || !isSameDurableJobEvent(message)) return;
+      const since = Date.now() - lastEventRefreshAt;
+      if (since >= EVENT_REFRESH_COALESCE_MS) {
+        runEventRefresh();
+        return;
+      }
+      // Coalesce repeated durable frames into one trailing read instead of
+      // one GET per frame. There is no lifetime cap: a later wait (same job,
+      // another fact) must still be delivered. Cleanup/job change cancels
+      // this timer.
+      if (eventTimer) return;
+      eventTimer = setTimeout(() => {
+        eventTimer = null;
+        runEventRefresh();
+      }, EVENT_REFRESH_COALESCE_MS - since);
+    };
+
     loadRef.current = load;
+    const unsubscribe = onMessage?.(onStatusEvent);
     load();
 
     return () => {
       cancelled = true;
       stopPolling();
+      stopEventRefresh();
+      unsubscribe?.();
       controller.abort();
       if (loadRef.current === load) loadRef.current = null;
     };
-  }, [agentId, jobId, apply]);
+  }, [agentId, jobId, apply, onMessage]);
 
   const refresh = useCallback(() => {
     setError(null);
