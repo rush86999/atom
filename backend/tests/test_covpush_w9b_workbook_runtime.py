@@ -136,7 +136,7 @@ class TestRecalculate:
 
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        (out_dir / workbook.name).write_bytes(b"recalced")
+        (out_dir / workbook.name).write_bytes(workbook.read_bytes())
 
         proc = AsyncMock()
         proc.communicate.return_value = (b"", b"")
@@ -172,7 +172,7 @@ class TestRecalculate:
         )
 
         result = await rt._recalc_with_soffice(workbook)
-        assert result == workbook
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_soffice_recalc_timeout(self, workbook, monkeypatch):
@@ -187,7 +187,7 @@ class TestRecalculate:
             wb.asyncio, "create_subprocess_exec", AsyncMock(return_value=proc)
         )
 
-        assert await rt._recalc_with_soffice(workbook) == workbook
+        assert await rt._recalc_with_soffice(workbook) is None
 
     @pytest.mark.asyncio
     async def test_soffice_recalc_generic_exception(self, workbook, monkeypatch):
@@ -202,7 +202,7 @@ class TestRecalculate:
             AsyncMock(side_effect=RuntimeError("soffice blew up")),
         )
 
-        assert await rt._recalc_with_soffice(workbook) == workbook
+        assert await rt._recalc_with_soffice(workbook) is None
 
     @pytest.mark.asyncio
     async def test_formulas_recalc_caches_values_and_keeps_formulas(self, workbook, monkeypatch):

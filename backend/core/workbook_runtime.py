@@ -25,6 +25,7 @@ import logging
 import os
 import shutil
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -89,7 +90,12 @@ class WorkbookRuntime:
     # Recalculate
     # ------------------------------------------------------------------
 
-    async def recalculate(self, file_path: str | Path) -> Path:
+    async def recalculate(
+        self,
+        file_path: str | Path,
+        *,
+        engine_out: Optional[Dict[str, str]] = None,
+    ) -> Path:
         """Recalculate all formulas in the workbook.
 
         After this call, `data_only=True` reads return fresh computed values
@@ -97,6 +103,11 @@ class WorkbookRuntime:
 
         Args:
             file_path: Path to the .xlsx file (modified in place).
+            engine_out: Optional one-key dict populated with the engine that
+                handled the recalc ("libreoffice", "formulas", "openpyxl" or
+                "none"). The selected engine may differ after a native
+                failure; callers that expose it publicly must read this
+                instead of `engine`.
 
         Returns:
             Path to the recalculated file.
@@ -106,15 +117,44 @@ class WorkbookRuntime:
             raise FileNotFoundError(f"Workbook not found: {file_path}")
 
         if self._soffice:
-            return await self._recalc_with_soffice(file_path)
-        elif self._has_formulas:
-            return await self._recalc_with_formulas(file_path)
-        else:
-            logger.debug("No formula engine available — skipping recalc")
+            native = await self._recalc_with_soffice(file_path)
+            if native is not None:
+                if engine_out is not None:
+                    engine_out["engine"] = "libreoffice"
+                return native
+            # LibreOffice aborted, timed out, or wrote no usable workbook.
+            # Reuse the evaluation-only fallback that already runs when the
+            # binary is absent. Keep it to ordinary .xlsx: the formulas path
+            # rewrites the package through openpyxl and is not proven to
+            # preserve VBA, so a macro-enabled workbook keeps its original
+            # bytes and reports an incomplete recalc instead.
+            if self._has_formulas and file_path.suffix.lower() == ".xlsx":
+                logger.info(
+                    "LibreOffice produced no usable output; using formulas "
+                    "fallback for %s", file_path.name)
+                if engine_out is not None:
+                    engine_out["engine"] = "formulas"
+                return await self._recalc_with_formulas(file_path)
+            if engine_out is not None:
+                engine_out["engine"] = "none"
             return file_path
+        if self._has_formulas:
+            if engine_out is not None:
+                engine_out["engine"] = "formulas"
+            return await self._recalc_with_formulas(file_path)
+        if engine_out is not None:
+            engine_out["engine"] = "openpyxl"
+        logger.debug("No formula engine available — skipping recalc")
+        return file_path
 
-    async def _recalc_with_soffice(self, file_path: Path) -> Path:
-        """Use LibreOffice headless to recalculate and save."""
+    async def _recalc_with_soffice(self, file_path: Path) -> Optional[Path]:
+        """Use LibreOffice headless to recalculate and save.
+
+        Returns the path on success, or ``None`` when native recalc produced
+        no usable output (no file, empty/corrupt output, timeout or failure).
+        The caller may then reuse the formulas fallback.
+        """
+        proc = None
         try:
             # Create a temp dir for the output.
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -132,25 +172,53 @@ class WorkbookRuntime:
                     stderr=asyncio.subprocess.PIPE,
                     env={**os.environ, "HOME": str(Path.home())},
                 )
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=60
-                )
+                try:
+                    _stdout, stderr = await asyncio.wait_for(
+                        proc.communicate(), timeout=60
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("LibreOffice recalc timed out (60s)")
+                    await self._kill_and_reap(proc)
+                    return None
 
                 output_file = tmpdir / file_path.name
-                if output_file.exists():
+                if (
+                    output_file.exists()
+                    and output_file.stat().st_size > 0
+                    and zipfile.is_zipfile(output_file)
+                ):
                     # Replace the original with the recalculated version.
                     shutil.copy2(output_file, file_path)
                     logger.info(f"Recalculated workbook via LibreOffice: {file_path.name}")
                     return file_path
-                else:
-                    logger.warning(f"LibreOffice recalc produced no output: {stderr.decode()}")
-                    return file_path
-        except asyncio.TimeoutError:
-            logger.warning("LibreOffice recalc timed out (60s)")
-            return file_path
+                logger.warning(
+                    "LibreOffice recalc produced no usable output: %s",
+                    (stderr or b"").decode(errors="replace"))
+                return None
         except Exception as e:
             logger.warning(f"LibreOffice recalc failed: {e}")
-            return file_path
+            return None
+        finally:
+            # A timed-out/cancelled communicate() does not stop the child.
+            # Reap it here so repeated native failures cannot accumulate
+            # orphaned soffice processes holding the workbook or profile.
+            await self._kill_and_reap(proc)
+
+    @staticmethod
+    async def _kill_and_reap(proc: Any) -> None:
+        """Terminate and reap a native recalc child when it is still alive."""
+        if proc is None or proc.returncode is not None:
+            return
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        except Exception:  # noqa: BLE001 - cleanup must not mask recalc failure
+            pass
+        try:
+            await proc.wait()
+        except Exception:  # noqa: BLE001 - cleanup must not mask recalc failure
+            pass
 
     async def _recalc_with_formulas(self, file_path: Path) -> Path:
         """Use the `formulas` Python library to evaluate and cache results.

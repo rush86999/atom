@@ -129,7 +129,7 @@ class TestRecalculate:
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
                 result = await runtime._recalc_with_soffice(Path(xlsx))
-        assert result == Path(xlsx)
+        assert result is None
 
     async def test_soffice_no_output(self, runtime, xlsx, tmp_path):
         runtime._soffice = "/usr/bin/soffice"
@@ -141,7 +141,7 @@ class TestRecalculate:
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
                 result = await runtime._recalc_with_soffice(Path(xlsx))
-        assert result == Path(xlsx)
+        assert result is None
 
     async def test_formulas_path(self, runtime, xlsx):
         runtime._has_formulas = True

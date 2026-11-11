@@ -200,7 +200,7 @@ class TestRecalculateBranches:
                        SimpleNamespace(returncode=0, communicate=Mock(
                            return_value=awaitable((b"", b""))))))):
             out = await r._recalc_with_soffice(p)
-        assert out is not None
+        assert out is None  # no output written -> failure signal
 
     async def test_formulas_recalc_exec(self, wb_path):
         r = WorkbookRuntime()
@@ -344,7 +344,7 @@ class TestSofficeAndFormulasImpl:
                                        communicate=Mock(
                                            return_value=awaitable((b"", b"no out"))))))):
             out = await r._recalc_with_soffice(p)
-        assert out == p  # degrades gracefully
+        assert out is None  # no usable native output
 
     async def test_soffice_recalc_timeout(self, tmp_path):
         r = WorkbookRuntime()
@@ -354,7 +354,7 @@ class TestSofficeAndFormulasImpl:
         wb.save(p)
         with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
             out = await r._recalc_with_soffice(p)
-        assert out == p
+        assert out is None
 
     async def test_formulas_recalc_real(self, wb_path):
         r = WorkbookRuntime()
