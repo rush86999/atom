@@ -16,6 +16,7 @@ small on purpose so UI churn doesn't ripple.
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 from playwright.sync_api import Page, Locator
@@ -163,6 +164,21 @@ class DashboardJourneyPage(JourneyBase):
             self.page.get_by_role("heading", name="Your workspace")
         )
 
+    @property
+    def user_profile(self) -> Locator:
+        return self.page.locator("[data-testid='dashboard-user-profile-button']")
+
+    @property
+    def logout_button(self) -> Locator:
+        # The sidebar signs out through one real handler (backend revocation +
+        # local credential clear + framework signOut). Its icon button is only
+        # revealed on profile-row hover, and the collapsed sidebar has its own.
+        return self.page.locator(
+            "[data-testid='dashboard-logout-button'], "
+            "aside[aria-label='Sidebar'] button[title='Sign out'], "
+            "button:has(svg.lucide-log-out)"
+        )
+
     def is_loaded(self) -> bool:
         # The dashboard heading may be in the SSR HTML before React hydrates
         # (title is still empty), so is_visible() can return False even though
@@ -189,6 +205,20 @@ class DashboardJourneyPage(JourneyBase):
 
     def get_welcome_text(self) -> str:
         return self.welcome.first.text_content() or ""
+
+    def logout(self, timeout: int = 15000) -> None:
+        """Perform the real sign-out (sidebar handler), then wait for arrival.
+
+        The handler revokes the bearer at the backend, clears localStorage and
+        the ``auth_token`` cookie, then lets the SDK drop the web session and
+        navigates to /auth/signin. Clearing storage by hand is NOT logout: the
+        NextAuth cookie survives and the app legitimately rehydrates the token.
+        """
+        self.user_profile.first.hover()
+        self.logout_button.first.click()
+        # /auth/signin is the sidebar's own target; /login is where the
+        # middleware sends an unauthenticated protected route.
+        self.page.wait_for_url(re.compile(r".*(?:/auth/signin|/login).*"), timeout=timeout)
 
 
 class SettingsJourneyPage(JourneyBase):

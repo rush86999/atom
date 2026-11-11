@@ -88,6 +88,12 @@ const SessionSync: React.FC = () => {
   useEffect(() => { checkApiVersion(); }, []);
   useEffect(() => {
     if (session && (session as any).backendToken) {
+      // An explicit sign-out owns the local credential until a fresh login
+      // clears this flag (persistBackendToken). The framework's cookie clear
+      // can be slow or unavailable, and this effect runs on every session
+      // read — without the gate it silently restores the bearer the user
+      // just dropped. Same rule as pages/index.tsx and /auth/signin.
+      if (localStorage.getItem('atom_explicit_logout') === '1') return;
       const token = (session as any).backendToken;
       localStorage.setItem('auth_token', token);
       document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
