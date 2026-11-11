@@ -99,6 +99,19 @@ describe('LoginPage', () => {
     expect(screen.queryByTestId('login-first-name-input')).not.toBeInTheDocument();
   });
 
+  test('sign-in mode exposes the forgot-password link to the existing recovery route', () => {
+    render(<LoginPage />);
+    const forgotLink = screen.getByRole('link', { name: /forgot password/i });
+    expect(forgotLink).toBeInTheDocument();
+    expect(forgotLink).toHaveAttribute('href', '/auth/forgot-password');
+  });
+
+  test('register mode does not expose the sign-in recovery link', () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByTestId('login-toggle-mode'));
+    expect(screen.queryByRole('link', { name: /forgot password/i })).not.toBeInTheDocument();
+  });
+
   test('successful login persists token and redirects to /dashboard by default', async () => {
     mockFetch.mockResolvedValue(okResponse({ access_token: 'jwt-token-123' }));
     render(<LoginPage />);
