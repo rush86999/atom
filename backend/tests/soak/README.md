@@ -25,8 +25,14 @@ Soak tests are extended duration tests (1-4 hours) that validate system stabilit
 cd backend
 pytest tests/soak/ -v
 
-# Run with timeout override (default: 1 hour)
-pytest tests/soak/ -v --timeout=7200  # 2 hours
+# Per-test watchdogs are @pytest.mark.timeout(...) markers. pytest-timeout
+# gives the marker precedence over --timeout, so --timeout is only a fallback
+# for tests without a marker (all current soak tests set one):
+pytest tests/soak/ -v --timeout=7200  # 2-hour fallback for unmarked tests
+
+# To disable the per-test watchdog entirely (not recommended: a hung test
+# will then not be interrupted), turn the plugin off:
+pytest tests/soak/ -v -p no:timeout
 
 # Run only soak tests (using marker)
 pytest -m soak -v
@@ -103,6 +109,7 @@ jobs:
       - name: Run soak tests
         run: |
           cd backend
+          # --timeout is only a fallback: per-test timeout markers take precedence.
           pytest tests/soak/ -v --timeout=7200
 
       - name: Upload test results
@@ -308,8 +315,14 @@ jobs:
 
 **Template:**
 ```python
+WORKLOAD_SECONDS = 3600
+# The loop checks its deadline only at iteration boundaries, so it can enter
+# one final iteration just before WORKLOAD_SECONDS. The watchdog must also
+# cover setup, teardown and the final assertions.
+WATCHDOG_SECONDS = WORKLOAD_SECONDS + 5 * 60
+
 @pytest.mark.soak
-@pytest.mark.timeout(3600)  # 1 hour
+@pytest.mark.timeout(WATCHDOG_SECONDS)  # 1 hour workload + 5 minutes headroom
 def test_your_component_stability(memory_monitor, enable_gc_control, soak_test_config):
     """
     Soak test for your component (1 hour).
@@ -327,7 +340,7 @@ def test_your_component_stability(memory_monitor, enable_gc_control, soak_test_c
     start_time = time.time()
     iterations = 0
 
-    while time.time() - start_time < 3600:
+    while time.time() - start_time < WORKLOAD_SECONDS:
         # Your operations here
         iterations += 1
 
@@ -364,6 +377,7 @@ def test_your_component_stability(memory_monitor, enable_gc_control, soak_test_c
 4. **Fail fast:** Abort test if memory growth > 500MB (severe leak).
 5. **Use appropriate thresholds:** 100MB for 1hr, 200MB for 2hr (industry standard).
 6. **Validate consistency:** For concurrent tests, validate data integrity (not just memory).
+7. **Size the watchdog above the workload:** the loop can enter one final iteration just before its deadline. Set the `@pytest.mark.timeout(...)` marker to workload + headroom (including any final TTL wait); the marker takes precedence over `--timeout`.
 
 ## References
 

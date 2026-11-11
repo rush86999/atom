@@ -152,8 +152,19 @@ def test_cache_concurrent_operations_30min(
     print(f"\n✅ Soak test complete: {iterations} iterations, zero cache errors")
 
 
+# Timing budget for the 15-minute TTL soak. The workload deadline is checked
+# only at iteration boundaries and every iteration ends with a full TTL wait,
+# so the last iteration can legitimately run one wait past 900 seconds. The
+# watchdog must cover that final sleep plus setup, final assertions and
+# teardown; when it equalled the workload, pytest-timeout killed the test in
+# the final 70-second sleep and the final memory check never ran (2026-11-11).
+TTL_SOAK_WORKLOAD_SECONDS = 15 * 60
+TTL_SOAK_WAIT_SECONDS = 70  # TTL (60s) + 10s expiration buffer
+TTL_SOAK_WATCHDOG_SECONDS = TTL_SOAK_WORKLOAD_SECONDS + 5 * 60  # 20 minutes
+
+
 @pytest.mark.soak
-@pytest.mark.timeout(900)  # 15 minutes
+@pytest.mark.timeout(TTL_SOAK_WATCHDOG_SECONDS)  # 20 minutes
 def test_cache_ttl_expiration_15min(memory_monitor, enable_gc_control):
     """
     Soak test for cache TTL expiration (15 minutes).
@@ -186,7 +197,7 @@ def test_cache_ttl_expiration_15min(memory_monitor, enable_gc_control):
     start_time = time.time()
 
     # Run TTL validation for 15 minutes
-    while time.time() - start_time < 900:
+    while time.time() - start_time < TTL_SOAK_WORKLOAD_SECONDS:
         # Add 1000 entries
         for i in range(1000):
             cache.set(
@@ -206,7 +217,7 @@ def test_cache_ttl_expiration_15min(memory_monitor, enable_gc_control):
         print(f"Iteration {iterations}: Added 1000 entries, validated existence")
 
         # Wait 70 seconds (TTL=60, +10 buffer)
-        time.sleep(70)
+        time.sleep(TTL_SOAK_WAIT_SECONDS)
 
         # Validate entries are expired (get returns None)
         expired_count = 0
