@@ -12,6 +12,13 @@ import userEvent from "@testing-library/user-event";
 
 const push = jest.fn();
 const toast = jest.fn();
+// Production useWebSocket exposes stable useCallback identities: onMessage
+// registers a handler and returns its unsubscribe, subscribe sends once.
+// Recreating these jest.fn()s on every render (the old mock) changed the
+// AgentJobWaitPanel effect dependency on each parent render, so a reload's
+// pending read was torn down/reset twice and the matched text detached.
+const mockSubscribe = jest.fn();
+const mockOnMessage = jest.fn((_handler: any) => () => {});
 
 jest.mock("next/router", () => ({
   useRouter: () => ({ push }),
@@ -20,8 +27,8 @@ jest.mock("next/router", () => ({
 jest.mock("@/hooks/useWebSocket", () => ({
   useWebSocket: () => ({
     isConnected: false,
-    subscribe: jest.fn(),
-    onMessage: jest.fn(() => jest.fn()),
+    subscribe: mockSubscribe,
+    onMessage: mockOnMessage,
   }),
 }));
 
