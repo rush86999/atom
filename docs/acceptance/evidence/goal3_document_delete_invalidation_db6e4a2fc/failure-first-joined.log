@@ -1,0 +1,121 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 14:45:09 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:45:09 [    INFO] EscalationManager initialized
+2026-11-10 14:45:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:45:09 [    INFO] EscalationManager initialized
+2026-11-10 14:45:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:45:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:45:09 [    INFO] AgentTaskRegistry initialized
+2026-11-10 14:45:09 [    INFO] EscalationManager initialized
+2026-11-10 14:45:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:45:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:45:09 [    INFO] LanceDBHandler initialized. ID: 5050292560. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:45:09 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:45:09 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:45:09 [    INFO] LanceDB connected successfully
+2026-11-10 14:45:09 [    INFO] Document added to 'documents': doc_5a438c82c1687deaf93bd4ba
+2026-11-10 14:45:09 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:45:09 [    INFO] MCP Service initialized
+2026-11-10 14:45:09 [    INFO] EscalationManager initialized
+2026-11-10 14:45:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:45:09 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:45:09 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:45:09 [    INFO] EscalationManager initialized
+2026-11-10 14:45:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:45:09 [    INFO] Webhook processor initialized and callback registered
+2026-11-10 14:45:09 [ WARNING] sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+2026-11-10 14:45:09 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-10 14:45:09 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-10 14:45:09 [    INFO] Opened existing atom_communications table
+2026-11-10 14:45:09 [    INFO] FTS index enabled on 'content' column
+2026-11-10 14:45:09 [    INFO] Opened existing ingestion_metadata table
+2026-11-10 14:45:09 [    INFO] LanceDB memory manager initialized successfully
+2026-11-10 14:45:09 [ WARNING] Governance check skipped for delete_document: missing request or db
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_delete_must_invalidate_sql_fts_lexical_action_and_file __________
+backend/tests/test_document_joined_lifecycle.py:103: in test_delete_must_invalidate_sql_fts_lexical_action_and_file
+    assert ctx.session.get(IngestedDocument, doc_id) is None
+E   AssertionError: assert <core.models.IngestedDocument object at 0x1302e7ce0> is None
+E    +  where <core.models.IngestedDocument object at 0x1302e7ce0> = get(IngestedDocument, 'doc_5a438c82c1687deaf93bd4ba')
+E    +    where get = <sqlalchemy.orm.session.Session object at 0x12d07de80>.get
+E    +      where <sqlalchemy.orm.session.Session object at 0x12d07de80> = namespace(client=<starlette.testclient.TestClient object at 0x12d07e900>, handler=<core.lancedb_handler.LanceDBHandler object at 0x12d055950>, workspace='ws-next03-5be16fe4', session=<sqlalchemy.orm.session.Session object at 0x12d07de80>, user=<core.models.User object at 0x12d07dfd0>, engine=Engine(sqlite:////private/tmp/goal3-doc-scratch/joined4.db)).session
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:225 LanceDBHandler initialized. ID: 5050292560. LANCEDB_AVAILABLE: True
+------------------------------ Captured log call -------------------------------
+INFO     core.lancedb_handler:lancedb_handler.py:233 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:330 Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:335 LanceDB connected successfully
+INFO     core.lancedb_handler:lancedb_handler.py:1167 Document added to 'documents': doc_5a438c82c1687deaf93bd4ba
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+INFO     integrations.mcp_service:mcp_service.py:123 MCP Service initialized
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     enhanced_ai_workflow_endpoints:enhanced_ai_workflow_endpoints.py:277 RealAIWorkflowService modernized with unified LLMService.
+INFO     enhanced_ai_workflow_endpoints:enhanced_ai_workflow_endpoints.py:277 RealAIWorkflowService modernized with unified LLMService.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:1560 Webhook processor initialized and callback registered
+WARNING  integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:492 sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+WARNING  integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:629 sentence-transformers unavailable — trying FastEmbed
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:638 Using FastEmbed (bge-small, 384-dim) for communication embeddings
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:735 Opened existing atom_communications table
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:744 FTS index enabled on 'content' column
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:764 Opened existing ingestion_metadata table
+INFO     integrations.atom_communication_ingestion_pipeline:atom_communication_ingestion_pipeline.py:648 LanceDB memory manager initialized successfully
+WARNING  core.api_governance:api_governance.py:144 Governance check skipped for delete_document: missing request or db
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/core/lancedb_handler.py:411: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:676: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:758: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+======================= 1 failed, 11 warnings in 12.11s ========================
