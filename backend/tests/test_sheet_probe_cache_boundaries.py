@@ -170,7 +170,8 @@ class TestConcurrentColdLoads:
         monkeypatch.setattr(sds, "_probe_sheet_hits", probe)
         # pre-fill past the eviction bound
         for i in range(513):
-            sds._PROBE_CACHE[(f"f{i}", "t", 10)] = (0.0, {"row_count": 1})
+            sds._PROBE_CACHE[(f"f{i}", "t", 10)] = (
+                0.0, {"row_count": 1}, True)
         e = [{"content_hash": "fresh", "external_id": "E"}]
         sds._probe_cached(e, "t", 10)
         # after the clear-on-overflow, the just-written entry must be present

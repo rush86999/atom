@@ -6698,10 +6698,25 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     own_ctx["history"] = []
     own_ctx.pop("requested_targets", None)
     own_ctx.pop("revised_targets", None)
-    try:
-        own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
-    except Exception:
-        own = []
+    # THE TURN'S OWN TEXT OUTRANKS THE RESOLVED MENTION FOR ITEM MINING
+    # (2026-11-11, issue 620 re-verify): the file mention is lowercased for
+    # case-insensitive identity matching and may carry the prose before the
+    # filename ("lead time of R-15 in Spec Sheet 2025.xlsx"). Mining items
+    # from it returned "r-15" and delivered a lowercased item to the user;
+    # the explicit current-turn message preserves the code as typed. Only
+    # context["message"] is the CURRENT turn — the history tail is prior
+    # turns (and must not become this turn's own objective).
+    own_query = str((context or {}).get("message") or "").strip() or query
+
+    def _mine_own(text: str) -> List[str]:
+        try:
+            return _named_file_targets(text, own_ctx, candidate_probe_tokens)
+        except Exception:
+            return []
+
+    own = _mine_own(own_query)
+    if not own and own_query != query:
+        own = _mine_own(query)
     # PARTIAL-FRAGMENT GUARD (2026-10-08 Cedarberg defect): the turn's
     # own mining can return a PARTIAL fragment ('a Cedarberg') that is a
     # substring of a fuller named subject in requested_targets ('Cedarberg

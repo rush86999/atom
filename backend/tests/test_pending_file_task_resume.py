@@ -59,6 +59,19 @@ HISTORY = {"history": [
 ]}
 
 
+@pytest.fixture(autouse=True)
+def _active_catalog_grant(monkeypatch):
+    """This module is the workbook-read acceptance suite, not a connected-grant
+    test. Its catalog is a synthetic materialized copy, so the read must run
+    without live OAuth credentials. Grant-loss refusal is exercised by
+    ``test_canvas_connected_binding`` and the connected-source contract tests.
+    """
+    monkeypatch.setattr(
+        "core.integrations.token_store.connected_source_grant_state",
+        lambda source, user_id: "active",
+    )
+
+
 @pytest.fixture
 def durable_metadata_db(monkeypatch):
     from core import database as database_module

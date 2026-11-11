@@ -2233,7 +2233,13 @@ def present_from_record(record: Dict[str, Any],
     saved = src_id.get("ingested_at") or src_id.get("saved_copy_date")
     result = present(
         requested_items=record.get("requested_items") or [],
-        requested_fields=record.get("requested_fields") or ["price"],
+        # NO IMPLICIT PRICE FIELD (2026-11-11, issue 620 re-verify): the
+        # record builder stopped inventing ["price"] for general reads
+        # (2f3e0cd38), but this renderer defaulted it back in, so a
+        # no-field workbook ask still filtered its row down to price
+        # columns. An empty field set means "show the row's ranked values";
+        # absent fields never become a price request at delivery time.
+        requested_fields=record.get("requested_fields") or [],
         source={"file_name": src_id.get("file_name"),
                 "saved_copy_date": saved,
                 "live_vs_saved": src_id.get("live_vs_saved") or "saved copy",
