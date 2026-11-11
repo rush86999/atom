@@ -4359,6 +4359,7 @@ class BYOKHandler:
         max_output_tokens: Optional[int],
         schema_text: Optional[str] = None,
         extra_text: Optional[str] = None,
+        output_token_quantity: Optional[int] = None,
     ) -> Optional[float]:
         """Conservative configured USD bound for ONE paid physical attempt.
 
@@ -4391,8 +4392,15 @@ class BYOKHandler:
                     provider_id, model, extra_text)
             input_tokens_upper = max(1, input_tokens_upper)
 
-            output_tokens = max(
-                1, int(max_output_tokens or _DEFAULT_COMPLETION_MAX_TOKENS))
+            if output_token_quantity is not None:
+                # Zero is a real quantity (embedding/input-only charge): the
+                # absence of an output rate is unused basis, not an invented
+                # output price. Positive quantities still need an output rate.
+                output_tokens = max(0, int(output_token_quantity))
+            else:
+                output_tokens = max(
+                    1, int(max_output_tokens
+                           or _DEFAULT_COMPLETION_MAX_TOKENS))
             fetcher = get_pricing_fetcher()
             cost = fetcher.estimate_cost(
                 model, input_tokens_upper, output_tokens)
@@ -4440,6 +4448,7 @@ class BYOKHandler:
         chain_id: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, Any]] = None,
         schema_text: Optional[str] = None,
+        output_token_quantity: Optional[int] = None,
     ) -> Optional[float]:
         """Reserve/authorize ONE physical paid transport attempt before dispatch.
 
@@ -4455,6 +4464,7 @@ class BYOKHandler:
             provider_id, model, [payload],
             max_output_tokens,
             schema_text=schema_text,
+            output_token_quantity=output_token_quantity,
         )
         if _has_inline_image(messages):
             if bound == 0.0:
@@ -13021,6 +13031,109 @@ class BYOKHandler:
             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"
         )
 
+    def _admit_embedding_attempt(
+        self,
+        *,
+        provider: str,
+        model: str,
+        texts: List[str],
+        agent_id: Optional[str] = None,
+    ) -> tuple:
+        """Durable pre-dispatch admission for ONE physical embedding call.
+
+        Embeddings are an input-only charge: the output quantity is genuinely
+        zero, so an absent output rate is unused basis rather than a missing
+        price. The same TokenUsage ledger/admission adapter as every other
+        physical attempt is used; unknown/invalid input pricing still refuses
+        under hard_stop. One physical SDK call owns one attempt id.
+        """
+        request_id = f"embedding-{uuid.uuid4().hex}"
+        attempt_id = f"{request_id}:1"
+        bound = self._estimate_reservation_bound(
+            provider, model, list(texts or [""]), 0,
+            output_token_quantity=0)
+        try:
+            from core.spend_aggregation_service import begin_llm_usage
+
+            begin_llm_usage(
+                provider_id=provider,
+                model_name=model,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=request_id,
+                attempt_id=attempt_id,
+                reserved_cost_usd=bound,
+                enforce_budget=True,
+            )
+        except Exception as intent_err:
+            raise _AccountingBlockedError(
+                f"embedding admission refused for {provider}/{model} "
+                f"({type(intent_err).__name__})") from intent_err
+        return request_id, attempt_id, bound
+
+    def _settle_embedding_response(
+        self,
+        *,
+        provider: str,
+        model: str,
+        response: Any,
+        request_id: str,
+        attempt_id: str,
+        reserved_bound: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> None:
+        """Exact settlement of one embedding response.
+
+        Provider usage (prompt/input tokens) is authoritative when present;
+        cost is the configured input-only price when usable. Absent usage
+        stays explicit unknown liability (reservation retained) — never a
+        fabricated zero. A genuine numeric-zero bound remains free.
+        """
+        tokens = 0
+        cost: Optional[float] = None
+        usage = _response_field(response, "usage")
+        if usage is not None:
+            present = False
+            if isinstance(usage, dict):
+                present = usage.get("prompt_tokens") is not None or (
+                    usage.get("input_tokens") is not None)
+            else:
+                present = (getattr(usage, "prompt_tokens", None) is not None
+                           or getattr(usage, "input_tokens", None) is not None)
+            if present:
+                tokens = _usage_value(
+                    usage, "prompt_tokens", "input_tokens")
+                try:
+                    fetcher = get_pricing_fetcher()
+                    cost = fetcher.estimate_cost(model, tokens, 0)
+                    if cost is None:
+                        cost = get_llm_cost(model, tokens, 0)
+                except Exception:
+                    cost = None
+                cost = _valid_cost(cost)
+        if reserved_bound == 0.0:
+            cost = 0.0
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider,
+                model_name=model,
+                prompt_tokens=tokens,
+                completion_tokens=0,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error(
+                "LLM embedding settlement failed (%s)",
+                type(settle_err).__name__)
+
     async def generate_embedding(
         self,
         text: str,
@@ -13053,17 +13166,32 @@ class BYOKHandler:
             raise ValueError(f"No client available for provider: {provider}")
 
         logger.info(f"Attempting embedding with provider: {provider} (model: {model})")
-        
+
+        _embed_request_id, _embed_attempt_id, _embed_bound = (
+            self._admit_embedding_attempt(
+                provider=provider, model=model, texts=[text]))
         try:
             if provider == "openai":
                 response = await client.embeddings.create(model=model, input=text)
+                self._settle_embedding_response(
+                    provider=provider, model=model, response=response,
+                    request_id=_embed_request_id,
+                    attempt_id=_embed_attempt_id,
+                    reserved_bound=_embed_bound)
                 return response.data[0].embedding
             elif provider == "cohere":
                 # Cohere async client uses .embed()
                 response = await client.embed(texts=[text], model=model, input_type="search_document")
+                self._settle_embedding_response(
+                    provider=provider, model=model, response=response,
+                    request_id=_embed_request_id,
+                    attempt_id=_embed_attempt_id,
+                    reserved_bound=_embed_bound)
                 return response.embeddings[0]
             else:
                 raise ValueError(f"Provider {provider} does not support embeddings via BYOKHandler yet.")
+        except _AccountingBlockedError:
+            raise
         except Exception as e:
             logger.error(f"Embedding generation failed for {provider}: {e}")
             raise
@@ -13092,16 +13220,31 @@ class BYOKHandler:
             raise ValueError(f"No client available for provider: {provider}")
 
         logger.info(f"Attempting batch embedding with provider: {provider} (model: {model}, count: {len(texts)})")
-        
+
+        _embed_request_id, _embed_attempt_id, _embed_bound = (
+            self._admit_embedding_attempt(
+                provider=provider, model=model, texts=list(texts)))
         try:
             if provider == "openai":
                 response = await client.embeddings.create(model=model, input=texts)
+                self._settle_embedding_response(
+                    provider=provider, model=model, response=response,
+                    request_id=_embed_request_id,
+                    attempt_id=_embed_attempt_id,
+                    reserved_bound=_embed_bound)
                 return [item.embedding for item in response.data]
             elif provider == "cohere":
                 response = await client.embed(texts=texts, model=model, input_type="search_document")
+                self._settle_embedding_response(
+                    provider=provider, model=model, response=response,
+                    request_id=_embed_request_id,
+                    attempt_id=_embed_attempt_id,
+                    reserved_bound=_embed_bound)
                 return [emb for emb in response.embeddings]
             else:
                 raise ValueError(f"Provider {provider} does not support batch embeddings via BYOKHandler yet.")
+        except _AccountingBlockedError:
+            raise
         except Exception as e:
             logger.error(f"Batch embedding generation failed for {provider}: {e}")
             raise
