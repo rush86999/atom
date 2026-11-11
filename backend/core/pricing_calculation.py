@@ -2174,17 +2174,50 @@ async def calculate_workbook_from_query(
                 required_formula_input_gaps,
             )
 
-            _formula_columns = [
-                str(column) for column in (entry.get("columns") or [])
-                if str(column) != "__sheet_row"
-            ]
-            _gaps = required_formula_input_gaps(
-                _formula_columns,
-                calc.dependencies,
-                target_book.empty,
-                values=target_book.values,
-                sheet_name=entry.get("entity_name"),
-            )
+            def _formula_columns_for(dep_entry: Optional[Dict[str, Any]]):
+                if not dep_entry:
+                    return []
+                columns = [
+                    str(column) for column in (dep_entry.get("columns") or [])
+                    if str(column) != "__sheet_row"
+                ]
+                if columns:
+                    return columns
+                parquet_path = str(dep_entry.get("parquet_path") or "")
+                if not parquet_path:
+                    return []
+                import pandas as _pd
+
+                return [
+                    str(column) for column in _pd.read_parquet(
+                        parquet_path).columns
+                    if str(column) != "__sheet_row"
+                ]
+
+            _gaps: List[Dict[str, Any]] = []
+            _by_sheet: Dict[str, List[Any]] = {}
+            for dependency in calc.dependencies:
+                dep_sheet = str(
+                    getattr(dependency, "sheet", "") or ""
+                ).strip() or str(entry.get("entity_name") or "")
+                _by_sheet.setdefault(dep_sheet, []).append(dependency)
+            for dep_sheet, dep_dependencies in _by_sheet.items():
+                if " ".join(dep_sheet.lower().split()) == " ".join(
+                        str(entry.get("entity_name") or "").lower().split()):
+                    dep_entry = entry
+                    dep_book = target_book
+                else:
+                    dep_entry = books.entry_for(dep_sheet)
+                    dep_book = books.provider(dep_sheet)
+                if dep_book is None:
+                    continue
+                _gaps.extend(required_formula_input_gaps(
+                    _formula_columns_for(dep_entry),
+                    dep_dependencies,
+                    dep_book.empty,
+                    values=dep_book.values,
+                    sheet_name=dep_sheet,
+                ))
             if _gaps:
                 from core.formula_engine import FormulaResult
 
