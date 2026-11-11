@@ -1,0 +1,64 @@
+{
+  "base": "af4436c35f7c82fb6f360ad315a0dffafa3a9c6f",
+  "date": "2026-11-10",
+  "embedding": {
+    "admission": "existing begin_llm_usage, input-only quantity",
+    "attempt_identity": "embedding-<uuid>:1 per physical SDK call",
+    "batch": "one physical attempt",
+    "sdk_retries": 0,
+    "settlement": "exact usage when present; unknown retained otherwise"
+  },
+  "gates": {
+    "embedding": "5 passed",
+    "final_shared_gate": "336 passed",
+    "physical_image": "37 passed"
+  },
+  "image": {
+    "free": "explicit 0/0 only",
+    "text_bound": "inline data URLs replaced by marker; no base64 inflation",
+    "unknown": "never free under observe; hard_stop refusal preserved"
+  },
+  "live_actions": false,
+  "root_probes": [
+    "physical_free_image: pass",
+    "price_material: pass",
+    "input_only: pass",
+    "invalid_price: pass",
+    "direct_bound: pass",
+    "estimated_flag: pass"
+  ],
+  "schema": "goal9_embedding_image_verification",
+  "self_acceptance": false,
+  "source_files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "6c4a0f4825151549432aba92d7051568d6cf01a44cc5739089e103909e1e6d37",
+      "before_sha256": "196cd043da70852ebd16c3fc8a91635f02a5b1026dd4df5a7e9a3c80e0ced701",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "14aa6d33e036d16bc5dc5c36480e528664e0e76d9794c139b63ef4f281d60e1d",
+      "before_sha256": "ad9f8bca92184d2cee25cc5457c50c2088861d843063d848aa5897e14851931d",
+      "changed": true
+    },
+    "backend/core/llm/embedding/providers.py": {
+      "after_sha256": "506645866ecd8fa6b8fb2abcc96fa53e5dc472af5441f14d55b1f5269736ef1b",
+      "before_sha256": "1639d2056f9bf91e000c56eab71899fa5c17902128ea91ed087c4688cb0c2d70",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "e1508d337ad89157ec384002f62cff31022ba2aab7aaf529bbc7d8136998345c",
+      "before_sha256": "80c9f9cfda0fb0f4360a1b2a1e1db7a4c86fa4d195cdab4b4bf10e9d23bcc6fb",
+      "changed": true
+    },
+    "backend/tests/test_goal9_embedding_attempts.py": {
+      "after_sha256": "25a4eaa181e3f7291f385c101554cdd54d6ba77ad3d1958e8ea05b962b6f4e70",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_physical_attempts.py": {
+      "after_sha256": "ab8ed140b39ccb68755b989de9f2b1d2c678e8b7963533458ae274eac2970bd8",
+      "before_sha256": "d4ada56ba101b43180725703f5c6a6722a89dc2c9a7cdf04ca223329c2069e60",
+      "changed": true
+    }
+  }
+}
