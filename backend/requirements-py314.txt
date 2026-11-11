@@ -4,6 +4,18 @@
 #     import site is guarded and degrades gracefully (reranking/voice/video AI disabled).
 #   - numpy>=2.3: numpy 1.x has no cp314 wheels. Rest of the stack is numpy-2 compatible.
 #   - fastembed IS included (onnxruntime ships cp314 arm64-mac wheels); on x86_64 3.14 it must be dropped.
+#   - lancedb 0.38.0 (3.11 pins 0.24.3) with pylance==13.0.0 and lance-namespace /
+#     lance-namespace-urllib3-client==0.11.1: lancedb leaves pylance optional, but the
+#     document-list page scanner imports lance.dataset.ColumnOrdering, so a missing
+#     pylance is a typed 503 on GET /api/documents. The pins are whole-lock coherent,
+#     not standalone: pylance 13.0.0 requires lance-namespace >=0.11.1,<0.12, so the
+#     namespace pair moved off 0.12.0 (9.0.0 wanted <0.9 and was rejected). Verified
+#     by a tested scratch overlay resolved against the installed baseline — NOT a
+#     clean dry-run: that fails at the existing unavailable
+#     presidio_analyzer==2.2.362 pin on both baseline and candidate. The manifest
+#     contract is asserted by the ordered-pagination suite in
+#     backend/tests/api/test_document_library_pagination.py
+#     (test_py314_requirements_include_the_lance_sdk_scanner).
 #   - pytest/pytest-asyncio come from requirements-testing.txt; on 3.14 use pytest>=8.3.4 + pytest-asyncio>=1.0.
 #   - pytest is pinned BELOW 9 (8.4.2): the plugin set is not pytest-9 ready and the
 #     file was previously unsatisfiable — `uv pip install -r requirements-py314.txt`
@@ -14,8 +26,9 @@
 #     0.9.0 accepts pytest<10) or hold pytest below 9. The latter was chosen because it
 #     also satisfies schemathesis 3.39.16 (pytest<9) with NO major-version upgrade to a
 #     package the suite exercises — a smaller change for a dependency-only fix.
-#     Verified: `uv pip install --dry-run -r requirements-py314.txt -r
-#     requirements-testing.txt` resolves, and the backend suite passes on 8.4.2.
+#     Verified: the pytest<9 pin resolves in the tested scratch overlay against the
+#     installed baseline (no clean dry-run — see the presidio note above), and the
+#     backend suite passes on 8.4.2.
 # Create: uv venv venv314 --python 3.14 && uv pip install --python venv314/bin/python -r requirements-py314.txt -r requirements-testing.txt
 
 APScheduler==3.11.3
@@ -158,8 +171,8 @@ jsonschema-path==0.5.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 junit-xml==1.9
-lance-namespace-urllib3-client==0.12.0
-lance-namespace==0.12.0
+lance-namespace-urllib3-client==0.11.1
+lance-namespace==0.11.1
 lancedb==0.38.0
 lazy-object-proxy==1.12.0
 leidenalg==0.12.0
@@ -243,6 +256,7 @@ pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
 pyee==13.0.1
+pylance==13.0.0
 pyparsing==3.3.2
 pypdf==4.3.1
 pyrate-limiter==3.9.0
