@@ -1,0 +1,26 @@
+{
+  "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+  "files": {
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "ec1b92feada77fc948e9a6db993a0fcd08f97b27b766275289a5256741b242eb",
+      "before_sha256": "14aa6d33e036d16bc5dc5c36480e528664e0e76d9794c139b63ef4f281d60e1d",
+      "changed": true
+    },
+    "backend/core/llm/embedding/providers.py": {
+      "after_sha256": "e6c30f4102a2ccc198e8f5b8c2ff5c232c7464f3021c47466cde6fc3b2258373",
+      "before_sha256": "506645866ecd8fa6b8fb2abcc96fa53e5dc472af5441f14d55b1f5269736ef1b",
+      "changed": true
+    },
+    "backend/tests/test_goal9_embedding_attempts.py": {
+      "after_sha256": "819a7326c5a8cd3c160b2ef5aa99709c7d5058321786637dc292643e75ea3bc7",
+      "before_sha256": "25a4eaa181e3f7291f385c101554cdd54d6ba77ad3d1958e8ea05b962b6f4e70",
+      "changed": true
+    },
+    "backend/tests/test_goal9_physical_attempts.py": {
+      "after_sha256": "9f0028a337cacb8b2e73df1862d114e139289ccaf512f0ef757f3e9b0de12500",
+      "before_sha256": "ab8ed140b39ccb68755b989de9f2b1d2c678e8b7963533458ae274eac2970bd8",
+      "changed": true
+    }
+  },
+  "schema": "goal9_image_vendor_source"
+}

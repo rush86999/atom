@@ -1,0 +1,94 @@
+
+tests/test_goal9_embedding_attempts.py::test_cohere_embedding_settles_billed_units
+-------------------------------- live log setup --------------------------------
+2026-11-10 21:22:05 [    INFO] EscalationManager initialized
+2026-11-10 21:22:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:05 [    INFO] EscalationManager initialized
+2026-11-10 21:22:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 21:22:05 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:22:06 [    INFO] EscalationManager initialized
+2026-11-10 21:22:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:06 [    INFO] LocalOnlyGuard initialized
+2026-11-10 21:22:06 [    INFO] Attempting embedding with provider: cohere (model: embed-english-v3.0)
+FAILED                                                                   [ 16%]
+tests/test_goal9_embedding_attempts.py::test_vendor_embedding_classes_disable_sdk_retries FAILED [ 33%]
+tests/test_goal9_physical_attempts.py::test_observe_image_authoritative_usage_settles_actual
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:22:07 [    INFO] EscalationManager initialized
+2026-11-10 21:22:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:07 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 21:22:07 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 21:22:07 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+FAILED                                                                   [ 50%]
+tests/test_goal9_physical_attempts.py::test_observe_image_image_token_detail_is_consumed
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:22:08 [    INFO] EscalationManager initialized
+2026-11-10 21:22:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:08 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 21:22:08 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 21:22:08 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+FAILED                                                                   [ 66%]
+tests/test_goal9_physical_attempts.py::test_observe_image_malformed_image_detail_stays_unknown
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:22:08 [    INFO] EscalationManager initialized
+2026-11-10 21:22:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:08 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 21:22:08 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 21:22:08 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 83%]
+tests/test_goal9_physical_attempts.py::test_observe_image_without_usage_stays_unknown
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:22:09 [    INFO] EscalationManager initialized
+2026-11-10 21:22:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:22:09 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 21:22:09 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 21:22:09 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+<scratch>:170: assert 0 == 12
+<scratch>:219: AssertionError: assert None == 0
+<scratch>:974: assert None == 7.0 ± 7.0e-06
+<scratch>:993: assert None == 7.0 ± 7.0e-06
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 12 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal9_embedding_attempts.py::test_cohere_embedding_settles_billed_units
+  <scratch>:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_goal9_embedding_attempts.py::test_cohere_embedding_settles_billed_units
+FAILED tests/test_goal9_embedding_attempts.py::test_vendor_embedding_classes_disable_sdk_retries
+FAILED tests/test_goal9_physical_attempts.py::test_observe_image_authoritative_usage_settles_actual
+FAILED tests/test_goal9_physical_attempts.py::test_observe_image_image_token_detail_is_consumed
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 failed, 2 passed, 18 warnings in 20.24s ===================
