@@ -234,10 +234,17 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
               <div className="text-sm text-gray-600 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded p-3">
                 <p className="font-medium text-blue-800 dark:text-blue-200">When will it be useful?</p>
                 <p className="mt-1">
-                  Right now it watches and learns — from your feedback and from what gets
-                  approved in this workspace. With regular use it graduates to an
-                  <strong> Intern</strong> (drafts work for you), then <strong>Supervised</strong>
-                  (does the work, you approve), and finally <strong>Autonomous</strong> (runs on its own).
+                  Right now it watches and learns from your feedback and approved
+                  work. Regular use builds experience toward the next stage, but
+                  promotion is not automatic: normally the readiness requirements
+                  for that stage and a review of the employee&apos;s actual work for
+                  the role must both be satisfied. An allowed owner exception is
+                  recorded with its reason; domain selectors do not create
+                  exemptions. At{' '}
+                  <strong>Intern</strong> it drafts for you; at{' '}
+                  <strong>Supervised</strong> it handles routine work under policy.
+                  <strong> Autonomous</strong> is the product goal, with domain
+                  exceptions still reviewed.
                 </p>
               </div>
             </div>

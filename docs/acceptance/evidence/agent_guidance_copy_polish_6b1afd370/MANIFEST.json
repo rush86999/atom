@@ -1,0 +1,54 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "agent guidance copy follow-up: plain review language, recorded owner exceptions, existing frontend CI step; frozen for independent review",
+  "branch": "codex/agent-copy-guidance-20261110",
+  "base_current_main": "914b9470d254293369475cd9f0fecdbf76acd650",
+  "executed_source": "6b1afd370fb6cb9ccd097378128e16b68980ed6a",
+  "prior_copy_source": "1afb29abd",
+  "source_files": {
+    ".github/workflows/ci.yml": "4de15070d0f922ea53715374f8c2a842e2867d1530aa486028b9a7d7b822e172",
+    "frontend-nextjs/components/Agents/AgentLaunchGuide.tsx": "504efa54a42aad1c207479d675ede83e71b79ac18ee4e76e01a861ab75a20a07",
+    "frontend-nextjs/components/Agents/EmployeeOnboardingGuide.tsx": "e6f221c055557efcb6829812710f4fdaab5654da62881736cde6a7083f1ec5d0",
+    "frontend-nextjs/components/Agents/GuidedAgentCreator.tsx": "31dc1d3b572ad3c453d89c1da0141903655345d26bcc16db8fa0b6ca0b2e0399",
+    "frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx": "8df70ec2dfb6cf666b7adafa6e63c494c42e17cd373d4bd7964357adfd4022a6",
+    "frontend-nextjs/components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx": "dd95ebdbc26b5257fcd86bc76e782fd5715df93799a9a5c8cd7ececd05d9d585",
+    "frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx": "eee73608ac0f625b4fe2f24cfa7a7adf0de9db9ff2390c1767ae1711837afe18"
+  },
+  "artifacts": {
+    "README.md": "5d0cf92293a317937b6fc83043a2c7353452b3fe8d7b16c5bb39178d2c8cc31c",
+    "TEST_RESULTS.md": "79a99ed19cebc5b72353a125bb81cb2abaa9d671a1170b37e3cc66d6d09e7ea0",
+    "focused-at-6b1afd370.log": "76e4aec0bbcafa15b626ccdbbd3889868eb6515612cfebfce197a9f8c181f555",
+    "source-fix.diff": "854bcd0fdfacf2f7d4c261734ae96799c2b19bfc66b7383f43f5343d49d27f3c",
+    "tsc-at-6b1afd370.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "238b576e0fa21f42d6edd412eb2e8f9fa2a490ecc5517096f784a21722e8c7a0"
+  },
+  "checks": {
+    "focused_copy_profile_tier_agents_page": "54 passed",
+    "tsc_errors": 0,
+    "yaml_valid": true,
+    "diff_check_clean": true,
+    "plain_review_language": true,
+    "owner_exception_recorded_with_reason": true,
+    "no_domain_selector_exemption_promise": true,
+    "no_automatic_graduation_claim": true,
+    "no_all_action_approval_claim": true,
+    "no_score_only_promotion": true,
+    "no_server_secret_env_names": true,
+    "core_connectors_explicitly_deferred": true,
+    "full_profile_connectors_keep_setup": true,
+    "existing_frontend_step_extended": true,
+    "no_new_ci_job_or_check_name": true,
+    "prior_frontend_steps_preserved": true,
+    "pr838_receipt_checks_not_dropped": true,
+    "no_runtime_policy_change": true,
+    "no_browser_or_graduation_campaign_rerun": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "boundaries": [
+    "frontend copy/tests and one existing CI step only",
+    "no maturity/authority/action-policy/connector runtime change",
+    "frozen UI branch and PR838 receipt tests untouched",
+    "root owns integration/final review; no merge"
+  ]
+}
