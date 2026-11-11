@@ -1652,6 +1652,43 @@ async def _try_deterministic_aggregate(
         value_column = measure_candidates[0]
 
     roles = _resolve_frame_roles(columns)
+    # COUNT-OF-A-NAMED-MEASURE (2026-11-11, named-workbook acceptance):
+    # "how many of TX-4400 are on hand" is a quantity question, not a row
+    # count. The selection engine already bound "On Hand" from the ask's own
+    # measure word; when exactly ONE numeric measure is named and it is not
+    # the predicate column itself ("how many rows have reorder at 4" stays a
+    # count), the count word applies to that measure, so sum it. This is
+    # frame-driven: a row/record count names no numeric measure, and a
+    # threshold filter selects the predicate column, never a second measure.
+    if operation == "count":
+        predicate_column = str(
+            (predicate or {}).get("column") or "")
+        # The measure must be NAMED by the ask's own field words. Selection
+        # can include a numeric column merely because the sentence mentions
+        # a related noun ("Open invoices" pulls Invoice Amount), and that is
+        # a row count, not a sum. Only "on hand"/"units" style measure
+        # phrases matching the bound column promote.
+        measure_named = False
+        if len(measure_candidates) == 1:
+            try:
+                from core.workbook_read_artifact import (
+                    _field_phrase_matches,
+                    extract_field_labels,
+                )
+
+                measure_named = any(
+                    _field_phrase_matches(measure_candidates[0], label)
+                    for label in extract_field_labels([query])
+                )
+            except Exception:  # noqa: BLE001 — fail closed to a row count
+                measure_named = False
+        if (measure_named
+                and measure_candidates[0] != predicate_column):
+            operation = "sum"
+            value_column = measure_candidates[0]
+            logger.info(
+                "[aggregate] count ask named one numeric measure %r; "
+                "summing it instead of counting rows", value_column)
     # The frame-resolved measure is authoritative; generic header hints may
     # not replace it (the executor honours this flag below).
     roles["value_column"] = value_column

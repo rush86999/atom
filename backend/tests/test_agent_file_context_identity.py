@@ -121,11 +121,16 @@ class TestScoreFileMatch:
         assert afc.score_file_match("2019.xlsx", "Sales 2019 final.xlsx") is None
         assert afc.score_file_match("2019.xlsx", "Q3 Report 2019.xlsx") is None
 
-    def test_prose_polluted_mention_still_verifies_by_containment(self):
-        assert afc.score_file_match(
+    def test_prose_polluted_mention_still_verifies_by_name(self):
+        # The mention carries a prose prefix and the complete filename. The
+        # phrase-wrapped-name tier (2026-10-16) promotes this to a NAME-LEVEL
+        # match — stronger than the containment discovery tier this test
+        # originally pinned; the property under test is that it verifies.
+        tier = afc.score_file_match(
             "8 machine prices in consolidated price list 2019.xlsx",
             "Consolidated Price List 2019.xlsx",
-        ) == afc.MATCH_TIER_CONTAINMENT
+        )
+        assert tier in afc.VERIFIED_MATCH_TIERS, tier
 
     def test_token_tier_is_discovery_only(self):
         assert afc.score_file_match(
