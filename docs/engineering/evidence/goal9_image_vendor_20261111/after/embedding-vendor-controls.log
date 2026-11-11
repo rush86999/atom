@@ -1,0 +1,80 @@
+
+tests/test_goal9_embedding_attempts.py::test_embedding_dispatch_admits_and_settles_exact_attempt
+-------------------------------- live log setup --------------------------------
+2026-11-10 21:16:44 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 21:16:44 [    INFO] EscalationManager initialized
+2026-11-10 21:16:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:44 [    INFO] EscalationManager initialized
+2026-11-10 21:16:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 21:16:44 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:45 [    INFO] EscalationManager initialized
+2026-11-10 21:16:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:45 [    INFO] LocalOnlyGuard initialized
+2026-11-10 21:16:45 [    INFO] Attempting embedding with provider: openai (model: text-embedding-3-small)
+PASSED                                                                   [ 12%]
+tests/test_goal9_embedding_attempts.py::test_embedding_without_usage_keeps_unknown_liability
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:46 [    INFO] EscalationManager initialized
+2026-11-10 21:16:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:46 [    INFO] Attempting embedding with provider: openai (model: text-embedding-3-small)
+PASSED                                                                   [ 25%]
+tests/test_goal9_embedding_attempts.py::test_embedding_missing_price_refuses_before_dispatch
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:46 [    INFO] EscalationManager initialized
+2026-11-10 21:16:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:46 [    INFO] Attempting embedding with provider: openai (model: controlled-unpriced-embedding)
+PASSED                                                                   [ 37%]
+tests/test_goal9_embedding_attempts.py::test_embedding_batch_is_one_physical_attempt
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:47 [    INFO] EscalationManager initialized
+2026-11-10 21:16:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:47 [    INFO] Attempting batch embedding with provider: openai (model: text-embedding-3-small, count: 2)
+PASSED                                                                   [ 50%]
+tests/test_goal9_embedding_attempts.py::test_cohere_embedding_settles_billed_units
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:48 [    INFO] EscalationManager initialized
+2026-11-10 21:16:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:48 [    INFO] Attempting embedding with provider: cohere (model: embed-english-v3.0)
+PASSED                                                                   [ 62%]
+tests/test_goal9_embedding_attempts.py::test_cohere_embedding_without_billed_units_stays_unknown
+-------------------------------- live log call ---------------------------------
+2026-11-10 21:16:49 [    INFO] EscalationManager initialized
+2026-11-10 21:16:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:16:49 [    INFO] Attempting embedding with provider: cohere (model: embed-english-v3.0)
+PASSED                                                                   [ 75%]
+tests/test_goal9_embedding_attempts.py::test_vendor_embedding_classes_disable_sdk_retries PASSED [ 87%]
+tests/test_goal9_embedding_attempts.py::test_embedding_provider_classes_disable_sdk_retries PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 16 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 8 passed, 21 warnings in 22.40s ========================

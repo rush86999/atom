@@ -134,6 +134,95 @@ def test_embedding_batch_is_one_physical_attempt(
     assert rows[0].reservation_status == "settled"
 
 
+class _CohereEmbedClient:
+    def __init__(self, response, calls):
+        self._response = response
+        self._calls = calls
+
+    async def embed(self, **kwargs):
+        self._calls.append(kwargs)
+        return self._response
+
+
+def _cohere_response(billed_tokens=None):
+    response = SimpleNamespace(embeddings=[[0.2] * 3])
+    if billed_tokens is not None:
+        response.meta = SimpleNamespace(
+            billed_units=SimpleNamespace(input_tokens=billed_tokens))
+    return response
+
+
+def test_cohere_embedding_settles_billed_units(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=0.0)
+    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"cohere": ["embed-english-v3.0"]},
+        async_={"cohere": _CohereEmbedClient(
+            _cohere_response(12), calls)})
+    vector = asyncio.run(handler.generate_embedding(
+        "hello", "embed-english-v3.0", provider="cohere"))
+    assert vector == [0.2] * 3
+    assert len(calls) == 1
+    row = _attempt_rows(host)[0]
+    assert row.provider_id == "cohere"
+    assert row.prompt_tokens == 12
+    assert row.cost_usd == pytest.approx(12 * 0.000001)
+    assert row.reservation_status == "settled"
+
+
+def test_cohere_embedding_without_billed_units_stays_unknown(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=0.0)
+    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"cohere": ["embed-english-v3.0"]},
+        async_={"cohere": _CohereEmbedClient(
+            _cohere_response(None), calls)})
+    asyncio.run(handler.generate_embedding(
+        "hello", "embed-english-v3.0", provider="cohere"))
+    row = _attempt_rows(host)[0]
+    assert row.cost_usd is None and row.pricing_status == "unknown"
+    assert row.reservation_status == "uncertain"
+
+
+def test_vendor_embedding_classes_disable_sdk_retries(monkeypatch):
+    import core.llm.embedding.providers as providers
+
+    seen = {"cohere": [], "voyageai": [], "nomic": []}
+
+    class _CohereRecorder:
+        def __init__(self, **kwargs):
+            seen["cohere"].append(kwargs)
+
+    class _VoyageRecorder:
+        def __init__(self, **kwargs):
+            seen["voyageai"].append(kwargs)
+
+    class _NomicRecorder:
+        def __init__(self, **kwargs):
+            seen["nomic"].append(kwargs)
+
+    monkeypatch.setattr(providers, "cohere", SimpleNamespace(
+        AsyncClient=_CohereRecorder))
+    monkeypatch.setattr(providers, "voyageai", SimpleNamespace(
+        Client=_VoyageRecorder))
+    monkeypatch.setattr(providers, "nomic", SimpleNamespace(
+        Embedding=_NomicRecorder))
+
+    providers.CohereEmbeddingProvider(api_key="scratch-key")
+    providers.VoyageEmbeddingProvider(api_key="scratch-key")
+    providers.NomicEmbeddingProvider(api_key="scratch-key")
+
+    assert seen["cohere"][0].get("max_retries") == 0
+    assert seen["voyageai"][0].get("max_retries") == 0
+    # Nomic's SDK is requests-based and exposes no retry knob; no invented
+    # parameter is passed (inventory note).
+    assert "max_retries" not in seen["nomic"][0]
+
+
 def test_embedding_provider_classes_disable_sdk_retries(monkeypatch):
     import core.llm.embedding.providers as providers
 
