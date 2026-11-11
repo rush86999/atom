@@ -1,0 +1,15 @@
+{
+  "executed_source": "4559f24a9988fa891776883257507affc41b9f82",
+  "negative_source": "192d21a9ce3d19761293f72cfeaccc70a5a32700",
+  "source_files": {
+    "backend/core/llm/byok_handler.py": "7d0df56acd0690688863da1a7a89b8ffd741ab12c85a9b72444fa83cb5ac1096",
+    "backend/tests/test_goal9_atomic_cap.py": "0982f39ca902b090d02fb6813d9aed3fce21b9c0ae499091116df0cc227453c5"
+  },
+  "artifacts": {
+    "before-negative.log": "4e2eaa230869387ad2332b639e31e2a06c6bf5bd5cd81ccdb972e682e1408459",
+    "after-135.log": "a2355922f55ede0858cf97835abdf276068ea114b6aa8e56bae47afb78de0ad6",
+    "README.md": "16e5ee1d72473b6d10bba925035eb63529911845dcbd4643ed4e882a05d5da62",
+    "verification.json": "cb6f29fd3f2c4e0baf68e4d03ad05514781b564ad108e34aa0dd63bd68318cfd",
+    "independent-probe.py": "f0438d138c3b5afe7f97c28ea0c0fb7feb1268d450a99d80db7573df4628cd6b"
+  }
+}

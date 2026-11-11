@@ -1,0 +1,409 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index ee0d24d8c..e1eca244d 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -577,7 +577,7 @@ jobs:
+           SECRET_KEY: "ci-test-secret-key"
+           ENVIRONMENT: "development"
+         run: |
+-          python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py -q --tb=short --timeout=300 --timeout-method=thread
++          python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
+       - name: Run spawned agent authority and receipt controls
+         env:
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index 3074fb322..92df54122 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -1101,6 +1101,33 @@ def _response_usage(response: Any) -> Any:
+     return usage
+ 
+ 
++def _usage_complete_pair(usage: Any) -> Optional[tuple]:
++    """``(prompt_tokens, completion_tokens)`` only for a COMPLETE usage report.
++
++    A missing half is a PARTIAL report: treating it as zero would fabricate an
++    authoritative no-charge settlement, so it returns ``None`` (unknown). Both
++    keys must be present with non-negative integer values; ``0`` is valid.
++    """
++    if usage is None:
++        return None
++
++    def _present(*names):
++        for name in names:
++            if isinstance(usage, dict):
++                if name in usage and usage[name] is not None:
++                    return True
++            elif getattr(usage, name, None) is not None:
++                return True
++        return False
++
++    if not (_present("prompt_tokens", "input_tokens")
++            and _present("completion_tokens", "output_tokens")):
++        return None
++    prompt = _usage_value(usage, "prompt_tokens", "input_tokens")
++    completion = _usage_value(usage, "completion_tokens", "output_tokens")
++    return max(int(prompt), 0), max(int(completion), 0)
++
++
+ def _valid_cost(cost: Any) -> Optional[float]:
+     """Finite, non-negative configured cost or explicit unknown.
+ 
+@@ -4545,24 +4572,45 @@ class BYOKHandler:
+         attempt_id: str,
+         reserved_bound: Optional[float],
+         agent_id: Optional[str] = None,
++        usage: Any = None,
+     ) -> None:
+-        """Settle a successful stream attempt as actual-free or unknown.
+-
+-        Streaming providers do not expose authoritative usage on this path,
+-        so the settlement is explicit unknown liability (the conservative
+-        reservation stays on the ledger and is not silently released). The
+-        one exception is a trusted numeric-zero bound: authoritative
+-        known-free settles at 0.0.
++        """Settle a successful stream attempt: actual when usage is supplied.
++
++        Some providers emit a terminal usage chunk even though this path does
++        not request one. When that report is COMPLETE, its token counts are
++        authoritative for THIS attempt and are recorded (cost actual when the
++        configured price is usable, otherwise unknown with the token truth).
++        Absent or partial usage keeps the conservative reservation as explicit
++        unknown liability; it is never silently released. The one trusted free
++        case remains an authoritative numeric-zero bound.
+         """
+-        cost = 0.0 if reserved_bound == 0.0 else None
++        prompt_tokens = 0
++        completion_tokens = 0
++        cost: Optional[float] = None
++        pair = _usage_complete_pair(usage)
++        if pair is not None and sum(pair) > 0:
++            prompt_tokens, completion_tokens = pair
++            try:
++                fetcher = get_pricing_fetcher()
++                cost = fetcher.estimate_cost(
++                    model, prompt_tokens, completion_tokens)
++                if cost is None:
++                    cost = get_llm_cost(
++                        model, prompt_tokens, completion_tokens)
++            except Exception:
++                cost = None
++            cost = _valid_cost(cost)
++        if reserved_bound == 0.0:
++            # Authoritative numeric-zero configured price.
++            cost = 0.0
+         try:
+             from core.spend_aggregation_service import record_llm_usage
+ 
+             record_llm_usage(
+                 provider_id=provider_id,
+                 model_name=model,
+-                prompt_tokens=0,
+-                completion_tokens=0,
++                prompt_tokens=prompt_tokens,
++                completion_tokens=completion_tokens,
+                 cost_usd=cost,
+                 agent_id=agent_id,
+                 workspace_id=getattr(self, "workspace_id", None),
+@@ -11403,6 +11451,8 @@ class BYOKHandler:
+                     stream = _stream_with_idle_watchdog(stream, _idle_s)
+ 
+                 token_count = 0
++                # Terminal usage, when the provider actually supplies it.
++                _stream_usage = None
+                 # Accumulate streamed content (capped) so the outcome hook can
+                 # assess real quality (truncation/refusal/empty) instead of the
+                 # literal placeholder "(streamed)", which always scored 0.7 and
+@@ -11412,6 +11462,9 @@ class BYOKHandler:
+                 _STREAM_CONTENT_CAP = 4000
+                 _stream_finish_reason = None
+                 async for chunk in stream:
++                    _chunk_usage = getattr(chunk, "usage", None)
++                    if _chunk_usage is not None:
++                        _stream_usage = _chunk_usage
+                     if chunk.choices:
+                         choice = chunk.choices[0]
+                         delta = choice.delta
+@@ -11537,6 +11590,7 @@ class BYOKHandler:
+                     attempt_id=_stream_attempt_id,
+                     reserved_bound=_stream_attempt_bound,
+                     agent_id=agent_id,
++                    usage=_stream_usage,
+                 )
+ 
+                 # Success! Return from the function
+@@ -11712,11 +11766,15 @@ class BYOKHandler:
+                                 # the try block, so yield from the patched stream
+                                 # inline and return on success.
+                                 token_count = 0
++                                _stream_usage = None
+                                 _stream_content_parts = []
+                                 _stream_content_chars = 0
+                                 _STREAM_CONTENT_CAP = 4000
+                                 _stream_finish_reason = None
+                                 async for chunk in stream:
++                                    _chunk_usage = getattr(chunk, "usage", None)
++                                    if _chunk_usage is not None:
++                                        _stream_usage = _chunk_usage
+                                     if chunk.choices:
+                                         choice = chunk.choices[0]
+                                         delta = choice.delta
+@@ -11762,6 +11820,7 @@ class BYOKHandler:
+                                     attempt_id=_heal_attempt_id,
+                                     reserved_bound=_heal_bound,
+                                     agent_id=agent_id,
++                                    usage=_stream_usage,
+                                 )
+                                 return
+                             except _AccountingBlockedError:
+@@ -11837,11 +11896,15 @@ class BYOKHandler:
+                                 f"{paid_model} (free {model} hit credit limit)"
+                             )
+                             token_count = 0
++                            _stream_usage = None
+                             _stream_content_parts = []
+                             _stream_content_chars = 0
+                             _STREAM_CONTENT_CAP = 4000
+                             _stream_finish_reason = None
+                             async for chunk in stream:
++                                _chunk_usage = getattr(chunk, "usage", None)
++                                if _chunk_usage is not None:
++                                    _stream_usage = _chunk_usage
+                                 if chunk.choices:
+                                     choice = chunk.choices[0]
+                                     delta = choice.delta
+@@ -11887,6 +11950,7 @@ class BYOKHandler:
+                                 attempt_id=_paid_attempt_id,
+                                 reserved_bound=_paid_bound,
+                                 agent_id=agent_id,
++                                usage=_stream_usage,
+                             )
+                             return
+                         except _AccountingBlockedError:
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index 6a05af42b..91e6a2312 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -236,7 +236,7 @@
+       "SECRET_KEY": "ci-test-secret-key",
+       "ENVIRONMENT": "development"
+     },
+-    "run": "python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++    "run": "python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   },
+   {
+     "name": "Run spawned agent authority and receipt controls",
+diff --git a/backend/tests/test_goal9_physical_attempts.py b/backend/tests/test_goal9_physical_attempts.py
+index f21ae9b30..df7df5ebb 100644
+--- a/backend/tests/test_goal9_physical_attempts.py
++++ b/backend/tests/test_goal9_physical_attempts.py
+@@ -125,14 +125,19 @@ def _reservation_pricing(monkeypatch, *, bound_at=7.0, reserve_output=1000,
+ # doubled transports
+ # --------------------------------------------------------------------------
+ class _ScriptedStream:
+-    def __init__(self, chunks):
++    def __init__(self, chunks, fail_after=None, fail_exc=None):
+         self._chunks = list(chunks)
+         self._index = 0
++        self._fail_after = fail_after
++        self._fail_exc = fail_exc or RuntimeError("stream cut mid-way")
+ 
+     def __aiter__(self):
+         return self
+ 
+     async def __anext__(self):
++        if self._fail_after is not None and self._index >= self._fail_after:
++            self._fail_after = None
++            raise self._fail_exc
+         if self._index >= len(self._chunks):
+             raise StopAsyncIteration
+         chunk = self._chunks[self._index]
+@@ -167,7 +172,10 @@ class _StreamClient:
+         action = self._script.pop(0)
+         if action.get("raise") is not None:
+             raise action["raise"]
+-        return _ScriptedStream(action.get("chunks") or [])
++        return _ScriptedStream(
++            action.get("chunks") or [],
++            fail_after=action.get("fail_after"),
++            fail_exc=action.get("fail_exc"))
+ 
+ 
+ def _response(content="ok"):
+diff --git a/backend/tests/test_goal9_stream_usage.py b/backend/tests/test_goal9_stream_usage.py
+new file mode 100644
+index 000000000..085f415b8
+--- /dev/null
++++ b/backend/tests/test_goal9_stream_usage.py
+@@ -0,0 +1,171 @@
++"""Authoritative stream usage — only when the provider actually supplies it.
++
++Streaming did not request usage, but several providers still emit a terminal
++usage chunk. When that report is COMPLETE its token counts are authoritative
++for THAT physical attempt and settle the same ledger row; absent or partial
++usage keeps the conservative reservation as explicit unknown liability.
++Transport/semantic failure is never free; a visible delta is never replayed.
++"""
++from __future__ import annotations
++
++import asyncio
++from types import SimpleNamespace
++
++import pytest
++
++from tests.test_goal9_physical_attempts import (
++    _attempt_rows,
++    _make_handler,
++    _pricing,
++    _reservation_pricing,
++    _seed,
++    _stream,
++    _visible,
++    host,
++)
++
++pytest_plugins = ("tests.test_goal9_physical_attempts",)
++
++
++def _usage_chunk(prompt, completion):
++    return SimpleNamespace(choices=[], usage=SimpleNamespace(
++        prompt_tokens=prompt,
++        completion_tokens=completion,
++        total_tokens=prompt + completion,
++    ))
++
++
++def _partial_usage_chunk(prompt):
++    return SimpleNamespace(choices=[], usage=SimpleNamespace(
++        prompt_tokens=prompt))
++
++
++def _handler(monkeypatch, tmp_path, model="gpt-4o"):
++    from tests.test_goal9_physical_attempts import _StreamClient
++    calls = []
++    client = _StreamClient("openai", [], calls)
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": [model]},
++        async_={"openai": client})
++    return handler, client, calls
++
++
++def _set_script(client, actions):
++    client._script = list(actions)
++
++
++def test_complete_terminal_usage_settles_priced_attempt(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    handler, client, calls = _handler(monkeypatch, tmp_path)
++    _set_script(client, [{"chunks": [
++        _visible("hello "), _visible("world"), _usage_chunk(10, 5)]}])
++    text = "".join(_stream(handler, "gpt-4o", "openai"))
++    assert text == "hello world"
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    row = rows[0]
++    assert row.billed is True
++    assert row.prompt_tokens == 10 and row.completion_tokens == 5
++    assert row.cost_usd == pytest.approx(0.25)
++    assert row.pricing_status == "priced"
++    assert row.reservation_status == "settled"
++    assert float(row.reserved_cost_usd or 0.0) == 0.0
++
++
++def test_absent_usage_stays_unknown_and_reserved(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    handler, client, calls = _handler(monkeypatch, tmp_path)
++    _set_script(client, [{"chunks": [_visible("no usage")]}])
++    assert "".join(_stream(handler, "gpt-4o", "openai")) == "no usage"
++    row = _attempt_rows(host)[0]
++    assert row.billed is True
++    assert row.cost_usd is None and row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++    assert float(row.reserved_cost_usd) == pytest.approx(0.25)
++
++
++def test_partial_usage_is_not_treated_as_authoritative(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    handler, client, calls = _handler(monkeypatch, tmp_path)
++    _set_script(client, [{"chunks": [
++        _visible("partial usage"), _partial_usage_chunk(10)]}])
++    assert "".join(_stream(handler, "gpt-4o", "openai")) == "partial usage"
++    row = _attempt_rows(host)[0]
++    assert row.prompt_tokens == 0 and row.completion_tokens == 0
++    assert row.cost_usd is None and row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++
++
++def test_visible_partial_then_failure_is_not_replayed_or_settled(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    handler, client, calls = _handler(monkeypatch, tmp_path)
++    _set_script(client, [{
++        "chunks": [_visible("PARTIAL"), _usage_chunk(10, 5)],
++        "fail_after": 2,
++        "fail_exc": RuntimeError("connection dropped mid-stream"),
++    }])
++    text = "".join(_stream(handler, "gpt-4o", "openai"))
++    assert text == "PARTIAL"
++    assert len(calls) == 1, "a visible delta must never be replayed"
++    row = _attempt_rows(host)[0]
++    # The failed attempt keeps its reservation; terminal usage that arrived
++    # before the failure is not a successful settlement.
++    assert row.billed is False
++    assert row.reservation_status == "active"
++    assert float(row.reserved_cost_usd) == pytest.approx(0.25)
++
++
++def test_retry_settles_its_own_attempt_with_usage(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
++    from tests.test_goal9_physical_attempts import _StreamClient
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path,
++        {"openai": ["shared-model"], "deepseek": ["shared-model"]},
++        async_={
++            "openai": _StreamClient(
++                "openai", [{"raise": RuntimeError("controlled failure")}],
++                calls),
++            "deepseek": _StreamClient(
++                "deepseek", [{"chunks": [
++                    _visible("SECOND"), _usage_chunk(10, 5)]}], calls),
++        })
++    text = "".join(_stream(handler, "shared-model", "openai"))
++    assert text == "SECOND"
++    rows = _attempt_rows(host)
++    assert len(rows) == 2, [r.attempt_id for r in rows]
++    assert len({r.attempt_id for r in rows}) == 2
++    by_provider = {r.provider_id: r for r in rows}
++    assert by_provider["openai"].reservation_status == "active"
++    assert by_provider["deepseek"].reservation_status == "settled"
++    assert by_provider["deepseek"].prompt_tokens == 10
++    assert by_provider["deepseek"].cost_usd == pytest.approx(0.25)
++
++
++def test_usage_with_unknown_pricing_records_tokens_and_keeps_liability(
++        host, monkeypatch, tmp_path):
++    # No billing cap: unknown pricing is admitted as explicit unknown
++    # liability (hard_stop would refuse before dispatch instead).
++    _seed(host, spend=0.0, limit=0.0)
++    _pricing(monkeypatch, lambda *a, **k: None)
++    # A model with no static alias either: the price is genuinely unknown.
++    model = "controlled-unknown-stream-model"
++    handler, client, calls = _handler(monkeypatch, tmp_path, model=model)
++    _set_script(client, [{"chunks": [
++        _visible("usage but no price"), _usage_chunk(10, 5)]}])
++    assert "".join(_stream(handler, model, "openai")) == (
++        "usage but no price")
++    row = _attempt_rows(host)[0]
++    assert row.prompt_tokens == 10 and row.completion_tokens == 5
++    assert row.cost_usd is None and row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"

@@ -1,0 +1,37 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+___________ test_invalid_price_cannot_become_free_reservation[-1.0] ____________
+../../root_atomic_invalid_price_probe.py:10: in test_invalid_price_cannot_become_free_reservation
+    assert result is None, 'Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound'
+E   AssertionError: Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound
+E   assert 0.0 is None
+------------------------------ Captured log call -------------------------------
+WARNING  core.database:database.py:120 🧪 pytest detected: honoring explicit non-dev test DB (sqlite:///<scratch>
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: YRfZKHmU...
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: v23tM9zH...
+____________ test_invalid_price_cannot_become_free_reservation[nan] ____________
+../../root_atomic_invalid_price_probe.py:10: in test_invalid_price_cannot_become_free_reservation
+    assert result is None, 'Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound'
+E   AssertionError: Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound
+E   assert 0.0 is None
+____________ test_invalid_price_cannot_become_free_reservation[inf] ____________
+../../root_atomic_invalid_price_probe.py:10: in test_invalid_price_cannot_become_free_reservation
+    assert result is None, 'Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound'
+E   AssertionError: Invalid configured pricing must remain unknown, never zero/free or an infinite admitted bound
+E   assert inf is None
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_atomic_invalid_price_probe.py::test_invalid_price_cannot_become_free_reservation[-1.0]
+FAILED ../../root_atomic_invalid_price_probe.py::test_invalid_price_cannot_become_free_reservation[nan]
+FAILED ../../root_atomic_invalid_price_probe.py::test_invalid_price_cannot_become_free_reservation[inf]
+3 failed, 6 warnings in 1.94s

@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_estimated_token_count_uses_real_utf8_upper_bound _____________
+../../root_atomic_estimated_flag_probe.py:16: in test_estimated_token_count_uses_real_utf8_upper_bound
+    assert observed['prompt_tokens']>=len(text.encode('utf-8')),observed
+E   AssertionError: {'prompt_tokens': 265}
+E   assert 265 >= 2000
+E    +  where 2000 = len(b'\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3...c3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9')
+E    +    where b'\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3...c3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9' = <built-in method encode of str object at 0x7fa3c3822e00>('utf-8')
+E    +      where <built-in method encode of str object at 0x7fa3c3822e00> = 'ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé...éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé'.encode
+------------------------------ Captured log call -------------------------------
+WARNING  core.database:database.py:120 🧪 pytest detected: honoring explicit non-dev test DB (sqlite:////private/tmp/root-atomic-estimated-flag-negative-gs96_c5i/scratch.db)
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: R97NPk4D...
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: BKAE7vxY...
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_atomic_estimated_flag_probe.py::test_estimated_token_count_uses_real_utf8_upper_bound
+1 failed, 2 warnings in 1.83s

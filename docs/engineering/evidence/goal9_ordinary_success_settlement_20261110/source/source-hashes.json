@@ -1,0 +1,30 @@
+{
+  "atomic_wip": "codex/goal9-atomic-cap-20261110 bc8d7c10a / local bcc3c3a7b",
+  "base_commit": "0472eb9203a3d171c2b521a28c9a5f579397163f",
+  "branch": "codex/goal9-ci-success-settlement-20261110",
+  "date": "2026-11-10",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "661ce30f2caf36a4593dd262d4959b7e5013c40f8ea0d08ba5096d7503640854",
+      "before_sha256": "10b234ed8b21b51d406070a1d3d30975dddf4dd48eb840ccac6d3d78342f1843",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "e6b76aa80f353e0f05a023f8660ea298f6737a3937bee75393c5bc5dd802bc30",
+      "before_sha256": "5fabea247add1e0725dbf23b9d66e328d5a39bbbaddcc89f94a12ae84f35d57e",
+      "changed": true
+    },
+    "backend/tests/test_goal9_ci_execution_contract.py": {
+      "after_sha256": "2b9cc8bc3c7c92f512b73dbb89ecb538fc00360c63161fc60f02f9fd049085c3",
+      "before_sha256": "605202b125ce3722ab71ff50916a5ada2b20a2081e818cb37de49762b6a83592",
+      "changed": true
+    }
+  },
+  "note": "ordinary generate_response success settles exact pre-dispatch intent via record_llm_usage; missing usage/pricing unknown; no duplicate tracker/rate/cache/feedback; additive CI step",
+  "product_files_changed": [
+    "backend/core/llm/byok_handler.py",
+    "backend/tests/test_goal9_ci_execution_contract.py",
+    ".github/workflows/ci.yml"
+  ],
+  "schema": "goal9_ordinary_success_settlement_source"
+}

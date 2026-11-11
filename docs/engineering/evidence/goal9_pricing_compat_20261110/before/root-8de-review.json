@@ -1,0 +1,19 @@
+{
+  "source": "8deaf95159c908da56e34491685936ef419236ec",
+  "log": "<scratch>",
+  "exit": 1,
+  "command": [
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun",
+    "<scratch>",
+    "<scratch>",
+    "-q",
+    "--tb=short"
+  ],
+  "verdict": "withheld if validinputonlyregresses; invalidratesmustrefusewithoutdroppingmodelmetadata"
+}

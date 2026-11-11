@@ -1,0 +1,29 @@
+{
+  "candidate_parent": "86167318ab8fb2869c4c533c22642e8b7f3cac56",
+  "main_parent": "5df5ffa67d494cb4ec0f0923d3de36b99032d478",
+  "result": "73 passed",
+  "log_sha256": "eff2897fc82e7ac9af2cd40044f421230d22a11342543d95183cd56ba3e4f14d",
+  "local_log": "/private/tmp/root-permitted-budget-byf8gi8q/gate.log",
+  "test_scope": [
+    "CI lane contract",
+    "ordinary success and actual intent-write refusal",
+    "durable settlement",
+    "legacy upgrade",
+    "exact pending receipt binding and replay"
+  ],
+  "CI_union": [
+    {
+      "parent": "86167318ab8fb2869c4c533c22642e8b7f3cac56",
+      "jobs_and_properties_preserved": true,
+      "step_names_preserved": true,
+      "backend_additions_exact": true
+    },
+    {
+      "parent": "5df5ffa67d494cb4ec0f0923d3de36b99032d478",
+      "jobs_and_properties_preserved": true,
+      "step_names_preserved": true,
+      "backend_additions_exact": true
+    }
+  ],
+  "limits": "No concurrent-cap acceptance, live provider, PostgreSQL or general judgment claim."
+}

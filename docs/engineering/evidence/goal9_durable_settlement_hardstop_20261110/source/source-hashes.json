@@ -1,0 +1,67 @@
+{
+  "base_commit": "b0a5c04e7069fae43b74f2cac91699fcb741e673",
+  "branch": "codex/goal9-durable-settlement-20261110",
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "files": {
+    "backend/core/agent_governance_service.py": {
+      "after_sha256": "a6dbbad7b1e9b541701a5c87f09fcec4605dddb55a589ea337dda27d74932eda",
+      "before_sha256": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+      "changed": true
+    },
+    "backend/core/budget_enforcement_service.py": {
+      "after_sha256": "6a28d39ef3020a6a320212c1cc8bead5d79ea312a82c95d6bcc00245b9f4bbb6",
+      "before_sha256": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "768fe04febc170bea282db06d026fce1617531ea5ec997104252031a298c07e4",
+      "before_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
+      "changed": true
+    },
+    "backend/core/models.py": {
+      "after_sha256": "1286442ff5236bf3ac23eff6ea541934e414f4855a533bc5ce67e9a4450d8c00",
+      "before_sha256": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+      "changed": true
+    },
+    "backend/core/spend_aggregation_service.py": {
+      "after_sha256": "c97a22a32221d71e5d7926b4a18252e07096d3c5129ddbef932e1f0a3b1c99d0",
+      "before_sha256": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+      "changed": true
+    },
+    "backend/core/sqlite_schema_repair.py": {
+      "after_sha256": "e157d0cde091506d811dc244b9cc3448bfcc9582e91c154e4bbb37f51c0db106",
+      "before_sha256": "46a2420f2bc9d3a575631214fa515af317bb4425cf98c32490528aea5365b174",
+      "changed": true
+    },
+    "backend/tests/test_goal9_budget_ledger_negative.py": {
+      "after_sha256": null,
+      "before_sha256": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
+      "changed": true
+    },
+    "backend/tests/test_goal9_durable_settlement.py": {
+      "after_sha256": "1048e9e06d3a8452c3653a8f6a8a63a5ca5da77f69c10b2fccf428915a20164e",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_token_usage_upgrade.py": {
+      "after_sha256": "7a617bcfa6a2c182d0a5caa89d46dbf26cb028fc78a8fa16fc8a32538187e98a",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "migration_ddl": "migration.sql",
+  "migration_lineage": "migration_lineage.md",
+  "note": "TokenUsage authoritative; durable pre-dispatch unknown intent + exact-binding CAS settlement; in-memory diagnostic; atomic budget reservation deferred",
+  "product_files_changed": [
+    "backend/core/models.py",
+    "backend/core/spend_aggregation_service.py",
+    "backend/core/budget_enforcement_service.py",
+    "backend/core/agent_governance_service.py",
+    "backend/core/llm/byok_handler.py",
+    "backend/core/sqlite_schema_repair.py"
+  ],
+  "schema": "goal9_durable_settlement_hardstop_source",
+  "test_only_negative_retained": "retained_negative/pre-fix.test.py + retained_negative/partial-upgrade-review.json + retained_negative/structured-intent-loop-review.json",
+  "upgrade_path": "core.sqlite_schema_repair.repair_known_drift() -> ensure_token_usage_upgrade(), before Base.metadata.create_all (backend/main_api_app.py:478)"
+}

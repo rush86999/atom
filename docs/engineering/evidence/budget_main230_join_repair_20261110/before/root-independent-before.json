@@ -1,0 +1,30 @@
+{
+  "pid": 48982,
+  "source": "973bea2f5",
+  "actual_predecessor_file": "ce70203da:backend/core/learning_llm_router.py",
+  "source_equal": true,
+  "sha256": "b756d72b73eae099dfa1d083e7095cf275ddc3427c14184cea54930a003c0627",
+  "log": "<scratch>",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "<scratch>",
+    "--cwd",
+    "<scratch>",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun",
+    "<scratch>",
+    "-q",
+    "--tb=short",
+    "--timeout=90"
+  ],
+  "result": "1 failed,1 passed; current-authoritative-factory binding fails, established local override passes",
+  "scope": "actual predecessor file byte-identical on frozen973; private log, sanitize before publication"
+}

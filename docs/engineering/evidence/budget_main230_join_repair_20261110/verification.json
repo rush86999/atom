@@ -1,0 +1,42 @@
+{
+  "ci": {
+    "declared_in": "backend/tests/fixtures/ci_backend_additions.json",
+    "lane_contract_in_broad_affected": true,
+    "new_step": "Run live session-factory and feedback write controls",
+    "parents_preserved": true
+  },
+  "date": "2026-11-10",
+  "environment": {
+    "live_actions": false,
+    "scratch": "SQLite only",
+    "secret_key": "scratch-only-readable"
+  },
+  "fix": {
+    "file": "backend/core/learning_llm_router.py",
+    "hash_matches_root": true,
+    "mechanism": "call-time resolution of core.database.get_db_session; local override seam preserved; no new engine/store",
+    "root_verified_sha256": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+    "sha256": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093"
+  },
+  "gates": {
+    "broad_affected": "287 passed",
+    "joined_after": "308 passed",
+    "permanent_regression": "3 passed",
+    "permanent_regression_before": "2 failed, 1 passed at ce70203da",
+    "root_independent_after": "pass on 3.11 and corrected 3.14"
+  },
+  "incident": {
+    "all_failures_in": "tests/test_employee_business_feedback.py",
+    "characterization": "model dispatch and business evaluation succeeded; annotation persisted to a stale import-time session factory, so the authoritative DB had no exact generation row",
+    "gate_log_private": "/private/tmp/root-budget-main230-joined-ykhqj1k_/gate.log",
+    "not": "tenant default / admission refusal / provider eligibility",
+    "result": "26 failed, 282 passed"
+  },
+  "parents": [
+    "ce70203da1969fb614b99cf39bed869938f55089",
+    "230231f5114612f4b31a602190c318667e94f2f1"
+  ],
+  "private_before_log_policy": "full root before log retained privately; published trace is a sanitized excerpt with disclosure only",
+  "schema": "budget_main230_join_repair_verification",
+  "self_acceptance": false
+}

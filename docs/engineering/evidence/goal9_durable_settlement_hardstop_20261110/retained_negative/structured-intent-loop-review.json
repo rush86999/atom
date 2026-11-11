@@ -1,0 +1,21 @@
+{
+  "bounded_test": "backend/tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist",
+  "fix": "raise out of the request-recovery loop; caller fails closed",
+  "note": "Real-consumer negative found during the durable-intent repair: a structured request-recovery while-True loop re-raised/continued the intent-unavailable branch without leaving the loop, producing millions of refusal log lines (original 560MB). Fixed by propagating _DurableUsageIntentUnavailable out of the recovery loop; the bounded test asserts zero provider calls, one/two bounded refusal logs, and a 10s deadline. No provider/model call occurred.",
+  "original_bytes": 560281760,
+  "original_log_removed_after_process_exit": true,
+  "original_retained_until_worker_notified": true,
+  "reason": "repeated durableintent refusal loop (scratch log removed)",
+  "removed_bytes": 560281760,
+  "root_cause": "structured inner while-True retry loop did not advance on intent failure",
+  "test_processes_signalled": [
+    [
+      80667,
+      66869
+    ],
+    [
+      80670,
+      80667
+    ]
+  ]
+}
