@@ -65,10 +65,13 @@ def workbook(tmp_path):
 
     tennsmith = tmp_path / "tennsmith.parquet"
     _frame([
-        {"__sheet_row": 101, "MODEL": "SLE24-16", "DESCRIPTION": "Slitter",
-         "PRICE": 8880, "U.S. LIST": 4500.0, "U.S. COST": 3600.0},
-        {"__sheet_row": 106, "MODEL": "GSL48-16", "DESCRIPTION": "Slitter",
-         "PRICE": 14166},
+        {"__sheet_row": 101, "MODEL": "SLE24-16",
+         "Catalog No": "SL-101", "DESCRIPTION": "Slitter",
+         "Type": "Single wheel", "PRICE": 8880,
+         "U.S. LIST": 4500.0, "U.S. COST": 3600.0},
+        {"__sheet_row": 106, "MODEL": "GSL48-16",
+         "Catalog No": "GS-106", "DESCRIPTION": "Slitter",
+         "Type": "Gang", "PRICE": 14166},
     ]).to_parquet(tennsmith)
 
     # A second, unrelated source holding U-22 at a DIFFERENT price. If the
@@ -145,8 +148,8 @@ def test_scratch_exact_cell_price_basis_per_item_and_no_substitution(workbook):
     assert "C26" in answer
     assert "'List Price'" in answer
     assert "1,777" in answer
-    assert "C101" in answer and "'PRICE'" in answer and "8,880" in answer
-    assert "C106" in answer and "14,166" in answer
+    assert "E101" in answer and "'PRICE'" in answer and "8,880" in answer
+    assert "E106" in answer and "14,166" in answer
     # per-item status survives delivery
     assert "- **U-38**" in answer and "no match in this copy" in answer
     assert "- **U-22**" in answer and "- **SLE24-16**" in answer
@@ -198,12 +201,9 @@ def test_scratch_general_read_has_no_implicit_price_field():
     assert "Lead Time days" in answer and "9" in answer
 
 
-
-def test_scratch_ambiguous_item_is_not_guessed(workbook, tmp_path):
+def test_scratch_ambiguous_item_is_not_guessed(tmp_path):
     """A code present on two rows stays an explicit ambiguity: both exact
     cells are listed and no one value is presented as the answer."""
-    import pandas as pd
-
     a = tmp_path / "dup_a.parquet"
     b = tmp_path / "dup_b.parquet"
     pd.DataFrame([{"__sheet_row": 10, "Model": "DUP-1", "PRICE": 100}]
@@ -237,7 +237,7 @@ def test_scratch_ambiguous_item_is_not_guessed(workbook, tmp_path):
 
 
 def test_scratch_named_file_lane_scopes_to_the_designated_workbook(
-        workbook, tmp_path, monkeypatch):
+        workbook, tmp_path):
     """The lane's own resolution: a near-name copy and another year's list
     are catalogued too; only the exactly named workbook may answer."""
     import types
