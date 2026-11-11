@@ -36,7 +36,7 @@ Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It re
 
 ### Ordinary password recovery
 
-- Candidate `8ae1b6296` adds the existing recovery link to the default sign-in form. Independent frontend and backend checks passed 109 and 26 tests, respectively. A browser clicked the real link and reset a synthetic account through the app auth router and a loopback STARTTLS/AUTH mail sink. A new backend process on the same scratch database accepted the new password, refused the old one, and rejected replay of the consumed token. The controlled mail test does not establish delivery through an external SMTP provider.
+- Draft #853 retains the verified login change from `8ae1b6296` and adds the existing recovery link to the default sign-in form. Independent frontend and backend checks passed 109 and 26 tests, respectively. A browser clicked the real link and reset a synthetic account through the app auth router and a loopback STARTTLS/AUTH mail sink. A new backend process on the same scratch database accepted the new password, refused the old one, and rejected replay of the consumed token. The controlled mail test does not establish delivery through an external SMTP provider.
 
 ### OPS-01 restored child
 
@@ -47,7 +47,7 @@ Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It re
 ### Deferred surfaces and open gates
 
 - Core-profile Search, Tasks and Boards remain deferred. The EXPO-01 inspection confirmed Tasks and Boards are not enabled in the default core profile; the scratch board driver refuses without an explicit full-profile switch, and no such switch was authorized. Search remains deferred. The remaining exposed-application evidence is scoped to the active core profile.
-- Full usage readiness remains open. #840 postmerge CI and Docker passed. The #849 and #842 postmerge frontend checks and #850 current-base frontend check failed on the same Agents reload fixture. The fixture recreated the WebSocket callback on each render, while production exposes a stable callback. A test-only correction passed the full 60-test selection five consecutive times locally. #851 is the clean successor to #845 and has 48 exact focused passes. #850 current head `fdb127c0` has 144 focused passes, and #848 current-base `ed920259` has 14 focused passes. Their hosted acceptance remains pending.
+- Full usage readiness remains open. #840 postmerge CI and Docker passed. The #849 and #842 postmerge frontend checks and #850 current-base frontend check failed on the same Agents reload fixture. The fixture recreated the WebSocket callback on each render, while production exposes a stable callback. The test-only correction in #852 passed all 60 tests in five consecutive local runs. The #850 workbook, #851 image and embedding, and #853 recovery drafts include the same test prerequisite and have hosted checks running in parallel. Their product changes retain 144 focused workbook checks, 48 focused vendor checks, and the recovery results above. The #848 current-base candidate `ed920259` has 14 focused passes and remains local.
 - Served multi-model quality, live connector breadth, operational soak and general business judgment remain open.
 
 ## Production HTTPS follow-through — 2026-11-09
