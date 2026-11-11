@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-11",
+  "files": {
+    "README.md": "8579a32380c0e1faa237fb7b6b5a68c6cee6bf469c412fbbbece9f0dfb9dce8d",
+    "after/embedding-vendor-controls.log": "313c3c8c724a61750eb8aebe7cdb39fbda71e2a3fad61f9c23902b47459c0389",
+    "after/final-shared-gate.log": "f432145846591b99cc399ff83d040989df8ad4e607a02bc50598a803b1be2ec1",
+    "after/physical-image-controls.log": "251498f6a4fd9dd88cd6ea470b2bb4e3313a600b6623d1beb180b95ba3568ebc",
+    "before/base50-failure-first.log": "5c06a404dff9c388a3f290da1699f1f2ac597840a021b01838aa969e3371317b",
+    "source/fix.diff": "b6a95f48cc34da3c142aed66d62719bfb81daa45c42d12b82b8aa5427e5e7377",
+    "source/source-hashes.json": "e62d4bf0796862167bfb2a5a6d5caacc0b1932eed771f3f0776570cad6569c59",
+    "verification.json": "5ef8ff7fec08b434a9ca864cc5362c9a1b00a03f2febe7a3498478660bf8a541"
+  },
+  "schema": "goal9_image_vendor_evidence"
+}
