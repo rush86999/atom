@@ -1,8 +1,8 @@
 # App completion state — 2026-11-07
 
-## Verified checkpoint — 2026-11-11, main `ef91be756`
+## Verified checkpoint — 2026-11-11, main `08ffabb00`
 
-Leading checkpoint for main at `ef91be756a1beb00fd6a2705611272835f119a89`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
+Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
 
 ### Merged exact heads
 
@@ -10,6 +10,8 @@ Leading checkpoint for main at `ef91be756a1beb00fd6a2705611272835f119a89`. It re
 - **PR #847:** reviewed head `691a1878a`, merged `8c2dcc0eb1d6a80b3e6784007f93b826bf4e00d8`, main tree `934dd8801b6ff5a0a5058bcc70454d2de31498bd`; all 13 checks passed. Clean Python 3.14 Presidio/NumPy lock and redaction lineage.
 - **PR #841:** reviewed head `f212481aa`, merged `ddc1f282e701524d7ffb1493a7c2f00144217306`; all 13 checks passed, including GitGuardian, backend-core, ORACLE, E2E and Docker. Synthetic isolated document deletion/restart lineage.
 - **PR #849:** reviewed head `d0d0c1790`, merged `ef91be756a1beb00fd6a2705611272835f119a89`, final main tree `8ad86a38694366b3b24126d417a0eb470e99de89`; all 13 exact-head checks passed. #840 is its prerequisite.
+
+- **PR #842:** reviewed head `755a4378c6cf82983a2e99273a94b41d3ec94a34`, merged `08ffabb00a0e58cef01f8b7168417ed3651d20ab`, final main tree `48bec35fc0bb494d12e4e6dd37004d369f731fb7`. All 13 exact-head checks passed.
 
 ### Controlled same-job and late wait
 
@@ -23,7 +25,7 @@ Leading checkpoint for main at `ef91be756a1beb00fd6a2705611272835f119a89`. It re
 - Draft PR #850 at `846cd3c35` (tree `729a90166e95e3de84f33587b58af11e3f650a38`) passed all 144 focused checks.
 - The Python `formulas 1.3.4` engine browser lineage at `a91281b12` completed both real edits with complete recalc, zero gaps, same-DB backend restart, fresh login and byte-identical downloads (SHA-256 `6b38faa75b43a9450497eab4ed95b9ec7e067934ac1f05420d60f308a048df3c`).
 - The native-failure fallback browser run at browser source `ec0a0c043`, whose implementation bytes match #850 `846cd3c35`, used the original failing bundled LibreOffice. The binary exited 134 on upload and both edits; the existing formulas fallback recorded complete recalc with zero gaps each time. The same DB was reopened by a different backend PID and fresh login; downloads matched (SHA-256 `79a8f2f95a54353b332c0ce2660735428ed954a3cbaa6e9adb1b3620d44e31c3`).
-- Native LibreOffice itself remains broken. Only the validated fallback and the Python engine are claimed as working; they are separate source lineages.
+- The bundled LibreOffice used in the failure scenario exited 134. The two browser source lineages verify the Python engine and the recovery path for that native failure.
 
 ### Python 3.14 document lineage
 
@@ -31,6 +33,10 @@ Leading checkpoint for main at `ef91be756a1beb00fd6a2705611272835f119a89`. It re
 - Seeded deletion/restart passed separately at exact-source v3 on `b8d84615`, canonical export `ba5b37ca25ca62b92abe0441a78174aee80dddea49b77aa1849dd5f1eed35584`: exactly one authenticated DELETE with a verified committed receipt, bound target detail/export 404s after a same-DB backend restart, and unchanged peer export digest. Evidence: `/private/tmp/document-py314-attempt3.GyLPyH/journey_result_py314.json`. It is synthetically seeded and API-triggered, not a UI delete; it does not join upload and deletion on a single document.
 - The joined core-profile journey passed four phases on one document at exact `b8d84615`. A browser uploaded, opened and exported it, then reopened the same document after a backend restart and fresh login. One authenticated API deletion returned a verified committed receipt. A second restart on the same database and a fresh login showed the document absent, with bound detail and export 404s. Backend logs recorded one upload and one delete. Core Search stayed deferred. Evidence is in `/private/tmp/document-joined-worker.ZisREj/run-v1/`.
 - The earlier seeded-delete v2 is supporting evidence only: its legacy copy excluded two tracked Python files and both health source IDs were unknown. It is not exact-source qualification.
+
+### Ordinary password recovery
+
+- Candidate `8ae1b6296` adds the existing recovery link to the default sign-in form. Independent frontend and backend checks passed 109 and 26 tests, respectively. A browser clicked the real link and reset a synthetic account through the app auth router and a loopback STARTTLS/AUTH mail sink. A new backend process on the same scratch database accepted the new password, refused the old one, and rejected replay of the consumed token. The controlled mail test does not establish delivery through an external SMTP provider.
 
 ### OPS-01 restored child
 
@@ -41,8 +47,8 @@ Leading checkpoint for main at `ef91be756a1beb00fd6a2705611272835f119a89`. It re
 ### Deferred surfaces and open gates
 
 - Core-profile Search, Tasks and Boards remain deferred. The EXPO-01 inspection confirmed Tasks and Boards are not enabled in the default core profile; the scratch board driver refuses without an explicit full-profile switch, and no such switch was authorized. Search remains deferred. The remaining exposed-application evidence is scoped to the active core profile.
-- Full usage readiness remains open. #840 postmerge CI and Docker passed (`42982736201`, `42982736341`). #849 postmerge Docker passed (`42989526549`), and main CI `42989526567` was still running at this checkpoint. #842 head `755a4378` is running exact hosted checks. Earlier #848 head `4d14acf2` and #850 head `846cd3c35` passed all 13 hosted checks on their respective bases. Their current-base candidates `cb5db68d` and `1d961531` remain local pending hosted checks.
-- These bounded results do not establish whole-app completion, served multi-model quality, live connector breadth, operational soak or general business judgment. All historical 143 claims and 18 goal-map rows remain unchanged.
+- Full usage readiness remains open. #840 postmerge CI and Docker passed. The #849 and #842 postmerge frontend checks and #850 current-base frontend check failed on the same Agents reload fixture. The fixture recreated the WebSocket callback on each render, while production exposes a stable callback. A test-only correction passed the full 60-test selection five consecutive times locally. #851 is the clean successor to #845 and has 48 exact focused passes. #850 current head `fdb127c0` has 144 focused passes, and #848 current-base `ed920259` has 14 focused passes. Their hosted acceptance remains pending.
+- Served multi-model quality, live connector breadth, operational soak and general business judgment remain open.
 
 ## Production HTTPS follow-through — 2026-11-09
 
