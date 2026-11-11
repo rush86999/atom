@@ -1,0 +1,31 @@
+{
+  "world": "grad_ordinary_ui_6da_1794315411_4d66ed51fe",
+  "elapsed_seconds": 2.229,
+  "identity": {
+    "source_id": "export-sha256:86ff63fda943",
+    "instance_id": "export-sha256:86ff63fda943.55457.1794338464",
+    "revision": "unknown",
+    "dirty": false,
+    "dirty_digest": "",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-10T19:21:02.581122+00:00",
+    "process_started_at": "2026-11-10T19:21:02.581120+00:00",
+    "pid": 55457,
+    "port": null,
+    "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe",
+    "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe/backend_root",
+    "error": null,
+    "identity_kind": "export",
+    "export_sha256": "86ff63fda943c572b35208377076ada28082075aeca2f8cf00c6dd617e131078",
+    "export_manifest_sha256": "bf8541443badf296737ff9086f806ae3e4dda5a7bd2730b620548e122fa50e41",
+    "code_manifest_sha256": "e93bd9d19e453a5bc44c21c6c9a8c9f9c0080219071d734324d27d1ffa5e125c",
+    "git_toplevel": null,
+    "ancestor_git_toplevel": "/Users/rushiparikh/projects/atom",
+    "dirty_known": true,
+    "export_verified_files": 7847,
+    "export_loaded_files": 7837
+  },
+  "source_id_matches_export_sha": true,
+  "ancestor_head_rejected": true
+}
