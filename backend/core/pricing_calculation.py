@@ -544,6 +544,10 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
             lines.append(
                 f"- Computed value (neutral workbook arithmetic): "
                 f"{_neutral_value}{qualifier}")
+            # Caller-facing evidence keeps the exact computed value available
+            # to attribution/verification consumers; the final answer lane
+            # still renders the prose above and strips calc envelopes.
+            lines.append(f"- Verification: computed_value={_neutral_value}")
         elif result.status == "stored_value":
             wb0 = result.workbook or {}
             lines.append(
