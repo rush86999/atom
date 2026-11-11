@@ -687,6 +687,7 @@ const AgentsDashboard = () => {
                                 agentId={activeJob.agentId}
                                 jobId={activeJob.jobId}
                                 onForget={forgetActiveJob}
+                                onMessage={onMessage}
                             />
                         )}
                         <Tabs defaultValue="career">
