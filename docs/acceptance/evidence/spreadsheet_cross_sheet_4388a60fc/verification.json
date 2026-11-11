@@ -1,0 +1,43 @@
+{
+  "schema": "atom-spreadsheet-cross-sheet-verification-1",
+  "status": "cross-sheet formula dependencies validate required inputs per resolved sheet and preserve explicit-zero/raw blank semantics; frozen delta candidate for independent review",
+  "candidate": {
+    "branch": "codex/agentA-spreadsheet-repair-20261111",
+    "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+    "prior_repair_source": "db0b52d0fba5dd8b7604930539d021f9c2abf1a8",
+    "cross_sheet_source": "7bd2731075c71a65130aea9def8b942982fc6c70",
+    "final_test_source": "4388a60fc7c2e12e2fd93551df24776d05223043",
+    "pr843_844_touched": false
+  },
+  "repair": {
+    "per_dependency_sheet": "formula dependencies grouped by resolved sheet; each uses that sheet's CellBook values/known blanks and frame role columns",
+    "version_isolation": "sibling books resolve through existing _FileSheetBooks.provider/prefer_hash; no cross-version donation",
+    "gap_attribution": "sheet, row, identity where available, missing role and cell",
+    "explicit_zero": "explicit zero is a supplied value, not a gap",
+    "raw_semantics": "CellBook blank-as-zero arithmetic remains; application result is incomplete when a required blank contributes",
+    "new_engine_or_catalog": false
+  },
+  "controls": {
+    "root_cross_sheet_negative": true,
+    "populated_cross_sheet_twin": true,
+    "same_version_catalog_resolution": true,
+    "explicit_zero_preserved": true,
+    "raw_blank_as_zero_preserved": true,
+    "same_sheet_results_preserved": true,
+    "aggregate_dispatch_preserved": true,
+    "gap_sheet_and_cell_attribution": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_install": true,
+    "pr843_844_untouched": true
+  },
+  "results": {
+    "root_probe": {"passed": 1, "log": "root-cross-sheet-probe.log"},
+    "new_controls": {"passed": 10, "log": "new-cross-sheet-controls.log"},
+    "bounded_gate": {"passed": 118, "log": "bounded-gate-4388a60fc.log"}
+  },
+  "boundaries": [
+    "supported workbook/formula path only",
+    "prior 113-test gate preserved and expanded; unchanged failure-first campaign not rerun",
+    "root owns PR843/844 integration"
+  ]
+}
