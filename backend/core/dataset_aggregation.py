@@ -1526,6 +1526,9 @@ def required_formula_input_gaps(
             identity = str(
                 values.get(f"{identity_letter}{row_number}") or "").strip()
         gaps.append({
+            "sheet": (
+                str(getattr(dependency, "sheet", "") or "")
+                or str(sheet_name or "")),
             "identity": identity,
             "row": row_number,
             "missing": missing,
