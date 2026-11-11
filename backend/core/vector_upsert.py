@@ -20,6 +20,34 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def _revoked_status(
+    doc_id: str, workspace_id: Optional[str], content_hash: str,
+) -> Optional[str]:
+    """Return a terminal tombstone that forbids this exact source version."""
+    try:
+        from core.database import get_db_session
+        from core.models import IngestedDocument
+
+        with get_db_session() as db:
+            row = db.query(IngestedDocument).filter(
+                IngestedDocument.id == str(doc_id)).first()
+            if row is None:
+                return None
+            status = str(getattr(row, "freshness_status", "") or "").lower()
+            if status not in ("removed", "superseded"):
+                return None
+            if (status == "removed"
+                    and content_hash
+                    and row.source_content_hash
+                    and content_hash != str(row.source_content_hash)):
+                # A genuinely changed source is a new version/authorization.
+                return None
+            return status
+    except Exception as exc:  # noqa: BLE001 - a read failure must not invent revocation
+        logger.debug(f"vector upsert tombstone probe failed for {doc_id}: {exc}")
+        return None
+
+
 async def upsert_document(
     handler: Any,
     *,
@@ -39,6 +67,8 @@ async def upsert_document(
     from core.doc_freshness_service import extraction_content_hash
 
     content_hash = extraction_content_hash(text)
+    if _revoked_status(doc_id, workspace_id, content_hash):
+        return "skipped_revoked"
 
     try:
         prior = await asyncio.to_thread(handler.get_document_by_id, table_name, doc_id)
@@ -143,6 +173,8 @@ async def upsert_document_chunks(
     from core.doc_freshness_service import extraction_content_hash
 
     content_hash = extraction_content_hash(text)
+    if _revoked_status(doc_id, workspace_id, content_hash):
+        return "skipped_revoked"
     chunks = _split_into_chunks(text, chunk_size, chunk_overlap)
     if len(chunks) <= 1:
         # A previously-chunked document that shrank must not leave orphan

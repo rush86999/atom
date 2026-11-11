@@ -1,0 +1,132 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 17:16:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:16:21 [    INFO] EscalationManager initialized
+2026-11-10 17:16:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:16:21 [    INFO] EscalationManager initialized
+2026-11-10 17:16:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:16:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:16:21 [    INFO] AgentTaskRegistry initialized
+2026-11-10 17:16:21 [    INFO] EscalationManager initialized
+2026-11-10 17:16:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:16:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:16:21 [    INFO] LanceDBHandler initialized. ID: 5017478608. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:16:21 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:16:21 [    INFO] Connecting to LanceDB at /private/tmp/goal3-file-safety-parent/backend/data/atom_memory with storage_options=None
+2026-11-10 17:16:21 [    INFO] LanceDB connected successfully
+2026-11-10 17:16:21 [    INFO] Table 'documents' created successfully
+2026-11-10 17:16:21 [    INFO] Document added to 'documents': doc_f6c838f72090992346dd586a
+2026-11-10 17:16:21 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:16:21 [ WARNING] Governance check skipped for delete_document: missing request or db
+FAILED                                                                   [ 50%]
+backend/tests/test_document_joined_lifecycle.py::test_shared_file_is_preserved_for_peer_document 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:16:22 [    INFO] EscalationManager initialized
+2026-11-10 17:16:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:16:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:16:22 [    INFO] LanceDBHandler initialized. ID: 5020606352. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:16:22 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:16:22 [    INFO] Connecting to LanceDB at /private/tmp/goal3-file-safety-parent/backend/data/atom_memory with storage_options=None
+2026-11-10 17:16:22 [    INFO] LanceDB connected successfully
+2026-11-10 17:16:22 [    INFO] Document added to 'documents': doc_61c43039cb8d14844a3ce00f
+2026-11-10 17:16:22 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:16:22 [ WARNING] Governance check skipped for delete_document: missing request or db
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+________________ test_unsafe_outside_file_path_is_not_unlinked _________________
+backend/tests/test_document_joined_lifecycle.py:366: in test_unsafe_outside_file_path_is_not_unlinked
+    with pytest.raises(HTTPException) as exc:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE HTTPException
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:225 LanceDBHandler initialized. ID: 5017478608. LANCEDB_AVAILABLE: True
+------------------------------ Captured log call -------------------------------
+INFO     core.lancedb_handler:lancedb_handler.py:233 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:330 Connecting to LanceDB at /private/tmp/goal3-file-safety-parent/backend/data/atom_memory with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:335 LanceDB connected successfully
+INFO     core.lancedb_handler:lancedb_handler.py:582 Table 'documents' created successfully
+INFO     core.lancedb_handler:lancedb_handler.py:1167 Document added to 'documents': doc_f6c838f72090992346dd586a
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+WARNING  core.api_governance:api_governance.py:144 Governance check skipped for delete_document: missing request or db
+_______________ test_shared_file_is_preserved_for_peer_document ________________
+backend/tests/test_document_joined_lifecycle.py:401: in test_shared_file_is_preserved_for_peer_document
+    assert out["data"]["effects"]["file"] == "shared"
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'effects'
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:225 LanceDBHandler initialized. ID: 5020606352. LANCEDB_AVAILABLE: True
+------------------------------ Captured log call -------------------------------
+INFO     core.lancedb_handler:lancedb_handler.py:233 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:330 Connecting to LanceDB at /private/tmp/goal3-file-safety-parent/backend/data/atom_memory with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:335 LanceDB connected successfully
+INFO     core.lancedb_handler:lancedb_handler.py:1167 Document added to 'documents': doc_61c43039cb8d14844a3ce00f
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+WARNING  core.api_governance:api_governance.py:144 Governance check skipped for delete_document: missing request or db
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+  /private/tmp/goal3-file-safety-parent/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_shared_file_is_preserved_for_peer_document
+  /private/tmp/goal3-file-safety-parent/backend/core/lancedb_handler.py:411: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_shared_file_is_preserved_for_peer_document
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+  /private/tmp/goal3-file-safety-parent/backend/core/lancedb_handler.py:624: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked
+FAILED backend/tests/test_document_joined_lifecycle.py::test_shared_file_is_preserved_for_peer_document
+======================== 2 failed, 20 warnings in 1.80s ========================

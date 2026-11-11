@@ -1,0 +1,221 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 17:15:04 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:05 [    INFO] AgentTaskRegistry initialized
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:05 [    INFO] LanceDBHandler initialized. ID: 4884324240. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:05 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:05 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:05 [    INFO] Document added to 'documents': doc_a7b3d380a52b07fa615cd88d
+2026-11-10 17:15:05 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:05 [    INFO] MCP Service initialized
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 17:15:05 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] Webhook processor initialized and callback registered
+2026-11-10 17:15:05 [ WARNING] sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+2026-11-10 17:15:05 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-10 17:15:05 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-10 17:15:05 [    INFO] Opened existing atom_communications table
+2026-11-10 17:15:05 [    INFO] FTS index enabled on 'content' column
+2026-11-10 17:15:05 [    INFO] Opened existing ingestion_metadata table
+2026-11-10 17:15:05 [    INFO] LanceDB memory manager initialized successfully
+2026-11-10 17:15:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 17:15:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  9%]
+backend/tests/test_document_joined_lifecycle.py::test_sql_delete_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:05 [    INFO] EscalationManager initialized
+2026-11-10 17:15:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:05 [    INFO] LanceDBHandler initialized. ID: 4885300240. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:05 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:05 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:05 [    INFO] Document added to 'documents': doc_a7713de0bc6a00865691d919
+2026-11-10 17:15:05 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 18%]
+backend/tests/test_document_joined_lifecycle.py::test_file_unlink_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:06 [    INFO] EscalationManager initialized
+2026-11-10 17:15:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:06 [    INFO] LanceDBHandler initialized. ID: 4939417152. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:06 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:06 [    INFO] Document added to 'documents': doc_2c57375ec5a2625a72af568e
+2026-11-10 17:15:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 27%]
+backend/tests/test_document_joined_lifecycle.py::test_fts_readback_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:06 [    INFO] EscalationManager initialized
+2026-11-10 17:15:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:06 [    INFO] LanceDBHandler initialized. ID: 4939426576. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:06 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:06 [    INFO] Document added to 'documents': doc_6267a25b48a8b78feb5ace7b
+2026-11-10 17:15:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 36%]
+backend/tests/test_document_joined_lifecycle.py::test_foreign_sql_scope_is_refused_without_effects 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:06 [    INFO] EscalationManager initialized
+2026-11-10 17:15:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:06 [    INFO] LanceDBHandler initialized. ID: 4939707408. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:06 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:06 [    INFO] Document added to 'documents': doc_42d1e01c30beace397c606d3
+2026-11-10 17:15:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 17:15:06 [ WARNING] API Error: NOT_FOUND - Document not found: doc_42d1e01c30beace397c606d3
+PASSED                                                                   [ 45%]
+backend/tests/test_document_joined_lifecycle.py::test_stale_sql_version_refuses_before_vector_or_file_effect 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:06 [    INFO] EscalationManager initialized
+2026-11-10 17:15:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:06 [    INFO] LanceDBHandler initialized. ID: 4936906368. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:06 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:06 [    INFO] Document added to 'documents': doc_ef1c6403e2be6c24920e70a7
+2026-11-10 17:15:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 54%]
+backend/tests/test_document_joined_lifecycle.py::test_stale_producer_same_version_cannot_republish 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:06 [    INFO] EscalationManager initialized
+2026-11-10 17:15:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:06 [    INFO] LanceDBHandler initialized. ID: 4880098416. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:06 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:06 [    INFO] Document added to 'documents': doc_c0904974e35f514e838f5a72
+2026-11-10 17:15:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 63%]
+backend/tests/test_document_joined_lifecycle.py::test_new_version_is_allowed_and_old_receipt_cannot_delete_it 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:07 [    INFO] EscalationManager initialized
+2026-11-10 17:15:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:07 [    INFO] LanceDBHandler initialized. ID: 4936940112. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:07 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:07 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:07 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:07 [    INFO] Document added to 'documents': doc_69b193d33891a69eadea8f81
+2026-11-10 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 17:15:07 [    INFO] Document added to 'documents': doc_69b193d33891a69eadea8f81
+2026-11-10 17:15:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 72%]
+backend/tests/test_document_joined_lifecycle.py::test_upload_same_removed_version_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:07 [    INFO] EscalationManager initialized
+2026-11-10 17:15:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:07 [    INFO] LanceDBHandler initialized. ID: 4940939600. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:07 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:07 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:07 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:07 [    INFO] Document added to 'documents': doc_70b4f2a1056f12fec33f2c4a
+2026-11-10 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 17:15:07 [ WARNING] API Error: DOCUMENT_REVOKED - This document was deleted. Upload changed content or use a new document instead of replaying the removed version.
+2026-11-10 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 81%]
+backend/tests/test_document_joined_lifecycle.py::test_unsafe_outside_file_path_is_not_unlinked 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:07 [    INFO] EscalationManager initialized
+2026-11-10 17:15:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:07 [    INFO] LanceDBHandler initialized. ID: 4940375024. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:07 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:07 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:07 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:07 [    INFO] Document added to 'documents': doc_1e3dde74943318e47873333c
+2026-11-10 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 90%]
+backend/tests/test_document_joined_lifecycle.py::test_shared_file_is_preserved_for_peer_document 
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:08 [    INFO] EscalationManager initialized
+2026-11-10 17:15:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:08 [    INFO] LanceDBHandler initialized. ID: 4940377664. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:08 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 17:15:08 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 17:15:08 [    INFO] LanceDB connected successfully
+2026-11-10 17:15:08 [    INFO] Document added to 'documents': doc_d6309b17684c0f0b5e413f97
+2026-11-10 17:15:08 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 17:15:08 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 22 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_joined_lifecycle.py: 11 warnings
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/core/lancedb_handler.py:411: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_joined_lifecycle.py: 13 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:676: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:758: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 11 passed, 51 warnings in 5.61s ========================
