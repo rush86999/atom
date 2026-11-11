@@ -956,9 +956,9 @@ def test_image_data_url_does_not_inflate_the_text_bound(
     assert recorded["input_tokens"] == with_huge
 
 
-def test_observe_image_usage_never_settles_as_free(
+def test_observe_image_authoritative_usage_settles_actual(
         host, monkeypatch, tmp_path):
-    """A provider usage report for an image does not become a $0 settlement."""
+    """Provider input-token usage (which aggregates image tokens) is exact."""
     _seed(host, spend=0.0, limit=0.0)  # observe/no-limit
     _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
     calls = []
@@ -971,10 +971,68 @@ def test_observe_image_usage_never_settles_as_free(
     rows = _attempt_rows(host)
     assert len(rows) == 1
     row = rows[0]
+    assert row.cost_usd == pytest.approx(7.0)
+    assert row.pricing_status == "priced"
+    assert row.reservation_status == "settled"
+    assert row.prompt_tokens == 10 and row.completion_tokens == 5
+
+
+def test_observe_image_image_token_detail_is_consumed(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=0.0, limit=0.0)
+    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+    response = _response("IMAGE DETAIL")
+    response.usage.prompt_tokens_details = SimpleNamespace(image_tokens=10)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient([{"response": response}], calls)})
+    asyncio.run(handler.chat_completion(
+        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    row = _attempt_rows(host)[0]
+    assert row.cost_usd == pytest.approx(7.0)
+    assert row.pricing_status == "priced"
+
+
+def test_observe_image_malformed_image_detail_stays_unknown(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=0.0, limit=0.0)
+    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+    response = _response("IMAGE BAD DETAIL")
+    response.usage.prompt_tokens_details = SimpleNamespace(image_tokens=-1)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient([{"response": response}], calls)})
+    asyncio.run(handler.chat_completion(
+        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    row = _attempt_rows(host)[0]
     assert row.cost_usd is None
     assert row.pricing_status == "unknown"
     assert row.reservation_status == "uncertain"
-    assert row.reserved_cost_usd is None
+
+
+def test_observe_image_without_usage_stays_unknown(
+        host, monkeypatch, tmp_path):
+    """Absent usage detail is never an image zero."""
+    _seed(host, spend=0.0, limit=0.0)
+    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+    response = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(
+                content="NO USAGE", tool_calls=None, function_call=None,
+                reasoning_content=None),
+            finish_reason="stop")])
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient([{"response": response}], calls)})
+    asyncio.run(handler.chat_completion(
+        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    row = _attempt_rows(host)[0]
+    assert row.cost_usd is None
+    assert row.pricing_status == "unknown"
+    assert row.reservation_status == "uncertain"
 
 
 def test_paid_image_still_refuses_under_hardstop(
@@ -1027,9 +1085,11 @@ def test_multimodal_observe_admits_with_unknown_liability(
     assert len(calls) == 1
     rows = _attempt_rows(host)
     assert len(rows) == 1
-    assert rows[0].pricing_status == "unknown"
-    assert rows[0].reservation_status == "uncertain"
-    assert rows[0].reserved_cost_usd is None
+    # The doubled provider reported complete usage, which is authoritative
+    # for the image-bearing attempt; observe mode settles it exactly.
+    assert rows[0].pricing_status == "priced"
+    assert rows[0].reservation_status == "settled"
+    assert rows[0].cost_usd == pytest.approx(7.0)
 
 
 # --------------------------------------------------------------------------
