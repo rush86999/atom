@@ -153,6 +153,39 @@ class TestOtherEntities:
             assert "token=secret" not in result.redacted_text
 
 
+# ---------------------------------------------------------------------------
+# CREDIT_CARD masking: exact behavior + no silent regex fallback
+# ---------------------------------------------------------------------------
+class TestCreditCardMasking:
+    """The CREDIT_CARD mask config is contract-checked against the installed
+    presidio-anonymizer: the installed Mask operator requires masking_char,
+    chars_to_mask AND from_end; a config missing from_end made anonymize()
+    raise, which redact() converted into a silent SecretsRedactor fallback --
+    and the regex fallback drops non-Luhn synthetic cards entirely
+    (BUG-2026-11-10)."""
+
+    CARD = "4532-1234-5678-9010"  # 19 chars, deliberately not Luhn-valid
+
+    def test_credit_card_masked_exactly_no_fallback(self, redactor):
+        """Exact masking: every character of the matched PAN span is replaced,
+        and the Presidio path succeeds without the regex fallback."""
+        with patch.object(redactor, "_fallback_redact") as fallback:
+            result = redactor.redact(f"Card: {self.CARD}")
+        assert result.has_secrets
+        assert result.redacted_text == "Card: " + "*" * len(self.CARD)
+        fallback.assert_not_called()
+
+    def test_credit_card_spaced_variant_masked_exactly_no_fallback(self, redactor):
+        """Space-separated PANs (Luhn-valid) mask identically: full span."""
+        card = "4111 1111 1111 1111"
+        with patch.object(redactor, "_fallback_redact") as fallback:
+            result = redactor.redact(f"Pay with {card} today")
+        assert result.has_secrets
+        assert result.redacted_text == "Pay with " + "*" * len(card) + " today"
+        fallback.assert_not_called()
+        assert any(r["type"] == "CREDIT_CARD" for r in result.redactions)
+
+
 class TestCleanText:
     def test_no_pii_unchanged(self, redactor):
         result = redactor.redact("Hello world, safe text here")
