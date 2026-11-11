@@ -38,6 +38,12 @@ except ImportError:
     nomic = None  # type: ignore
 
 
+# One admitted embedding dispatch == one HTTP request. The OpenAI SDK retries
+# connection/408/409/429/5xx by default; the handler owns the durable
+# admission/settlement and is the only retry owner.
+_SDK_MAX_RETRIES = 0
+
+
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     """
     OpenAI embedding provider using text-embedding-3 models.
@@ -72,7 +78,8 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         try:
             if AsyncOpenAI is None:
                 raise ImportError("OpenAI package not installed")
-            self._client = AsyncOpenAI(api_key=api_key)
+            self._client = AsyncOpenAI(
+                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
         except ImportError:
             raise EmbeddingProviderError(
                 "OpenAI package not installed. Install with: pip install openai"
@@ -471,7 +478,8 @@ class JinaEmbeddingProvider(BaseEmbeddingProvider):
             if AsyncOpenAI is None:
                 raise ImportError("OpenAI package not installed")
             self._client = AsyncOpenAI(
-                api_key=api_key, base_url=self.BASE_URL
+                api_key=api_key, base_url=self.BASE_URL,
+                max_retries=_SDK_MAX_RETRIES,
             )
         except ImportError:
             raise EmbeddingProviderError(

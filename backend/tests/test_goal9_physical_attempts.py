@@ -920,6 +920,63 @@ def test_authoritative_zero_price_image_streams_free(
     assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
 
 
+def test_image_data_url_does_not_inflate_the_text_bound(
+        host, monkeypatch, tmp_path):
+    """Image accounting is never fabricated from base64 bytes."""
+    from core.llm.byok_handler import BYOKHandler, _serialized_payload_for_bound
+
+    _seed(host, spend=0.0)
+    recorded = {}
+
+    def _estimate(model, input_tokens, output_tokens):
+        recorded["input_tokens"] = input_tokens
+        return 1.0
+
+    _pricing(monkeypatch, _estimate)
+    handler = object.__new__(BYOKHandler)
+    huge = "A" * (1024 * 1024)
+    payload = [{"role": "user", "content": [
+        {"type": "text", "text": "describe"},
+        {"type": "image_url",
+         "image_url": {"url": f"data:image/png;base64,{huge}"}},
+    ]}]
+    serialized = _serialized_payload_for_bound(payload)
+    assert huge not in serialized
+    assert "<inline-image>" in serialized
+    handler._estimate_reservation_bound(
+        "openai", "controlled-image-model", [serialized], 100)
+    with_huge = recorded["input_tokens"]
+    small = _serialized_payload_for_bound([{"role": "user", "content": [
+        {"type": "text", "text": "describe"},
+        {"type": "image_url",
+         "image_url": {"url": "data:image/png;base64,AA"}},
+    ]}])
+    handler._estimate_reservation_bound(
+        "openai", "controlled-image-model", [small], 100)
+    assert recorded["input_tokens"] == with_huge
+
+
+def test_observe_image_usage_never_settles_as_free(
+        host, monkeypatch, tmp_path):
+    """A provider usage report for an image does not become a $0 settlement."""
+    _seed(host, spend=0.0, limit=0.0)  # observe/no-limit
+    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"response": _response("IMAGE ANSWER")}], calls)})
+    asyncio.run(handler.chat_completion(
+        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    rows = _attempt_rows(host)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.cost_usd is None
+    assert row.pricing_status == "unknown"
+    assert row.reservation_status == "uncertain"
+    assert row.reserved_cost_usd is None
+
+
 def test_paid_image_still_refuses_under_hardstop(
         host, monkeypatch, tmp_path):
     """A positive configured price keeps the explicit-unknown image refusal."""
