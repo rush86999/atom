@@ -89,6 +89,19 @@ from core.world_storage_guard import (  # noqa: E402
 )
 
 
+def _export_print_label(manifest: Dict[str, Any]) -> str:
+    """Name the export a build actually wrote, not an unrelated pin.
+
+    Archive mode exported PINNED_REV and preflight re-checks it. Snapshot mode
+    exported the working tree; printing PINNED_REV there attributed the farm to
+    a commit that was never loaded.
+    """
+    if manifest.get("code_archive_sha256"):
+        return f"archive:{PINNED_REV[:10]}"
+    ref = str(manifest.get("code_snapshot_sha256") or "")
+    return f"snapshot-sha256:{ref[:12]}" if ref else "snapshot-sha256:unknown"
+
+
 def _sandbox_profile(port: int, extra_ports: Tuple[int, ...] = ()) -> str:
     """Precise claim: external connections BLOCKED; loopback restricted to
     the test server's port plus, in provider-shim mode, the shim's port —
@@ -969,8 +982,9 @@ def build_world(world: Path, refreeze_db: bool, *, small_fixture: bool = False,
     })
     manifest_path.write_text(json.dumps(manifest, indent=1))
     _export_ref = manifest.get("code_archive_sha256") or manifest.get("code_snapshot_sha256", "")
+    _export_label = _export_print_label(manifest)
     print(f"[world] built: export {_export_ref[:12]}..., {copied} parquets verified, "
-          f"farm -> world/code @ {PINNED_REV[:10]}, seatbelt profile written")
+          f"farm -> world/code @ {_export_label}, seatbelt profile written")
     # STORAGE POLICY: report the breakdown, and produce the retention
     # INVENTORY. Nothing is deleted here. A build is the wrong moment for
     # unattended removal: it runs from scripts, in loops, and a world being

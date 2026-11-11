@@ -1,0 +1,279 @@
+
+backend/tests/test_runtime_identity_export.py::test_native_clean_checkout_is_attributable 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:21:06 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 14:21:06 [    INFO] EscalationManager initialized
+2026-11-10 14:21:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:21:06 [    INFO] EscalationManager initialized
+2026-11-10 14:21:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:21:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:21:06 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:06 [    INFO] runtime identity: kind=git source_id=578e938588c4 revision=578e938588c4 dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [  1%]
+backend/tests/test_runtime_identity_export.py::test_native_dirty_checkout_stays_attributable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:07 [    INFO] runtime identity: kind=git source_id=578e938588c4-dirty.b555aedf69bb revision=578e938588c4 dirty=True (1 modified, 0 untracked) export=
+PASSED                                                                   [  3%]
+backend/tests/test_runtime_identity_export.py::test_nested_export_does_not_claim_ancestor_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:07 [    INFO] runtime identity: kind=export source_id=export-sha256:0f0c440ed464 revision=unknown dirty=False (0 modified, 0 untracked) export=0f0c440ed464
+PASSED                                                                   [  4%]
+backend/tests/test_runtime_identity_export.py::test_nested_export_never_reports_ancestor_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:07 [    INFO] runtime identity: kind=export source_id=export-sha256:0f0c440ed464 revision=unknown dirty=False (0 modified, 0 untracked) export=0f0c440ed464
+PASSED                                                                   [  6%]
+backend/tests/test_runtime_identity_export.py::test_archive_export_twin_uses_archive_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:07 [    INFO] runtime identity: kind=export source_id=export-sha256:8cfcacb1e2f6 revision=unknown dirty=False (0 modified, 0 untracked) export=8cfcacb1e2f6
+PASSED                                                                   [  7%]
+backend/tests/test_runtime_identity_export.py::test_symlinked_backend_farm_uses_world_export_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:08 [    INFO] runtime identity: kind=export source_id=export-sha256:7dd401215cdd revision=unknown dirty=False (0 modified, 0 untracked) export=7dd401215cdd
+PASSED                                                                   [  9%]
+backend/tests/test_runtime_identity_export.py::test_runtime_artifacts_do_not_break_unchanged_export 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:08 [    INFO] runtime identity: kind=export source_id=export-sha256:a6e062e74a8d revision=unknown dirty=False (0 modified, 0 untracked) export=a6e062e74a8d
+PASSED                                                                   [ 11%]
+backend/tests/test_runtime_identity_export.py::test_export_drift_is_rejected_not_certified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:08 [    INFO] runtime identity: kind=export source_id=export-sha256:b6ac6f7651f1 revision=unknown dirty=False (0 modified, 0 untracked) export=b6ac6f7651f1
+2026-11-10 14:21:08 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 12%]
+backend/tests/test_runtime_identity_export.py::test_export_without_metadata_is_unknown_not_ancestor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:08 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 14%]
+backend/tests/test_runtime_identity_export.py::test_malformed_manifest_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:09 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 15%]
+backend/tests/test_runtime_identity_export.py::test_conflicting_manifest_hashes_are_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:09 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 17%]
+backend/tests/test_runtime_identity_export.py::test_missing_code_manifest_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:09 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 19%]
+backend/tests/test_runtime_identity_export.py::test_manifest_path_escape_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:09 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 20%]
+backend/tests/test_runtime_identity_export.py::test_invalid_manifest_entry_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 22%]
+backend/tests/test_runtime_identity_export.py::test_missing_manifest_file_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 23%]
+backend/tests/test_runtime_identity_export.py::test_extra_loaded_file_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 25%]
+backend/tests/test_runtime_identity_export.py::test_unrelated_farm_cannot_certify_export 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 26%]
+backend/tests/test_runtime_identity_export.py::test_nogit_install_is_unknown_not_clean 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] runtime identity: kind=unknown source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked) export=
+PASSED                                                                   [ 28%]
+backend/tests/test_runtime_identity_export.py::test_run_isolated_print_names_the_actual_export PASSED [ 30%]
+backend/tests/api/test_health_routes.py::TestLivenessProbe::test_liveness_returns_200 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:21:10 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+backend/tests/api/test_health_routes.py::TestLivenessProbe::test_liveness_returns_status_alive 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+backend/tests/api/test_health_routes.py::TestLivenessProbe::test_liveness_includes_timestamp 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+backend/tests/api/test_health_routes.py::TestLivenessProbe::test_liveness_no_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_returns_200_when_healthy 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:10 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_includes_timestamp 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_returns_503_when_db_down 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 41%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_checks_disk_space 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_includes_dependency_status 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+backend/tests/api/test_health_routes.py::TestReadinessProbe::test_readiness_no_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+backend/tests/api/test_health_routes.py::TestDatabaseConnectivity::test_database_connectivity_returns_200 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 47%]
+backend/tests/api/test_health_routes.py::TestDatabaseConnectivity::test_database_connectivity_includes_pool_status 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 49%]
+backend/tests/api/test_health_routes.py::TestDatabaseConnectivity::test_database_connectivity_includes_query_time 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+backend/tests/api/test_health_routes.py::TestDatabaseConnectivity::test_database_connectivity_slow_query_warning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+backend/tests/api/test_health_routes.py::TestPrometheusMetrics::test_metrics_returns_200 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+backend/tests/api/test_health_routes.py::TestPrometheusMetrics::test_metrics_returns_prometheus_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+backend/tests/api/test_health_routes.py::TestPrometheusMetrics::test_metrics_includes_http_metrics 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+backend/tests/api/test_health_routes.py::TestPrometheusMetrics::test_metrics_accessible_without_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+backend/tests/api/test_health_routes.py::TestSyncHealth::test_sync_health_returns_200 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/sync "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+backend/tests/api/test_health_routes.py::TestSyncHealth::test_sync_health_includes_status 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/sync "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 61%]
+backend/tests/api/test_health_routes.py::TestSyncHealth::test_sync_health_no_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/sync "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 63%]
+backend/tests/api/test_health_routes.py::TestSyncMetrics::test_sync_metrics_returns_200 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] Sync metrics initialized with default values
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/metrics/sync "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+backend/tests/api/test_health_routes.py::TestSyncMetrics::test_sync_metrics_returns_prometheus_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/metrics/sync "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+backend/tests/api/test_health_routes.py::TestSyncMetrics::test_sync_metrics_accessible_without_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/metrics/sync "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/health/live] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/health/ready] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/health/db] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 73%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/health/metrics] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/health/sync] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/sync "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 76%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_respond[/metrics/sync] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/metrics/sync "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/health/live] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/live "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/health/ready] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/health/db] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [   ERROR] Database health check failed: 'Session' object is not an iterator
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/db "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 82%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/health/metrics] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/metrics "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/health/sync] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/sync "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 85%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_health_endpoints_no_auth[/metrics/sync] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/metrics/sync "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_disk_space_thresholds[10.0-True] PASSED [ 88%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_disk_space_thresholds[2.0-True] PASSED [ 90%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_disk_space_thresholds[1.0-True] PASSED [ 92%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_disk_space_thresholds[0.5-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [ WARNING] Low disk space: 0.50GB free (minimum: 1.0GB)
+PASSED                                                                   [ 93%]
+backend/tests/api/test_health_routes.py::TestHealthEdgeCases::test_disk_space_thresholds[0.1-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [ WARNING] Low disk space: 0.10GB free (minimum: 1.0GB)
+PASSED                                                                   [ 95%]
+backend/tests/api/test_health_routes.py::TestDatabaseFailureScenarios::test_database_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 96%]
+backend/tests/api/test_health_routes.py::TestDatabaseFailureScenarios::test_database_connection_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+backend/tests/api/test_health_routes.py::TestDatabaseFailureScenarios::test_database_unexpected_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:21:11 [    INFO] HTTP Request: GET http://testserver/health/ready "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 126 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 63 passed, 129 warnings in 6.27s =======================

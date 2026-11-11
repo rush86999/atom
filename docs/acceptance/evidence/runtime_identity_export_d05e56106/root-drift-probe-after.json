@@ -1,0 +1,15 @@
+{
+  "scope": "working draft runtime identity; actual code changes with retained original manifest",
+  "first": {
+    "kind": "export",
+    "source_id": "export-sha256:76b0c7c37c72",
+    "error": null
+  },
+  "after_drift": {
+    "kind": "unknown",
+    "source_id": "unknown",
+    "error": "export file content changed: backend/app.py"
+  },
+  "same_id_after_changed_bytes": false,
+  "accepted_changed_export": false
+}
