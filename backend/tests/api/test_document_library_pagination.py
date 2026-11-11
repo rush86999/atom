@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import json
 import re
+import sys
 import uuid
 from importlib.metadata import version
 from pathlib import Path
@@ -452,11 +453,17 @@ def test_standard_requirements_include_the_lance_sdk_scanner():
     ``lance`` and the page scanner imports ``lance.dataset.ColumnOrdering``.
     A missing pylance is a typed 503 at runtime, so the standard requirements
     and the installed environment are both part of the library contract.
+    The manifest text is asserted everywhere; the installed-environment half
+    only applies where this set is the active install (Python < 3.14).
     """
     requirements = (Path(__file__).resolve().parents[2] / "requirements.txt").read_text()
     assert re.search(r"(?m)^lancedb==0\.24\.3$", requirements)
     assert re.search(r"(?m)^pylance==0\.39\.0$", requirements)
     assert re.search(r"(?m)^pyarrow>=14\.0\.0,<26\.0\.0$", requirements)
+
+    if sys.version_info >= (3, 14):
+        pytest.skip("installed pins target the 3.11 set, not this interpreter")
+
     assert version("lancedb") == "0.24.3"
     assert version("pylance") == "0.39.0"
 
@@ -464,4 +471,35 @@ def test_standard_requirements_include_the_lance_sdk_scanner():
     from lancedb.table import LanceTable
 
     assert callable(getattr(LanceTable, "to_lance", None))
+    assert ColumnOrdering("id", False, False) is not None
+
+
+def test_py314_requirements_include_the_lance_sdk_scanner():
+    """The 3.14 supplemental set must carry a whole-lock-coherent scan SDK.
+
+    requirements-py314.txt runs lancedb 0.38.0 (the standard 3.11 pins above
+    stay on 0.24.3/0.39.0), and lancedb still leaves pylance optional while
+    the page scanner imports ``lance.dataset.ColumnOrdering`` — a missing
+    pylance is a typed 503 on GET /api/documents. pylance 13.0.0 requires
+    lance-namespace >=0.11.1,<0.12, so the namespace pins were resolved with
+    it, not bolted on standalone (9.0.0 wanted <0.9; 14.0.0 wants >=0.13).
+    The manifest text is asserted everywhere; the installed-environment half
+    only applies where this set is the active install (backend/venv314,
+    Python 3.14).
+    """
+    requirements = (Path(__file__).resolve().parents[2] / "requirements-py314.txt").read_text()
+    assert re.search(r"(?m)^lancedb==0\.38\.0$", requirements)
+    assert re.search(r"(?m)^pylance==13\.0\.0$", requirements)
+    assert re.search(r"(?m)^lance-namespace==0\.11\.1$", requirements)
+    assert re.search(r"(?m)^lance-namespace-urllib3-client==0\.11\.1$", requirements)
+    assert re.search(r"(?m)^pyarrow==25\.0\.1$", requirements)
+
+    if sys.version_info < (3, 14):
+        pytest.skip("installed pins target the 3.14 set (backend/venv314), not this interpreter")
+
+    assert version("lancedb") == "0.38.0"
+    assert version("pylance") == "13.0.0"
+
+    from lance.dataset import ColumnOrdering
+
     assert ColumnOrdering("id", False, False) is not None
