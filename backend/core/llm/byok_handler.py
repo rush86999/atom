@@ -1255,16 +1255,61 @@ def _has_inline_image(messages: Any) -> bool:
     return False
 
 
-def _image_cost_is_unknown(messages: Any, bound: Optional[float]) -> bool:
-    """True only when an image request's cost has no authoritative bound.
+def _usage_image_detail_is_authoritative(usage: Any) -> bool:
+    """True when a provider usage report settles an image-bearing request.
+
+    The provider's prompt/input token count already aggregates image tokens in
+    the supported OpenAI-compatible and Anthropic-style reports. A complete
+    report with a positive input count is therefore authoritative for THIS
+    attempt's cost. If the report discloses ``image_tokens`` it must itself be
+    a non-negative integer; malformed detail keeps the settlement unknown.
+    Absent/partial usage, or zero input, is never treated as an image zero.
+    """
+    pair = _usage_complete_pair(usage)
+    if pair is None or pair[0] <= 0:
+        return False
+    for detail_name in ("prompt_tokens_details", "input_tokens_details"):
+        if isinstance(usage, dict):
+            detail = usage.get(detail_name)
+        else:
+            detail = getattr(usage, detail_name, None)
+        if detail is None:
+            continue
+        if isinstance(detail, dict):
+            value = detail.get("image_tokens")
+        else:
+            value = getattr(detail, "image_tokens", None)
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            return False
+        try:
+            tokens = int(value)
+        except (TypeError, ValueError):
+            return False
+        if tokens < 0:
+            return False
+    return True
+
+
+def _image_cost_is_unknown(
+    messages: Any, bound: Optional[float], usage: Any = None) -> bool:
+    """True only when an image request's cost has no authoritative source.
 
     ``bound == 0.0`` is the price contract's authoritative numeric-zero
     answer: any number of image tokens costs 0 at $0/token, so the route is
-    genuinely free and must not be refused or downgraded to unknown liability.
-    ``None`` (missing/invalid price) or a positive text bound means the image
-    contribution is unbounded and the caller keeps the explicit-unknown path.
+    genuinely free. A complete provider usage report with a positive input
+    count is authoritative for the actual image-bearing attempt and is
+    consumed for settlement. Otherwise (absent/partial usage, missing or
+    invalid price) the image contribution stays explicit unknown.
     """
-    return _has_inline_image(messages) and bound != 0.0
+    if not _has_inline_image(messages):
+        return False
+    if bound == 0.0:
+        return False
+    if _usage_image_detail_is_authoritative(usage):
+        return False
+    return True
 
 
 # Completion cap for plain (non-streaming) completions — same rationale as
@@ -7570,7 +7615,7 @@ class BYOKHandler:
                                 usage, "completion_tokens", "output_tokens"),
                             cost_usd=(
                                 None if _image_cost_is_unknown(
-                                    messages, _reservation_bound)
+                                    messages, _reservation_bound, usage)
                                 else observed_cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
@@ -7705,7 +7750,7 @@ class BYOKHandler:
                                     execution_id=execution_id,
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
-                                            messages, _t_bound),
+                                            messages, _t_bound, _response_usage(response)),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
@@ -7788,7 +7833,7 @@ class BYOKHandler:
                                     execution_id=execution_id,
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
-                                            messages, _fb_bound),
+                                            messages, _fb_bound, _response_usage(response)),
                                 )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
@@ -7945,7 +7990,7 @@ class BYOKHandler:
                                         execution_id=execution_id,
                                         chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
-                                            messages, _heal_bound),
+                                            messages, _heal_bound, _response_usage(response)),
                                     )
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
@@ -8049,7 +8094,7 @@ class BYOKHandler:
                                     execution_id=execution_id,
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
-                                            messages, _paid_bound),
+                                            messages, _paid_bound, _response_usage(response)),
                                 )
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
@@ -8190,7 +8235,7 @@ class BYOKHandler:
                             execution_id=execution_id,
                             chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
-                                            messages, _sweep_bound),
+                                            messages, _sweep_bound, _response_usage(response)),
                         )
                         logger.warning(
                             "completion ladder sweep SUCCEEDED on %s/%s",
@@ -12490,7 +12535,7 @@ class BYOKHandler:
                             # price has no authoritative zero bound.
                             cost_usd=(
                                 None if _image_cost_is_unknown(
-                                    messages, _chat_reservation_bound)
+                                    messages, _chat_reservation_bound, usage)
                                 else cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
@@ -12614,7 +12659,7 @@ class BYOKHandler:
                             attempt_id=_t1_attempt_id,
                             agent_id=agent_id,
                             unknown=_image_cost_is_unknown(
-                                messages, _t1_bound),
+                                messages, _t1_bound, _response_usage(response)),
                         )
                         self._clear_model_cooldown(attempt_provider_id, model)
                         last_error = None
@@ -12761,7 +12806,7 @@ class BYOKHandler:
                                     attempt_id=_heal_attempt_id,
                                     agent_id=agent_id,
                                     unknown=_image_cost_is_unknown(
-                                        messages, _chat_heal_bound),
+                                        messages, _chat_heal_bound, _response_usage(healed_response)),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = attempt_provider_id
@@ -12916,7 +12961,7 @@ class BYOKHandler:
                                 attempt_id=_paid_attempt_id,
                                 agent_id=agent_id,
                                 unknown=_image_cost_is_unknown(
-                                    messages, _chat_paid_bound),
+                                    messages, _chat_paid_bound, _response_usage(paid_response)),
                             )
                             self._last_used_model = paid_model
                             self._last_used_provider = attempt_provider_id
@@ -13092,6 +13137,7 @@ class BYOKHandler:
         """
         tokens = 0
         cost: Optional[float] = None
+        usage_tokens = None
         usage = _response_field(response, "usage")
         if usage is not None:
             present = False
@@ -13102,16 +13148,31 @@ class BYOKHandler:
                 present = (getattr(usage, "prompt_tokens", None) is not None
                            or getattr(usage, "input_tokens", None) is not None)
             if present:
-                tokens = _usage_value(
+                usage_tokens = _usage_value(
                     usage, "prompt_tokens", "input_tokens")
+        if usage_tokens is None:
+            # Cohere reports billed input tokens under meta.billed_units
+            # rather than a usage object; consume it when present.
+            meta = _response_field(response, "meta")
+            billed = _response_field(meta, "billed_units") if meta else None
+            billed_tokens = _response_field(billed, "input_tokens") if billed else None
+            if billed_tokens is not None:
                 try:
-                    fetcher = get_pricing_fetcher()
-                    cost = fetcher.estimate_cost(model, tokens, 0)
-                    if cost is None:
-                        cost = get_llm_cost(model, tokens, 0)
-                except Exception:
-                    cost = None
-                cost = _valid_cost(cost)
+                    billed_value = int(billed_tokens)
+                except (TypeError, ValueError):
+                    billed_value = None
+                if billed_value is not None and billed_value >= 0:
+                    usage_tokens = billed_value
+        if usage_tokens is not None:
+            tokens = usage_tokens
+            try:
+                fetcher = get_pricing_fetcher()
+                cost = fetcher.estimate_cost(model, tokens, 0)
+                if cost is None:
+                    cost = get_llm_cost(model, tokens, 0)
+            except Exception:
+                cost = None
+            cost = _valid_cost(cost)
         if reserved_bound == 0.0:
             cost = 0.0
         try:
