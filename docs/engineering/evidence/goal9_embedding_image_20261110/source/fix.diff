@@ -1,0 +1,510 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index e1eca244d..946094af3 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -577,7 +577,7 @@ jobs:
+           SECRET_KEY: "ci-test-secret-key"
+           ENVIRONMENT: "development"
+         run: |
+-          python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py -q --tb=short --timeout=300 --timeout-method=thread
++          python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py tests/test_goal9_embedding_attempts.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
+       - name: Run spawned agent authority and receipt controls
+         env:
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index 92df54122..0eb41a9af 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -4359,6 +4359,7 @@ class BYOKHandler:
+         max_output_tokens: Optional[int],
+         schema_text: Optional[str] = None,
+         extra_text: Optional[str] = None,
++        output_token_quantity: Optional[int] = None,
+     ) -> Optional[float]:
+         """Conservative configured USD bound for ONE paid physical attempt.
+ 
+@@ -4391,8 +4392,15 @@ class BYOKHandler:
+                     provider_id, model, extra_text)
+             input_tokens_upper = max(1, input_tokens_upper)
+ 
+-            output_tokens = max(
+-                1, int(max_output_tokens or _DEFAULT_COMPLETION_MAX_TOKENS))
++            if output_token_quantity is not None:
++                # Zero is a real quantity (embedding/input-only charge): the
++                # absence of an output rate is unused basis, not an invented
++                # output price. Positive quantities still need an output rate.
++                output_tokens = max(0, int(output_token_quantity))
++            else:
++                output_tokens = max(
++                    1, int(max_output_tokens
++                           or _DEFAULT_COMPLETION_MAX_TOKENS))
+             fetcher = get_pricing_fetcher()
+             cost = fetcher.estimate_cost(
+                 model, input_tokens_upper, output_tokens)
+@@ -4440,6 +4448,7 @@ class BYOKHandler:
+         chain_id: Optional[str] = None,
+         extra_kwargs: Optional[Dict[str, Any]] = None,
+         schema_text: Optional[str] = None,
++        output_token_quantity: Optional[int] = None,
+     ) -> Optional[float]:
+         """Reserve/authorize ONE physical paid transport attempt before dispatch.
+ 
+@@ -4455,6 +4464,7 @@ class BYOKHandler:
+             provider_id, model, [payload],
+             max_output_tokens,
+             schema_text=schema_text,
++            output_token_quantity=output_token_quantity,
+         )
+         if _has_inline_image(messages):
+             if bound == 0.0:
+@@ -13021,6 +13031,109 @@ class BYOKHandler:
+             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"
+         )
+ 
++    def _admit_embedding_attempt(
++        self,
++        *,
++        provider: str,
++        model: str,
++        texts: List[str],
++        agent_id: Optional[str] = None,
++    ) -> tuple:
++        """Durable pre-dispatch admission for ONE physical embedding call.
++
++        Embeddings are an input-only charge: the output quantity is genuinely
++        zero, so an absent output rate is unused basis rather than a missing
++        price. The same TokenUsage ledger/admission adapter as every other
++        physical attempt is used; unknown/invalid input pricing still refuses
++        under hard_stop. One physical SDK call owns one attempt id.
++        """
++        request_id = f"embedding-{uuid.uuid4().hex}"
++        attempt_id = f"{request_id}:1"
++        bound = self._estimate_reservation_bound(
++            provider, model, list(texts or [""]), 0,
++            output_token_quantity=0)
++        try:
++            from core.spend_aggregation_service import begin_llm_usage
++
++            begin_llm_usage(
++                provider_id=provider,
++                model_name=model,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                request_id=request_id,
++                attempt_id=attempt_id,
++                reserved_cost_usd=bound,
++                enforce_budget=True,
++            )
++        except Exception as intent_err:
++            raise _AccountingBlockedError(
++                f"embedding admission refused for {provider}/{model} "
++                f"({type(intent_err).__name__})") from intent_err
++        return request_id, attempt_id, bound
++
++    def _settle_embedding_response(
++        self,
++        *,
++        provider: str,
++        model: str,
++        response: Any,
++        request_id: str,
++        attempt_id: str,
++        reserved_bound: Optional[float],
++        agent_id: Optional[str] = None,
++    ) -> None:
++        """Exact settlement of one embedding response.
++
++        Provider usage (prompt/input tokens) is authoritative when present;
++        cost is the configured input-only price when usable. Absent usage
++        stays explicit unknown liability (reservation retained) — never a
++        fabricated zero. A genuine numeric-zero bound remains free.
++        """
++        tokens = 0
++        cost: Optional[float] = None
++        usage = _response_field(response, "usage")
++        if usage is not None:
++            present = False
++            if isinstance(usage, dict):
++                present = usage.get("prompt_tokens") is not None or (
++                    usage.get("input_tokens") is not None)
++            else:
++                present = (getattr(usage, "prompt_tokens", None) is not None
++                           or getattr(usage, "input_tokens", None) is not None)
++            if present:
++                tokens = _usage_value(
++                    usage, "prompt_tokens", "input_tokens")
++                try:
++                    fetcher = get_pricing_fetcher()
++                    cost = fetcher.estimate_cost(model, tokens, 0)
++                    if cost is None:
++                        cost = get_llm_cost(model, tokens, 0)
++                except Exception:
++                    cost = None
++                cost = _valid_cost(cost)
++        if reserved_bound == 0.0:
++            cost = 0.0
++        try:
++            from core.spend_aggregation_service import record_llm_usage
++
++            record_llm_usage(
++                provider_id=provider,
++                model_name=model,
++                prompt_tokens=tokens,
++                completion_tokens=0,
++                cost_usd=cost,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                request_id=request_id,
++                attempt_id=attempt_id,
++            )
++        except Exception as settle_err:
++            logger.error(
++                "LLM embedding settlement failed (%s)",
++                type(settle_err).__name__)
++
+     async def generate_embedding(
+         self,
+         text: str,
+@@ -13053,17 +13166,32 @@ class BYOKHandler:
+             raise ValueError(f"No client available for provider: {provider}")
+ 
+         logger.info(f"Attempting embedding with provider: {provider} (model: {model})")
+-        
++
++        _embed_request_id, _embed_attempt_id, _embed_bound = (
++            self._admit_embedding_attempt(
++                provider=provider, model=model, texts=[text]))
+         try:
+             if provider == "openai":
+                 response = await client.embeddings.create(model=model, input=text)
++                self._settle_embedding_response(
++                    provider=provider, model=model, response=response,
++                    request_id=_embed_request_id,
++                    attempt_id=_embed_attempt_id,
++                    reserved_bound=_embed_bound)
+                 return response.data[0].embedding
+             elif provider == "cohere":
+                 # Cohere async client uses .embed()
+                 response = await client.embed(texts=[text], model=model, input_type="search_document")
++                self._settle_embedding_response(
++                    provider=provider, model=model, response=response,
++                    request_id=_embed_request_id,
++                    attempt_id=_embed_attempt_id,
++                    reserved_bound=_embed_bound)
+                 return response.embeddings[0]
+             else:
+                 raise ValueError(f"Provider {provider} does not support embeddings via BYOKHandler yet.")
++        except _AccountingBlockedError:
++            raise
+         except Exception as e:
+             logger.error(f"Embedding generation failed for {provider}: {e}")
+             raise
+@@ -13092,16 +13220,31 @@ class BYOKHandler:
+             raise ValueError(f"No client available for provider: {provider}")
+ 
+         logger.info(f"Attempting batch embedding with provider: {provider} (model: {model}, count: {len(texts)})")
+-        
++
++        _embed_request_id, _embed_attempt_id, _embed_bound = (
++            self._admit_embedding_attempt(
++                provider=provider, model=model, texts=list(texts)))
+         try:
+             if provider == "openai":
+                 response = await client.embeddings.create(model=model, input=texts)
++                self._settle_embedding_response(
++                    provider=provider, model=model, response=response,
++                    request_id=_embed_request_id,
++                    attempt_id=_embed_attempt_id,
++                    reserved_bound=_embed_bound)
+                 return [item.embedding for item in response.data]
+             elif provider == "cohere":
+                 response = await client.embed(texts=texts, model=model, input_type="search_document")
++                self._settle_embedding_response(
++                    provider=provider, model=model, response=response,
++                    request_id=_embed_request_id,
++                    attempt_id=_embed_attempt_id,
++                    reserved_bound=_embed_bound)
+                 return [emb for emb in response.embeddings]
+             else:
+                 raise ValueError(f"Provider {provider} does not support batch embeddings via BYOKHandler yet.")
++        except _AccountingBlockedError:
++            raise
+         except Exception as e:
+             logger.error(f"Batch embedding generation failed for {provider}: {e}")
+             raise
+diff --git a/backend/core/llm/embedding/providers.py b/backend/core/llm/embedding/providers.py
+index d9aeb68f6..72866aca0 100644
+--- a/backend/core/llm/embedding/providers.py
++++ b/backend/core/llm/embedding/providers.py
+@@ -38,6 +38,12 @@ except ImportError:
+     nomic = None  # type: ignore
+ 
+ 
++# One admitted embedding dispatch == one HTTP request. The OpenAI SDK retries
++# connection/408/409/429/5xx by default; the handler owns the durable
++# admission/settlement and is the only retry owner.
++_SDK_MAX_RETRIES = 0
++
++
+ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
+     """
+     OpenAI embedding provider using text-embedding-3 models.
+@@ -72,7 +78,8 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
+         try:
+             if AsyncOpenAI is None:
+                 raise ImportError("OpenAI package not installed")
+-            self._client = AsyncOpenAI(api_key=api_key)
++            self._client = AsyncOpenAI(
++                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+         except ImportError:
+             raise EmbeddingProviderError(
+                 "OpenAI package not installed. Install with: pip install openai"
+@@ -471,7 +478,8 @@ class JinaEmbeddingProvider(BaseEmbeddingProvider):
+             if AsyncOpenAI is None:
+                 raise ImportError("OpenAI package not installed")
+             self._client = AsyncOpenAI(
+-                api_key=api_key, base_url=self.BASE_URL
++                api_key=api_key, base_url=self.BASE_URL,
++                max_retries=_SDK_MAX_RETRIES,
+             )
+         except ImportError:
+             raise EmbeddingProviderError(
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index 91e6a2312..ef9485cf5 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -236,7 +236,7 @@
+       "SECRET_KEY": "ci-test-secret-key",
+       "ENVIRONMENT": "development"
+     },
+-    "run": "python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++    "run": "python -m pytest tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py tests/test_goal9_embedding_attempts.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   },
+   {
+     "name": "Run spawned agent authority and receipt controls",
+diff --git a/backend/tests/test_goal9_embedding_attempts.py b/backend/tests/test_goal9_embedding_attempts.py
+new file mode 100644
+index 000000000..ddeee3443
+--- /dev/null
++++ b/backend/tests/test_goal9_embedding_attempts.py
+@@ -0,0 +1,150 @@
++"""Embedding physical-attempt admission/settlement.
++
++Failure-first: embedding dispatches previously hit the provider SDK with the
++SDK's default retries and only an in-memory chars/4 estimate — no durable
++pre-dispatch admission and no exact settlement on the TokenUsage ledger.
++
++These controls double the underlying transport only. Each real chargeable
++embedding dispatch (single and batch) must have a unique server-owned attempt
++id, a conservative authorized bound before dispatch, and a durable
++actual/unknown settlement after it, on the EXISTING ledger.
++"""
++from __future__ import annotations
++
++import asyncio
++from types import SimpleNamespace
++
++import pytest
++
++from tests.test_goal9_physical_attempts import (
++    _attempt_rows,
++    _make_handler,
++    _pricing,
++    _seed,
++    host,
++)
++
++pytest_plugins = ("tests.test_goal9_physical_attempts",)
++
++
++class _EmbeddingClient:
++    """Doubled embeddings transport; records each physical call."""
++
++    def __init__(self, script, calls):
++        self._script = list(script)
++        self._calls = calls
++        self.embeddings = SimpleNamespace(create=self._create)
++
++    async def _create(self, **kwargs):
++        self._calls.append(kwargs)
++        action = self._script.pop(0)
++        if isinstance(action, Exception):
++            raise action
++        return action
++
++
++def _embedding_response(dim=4, prompt_tokens=None):
++    response = SimpleNamespace(
++        data=[SimpleNamespace(embedding=[0.1] * dim)])
++    if prompt_tokens is not None:
++        response.usage = SimpleNamespace(
++            prompt_tokens=prompt_tokens,
++            total_tokens=prompt_tokens,
++        )
++    return response
++
++
++def _handler(monkeypatch, tmp_path, script, calls):
++    return _make_handler(
++        monkeypatch, tmp_path, {"openai": ["text-embedding-3-small"]},
++        async_={"openai": _EmbeddingClient(script, calls)})
++
++
++def test_embedding_dispatch_admits_and_settles_exact_attempt(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
++    calls = []
++    handler = _handler(
++        monkeypatch, tmp_path,
++        [_embedding_response(prompt_tokens=7)], calls)
++    vector = asyncio.run(handler.generate_embedding(
++        "hello", "text-embedding-3-small", provider="openai"))
++    assert vector == [0.1] * 4
++    assert len(calls) == 1
++    rows = _attempt_rows(host)
++    assert len(rows) == 1, [r.attempt_id for r in rows]
++    row = rows[0]
++    assert row.attempt_id and row.request_id
++    assert row.provider_id == "openai"
++    assert row.model_name == "text-embedding-3-small"
++    assert row.workspace_id == "ws-goal9-physical"
++    assert row.tenant_id == "tenant-goal9-physical"
++    assert row.prompt_tokens == 7 and row.completion_tokens == 0
++    assert row.billed is True
++    assert row.cost_usd == pytest.approx(7 * 0.000001)
++    assert row.pricing_status == "priced"
++    assert row.reservation_status == "settled"
++
++
++def test_embedding_without_usage_keeps_unknown_liability(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
++    calls = []
++    handler = _handler(monkeypatch, tmp_path, [_embedding_response()], calls)
++    asyncio.run(handler.generate_embedding(
++        "hello", "text-embedding-3-small", provider="openai"))
++    row = _attempt_rows(host)[0]
++    assert row.billed is True
++    assert row.prompt_tokens == 0 and row.completion_tokens == 0
++    assert row.cost_usd is None and row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++    assert float(row.reserved_cost_usd) > 0
++
++
++def test_embedding_missing_price_refuses_before_dispatch(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)  # hard_stop with a positive cap
++    _pricing(monkeypatch, lambda *a, **k: None)
++    calls = []
++    handler = _handler(monkeypatch, tmp_path, [_embedding_response(7)], calls)
++    with pytest.raises(Exception):
++        asyncio.run(handler.generate_embedding(
++            "hello", "controlled-unpriced-embedding", provider="openai"))
++    assert calls == []
++    assert _attempt_rows(host) == []
++
++
++def test_embedding_batch_is_one_physical_attempt(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
++    calls = []
++    handler = _handler(
++        monkeypatch, tmp_path, [_embedding_response(prompt_tokens=20)], calls)
++    vectors = asyncio.run(handler.generate_embeddings_batch(
++        ["one", "two"], "text-embedding-3-small", provider="openai"))
++    assert len(vectors) == 1
++    assert len(calls) == 1
++    assert calls[0]["input"] == ["one", "two"]
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    assert rows[0].prompt_tokens == 20
++    assert rows[0].reservation_status == "settled"
++
++
++def test_embedding_provider_classes_disable_sdk_retries(monkeypatch):
++    import core.llm.embedding.providers as providers
++
++    seen = []
++
++    class _Recorder:
++        def __init__(self, **kwargs):
++            seen.append(kwargs)
++
++    monkeypatch.setattr(providers, "AsyncOpenAI", _Recorder)
++    providers.OpenAIEmbeddingProvider(api_key="scratch-key")
++    providers.JinaEmbeddingProvider(api_key="scratch-key")
++    assert len(seen) == 2
++    assert all(kwargs.get("max_retries") == 0 for kwargs in seen), seen
+diff --git a/backend/tests/test_goal9_physical_attempts.py b/backend/tests/test_goal9_physical_attempts.py
+index df7df5ebb..fe58cde6b 100644
+--- a/backend/tests/test_goal9_physical_attempts.py
++++ b/backend/tests/test_goal9_physical_attempts.py
+@@ -920,6 +920,63 @@ def test_authoritative_zero_price_image_streams_free(
+     assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
+ 
+ 
++def test_image_data_url_does_not_inflate_the_text_bound(
++        host, monkeypatch, tmp_path):
++    """Image accounting is never fabricated from base64 bytes."""
++    from core.llm.byok_handler import BYOKHandler, _serialized_payload_for_bound
++
++    _seed(host, spend=0.0)
++    recorded = {}
++
++    def _estimate(model, input_tokens, output_tokens):
++        recorded["input_tokens"] = input_tokens
++        return 1.0
++
++    _pricing(monkeypatch, _estimate)
++    handler = object.__new__(BYOKHandler)
++    huge = "A" * (1024 * 1024)
++    payload = [{"role": "user", "content": [
++        {"type": "text", "text": "describe"},
++        {"type": "image_url",
++         "image_url": {"url": f"data:image/png;base64,{huge}"}},
++    ]}]
++    serialized = _serialized_payload_for_bound(payload)
++    assert huge not in serialized
++    assert "<inline-image>" in serialized
++    handler._estimate_reservation_bound(
++        "openai", "controlled-image-model", [serialized], 100)
++    with_huge = recorded["input_tokens"]
++    small = _serialized_payload_for_bound([{"role": "user", "content": [
++        {"type": "text", "text": "describe"},
++        {"type": "image_url",
++         "image_url": {"url": "data:image/png;base64,AA"}},
++    ]}])
++    handler._estimate_reservation_bound(
++        "openai", "controlled-image-model", [small], 100)
++    assert recorded["input_tokens"] == with_huge
++
++
++def test_observe_image_usage_never_settles_as_free(
++        host, monkeypatch, tmp_path):
++    """A provider usage report for an image does not become a $0 settlement."""
++    _seed(host, spend=0.0, limit=0.0)  # observe/no-limit
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient(
++            [{"response": _response("IMAGE ANSWER")}], calls)})
++    asyncio.run(handler.chat_completion(
++        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    rows = _attempt_rows(host)
++    assert len(rows) == 1
++    row = rows[0]
++    assert row.cost_usd is None
++    assert row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++    assert row.reserved_cost_usd is None
++
++
+ def test_paid_image_still_refuses_under_hardstop(
+         host, monkeypatch, tmp_path):
+     """A positive configured price keeps the explicit-unknown image refusal."""
