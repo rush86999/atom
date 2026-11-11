@@ -2365,6 +2365,10 @@ def list_qualification_evidence_bundles(
     """
     from core.models import EpisodeSegment
     from core.promotion_policy_service import get_assessment_policy
+    from core.llm.model_provenance import (
+        provenance_from_metadata,
+        unknown_provenance,
+    )
 
     policy_bundle = get_assessment_policy(db)
     policy = policy_bundle["policy"]
@@ -2381,6 +2385,7 @@ def list_qualification_evidence_bundles(
     for episode in episodes:
         task = str(episode.task_description or "").strip()
         output = ""
+        execution = None
         refs = [{"kind": "agent_episode", "id": str(episode.id)}]
         if episode.execution_id:
             execution = (
@@ -2428,6 +2433,15 @@ def list_qualification_evidence_bundles(
                     break
         if not task or not output:
             continue
+        # Surface the actual provider/model that produced the evidence.
+        # Provenance is copied from validated server-owned execution
+        # evidence first; historical episodes recorded none and stay
+        # explicitly unknown instead of inheriting a current/default route.
+        provenance = {}
+        if execution is not None:
+            provenance = provenance_from_metadata(execution.metadata_json)
+        if not provenance:
+            provenance = provenance_from_metadata(episode.metadata_json)
         ok, normalized, source_revision, _error = validate_qualification_evidence(
             db, agent, refs,
             tenant_id=tenant_id, workspace_id=workspace_id,
@@ -2435,14 +2449,24 @@ def list_qualification_evidence_bundles(
         )
         if not ok:
             continue
-        items.append({
+        item = {
             "bundle_id": f"bundle:{episode.id}",
             "episode_id": str(episode.id),
             "task_preview": task[:500],
             "output_preview": output[:500],
             "evidence_refs": refs,
             "source_revision": source_revision,
-        })
+        }
+        if provenance:
+            item["model_provenance"] = dict(provenance)
+            for _prov_key in ("provider", "model"):
+                if provenance.get(_prov_key):
+                    item[_prov_key] = provenance[_prov_key]
+        else:
+            # Explicit unknown coverage: attribution was evaluated and is
+            # unavailable for this evidence — never silently inherited.
+            item["model_provenance"] = unknown_provenance()
+        items.append(item)
         if len(items) >= limit:
             break
     return {

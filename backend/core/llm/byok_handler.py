@@ -7669,6 +7669,13 @@ class BYOKHandler:
                     # return dict — for the model badge and correct feedback keying.
                     self._last_used_model = model
                     self._last_used_provider = provider_id
+                    # Plain-text attribution (R82/graduation): only this
+                    # ACCEPTED response may claim service, so stamp the
+                    # call-local served route the agent loop reads as
+                    # provenance. Every accepted branch below stamps too —
+                    # a fallback route is the served route, never the
+                    # attempted one.
+                    set_served_route(provider_id, model)
 
                     return result
 
@@ -7754,6 +7761,7 @@ class BYOKHandler:
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
+                                set_served_route(provider_id, model)
                                 return result
                         except _AccountingBlockedError:
                             raise
@@ -7837,6 +7845,7 @@ class BYOKHandler:
                                 )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
+                                set_served_route(provider_id, fallback_model)
                                 logger.info(
                                     f"Fallback succeeded: {provider_id}/{fallback_model}"
                                 )
@@ -7994,6 +8003,7 @@ class BYOKHandler:
                                     )
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
+                                    set_served_route(provider_id, model)
                                     return result
                                 except _AccountingBlockedError:
                                     raise
@@ -8098,6 +8108,7 @@ class BYOKHandler:
                                 )
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
+                                set_served_route(provider_id, paid_model)
                                 return result
                             except _AccountingBlockedError:
                                 raise
@@ -8242,6 +8253,7 @@ class BYOKHandler:
                             _sp, _sm)
                         self._last_used_model = _sm
                         self._last_used_provider = _sp
+                        set_served_route(_sp, _sm)
                         return _sweep_result
                     except Exception as _sweep_attempt_err:
                         logger.warning(
