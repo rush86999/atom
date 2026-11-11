@@ -330,3 +330,32 @@ def test_file_sheet_books_prefers_same_catalog_version(tmp_path, monkeypatch):
     assert "C3" not in book.values and "C3" in book.empty
     session.close()
     engine.dispose()
+
+
+def test_explicit_zero_is_not_a_required_input_gap():
+    from core.dataset_aggregation import required_formula_input_gaps
+
+    gaps = required_formula_input_gaps(
+        ["PO ID", "Status", "Qty", "Unit Price", "Currency"],
+        [SimpleNamespace(sheet="Inputs", cell="C3")],
+        set(),
+        values={"A3": "0007", "C3": "0"},
+        sheet_name="Inputs",
+    )
+    assert gaps == []
+
+
+def test_raw_formula_engine_keeps_excel_blank_as_zero_semantics():
+    from decimal import Decimal
+
+    from core.formula_engine import CellBook, evaluate_reference
+
+    book = CellBook(
+        "Inputs",
+        {"D4": "=C2*D2+C3*D3"},
+        {"C2": "2", "D2": "75", "D3": "100"},
+        {"C3"},
+    )
+    raw = evaluate_reference("Inputs", "D4", book)
+    assert raw.status == "computed"
+    assert raw.value == Decimal("150")
