@@ -1517,7 +1517,16 @@ def required_formula_input_gaps(
             continue
         letter, row_text = match.groups()
         missing = letter_roles.get(letter)
-        if not missing or cell not in empty:
+        if not missing:
+            continue
+        # EFFECTIVE RESOLVED OPERAND BEFORE STALE BLANK MEMBERSHIP: a live
+        # overlay adds a current value but CellBook keeps the older blank
+        # marker in ``empty``. If the dependency has a resolved value, that
+        # value is supplied (including an explicit 0); only a genuine blank
+        # with no resolved value is a gap.
+        if str(values.get(cell, "") or "").strip():
+            continue
+        if cell not in empty:
             continue
         seen.add(cell)
         row_number = int(row_text)

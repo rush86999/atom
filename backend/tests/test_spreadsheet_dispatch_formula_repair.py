@@ -170,7 +170,7 @@ async def test_calculate_formula_refuses_blank_required_input(
     assert "computed_value" not in block
 
 
-def _cross_sheet_books(entry, parquet):
+def _cross_sheet_books(entry, parquet, live_quantity=None):
     class FakeBooks:
         def __init__(self, *_args, **_kwargs):
             self.prefer_hash = ""
@@ -188,7 +188,10 @@ def _cross_sheet_books(entry, parquet):
         def provider(self, sheet):
             from core.formula_engine import CellBook, sheet_grid_from_parquet
             values, empty = sheet_grid_from_parquet(str(parquet))
-            return CellBook(sheet, {}, values, empty)
+            book = CellBook(sheet, {}, values, empty)
+            if live_quantity is not None:
+                book.overlay({"C3": live_quantity}, "live_read")
+            return book
 
     return FakeBooks()
 
@@ -359,3 +362,48 @@ def test_raw_formula_engine_keeps_excel_blank_as_zero_semantics():
     raw = evaluate_reference("Inputs", "D4", book)
     assert raw.status == "computed"
     assert raw.value == Decimal("150")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("live_quantity,total", [("0", "150"), ("3", "450")])
+async def test_cross_sheet_live_overlay_uses_effective_operand(
+    tmp_path, monkeypatch, live_quantity, total,
+):
+    import core.pricing_calculation as pc
+
+    parquet = tmp_path / "adjustments-overlay.parquet"
+    pd.DataFrame([
+        {"PO ID": "0055", "Status": "Approved", "Qty": 2.0,
+         "Unit Price": 75.0, "Currency": "CAD", "__sheet_row": 2},
+        {"PO ID": "0007", "Status": "Approved", "Qty": None,
+         "Unit Price": 100.0, "Currency": "CAD", "__sheet_row": 3},
+    ]).to_parquet(parquet, index=False)
+    entry = {
+        "dataset_name": "upload__adjustments",
+        "entity_name": "Adjustments",
+        "file_name": "book.xlsx",
+        "parquet_path": str(parquet),
+        "content_hash": "h1",
+        "columns": ["PO ID", "Status", "Qty", "Unit Price", "Currency"],
+        "source": "upload",
+    }
+    monkeypatch.setattr(
+        pc, "_FileSheetBooks",
+        lambda *a, **k: _cross_sheet_books(entry, parquet, live_quantity),
+    )
+    monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [])
+    monkeypatch.setattr(
+        "core.sheet_dataset_service.load_formulas_for_parquet",
+        lambda _path: {
+            "D4": "=Inputs!C2*Inputs!D2+Inputs!C3*Inputs!D3",
+        },
+    )
+
+    block = await pc.calculate_workbook_from_query(
+        "calculate formula for book.xlsx Adjustments cell D4",
+        user_id="u-1", workspace_id="ws-1",
+    )
+    assert block is not None
+    assert "required input gap" not in block
+    assert "no complete total" not in block
+    assert f'"computed_value": "{total}"' in block or total in block
