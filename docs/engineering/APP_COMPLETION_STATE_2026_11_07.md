@@ -1,17 +1,25 @@
 # App completion state — 2026-11-07
 
-## Verified checkpoint — 2026-11-11, main `08ffabb00`
+## Verified checkpoint — 2026-11-11, main `b017742d6`
 
-Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
+Leading checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree `c019d609496fc9e0c97c966e880394e7f1fbb686`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
 
 ### Merged exact heads
 
+- **PR #851:** reviewed head `c2b20eae6cce1a6ce0f6b7b27df2d30d622958fc`, merged `b017742d6d64b421fae713b2048cb6c432ac8d46`, verified main tree `c019d609496fc9e0c97c966e880394e7f1fbb686`; 13/13 hosted checks passed and the review-only admin path was used. Clean successor to #845: the four runtime/regression files match #845 and 48 focused checks passed on the current base.
+- **PR #852:** tested head `7ce3e5277ffa7dcf04c47937fc75db65eab5d431`, merged `e57ebb68a7aa5a3061d245920d9e0f2bcc49b08b`, tree `ebc7f413b3c9a8fedf06cc9cc17310142daac64f`; 13/13 hosted checks passed. Test-only Agents reload fixture correction changed only the unstable WebSocket callback identities; 60 tests passed in five consecutive local runs and the production hook was unchanged.
 - **PR #840:** reviewed head `1c7ac277656dd15ca71f760b0def2207c4e87847`, merged `b8d84615ea15e3b05f0c725106476fe096db9949`, actual main tree `2b1c11632c47e0ff850acf48ba2c457426979125`; all 13 exact-head checks passed.
 - **PR #847:** reviewed head `691a1878a`, merged `8c2dcc0eb1d6a80b3e6784007f93b826bf4e00d8`, main tree `934dd8801b6ff5a0a5058bcc70454d2de31498bd`; all 13 checks passed. Clean Python 3.14 Presidio/NumPy lock and redaction lineage.
 - **PR #841:** reviewed head `f212481aa`, merged `ddc1f282e701524d7ffb1493a7c2f00144217306`; all 13 checks passed, including GitGuardian, backend-core, ORACLE, E2E and Docker. Synthetic isolated document deletion/restart lineage.
 - **PR #849:** reviewed head `d0d0c1790`, merged `ef91be756a1beb00fd6a2705611272835f119a89`, final main tree `8ad86a38694366b3b24126d417a0eb470e99de89`; all 13 exact-head checks passed. #840 is its prerequisite.
 
 - **PR #842:** reviewed head `755a4378c6cf82983a2e99273a94b41d3ec94a34`, merged `08ffabb00a0e58cef01f8b7168417ed3651d20ab`, final main tree `48bec35fc0bb494d12e4e6dd37004d369f731fb7`. All 13 exact-head checks passed.
+
+### Refreshed drafts and hosted CI
+
+- **#850 workbook:** refreshed head `f87847b29`, tree `4cd7f1bec6cb1854b209fa6bfe233819bf9a6594`, after merging `0bfb0f61` onto main. Its workbook/formula runtime and test files, plus evidence bytes, are identical to `0bfb0f61`, so the 134-control regression recorded there and the browser evidence below apply to that shared source; an independent focused run at exact `f87847b29` passed 25 controls (the earlier 144-control figure belongs to an earlier lineage and is not claimed). Hosted backend-oracle has passed; backend-core and the aggregate result remain outstanding.
+- **#848 promotion audit:** draft-published current-base candidate `b7ac25c80` with 14 focused controls. **#854 graduation recorder:** `a77d01315`, retaining the #852 prerequisite; recorder, probe, workflow and contract fixture match the locally tested revision. **#853 login recovery:** `76cabf0b8`, tree `300f8ec1de16347d7673445693221d13fe978cd3`, with login files byte-identical to the browser-verified `8ae1b6296`; hosted CI is running.
+- These four refreshes followed #851. They replace candidate trees that diverged from their prospective merge trees on the new main, and each requires its own exact-head hosted result. Green from a prior head is not inherited.
 
 ### Controlled same-job and late wait
 
@@ -22,10 +30,11 @@ Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It re
 
 ### Spreadsheet engines
 
-- Draft PR #850 at `846cd3c35` (tree `729a90166e95e3de84f33587b58af11e3f650a38`) passed all 144 focused checks.
-- The Python `formulas 1.3.4` engine browser lineage at `a91281b12` completed both real edits with complete recalc, zero gaps, same-DB backend restart, fresh login and byte-identical downloads (SHA-256 `6b38faa75b43a9450497eab4ed95b9ec7e067934ac1f05420d60f308a048df3c`).
-- The native-failure fallback browser run at browser source `ec0a0c043`, whose implementation bytes match #850 `846cd3c35`, used the original failing bundled LibreOffice. The binary exited 134 on upload and both edits; the existing formulas fallback recorded complete recalc with zero gaps each time. The same DB was reopened by a different backend PID and fresh login; downloads matched (SHA-256 `79a8f2f95a54353b332c0ce2660735428ed954a3cbaa6e9adb1b3620d44e31c3`).
-- The bundled LibreOffice used in the failure scenario exited 134. The two browser source lineages verify the Python engine and the recovery path for that native failure.
+- **#850 refreshed:** `f87847b29` carries the tested workbook delta onto main; the workbook/formula runtime and test files plus evidence are byte-identical to `0bfb0f61`. The 134-control regression recorded on `0bfb0f61` and the browser results below therefore apply to that identical source, and an independent focused run at exact `f87847b29` passed 25 controls (the earlier 144-control figure belongs to an earlier lineage and is not claimed). Hosted backend-oracle has passed; backend-core and the aggregate are outstanding.
+- **Python engine:** the `formulas 1.3.4` browser lineage at `a91281b12` completed both real edits with complete recalc, zero gaps, same-DB backend restart, fresh login and byte-identical downloads (SHA-256 `6b38faa75b43a9450497eab4ed95b9ec7e067934ac1f05420d60f308a048df3c`). The earlier `ec0a0c043` failure run (implementation bytes matching `846cd3c35`, SHA-256 `79a8f2f95a54353b332c0ce2660735428ed954a3cbaa6e9adb1b3620d44e31c3`) remains supporting evidence.
+- **Native success:** browser replay on exact `0bfb0f61` completed both edits (5→2→5) with complete recalculation and zero gaps, reopened the same world under a restarted backend, and produced byte-identical downloads (SHA-256 `e30025d17c4b9869d369821abf75d728c24f0b88187faabb6284124994318496`). Independent readback confirmed 24 sheets, leading-zero text and expected totals. Evidence: `/private/tmp/spreadsheet-browser-worker.oO9XB5/root-retry-0bfb0f61`.
+- **Controlled native failure:** at the same exact `0bfb0f61`, a scratch-only wrapper injected three soffice failures; the formulas fallback succeeded on upload and both edits, and both sync receipts reported complete with zero gaps. Same-DB restart, fresh process and downloads matched byte-for-byte (SHA-256 `8383359a3d2acb9e805c38bb8ee145dd410d243cc3d96a9d51036c884ae9d804`); readback again showed 24 sheets, leading-zero text and expected totals. Evidence: `/private/tmp/spreadsheet-browser-worker.oO9XB5/root-fault-0bfb0f61`.
+- This closes the workbook runtime's native and controlled-fallback browser paths. It does not qualify every spreadsheet surface, configured-model judgment or broader readiness.
 
 ### Python 3.14 document lineage
 
@@ -36,7 +45,13 @@ Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It re
 
 ### Ordinary password recovery
 
-- Draft #853 retains the verified login change from `8ae1b6296` and adds the existing recovery link to the default sign-in form. Independent frontend and backend checks passed 109 and 26 tests, respectively. A browser clicked the real link and reset a synthetic account through the app auth router and a loopback STARTTLS/AUTH mail sink. A new backend process on the same scratch database accepted the new password, refused the old one, and rejected replay of the consumed token. The controlled mail test does not establish delivery through an external SMTP provider.
+- Draft #853 retains the verified login change from `8ae1b6296` and adds the existing recovery link to the default sign-in form; refreshed head `76cabf0b8` keeps those login bytes unchanged. Independent frontend and backend checks passed 109 and 26 tests, respectively. A browser clicked the real link and reset a synthetic account through the app auth router and a loopback STARTTLS/AUTH mail sink. A new backend process on the same scratch database accepted the new password, refused the old one, and rejected replay of the consumed token. The controlled mail test does not establish delivery through an external SMTP provider; the refreshed head still needs its own hosted CI.
+
+### Graduation and held-out runner
+
+- Draft #854 at `a77d01315` repairs the direct-episode producer to persist workspace and lifecycle status from the execution. The independent scratch regression recorded 100 passing cases, the final recorder source matched a 14-pass run, and workflow plus direct-recorder controls passed 29. The original mismatch was reproduced at `08ffabb00`: a completed execution in `ws-1` linked to an episode persisted as active with NULL workspace, which the picker excludes.
+- A scratch-only held-out runner under `/private/tmp/atom-heldout-runner.XoyR8E` is bound to #854 source `67afb73fb`. Its preflight and synthetic recorder self-test `selftest-20261111T121537Z-d51d0359` passed with zero model calls (the exact-source probe ran two recorder tests); the frozen manifest marks the run `synthetic: true` and performs no promotion.
+- No held-out candidate execution has run. Genuine candidate competence, a real unseen task, an independent rubric/reviewer and an authorized loopback model remain open, as does #854's normal exact-head review and CI. The runner's synthetic result is not model-quality evidence.
 
 ### OPS-01 restored child
 
@@ -47,7 +62,7 @@ Leading checkpoint for main at `08ffabb00a0e58cef01f8b7168417ed3651d20ab`. It re
 ### Deferred surfaces and open gates
 
 - Core-profile Search, Tasks and Boards remain deferred. The EXPO-01 inspection confirmed Tasks and Boards are not enabled in the default core profile; the scratch board driver refuses without an explicit full-profile switch, and no such switch was authorized. Search remains deferred. The remaining exposed-application evidence is scoped to the active core profile.
-- Full usage readiness remains open. #840 postmerge CI and Docker passed. The #849 and #842 postmerge frontend checks and #850 current-base frontend check failed on the same Agents reload fixture. The fixture recreated the WebSocket callback on each render, while production exposes a stable callback. The test-only correction in #852 passed all 60 tests in five consecutive local runs. The #850 workbook, #851 image and embedding, and #853 recovery drafts include the same test prerequisite and have hosted checks running in parallel. Their product changes retain 144 focused workbook checks, 48 focused vendor checks, and the recovery results above. The #848 current-base candidate `ed920259` has 14 focused passes and remains local.
+- Full usage readiness remains open. #840 postmerge CI and Docker passed, and the #842 postmerge Docker run passed at `08ffabb00`. #852 has since merged the test-only Agents reload fixture repair; the #849/#842 postmerge frontend failures and #850's earlier failure were the same unstable fixture. On `b017742d6`, #850 `f87847b29` has passed backend-oracle, with backend-core and the aggregate still outstanding, while #848 `b7ac25c80`, #854 `a77d01315` and #853 `76cabf0b8` are refreshed drafts requiring their own hosted results. Their product changes retain 25 focused controls at the exact #850 head `f87847b29`, the 134-control run on `0bfb0f61`, 48 focused vendor checks, 14 promotion controls and the recovery results above. The #848 candidate is published as a draft.
 - Served multi-model quality, live connector breadth, operational soak and general business judgment remain open.
 
 ## Production HTTPS follow-through — 2026-11-09
