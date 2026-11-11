@@ -1,0 +1,435 @@
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index 0eb41a9af..fadad1e94 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -1255,16 +1255,61 @@ def _has_inline_image(messages: Any) -> bool:
+     return False
+ 
+ 
+-def _image_cost_is_unknown(messages: Any, bound: Optional[float]) -> bool:
+-    """True only when an image request's cost has no authoritative bound.
++def _usage_image_detail_is_authoritative(usage: Any) -> bool:
++    """True when a provider usage report settles an image-bearing request.
++
++    The provider's prompt/input token count already aggregates image tokens in
++    the supported OpenAI-compatible and Anthropic-style reports. A complete
++    report with a positive input count is therefore authoritative for THIS
++    attempt's cost. If the report discloses ``image_tokens`` it must itself be
++    a non-negative integer; malformed detail keeps the settlement unknown.
++    Absent/partial usage, or zero input, is never treated as an image zero.
++    """
++    pair = _usage_complete_pair(usage)
++    if pair is None or pair[0] <= 0:
++        return False
++    for detail_name in ("prompt_tokens_details", "input_tokens_details"):
++        if isinstance(usage, dict):
++            detail = usage.get(detail_name)
++        else:
++            detail = getattr(usage, detail_name, None)
++        if detail is None:
++            continue
++        if isinstance(detail, dict):
++            value = detail.get("image_tokens")
++        else:
++            value = getattr(detail, "image_tokens", None)
++        if value is None:
++            continue
++        if isinstance(value, bool):
++            return False
++        try:
++            tokens = int(value)
++        except (TypeError, ValueError):
++            return False
++        if tokens < 0:
++            return False
++    return True
++
++
++def _image_cost_is_unknown(
++    messages: Any, bound: Optional[float], usage: Any = None) -> bool:
++    """True only when an image request's cost has no authoritative source.
+ 
+     ``bound == 0.0`` is the price contract's authoritative numeric-zero
+     answer: any number of image tokens costs 0 at $0/token, so the route is
+-    genuinely free and must not be refused or downgraded to unknown liability.
+-    ``None`` (missing/invalid price) or a positive text bound means the image
+-    contribution is unbounded and the caller keeps the explicit-unknown path.
++    genuinely free. A complete provider usage report with a positive input
++    count is authoritative for the actual image-bearing attempt and is
++    consumed for settlement. Otherwise (absent/partial usage, missing or
++    invalid price) the image contribution stays explicit unknown.
+     """
+-    return _has_inline_image(messages) and bound != 0.0
++    if not _has_inline_image(messages):
++        return False
++    if bound == 0.0:
++        return False
++    if _usage_image_detail_is_authoritative(usage):
++        return False
++    return True
+ 
+ 
+ # Completion cap for plain (non-streaming) completions — same rationale as
+@@ -7570,7 +7615,7 @@ class BYOKHandler:
+                                 usage, "completion_tokens", "output_tokens"),
+                             cost_usd=(
+                                 None if _image_cost_is_unknown(
+-                                    messages, _reservation_bound)
++                                    messages, _reservation_bound, usage)
+                                 else observed_cost),
+                             agent_id=agent_id,
+                             workspace_id=getattr(self, "workspace_id", None),
+@@ -7705,7 +7750,7 @@ class BYOKHandler:
+                                     execution_id=execution_id,
+                                     chain_id=chain_id,
+                                         unknown=_image_cost_is_unknown(
+-                                            messages, _t_bound),
++                                            messages, _t_bound, _response_usage(response)),
+                                 )
+                                 self._last_used_model = model
+                                 self._last_used_provider = provider_id
+@@ -7788,7 +7833,7 @@ class BYOKHandler:
+                                     execution_id=execution_id,
+                                     chain_id=chain_id,
+                                         unknown=_image_cost_is_unknown(
+-                                            messages, _fb_bound),
++                                            messages, _fb_bound, _response_usage(response)),
+                                 )
+                                 self._last_used_model = fallback_model
+                                 self._last_used_provider = provider_id
+@@ -7945,7 +7990,7 @@ class BYOKHandler:
+                                         execution_id=execution_id,
+                                         chain_id=chain_id,
+                                         unknown=_image_cost_is_unknown(
+-                                            messages, _heal_bound),
++                                            messages, _heal_bound, _response_usage(response)),
+                                     )
+                                     self._last_used_model = model
+                                     self._last_used_provider = provider_id
+@@ -8049,7 +8094,7 @@ class BYOKHandler:
+                                     execution_id=execution_id,
+                                     chain_id=chain_id,
+                                         unknown=_image_cost_is_unknown(
+-                                            messages, _paid_bound),
++                                            messages, _paid_bound, _response_usage(response)),
+                                 )
+                                 self._last_used_model = paid_model
+                                 self._last_used_provider = provider_id
+@@ -8190,7 +8235,7 @@ class BYOKHandler:
+                             execution_id=execution_id,
+                             chain_id=chain_id,
+                                         unknown=_image_cost_is_unknown(
+-                                            messages, _sweep_bound),
++                                            messages, _sweep_bound, _response_usage(response)),
+                         )
+                         logger.warning(
+                             "completion ladder sweep SUCCEEDED on %s/%s",
+@@ -12490,7 +12535,7 @@ class BYOKHandler:
+                             # price has no authoritative zero bound.
+                             cost_usd=(
+                                 None if _image_cost_is_unknown(
+-                                    messages, _chat_reservation_bound)
++                                    messages, _chat_reservation_bound, usage)
+                                 else cost),
+                             agent_id=agent_id,
+                             workspace_id=getattr(self, "workspace_id", None),
+@@ -12614,7 +12659,7 @@ class BYOKHandler:
+                             attempt_id=_t1_attempt_id,
+                             agent_id=agent_id,
+                             unknown=_image_cost_is_unknown(
+-                                messages, _t1_bound),
++                                messages, _t1_bound, _response_usage(response)),
+                         )
+                         self._clear_model_cooldown(attempt_provider_id, model)
+                         last_error = None
+@@ -12761,7 +12806,7 @@ class BYOKHandler:
+                                     attempt_id=_heal_attempt_id,
+                                     agent_id=agent_id,
+                                     unknown=_image_cost_is_unknown(
+-                                        messages, _chat_heal_bound),
++                                        messages, _chat_heal_bound, _response_usage(healed_response)),
+                                 )
+                                 self._last_used_model = model
+                                 self._last_used_provider = attempt_provider_id
+@@ -12916,7 +12961,7 @@ class BYOKHandler:
+                                 attempt_id=_paid_attempt_id,
+                                 agent_id=agent_id,
+                                 unknown=_image_cost_is_unknown(
+-                                    messages, _chat_paid_bound),
++                                    messages, _chat_paid_bound, _response_usage(paid_response)),
+                             )
+                             self._last_used_model = paid_model
+                             self._last_used_provider = attempt_provider_id
+@@ -13092,6 +13137,7 @@ class BYOKHandler:
+         """
+         tokens = 0
+         cost: Optional[float] = None
++        usage_tokens = None
+         usage = _response_field(response, "usage")
+         if usage is not None:
+             present = False
+@@ -13102,16 +13148,31 @@ class BYOKHandler:
+                 present = (getattr(usage, "prompt_tokens", None) is not None
+                            or getattr(usage, "input_tokens", None) is not None)
+             if present:
+-                tokens = _usage_value(
++                usage_tokens = _usage_value(
+                     usage, "prompt_tokens", "input_tokens")
++        if usage_tokens is None:
++            # Cohere reports billed input tokens under meta.billed_units
++            # rather than a usage object; consume it when present.
++            meta = _response_field(response, "meta")
++            billed = _response_field(meta, "billed_units") if meta else None
++            billed_tokens = _response_field(billed, "input_tokens") if billed else None
++            if billed_tokens is not None:
+                 try:
+-                    fetcher = get_pricing_fetcher()
+-                    cost = fetcher.estimate_cost(model, tokens, 0)
+-                    if cost is None:
+-                        cost = get_llm_cost(model, tokens, 0)
+-                except Exception:
+-                    cost = None
+-                cost = _valid_cost(cost)
++                    billed_value = int(billed_tokens)
++                except (TypeError, ValueError):
++                    billed_value = None
++                if billed_value is not None and billed_value >= 0:
++                    usage_tokens = billed_value
++        if usage_tokens is not None:
++            tokens = usage_tokens
++            try:
++                fetcher = get_pricing_fetcher()
++                cost = fetcher.estimate_cost(model, tokens, 0)
++                if cost is None:
++                    cost = get_llm_cost(model, tokens, 0)
++            except Exception:
++                cost = None
++            cost = _valid_cost(cost)
+         if reserved_bound == 0.0:
+             cost = 0.0
+         try:
+diff --git a/backend/core/llm/embedding/providers.py b/backend/core/llm/embedding/providers.py
+index 72866aca0..457755a36 100644
+--- a/backend/core/llm/embedding/providers.py
++++ b/backend/core/llm/embedding/providers.py
+@@ -181,7 +181,8 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
+         try:
+             if cohere is None:
+                 raise ImportError("Cohere package not installed")
+-            self._client = cohere.AsyncClient(api_key=api_key)
++            self._client = cohere.AsyncClient(
++                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+         except ImportError:
+             raise EmbeddingProviderError(
+                 "Cohere package not installed. Install with: pip install cohere"
+@@ -283,7 +284,8 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
+         try:
+             if voyageai is None:
+                 raise ImportError("VoyageAI package not installed")
+-            self._client = voyageai.Client(api_key=api_key)
++            self._client = voyageai.Client(
++                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+         except ImportError:
+             raise EmbeddingProviderError(
+                 "VoyageAI package not installed. Install with: pip install voyageai"
+diff --git a/backend/tests/test_goal9_embedding_attempts.py b/backend/tests/test_goal9_embedding_attempts.py
+index ddeee3443..2590c19bb 100644
+--- a/backend/tests/test_goal9_embedding_attempts.py
++++ b/backend/tests/test_goal9_embedding_attempts.py
+@@ -134,6 +134,95 @@ def test_embedding_batch_is_one_physical_attempt(
+     assert rows[0].reservation_status == "settled"
+ 
+ 
++class _CohereEmbedClient:
++    def __init__(self, response, calls):
++        self._response = response
++        self._calls = calls
++
++    async def embed(self, **kwargs):
++        self._calls.append(kwargs)
++        return self._response
++
++
++def _cohere_response(billed_tokens=None):
++    response = SimpleNamespace(embeddings=[[0.2] * 3])
++    if billed_tokens is not None:
++        response.meta = SimpleNamespace(
++            billed_units=SimpleNamespace(input_tokens=billed_tokens))
++    return response
++
++
++def test_cohere_embedding_settles_billed_units(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"cohere": ["embed-english-v3.0"]},
++        async_={"cohere": _CohereEmbedClient(
++            _cohere_response(12), calls)})
++    vector = asyncio.run(handler.generate_embedding(
++        "hello", "embed-english-v3.0", provider="cohere"))
++    assert vector == [0.2] * 3
++    assert len(calls) == 1
++    row = _attempt_rows(host)[0]
++    assert row.provider_id == "cohere"
++    assert row.prompt_tokens == 12
++    assert row.cost_usd == pytest.approx(12 * 0.000001)
++    assert row.reservation_status == "settled"
++
++
++def test_cohere_embedding_without_billed_units_stays_unknown(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0)
++    _pricing(monkeypatch, lambda model, i, o: float(i) * 0.000001)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"cohere": ["embed-english-v3.0"]},
++        async_={"cohere": _CohereEmbedClient(
++            _cohere_response(None), calls)})
++    asyncio.run(handler.generate_embedding(
++        "hello", "embed-english-v3.0", provider="cohere"))
++    row = _attempt_rows(host)[0]
++    assert row.cost_usd is None and row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++
++
++def test_vendor_embedding_classes_disable_sdk_retries(monkeypatch):
++    import core.llm.embedding.providers as providers
++
++    seen = {"cohere": [], "voyageai": [], "nomic": []}
++
++    class _CohereRecorder:
++        def __init__(self, **kwargs):
++            seen["cohere"].append(kwargs)
++
++    class _VoyageRecorder:
++        def __init__(self, **kwargs):
++            seen["voyageai"].append(kwargs)
++
++    class _NomicRecorder:
++        def __init__(self, **kwargs):
++            seen["nomic"].append(kwargs)
++
++    monkeypatch.setattr(providers, "cohere", SimpleNamespace(
++        AsyncClient=_CohereRecorder))
++    monkeypatch.setattr(providers, "voyageai", SimpleNamespace(
++        Client=_VoyageRecorder))
++    monkeypatch.setattr(providers, "nomic", SimpleNamespace(
++        Embedding=_NomicRecorder))
++
++    providers.CohereEmbeddingProvider(api_key="scratch-key")
++    providers.VoyageEmbeddingProvider(api_key="scratch-key")
++    providers.NomicEmbeddingProvider(api_key="scratch-key")
++
++    assert seen["cohere"][0].get("max_retries") == 0
++    assert seen["voyageai"][0].get("max_retries") == 0
++    # Nomic's SDK is requests-based and exposes no retry knob; no invented
++    # parameter is passed (inventory note).
++    assert "max_retries" not in seen["nomic"][0]
++
++
+ def test_embedding_provider_classes_disable_sdk_retries(monkeypatch):
+     import core.llm.embedding.providers as providers
+ 
+diff --git a/backend/tests/test_goal9_physical_attempts.py b/backend/tests/test_goal9_physical_attempts.py
+index fe58cde6b..2b87d5409 100644
+--- a/backend/tests/test_goal9_physical_attempts.py
++++ b/backend/tests/test_goal9_physical_attempts.py
+@@ -956,9 +956,9 @@ def test_image_data_url_does_not_inflate_the_text_bound(
+     assert recorded["input_tokens"] == with_huge
+ 
+ 
+-def test_observe_image_usage_never_settles_as_free(
++def test_observe_image_authoritative_usage_settles_actual(
+         host, monkeypatch, tmp_path):
+-    """A provider usage report for an image does not become a $0 settlement."""
++    """Provider input-token usage (which aggregates image tokens) is exact."""
+     _seed(host, spend=0.0, limit=0.0)  # observe/no-limit
+     _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+     calls = []
+@@ -971,10 +971,68 @@ def test_observe_image_usage_never_settles_as_free(
+     rows = _attempt_rows(host)
+     assert len(rows) == 1
+     row = rows[0]
++    assert row.cost_usd == pytest.approx(7.0)
++    assert row.pricing_status == "priced"
++    assert row.reservation_status == "settled"
++    assert row.prompt_tokens == 10 and row.completion_tokens == 5
++
++
++def test_observe_image_image_token_detail_is_consumed(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0, limit=0.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    response = _response("IMAGE DETAIL")
++    response.usage.prompt_tokens_details = SimpleNamespace(image_tokens=10)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient([{"response": response}], calls)})
++    asyncio.run(handler.chat_completion(
++        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    row = _attempt_rows(host)[0]
++    assert row.cost_usd == pytest.approx(7.0)
++    assert row.pricing_status == "priced"
++
++
++def test_observe_image_malformed_image_detail_stays_unknown(
++        host, monkeypatch, tmp_path):
++    _seed(host, spend=0.0, limit=0.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    response = _response("IMAGE BAD DETAIL")
++    response.usage.prompt_tokens_details = SimpleNamespace(image_tokens=-1)
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient([{"response": response}], calls)})
++    asyncio.run(handler.chat_completion(
++        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    row = _attempt_rows(host)[0]
++    assert row.cost_usd is None
++    assert row.pricing_status == "unknown"
++    assert row.reservation_status == "uncertain"
++
++
++def test_observe_image_without_usage_stays_unknown(
++        host, monkeypatch, tmp_path):
++    """Absent usage detail is never an image zero."""
++    _seed(host, spend=0.0, limit=0.0)
++    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
++    response = SimpleNamespace(
++        choices=[SimpleNamespace(
++            message=SimpleNamespace(
++                content="NO USAGE", tool_calls=None, function_call=None,
++                reasoning_content=None),
++            finish_reason="stop")])
++    calls = []
++    handler = _make_handler(
++        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
++        async_={"openai": _ChatClient([{"response": response}], calls)})
++    asyncio.run(handler.chat_completion(
++        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
++    row = _attempt_rows(host)[0]
+     assert row.cost_usd is None
+     assert row.pricing_status == "unknown"
+     assert row.reservation_status == "uncertain"
+-    assert row.reserved_cost_usd is None
+ 
+ 
+ def test_paid_image_still_refuses_under_hardstop(
+@@ -1027,9 +1085,11 @@ def test_multimodal_observe_admits_with_unknown_liability(
+     assert len(calls) == 1
+     rows = _attempt_rows(host)
+     assert len(rows) == 1
+-    assert rows[0].pricing_status == "unknown"
+-    assert rows[0].reservation_status == "uncertain"
+-    assert rows[0].reserved_cost_usd is None
++    # The doubled provider reported complete usage, which is authoritative
++    # for the image-bearing attempt; observe mode settles it exactly.
++    assert rows[0].pricing_status == "priced"
++    assert rows[0].reservation_status == "settled"
++    assert rows[0].cost_usd == pytest.approx(7.0)
+ 
+ 
+ # --------------------------------------------------------------------------
