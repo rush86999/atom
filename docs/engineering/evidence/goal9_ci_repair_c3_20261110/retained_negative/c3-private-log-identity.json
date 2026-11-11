@@ -1,0 +1,9 @@
+{
+  "classification": "runtime NameError before provider dispatch; not a fixture gap",
+  "failed_test_lines": 13,
+  "nameerror_intent_lines": 17,
+  "prior_hypothesis": "superseded by the actual runtime evidence",
+  "raw_bytes": 921573,
+  "raw_log": "<root-private>/root-pr832-c3-backend-core-private.log",
+  "raw_sha256": "f3d2e7652f475d89afdeaf2598c5fe6dcb63cfcfeed6fbf65a29c66954332a01"
+}

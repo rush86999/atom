@@ -863,15 +863,16 @@ class BYOKManager:
                     pricing = fetcher.get_model_price(provider.model)
 
                     if pricing:
-                        input_cost = pricing.get("input_cost_per_token", 0)
-                        output_cost = pricing.get("output_cost_per_token", 0)
-
-                        # Update cost if we have valid data (average of input and output as single metric)
-                        if input_cost > 0 or output_cost > 0:
-                            new_cost = (input_cost + output_cost) / 2
-                            if new_cost > 0:
-                                provider.cost_per_token = new_cost
-                                updated_count += 1
+                        # Only a complete valid rate pair updates the display
+                        # cost; unknown monetary material is not $0.
+                        rates = fetcher.material_rates(pricing)
+                        if rates is not None:
+                            input_cost, output_cost = rates
+                            if input_cost > 0 or output_cost > 0:
+                                new_cost = (input_cost + output_cost) / 2
+                                if new_cost > 0:
+                                    provider.cost_per_token = new_cost
+                                    updated_count += 1
 
             if updated_count > 0:
                 logger.info(f"Updated costs for {updated_count} providers from dynamic pricing")

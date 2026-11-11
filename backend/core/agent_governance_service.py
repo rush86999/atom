@@ -822,7 +822,8 @@ class AgentGovernanceService:
             "requires_human_approval": (
                 budget_check.get("enforcement_mode") == "approval"),
             "enforcement_mode": budget_check.get("enforcement_mode"),
-            "status_code": "BUDGET_EXCEEDED",
+            "status_code": (
+                budget_check.get("status_code") or "BUDGET_EXCEEDED"),
         }
 
     def _check_budget_sync(

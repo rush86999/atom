@@ -1,0 +1,29 @@
+{
+  "source": "31a82b316",
+  "method": "actual TypeScript module transpiled with existing TypeScript; only api transport doubled; no edits to worker source",
+  "results": [
+    {
+      "name": "wrong_operation",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE"
+    },
+    {
+      "name": "missing_receipt",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE"
+    },
+    {
+      "name": "contradictory_effect",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE"
+    },
+    {
+      "name": "valid",
+      "accepted": true
+    },
+    {
+      "name": "valid_replay",
+      "accepted": true
+    }
+  ]
+}

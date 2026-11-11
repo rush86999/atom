@@ -35,8 +35,28 @@ from collections import defaultdict
 from sqlalchemy import Integer, func, update
 from sqlalchemy.orm import Session
 
-from core.database import get_db_session
 from core.models import LLMRoutingFeedback
+
+
+def get_db_session(*args, **kwargs):
+    """Resolve the session factory at CALL time, never at import time.
+
+    ``core.database`` deliberately swaps its session factory in test harnesses
+    and worker bootstraps (scratch DB, broken-commit controls). A module-level
+    ``from core.database import get_db_session`` freezes whichever factory
+    existed when THIS module was first imported: if that import happened while
+    a harness had swapped the factory, every later business annotation read and
+    wrote the harness's database instead of the active one, so the exact
+    generation row looked missing (reproduced in the joined gate: 26 feedback
+    controls read 0 rows while the consumer reported ``recorded=True``).
+
+    Late resolution keeps production behavior identical and preserves the
+    established test seam: suites that patch
+    ``core.learning_llm_router.get_db_session`` replace this wrapper itself.
+    """
+    from core.database import get_db_session as _live_get_db_session
+
+    return _live_get_db_session(*args, **kwargs)
 from core.llm.response_quality import ResponseQuality
 from core.llm.intent_detector import INTENT_CATEGORIES
 from core.llm.routing import (

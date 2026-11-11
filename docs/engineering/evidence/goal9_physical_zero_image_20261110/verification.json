@@ -1,0 +1,58 @@
+{
+  "base": "973bea2f52f47c589b28e938f1771bb1709a1a39",
+  "date": "2026-11-10",
+  "fixes": {
+    "free_image": "authoritative numeric-zero bound keeps image route free; positive/unknown image still unknown/refused under hard_stop; no image token guess",
+    "price_material": "explicit finite non-negative numeric rates for both; missing/partial/bool/negative/nonfinite -> None; normalization skips incomplete entries; explicit 0/0 free",
+    "structured": "per-physical-attempt admission/settlement parity (payload+schema+cap, image policy, known_free/durable_unknown, accounting stops cascade)"
+  },
+  "gates": {
+    "ci_lane": "27 passed",
+    "combined": "380 passed",
+    "root_counterprobes_after": "18 passed"
+  },
+  "live_actions": false,
+  "root_negatives": {
+    "free_image": "1 failed / 32 passed at 973",
+    "price_material": "4 failed / 2 passed at 973"
+  },
+  "schema": "goal9_physical_zero_image_verification",
+  "self_acceptance": false,
+  "source_files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "87af42e0a082a9082191eae258744418f30c88b0e2fff7d96701694a848309d5",
+      "before_sha256": "89913ac29c5f07d2a24496e20996872bcd52b61ba6beb95fbb2422d6dcc457d7",
+      "changed": true
+    },
+    "backend/core/dynamic_pricing_fetcher.py": {
+      "after_sha256": "7c56826724285e2f0702dd88474c5e84df89d20c54ec9019b19061841cc12567",
+      "before_sha256": "ef72340ded6416ef122ec950e3c1bc40cde5779c58a42453568add3ae8b8964c",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "9183667e1c0e5551434eaed4969d9b0544d2af4ec84f451a66166474d15e2de3",
+      "before_sha256": "d12e5ba6e8f8b800df28ab0e5209ef95f0640427229f7bf51e4cab1c9a7f931d",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "0668c7a9b5f6b934c8ff1d57a2d8ec7df1b43724aacbccac8bc2a40781592fe7",
+      "before_sha256": "24c97d09bd2d5746bdfaae2220acebe4afcf4139b43e248933b6d94ffbafe05a",
+      "changed": true
+    },
+    "backend/tests/test_goal9_physical_attempts.py": {
+      "after_sha256": "8e23b51a834cfb2a3a7a15f6c6a05a54a97a3c797a63454e21e0d5798186219c",
+      "before_sha256": "1bdeb5b0b4456f5d9ece020df61c511ff7fb94d2c110c02e1889225277d06c77",
+      "changed": true
+    },
+    "backend/tests/test_goal9_pricing_material.py": {
+      "after_sha256": "78fa669e8657ea6f5ad7565c9c612d18a4100aac94b8e388670048f8fb76811e",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_structured_attempts.py": {
+      "after_sha256": "6b823ab28db1f2183972d468db0c2198b472769bbf92d3a6308840667213095b",
+      "before_sha256": null,
+      "changed": true
+    }
+  }
+}

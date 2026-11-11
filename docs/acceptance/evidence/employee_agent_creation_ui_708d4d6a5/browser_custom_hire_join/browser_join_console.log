@@ -1,0 +1,37 @@
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+[world] schema sync: created 5 table(s) absent from the frozen fixture: hypothesis_trees, skill_candidates, skill_impact_entries, tool_mutations, workflow_variants
+[server] healthy on :8073 (pid 40591, world identity verified: ec69e24f4385-dirty.d48ca, seatbelt, credential-free)
+[frontend] copying /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs -> /private/tmp/atom-goal14-create-ui-join-20261110/backend/data/acceptance_worlds/web_hire_ui_708d4d6a5_1794335154/frontend_snapshot (excluding caches)
+{
+  "status": "PASS",
+  "world": "web_hire_ui_708d4d6a5_1794335154",
+  "agent_id": "95314d21-1f92-5a6a-a062-2ea02e2deab7",
+  "controls": {
+    "exactly_one_post_at_end": true,
+    "exactly_one_response_at_end": true,
+    "one_post": true,
+    "one_response": true,
+    "request_method_post": true,
+    "operation_id_sent": true,
+    "operation_id_receipt_prefix": true,
+    "operation_id_receipt_matches_request": true,
+    "audit_id_matches_operation": true,
+    "verified_receipt": true,
+    "exact_list_row_once": true,
+    "same_name_row_once": true,
+    "db_exact_agent_once": true,
+    "db_same_name_once": true,
+    "db_audit_once": true,
+    "ui_card_once_after_reload": true,
+    "ui_student_badge": true,
+    "db_student": true,
+    "no_promotion": true,
+    "no_scheduler_config": true,
+    "no_provider_host_requested": true,
+    "network_boundary_external_blocked": true
+  },
+  "errors": [],
+  "out": "docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join"
+}

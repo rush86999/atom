@@ -1,0 +1,29 @@
+{
+  "pid": 46649,
+  "source": "31a82b316",
+  "log": "/private/tmp/root-ui31-receipt-independent-zr8b3wqg/gate.log",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/.nvm/versions/node/v20.20.2/bin/node",
+    "node_modules/jest/bin/jest.js",
+    "--runInBand",
+    "--watch=false",
+    "--runTestsByPath",
+    "lib/__tests__/agent-creation-retry.test.ts",
+    "components/Agents/__tests__/AgentLaunchGuide.test.tsx",
+    "components/Agents/__tests__/GuidedAgentCreator.test.tsx",
+    "components/canvas/__tests__/AgentAttachModal.test.tsx",
+    "tests/pages/agents-creation-join.test.tsx"
+  ],
+  "gate": "root actualclient/component/page receipt+retry boundary",
+  "result": "51 passed across5suites;0failed",
+  "finished_at": "2026-11-10T18:58:32.144175+00:00",
+  "helper_matches_frozen_source": true,
+  "helper_sha256": "ecfbd44a475e089bcdd8416f9ff60a5660dc6f3b9db6f85bc7584d0ebfad8f8c"
+}

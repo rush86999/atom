@@ -1,0 +1,14 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/agents-creation-join.test.tsx
+  Agents creation → authoritative reload join
+    ✓ shows the exact verified agent after guided creation refreshes the list (122 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        1.61 s, estimated 3 s
+Ran all test suites matching tests/pages/agents-creation-join.test.tsx.

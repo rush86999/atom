@@ -1,0 +1,36 @@
+{
+ "fixture_source": {
+  "mode": "api-seeded-fixture",
+  "explicit": false,
+  "note": "default: schema-provisioned API-seeded fixture; no dev rows copied"
+ },
+ "code_snapshot_sha256": "b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49",
+ "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+ "network_boundary_verified": {
+  "loopback": true,
+  "external_blocked": true
+ },
+ "network_boundary": "seatbelt local-only profile (runtime-enforced)",
+ "atom_db_sha256": "c5f6455b95d24201642b4b4e47f3bc3ed50d57434c133ce4f11c86bc429cf204",
+ "db_frozen_at": "2026-11-10T13:29:23-0500",
+ "db_source": "API-seeded fixture: app schema from core.database.Base.metadata, 0 dev rows; the live dev database was not read",
+ "credential_scrub": {
+  "not_applicable": "no dev rows were copied"
+ },
+ "api_seeded_fixture": {
+  "mode": "api-seeded-fixture",
+  "path": "/private/tmp/atom-goal14-create-ui-join-20261110/backend/data/acceptance_worlds/web_hire_ui_708d4d6a5_1794335154/fixture/atom.db",
+  "table_count": 371,
+  "rows": 0,
+  "size_bytes": 8589312,
+  "free_pages": 0,
+  "integrity_check": "ok",
+  "schema_source": "core.database.Base.metadata (the app's own schema)",
+  "size_ceiling_bytes": 33554432
+ },
+ "venv_freeze_sha256": "70aedee442940759490bea13dc32bc0526af274d7fd1fb13f573886df403d060",
+ "built_at": "2026-11-10T13:29:23-0500",
+ "parquet_files_verified": 46,
+ "server_env": "strict whitelist (no credentials)",
+ "harness_version": "enforced-isolation-v3.2"
+}

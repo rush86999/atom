@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -14,12 +14,13 @@ import {
   GuidedAgentPending,
   createGuidedAgent,
   getAutomationSuggestions,
+  newCreationOperationId,
 } from '@/lib/agent-onboarding-api';
 
 interface GuidedAgentCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAgentCreated?: () => void; // e.g. refresh the agent list
+  onAgentCreated?: (agentId?: string) => void; // e.g. refresh the agent list
   initialGoal?: string | null; // prefilled from a suggestion card
 }
 
@@ -39,10 +40,18 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [result, setResult] = useState<GuidedAgentResult | GuidedAgentPending | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const creationOperationId = useRef<string | null>(null);
 
   useEffect(() => {
     if (open && initialGoal) setGoal(initialGoal);
   }, [open, initialGoal]);
+
+  // A changed goal/context is a new intent. The previous operation id must
+  // not bind the new material; an unchanged explicit retry keeps it so the
+  // backend can reconcile instead of creating a second agent.
+  useEffect(() => {
+    creationOperationId.current = null;
+  }, [goal, context]);
 
   useEffect(() => {
     if (!open || suggestions.length || suggestionsLoading) return;
@@ -58,6 +67,7 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
     setContext('');
     setResult(null);
     setError(null);
+    creationOperationId.current = null;
   }, []);
 
   const handleClose = (next: boolean) => {
@@ -72,13 +82,36 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
     }
     setIsCreating(true);
     setError(null);
+    const operationId = creationOperationId.current ?? newCreationOperationId();
+    creationOperationId.current = operationId;
     try {
-      const res = await createGuidedAgent(goal.trim(), context.trim() || undefined);
+      const res = await createGuidedAgent(
+        goal.trim(),
+        context.trim() || undefined,
+        { operationId }
+      );
       setResult(res);
-      onAgentCreated?.();
+      // Only a verified result with an exact id represents a created agent.
+      // A 202 pending review has no agent; do not refresh as if one exists.
+      if ('agent_id' in res && res.agent_id) {
+        onAgentCreated?.(res.agent_id);
+      }
     } catch (e: any) {
       const body = e?.response?.data;
-      setError(body?.error?.message || body?.detail || body?.message || 'Failed to create the agent. Please try again.');
+      const status = e?.response?.status;
+      const networkCodes = [
+        'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND',
+      ];
+      if (e?.code === 'UNVERIFIED_CREATE') {
+        setError('The agent could not be verified. Refresh the list before retrying; the same intent will reconcile.');
+      } else if (status >= 500 || networkCodes.includes(e?.code)) {
+        setError('The creation outcome is uncertain. Retry to reconcile the same intent; do not create a second agent.');
+      } else {
+        setError(
+          body?.error?.message || body?.detail || body?.message ||
+          e?.message || 'Failed to create the agent. Please try again.'
+        );
+      }
     } finally {
       setIsCreating(false);
     }

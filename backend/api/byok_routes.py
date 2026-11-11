@@ -2192,21 +2192,15 @@ async def estimate_request_cost(request_data: Dict[str, Any], current_user: User
                 "estimated_cost_usd": estimated_cost
             })
         else:
-            # Try to find similar model
-            pricing = fetcher.get_model_price(model)
-            if pricing:
-                input_cost = pricing.get("input_cost_per_token", 0) * input_tokens
-                output_cost = pricing.get("output_cost_per_token", 0) * output_tokens
-                return ApiResponse(success=True, data={
-                    "model": model,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "estimated_cost_usd": input_cost + output_cost
-                })
-            
-            return ApiResponse(success=False, message="Model pricing not found. Refresh pricing cache.", data={
-                "model": model
-            })
+            # Unknown monetary material is UNKNOWN, never a $0 estimate. A row
+            # may still exist (with context metadata) while its charge is not
+            # determinable; report that truthfully instead of summing defaults.
+            return ApiResponse(
+                success=False,
+                message=(
+                    "Model pricing is unknown or incomplete for this request. "
+                    "Refresh pricing or configure explicit rates."),
+                data={"model": model})
     except Exception as e:
         logger.error(f"Failed to estimate cost: {e}")
         return ApiResponse(success=False, message="Failed to estimate cost")

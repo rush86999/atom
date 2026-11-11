@@ -1,0 +1,132 @@
+{
+  "schema": "atom-source-identity-reconciliation-1",
+  "generated_at": "2026-11-10T13:58:15-0500",
+  "status": "Browser custom-Hire controls PASS 23/23. Executed product bytes are attributed to 708d4d6a5 (backend snapshot b4aa..., frontend tree at 416094ffb identical to 708d4d6a5). The health source_id ec69e24f4385-dirty... is ambient canonical-repo metadata, not the loaded snapshot. Raw /api/health JSON and launch_descriptor were not preserved, so health-payload attribution is incomplete on that field.",
+  "browser_run": {
+    "capture": "browser_custom_hire_join/browser_custom_hire_join.json",
+    "claimed_product_source": "708d4d6a5",
+    "evidence_head_at_run": "416094ffba4e457f2670a59e9871d1cce7b14292",
+    "world": "web_hire_ui_708d4d6a5_1794335154",
+    "backend_pid": 40591,
+    "backend_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/web_hire_ui_708d4d6a5_1794335154/backend_root",
+    "health_source_id_observed": "ec69e24f4385-dirty.d48ca",
+    "health_revision_observed": "ec69e24f4385",
+    "health_dirty_observed": "True (83 modified, 54 untracked)",
+    "raw_health_payload_preserved": false,
+    "launch_descriptor_preserved": false,
+    "health_payload_note": "run_isolated.launch_server validated identity.cwd and stored launch_descriptor.json inside the world, but only the server log, frontend log, MANIFEST and the join JSON were copied before the disposable world was removed. The raw /api/health body is not in the evidence packet."
+  },
+  "world_build": {
+    "code_export_path": "world/code",
+    "code_snapshot_sha256": "b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49",
+    "reproduced_current_snapshot_sha256": "b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49",
+    "snapshot_match": true,
+    "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+    "built_at": "2026-11-10T13:29:23-0500",
+    "harness_version": "enforced-isolation-v3.2",
+    "network_boundary_verified": {
+      "loopback": true,
+      "external_blocked": true
+    },
+    "build_log": "browser_custom_hire_join/world_build.log",
+    "pinned_rev_printed_in_log": "79b2a41032c355d84dfd58229966d85a73a7d079",
+    "pinned_rev_is_export_identity": false,
+    "pinned_rev_note": "run_isolated.py prints PINNED_REV unconditionally in the \"farm -> world/code @ ...\" line. In snapshot mode the export is the working-tree tar whose sha256 is recorded in MANIFEST.json; the printed 79b2a... constant is not that export identity."
+  },
+  "executed_backend": {
+    "source_snapshot_sha256": "b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49",
+    "worktree_head": "416094ffba4e457f2670a59e9871d1cce7b14292",
+    "frozen_product_ref": "708d4d6a5",
+    "worktree_clean_for_backend": true,
+    "per_file": {
+      "backend/api/agent_routes.py": {
+        "current_sha256": "3ee25ea76825b9642aaab563446a920623d18ae972d67863d3ee8a7cf64d83f7",
+        "frozen_708d_sha256": "3ee25ea76825b9642aaab563446a920623d18ae972d67863d3ee8a7cf64d83f7",
+        "match": true
+      },
+      "backend/core/agent_decision_write_service.py": {
+        "current_sha256": "7f9e83bdb2485650b3d3d68ad85c1fbb4a6e45f410180b7f3a955e13b4275a4a",
+        "frozen_708d_sha256": "7f9e83bdb2485650b3d3d68ad85c1fbb4a6e45f410180b7f3a955e13b4275a4a",
+        "match": true
+      },
+      "backend/api/agent_onboarding_routes.py": {
+        "current_sha256": "2a697a7e578e5dc26095c816b63f2c2b4dc3a0391c582bd8b433ded62edb0319",
+        "frozen_708d_sha256": "2a697a7e578e5dc26095c816b63f2c2b4dc3a0391c582bd8b433ded62edb0319",
+        "match": true
+      },
+      "backend/core/runtime_identity.py": {
+        "current_sha256": "29310fe56c85ed5fec3e623caedac9165d6adcd4dcf144dad30e0425f60080f3",
+        "frozen_708d_sha256": "29310fe56c85ed5fec3e623caedac9165d6adcd4dcf144dad30e0425f60080f3",
+        "match": true
+      },
+      "backend/main_api_app.py": {
+        "current_sha256": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+        "frozen_708d_sha256": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+        "match": true
+      }
+    },
+    "all_match": true
+  },
+  "executed_frontend": {
+    "copy_source": "frontend-nextjs at worktree HEAD 416094ffb",
+    "run_capture_dirty_paths": [
+      "?? .watchman-cookie-MacBook-Pro.local-2934-29",
+      "?? .watchman-cookie-MacBook-Pro.local-2934-31",
+      "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join.py",
+      "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/"
+    ],
+    "run_capture_has_no_frontend_change": true,
+    "head_416094_tree_equals_frozen_708d": true,
+    "per_file_head_416094_vs_708d": {
+      "frontend-nextjs/lib/agent-onboarding-api.ts": {
+        "head_416094_sha256": "cb38e3cf8629e418bc2e63590fce682f0b89fa16295ba4ab97ac27178fed5fdf",
+        "frozen_708d_sha256": "cb38e3cf8629e418bc2e63590fce682f0b89fa16295ba4ab97ac27178fed5fdf",
+        "match": true
+      },
+      "frontend-nextjs/lib/api.ts": {
+        "head_416094_sha256": "0bfa5a8eef267f48f0a0ccac9b5f62a6f70c850f900a3986083c47bc396d2db1",
+        "frozen_708d_sha256": "0bfa5a8eef267f48f0a0ccac9b5f62a6f70c850f900a3986083c47bc396d2db1",
+        "match": true
+      },
+      "frontend-nextjs/components/Agents/AgentLaunchGuide.tsx": {
+        "head_416094_sha256": "66b16e2340fca52213d81829a402ebbc90d26250f4139e240a7a284597f6525d",
+        "frozen_708d_sha256": "66b16e2340fca52213d81829a402ebbc90d26250f4139e240a7a284597f6525d",
+        "match": true
+      },
+      "frontend-nextjs/components/Agents/GuidedAgentCreator.tsx": {
+        "head_416094_sha256": "c467db1f4237848c930930d286c5864df02cc7bbe250cc48d196c59560881e5c",
+        "frozen_708d_sha256": "c467db1f4237848c930930d286c5864df02cc7bbe250cc48d196c59560881e5c",
+        "match": true
+      },
+      "frontend-nextjs/components/canvas/AgentAttachModal.tsx": {
+        "head_416094_sha256": "f3b10f234096ee9c2e293f41ec5fbd2011b6a18ff84e8d5e0acf1026ec5862a1",
+        "frozen_708d_sha256": "f3b10f234096ee9c2e293f41ec5fbd2011b6a18ff84e8d5e0acf1026ec5862a1",
+        "match": true
+      },
+      "frontend-nextjs/pages/agents/index.tsx": {
+        "head_416094_sha256": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+        "frozen_708d_sha256": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+        "match": true
+      }
+    },
+    "post_run_repair_note": "frontend-nextjs/lib/agent-onboarding-api.ts was repaired for receipt binding after the browser run. Its current hash is the post-repair source; the browser run used the clean 416094ffb tree, which is byte-identical to 708d4d6a5 for these files."
+  },
+  "ambient_identity": {
+    "mechanism": "core.runtime_identity.capture_runtime_identity() derives repo_dir as the parent of the loaded backend dir. In the world, the loaded module is <world>/backend_root/core/runtime_identity.py, so repo_dir is the world directory. git -C <world> walks up to the enclosing canonical repo /Users/rushiparikh/projects/atom and reports that repo's HEAD and dirty state.",
+    "canonical_repo": "/Users/rushiparikh/projects/atom",
+    "canonical_head_now": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+    "canonical_status_counts_now": "83 modified, 54 untracked",
+    "canonical_digest_now": "8f488a4d9e78",
+    "canonical_digest_at_run_observed": "d48cacd2123b",
+    "digest_drift_note": "The canonical worktree changed after the run, so its content digest moved from d48ca to 8f488a. The revision and 83/54 counts still match, which is exactly what an ambient canonical-repo read would do; it is not a frozen property of the executed snapshot."
+  },
+  "verdict": {
+    "product_code_attribution": "proven",
+    "health_payload_attribution": "incomplete (raw payload/descriptor not preserved)",
+    "executed_frontend": "708d4d6a5 (via byte-identical 416094ffb tree)",
+    "executed_backend": "708d4d6a5 backend (snapshot b4aa..., unchanged from base 38dae)",
+    "health_source_id": "ambient canonical repo ec69e24f4385-dirty..., not executed code",
+    "receipt_binding_repair": "committed at 31a82b316; post-browser, not part of the browser run",
+    "browser_controls": "PASS 23/23"
+  }
+}

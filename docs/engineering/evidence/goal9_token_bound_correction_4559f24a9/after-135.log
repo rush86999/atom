@@ -1,0 +1,504 @@
+
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:43:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 12:43:41 [    INFO] EscalationManager initialized
+2026-11-10 12:43:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:43:41 [    INFO] EscalationManager initialized
+2026-11-10 12:43:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:43:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:43:41 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [  1%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [  3%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [  6%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [  8%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [  8%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [  9%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 10%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 11%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 11%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 12%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 13%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 14%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 14%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 15%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 16%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 17%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 17%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 18%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 19%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [ 20%]
+tests/test_goal9_atomic_cap.py::test_concurrent_two_seven_reservations_one_refuses PASSED [ 20%]
+tests/test_goal9_atomic_cap.py::test_single_reservation_settles_actual_7_to_97 PASSED [ 21%]
+tests/test_goal9_atomic_cap.py::test_second_reservation_after_97_refuses PASSED [ 22%]
+tests/test_goal9_atomic_cap.py::test_actual_less_than_reservation_releases_difference PASSED [ 22%]
+tests/test_goal9_atomic_cap.py::test_scope_isolation_between_tenants PASSED [ 23%]
+tests/test_goal9_atomic_cap.py::test_duplicate_reservation_idempotent_and_binding_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:43:48 [   ERROR] durable LLM settlement degraded: intent_write_failed:DurableUsageIntentError
+2026-11-10 12:43:48 [   ERROR] durable LLM settlement degraded: intent_write_failed:DurableUsageIntentError
+PASSED                                                                   [ 24%]
+tests/test_goal9_atomic_cap.py::test_restart_active_reservation_blocks_new_reservation PASSED [ 25%]
+tests/test_goal9_atomic_cap.py::test_reservation_write_failure_refuses_provider_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:43:50 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 12:43:50 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:43:50 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 12:43:50 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (DurableUsageIntentError)
+2026-11-10 12:43:50 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 12:43:50 [ WARNING] [structured-pool] depth=0 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 12:43:50 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-10 12:43:50 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"openai": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-0fba1a49c3d9"}
+2026-11-10 12:43:50 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:43:50 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 12:43:50 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (DurableUsageIntentError)
+2026-11-10 12:43:50 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 12:43:50 [ WARNING] [structured-pool] depth=1 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 12:43:50 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 12:43:50 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 25%]
+tests/test_goal9_atomic_cap.py::test_known_free_zero_reservation_allowed PASSED [ 26%]
+tests/test_goal9_atomic_cap.py::test_unknown_pricing_hard_stop_refuses_soft_stop_allows PASSED [ 27%]
+tests/test_goal9_atomic_cap.py::test_timeout_uncertain_reservation_is_retained PASSED [ 28%]
+tests/test_goal9_atomic_cap.py::test_exact_attempt_settles_once_and_conflict_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:43:53 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 28%]
+tests/test_goal9_atomic_cap.py::test_concurrent_structured_only_one_provider_call 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:43:54 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:43:54 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:43:54 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-a9acbacc9adb attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 12:43:54 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-a9acbacc9adb attempt=1
+2026-11-10 12:43:54 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (BudgetReservationRefused)
+2026-11-10 12:43:54 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 12:43:54 [ WARNING] [structured-pool] depth=0 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 12:43:54 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-10 12:43:54 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"openai": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-cdfd9c6688c7"}
+2026-11-10 12:43:54 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:43:54 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (BudgetReservationRefused)
+2026-11-10 12:43:54 [ WARNING] Structured attempt failed for openai/gpt-4o-mini: durable usage intent unavailable
+2026-11-10 12:43:54 [ WARNING] [structured-pool] depth=1 candidates=[('openai', 'gpt-4o-mini')] attempted=True credit_failed=[]
+2026-11-10 12:43:54 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 12:43:54 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 12:43:54 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 29%]
+tests/test_goal9_atomic_cap.py::test_invalid_or_unreadable_policy_fails_closed PASSED [ 30%]
+tests/test_goal9_atomic_cap.py::test_database_read_failure_fails_closed PASSED [ 31%]
+tests/test_goal9_atomic_cap.py::test_unresolved_scope_reservation_remains_unattributed_liability 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:43:57 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 31%]
+tests/test_goal9_atomic_cap.py::test_no_limit_or_observe_policy_is_not_blanket_denied PASSED [ 32%]
+tests/test_goal9_atomic_cap.py::test_budget_revision_after_reservation_keeps_liability PASSED [ 33%]
+tests/test_goal9_atomic_cap.py::test_reservation_bound_covers_unicode_schema_and_output[False] PASSED [ 34%]
+tests/test_goal9_atomic_cap.py::test_reservation_bound_covers_unicode_schema_and_output[True] PASSED [ 34%]
+tests/test_goal9_atomic_cap.py::test_route_binding_conflict_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:01 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 35%]
+tests/test_goal9_atomic_cap.py::test_reservation_does_not_commit_caller_work PASSED [ 36%]
+tests/test_goal9_atomic_cap.py::test_default_scope_without_tenant_is_intentional_no_limit PASSED [ 37%]
+tests/test_goal9_atomic_cap.py::test_supported_upgrade_adds_reservation_columns_preserving_old_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:02 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 37%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[-1.0] PASSED [ 38%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[nan] PASSED [ 39%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[inf] PASSED [ 40%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[False] PASSED [ 40%]
+tests/test_goal9_atomic_cap.py::test_invalid_pricing_is_unknown_not_free[True] PASSED [ 41%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[-1.0] PASSED [ 42%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[nan] PASSED [ 42%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[inf] PASSED [ 43%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[False] PASSED [ 44%]
+tests/test_goal9_atomic_cap.py::test_begin_rejects_invalid_reservation_bound[True] PASSED [ 45%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[-1.0] PASSED [ 45%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[nan] PASSED [ 46%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[inf] PASSED [ 47%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[False] PASSED [ 48%]
+tests/test_goal9_atomic_cap.py::test_invalid_settlement_cost_remains_unknown[True] PASSED [ 48%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0-0.0] PASSED [ 49%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0.0-0.0] PASSED [ 50%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_and_positive_prices_remain_valid[0.25-0.3125] PASSED [ 51%]
+tests/test_goal9_atomic_cap.py::test_numeric_zero_direct_bounds_remain_valid PASSED [ 51%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_without_execution_context_uses_none 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:11 [    INFO] EscalationManager initialized
+2026-11-10 12:44:11 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:11 [    INFO] LocalOnlyGuard initialized
+2026-11-10 12:44:11 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:11 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:12 [    INFO] Initialized router with 30 models
+2026-11-10 12:44:12 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-10 12:44:12 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 52%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_with_execution_context_attribution 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:13 [    INFO] EscalationManager initialized
+2026-11-10 12:44:13 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:13 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:13 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:13 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5956309200'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5798213968'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 53%]
+tests/test_goal9_ci_execution_contract.py::test_intent_failure_does_not_fallback_to_second_provider 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:14 [    INFO] EscalationManager initialized
+2026-11-10 12:44:14 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:14 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:14 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (RuntimeError)
+2026-11-10 12:44:14 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 54%]
+tests/test_goal9_ci_execution_contract.py::test_two_ordinary_successes_settle_ledger_once 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:15 [    INFO] EscalationManager initialized
+2026-11-10 12:44:15 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:15 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:15 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 12:44:15 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:15 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5976632656'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5956309200'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 12:44:15 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:15 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 12:44:15 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 54%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_uncertain_liability_not_released 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:16 [    INFO] EscalationManager initialized
+2026-11-10 12:44:16 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:16 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:16 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 55%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_keeps_reserved_liability_across_restart 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:18 [    INFO] EscalationManager initialized
+2026-11-10 12:44:18 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:18 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:18 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $1.600000 (Saved: $0.000000)
+2026-11-10 12:44:18 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:18 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 12:44:18 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5978653904'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5976632656'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 56%]
+tests/test_goal9_ci_execution_contract.py::test_concurrent_ordinary_cap_90_plus_7_plus_7 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:19 [    INFO] EscalationManager initialized
+2026-11-10 12:44:19 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:19 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:19 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:19 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:19 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5979654224'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5978653904'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 12:44:19 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:19 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:19 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 57%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[-1.0] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:20 [    INFO] EscalationManager initialized
+2026-11-10 12:44:20 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:20 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:20 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:20 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 57%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[nan] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:21 [    INFO] EscalationManager initialized
+2026-11-10 12:44:21 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:21 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:21 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:21 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 58%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[inf] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:22 [    INFO] EscalationManager initialized
+2026-11-10 12:44:22 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:22 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:22 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:22 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 59%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[False] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:22 [    INFO] EscalationManager initialized
+2026-11-10 12:44:22 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:22 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:22 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:22 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 60%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[True] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:23 [    INFO] EscalationManager initialized
+2026-11-10 12:44:23 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:23 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (BudgetReservationRefused)
+2026-11-10 12:44:23 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 60%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_explicit_unknown 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:24 [    INFO] EscalationManager initialized
+2026-11-10 12:44:24 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:24 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:24 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 61%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_retains_intent_across_restart 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:25 [    INFO] EscalationManager initialized
+2026-11-10 12:44:25 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:25 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:25 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 12:44:25 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:25 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 12:44:25 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5983276752'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5979654224'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 12:44:25 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+2026-11-10 12:44:25 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+PASSED                                                                   [ 62%]
+tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:26 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:26 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 62%]
+tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:26 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:26 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 63%]
+tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:27 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:27 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 64%]
+tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:28 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:28 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 65%]
+tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:29 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 65%]
+tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:29 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:29 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 66%]
+tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:30 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 12:44:30 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 67%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 68%]
+tests/test_goal9_durable_settlement.py::test_known_free_contract_is_authoritative_zero_without_usage PASSED [ 68%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unpriced_read_failure_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:33 [   ERROR] [SpendAggregationService] Error updating spend: unpriced read unavailable
+2026-11-10 12:44:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unpriced read unavailable
+PASSED                                                                   [ 69%]
+tests/test_goal9_durable_settlement.py::test_upgrade_failure_keeps_hard_stop_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:33 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+2026-11-10 12:44:33 [ WARNING] [BudgetEnforcementService] Durable ledger upgrade unavailable for tenant tenant-goal9: upgrade_failed:RuntimeError
+PASSED                                                                   [ 70%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:34 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 12:44:34 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 71%]
+tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:35 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 71%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:36 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 72%]
+tests/test_goal9_durable_settlement.py::test_unresolved_scope_unknown_is_visible_to_hardstop 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:37 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 73%]
+tests/test_goal9_durable_settlement.py::test_trusted_handler_scope_carrier 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:38 [    INFO] EscalationManager initialized
+2026-11-10 12:44:38 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+2026-11-10 12:44:38 [    INFO] LLM Cost Attributed: controlled-model - $0.010000 (Saved: $0.000000)
+PASSED                                                                   [ 74%]
+tests/test_goal9_durable_settlement.py::test_llm_service_scope_carrier_and_unresolved_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:38 [    INFO] EscalationManager initialized
+2026-11-10 12:44:38 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+PASSED                                                                   [ 74%]
+tests/test_goal9_durable_settlement.py::test_settlement_persistence_failure_does_not_fake_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:39 [   ERROR] durable LLM settlement degraded: settlement_write_failed:RuntimeError
+2026-11-10 12:44:39 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 12:44:39 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:39 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+2026-11-10 12:44:39 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+PASSED                                                                   [ 75%]
+tests/test_goal9_durable_settlement.py::test_structured_no_trace_calls_get_distinct_server_identities 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:40 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:44:40 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-cc6248e533af attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 12:44:40 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-cc6248e533af attempt=1
+2026-11-10 12:44:40 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 12:44:40 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:44:40 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-39624d4c9516 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 12:44:40 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-39624d4c9516 attempt=1
+2026-11-10 12:44:40 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 76%]
+tests/test_goal9_durable_settlement.py::test_durable_intent_survives_restart_when_settlement_write_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:41 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 12:44:41 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-5e53b0e2df51 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 12:44:41 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-5e53b0e2df51 attempt=1
+2026-11-10 12:44:41 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 12:44:41 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 77%]
+tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:42 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 12:44:42 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 12:44:42 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 12:44:42 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 77%]
+tests/test_goal9_durable_settlement.py::test_settle_exact_intent_once 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:42 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 78%]
+tests/test_goal9_durable_settlement.py::test_pending_cas_two_sessions_actual_survives_stale_writers PASSED [ 79%]
+tests/test_goal9_durable_settlement.py::test_null_cost_nonunknown_status_is_liability_not_free 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:44 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 80%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 80%]
+tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [ 81%]
+tests/test_goal9_token_usage_upgrade.py::test_pre_upgrade_sqlite_token_usage_upgrades_via_startup_hook 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:45 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 82%]
+tests/test_goal9_token_usage_upgrade.py::test_partial_upgrade_preserves_pricing_status_and_custom_index 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:45 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 82%]
+tests/test_goal9_token_usage_upgrade.py::test_failed_upgrade_is_recorded_and_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:45 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+PASSED                                                                   [ 83%]
+::test_invalid_price_cannot_become_free_reservation[-1.0] PASSED         [ 84%]
+::test_invalid_price_cannot_become_free_reservation[nan] PASSED          [ 85%]
+::test_invalid_price_cannot_become_free_reservation[inf] PASSED          [ 85%]
+::test_invalid_price_cannot_become_free_reservation[False] PASSED        [ 86%]
+::test_invalid_price_cannot_become_free_reservation[True] PASSED         [ 87%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[-1.0] PASSED [ 88%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[nan] PASSED [ 88%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[inf] PASSED [ 89%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[False] PASSED [ 90%]
+::test_direct_invalid_reservation_bound_refuses_without_a_row[True] PASSED [ 91%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[provider_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:50 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 91%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[model_name] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:51 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 92%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:51 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 93%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:52 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 94%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:53 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 94%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[execution_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:54 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 95%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[chain_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:54 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 96%]
+::test_each_pending_binding_contradiction_refuses_without_reassignment[request_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:55 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 97%]
+::test_exact_actual_settlement_replay_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:56 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 97%]
+::test_two_ordinary_calls_have_distinct_durable_attempts 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:57 [    INFO] EscalationManager initialized
+2026-11-10 12:44:57 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:57 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:57 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 12:44:57 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 12:44:57 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:57 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 12:44:57 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 98%]
+::test_actual_intent_commit_failure_dispatches_no_provider 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:44:57 [    INFO] EscalationManager initialized
+2026-11-10 12:44:57 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:44:57 [   ERROR] durable LLM settlement degraded: intent_write_failed:RuntimeError
+2026-11-10 12:44:57 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 12:44:57 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (DurableUsageIntentError)
+2026-11-10 12:44:57 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [ 99%]
+::test_estimated_token_count_uses_real_utf8_upper_bound PASSED           [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 270 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 135 passed, 275 warnings in 96.78s (0:01:36) =================

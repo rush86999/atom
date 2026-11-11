@@ -1,0 +1,26 @@
+[
+  {
+    "attempt_id": "74650d62-cedc-4091-a151-265ce6250a57:1",
+    "request_id": "74650d62-cedc-4091-a151-265ce6250a57",
+    "execution_id": null,
+    "workspace_id": "root-budget-ws",
+    "tenant_id": "root-budget",
+    "billed": true,
+    "cost_usd": 0.25,
+    "pricing_status": "priced",
+    "prompt_tokens": 10,
+    "completion_tokens": 5
+  },
+  {
+    "attempt_id": "dfbb2c3d-37a6-4f25-8782-bc3515fec7ec:1",
+    "request_id": "dfbb2c3d-37a6-4f25-8782-bc3515fec7ec",
+    "execution_id": null,
+    "workspace_id": "root-budget-ws",
+    "tenant_id": "root-budget",
+    "billed": true,
+    "cost_usd": 0.25,
+    "pricing_status": "priced",
+    "prompt_tokens": 10,
+    "completion_tokens": 5
+  }
+]

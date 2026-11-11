@@ -1,0 +1,46 @@
+{
+  "authoritative_ledger": "TokenUsage",
+  "base_commit": "b0a5c04e7069fae43b74f2cac91699fcb741e673",
+  "branch": "codex/goal9-durable-settlement-20261110",
+  "date": "2026-11-10",
+  "deferred": "atomic concurrent reservation; check alone non-atomic; no new cap claim",
+  "evidence_files": {
+    "README.md": "541ddcb44e4332e20d772f4bb122ca688809e5bc4759c9ed4a4d0dcf22d36dd1",
+    "gates/affected.log": "fbdf5d5dcfd2d2bf7c9ee67638f3bcc9adf61f8985ef35f2c0fc5c7594f57c0c",
+    "gates/focused.log": "bae48bec11f33eb7999730094a64012c84f42c626bbd7857934763b098833b79",
+    "gates/upgrade.log": "ace1f9a3d1af934948b7c5f8966baf381f6af71a40d539025e0626a75d93176c",
+    "migration.sql": "d6ced725868634f707f1955a3fb1137267cce5c6a34eac2e559d700128d76431",
+    "migration_lineage.md": "e910c4e6e6987f1047d891dddac47c21726d273d8aef2791e40c65c58cc04d77",
+    "retained_negative/partial-upgrade-review.json": "81466fe4413aa9761090c5e5ee5b636e5351de3d23257c869f5f150a9f3ea53e",
+    "retained_negative/pre-fix-negative.log": "a9b994477da1cbd288b7fd1871a04daf705f0fa102fb9dedb1604323f773d6fd",
+    "retained_negative/pre-fix.test.py": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
+    "retained_negative/structured-intent-loop-review.json": "0032a085890a3611c03f5b8a3e0935f6919ac3b6b6a50699b1178d72b33cb3ae",
+    "source/fix.diff": "16db9c597f861e10392a11e3428770ef8dbd06fb5cda5c3ef66fecd4eb051683",
+    "source/source-hashes.json": "7fa041bd12fcefb50107b6acbc7eab3f856b17619374d851d5e85ce348c40b68"
+  },
+  "gates": {
+    "affected": "266 passed",
+    "focused": "29 passed",
+    "provider_model_live_db": false,
+    "scratch": "SQLite only",
+    "upgrade": "3 passed"
+  },
+  "in_memory_tracker": "diagnostic/cache only",
+  "kind": "goal9_durable_settlement_hardstop",
+  "migration": "migration.sql, reversible DDL, not applied; SQLite uses startup hook",
+  "migration_lineage": "42 revisions / 42 heads; no revision mentions token_usage; no merge head invented; see migration_lineage.md",
+  "product_changes": [
+    "nullable agent/tenant/model + provider/request/attempt id + pricing_status on TokenUsage",
+    "durable pre-dispatch unknown/paid-liability intent in TokenUsage; no dispatch if it cannot persist",
+    "exact-binding database CAS settles the pending intent once; actual settlement survives stale writers; replay idempotent; conflicts/scope contradictions refuse",
+    "settlement from BYOK usage paths + stream unknown + known-free contract + server-owned structured identity",
+    "hard-stop fail-closed on unreadable/unpriced/unattributed/degraded/upgrade-unavailable; NULL cost non-free is liability",
+    "governance refusal status code preservation",
+    "SQLite startup upgrade rebuilds legacy token_usage preserving rows/IDs/FKs/custom columns/indexes and partial pricing_status; retryable failure marker"
+  ],
+  "retained_negative": "retained_negative/pre-fix.test.py + pre-fix-negative.log (verbatim from b0a5c04e)",
+  "root_review_required": true,
+  "status": "tested_candidate_ready_for_root_review",
+  "target_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "upgrade_path": "existing startup hook repair_known_drift() -> ensure_token_usage_upgrade(); full + partial-schema pre-upgrade SQLite fixtures"
+}

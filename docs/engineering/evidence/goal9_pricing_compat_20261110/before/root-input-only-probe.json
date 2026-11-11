@@ -1,0 +1,16 @@
+{
+  "probe": "<scratch>",
+  "results": [
+    {
+      "label": "before",
+      "exit": 0,
+      "log": "<scratch>"
+    },
+    {
+      "label": "working_fix",
+      "exit": 1,
+      "log": "<scratch>"
+    }
+  ],
+  "scope": "actualestimate_cost method, positiveinput/zerooutput legitimateinput-onlyrow;workingdraftnotfrozen"
+}

@@ -92,7 +92,7 @@ class TestConcurrentBudgetChecks:
     ):
         """Under budget, all 10 concurrent checks are allowed."""
         tenant = tenant_factory()
-        budget_service.spend_service.update_tenant_spend = lambda tid: {
+        budget_service.spend_service.update_tenant_spend = lambda tid, **kwargs: {
             "current_spend_usd": 50.0,
             "budget_limit_usd": 100.0,
             "utilization_percent": 50.0,
@@ -115,7 +115,7 @@ class TestConcurrentBudgetChecks:
     ):
         """At/over budget in hard_stop mode, all 10 concurrent checks block."""
         tenant = tenant_factory(mode=BudgetEnforcementMode.HARD_STOP)
-        budget_service.spend_service.update_tenant_spend = lambda tid: {
+        budget_service.spend_service.update_tenant_spend = lambda tid, **kwargs: {
             "current_spend_usd": 100.0,
             "budget_limit_usd": 100.0,
             "utilization_percent": 100.0,
@@ -138,7 +138,7 @@ class TestConcurrentBudgetChecks:
     ):
         """Over budget in alert_only mode, all 10 concurrent checks allow."""
         tenant = tenant_factory(mode=BudgetEnforcementMode.ALERT_ONLY)
-        budget_service.spend_service.update_tenant_spend = lambda tid: {
+        budget_service.spend_service.update_tenant_spend = lambda tid, **kwargs: {
             "current_spend_usd": 150.0,
             "budget_limit_usd": 100.0,
             "utilization_percent": 150.0,
@@ -164,7 +164,7 @@ class TestConcurrentFleetAggregate:
     ):
         """Fleet cap reached → every concurrent check with chain_id blocks."""
         tenant = tenant_factory()
-        budget_service.spend_service.update_tenant_spend = lambda tid: {
+        budget_service.spend_service.update_tenant_spend = lambda tid, **kwargs: {
             "current_spend_usd": 10.0,
             "budget_limit_usd": 100.0,
             "utilization_percent": 10.0,
@@ -223,7 +223,7 @@ class TestConcurrentFleetAggregate:
     ):
         """Fleet cap not reached → concurrent checks with chain_id allow."""
         tenant = tenant_factory()
-        budget_service.spend_service.update_tenant_spend = lambda tid: {
+        budget_service.spend_service.update_tenant_spend = lambda tid, **kwargs: {
             "current_spend_usd": 10.0,
             "budget_limit_usd": 100.0,
             "utilization_percent": 10.0,

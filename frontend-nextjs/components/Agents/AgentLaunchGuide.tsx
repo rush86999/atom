@@ -27,6 +27,10 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api';
+import {
+    createCustomAgent,
+    newCreationOperationId,
+} from '@/lib/agent-onboarding-api';
 import { notifyIngestionUpdated } from '@/lib/ingestion-events';
 import { listTrainingProposals } from '@/lib/maturity-api';
 import { useProductProfile } from '@/lib/product-profile';
@@ -43,7 +47,7 @@ interface LaunchAgent {
 
 interface AgentLaunchGuideProps {
     agents: LaunchAgent[];
-    onAgentsChanged?: () => void;
+    onAgentsChanged?: (agentId?: string) => void;
 }
 
 interface TokenInfo {
@@ -242,10 +246,19 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
 
     // Create-agent dialog
     const [createOpen, setCreateOpen] = useState(false);
+    const hireOperationId = useRef<string | null>(null);
     const [creating, setCreating] = useState(false);
     const role = ROLES[roleId];
+
     const [newName, setNewName] = useState(role.agentName);
     const [newDescription, setNewDescription] = useState(role.description);
+
+    // A changed role/name/description/open state is a new hire intent. The
+    // operation id is reused only for an explicit retry of the same intent,
+    // never for an automatic transport replay.
+    useEffect(() => {
+        hireOperationId.current = null;
+    }, [roleId, newName, newDescription, createOpen]);
 
     // Ingestion actions
     const [busySource, setBusySource] = useState<string | null>(null);
@@ -386,27 +399,47 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
 
     const createEmployee = async () => {
         setCreating(true);
+        const operationId = hireOperationId.current ?? newCreationOperationId();
+        hireOperationId.current = operationId;
         try {
-            await apiClient.post('/api/agents/custom', {
+            const created = await createCustomAgent({
                 name: newName.trim(),
                 description: newDescription.trim(),
                 category: role.label,
                 configuration: {},
                 schedule_config: {},
-            });
+            }, { operationId });
             toast({
                 title: `${role.label} employee hired`,
                 description: `${newName.trim()} starts as a trainee — connect data next so it has context to learn from.`,
                 duration: 6000,
             });
             setCreateOpen(false);
-            onAgentsChanged?.();
+            onAgentsChanged?.(created.agent_id);
         } catch (err: any) {
+            const status = err?.response?.status;
+            const networkCodes = [
+                'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT',
+                'ECONNRESET', 'ENOTFOUND',
+            ];
+            const uncertain =
+                err?.code === 'UNVERIFIED_CREATE' ||
+                status >= 500 ||
+                networkCodes.includes(err?.code);
             const message =
-                err?.response?.data?.error?.message ||
-                err?.response?.data?.detail ||
-                'Could not create the employee. Is the backend running?';
-            toast({ title: 'Failed to create employee', description: message, variant: 'error' });
+                err?.code === 'UNVERIFIED_CREATE'
+                    ? 'The hire could not be verified. Refresh the list before retrying; the same intent will reconcile.'
+                    : uncertain
+                    ? 'The hire outcome is uncertain. Use Hire again to reconcile the same intent; do not create a second employee.'
+                    : err?.response?.data?.error?.message ||
+                      err?.response?.data?.detail ||
+                      err?.message ||
+                      'Could not create the employee. Is the backend running?';
+            toast({
+                title: uncertain ? 'Hire outcome uncertain' : 'Failed to create employee',
+                description: message,
+                variant: 'error',
+            });
         } finally {
             setCreating(false);
         }

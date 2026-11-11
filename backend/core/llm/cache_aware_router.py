@@ -121,8 +121,13 @@ class CacheAwareRouter:
             from core.llm.byok_handler import AwaitableResult
             return AwaitableResult(float("inf"))
 
-        input_cost = pricing.get("input_cost_per_token", 0)
-        output_cost = pricing.get("output_cost_per_token", 0)
+        rates = self.pricing_fetcher.material_rates(pricing)
+        if rates is None:
+            # Incomplete/invalid monetary material is unknown cost, not free;
+            # keep such a route unranked by effective cost.
+            from core.llm.byok_handler import AwaitableResult
+            return AwaitableResult(float("inf"))
+        input_cost, output_cost = rates
 
         # Get provider cache capabilities
         cache_info = self.get_provider_cache_capability(provider)

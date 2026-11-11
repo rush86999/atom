@@ -1,0 +1,92 @@
+
+tests/test_goal9_stream_usage.py::test_complete_terminal_usage_settles_priced_attempt
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:53:59 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 14:53:59 [    INFO] EscalationManager initialized
+2026-11-10 14:53:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:53:59 [    INFO] EscalationManager initialized
+2026-11-10 14:53:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:53:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:53:59 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:00 [    INFO] EscalationManager initialized
+2026-11-10 14:54:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:00 [    INFO] LocalOnlyGuard initialized
+2026-11-10 14:54:00 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:54:00 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.1s
+PASSED                                                                   [ 16%]
+tests/test_goal9_stream_usage.py::test_absent_usage_stays_unknown_and_reserved
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:01 [    INFO] EscalationManager initialized
+2026-11-10 14:54:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:01 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:54:01 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 33%]
+tests/test_goal9_stream_usage.py::test_partial_usage_is_not_treated_as_authoritative
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:02 [    INFO] EscalationManager initialized
+2026-11-10 14:54:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:02 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:54:02 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 50%]
+tests/test_goal9_stream_usage.py::test_visible_partial_then_failure_is_not_replayed_or_settled
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:03 [    INFO] EscalationManager initialized
+2026-11-10 14:54:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:03 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:54:03 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 14:54:03 [ WARNING] Streaming failed for openai/gpt-4o: connection dropped mid-stream
+2026-11-10 14:54:03 [ WARNING] attempt openai/gpt-4o failed: cause=transport status=None detail=connection dropped mid-stream
+2026-11-10 14:54:03 [ WARNING] mid-stream failure on openai/gpt-4o after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 66%]
+tests/test_goal9_stream_usage.py::test_retry_settles_its_own_attempt_with_usage
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:04 [    INFO] EscalationManager initialized
+2026-11-10 14:54:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:04 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
+2026-11-10 14:54:04 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 14:54:04 [ WARNING] Streaming failed for openai/shared-model: controlled failure
+2026-11-10 14:54:04 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled failure
+2026-11-10 14:54:05 [    INFO] Falling back to next provider...
+2026-11-10 14:54:05 [    INFO] Attempting stream with provider: deepseek (requested: openai) model=shared-model
+2026-11-10 14:54:05 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 83%]
+tests/test_goal9_stream_usage.py::test_usage_with_unknown_pricing_records_tokens_and_keeps_liability
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:54:06 [    INFO] EscalationManager initialized
+2026-11-10 14:54:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:54:06 [    INFO] Attempting stream with provider: openai (requested: openai) model=controlled-unknown-stream-model
+2026-11-10 14:54:06 [    INFO] [inflight] openai/controlled-unknown-stream-model released by 'structured:chat' after 0.0s
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 12 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 6 passed, 17 warnings in 23.30s ========================

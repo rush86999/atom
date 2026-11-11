@@ -1,0 +1,34 @@
+FFFF..                                                                   [100%]
+=================================== FAILURES ===================================
+________ test_invalid_or_absent_rate_material_is_not_known_free[price0] ________
+../../root_configured_price_material_probe.py:14: in test_invalid_or_absent_rate_material_is_not_known_free
+    assert result is None, f'Invalid or missing rates must remain unknown, got {result!r}'
+E   AssertionError: Invalid or missing rates must remain unknown, got 0
+E   assert 0 is None
+________ test_invalid_or_absent_rate_material_is_not_known_free[price1] ________
+../../root_configured_price_material_probe.py:14: in test_invalid_or_absent_rate_material_is_not_known_free
+    assert result is None, f'Invalid or missing rates must remain unknown, got {result!r}'
+E   AssertionError: Invalid or missing rates must remain unknown, got 0.0
+E   assert 0.0 is None
+________ test_invalid_or_absent_rate_material_is_not_known_free[price2] ________
+../../root_configured_price_material_probe.py:14: in test_invalid_or_absent_rate_material_is_not_known_free
+    assert result is None, f'Invalid or missing rates must remain unknown, got {result!r}'
+E   AssertionError: Invalid or missing rates must remain unknown, got 0
+E   assert 0 is None
+________ test_invalid_or_absent_rate_material_is_not_known_free[price3] ________
+../../root_configured_price_material_probe.py:14: in test_invalid_or_absent_rate_material_is_not_known_free
+    assert result is None, f'Invalid or missing rates must remain unknown, got {result!r}'
+E   AssertionError: Invalid or missing rates must remain unknown, got 0.0
+E   assert 0.0 is None
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 12 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_configured_price_material_probe.py::test_invalid_or_absent_rate_material_is_not_known_free[price0]
+FAILED ../../root_configured_price_material_probe.py::test_invalid_or_absent_rate_material_is_not_known_free[price1]
+FAILED ../../root_configured_price_material_probe.py::test_invalid_or_absent_rate_material_is_not_known_free[price2]
+FAILED ../../root_configured_price_material_probe.py::test_invalid_or_absent_rate_material_is_not_known_free[price3]
+4 failed, 2 passed, 12 warnings in 0.49s

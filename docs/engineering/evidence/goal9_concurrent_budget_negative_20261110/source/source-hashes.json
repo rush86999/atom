@@ -1,0 +1,56 @@
+{
+  "branch": "codex/goal9-concurrent-budget-admission-20261110",
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "note": "test-only evidence; the concurrent-test lambda persist keyword fix is compatibility, not a product repair or race proof",
+  "product_changed": false,
+  "product_files": {
+    "backend/core/agent_governance_service.py": {
+      "after_sha256": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+      "before_sha256": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+      "unchanged": true
+    },
+    "backend/core/budget_enforcement_service.py": {
+      "after_sha256": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+      "before_sha256": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+      "unchanged": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
+      "before_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
+      "unchanged": true
+    },
+    "backend/core/llm/gateway/request_logger.py": {
+      "after_sha256": "29766a10eb1726b080f78b56d2cf13edee8d3cfeaea57e24fa58a97b74fd2216",
+      "before_sha256": "29766a10eb1726b080f78b56d2cf13edee8d3cfeaea57e24fa58a97b74fd2216",
+      "unchanged": true
+    },
+    "backend/core/llm_usage_tracker.py": {
+      "after_sha256": "ce0770e1c5906d977b9162da77ede9c9df2473927bdb9a38eded4d0bbf29aa73",
+      "before_sha256": "ce0770e1c5906d977b9162da77ede9c9df2473927bdb9a38eded4d0bbf29aa73",
+      "unchanged": true
+    },
+    "backend/core/personal_budget_service.py": {
+      "after_sha256": "8ea6a8a0fac36462072638486325ead689a80beb030df985836d8062a26025b1",
+      "before_sha256": "8ea6a8a0fac36462072638486325ead689a80beb030df985836d8062a26025b1",
+      "unchanged": true
+    },
+    "backend/core/spend_aggregation_service.py": {
+      "after_sha256": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+      "before_sha256": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+      "unchanged": true
+    }
+  },
+  "schema": "goal9_concurrent_budget_negative_source",
+  "test_files": {
+    "backend/tests/integration/budget/test_concurrent_budget_checks.py": {
+      "after_sha256": "ceac47a205a377a795d940707948d4fd518cf8fadfbdbd3ceebd8711d222523c",
+      "before_sha256": "7a2ad26ac8763bf780115aac7b317b6eb39a371a6b1765d39895bd5d35f34a64"
+    },
+    "backend/tests/test_goal9_budget_ledger_negative.py": {
+      "after_sha256": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
+      "before_sha256": null
+    }
+  },
+  "test_only_change": true
+}
