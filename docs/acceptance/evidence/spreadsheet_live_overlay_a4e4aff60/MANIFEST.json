@@ -1,0 +1,45 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "live-resolved formula operands override stale blank membership; exact 150/450 totals, genuine blank gap and raw Excel semantics preserved",
+  "branch": "codex/agentA-spreadsheet-repair-20261111",
+  "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+  "prior_cross_sheet_source": "7bd2731075c71a65130aea9def8b942982fc6c70",
+  "prior_evidence_head": "6fae2697391839650fdf38390d0bfeff06fde8ee",
+  "executed_source": "a4e4aff6067ad2ff0e1de00ac035a5348c5c1442",
+  "source_files": {
+    "backend/core/dataset_aggregation.py": "cb18e517e6b4175fc3619627e31817601625d90895d4284c3811833b915c63a5",
+    "backend/core/pricing_calculation.py": "555bade45c6f3e02a58ad63bac549a66ac30dee77a77a76d7cb2a9d1b08e1897",
+    "backend/tests/test_spreadsheet_dispatch_formula_repair.py": "dc191aa4b420413b6f765565f961e3823ca652dab89691c7dfdf1be81842e82a"
+  },
+  "artifacts": {
+    "README.md": "51c894a3d4fb42eb5b6410f047b13fcaae85eff22e294d27ca6b8db720d4c671",
+    "TEST_RESULTS.md": "0b8eb4274a09f844807546deb36403ac74449a0adc23b007571d0aa6002a7501",
+    "bounded-gate-a4e4aff60.log": "b7518f53ce1769c1b659de120af5a2fd4daae027439e32785c739ffba2ce45f3",
+    "new-overlay-controls.log": "5aef67fb42e7d13f5f0cbb66091a4b19aa0689b07f6148bef4c2b72506c15225",
+    "root-overlay-probe.log": "c7a8887ee40d69ddb6e665f1777f550b368c50fcb0c90e093369c99a540487c4",
+    "source-fix.diff": "4cf459b02d94bffc2ef17e399f2591a7777bc85b6deae83158366da349bad66a",
+    "verification.json": "53b64761e8c2121f44ddb7c0f7b8d8be2d2e95d95f7739befb70fef24fc2fcfe"
+  },
+  "checks": {
+    "root_overlay_probe": "2 passed",
+    "new_overlay_controls": "12 passed",
+    "bounded_gate": "120 passed",
+    "exact_total_150": true,
+    "exact_total_450": true,
+    "genuine_blank_still_gap": true,
+    "explicit_zero_supplied": true,
+    "raw_blank_as_zero_preserved": true,
+    "sheet_cell_attribution": true,
+    "same_version_catalog_isolation": true,
+    "aggregate_dispatch_preserved": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_install": true,
+    "historic_failure_campaign_not_rerun": true,
+    "pr843_844_untouched": true
+  },
+  "boundaries": [
+    "supported workbook/formula path only",
+    "existing evidence preserved",
+    "root owns PR843/844 integration"
+  ]
+}

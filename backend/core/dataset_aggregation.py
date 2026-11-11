@@ -1465,6 +1465,87 @@ def _resolve_frame_roles(columns: List[str]) -> Dict[str, str]:
     return roles
 
 
+def required_formula_input_gaps(
+    columns: List[str],
+    dependencies: List[Any],
+    empty_cells: Any,
+    *,
+    values: Optional[Dict[str, Any]] = None,
+    sheet_name: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Name blank required inputs consumed by a formula total.
+
+    The formula engine preserves Excel's blank-as-zero arithmetic. This
+    application-level check is the separate data-quality layer: a blank
+    quantity/price/currency cell that contributes to the requested total is
+    a named gap, never a supplied zero. Columns are mapped by frame order
+    (the same ``col_letter`` contract used by ``sheet_grid_from_parquet``);
+    roles come from the existing deterministic role resolver.
+    """
+    clean_columns = [
+        str(column) for column in (columns or [])
+        if str(column) != SHEET_ROW_COL
+    ]
+    roles = _infer_roles({}, clean_columns)
+    role_labels = {
+        "quantity_column": "quantity",
+        "price_column": "price",
+        "currency_column": "currency",
+    }
+    letter_roles: Dict[str, str] = {}
+    identity_letter = ""
+    for index, column in enumerate(clean_columns):
+        letter = col_letter(index)
+        for role, label in role_labels.items():
+            if roles.get(role) == column:
+                letter_roles[letter] = label
+        if roles.get("identity_column") == column:
+            identity_letter = letter
+    empty = {str(cell).upper() for cell in (empty_cells or set())}
+    values = values or {}
+    target = " ".join(str(sheet_name or "").lower().split())
+    gaps: List[Dict[str, Any]] = []
+    seen = set()
+    for dependency in dependencies or []:
+        dep_sheet = " ".join(
+            str(getattr(dependency, "sheet", "") or "").lower().split())
+        if target and dep_sheet and dep_sheet != target:
+            continue
+        cell = str(getattr(dependency, "cell", "") or "").upper()
+        match = re.fullmatch(r"([A-Z]+)(\d+)", cell)
+        if not match or cell in seen:
+            continue
+        letter, row_text = match.groups()
+        missing = letter_roles.get(letter)
+        if not missing:
+            continue
+        # EFFECTIVE RESOLVED OPERAND BEFORE STALE BLANK MEMBERSHIP: a live
+        # overlay adds a current value but CellBook keeps the older blank
+        # marker in ``empty``. If the dependency has a resolved value, that
+        # value is supplied (including an explicit 0); only a genuine blank
+        # with no resolved value is a gap.
+        if str(values.get(cell, "") or "").strip():
+            continue
+        if cell not in empty:
+            continue
+        seen.add(cell)
+        row_number = int(row_text)
+        identity = ""
+        if identity_letter:
+            identity = str(
+                values.get(f"{identity_letter}{row_number}") or "").strip()
+        gaps.append({
+            "sheet": (
+                str(getattr(dependency, "sheet", "") or "")
+                or str(sheet_name or "")),
+            "identity": identity,
+            "row": row_number,
+            "missing": missing,
+            "cell": cell,
+        })
+    return gaps
+
+
 async def _try_deterministic_aggregate(
     entries: List[Dict[str, Any]],
     query: str,

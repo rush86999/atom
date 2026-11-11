@@ -442,7 +442,6 @@ class ExcelManager:
             try:
                 from core.workbook_runtime import get_workbook_runtime
                 runtime = get_workbook_runtime()
-                recalc_engine = runtime.engine
                 raw_wb = openpyxl.load_workbook(file_path, data_only=False)
                 for ws_any in raw_wb.worksheets:
                     for row_any in ws_any.iter_rows():
@@ -451,10 +450,15 @@ class ExcelManager:
                                 formula_cells.append((ws_any.title, c.coordinate))
                 if formula_cells:
                     if not runtime.can_evaluate:
+                        recalc_engine = runtime.engine
                         recalc_status = "unavailable"
                         formula_gaps = [f"{sheet}!{cell}" for sheet, cell in formula_cells]
                     else:
-                        _run_async_sync(runtime.recalculate(file_path))
+                        engine_info: Dict[str, str] = {}
+                        _run_async_sync(runtime.recalculate(
+                            file_path, engine_out=engine_info))
+                        recalc_engine = (
+                            engine_info.get("engine") or runtime.engine)
                         wb2 = openpyxl.load_workbook(file_path, data_only=True)
                         ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
                         computed_value = ws2[coordinate].value
@@ -546,8 +550,22 @@ class ExcelManager:
         if not os.path.exists(file_path):
             return {"success": False, "error": "File not found"}
         runtime = get_workbook_runtime()
-        await runtime.recalculate(Path(file_path))
-        return {"success": True, "engine": runtime.engine}
+        engine_info: Dict[str, str] = {}
+        await runtime.recalculate(Path(file_path), engine_out=engine_info)
+        engine = engine_info.get("engine")
+        # The explicit recalculate route can express failure (400). A real
+        # runtime reports "none" only when no engine produced usable output,
+        # so do not claim success. An empty engine_info is kept permissive
+        # for callers/mocks that predate engine_out.
+        if engine == "none":
+            return {
+                "success": False,
+                "error": "No formula engine produced a usable recalculation",
+            }
+        return {
+            "success": True,
+            "engine": engine or runtime.engine,
+        }
 
     @staticmethod
     async def add_pivot_table(

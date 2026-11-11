@@ -89,7 +89,12 @@ class WorkbookRuntime:
     # Recalculate
     # ------------------------------------------------------------------
 
-    async def recalculate(self, file_path: str | Path) -> Path:
+    async def recalculate(
+        self,
+        file_path: str | Path,
+        *,
+        engine_out: Optional[Dict[str, str]] = None,
+    ) -> Path:
         """Recalculate all formulas in the workbook.
 
         After this call, `data_only=True` reads return fresh computed values
@@ -97,6 +102,15 @@ class WorkbookRuntime:
 
         Args:
             file_path: Path to the .xlsx file (modified in place).
+            engine_out: Optional one-key dict populated with the engine that
+                handled the recalc ("libreoffice", "formulas", "openpyxl" or
+                "none"). The selected engine may differ after a native
+                failure; callers that expose it publicly must read this
+                instead of `engine`. "formulas" is only reported when the
+                Python fallback actually finished (save and cached-value
+                patch both succeeded); a fallback failure downgrades the
+                report to "none" so callers never see formulas success for
+                a recalc that did not happen.
 
         Returns:
             Path to the recalculated file.
@@ -106,15 +120,49 @@ class WorkbookRuntime:
             raise FileNotFoundError(f"Workbook not found: {file_path}")
 
         if self._soffice:
-            return await self._recalc_with_soffice(file_path)
-        elif self._has_formulas:
-            return await self._recalc_with_formulas(file_path)
-        else:
-            logger.debug("No formula engine available — skipping recalc")
+            native = await self._recalc_with_soffice(file_path)
+            if native is not None:
+                if engine_out is not None:
+                    engine_out["engine"] = "libreoffice"
+                return native
+            # LibreOffice aborted, timed out, or wrote no usable workbook.
+            # Reuse the evaluation-only fallback that already runs when the
+            # binary is absent. Keep it to ordinary .xlsx: the formulas path
+            # rewrites the package through openpyxl and is not proven to
+            # preserve VBA, so a macro-enabled workbook keeps its original
+            # bytes and reports an incomplete recalc instead.
+            if self._has_formulas and file_path.suffix.lower() == ".xlsx":
+                logger.info(
+                    "LibreOffice produced no usable output; using formulas "
+                    "fallback for %s", file_path.name)
+                if engine_out is not None:
+                    engine_out["engine"] = "formulas"
+                # The fallback owns the final verdict: a failed save or
+                # cached-value patch downgrades engine_out to "none" below
+                # instead of leaving the pre-assigned "formulas" in place.
+                return await self._recalc_with_formulas(
+                    file_path, engine_out=engine_out)
+            if engine_out is not None:
+                engine_out["engine"] = "none"
             return file_path
+        if self._has_formulas:
+            if engine_out is not None:
+                engine_out["engine"] = "formulas"
+            return await self._recalc_with_formulas(
+                file_path, engine_out=engine_out)
+        if engine_out is not None:
+            engine_out["engine"] = "openpyxl"
+        logger.debug("No formula engine available — skipping recalc")
+        return file_path
 
-    async def _recalc_with_soffice(self, file_path: Path) -> Path:
-        """Use LibreOffice headless to recalculate and save."""
+    async def _recalc_with_soffice(self, file_path: Path) -> Optional[Path]:
+        """Use LibreOffice headless to recalculate and save.
+
+        Returns the path on success, or ``None`` when native recalc produced
+        no usable output (no file, empty/corrupt output, timeout or failure).
+        The caller may then reuse the formulas fallback.
+        """
+        proc = None
         try:
             # Create a temp dir for the output.
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -132,27 +180,109 @@ class WorkbookRuntime:
                     stderr=asyncio.subprocess.PIPE,
                     env={**os.environ, "HOME": str(Path.home())},
                 )
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=60
-                )
+                try:
+                    _stdout, stderr = await asyncio.wait_for(
+                        proc.communicate(), timeout=60
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("LibreOffice recalc timed out (60s)")
+                    await self._kill_and_reap(proc)
+                    return None
+
+                stderr_text = (stderr or b"").decode(errors="replace")
+                # A nonzero exit is a native failure even if a file exists:
+                # the conversion CLI reports success with 0, and a partial
+                # file is not evidence that Calc finished the workbook.
+                if proc.returncode != 0:
+                    logger.warning(
+                        "LibreOffice recalc failed (exit %s): %s",
+                        proc.returncode, stderr_text)
+                    return None
 
                 output_file = tmpdir / file_path.name
-                if output_file.exists():
-                    # Replace the original with the recalculated version.
-                    shutil.copy2(output_file, file_path)
+                if (
+                    output_file.exists()
+                    and output_file.stat().st_size > 0
+                    and self._is_readable_workbook(output_file)
+                ):
+                    # Stage beside the target and replace atomically: a
+                    # partial copy must never truncate the authoritative
+                    # workbook before the fallback can run.
+                    staged = None
+                    try:
+                        with tempfile.NamedTemporaryFile(
+                            prefix=f".{file_path.name}.",
+                            suffix=".recalc",
+                            dir=str(file_path.parent),
+                            delete=False,
+                        ) as stage:
+                            staged = Path(stage.name)
+                        shutil.copy2(output_file, staged)
+                        os.replace(staged, file_path)
+                    finally:
+                        if staged is not None:
+                            try:
+                                staged.unlink()
+                            except OSError:
+                                pass
                     logger.info(f"Recalculated workbook via LibreOffice: {file_path.name}")
                     return file_path
-                else:
-                    logger.warning(f"LibreOffice recalc produced no output: {stderr.decode()}")
-                    return file_path
-        except asyncio.TimeoutError:
-            logger.warning("LibreOffice recalc timed out (60s)")
-            return file_path
+                logger.warning(
+                    "LibreOffice recalc produced no usable output: %s",
+                    stderr_text)
+                return None
         except Exception as e:
             logger.warning(f"LibreOffice recalc failed: {e}")
-            return file_path
+            return None
+        finally:
+            # A timed-out/cancelled communicate() does not stop the child.
+            # Reap it here so repeated native failures cannot accumulate
+            # orphaned soffice processes holding the workbook or profile.
+            await self._kill_and_reap(proc)
 
-    async def _recalc_with_formulas(self, file_path: Path) -> Path:
+    @staticmethod
+    def _is_readable_workbook(path: Path) -> bool:
+        """True only when OpenPyXL can open the native output as a workbook.
+
+        A ZIP signature alone is not enough: a ZIP of unrelated files, a
+        truncated package, or a non-spreadsheet package must fall back rather
+        than replace the authoritative workbook.
+        """
+        try:
+            from openpyxl import load_workbook
+
+            wb = load_workbook(path, read_only=True, data_only=True)
+            try:
+                return bool(wb.sheetnames)
+            finally:
+                wb.close()
+        except Exception as exc:  # noqa: BLE001 - unusable native output
+            logger.warning(
+                "LibreOffice output is not a readable workbook: %r", exc)
+            return False
+
+    @staticmethod
+    async def _kill_and_reap(proc: Any) -> None:
+        """Terminate and reap a native recalc child when it is still alive."""
+        if proc is None or proc.returncode is not None:
+            return
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        except Exception:  # noqa: BLE001 - cleanup must not mask recalc failure
+            pass
+        try:
+            await proc.wait()
+        except Exception:  # noqa: BLE001 - cleanup must not mask recalc failure
+            pass
+
+    async def _recalc_with_formulas(
+        self,
+        file_path: Path,
+        *,
+        engine_out: Optional[Dict[str, str]] = None,
+    ) -> Path:
         """Use the `formulas` Python library to evaluate and cache results.
 
         The formula strings must survive the recalc (they are the file's
@@ -160,7 +290,20 @@ class WorkbookRuntime:
         loss). The computed values are injected as cached <v> elements in the
         saved sheet XML instead, so `data_only=True` reads return fresh
         values while raw reads keep '=...'.
+
+        Failure contract:
+          * The openpyxl save is staged beside the target and the
+            cached-value patch is applied to that staged copy; a single
+            ``os.replace`` then installs the finished workbook only after
+            the save and the patch both succeeded. The authoritative
+            workbook is untouched until that point, so a failed recalc
+            leaves the original bytes exactly as they were.
+          * On any failure ``engine_out`` is downgraded to "none" so callers
+            never see a "formulas" success for a recalc that did not
+            happen. The Path return value is kept in every case for
+            callers (and mocks) that predate this contract.
         """
+        staged: Optional[Path] = None
         try:
             import formulas
             from openpyxl import load_workbook
@@ -200,14 +343,47 @@ class WorkbookRuntime:
                                 pass
                         if val is not None:
                             computed[(sheet_name, cell.coordinate)] = val
-            wb.save(file_path)
-            if computed:
-                self._write_cached_values(file_path, computed)
+
+            # Stage the plain save beside the target, apply the cached-value
+            # patch to the staged copy, and install the finished workbook
+            # with one atomic replace (same pattern as the native path): a
+            # failed save or patch must never replace the authoritative
+            # workbook. The evaluation above ran against the original file
+            # and the refs are keyed by its name, so the filename reference
+            # semantics are unchanged by the staging.
+            with tempfile.NamedTemporaryFile(
+                prefix=f".{file_path.name}.",
+                suffix=".xlsx",
+                dir=str(file_path.parent),
+                delete=False,
+            ) as stage:
+                staged = Path(stage.name)
+            wb.save(staged)
+
+            if computed and not self._write_cached_values(staged, computed):
+                # A verified patch could not be produced; keep the
+                # authoritative workbook untouched and report the recalc
+                # as failed instead of installing a stale plain save.
+                raise RuntimeError(
+                    "Cached-value injection did not produce a verified patch"
+                )
+            os.replace(staged, file_path)
+
+            if engine_out is not None:
+                engine_out["engine"] = "formulas"
             logger.info(f"Recalculated workbook via formulas lib: {file_path.name}")
             return file_path
         except Exception as e:
             logger.warning(f"Formulas recalc failed: {e}")
+            if engine_out is not None:
+                engine_out["engine"] = "none"
             return file_path
+        finally:
+            if staged is not None:
+                try:
+                    staged.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     @staticmethod
     def _write_cached_values(file_path: Path, computed: Dict[Tuple[str, str], Any]) -> bool:
@@ -217,8 +393,10 @@ class WorkbookRuntime:
         (assigning cell.value REPLACES the formula), so the saved sheet XML
         is patched at the zip level: each <c> carrying an <f> gains a <v>.
         The patched file is verified with openpyxl before it replaces the
-        original; on any failure the plain save (formulas intact, no cached
-        values) is kept. Best-effort — returns False when injection failed.
+        staged save. Best-effort — returns False when no verified patch could
+        be produced, in which case the caller keeps the authoritative
+        workbook untouched (the staged save is discarded) and reports the
+        recalc as failed rather than installing an unverified plain save.
         """
         import zipfile
         from xml.etree import ElementTree as ET

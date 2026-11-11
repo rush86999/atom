@@ -1,0 +1,431 @@
+diff --git a/backend/core/dataset_aggregation.py b/backend/core/dataset_aggregation.py
+index 087c6a219..28ea8d3ee 100644
+--- a/backend/core/dataset_aggregation.py
++++ b/backend/core/dataset_aggregation.py
+@@ -1465,6 +1465,75 @@ def _resolve_frame_roles(columns: List[str]) -> Dict[str, str]:
+     return roles
+ 
+ 
++def required_formula_input_gaps(
++    columns: List[str],
++    dependencies: List[Any],
++    empty_cells: Any,
++    *,
++    values: Optional[Dict[str, Any]] = None,
++    sheet_name: Optional[str] = None,
++) -> List[Dict[str, Any]]:
++    """Name blank required inputs consumed by a formula total.
++
++    The formula engine preserves Excel's blank-as-zero arithmetic. This
++    application-level check is the separate data-quality layer: a blank
++    quantity/price/currency cell that contributes to the requested total is
++    a named gap, never a supplied zero. Columns are mapped by frame order
++    (the same ``col_letter`` contract used by ``sheet_grid_from_parquet``);
++    roles come from the existing deterministic role resolver.
++    """
++    clean_columns = [
++        str(column) for column in (columns or [])
++        if str(column) != SHEET_ROW_COL
++    ]
++    roles = _infer_roles({}, clean_columns)
++    role_labels = {
++        "quantity_column": "quantity",
++        "price_column": "price",
++        "currency_column": "currency",
++    }
++    letter_roles: Dict[str, str] = {}
++    identity_letter = ""
++    for index, column in enumerate(clean_columns):
++        letter = col_letter(index)
++        for role, label in role_labels.items():
++            if roles.get(role) == column:
++                letter_roles[letter] = label
++        if roles.get("identity_column") == column:
++            identity_letter = letter
++    empty = {str(cell).upper() for cell in (empty_cells or set())}
++    values = values or {}
++    target = " ".join(str(sheet_name or "").lower().split())
++    gaps: List[Dict[str, Any]] = []
++    seen = set()
++    for dependency in dependencies or []:
++        dep_sheet = " ".join(
++            str(getattr(dependency, "sheet", "") or "").lower().split())
++        if target and dep_sheet and dep_sheet != target:
++            continue
++        cell = str(getattr(dependency, "cell", "") or "").upper()
++        match = re.fullmatch(r"([A-Z]+)(\d+)", cell)
++        if not match or cell in seen:
++            continue
++        letter, row_text = match.groups()
++        missing = letter_roles.get(letter)
++        if not missing or cell not in empty:
++            continue
++        seen.add(cell)
++        row_number = int(row_text)
++        identity = ""
++        if identity_letter:
++            identity = str(
++                values.get(f"{identity_letter}{row_number}") or "").strip()
++        gaps.append({
++            "identity": identity,
++            "row": row_number,
++            "missing": missing,
++            "cell": cell,
++        })
++    return gaps
++
++
+ async def _try_deterministic_aggregate(
+     entries: List[Dict[str, Any]],
+     query: str,
+diff --git a/backend/core/formula_engine.py b/backend/core/formula_engine.py
+index f25e1d556..6905765b3 100644
+--- a/backend/core/formula_engine.py
++++ b/backend/core/formula_engine.py
+@@ -199,7 +199,7 @@ def sheet_grid_from_parquet(parquet_path: str
+             # Blanks materialize as None, NaN AND empty strings — all
+             # three are the known-blank set; anything else is a value.
+             if v is None or str(v).strip() == "" or (
+-                    hasattr(v, "item") and _pd.isna(v)):
++                    not isinstance(v, str) and _pd.isna(v)):
+                 empty.add(addr)
+                 continue
+             s = str(v)
+@@ -508,6 +508,10 @@ class FormulaResult:
+     #: content version, teaching id…). The engine records; it does not
+     #: interpret.
+     origin: Dict[str, str] = field(default_factory=dict)
++    #: Application-level required-input gaps found in the formula's
++    #: dependencies. Separate from Excel blank-as-zero arithmetic: a blank
++    #: required business input must not publish a complete total.
++    required_input_gaps: List[Dict[str, Any]] = field(default_factory=list)
+ 
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/backend/core/pricing_calculation.py b/backend/core/pricing_calculation.py
+index a7ae533fe..320e3e43b 100644
+--- a/backend/core/pricing_calculation.py
++++ b/backend/core/pricing_calculation.py
+@@ -1513,6 +1513,11 @@ def workbook_calculation_result(
+                       "constants preserved as decimals"),
+             "currency": (None if neutral else currency),
+         })
++    if getattr(calc, "required_input_gaps", None):
++        result.verification["required_input_gaps"] = list(
++            calc.required_input_gaps)
++        result.workbook["required_input_gaps"] = list(
++            calc.required_input_gaps)
+     if calc.status == "stored_value":
+         # A STORED VALUE IS AN OBSERVATION, NOT A CALCULATION: no
+         # proposed price is published, and the stored value is never
+@@ -2160,6 +2165,65 @@ async def calculate_workbook_from_query(
+                                 "engine_value": engine_val,
+                                 "matches_engine": bool(matches)}
+ 
++    # REQUIRED-INPUT COMPLETENESS BEFORE A FORMULA TOTAL: CellBook preserves
++    # Excel's blank-as-zero arithmetic. That is raw evaluation semantics, not
++    # proof that a required quantity/price/currency input was supplied.
++    if calc.status in ("computed", "computed_substituted"):
++        try:
++            from core.dataset_aggregation import (
++                required_formula_input_gaps,
++            )
++
++            _formula_columns = [
++                str(column) for column in (entry.get("columns") or [])
++                if str(column) != "__sheet_row"
++            ]
++            _gaps = required_formula_input_gaps(
++                _formula_columns,
++                calc.dependencies,
++                target_book.empty,
++                values=target_book.values,
++                sheet_name=entry.get("entity_name"),
++            )
++            if _gaps:
++                from core.formula_engine import FormulaResult
++
++                _gap_text = "; ".join(
++                    f"{gap.get('missing')} at {gap.get('cell')}"
++                    + (f" (row {gap.get('row')})" if gap.get("row") else "")
++                    for gap in _gaps
++                )
++                calc = FormulaResult(
++                    reference=calc.reference,
++                    status="incomplete",
++                    missing=(
++                        "required input gap(s): " + _gap_text
++                        + "; no complete total was computed"),
++                    dependencies=calc.dependencies,
++                    steps=calc.steps,
++                    cached_value=calc.cached_value,
++                    origin=calc.origin,
++                    required_input_gaps=_gaps,
++                )
++        except Exception as _gap_err:  # noqa: BLE001 — fail closed
++            logger.warning(
++                "formula required-input validation unavailable: %r",
++                _gap_err)
++            from core.formula_engine import FormulaResult
++
++            calc = FormulaResult(
++                reference=calc.reference,
++                status="incomplete",
++                missing=(
++                    "required-input validation was unavailable "
++                    f"({type(_gap_err).__name__}); no complete total was "
++                    "computed"),
++                dependencies=calc.dependencies,
++                steps=calc.steps,
++                cached_value=calc.cached_value,
++                origin=calc.origin,
++            )
++
+     if locals().get("_live_version_divergence"):
+         result_notes = {
+             "live_read_version": _live_version_divergence,
+@@ -2179,6 +2243,11 @@ async def calculate_workbook_from_query(
+         authorized_by=authorized,
+         live_read_cells=live_cells,
+         neutral=neutral)
++    if getattr(calc, "required_input_gaps", None):
++        result.verification["required_input_gaps"] = list(
++            calc.required_input_gaps)
++        result.workbook["required_input_gaps"] = list(
++            calc.required_input_gaps)
+     eng = getattr(calc, "_engine_check", None)  # noqa: SLF001
+     if isinstance(eng, dict):
+         result.verification.update(eng)
+diff --git a/backend/core/sheet_dataset_service.py b/backend/core/sheet_dataset_service.py
+index 080e7aede..073f85e9f 100644
+--- a/backend/core/sheet_dataset_service.py
++++ b/backend/core/sheet_dataset_service.py
+@@ -2600,6 +2600,42 @@ async def answer_from_datasets(
+     if not entries or not _copy_is_fresh(entries, source_modified_hint):
+         return None
+ 
++    # OPERATION BEFORE ITEM PROBE (2026-10-25 work order): an aggregate ask
++    # is not a value lookup. A candidate token in the sentence ("0055",
++    # "0007") previously short-circuited this path as a probe result and the
++    # row-predicate/Decimal aggregation never ran. Reuse the existing
++    # deterministic aggregate planner/executor first.
++    from core.dataset_aggregation import (
++        aggregate_named_dataset,
++        looks_like_aggregate_request,
++    )
++    if looks_like_aggregate_request(query):
++        aggregate = await aggregate_named_dataset(
++            entries,
++            query,
++            llm_service,
++            file_name=entries[0].get("file_name"),
++        )
++        return {
++            "aggregate": aggregate,
++            "aggregate_block": str(aggregate.get("block") or ""),
++            "dataset_name": aggregate.get("sheet")
++            or entries[0].get("dataset_name"),
++            "entity_name": aggregate.get("sheet")
++            or entries[0].get("entity_name"),
++            "file_name": entries[0].get("file_name"),
++            "source": entries[0].get("source"),
++            "external_id": entries[0].get("external_id"),
++            "content_hash": aggregate.get("version")
++            or entries[0].get("content_hash"),
++            "source_modified_at": entries[0].get("source_modified_at"),
++            "ingested_at": entries[0].get("ingested_at"),
++            "rows": [],
++            "columns": [],
++            "row_count": 0,
++            "note": "deterministic row selection/aggregation",
++        }
++
+     # ── Stage 0: deterministic content probe (no LLM) ────────────────────
+     # Candidate identifiers come from the query AND the surrounding context —
+     # a 'try again' turn's planner query may drop the code entirely while the
+@@ -2846,6 +2882,10 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
+     """Render SQL rows in the SAME R# | col=value convention as the text
+     extractor, so the reply model cites dataset answers exactly like excerpt
+     answers (its grounding contract needs nothing new)."""
++    aggregate_block = str(result.get("aggregate_block") or "").strip()
++    if aggregate_block:
++        return aggregate_block
++
+     def _fmt(v: Any) -> str:
+         s = " ".join(str(v).split())
+         return s[:48]
+diff --git a/backend/tests/test_spreadsheet_dispatch_formula_repair.py b/backend/tests/test_spreadsheet_dispatch_formula_repair.py
+new file mode 100644
+index 000000000..95a6eeb16
+--- /dev/null
++++ b/backend/tests/test_spreadsheet_dispatch_formula_repair.py
+@@ -0,0 +1,169 @@
++"""Spreadsheet dispatch/formula required-input controls.
++
++Failure-first on the parent: a candidate token in an aggregate ask short-
++circuits `answer_from_datasets` as an item probe, and a formula total treats
++a blank required input as zero. Both must use the existing aggregate/SQL and
++CellBook paths, never a parallel engine.
++"""
++from __future__ import annotations
++
++import asyncio
++from types import SimpleNamespace
++
++import pandas as pd
++import pytest
++
++import core.sheet_dataset_service as sds
++from core.dataset_aggregation import looks_like_aggregate_request
++from core.formula_engine import FormulaResult
++from core.pricing_calculation import workbook_calculation_result
++
++
++def test_required_formula_gaps_name_missing_quantity():
++    from core.dataset_aggregation import required_formula_input_gaps
++
++    dependencies = [
++        SimpleNamespace(sheet="Adjustments", cell="C5"),
++        SimpleNamespace(sheet="Adjustments", cell="D5"),
++        SimpleNamespace(sheet="Adjustments", cell="C2"),
++    ]
++    gaps = required_formula_input_gaps(
++        ["PO ID", "Status", "Qty", "Unit Price", "Currency"],
++        dependencies,
++        {"C5"},
++        values={"A5": "0055"},
++        sheet_name="Adjustments",
++    )
++    assert gaps == [{
++        "identity": "0055",
++        "row": 5,
++        "missing": "quantity",
++        "cell": "C5",
++    }]
++
++
++def test_aggregate_query_is_recognized_before_probe():
++    assert looks_like_aggregate_request(
++        "PO Register approved rows total by currency for 0055") is True
++
++
++@pytest.mark.asyncio
++async def test_answer_from_datasets_dispatches_aggregate_before_probe(
++    monkeypatch,
++):
++    entries = [{
++        "dataset_name": "upload__po_register",
++        "entity_name": "PO Register",
++        "file_name": "spreadsheet_job_20261025.xlsx",
++        "parquet_path": "/tmp/not-read-in-this-routing-test.parquet",
++        "content_hash": "h1",
++    }]
++    monkeypatch.setattr(sds, "entries_for_file_sync", lambda *a, **k: entries)
++    monkeypatch.setattr(sds, "_copy_is_fresh", lambda *a, **k: True)
++    probes = []
++
++    def _probe(*args, **kwargs):
++        probes.append(args)
++        return {"rows": [{"id": "wrong-item-probe"}]}
++
++    monkeypatch.setattr(sds, "_probe_sheet_hits", _probe)
++    aggregate_calls = []
++
++    async def _aggregate(entries_arg, query, llm_service, **kwargs):
++        aggregate_calls.append((entries_arg, query))
++        return {
++            "status": "complete",
++            "block": "AGGREGATE BLOCK: CAD 8050.00",
++            "sheet": "PO Register",
++            "subtotals": {"CAD": {"value": "8050.00"}},
++            "version": "h1",
++        }
++
++    monkeypatch.setattr(
++        "core.dataset_aggregation.aggregate_named_dataset", _aggregate)
++
++    result = await sds.answer_from_datasets(
++        "upload", "file-1",
++        "PO Register approved totals by currency for 0055",
++        llm_service=object(),
++    )
++
++    assert result is not None
++    assert result["aggregate_block"] == "AGGREGATE BLOCK: CAD 8050.00"
++    assert result["rows"] == []
++    assert probes == [], "aggregate request must not run the item probe"
++    assert aggregate_calls, "aggregate executor was not called"
++    assert "AGGREGATE BLOCK" in sds.render_dataset_answer(result)
++
++
++def test_formula_result_exposes_required_input_gaps_without_value():
++    gaps = [{
++        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5",
++    }]
++    calc = FormulaResult(
++        reference="Adjustments!D5",
++        status="incomplete",
++        missing="required input gap(s): quantity at C5; no complete total was computed",
++        required_input_gaps=gaps,
++    )
++    result = workbook_calculation_result(calc, neutral=True)
++    assert result.status == "incomplete"
++    assert result.verification["required_input_gaps"] == gaps
++    assert "computed_value" not in result.verification
++
++
++@pytest.mark.asyncio
++async def test_calculate_formula_refuses_blank_required_input(
++    tmp_path, monkeypatch,
++):
++    import core.pricing_calculation as pc
++
++    parquet = tmp_path / "adjustments.parquet"
++    pd.DataFrame([
++        {"PO ID": "0055", "Status": "Approved", "Qty": 2.0,
++         "Unit Price": 75.0, "Currency": "CAD", "__sheet_row": 2},
++        {"PO ID": "0007", "Status": "Approved", "Qty": None,
++         "Unit Price": 100.0, "Currency": "CAD", "__sheet_row": 3},
++    ]).to_parquet(parquet, index=False)
++    entry = {
++        "dataset_name": "upload__adjustments",
++        "entity_name": "Adjustments",
++        "file_name": "book.xlsx",
++        "parquet_path": str(parquet),
++        "content_hash": "h1",
++        "columns": ["PO ID", "Status", "Qty", "Unit Price", "Currency"],
++        "source": "upload",
++    }
++
++    class FakeBooks:
++        def __init__(self, *_args, **_kwargs):
++            self.prefer_hash = ""
++            self._books = {}
++
++        def entry_for(self, _sheet):
++            return entry
++
++        def problem_for(self, _sheet):
++            return None
++
++        def _load_entries(self):
++            return [entry]
++
++        def provider(self, _sheet):
++            return None
++
++    monkeypatch.setattr(pc, "_FileSheetBooks", FakeBooks)
++    monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [])
++    monkeypatch.setattr(
++        "core.sheet_dataset_service.load_formulas_for_parquet",
++        lambda _path: {"D4": "=C2*D2+C3*D3"},
++    )
++
++    block = await pc.calculate_workbook_from_query(
++        "calculate formula for book.xlsx Adjustments cell D4",
++        user_id="u-1", workspace_id="ws-1",
++    )
++    assert block is not None
++    assert "required input gap" in block
++    assert "no complete total" in block
++    assert "computed_value" not in block

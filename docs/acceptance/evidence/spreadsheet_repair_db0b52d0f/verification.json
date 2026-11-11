@@ -1,0 +1,43 @@
+{
+  "schema": "atom-spreadsheet-dispatch-formula-verification-1",
+  "status": "aggregate dispatches before item probes and formula totals withhold complete values for blank required inputs; frozen candidate for independent review",
+  "candidate": {
+    "branch": "codex/agentA-spreadsheet-repair-20261111",
+    "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+    "executed_source": "db0b52d0fba5dd8b7604930539d021f9c2abf1a8",
+    "pr843_844_branches_touched": false
+  },
+  "confirmed_gaps": {
+    "dispatch": "answer_from_datasets Stage-0 probe ran before the SQL path; identifier-like aggregate asks could return a probe",
+    "formula": "CellBook blank-as-zero arithmetic could publish a complete total with blank required quantity/price/currency dependency",
+    "blank_detection": "sheet_grid_from_parquet did not classify pandas NaN as a known blank"
+  },
+  "repair": {
+    "dispatch": "aggregate operation detected first; delegates to existing aggregate_named_dataset; render_dataset_answer passes deterministic block",
+    "formula": "required_formula_input_gaps reuses existing frame roles/col_letter; FormulaResult carries gaps; workbook_calculation_result publishes no value and names the gap",
+    "blank_detection": "pandas NaN -> known blank in formula grid",
+    "new_engine_or_catalog": false
+  },
+  "controls": {
+    "aggregate_before_probe": true,
+    "ordinary_item_lookup_unchanged": true,
+    "aggregate_block_rendered": true,
+    "formula_required_gap_named": true,
+    "formula_no_complete_value_when_blank": true,
+    "pandas_nan_known_blank": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_world_build_or_delete": true,
+    "no_install": true,
+    "pr843_844_untouched": true
+  },
+  "results": {
+    "failure_first_parent_50a": {"failed": 4, "passed": 1, "log": "failure-first-parent-50a.log"},
+    "new_controls": {"passed": 5, "log": "new-controls-db0.log"},
+    "bounded_gate": {"passed": 113, "log": "bounded-gate-db0b52d0f.log"}
+  },
+  "boundaries": [
+    "supported workbook job/formula reference path only",
+    "no deferred global Search, original-binary download, format breadth, model grounding, PostgreSQL concurrency or Goal 11 claim",
+    "root owns PR843/844 integration; no push/rebase to those branches"
+  ]
+}

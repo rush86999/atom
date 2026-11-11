@@ -1,0 +1,43 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "spreadsheet aggregate dispatch before item probes; formula required-input gaps withhold complete totals; frozen candidate for independent review",
+  "branch": "codex/agentA-spreadsheet-repair-20261111",
+  "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+  "executed_source": "db0b52d0fba5dd8b7604930539d021f9c2abf1a8",
+  "source_files": {
+    "backend/core/dataset_aggregation.py": "a2efe07762492b6345c7facc86e41a6191e177ead54c3de90a92bb1bce66434c",
+    "backend/core/formula_engine.py": "d7c01c6fe57110759f23457c7163a2978c717e62b901fd6068880b50f6dfc395",
+    "backend/core/pricing_calculation.py": "2f1e03898fb0f8b9500dacb4e145484589499e528de8e70405d0e9409895d0f6",
+    "backend/core/sheet_dataset_service.py": "8781773eaa87eb62b434eb0a7d3137148a824154952cb31cc86431be9400ad91",
+    "backend/tests/test_spreadsheet_dispatch_formula_repair.py": "7760be7973dec86e1f1ced616fcd4bb82ba7a1c48cf107e18248fecbf30cbfa4"
+  },
+  "artifacts": {
+    "README.md": "9d4b5ca92d98b36d06f819247db855bf433a2ff9ee90a4f33d87c61370a7db6b",
+    "TEST_RESULTS.md": "fca1da442e84b962b8636ba4dee6dc6a7db0630874ac4fdfa217a16049318442",
+    "bounded-gate-db0b52d0f.log": "38468a7c3d7fde2718b5d59eb48c32860c52a966e373e1077d4b05d62eab7ef9",
+    "failure-first-parent-50a.log": "b5f087045d8e8d8f417a6937b57607e8ba07727fa6558d7fd87b8a241179bb66",
+    "new-controls-db0.log": "dda3eabdee3946b1d53c141f1f3fc133d3dcb12bfdceb1247e6e1e4019e26d5a",
+    "source-fix.diff": "e187d1161b31d427a0ad11dc0423853242334a994cb8c6de4f78532b13f971ba",
+    "verification.json": "73f980b57da5f733bd1e62353e94168c00b2efe9677efab8e54edc0457d2370e"
+  },
+  "checks": {
+    "failure_first_parent_50a": "4 failed, 1 passed",
+    "new_controls": "5 passed",
+    "bounded_gate": "113 passed",
+    "aggregate_before_probe": true,
+    "ordinary_item_lookup_unchanged": true,
+    "formula_required_gap_named": true,
+    "formula_no_complete_value_when_blank": true,
+    "pandas_nan_known_blank": true,
+    "no_new_engine_or_catalog": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_world_build_or_delete": true,
+    "no_install": true,
+    "pr843_844_untouched": true
+  },
+  "boundaries": [
+    "supported workbook job/formula reference path only",
+    "no deferred global Search, original-binary download, format breadth, model grounding, PostgreSQL concurrency or Goal 11 claim",
+    "root owns PR843/844 integration; no push/rebase to those branches"
+  ]
+}

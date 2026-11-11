@@ -2600,6 +2600,42 @@ async def answer_from_datasets(
     if not entries or not _copy_is_fresh(entries, source_modified_hint):
         return None
 
+    # OPERATION BEFORE ITEM PROBE (2026-10-25 work order): an aggregate ask
+    # is not a value lookup. A candidate token in the sentence ("0055",
+    # "0007") previously short-circuited this path as a probe result and the
+    # row-predicate/Decimal aggregation never ran. Reuse the existing
+    # deterministic aggregate planner/executor first.
+    from core.dataset_aggregation import (
+        aggregate_named_dataset,
+        looks_like_aggregate_request,
+    )
+    if looks_like_aggregate_request(query):
+        aggregate = await aggregate_named_dataset(
+            entries,
+            query,
+            llm_service,
+            file_name=entries[0].get("file_name"),
+        )
+        return {
+            "aggregate": aggregate,
+            "aggregate_block": str(aggregate.get("block") or ""),
+            "dataset_name": aggregate.get("sheet")
+            or entries[0].get("dataset_name"),
+            "entity_name": aggregate.get("sheet")
+            or entries[0].get("entity_name"),
+            "file_name": entries[0].get("file_name"),
+            "source": entries[0].get("source"),
+            "external_id": entries[0].get("external_id"),
+            "content_hash": aggregate.get("version")
+            or entries[0].get("content_hash"),
+            "source_modified_at": entries[0].get("source_modified_at"),
+            "ingested_at": entries[0].get("ingested_at"),
+            "rows": [],
+            "columns": [],
+            "row_count": 0,
+            "note": "deterministic row selection/aggregation",
+        }
+
     # ── Stage 0: deterministic content probe (no LLM) ────────────────────
     # Candidate identifiers come from the query AND the surrounding context —
     # a 'try again' turn's planner query may drop the code entirely while the
@@ -2846,6 +2882,10 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
     """Render SQL rows in the SAME R# | col=value convention as the text
     extractor, so the reply model cites dataset answers exactly like excerpt
     answers (its grounding contract needs nothing new)."""
+    aggregate_block = str(result.get("aggregate_block") or "").strip()
+    if aggregate_block:
+        return aggregate_block
+
     def _fmt(v: Any) -> str:
         s = " ".join(str(v).split())
         return s[:48]

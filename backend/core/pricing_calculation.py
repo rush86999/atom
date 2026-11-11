@@ -544,6 +544,10 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
             lines.append(
                 f"- Computed value (neutral workbook arithmetic): "
                 f"{_neutral_value}{qualifier}")
+            # Caller-facing evidence keeps the exact computed value available
+            # to attribution/verification consumers; the final answer lane
+            # still renders the prose above and strips calc envelopes.
+            lines.append(f"- Verification: computed_value={_neutral_value}")
         elif result.status == "stored_value":
             wb0 = result.workbook or {}
             lines.append(
@@ -1513,6 +1517,11 @@ def workbook_calculation_result(
                       "constants preserved as decimals"),
             "currency": (None if neutral else currency),
         })
+    if getattr(calc, "required_input_gaps", None):
+        result.verification["required_input_gaps"] = list(
+            calc.required_input_gaps)
+        result.workbook["required_input_gaps"] = list(
+            calc.required_input_gaps)
     if calc.status == "stored_value":
         # A STORED VALUE IS AN OBSERVATION, NOT A CALCULATION: no
         # proposed price is published, and the stored value is never
@@ -2160,6 +2169,98 @@ async def calculate_workbook_from_query(
                                 "engine_value": engine_val,
                                 "matches_engine": bool(matches)}
 
+    # REQUIRED-INPUT COMPLETENESS BEFORE A FORMULA TOTAL: CellBook preserves
+    # Excel's blank-as-zero arithmetic. That is raw evaluation semantics, not
+    # proof that a required quantity/price/currency input was supplied.
+    if calc.status in ("computed", "computed_substituted"):
+        try:
+            from core.dataset_aggregation import (
+                required_formula_input_gaps,
+            )
+
+            def _formula_columns_for(dep_entry: Optional[Dict[str, Any]]):
+                if not dep_entry:
+                    return []
+                columns = [
+                    str(column) for column in (dep_entry.get("columns") or [])
+                    if str(column) != "__sheet_row"
+                ]
+                if columns:
+                    return columns
+                parquet_path = str(dep_entry.get("parquet_path") or "")
+                if not parquet_path:
+                    return []
+                import pandas as _pd
+
+                return [
+                    str(column) for column in _pd.read_parquet(
+                        parquet_path).columns
+                    if str(column) != "__sheet_row"
+                ]
+
+            _gaps: List[Dict[str, Any]] = []
+            _by_sheet: Dict[str, List[Any]] = {}
+            for dependency in calc.dependencies:
+                dep_sheet = str(
+                    getattr(dependency, "sheet", "") or ""
+                ).strip() or str(entry.get("entity_name") or "")
+                _by_sheet.setdefault(dep_sheet, []).append(dependency)
+            for dep_sheet, dep_dependencies in _by_sheet.items():
+                if " ".join(dep_sheet.lower().split()) == " ".join(
+                        str(entry.get("entity_name") or "").lower().split()):
+                    dep_entry = entry
+                    dep_book = target_book
+                else:
+                    dep_entry = books.entry_for(dep_sheet)
+                    dep_book = books.provider(dep_sheet)
+                if dep_book is None:
+                    continue
+                _gaps.extend(required_formula_input_gaps(
+                    _formula_columns_for(dep_entry),
+                    dep_dependencies,
+                    dep_book.empty,
+                    values=dep_book.values,
+                    sheet_name=dep_sheet,
+                ))
+            if _gaps:
+                from core.formula_engine import FormulaResult
+
+                _gap_text = "; ".join(
+                    f"{gap.get('missing')} at {gap.get('cell')}"
+                    + (f" (row {gap.get('row')})" if gap.get("row") else "")
+                    for gap in _gaps
+                )
+                calc = FormulaResult(
+                    reference=calc.reference,
+                    status="incomplete",
+                    missing=(
+                        "required input gap(s): " + _gap_text
+                        + "; no complete total was computed"),
+                    dependencies=calc.dependencies,
+                    steps=calc.steps,
+                    cached_value=calc.cached_value,
+                    origin=calc.origin,
+                    required_input_gaps=_gaps,
+                )
+        except Exception as _gap_err:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "formula required-input validation unavailable: %r",
+                _gap_err)
+            from core.formula_engine import FormulaResult
+
+            calc = FormulaResult(
+                reference=calc.reference,
+                status="incomplete",
+                missing=(
+                    "required-input validation was unavailable "
+                    f"({type(_gap_err).__name__}); no complete total was "
+                    "computed"),
+                dependencies=calc.dependencies,
+                steps=calc.steps,
+                cached_value=calc.cached_value,
+                origin=calc.origin,
+            )
+
     if locals().get("_live_version_divergence"):
         result_notes = {
             "live_read_version": _live_version_divergence,
@@ -2179,6 +2280,11 @@ async def calculate_workbook_from_query(
         authorized_by=authorized,
         live_read_cells=live_cells,
         neutral=neutral)
+    if getattr(calc, "required_input_gaps", None):
+        result.verification["required_input_gaps"] = list(
+            calc.required_input_gaps)
+        result.workbook["required_input_gaps"] = list(
+            calc.required_input_gaps)
     eng = getattr(calc, "_engine_check", None)  # noqa: SLF001
     if isinstance(eng, dict):
         result.verification.update(eng)

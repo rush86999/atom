@@ -112,6 +112,7 @@ class TestRecalculate:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(out)
@@ -129,7 +130,7 @@ class TestRecalculate:
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
                 result = await runtime._recalc_with_soffice(Path(xlsx))
-        assert result == Path(xlsx)
+        assert result is None
 
     async def test_soffice_no_output(self, runtime, xlsx, tmp_path):
         runtime._soffice = "/usr/bin/soffice"
@@ -141,7 +142,7 @@ class TestRecalculate:
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
                 result = await runtime._recalc_with_soffice(Path(xlsx))
-        assert result == Path(xlsx)
+        assert result is None
 
     async def test_formulas_path(self, runtime, xlsx):
         runtime._has_formulas = True
@@ -168,7 +169,12 @@ class TestRecalculate:
         # cached-value injector instead of overwriting cell.value (the old
         # behavior erased every formula it evaluated).
         assert cell.value == "=A1+A2"
-        inject.assert_called_once_with(Path(xlsx), {("Data", "A3"): 30})
+        inject.assert_called_once()
+        staged_arg, computed_arg = inject.call_args.args
+        assert staged_arg != Path(xlsx)
+        assert staged_arg.parent == Path(xlsx).parent
+        assert staged_arg.name.startswith(f".{xlsx.name}.")
+        assert computed_arg == {("Data", "A3"): 30}
         wb.save.assert_called_once()
 
 
@@ -251,6 +257,7 @@ class TestRender:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)
@@ -264,6 +271,7 @@ class TestRender:
                    new=AsyncMock()) as proc_mock:
             proc = MagicMock()
             proc.communicate = AsyncMock(return_value=(b"", b""))
+            proc.returncode = 0
             proc_mock.return_value = proc
             with patch("core.workbook_runtime.tempfile.TemporaryDirectory") as td:
                 td.return_value.__enter__.return_value = str(tmp_path)

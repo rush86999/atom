@@ -133,6 +133,8 @@ def _safe_decision_observation(
 
 def _raise_agent_decision(result: Dict[str, Any]) -> None:
     """Map the verified agent-decision envelope to a safe HTTP error."""
+    from fastapi.encoders import jsonable_encoder
+
     status_value = str(result.get("status") or "")
     if status_value == "unresolved":
         raise HTTPException(
@@ -144,7 +146,7 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
                     "message": result.get("error")
                     or "Capability qualification is unresolved.",
                 },
-                "assessment": result.get("assessment"),
+                "assessment": jsonable_encoder(result.get("assessment")),
                 "verification": result.get("verification"),
             },
         )
