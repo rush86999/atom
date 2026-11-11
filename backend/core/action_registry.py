@@ -554,15 +554,24 @@ async def _documents_search_legacy(args: Dict[str, Any], context: Dict[str, Any]
     try:
         from core.database import get_db_session
         from core.models import IngestedDocument, KnowledgeDocument
-        from sqlalchemy import or_
+        from sqlalchemy import and_, or_
 
         ws_id = _context_workspace_id(context)
         results: List[Dict[str, Any]] = []
         with get_db_session() as db:
+            from core.doc_freshness_service import NON_FRESH_STATUSES
+
             ingested_q = db.query(IngestedDocument).filter(
-                or_(
-                    IngestedDocument.file_name.ilike(f"%{query}%"),
-                    IngestedDocument.content_preview.ilike(f"%{query}%"),
+                and_(
+                    or_(
+                        IngestedDocument.file_name.ilike(f"%{query}%"),
+                        IngestedDocument.content_preview.ilike(f"%{query}%"),
+                    ),
+                    or_(
+                        IngestedDocument.freshness_status.is_(None),
+                        ~IngestedDocument.freshness_status.in_(
+                            tuple(NON_FRESH_STATUSES)),
+                    ),
                 )
             )
             if ws_id:

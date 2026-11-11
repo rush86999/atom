@@ -516,7 +516,26 @@ class DocFreshnessService:
         content_hash: str,
         source_modified_at: Optional[datetime],
     ) -> None:
-        """Stamp freshness fields on a freshly ingested doc (status → fresh)."""
+        """Stamp freshness fields on a freshly ingested doc (status → fresh).
+
+        A terminal ``removed`` row is a durable deletion tombstone: a queued
+        producer replaying the SAME source version must not resurrect it. A
+        genuinely changed source hash is a new version and may proceed. A
+        ``superseded`` row is never revived by an ingest.
+        """
+        prior_status = str(getattr(doc, "freshness_status", "") or "").lower()
+        prior_hash = str(getattr(doc, "source_content_hash", "") or "")
+        if prior_status == "superseded":
+            logger.info(
+                "mark_on_ingest refused terminal superseded doc %s",
+                getattr(doc, "id", ""))
+            return
+        if prior_status == "removed":
+            if not content_hash or content_hash == prior_hash:
+                logger.info(
+                    "mark_on_ingest refused stale removed-version replay for %s",
+                    getattr(doc, "id", ""))
+                return
         doc.source_url = source_url
         doc.source_content_hash = content_hash
         doc.last_verified_at = datetime.now(timezone.utc)

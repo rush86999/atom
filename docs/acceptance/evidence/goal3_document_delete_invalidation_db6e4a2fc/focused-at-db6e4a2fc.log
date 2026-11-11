@@ -1,0 +1,995 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 14:56:04 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:05 [    INFO] AgentTaskRegistry initialized
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:05 [    INFO] LanceDBHandler initialized. ID: 5014171280. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:05 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:05 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:05 [    INFO] Document added to 'documents': doc_567991bf900b5b90d8352513
+2026-11-10 14:56:05 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:05 [    INFO] MCP Service initialized
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:56:05 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] Webhook processor initialized and callback registered
+2026-11-10 14:56:05 [ WARNING] sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+2026-11-10 14:56:05 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-10 14:56:05 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-10 14:56:05 [    INFO] Opened existing atom_communications table
+2026-11-10 14:56:05 [    INFO] FTS index enabled on 'content' column
+2026-11-10 14:56:05 [    INFO] Opened existing ingestion_metadata table
+2026-11-10 14:56:05 [    INFO] LanceDB memory manager initialized successfully
+2026-11-10 14:56:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  1%]
+backend/tests/test_document_joined_lifecycle.py::test_sql_delete_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:05 [    INFO] LanceDBHandler initialized. ID: 5018605584. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:05 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:05 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:05 [    INFO] Document added to 'documents': doc_efa4003a93eb8185ae87c0b4
+2026-11-10 14:56:05 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  3%]
+backend/tests/test_document_joined_lifecycle.py::test_file_unlink_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:05 [    INFO] EscalationManager initialized
+2026-11-10 14:56:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:05 [    INFO] LanceDBHandler initialized. ID: 5127079792. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:05 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:05 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:05 [    INFO] Document added to 'documents': doc_20e8518b7b03d8e3814ee4f5
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  5%]
+backend/tests/test_document_joined_lifecycle.py::test_fts_readback_failure_is_partial_not_clean 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:06 [    INFO] EscalationManager initialized
+2026-11-10 14:56:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:06 [    INFO] LanceDBHandler initialized. ID: 5127089216. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:06 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:06 [    INFO] Document added to 'documents': doc_e5aa3ab19020a1d801c9746c
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  6%]
+backend/tests/test_document_joined_lifecycle.py::test_foreign_sql_scope_is_refused_without_effects 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:06 [    INFO] EscalationManager initialized
+2026-11-10 14:56:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:06 [    INFO] LanceDBHandler initialized. ID: 5128093776. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:06 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:06 [    INFO] Document added to 'documents': doc_bbc91bd4e3d61da9a14b779b
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:06 [ WARNING] API Error: NOT_FOUND - Document not found: doc_bbc91bd4e3d61da9a14b779b
+PASSED                                                                   [  8%]
+backend/tests/test_document_joined_lifecycle.py::test_stale_sql_version_refuses_before_vector_or_file_effect 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:06 [    INFO] EscalationManager initialized
+2026-11-10 14:56:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:06 [    INFO] LanceDBHandler initialized. ID: 4872225120. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:06 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:06 [    INFO] Document added to 'documents': doc_27a5819e1e6ae6f3767ec183
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 10%]
+backend/tests/test_document_joined_lifecycle.py::test_stale_producer_same_version_cannot_republish 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:06 [    INFO] EscalationManager initialized
+2026-11-10 14:56:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:06 [    INFO] LanceDBHandler initialized. ID: 5126941664. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:06 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:06 [    INFO] Document added to 'documents': doc_54d80489531b768b2fd4a8e8
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 12%]
+backend/tests/test_document_joined_lifecycle.py::test_new_version_is_allowed_and_old_receipt_cannot_delete_it 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:06 [    INFO] EscalationManager initialized
+2026-11-10 14:56:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:06 [    INFO] LanceDBHandler initialized. ID: 5082034000. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:06 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:06 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:06 [    INFO] Document added to 'documents': doc_e5b845a94b74f200273f4944
+2026-11-10 14:56:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:06 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:07 [    INFO] Document added to 'documents': doc_e5b845a94b74f200273f4944
+2026-11-10 14:56:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 13%]
+backend/tests/test_document_joined_lifecycle.py::test_upload_same_removed_version_is_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:07 [    INFO] EscalationManager initialized
+2026-11-10 14:56:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:07 [    INFO] LanceDBHandler initialized. ID: 5127964240. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:07 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:07 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:07 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:07 [    INFO] Document added to 'documents': doc_912f0405ad3adc543237e572
+2026-11-10 14:56:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:07 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:07 [ WARNING] API Error: DOCUMENT_REVOKED - This document was deleted. Upload changed content or use a new document instead of replaying the removed version.
+2026-11-10 14:56:07 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 15%]
+backend/tests/test_document_delete_truth.py::test_chunk_only_family_is_deletable_and_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:08 [    INFO] EscalationManager initialized
+2026-11-10 14:56:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:08 [    INFO] LanceDBHandler initialized. ID: 5128619264. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:08 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:08 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_chunk_only_family_is_dele0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:08 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:08 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:08 [    INFO] Document added to 'documents': doc-b::c0
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [    INFO] Document added to 'documents': doc-b::c1
+2026-11-10 14:56:08 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:08 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+PASSED                                                                   [ 17%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 14:56:08 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+
+backend/tests/test_document_delete_truth.py::test_prefix_cleanup_failure_is_partial_not_clean_success[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:09 [    INFO] EscalationManager initialized
+2026-11-10 14:56:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:09 [    INFO] LanceDBHandler initialized. ID: 5129488816. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:09 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:09 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_prefix_cleanup_failure_is0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:09 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:09 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:09 [    INFO] Document added to 'documents': doc-c
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [    INFO] Document added to 'documents': doc-c::c0
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [    INFO] Document added to 'documents': doc-c::c1
+2026-11-10 14:56:09 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] document chunk-family delete failed: doc=doc-c error_class=RuntimeError
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:09 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:09 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 18%]
+backend/tests/test_document_delete_truth.py::test_prefix_cleanup_failure_is_partial_not_clean_success[false] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:10 [    INFO] EscalationManager initialized
+2026-11-10 14:56:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:10 [    INFO] LanceDBHandler initialized. ID: 5126864976. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:10 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:10 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_prefix_cleanup_failure_is1/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:10 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:10 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:10 [    INFO] Document added to 'documents': doc-c
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [    INFO] Document added to 'documents': doc-c::c0
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [    INFO] Document added to 'documents': doc-c::c1
+2026-11-10 14:56:10 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:10 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:10 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 20%]
+backend/tests/test_document_delete_truth.py::test_unknown_and_foreign_ids_are_404_without_effect_or_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:11 [    INFO] EscalationManager initialized
+2026-11-10 14:56:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:11 [    INFO] LanceDBHandler initialized. ID: 5127448048. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:11 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_unknown_and_foreign_ids_a0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:11 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:11 [    INFO] EscalationManager initialized
+2026-11-10 14:56:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:11 [    INFO] LanceDBHandler initialized. ID: 5128435600. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:11 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_unknown_and_foreign_ids_a0/ldb-ws-other with storage_options=None
+2026-11-10 14:56:11 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:11 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:11 [    INFO] Document added to 'documents': doc-foreign
+2026-11-10 14:56:11 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:11 [ WARNING] API Error: NOT_FOUND - Document not found: ghost
+2026-11-10 14:56:11 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:11 [ WARNING] API Error: NOT_FOUND - Document not found: doc-foreign
+2026-11-10 14:56:11 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:11 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 22%]
+backend/tests/test_document_delete_truth.py::test_same_operation_id_for_a_different_document_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:12 [    INFO] EscalationManager initialized
+2026-11-10 14:56:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:12 [    INFO] LanceDBHandler initialized. ID: 5127217680. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:12 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:12 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_same_operation_id_for_a_d0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:12 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:12 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:12 [    INFO] Document added to 'documents': doc-d
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [    INFO] Document added to 'documents': doc-e
+2026-11-10 14:56:12 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:12 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:12 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:12 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 24%]
+backend/tests/test_document_delete_truth.py::test_same_operation_id_from_another_actor_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:13 [    INFO] EscalationManager initialized
+2026-11-10 14:56:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:13 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:13 [    INFO] LanceDBHandler initialized. ID: 5127636176. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:13 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:13 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_same_operation_id_from_an0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:13 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:13 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:13 [    INFO] Document added to 'documents': doc-f
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [    INFO] Document added to 'documents': doc-g
+2026-11-10 14:56:13 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:13 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:13 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:13 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 25%]
+backend/tests/test_document_delete_truth.py::test_second_delete_with_new_operation_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:14 [    INFO] EscalationManager initialized
+2026-11-10 14:56:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:14 [    INFO] LanceDBHandler initialized. ID: 5130316176. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:14 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:14 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_second_delete_with_new_op0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:14 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:14 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:14 [    INFO] Document added to 'documents': doc-h
+2026-11-10 14:56:14 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:14 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:14 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+PASSED                                                                   [ 27%]
+backend/tests/test_document_delete_truth.py::test_fresh_session_and_restarted_handler_readback_survive 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:15 [    INFO] EscalationManager initialized
+2026-11-10 14:56:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:15 [    INFO] LanceDBHandler initialized. ID: 5130311072. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:15 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:15 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_fresh_session_and_restart0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:15 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:15 [    INFO] Table 'documents' created successfully
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': doc-i
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': doc-i::c0
+2026-11-10 14:56:15 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [    INFO] EscalationManager initialized
+2026-11-10 14:56:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:15 [    INFO] LanceDBHandler initialized. ID: 5131027792. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:15 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:15 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-898/test_fresh_session_and_restart0/ldb-ws-doc with storage_options=None
+2026-11-10 14:56:15 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+2026-11-10 14:56:15 [   ERROR] Re-embed of 'documents' failed: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-11-10 14:56:15 [ WARNING] Embedding model mismatch for 'documents': vectors were built with fastembed/BAAI/bge-small-en-v1.5 (384-dim) but the active embedder is fastembed/text-embedding-3-small (384-dim) — re-embedding in the background (model_changed_same_dim)
+PASSED                                                                   [ 29%]
+backend/tests/test_document_upload_persistence_outcome.py::test_valid_upload_is_durably_mirrored_and_available 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:15 [    INFO] EscalationManager initialized
+2026-11-10 14:56:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:15 [    INFO] LanceDBHandler initialized. ID: 5131034352. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:15 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:15 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:15 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': doc_54ccd7a360f7e76467d83a52
+2026-11-10 14:56:15 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:15 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_54ccd7a360f7e76467d83a52 "HTTP/1.1 200 OK"
+2026-11-10 14:56:15 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_54ccd7a360f7e76467d83a52/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+backend/tests/test_document_upload_persistence_outcome.py::test_sql_mirror_commit_failure_is_not_acknowledged_as_success 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:15 [    INFO] EscalationManager initialized
+2026-11-10 14:56:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:15 [    INFO] LanceDBHandler initialized. ID: 5131577264. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:15 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:15 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:15 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': peer-d3aeaa0ba341
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': doc_8a7bbcedc2759fab01d28803
+2026-11-10 14:56:15 [   ERROR] Document upload SQL mirror failed; stage=sql_mirror; exception_class=RuntimeError
+2026-11-10 14:56:15 [ WARNING] API Error: DOCUMENT_MIRROR_UNVERIFIED - The upload could not be confirmed. Check this document before uploading it again; do not retry automatically.
+2026-11-10 14:56:15 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 32%]
+backend/tests/test_document_upload_persistence_outcome.py::test_uncertain_mirror_has_truthful_state_and_safe_error[before-commit] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:15 [    INFO] EscalationManager initialized
+2026-11-10 14:56:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:15 [    INFO] LanceDBHandler initialized. ID: 5131816144. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:15 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:15 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:15 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:15 [    INFO] Document added to 'documents': peer-189c4c02c564
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': doc_f9471d7625b9425c407e1009
+2026-11-10 14:56:16 [   ERROR] Document upload SQL mirror failed; stage=sql_mirror; exception_class=RuntimeError
+2026-11-10 14:56:16 [ WARNING] API Error: DOCUMENT_MIRROR_UNVERIFIED - The upload could not be confirmed. Check this document before uploading it again; do not retry automatically.
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 34%]
+backend/tests/test_document_upload_persistence_outcome.py::test_uncertain_mirror_has_truthful_state_and_safe_error[lost-confirmation] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:16 [    INFO] LanceDBHandler initialized. ID: 5129067792. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:16 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': peer-e25b4eb0010f
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': doc_49f63a2095352270e6f97d33
+2026-11-10 14:56:16 [   ERROR] Document upload SQL mirror failed; stage=sql_mirror; exception_class=RuntimeError
+2026-11-10 14:56:16 [ WARNING] API Error: DOCUMENT_MIRROR_UNVERIFIED - The upload could not be confirmed. Check this document before uploading it again; do not retry automatically.
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 36%]
+backend/tests/test_document_export.py::test_export_requires_authentication 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/anything/export "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 37%]
+backend/tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:16 [    INFO] LanceDBHandler initialized. ID: 5224009232. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:16 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': doc_047eaff23c0fe2300972aec3
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_047eaff23c0fe2300972aec3 "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_047eaff23c0fe2300972aec3/export?format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+backend/tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:16 [    INFO] LanceDBHandler initialized. ID: 5224008912. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:16 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': doc_afb756118952171875892ee9
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_afb756118952171875892ee9 "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_afb756118952171875892ee9/export?format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+backend/tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[json] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:16 [    INFO] LanceDBHandler initialized. ID: 5224020752. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:16 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': doc_43d05386a809f0a91c9bf5ee
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_43d05386a809f0a91c9bf5ee "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_43d05386a809f0a91c9bf5ee/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+backend/tests/test_document_export.py::test_document_ingestion_upload_uses_opaque_revision_and_canonical_id 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:16 [    INFO] LanceDBHandler initialized. ID: 5132513872. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:16 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:16 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:16 [    INFO] Document added to 'documents': 988e16b5-1bb0-4ee6-a722-e67389b0ccc6
+2026-11-10 14:56:16 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:16 [    INFO] HTTP Request: GET http://testserver/api/documents/988e16b5-1bb0-4ee6-a722-e67389b0ccc6 "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/988e16b5-1bb0-4ee6-a722-e67389b0ccc6/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+backend/tests/test_document_export.py::test_full_stored_content_over_model_reader_20k_is_not_truncated 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5132514352. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': doc_f25ac140e876c11bfb909d37
+2026-11-10 14:56:17 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_f25ac140e876c11bfb909d37 "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_f25ac140e876c11bfb909d37/export?format=text "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_f25ac140e876c11bfb909d37/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+backend/tests/test_document_export.py::test_non_txt_stored_document_exports_current_text 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5129066032. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': doc_9c68ae290b31a1c5e65a710a
+2026-11-10 14:56:17 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_9c68ae290b31a1c5e65a710a "HTTP/1.1 200 OK"
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_9c68ae290b31a1c5e65a710a/export?format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+backend/tests/test_document_export.py::test_manual_opaque_identity_matches_exactly 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5130644176. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': manual-3c55001ca5b0
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/manual-3c55001ca5b0/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+backend/tests/test_document_export.py::test_vector_only_manual_legacy_is_explicit_snapshot_only 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5132349712. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': doc-41dc2eb22c4b4f3c
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-41dc2eb22c4b4f3c/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+backend/tests/test_document_export.py::test_manual_sql_row_with_missing_version_is_snapshot_only 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5222088560. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': manual-sql-08d3da21718e
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/manual-sql-08d3da21718e/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+backend/tests/test_document_export.py::test_automated_sql_row_with_missing_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5222214352. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': auto-sql-f17f25f05f75
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document's source revision cannot be verified. Re-index or re-upload it before exporting.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/auto-sql-f17f25f05f75/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+backend/tests/test_document_export.py::test_known_indexed_binding_without_sql_row_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5222213072. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': indexed-a39faaf6f70a
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document has a known index or SQL binding but no matching source revision on both sides. Re-index or re-upload it before exporting.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/indexed-a39faaf6f70a/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+backend/tests/test_document_export.py::test_known_indexed_binding_without_index_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5222506704. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': sqlonly-ab027d85b343
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document has a known index or SQL binding but no matching source revision on both sides. Re-index or re-upload it before exporting.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/sqlonly-ab027d85b343/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 58%]
+backend/tests/test_document_export.py::test_wrong_indexed_identity_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5224930416. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': wrongid-22e250aa5a36
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_IDENTITY_MISMATCH - The indexed extraction belongs to a different document.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/wrongid-22e250aa5a36/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 60%]
+backend/tests/test_document_export.py::test_contradictory_versions_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5222603408. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': contradict-59fc37015807
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_REVISION_INVALID - The stored document revision is missing, stale, or does not match its authoritative record. Re-index or re-upload it before exporting.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/contradict-59fc37015807/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+backend/tests/test_document_export.py::test_old_extractor_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5224381680. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': oldext-011ec5d0f253
+2026-11-10 14:56:17 [ WARNING] API Error: DOCUMENT_REVISION_INVALID - The stored document revision is missing, stale, or does not match its authoritative record. Re-index or re-upload it before exporting.
+2026-11-10 14:56:17 [    INFO] HTTP Request: GET http://testserver/api/documents/oldext-011ec5d0f253/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 63%]
+backend/tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[stale-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:17 [    INFO] LanceDBHandler initialized. ID: 5224379760. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:17 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:17 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:17 [    INFO] Document added to 'documents': fresh-32c9020ff0b7
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-32c9020ff0b7/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+backend/tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[outdated-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5224378480. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': fresh-3c89d9bb3b05
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-3c89d9bb3b05/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 67%]
+backend/tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[superseded-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5221511440. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': fresh-d1b27018c06f
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-d1b27018c06f/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 68%]
+backend/tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[removed-404-NOT_FOUND] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5221196304. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': fresh-efd050ece1c3
+2026-11-10 14:56:18 [ WARNING] API Error: NOT_FOUND - Document not found: fresh-efd050ece1c3
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-efd050ece1c3/export?format=text "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 70%]
+backend/tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5224381840. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': unknownfresh-418bbec489a6
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-418bbec489a6/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 72%]
+backend/tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[unknown] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5221000976. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': unknownfresh-b491a7c13c5c
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-b491a7c13c5c/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 74%]
+backend/tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[revoked] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5220999536. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': unknownfresh-52c899e41766
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-52c899e41766/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 75%]
+backend/tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5221750480. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': unknownfresh-6c0b1c5aca2c
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-6c0b1c5aca2c/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 77%]
+backend/tests/test_document_export.py::test_foreign_workspace_and_unknown_document_are_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5224381840. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': foreign-b27015c602d2
+2026-11-10 14:56:18 [ WARNING] API Error: NOT_FOUND - Document not found: foreign-b27015c602d2
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/foreign-b27015c602d2/export?format=text "HTTP/1.1 404 Not Found"
+2026-11-10 14:56:18 [ WARNING] API Error: NOT_FOUND - Document not found: unknown-next03
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/unknown-next03/export?format=text "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 79%]
+backend/tests/test_document_export.py::test_empty_content_and_unsupported_formats_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5223563824. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': doc_af77aa494aa77de7f345662b
+2026-11-10 14:56:18 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:18 [ WARNING] API Error: DOCUMENT_EMPTY - The selected document has no stored text to export.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_af77aa494aa77de7f345662b/export?format=text "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': doc_e9cd67f7f4197c8e9a7af6a1
+2026-11-10 14:56:18 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:18 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_e9cd67f7f4197c8e9a7af6a1/export?format=html "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_e9cd67f7f4197c8e9a7af6a1/export?format=pdf "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_e9cd67f7f4197c8e9a7af6a1/export?format=docx "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_e9cd67f7f4197c8e9a7af6a1/export?format=original "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_e9cd67f7f4197c8e9a7af6a1/export?format=binary "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 81%]
+backend/tests/test_document_export.py::test_client_path_url_and_original_parameters_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5223578384. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': doc_44549813a0422f7cb140aace
+2026-11-10 14:56:18 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&path=%2Fetc%2Fpasswd "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&url=https%3A%2F%2Fexample.com%2Ffile "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&file_path=%2Fetc%2Fpasswd "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&locator=remote "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&download=original "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 14:56:18 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-10 14:56:18 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_44549813a0422f7cb140aace/export?format=text&original=true "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 82%]
+backend/tests/test_document_export.py::test_unicode_and_header_injection_names_are_safe 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:18 [    INFO] LanceDBHandler initialized. ID: 5223576464. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:18 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:18 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:18 [    INFO] Document added to 'documents': name-acb8a40beb24
+2026-11-10 14:56:19 [    INFO] HTTP Request: GET http://testserver/api/documents/name-acb8a40beb24/export?format=text "HTTP/1.1 200 OK"
+2026-11-10 14:56:19 [    INFO] HTTP Request: GET http://testserver/api/documents/name-acb8a40beb24/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+backend/tests/test_document_export.py::test_source_version_header_is_not_injectable 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:19 [    INFO] EscalationManager initialized
+2026-11-10 14:56:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:19 [    INFO] LanceDBHandler initialized. ID: 5222988560. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:19 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:19 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:19 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:19 [    INFO] Document added to 'documents': vname-6cf14259e4f8
+2026-11-10 14:56:19 [    INFO] HTTP Request: GET http://testserver/api/documents/vname-6cf14259e4f8/export?format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+backend/tests/test_document_export.py::test_large_stored_text_refuses_without_truncation 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:19 [    INFO] EscalationManager initialized
+2026-11-10 14:56:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:19 [    INFO] LanceDBHandler initialized. ID: 5133364080. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:19 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:19 [    INFO] Connecting to LanceDB at /private/tmp/atom-goal3-doc-delete-20261110/backend/data/atom_memory with storage_options=None
+2026-11-10 14:56:19 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:19 [    INFO] Document added to 'documents': doc-7a3555b2278a4db0
+2026-11-10 14:56:19 [ WARNING] API Error: EXPORT_TOO_LARGE - The stored document text exceeds the bounded export size; select a smaller document.
+2026-11-10 14:56:19 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-7a3555b2278a4db0/export?format=text "HTTP/1.1 413 Request Entity Too Large"
+PASSED                                                                   [ 87%]
+backend/tests/test_documents_search_workspace_scope.py::test_vector_leg_uses_the_workspace_handler PASSED [ 89%]
+backend/tests/test_documents_search_workspace_scope.py::test_documents_search_action_passes_context_workspace PASSED [ 91%]
+backend/tests/test_documents_search_workspace_scope.py::test_documents_search_falls_back_to_request_scope PASSED [ 93%]
+backend/tests/test_documents_search_workspace_scope.py::test_zero_match_grep_falls_back_to_hybrid_search PASSED [ 94%]
+backend/tests/test_documents_search_workspace_scope.py::test_legacy_path_filters_to_the_workspace PASSED [ 96%]
+backend/tests/test_documents_search_workspace_scope.py::test_upload_route_resolves_the_fk_first PASSED [ 98%]
+backend/tests/test_documents_search_workspace_scope.py::test_upsert_document_forwards_the_freshness_stamp PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 118 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_joined_lifecycle.py: 9 warnings
+tests/test_document_delete_truth.py: 10 warnings
+tests/test_document_upload_persistence_outcome.py: 4 warnings
+tests/test_document_export.py: 29 warnings
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/core/lancedb_handler.py:411: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_joined_lifecycle.py: 11 warnings
+tests/test_document_delete_truth.py: 99 warnings
+tests/test_document_upload_persistence_outcome.py: 4 warnings
+tests/test_document_export.py: 29 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:676: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_document_joined_lifecycle.py::test_delete_must_invalidate_sql_fts_lexical_action_and_file
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/integrations/atom_communication_ingestion_pipeline.py:758: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    table_names = self.db.table_names()
+
+tests/test_document_delete_truth.py: 20 warnings
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/core/lancedb_handler.py:624: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_document_delete_truth.py: 69 warnings
+  /private/tmp/atom-goal3-doc-delete-20261110/backend/core/lancedb_handler.py:840: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 58 passed, 1 deselected, 407 warnings in 22.33s ================

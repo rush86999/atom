@@ -1,0 +1,101 @@
+{
+  "schema": "atom-document-delete-invalidation-verification-1",
+  "status": "supported synthetic-TXT Documents deletion now leaves a durable removed tombstone and invalidates vector, SQL/FTS/lexical/hybrid/action, VFS/citability and materialized-file reads; stale same-version producers are refused; partial/unknown effects stay honest",
+  "candidate": {
+    "branch": "codex/goal3-doc-delete-20261110",
+    "base_current_main": "be8bb29f07b33077a49995816e8952721d3a6fd9",
+    "executed_source": "db6e4a2fc0792dcb8c204a4bd1ddfc691da54935",
+    "backend_integration_worktree_edited": false,
+    "ui_branch_mutated": false,
+    "runtime": "Python 3.14 existing venv; scratch SQLite + scratch LanceDB + deterministic embeddings; no live DB/model/provider",
+    "merge_commit": "9496da733",
+    "final_test_evidence_head": "c90693c4233bb3c191b89d11567ae0131e72cfa9"
+  },
+  "confirmed_gap": {
+    "before": "verified vector delete left IngestedDocument, FTS/lexical/hybrid/action, VFS/citability row and materialized upload file readable",
+    "why_absence_alone_is_not_durable": "a queued/stale vector_upsert or auto-ingest could recreate the SQL row as fresh",
+    "failure_first_log": "failure-first-joined.log",
+    "file_safety_failure_first": "2 failed on parent 914b9470d: unsafe path did not raise partial; shared case lacked effects receipt"
+  },
+  "repair": {
+    "durable_revocation": "retain IngestedDocument with freshness_status='removed' (existing terminal marker), not physical row deletion",
+    "read_guards": "lexical SQLite/Postgres/ILIKE, legacy documents.search, VFS/citability and export exclude terminal freshness; retained FTS row is not served",
+    "write_guard": "vector_upsert refuses the same removed source version; mark_on_ingest refuses terminal replay; genuinely changed version allowed; upload same version returns 409 DOCUMENT_REVOKED",
+    "version_cas": "delete captures exact source_content_hash; changed version is 409 before vector/file effect; old receipt cannot delete newer version",
+    "file_safety": "owned upload-root path only; refuses symlink/outside path; preserves shared peer references; partial otherwise",
+    "receipt": "vector + SQL tombstone + FTS/lexical + file effects aggregated; verified only when all supported effects safe; partial/unknown 503 with replay=do_not_repeat; no cross-store atomicity claim",
+    "no_new_store": true
+  },
+  "controls": {
+    "sql_tombstone_durable": true,
+    "vector_rows_absent": true,
+    "lexical_filters_terminal": true,
+    "action_search_filters_terminal": true,
+    "vfs_citability_freshness_guard": true,
+    "materialized_file_removed_when_owned": true,
+    "shared_peer_file_preserved": true,
+    "unsafe_outside_path_refused": true,
+    "exact_scope_refusal": true,
+    "exact_version_cas": true,
+    "stale_same_version_producer_refused": true,
+    "new_version_allowed": true,
+    "old_receipt_cannot_delete_new_version": true,
+    "replay_inert": true,
+    "partial_sql_file_fts_not_clean": true,
+    "no_fake_cross_store_atomicity": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "no_world_build_or_deletion": true,
+    "no_new_dependency": true,
+    "current_main_reconciled": true,
+    "coordination_union_preserved": true
+  },
+  "results": {
+    "failure_first_joined": {
+      "failed": 1,
+      "log": "failure-first-joined.log"
+    },
+    "failure_first_file_safety_parent_914": {
+      "failed": 2,
+      "log": "file-safety-failure-first.log"
+    },
+    "joined_durable_suite": {
+      "passed": 11,
+      "log": "joined-11-file-safety.log"
+    },
+    "file_safety_controls": {
+      "passed": 2,
+      "log": "file-safety-at-c90693c42.log"
+    },
+    "bounded_documents_gate": {
+      "passed": 60,
+      "deselected": 1,
+      "deselected_reason": "pre-existing local ModuleNotFoundError: lance in handler.list_documents; unrelated",
+      "log": "bounded-gate-c90693c42.log"
+    }
+  },
+  "scope": {
+    "supported": "ordinary synthetic-TXT Documents upload/list/open/vector+lexical+hybrid+action/export/delete/reload/replay",
+    "deferred": [
+      "/search UI capability",
+      "OS file-chooser upload click",
+      "original-binary download/recovery",
+      "PDF/Markdown/arbitrary Office breadth",
+      "PostgreSQL multi-worker concurrency",
+      "served-LLM grounding",
+      "Goal 11 editable output drafts"
+    ]
+  },
+  "checks": {
+    "original_143_claims_18_goals_unchanged": true,
+    "no_pr_merge_or_self_acceptance": true,
+    "current_main_reconciled": true,
+    "coordination_union_preserved": true
+  },
+  "boundaries": [
+    "backend source/tests/evidence only",
+    "existing freshness/audit/operation/CAS mechanisms reused; no parallel catalog",
+    "no live DB/model/provider/credential/send/spend",
+    "no world build or deletion; scratch stores only",
+    "root owns integration and final review; no merge"
+  ]
+}

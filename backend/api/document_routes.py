@@ -566,7 +566,7 @@ async def ingest_document(
 
         # to_thread: add_document embeds synchronously; called directly on the
         # loop thread, embed_text's same-thread guard makes every write fail.
-        await _upsert_document(
+        upsert_status = await _upsert_document(
             lancedb_handler,
             text=content,
             doc_key=doc_id,
@@ -576,6 +576,14 @@ async def ingest_document(
             workspace_id=ws_id,
             extra_columns={"freshness_status": "fresh"},
         )
+        if upsert_status == "skipped_revoked":
+            raise router.error_response(
+                error_code="DOCUMENT_REVOKED",
+                message=(
+                    "This document was deleted. Upload changed content or use "
+                    "a new document instead of replaying the removed version."),
+                status_code=409,
+            )
 
         return DocumentResponse(
             id=doc_id,
@@ -773,7 +781,7 @@ async def upload_document(
             "author": current_user.email if current_user else "unknown"
         }
 
-        await _upsert_document(
+        upsert_status = await _upsert_document(
             lancedb_handler,
             text=content,
             doc_key=doc_id,
@@ -786,6 +794,14 @@ async def upload_document(
             # permanently invisible even in the right workspace store.
             extra_columns={"freshness_status": "fresh"},
         )
+        if upsert_status == "skipped_revoked":
+            raise router.error_response(
+                error_code="DOCUMENT_REVOKED",
+                message=(
+                    "This document was deleted. Upload changed content or use "
+                    "a new document instead of replaying the removed version."),
+                status_code=409,
+            )
 
         # 5. Aligned PG row: gives the upload full journey parity with synced
         # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
