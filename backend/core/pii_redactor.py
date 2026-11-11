@@ -259,7 +259,14 @@ class PIIRedactor:
         return {
             "EMAIL_ADDRESS": OperatorConfig("hash", {"hash_type": "sha256"}),
             "US_SSN": OperatorConfig("hash", {"hash_type": "sha256"}),
-            "CREDIT_CARD": OperatorConfig("mask", {"chars_to_mask": 4, "masking_char": "*"}),
+            # Mask the full matched span: chars_to_mask is clamped to the span
+            # length, so any value larger than a PAN masks every digit without
+            # touching surrounding text. from_end must be set or the anonymizer
+            # rejects the config and redact() silently hits the regex fallback.
+            "CREDIT_CARD": OperatorConfig(
+                "mask",
+                {"chars_to_mask": 32, "masking_char": "*", "from_end": False},
+            ),
             "PHONE_NUMBER": OperatorConfig("hash", {"hash_type": "sha256"}),
             "IBAN_CODE": OperatorConfig("hash", {"hash_type": "sha256"}),
             "IP_ADDRESS": OperatorConfig("hash", {"hash_type": "sha256"}),
