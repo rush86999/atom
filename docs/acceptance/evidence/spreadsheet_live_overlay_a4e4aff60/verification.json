@@ -1,0 +1,45 @@
+{
+  "schema": "atom-spreadsheet-live-overlay-verification-1",
+  "status": "live-resolved formula operands take precedence over stale blank membership; exact 150/450 totals, genuine blank gap and raw Excel semantics preserved",
+  "candidate": {
+    "branch": "codex/agentA-spreadsheet-repair-20261111",
+    "base": "50a5dffd71bf2cc02198f14965f4f757ac96a095",
+    "prior_cross_sheet_source": "7bd2731075c71a65130aea9def8b942982fc6c70",
+    "prior_evidence_head": "6fae2697391839650fdf38390d0bfeff06fde8ee",
+    "executed_source": "a4e4aff6067ad2ff0e1de00ac035a5348c5c1442",
+    "pr843_844_touched": false
+  },
+  "repair": {
+    "effective_operand": "resolved dependency value (including explicit 0) is supplied before stale empty membership",
+    "genuine_blank": "no resolved value and still in known-blank set -> required-input gap",
+    "raw_semantics": "CellBook Excel blank-as-zero arithmetic unchanged",
+    "evidence_block": "neutral evidence block exposes computed_value for attribution; prose answer unchanged",
+    "new_engine_or_catalog": false
+  },
+  "controls": {
+    "root_overlay_0": true,
+    "root_overlay_3": true,
+    "exact_total_150": true,
+    "exact_total_450": true,
+    "genuine_blank_still_gap": true,
+    "explicit_zero_supplied": true,
+    "raw_blank_as_zero_preserved": true,
+    "sheet_cell_attribution": true,
+    "same_version_catalog_isolation": true,
+    "aggregate_dispatch_preserved": true,
+    "no_live_provider_db_credential_send_spend": true,
+    "no_install": true,
+    "historic_failure_campaign_not_rerun": true,
+    "pr843_844_untouched": true
+  },
+  "results": {
+    "root_overlay_probe": {"passed": 2, "log": "root-overlay-probe.log"},
+    "new_overlay_controls": {"passed": 12, "log": "new-overlay-controls.log"},
+    "bounded_gate": {"passed": 120, "log": "bounded-gate-a4e4aff60.log"}
+  },
+  "boundaries": [
+    "supported workbook/formula path only",
+    "existing evidence preserved",
+    "root owns PR843/844 integration"
+  ]
+}
