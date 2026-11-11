@@ -181,7 +181,8 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
         try:
             if cohere is None:
                 raise ImportError("Cohere package not installed")
-            self._client = cohere.AsyncClient(api_key=api_key)
+            self._client = cohere.AsyncClient(
+                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
         except ImportError:
             raise EmbeddingProviderError(
                 "Cohere package not installed. Install with: pip install cohere"
@@ -283,7 +284,8 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
         try:
             if voyageai is None:
                 raise ImportError("VoyageAI package not installed")
-            self._client = voyageai.Client(api_key=api_key)
+            self._client = voyageai.Client(
+                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
         except ImportError:
             raise EmbeddingProviderError(
                 "VoyageAI package not installed. Install with: pip install voyageai"
