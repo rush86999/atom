@@ -27,11 +27,60 @@ from core.models import (
     AgentStatus, GraduationExam, EpisodeFeedback
 )
 from core.database import get_db
+from core.personal_scope import resolve_workspace_id
 from core.lancedb_service import LanceDBService
 from core.embedding_service import EmbeddingService
 import threading
 
 logger = logging.getLogger(__name__)
+
+
+# Execution lifecycle -> episode lifecycle. The durable AgentExecution row is
+# the authority: an episode may claim completion only after its execution
+# reached a terminal, successful state. A non-terminal run (waiting/running/
+# paused) must stay "active" so it can never be offered as completed
+# qualification evidence. Terminal failures stay terminal too, but they are
+# not completed evidence.
+_TERMINAL_SUCCESS_EXECUTION_STATUSES = frozenset({
+    "completed",
+    "success",
+    "succeeded",
+    "objective_satisfied",
+})
+_TERMINAL_FAILURE_EXECUTION_STATUSES = frozenset({
+    "failed",
+    "failure",
+    "error",
+    "timeout",
+    "timed_out",
+    "max_steps_exceeded",
+    "budget_exceeded",
+    "blocked",
+    "stuck",
+    "uncertain",
+    "exhausted",
+})
+_TERMINAL_CANCELLED_EXECUTION_STATUSES = frozenset({
+    "cancelled",
+    "canceled",
+})
+
+
+def _episode_status_for_execution(execution_status: Any, success: bool) -> str:
+    """Map an execution's lifecycle to the episode's, conservatively.
+
+    Only a terminal successful execution justifies ``completed``; a caller's
+    ``success`` flag alone is never enough. Unknown/non-terminal statuses stay
+    ``active`` so the completed-only graduation picker cannot see them.
+    """
+    status = str(execution_status or "").strip().lower()
+    if status in _TERMINAL_SUCCESS_EXECUTION_STATUSES:
+        return "completed" if success else "failed"
+    if status in _TERMINAL_CANCELLED_EXECUTION_STATUSES:
+        return "cancelled"
+    if status in _TERMINAL_FAILURE_EXECUTION_STATUSES:
+        return "failed"
+    return "active"
 
 
 class DetailLevel(str, Enum):
@@ -631,6 +680,15 @@ class EpisodeService:
         except ImportError:
             pass
 
+        # The execution is the durable owner of the run's scope; the agent is
+        # the fallback for older/partial execution rows, then the Personal
+        # Edition default. Never infer scope from caller/model metadata —
+        # graduation validates the episode against the authenticated workspace
+        # exactly as persisted here.
+        episode_workspace_id = resolve_workspace_id(execution, agent)
+        episode_status = _episode_status_for_execution(
+            getattr(execution, "status", None), success)
+
         # Create episode
         episode = AgentEpisode(
             agent_id=execution.agent_id,
@@ -640,6 +698,7 @@ class EpisodeService:
             tenant_id=(execution.tenant_id
                        or getattr(agent, "tenant_id", None)
                        or "default"),
+            workspace_id=episode_workspace_id,
             execution_id=execution_id,
             task_description=task_description,
             maturity_at_time=agent.status,
@@ -648,6 +707,7 @@ class EpisodeService:
             confidence_score=agent.confidence_score,
             outcome=outcome,
             success=success,
+            status=episode_status,
             step_efficiency=step_efficiency,
             metadata_json=merged_metadata,
             started_at=execution.started_at,
