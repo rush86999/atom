@@ -705,7 +705,7 @@ async def main_async(args: argparse.Namespace) -> int:
     async with httpx.AsyncClient() as client:
         try:
             token, session_identity, auth_meta = await resolve_session(
-                client, base, args.token_file
+                client, base, getattr(args, "token_file", None)
             )
             if not token:
                 print(
