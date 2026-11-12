@@ -606,6 +606,13 @@ jobs:
       # scratch SQLite file plus scratch skills/LanceDB roots; the child
       # refuses any non-scratch database and only the model transport leaf
       # is doubled. No scheduler, credentials, sends or live DB involved.
+      # The served variant additionally drives the REAL main_api_app:app
+      # uvicorn surface (login/approve/apply over loopback HTTP, then a
+      # new server process on the same scratch state) and consumes the
+      # skill through the ordinary POST /api/agents/{id}/run path; each
+      # test pins its own tmp_path scratch env, so the shared step env is
+      # only a non-dev default the children never inherit past the
+      # scratch refusal checks.
       - name: Run reviewed prompt skill process restart controls
         env:
           TESTING: "1"
@@ -616,7 +623,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_mem07_prompt_skill_process_restart.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_mem07_prompt_skill_process_restart.py tests/test_mem07_served_prompt_skill_process_restart.py -q --tb=short --timeout=300 --timeout-method=thread
 
   backend-oracle:
     runs-on: ubuntu-latest
