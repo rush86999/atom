@@ -601,6 +601,22 @@ jobs:
         run: |
           python -m pytest tests/test_promotion_evidence_gate.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # WO-OPS-04 release-rollback regression (additive): the disposable
+      # rollback journey for release_tool.py — target validation,
+      # active-pointer flip and receipt publication run unchanged against
+      # a per-test tmp_path release root and scratch sqlite, while
+      # start_release_services and network/process control are replaced
+      # with a controlled double, so the lane never touches a live path,
+      # port, credential or database.
+      - name: Run release rollback identity and preservation controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_release_rollback.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_rollback.py -q --tb=short --timeout=300 --timeout-method=thread
+
       # GOAL-02 utility-loop regression (additive): ranking evidence is built
       # the way production does it — goal created through the public
       # POST /api/goals boundary, GoalRun rows driven by the real
