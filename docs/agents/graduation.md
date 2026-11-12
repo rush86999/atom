@@ -264,6 +264,43 @@ criteria, including task completion/correctness against the expected or
 evidence result, not merely output presence, scope or safety. The evaluator is
 `human_review` in v1; there is no model judge and no new score engine.
 
+### Repeat-task model routing
+
+After a qualified promotion, the same agent may serve a repeated, workload-matching assignment
+with a model route the recorded evidence still supports, without a new review for every run.
+
+- **Frozen benchmark evidence, not caller claims.** Evidence comes only from offline
+  server-side intake against a frozen benchmark set whose dataset digest and scoring
+  version are pinned; a changed set or scoring generation is a different benchmark, and
+  caller-asserted material is discarded, never scored. Validated observations are
+  digest-sealed records under the reserved `benchmark_evidence` key of the run's execution
+  metadata, timed by the durable execution `completed_at`; the served identity comes only
+  from a campaign-owned sealed transport journal's provider echo, so replay cannot refresh
+  a result. Evidence is per-agent, scoped and benchmark-bound — no global leaderboard.
+- **Callable route vs provider build.** The evidence identity is the callable route
+  `(provider, model)` the transport selected and accepted. A provider-echoed concrete
+  build (e.g. a dated suffix on the same model family) is that route's *build*, recorded
+  separately — not a different route; a different provider, model family or variant tier
+  is a conflicting echo, making the run ineligible. Runtime validation requires the exact
+  pinned route and a required provider echo; a bound concrete benchmark build must be
+  echoed exactly, a missing or changed echo demotes the effect to supervision, and the
+  effect gate rechecks current evidence after restart.
+- **Receipt binding is the baseline.** The promotion receipt binds a complete benchmark
+  identity (dataset hash, rubric version, canonical workload scope) plus the actually-served
+  routes, from validated evidence records only. The runtime baseline is the newest committed
+  promotion transition into the current tier plus its receipt. Selection requires the
+  assignment's server-derived `workload_scope` to exactly match the binding's scope; a
+  candidate needs fresh *passing* observations on the same benchmark (same dataset hash,
+  rubric and task scope), and a pinned call is strict: exact route or failure.
+- **Supervised fallback is the default.** The resolver fails closed: a missing baseline,
+  non-comparable binding, unknown or mismatched workload, no fresh eligible route or an
+  unresolvable pin all resolve to `supervised`, and ordinary routing is untouched. Before
+  an irreversible effect the route decision is revalidated from durable state and demoted
+  to the supervised path when evidence no longer holds.
+- **Owner approval still applies.** Routing selects a serving route; it never authorizes
+  an effect or bypasses a review. The owner's autonomy gate still decides execute vs
+  propose on mutating steps, and no routing outcome removes a required human approval.
+
 ## Owner assessment policy
 
 The owner policy is the strict runtime setting

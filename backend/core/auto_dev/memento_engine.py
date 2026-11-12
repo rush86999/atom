@@ -25,6 +25,29 @@ from core.auto_dev.models import SkillCandidate
 
 logger = logging.getLogger(__name__)
 
+# Structured authorization outcomes for the execution-distillation boundary.
+# The route maps these codes to HTTP status; it must never infer policy by
+# matching human-readable error text.
+AUTHZ_UNAUTHENTICATED = "unauthenticated"
+AUTHZ_NOT_FOUND = "not_found"
+AUTHZ_FORBIDDEN = "forbidden"
+
+_AUTHZ_HTTP_STATUS: dict[str, int] = {
+    AUTHZ_UNAUTHENTICATED: 403,
+    AUTHZ_NOT_FOUND: 404,
+    AUTHZ_FORBIDDEN: 403,
+}
+
+
+def _authz_denial(code: str, message: str) -> dict[str, Any]:
+    """Serializable denial the route can act on without parsing ``error``."""
+    return {
+        "allowed": False,
+        "code": code,
+        "http_status": _AUTHZ_HTTP_STATUS[code],
+        "message": message,
+    }
+
 
 class MementoEngine(BaseLearningEngine):
     """
@@ -429,6 +452,13 @@ class MementoEngine(BaseLearningEngine):
         """
         Analyze a completed agent execution into a success/step trace.
 
+        NOTE: this lookup is intentionally NOT authorization-scoped — it is
+        an unscoped read helper whose contract is preserved for existing
+        callers. ``learn_from_execution`` must never use it for its own
+        lookup: it authorizes the execution first and then analyzes the
+        ALREADY-AUTHORIZED row via ``_analyze_execution_row`` (one scoped
+        read, no second raw-id fetch).
+
         Unlike ``analyze_episode`` (which assumes a failed episode), this
         handles ANY outcome (success or failure): it pulls the
         ``AgentExecution`` row plus its ordered ``AgentReasoningStep`` rows
@@ -451,15 +481,37 @@ class MementoEngine(BaseLearningEngine):
             }
         """
         try:
-            from core.models import AgentExecution, AgentReasoningStep
+            from core.models import AgentExecution
 
             execution = (
                 self.db.query(AgentExecution)
                 .filter(AgentExecution.id == execution_id)
                 .first()
             )
-            if not execution:
-                return {"error": f"Execution {execution_id} not found"}
+        except ImportError:
+            logger.warning("Execution models not available")
+            return {
+                "execution_id": execution_id,
+                "error": "Execution models not available",
+            }
+
+        if not execution:
+            return {"error": f"Execution {execution_id} not found"}
+
+        return self._analyze_execution_row(execution)
+
+    def _analyze_execution_row(self, execution: Any) -> dict[str, Any]:
+        """Build the trace from an execution row the caller ALREADY authorized.
+
+        Single source of truth for the trace shape: ``analyze_execution``
+        resolves a row (unscoped helper contract) and delegates here;
+        ``learn_from_execution`` passes the row returned by
+        ``_load_authorized_execution`` so no second, unscoped lookup exists
+        on the distillation path.
+        """
+        execution_id = str(execution.id)
+        try:
+            from core.models import AgentReasoningStep
 
             steps = (
                 self.db.query(AgentReasoningStep)
@@ -467,51 +519,149 @@ class MementoEngine(BaseLearningEngine):
                 .order_by(AgentReasoningStep.step_number.asc())
                 .all()
             )
-
-            step_trace = [
-                {
-                    "step_number": s.step_number,
-                    "step_type": s.step_type,
-                    "thought": s.thought,
-                    "action": s.action,
-                    "observation": s.observation,
-                    "verified": s.verified,
-                }
-                for s in steps
-            ]
-
-            task_desc = execution.input_summary or ""
-            outcome = execution.status or ""
-            error_trace = execution.error_message or ""
-
-            return {
-                "execution_id": execution_id,
-                "agent_id": str(execution.agent_id) if execution.agent_id else None,
-                "tenant_id": str(execution.tenant_id) if execution.tenant_id else None,
-                "status": outcome,
-                "task_description": task_desc,
-                "result_summary": execution.result_summary,
-                "error_trace": error_trace,
-                "steps": step_trace,
-                "step_count": len(step_trace),
-                "tool_calls_attempted": [
-                    s["action"] for s in step_trace if s.get("action")
-                ],
-                "failure_summary": (
-                    f"{outcome}: {task_desc[:100]}. Errors: {error_trace[:200]}"
-                    if error_trace
-                    else f"{outcome}: {task_desc[:100]}"
-                ),
-                "suggested_skill_name": self._suggest_skill_name(
-                    task_desc, error_trace
-                ),
-            }
         except ImportError:
             logger.warning("Execution models not available")
             return {
                 "execution_id": execution_id,
                 "error": "Execution models not available",
             }
+
+        step_trace = [
+            {
+                "step_number": s.step_number,
+                "step_type": s.step_type,
+                "thought": s.thought,
+                "action": s.action,
+                "observation": s.observation,
+                "verified": s.verified,
+            }
+            for s in steps
+        ]
+
+        task_desc = execution.input_summary or ""
+        outcome = execution.status or ""
+        error_trace = execution.error_message or ""
+
+        return {
+            "execution_id": execution_id,
+            "agent_id": str(execution.agent_id) if execution.agent_id else None,
+            "tenant_id": str(execution.tenant_id) if execution.tenant_id else None,
+            "status": outcome,
+            "task_description": task_desc,
+            "result_summary": execution.result_summary,
+            "error_trace": error_trace,
+            "steps": step_trace,
+            "step_count": len(step_trace),
+            "tool_calls_attempted": [
+                s["action"] for s in step_trace if s.get("action")
+            ],
+            "failure_summary": (
+                f"{outcome}: {task_desc[:100]}. Errors: {error_trace[:200]}"
+                if error_trace
+                else f"{outcome}: {task_desc[:100]}"
+            ),
+            "suggested_skill_name": self._suggest_skill_name(
+                task_desc, error_trace
+            ),
+        }
+
+    def _load_authorized_execution(
+        self, tenant_id: Any, execution_id: str, *, actor: Any
+    ) -> tuple[Any | None, dict[str, Any] | None]:
+        """
+        Tenant+owner-scoped execution lookup. Fail closed.
+
+        - ``actor`` is REQUIRED: distillation is an authenticated operation,
+          so a missing/anonymous actor is denied before any lookup.
+        - The execution must exist AND carry the authenticated tenant's id;
+          rows with a NULL tenant_id can never match (deny).
+        - The execution must have an owning agent whose AgentRegistry row
+          exists in the same tenant.
+        - Actors below ADMIN may only distill executions of agents owned by
+          their own workspace — the same explicit tenant-admin policy as the
+          Auto-Dev review surface (``api/autodev_review_routes
+          ._candidate_agent``). For those actors BOTH workspace scopes must
+          be populated: two blank scopes are not evidence of ownership.
+
+        The lookup runs BEFORE any model, storage or sandbox operation, so a
+        denied execution never reaches the LLM, the filesystem or the
+        sandbox. "not found" outcomes deliberately do not distinguish a
+        missing row from a cross-tenant id (no existence leak across
+        tenants).
+
+        Returns ``(execution, None)`` on success, or ``(None, denial)`` where
+        denial is a structured, HTTP-mappable outcome:
+        ``{"allowed": False, "code": ..., "http_status": ..., "message": ...}``.
+        """
+        from core.models import AgentExecution, AgentRegistry, UserRole
+        from core.security.rbac import role_level
+
+        actor_id = str(getattr(actor, "id", "") or "").strip()
+        if not actor_id:
+            return None, _authz_denial(
+                AUTHZ_UNAUTHENTICATED,
+                "Authenticated actor context is required for skill "
+                "distillation",
+            )
+
+        tenant_key = str(tenant_id or "")
+        if not tenant_key:
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
+
+        execution = (
+            self.db.query(AgentExecution)
+            .filter(
+                AgentExecution.id == execution_id,
+                AgentExecution.tenant_id == tenant_key,
+            )
+            .first()
+        )
+        if execution is None:
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
+
+        if not execution.agent_id:
+            return None, _authz_denial(
+                AUTHZ_FORBIDDEN,
+                f"Execution {execution_id} has no owning agent; "
+                "distillation not permitted",
+            )
+        agent = (
+            self.db.query(AgentRegistry)
+            .filter(AgentRegistry.id == execution.agent_id)
+            .first()
+        )
+        if agent is None or str(agent.tenant_id) != tenant_key:
+            # Owning agent missing or cross-tenant: answer exactly like a
+            # missing row so the endpoint cannot probe other tenants' ids.
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
+
+        if role_level(getattr(actor, "role", None)) < role_level(UserRole.ADMIN):
+            actor_workspace = str(
+                getattr(actor, "workspace_id", "") or ""
+            ).strip()
+            owner_workspace = str(agent.workspace_id or "").strip()
+            # Two empty scopes compare equal but establish no ownership;
+            # require a populated scope on BOTH sides for non-admin actors.
+            if not actor_workspace or not owner_workspace:
+                return None, _authz_denial(
+                    AUTHZ_FORBIDDEN,
+                    f"Execution {execution_id} has an unpopulated workspace "
+                    "scope; distillation not permitted",
+                )
+            if actor_workspace != owner_workspace:
+                return None, _authz_denial(
+                    AUTHZ_FORBIDDEN,
+                    f"Execution {execution_id} belongs to another workspace; "
+                    "distillation not permitted",
+                )
+
+        return execution, None
 
     async def learn_from_execution(
         self,
@@ -520,38 +670,56 @@ class MementoEngine(BaseLearningEngine):
         execution_id: str,
         skill_name: str | None = None,
         description: str | None = None,
+        *,
+        actor: Any,
     ) -> dict[str, Any]:
         """
-        Distill a completed agent execution into a reusable Python skill.
+        Distill a completed agent execution into a REVIEWABLE skill candidate.
+
+        Authorization is fail closed at this service boundary:
+        ``actor`` is REQUIRED (no anonymous default) and
+        ``_load_authorized_execution`` scopes the execution to the
+        authenticated tenant and owner (workspace, for non-admin actors)
+        BEFORE any model, storage or sandbox operation.
 
         Pipeline:
-            1. analyze_execution(execution_id) — success/step trace
-            2. propose_code_change(trace) — LLM generates the skill script
-            3. validate_change(code) — execute in the sandbox
-            4. SkillBuilderService.create_skill_package — write disk package
-            5. SkillRegistryService.import_skill — register/discoverable
+            1. _load_authorized_execution — tenant+owner-scoped, fail closed
+            2. _analyze_execution_row(execution) — trace of the
+               ALREADY-AUTHORIZED row
+            3. propose_code_change(trace) — LLM generates the skill script
+            4. SkillCandidate(validation_status="pending") — stored for review
 
-        Returns a dict with ``success`` plus the package + registry results.
+        The generated code is NOT executed in the sandbox, NOT packaged and
+        NOT registered here — unapproved generated material must not become
+        runnable. It only becomes usable after a supervisor approves it via
+        the existing Auto-Dev approval mechanism
+        (``api/autodev_review_routes``: approve → ``apply_reviewed_skill``,
+        which registers a typed prompt skill and never writes, imports or
+        runs generated executable code).
+
+        Returns a dict with ``success`` plus the pending candidate reference.
         """
-        analysis = await self.analyze_execution(execution_id)
+        execution, denial = self._load_authorized_execution(
+            tenant_id, execution_id, actor=actor
+        )
+        if denial is not None:
+            return {
+                "success": False,
+                "error": denial["message"],
+                "authorization": denial,
+            }
+
+        analysis = self._analyze_execution_row(execution)
         if "error" in analysis:
             return {"success": False, "error": analysis["error"]}
 
         code = await self.propose_code_change(analysis)
-        if code.startswith("# Skill generation failed"):
+        if code.startswith(
+            ("# Skill generation failed", "# Skill generation skipped")
+        ):
             return {
                 "success": False,
                 "error": "Skill generation failed — LLM unavailable",
-            }
-
-        validation = await self.validate_change(
-            code=code, test_inputs=[{}], tenant_id=tenant_id
-        )
-        if not validation.get("passed"):
-            return {
-                "success": False,
-                "error": "Skill validation failed in sandbox",
-                "validation": validation,
             }
 
         name = (
@@ -569,57 +737,43 @@ class MementoEngine(BaseLearningEngine):
             or f"Skill distilled from execution {execution_id}"
         )
 
-        # 1. Write a disk package via SkillBuilderService
-        from core.skill_builder_service import SkillBuilderService, SkillMetadata
-
-        builder = SkillBuilderService()
-        package_result = builder.create_skill_package(
-            tenant_id=tenant_id,
-            metadata=SkillMetadata(
-                name=name,
-                description=desc,
-                version="1.0.0",
-                author="Memento-Learn",
-                capabilities=[],
-                instructions=f"Generated from execution {execution_id}.",
-            ),
-            scripts={f"{safe_name}.py": code},
+        # Store as a PENDING candidate — the existing Auto-Dev approval
+        # mechanism. No disk package, no registry import, no sandbox run.
+        candidate = SkillCandidate(
+            tenant_id=str(tenant_id),
+            agent_id=str(execution.agent_id) if execution.agent_id else None,
+            source_episode_id=None,
+            skill_name=name,
+            skill_description=desc,
+            generated_code=code,
+            failure_pattern={
+                "kind": "execution_distillation",
+                "execution_id": execution_id,
+                "status": analysis.get("status"),
+                "failure_summary": analysis.get("failure_summary"),
+                "step_count": analysis.get("step_count"),
+            },
+            validation_status="pending",
         )
-        if not package_result.get("success"):
-            return {
-                "success": False,
-                "error": package_result.get("message", "Package creation failed"),
-            }
+        self.db.add(candidate)
+        self.db.commit()
+        self.db.refresh(candidate)
 
-        # 2. Register in the skill registry so it is discoverable/executable
-        skill_md_content = (
-            f"---\n"
-            f"name: {name}\n"
-            f"description: {desc}\n"
-            f"version: 1.0.0\n"
-            f"author: Memento-Learn\n"
-            f"---\n\n"
-            f"# {name}\n\n"
-            f"{desc}\n\n"
-            f"## Instructions\n"
-            f"Generated from execution {execution_id}.\n\n"
-            f"```python\n{code}\n```\n"
+        logger.info(
+            f"Learn endpoint stored pending skill candidate '{safe_name}' "
+            f"from execution {execution_id} (tenant {tenant_id})"
         )
-        from core.skill_registry_service import SkillRegistryService
-
-        registry = SkillRegistryService(self.db)
-        import_result = await registry.import_skill(
-            source="raw_content",
-            content=skill_md_content,
-            metadata={"imported_by": "learn_endpoint"},
-        )
-
         return {
             "success": True,
+            "status": "pending_approval",
             "execution_id": execution_id,
+            "candidate_id": str(candidate.id),
             "skill_name": name,
-            "package": package_result,
-            "registry": import_result,
+            "message": (
+                "Skill candidate stored for supervisor review; it is not "
+                "registered or runnable until approved via the Auto-Dev "
+                "review surface"
+            ),
         }
 
     # --- Internal helpers ---

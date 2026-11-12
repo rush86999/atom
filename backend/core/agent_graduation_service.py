@@ -1669,6 +1669,16 @@ QUALIFICATION_ASSESSMENT_SCOPE = "held_out_capability"
 QUALIFICATION_REVIEW_ACTION = "agent_qualification_review"
 QUALIFICATION_REVIEW_SCHEMA = "atom-agent-qualification-review-1"
 QUALIFICATION_EVIDENCE_KINDS = {"agent_episode", "agent_execution", "artifact", "episode_segment"}
+# Binding schema for receipts written by this module. Receipts without it are
+# legacy qualification receipts: they keep the exact source-revision and
+# promotion semantics they had before benchmark/route binding existed.
+QUALIFICATION_BINDING_SCHEMA = "atom-qualification-binding-1"
+QUALIFICATION_BINDING_SOURCE_REVISION = "v2-binding"
+RUNTIME_BASELINE_SCHEMA = "atom-runtime-qualification-baseline-1"
+BENCHMARK_IDENTITY_KEYS = ("benchmark_identity", "benchmark")
+BENCHMARK_DATASET_KEYS = ("dataset_sha256", "dataset_hash", "dataset_sha")
+BENCHMARK_RUBRIC_KEYS = ("rubric_version", "rubric")
+BENCHMARK_SCOPE_KEYS = ("task_scope", "workload_scope", "workload")
 
 
 class QualificationReviewError(Exception):
@@ -1764,6 +1774,267 @@ def _canonical_evidence_material(kind: str, record: Any) -> Dict[str, Any]:
         "unsupported_evidence", f"Unsupported evidence kind: {kind}")
 
 
+def _binding_text(value: Any) -> Optional[str]:
+    """A durable nonblank string, or None. Never coerces/repairs a value."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _binding_scope(value: Any) -> Any:
+    """Canonical workload scope from server-owned evidence metadata.
+
+    A string scope is already a stable identifier. A mapping is reduced to the
+    canonical task-scope fields used by assessment evidence; unknown keys are
+    ignored rather than guessed into the identity.
+    """
+    if isinstance(value, dict):
+        scope: Dict[str, Any] = {}
+        policy = _binding_text(value.get("task_policy"))
+        if policy:
+            scope["task_policy"] = policy
+        subject = _binding_text(value.get("subject_field"))
+        if subject:
+            scope["subject_field"] = subject
+        options = value.get("decision_options")
+        if isinstance(options, (list, tuple)):
+            normalized = [
+                item for item in (
+                    _binding_text(option) for option in options)
+                if item
+            ]
+            if normalized:
+                scope["decision_options"] = normalized
+        elif _binding_text(options):
+            scope["decision_options"] = [_binding_text(options)]
+        return scope or None
+    return _binding_text(value)
+
+
+def _first_binding_text(mapping: dict, *keys: str) -> Optional[str]:
+    for key in keys:
+        text = _binding_text(mapping.get(key))
+        if text:
+            return text
+    return None
+
+
+def _benchmark_identity_from_metadata(metadata: Any) -> Optional[Dict[str, Any]]:
+    """Read an optional benchmark identity from durable evidence metadata.
+
+    Only server-written evidence metadata is consulted; a request/evidence-ref
+    claim is never an input. A partial identity stays partial (no missing
+    member is invented) and therefore can never establish comparability.
+    """
+    if not isinstance(metadata, dict):
+        return None
+    raw = None
+    for key in BENCHMARK_IDENTITY_KEYS:
+        candidate = metadata.get(key)
+        if isinstance(candidate, dict):
+            raw = candidate
+            break
+    if raw is None:
+        # Also accept the canonical fields directly on the evidence metadata;
+        # this is still server-owned durable record material, never request
+        # input.
+        if any(
+            key in metadata
+            for key in (
+                *BENCHMARK_DATASET_KEYS,
+                *BENCHMARK_RUBRIC_KEYS,
+                *BENCHMARK_SCOPE_KEYS,
+            )
+        ):
+            raw = metadata
+        else:
+            return None
+    dataset = _first_binding_text(raw, *BENCHMARK_DATASET_KEYS)
+    rubric = _first_binding_text(raw, *BENCHMARK_RUBRIC_KEYS)
+    workload_scope = None
+    for key in BENCHMARK_SCOPE_KEYS:
+        workload_scope = _binding_scope(raw.get(key))
+        if workload_scope is not None:
+            break
+    identity: Dict[str, Any] = {}
+    if dataset:
+        identity["dataset_sha256"] = dataset
+    if rubric:
+        identity["rubric_version"] = rubric
+    if workload_scope is not None:
+        identity["workload_scope"] = workload_scope
+    return identity or None
+
+
+def _serving_routes_from_metadata(metadata: Any) -> List[Dict[str, str]]:
+    """Actual served routes recorded on durable evidence.
+
+    Structured ``model_provenance`` is authoritative when present, including
+    an explicit unknown marker. Requested/attempted routes are never read.
+    Historical top-level ``provider``/``model`` or ``served_provider``/
+    ``served_model`` pairs remain usable. Only complete pairs are routes; a
+    partial pair is not completed from another source.
+    """
+    if not isinstance(metadata, dict):
+        return []
+    routes: List[Dict[str, str]] = []
+
+    def add(provider: Any, model: Any) -> None:
+        provider_text = _binding_text(provider)
+        model_text = _binding_text(model)
+        if not provider_text or not model_text:
+            return
+        route = {"provider": provider_text, "model": model_text}
+        if route not in routes:
+            routes.append(route)
+
+    def add_serving(value: Any) -> None:
+        if not isinstance(value, (list, tuple)):
+            return
+        for entry in value:
+            if not isinstance(entry, dict):
+                continue
+            add(entry.get("provider"), entry.get("model"))
+
+    nested = metadata.get("model_provenance")
+    if isinstance(nested, dict) and nested:
+        add(nested.get("provider"), nested.get("model"))
+        add_serving(nested.get("serving_models"))
+    else:
+        add(
+            _first_binding_text(metadata, "served_provider", "provider"),
+            _first_binding_text(metadata, "served_model", "model"),
+        )
+        add_serving(metadata.get("serving_models"))
+    return sorted(routes, key=lambda item: (
+        item.get("provider", ""), item.get("model", "")))
+
+
+def _binding_observations(
+    record: Any, parent_episode: Any = None,
+) -> List[Dict[str, Any]]:
+    observations: List[Dict[str, Any]] = []
+    for item in (record, parent_episode):
+        if item is None:
+            continue
+        metadata = getattr(item, "metadata_json", None)
+        benchmark = _benchmark_identity_from_metadata(metadata)
+        routes = _serving_routes_from_metadata(metadata)
+        if benchmark or routes:
+            observations.append({
+                "benchmark_identity": benchmark,
+                "serving_routes": routes,
+            })
+    return observations
+
+
+def _canonical_binding_json(value: Any) -> str:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _complete_benchmark_identity(identity: Any) -> bool:
+    return (
+        isinstance(identity, dict)
+        and bool(_binding_text(identity.get("dataset_sha256")))
+        and bool(_binding_text(identity.get("rubric_version")))
+        and identity.get("workload_scope") not in (None, "", {}, [])
+    )
+
+
+def qualification_binding_from_normalized(
+    normalized_refs: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build the durable binding from already-validated evidence refs.
+
+    Benchmark identity comes only from scoped evidence records. Multiple
+    disagreeing identities are a conflict, not a claim: no member is chosen,
+    the receipt cannot anchor a repeat-task baseline, and the routing routes
+    are empty. Serving routes are the de-duplicated actual served pairs, taken
+    ONLY from observations that carry a complete benchmark identity on the
+    same validated scored observation (a record, or a segment merged with its
+    verified parent episode). Routes observed on evidence rows without that
+    identity are not promoted into the binding; they stay in the normalized
+    evidence for audit only. Missing material stays missing.
+    """
+    identities: Dict[str, Dict[str, Any]] = {}
+    routes: List[Dict[str, str]] = []
+
+    def consider(observation: Dict[str, Any]) -> None:
+        identity = observation.get("benchmark_identity")
+        complete = _complete_benchmark_identity(identity)
+        if not complete:
+            return
+        identities[_canonical_binding_json(identity)] = identity
+        for route in observation.get("serving_routes") or []:
+            if not isinstance(route, dict):
+                continue
+            provider = _binding_text(route.get("provider"))
+            model = _binding_text(route.get("model"))
+            if not provider or not model:
+                continue
+            pair = {"provider": provider, "model": model}
+            if pair not in routes:
+                routes.append(pair)
+
+    for ref in normalized_refs or []:
+        observations = ref.get("binding_observations")
+        if isinstance(observations, list):
+            for observation in observations:
+                if isinstance(observation, dict):
+                    consider(observation)
+        else:
+            consider(ref)
+    routes.sort(key=lambda item: (
+        item.get("provider", ""), item.get("model", "")))
+    if len(identities) == 1:
+        benchmark = next(iter(identities.values()))
+        state = "bound" if routes else "unbound"
+    elif len(identities) > 1:
+        benchmark = None
+        # Conflicting identities: no member is chosen and no route observed
+        # next to one of them is promoted; audit stays on the normalized
+        # observations.
+        routes = []
+        state = "conflict"
+    else:
+        benchmark = None
+        state = "unbound"
+    comparable = state == "bound"
+    binding: Dict[str, Any] = {
+        "schema": QUALIFICATION_BINDING_SCHEMA,
+        "source_revision_schema": QUALIFICATION_BINDING_SOURCE_REVISION,
+        "benchmark_identity": benchmark,
+        "serving_routes": routes,
+        "binding_state": state,
+        "repeat_task_comparable": comparable,
+    }
+    binding["binding_revision"] = hashlib.sha256(
+        _canonical_binding_json(binding).encode("utf-8")
+    ).hexdigest()
+    return binding
+
+
+def receipt_uses_binding_schema(metadata: Any) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    if metadata.get("binding_schema") == QUALIFICATION_BINDING_SCHEMA:
+        return True
+    binding = metadata.get("binding")
+    return isinstance(binding, dict) and (
+        binding.get("schema") == QUALIFICATION_BINDING_SCHEMA)
+
+
+def binding_material_matches(stored: Any, expected: Any) -> bool:
+    return (
+        isinstance(stored, dict)
+        and isinstance(expected, dict)
+        and _canonical_binding_json(stored)
+        == _canonical_binding_json(expected)
+    )
+
+
 def _load_evidence_record(
     db: Session, kind: str, evidence_id: str, agent: AgentRegistry,
 ) -> Any:
@@ -1820,11 +2091,18 @@ def validate_qualification_evidence(
     tenant_id: str,
     workspace_id: str,
     rubric_version: str,
+    include_binding: bool = False,
 ) -> tuple:
     """Return (ok, normalized_refs, source_revision, error).
 
     Evidence is server-validated durable scoped work, not a client score or
     metadata flag. The digest is recomputed from the current record.
+
+    ``include_binding`` selects the v2 source revision used by new receipts:
+    the optional server-owned benchmark identity and actual serving routes
+    are part of each normalized ref, so any later evidence change invalidates
+    the receipt. Legacy callers use the original v1 material exactly; their
+    receipts keep the promotion semantics they had before binding existed.
     """
     if not isinstance(evidence_refs, list) or not evidence_refs:
         return False, [], None, {
@@ -1958,7 +2236,7 @@ def validate_qualification_evidence(
             output_preview = str(record.content or "")
             has_task = has_task or bool(task_preview.strip())
             has_output = has_output or bool(output_preview.strip())
-        normalized.append({
+        normalized_ref = {
             "kind": kind,
             "id": evidence_id,
             "sha256": digest,
@@ -1966,7 +2244,29 @@ def validate_qualification_evidence(
             "snapshot": snapshot,
             "task_preview": task_preview[:500],
             "output_preview": output_preview[:500],
-        })
+        }
+        if include_binding:
+            observations = _binding_observations(
+                record,
+                parent_episode if kind == "episode_segment" else None,
+            )
+            identities: Dict[str, Dict[str, Any]] = {}
+            routes: List[Dict[str, str]] = []
+            for observation in observations:
+                identity = observation.get("benchmark_identity")
+                if _complete_benchmark_identity(identity):
+                    identities[_canonical_binding_json(identity)] = identity
+                for route in observation.get("serving_routes") or []:
+                    if route not in routes:
+                        routes.append(route)
+            routes.sort(key=lambda item: (
+                item.get("provider", ""), item.get("model", "")))
+            normalized_ref["binding_observations"] = observations
+            normalized_ref["benchmark_identity"] = (
+                next(iter(identities.values()))
+                if len(identities) == 1 else None)
+            normalized_ref["serving_routes"] = routes
+        normalized.append(normalized_ref)
     if not has_task or not has_output:
         return False, [], None, {
             "state": "unresolved_missing",
@@ -2036,7 +2336,35 @@ def find_qualification_receipt(
     *,
     receipt_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Resolve the exact protected pointer; never borrow another latest row."""
+    """Resolve the exact protected pointer; never borrow another latest row.
+
+    This is the pre-transition authorization read: the receipt must have been
+    written while the agent still held its source tier. Post-promotion runtime
+    baseline resolution is a separate question and must not relax this gate.
+    """
+    return _find_qualification_receipt_for_source(
+        db, agent, target_level, policy_bundle,
+        receipt_id=receipt_id,
+        expected_source_level=str(agent.status or ""),
+    )
+
+
+def _find_qualification_receipt_for_source(
+    db: Session,
+    agent: AgentRegistry,
+    target_level: str,
+    policy_bundle: Dict[str, Any],
+    *,
+    receipt_id: Optional[str] = None,
+    expected_source_level: str,
+) -> Dict[str, Any]:
+    """Scoped receipt validation against an explicit durable source tier.
+
+    Every check except the source-tier comparison is the same validation the
+    promotion gate has always performed. Callers that authorize a transition
+    must pass the agent's current tier; only the committed post-promotion
+    baseline resolver passes the recorded ``from_level`` from PromotionHistory.
+    """
     policy = policy_bundle["policy"]
     pointer = str(receipt_id or getattr(agent, "last_exam_id", None) or "")
     if not pointer:
@@ -2074,7 +2402,8 @@ def find_qualification_receipt(
         return {"ok": False, "state": "unresolved_scope",
                 "message": "The receipt target tier binding is missing or different."}
     if not _nonempty_str(receipt.current_level) or str(
-            receipt.current_level).lower() != str(agent.status or "").lower():
+            receipt.current_level).lower() != str(
+                expected_source_level or "").lower():
         return {"ok": False, "state": "unresolved_stale",
                 "message": "The receipt source tier binding is missing or changed."}
     if not _nonempty_str(metadata.get("policy_revision")) or (
@@ -2100,16 +2429,43 @@ def find_qualification_receipt(
     if not isinstance(evidence_refs, list) or not evidence_refs:
         return {"ok": False, "state": "unresolved_missing",
                 "message": "The receipt evidence binding is missing."}
+    uses_binding = receipt_uses_binding_schema(metadata)
     ok, normalized, source_revision, error = validate_qualification_evidence(
         db, agent, evidence_refs,
         tenant_id=tenant_id, workspace_id=workspace_id,
         rubric_version=str(metadata.get("rubric_version") or ""),
+        include_binding=uses_binding,
     )
     if not ok:
         return {"ok": False, **(error or {})}
     if source_revision != metadata.get("source_revision"):
         return {"ok": False, "state": "unresolved_stale",
                 "message": "The held-out evidence source changed after the receipt."}
+    expected_binding = None
+    repeat_task_comparable = False
+    if uses_binding:
+        if metadata.get("binding_schema") != QUALIFICATION_BINDING_SCHEMA:
+            return {"ok": False, "state": "unresolved_stale",
+                    "message": "The receipt binding schema is missing or unknown."}
+        expected_binding = qualification_binding_from_normalized(normalized)
+        stored_binding = metadata.get("binding")
+        if not binding_material_matches(stored_binding, expected_binding):
+            return {"ok": False, "state": "unresolved_stale",
+                    "message": "The benchmark/serving-route binding changed after the receipt."}
+        if (
+            metadata.get("benchmark_identity")
+            != expected_binding.get("benchmark_identity")
+            or metadata.get("serving_routes")
+            != expected_binding.get("serving_routes")
+            or metadata.get("repeat_task_comparable")
+            is not expected_binding.get("repeat_task_comparable")
+            or metadata.get("binding_state")
+            != expected_binding.get("binding_state")
+        ):
+            return {"ok": False, "state": "unresolved_stale",
+                    "message": "The durable binding projection changed after the receipt."}
+        repeat_task_comparable = bool(
+            expected_binding.get("repeat_task_comparable"))
     reviewed_by = metadata.get("reviewed_by")
     if not _nonempty_str(reviewed_by):
         return {"ok": False, "state": "unresolved_scope",
@@ -2145,6 +2501,14 @@ def find_qualification_receipt(
         if review_params.get(key) != metadata.get(key):
             return {"ok": False, "state": "unresolved_stale",
                     "message": f"The human review {key} binding changed."}
+    if uses_binding:
+        for key in (
+            "binding_schema", "binding", "benchmark_identity",
+            "serving_routes", "repeat_task_comparable", "binding_state",
+        ):
+            if review_params.get(key) != metadata.get(key):
+                return {"ok": False, "state": "unresolved_stale",
+                        "message": f"The human review {key} binding changed."}
     if str(review.reviewed_by or "") != str(reviewed_by):
         return {"ok": False, "state": "unresolved_scope",
                 "message": "The human review reviewer binding changed."}
@@ -2189,6 +2553,13 @@ def find_qualification_receipt(
         "reviewed_by": reviewed_by,
         "review_action_id": str(review_action_id),
         "source_revision": source_revision,
+        "binding_schema": (
+            QUALIFICATION_BINDING_SCHEMA if uses_binding else None),
+        "binding": expected_binding,
+        "repeat_task_comparable": repeat_task_comparable,
+        "binding_state": (
+            expected_binding.get("binding_state")
+            if expected_binding is not None else "legacy_unbound"),
         "receipt_fingerprint": receipt_fingerprint,
         "review_fingerprint": review_fingerprint,
     }
@@ -2221,6 +2592,7 @@ def _pending_review_is_current(
         return False
     params = dict(row.params or {})
     policy = policy_bundle["policy"]
+    uses_binding = receipt_uses_binding_schema(params)
     expected = {
         "schema": QUALIFICATION_REVIEW_SCHEMA,
         "agent_id": str(agent.id),
@@ -2234,14 +2606,27 @@ def _pending_review_is_current(
         "rubric_criteria": [
             item.model_dump() for item in policy.rubric_criteria],
     }
+    if uses_binding:
+        for key in (
+            "binding_schema", "binding", "benchmark_identity",
+            "serving_routes", "repeat_task_comparable", "binding_state",
+        ):
+            expected[key] = params.get(key)
     if any(params.get(key) != value for key, value in expected.items()):
         return False
-    ok, _normalized, source_revision, _error = validate_qualification_evidence(
+    ok, normalized, source_revision, _error = validate_qualification_evidence(
         db, agent, params.get("evidence_refs"),
         tenant_id=tenant_id, workspace_id=workspace_id,
         rubric_version=policy.rubric_version,
+        include_binding=uses_binding,
     )
-    return bool(ok and params.get("source_revision") == source_revision)
+    if not (ok and params.get("source_revision") == source_revision):
+        return False
+    if uses_binding:
+        expected_binding = qualification_binding_from_normalized(normalized)
+        return binding_material_matches(
+            params.get("binding"), expected_binding)
+    return True
 
 
 def evaluate_qualification_gate(
@@ -2271,6 +2656,7 @@ def evaluate_qualification_gate(
         "policy_source": policy_bundle.get("source"),
         "policy_row_updated_at": policy_bundle.get("row_updated_at"),
         "candidate_capability_qualified": False,
+        "repeat_task_comparable": False,
     }
     if not required:
         return {
@@ -2312,6 +2698,11 @@ def evaluate_qualification_gate(
             "reviewed_by": receipt["reviewed_by"],
             "review_action_id": receipt.get("review_action_id"),
             "source_revision": receipt["source_revision"],
+            "binding_schema": receipt.get("binding_schema"),
+            "binding": receipt.get("binding"),
+            "binding_state": receipt.get("binding_state"),
+            "repeat_task_comparable": bool(
+                receipt.get("repeat_task_comparable") is True),
             "receipt_fingerprint": receipt.get("receipt_fingerprint"),
             "review_fingerprint": receipt.get("review_fingerprint"),
             "candidate_capability_qualified": True,
@@ -2349,6 +2740,175 @@ def evaluate_qualification_gate(
     }
 
 
+def _runtime_baseline_unresolved(
+    state: str, message: str, **details: Any,
+) -> Dict[str, Any]:
+    return {
+        "ok": False,
+        "state": str(state or "unresolved_missing"),
+        "message": str(message),
+        "candidate_capability_qualified": False,
+        "repeat_task_comparable": False,
+        "binding": None,
+        "binding_state": None,
+        "serving_routes": [],
+        "benchmark_identity": None,
+        "next_action": (
+            "Use the normal supervised path; do not inherit a qualification "
+            "baseline."),
+        **details,
+    }
+
+
+def resolve_runtime_qualification_baseline(
+    db: Session,
+    agent: AgentRegistry,
+) -> Dict[str, Any]:
+    """Resolve the repeat-task baseline established by the current promotion.
+
+    ``find_qualification_receipt`` is deliberately the pre-transition
+    authorization read: it requires ``receipt.current_level`` to equal the
+    agent's current tier. Once STUDENT -> INTERN has committed, that same
+    receipt is no longer a valid authorization for another promotion, but it
+    remains the verified durable baseline for repeat work on the tier it
+    established.
+
+    This resolver therefore starts from the newest scoped committed
+    PromotionHistory transition into the agent's current tier, then requires
+    that single decision to bind the protected receipt pointer and to be an
+    adjacent-tier transition, then runs the existing scoped receipt validator
+    with the recorded ``from_level`` as the expected source tier. A newer
+    nonmatching promotion or owner exception supersedes older matching rows,
+    so an older receipt cannot survive it. The promotion gate itself is
+    unchanged and never calls this resolver. Any missing, moved, non-adjacent
+    or stale material is unresolved, and no caller-supplied scope, evidence or
+    benchmark claim is consulted.
+    """
+    agent_id = str(getattr(agent, "id", "") or "").strip()
+    current_level = str(getattr(agent, "status", "") or "").strip().lower()
+    if not agent_id or current_level not in (
+            "student", "intern", "supervised", "autonomous"):
+        return _runtime_baseline_unresolved(
+            "unresolved_scope",
+            "The agent identity or current tier is missing or unknown.")
+
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    pointer = str(getattr(agent, "last_exam_id", None) or "").strip()
+    if not pointer:
+        return _runtime_baseline_unresolved(
+            "unresolved_missing",
+            "No protected qualification receipt pointer is recorded.")
+
+    promotion_rows = (
+        db.query(PromotionHistory)
+        .filter(PromotionHistory.agent_id == agent_id)
+        .order_by(
+            PromotionHistory.promoted_at.desc(),
+            PromotionHistory.id.desc(),
+        )
+        .populate_existing()
+        .all()
+    )
+
+    # The query is newest-first. The newest scoped committed transition INTO
+    # the current tier is the tier-establishing decision, and it is resolved
+    # before any receipt or shape check: a newer nonmatching promotion or
+    # owner exception supersedes older matching rows. An older matching
+    # receipt therefore cannot survive a newer decision about this tier.
+    history = None
+    scope_mismatch = False
+    for row in promotion_rows:
+        if str(row.to_level or "").strip().lower() != current_level:
+            continue
+        if not _durable_scope_matches(
+                getattr(row, "tenant_id", None), tenant_id):
+            scope_mismatch = True
+            continue
+        history = row
+        break
+
+    if history is None:
+        if scope_mismatch:
+            return _runtime_baseline_unresolved(
+                "unresolved_scope",
+                "The committed promotion for the current tier is outside "
+                "the agent's current tenant scope.")
+        return _runtime_baseline_unresolved(
+            "unresolved_missing",
+            "No committed promotion history establishes the current tier.")
+
+    if not (
+            _nonempty_str(getattr(history, "exam_id", None))
+            and str(history.exam_id) == pointer):
+        return _runtime_baseline_unresolved(
+            "unresolved_stale",
+            "The newest committed transition into the current tier does "
+            "not bind the protected receipt pointer.")
+
+    if _next_tier(
+            str(getattr(history, "from_level", "") or "")) != current_level:
+        return _runtime_baseline_unresolved(
+            "unresolved_stale",
+            "The newest committed transition into the current tier is not "
+            "an adjacent-tier transition.")
+
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        return _runtime_baseline_unresolved(
+            error.get("state") or "configuration_required",
+            error.get("message") or "The assessment policy is unavailable.",
+            **{"assessment": error},
+        )
+
+    receipt = _find_qualification_receipt_for_source(
+        db, agent, current_level, policy_bundle,
+        receipt_id=pointer,
+        expected_source_level=str(history.from_level or ""),
+    )
+    if not receipt.get("ok"):
+        return _runtime_baseline_unresolved(
+            receipt.get("state") or "unresolved_missing",
+            receipt.get("message") or (
+                "The committed qualification receipt is no longer valid."),
+        )
+
+    binding = receipt.get("binding")
+    binding_material = binding if isinstance(binding, dict) else {}
+    return {
+        "ok": True,
+        "state": "valid",
+        "schema": RUNTIME_BASELINE_SCHEMA,
+        "agent_id": agent_id,
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "promotion_id": str(history.id),
+        "promotion_type": str(history.promotion_type or ""),
+        "promoted_by": str(history.promoted_by or ""),
+        "promoted_at": (
+            None if history.promoted_at is None
+            else str(history.promoted_at)),
+        "source_level": str(history.from_level or "").strip().lower(),
+        "target_level": current_level,
+        "receipt_id": receipt["receipt_id"],
+        "reviewed_by": receipt["reviewed_by"],
+        "review_action_id": receipt.get("review_action_id"),
+        "source_revision": receipt["source_revision"],
+        "binding_schema": receipt.get("binding_schema"),
+        "binding": binding,
+        "binding_state": receipt.get("binding_state"),
+        "benchmark_identity": binding_material.get("benchmark_identity"),
+        "serving_routes": list(
+            binding_material.get("serving_routes") or []),
+        "repeat_task_comparable": bool(
+            receipt.get("repeat_task_comparable") is True),
+        "candidate_capability_qualified": True,
+        "receipt_fingerprint": receipt.get("receipt_fingerprint"),
+        "review_fingerprint": receipt.get("review_fingerprint"),
+        "next_action": None,
+    }
+
+
 def list_qualification_evidence_bundles(
     db: Session,
     agent: AgentRegistry,
@@ -2365,6 +2925,10 @@ def list_qualification_evidence_bundles(
     """
     from core.models import EpisodeSegment
     from core.promotion_policy_service import get_assessment_policy
+    from core.llm.model_provenance import (
+        provenance_from_metadata,
+        unknown_provenance,
+    )
 
     policy_bundle = get_assessment_policy(db)
     policy = policy_bundle["policy"]
@@ -2381,6 +2945,7 @@ def list_qualification_evidence_bundles(
     for episode in episodes:
         task = str(episode.task_description or "").strip()
         output = ""
+        execution = None
         refs = [{"kind": "agent_episode", "id": str(episode.id)}]
         if episode.execution_id:
             execution = (
@@ -2428,21 +2993,47 @@ def list_qualification_evidence_bundles(
                     break
         if not task or not output:
             continue
+        # Surface the actual provider/model that produced the evidence.
+        # Provenance is copied from validated server-owned execution
+        # evidence first; historical episodes recorded none and stay
+        # explicitly unknown instead of inheriting a current/default route.
+        provenance = {}
+        if execution is not None:
+            provenance = provenance_from_metadata(execution.metadata_json)
+        if not provenance:
+            provenance = provenance_from_metadata(episode.metadata_json)
         ok, normalized, source_revision, _error = validate_qualification_evidence(
             db, agent, refs,
             tenant_id=tenant_id, workspace_id=workspace_id,
             rubric_version=policy.rubric_version,
+            include_binding=True,
         )
         if not ok:
             continue
-        items.append({
+        binding = qualification_binding_from_normalized(normalized)
+        item = {
             "bundle_id": f"bundle:{episode.id}",
             "episode_id": str(episode.id),
             "task_preview": task[:500],
             "output_preview": output[:500],
             "evidence_refs": refs,
             "source_revision": source_revision,
-        })
+            "binding": binding,
+            "benchmark_identity": binding.get("benchmark_identity"),
+            "serving_routes": binding.get("serving_routes") or [],
+            "repeat_task_comparable": bool(
+                binding.get("repeat_task_comparable")),
+        }
+        if provenance:
+            item["model_provenance"] = dict(provenance)
+            for _prov_key in ("provider", "model"):
+                if provenance.get(_prov_key):
+                    item[_prov_key] = provenance[_prov_key]
+        else:
+            # Explicit unknown coverage: attribution was evaluated and is
+            # unavailable for this evidence — never silently inherited.
+            item["model_provenance"] = unknown_provenance()
+        items.append(item)
         if len(items) >= limit:
             break
     return {
@@ -2485,12 +3076,14 @@ def request_qualification_review(
         db, agent, evidence_refs,
         tenant_id=tenant_id, workspace_id=workspace_id,
         rubric_version=rubric,
+        include_binding=True,
     )
     if not ok:
         raise QualificationReviewError(
             str((evidence_error or {}).get("state") or "unresolved_scope"),
             str((evidence_error or {}).get("message") or "Invalid evidence."),
         )
+    binding = qualification_binding_from_normalized(normalized)
     rubric_criteria = [item.model_dump() for item in policy.rubric_criteria]
     expected_pending = {
         "schema": QUALIFICATION_REVIEW_SCHEMA,
@@ -2504,6 +3097,13 @@ def request_qualification_review(
         "rubric_version": rubric,
         "rubric_criteria": rubric_criteria,
         "source_revision": source_revision,
+        "binding_schema": QUALIFICATION_BINDING_SCHEMA,
+        "binding": binding,
+        "benchmark_identity": binding.get("benchmark_identity"),
+        "serving_routes": binding.get("serving_routes") or [],
+        "repeat_task_comparable": bool(
+            binding.get("repeat_task_comparable")),
+        "binding_state": binding.get("binding_state"),
         "evidence_refs": normalized,
         "requested_by": str(requested_by or ""),
     }
@@ -2537,6 +3137,9 @@ def request_qualification_review(
                 "state": "pending_review",
                 "target_level": target,
                 "source_revision": source_revision,
+                "binding": binding,
+                "repeat_task_comparable": bool(
+                    binding.get("repeat_task_comparable")),
                 "idempotent": True,
             }
     params = {
@@ -2552,6 +3155,13 @@ def request_qualification_review(
         "rubric_version": rubric,
         "rubric_criteria": rubric_criteria,
         "source_revision": source_revision,
+        "binding_schema": QUALIFICATION_BINDING_SCHEMA,
+        "binding": binding,
+        "benchmark_identity": binding.get("benchmark_identity"),
+        "serving_routes": binding.get("serving_routes") or [],
+        "repeat_task_comparable": bool(
+            binding.get("repeat_task_comparable")),
+        "binding_state": binding.get("binding_state"),
         "evidence_refs": normalized,
         "evidence": [
             {
@@ -2603,6 +3213,9 @@ def request_qualification_review(
         "state": "pending_review",
         "target_level": target,
         "source_revision": source_revision,
+        "binding": binding,
+        "repeat_task_comparable": bool(
+            binding.get("repeat_task_comparable")),
         "idempotent": False,
     }
 
@@ -2650,6 +3263,7 @@ def write_qualification_receipt_from_review(
     if str(action.action_type or "") != QUALIFICATION_REVIEW_ACTION:
         return {"handled": False, "reason": "not_a_qualification_review"}
     params = dict(action.params or {})
+    uses_binding = receipt_uses_binding_schema(params)
     agent = (
         db.query(AgentRegistry)
         .filter(AgentRegistry.id == str(params.get("agent_id") or ""))
@@ -2705,6 +3319,14 @@ def write_qualification_receipt_from_review(
                 "rubric_version": params.get("rubric_version"),
                 "source_revision": params.get("source_revision"),
                 "evidence_refs": params.get("evidence_refs") or [],
+                **({
+                    "binding_schema": QUALIFICATION_BINDING_SCHEMA,
+                    "binding": params.get("binding"),
+                    "benchmark_identity": params.get("benchmark_identity"),
+                    "serving_routes": params.get("serving_routes") or [],
+                    "repeat_task_comparable": False,
+                    "binding_state": params.get("binding_state") or "unbound",
+                } if uses_binding else {}),
             },
             created_at=datetime.now(),
         )
@@ -2747,6 +3369,7 @@ def write_qualification_receipt_from_review(
         db, agent, params.get("evidence_refs"),
         tenant_id=tenant_id, workspace_id=workspace_id,
         rubric_version=str(params.get("rubric_version") or ""),
+        include_binding=uses_binding,
     )
     if not ok:
         return {"handled": True, "resumed": False,
@@ -2755,6 +3378,23 @@ def write_qualification_receipt_from_review(
     if source_revision != params.get("source_revision"):
         return {"handled": True, "resumed": False,
                 "state": "unresolved_stale", "error": "source_changed"}
+    binding = None
+    if uses_binding:
+        binding = qualification_binding_from_normalized(normalized)
+        if (
+            not binding_material_matches(params.get("binding"), binding)
+            or params.get("binding_schema") != QUALIFICATION_BINDING_SCHEMA
+            or params.get("benchmark_identity")
+            != binding.get("benchmark_identity")
+            or params.get("serving_routes")
+            != binding.get("serving_routes")
+            or params.get("repeat_task_comparable")
+            is not binding.get("repeat_task_comparable")
+            or params.get("binding_state") != binding.get("binding_state")
+        ):
+            return {"handled": True, "resumed": False,
+                    "state": "unresolved_stale",
+                    "error": "binding_changed"}
 
     receipt = GraduationExam(
         id=receipt_id,
@@ -2809,6 +3449,15 @@ def write_qualification_receipt_from_review(
             "agent_name": str(agent.name or ""),
             "target_level": str(params.get("target_level") or ""),
             "current_level": str(params.get("current_level") or ""),
+            **({
+                "binding_schema": QUALIFICATION_BINDING_SCHEMA,
+                "binding": binding,
+                "benchmark_identity": binding.get("benchmark_identity"),
+                "serving_routes": binding.get("serving_routes") or [],
+                "repeat_task_comparable": bool(
+                    binding.get("repeat_task_comparable")),
+                "binding_state": binding.get("binding_state"),
+            } if uses_binding else {}),
         },
         created_at=datetime.now(),
     )
@@ -3346,10 +3995,12 @@ def validate_qualification_review_binding(
             params.get("target_level") or "").lower():
         return {"valid": False, "reason": "qualification_target_changed",
                 "message": "The target tier is no longer the next tier."}
+    uses_binding = receipt_uses_binding_schema(params)
     ok, normalized, source_revision, evidence_error = validate_qualification_evidence(
         db, agent, params.get("evidence_refs"),
         tenant_id=tenant_id, workspace_id=workspace_id,
         rubric_version=str(params.get("rubric_version") or ""),
+        include_binding=uses_binding,
     )
     if not ok:
         return {"valid": False,
@@ -3358,4 +4009,21 @@ def validate_qualification_review_binding(
     if source_revision != params.get("source_revision"):
         return {"valid": False, "reason": "qualification_source_changed",
                 "message": "The held-out evidence source changed after this review was requested."}
-    return {"valid": True}
+    binding = None
+    if uses_binding:
+        binding = qualification_binding_from_normalized(normalized)
+        if (
+            not binding_material_matches(params.get("binding"), binding)
+            or params.get("binding_schema") != QUALIFICATION_BINDING_SCHEMA
+            or params.get("benchmark_identity")
+            != binding.get("benchmark_identity")
+            or params.get("serving_routes")
+            != binding.get("serving_routes")
+            or params.get("repeat_task_comparable")
+            is not binding.get("repeat_task_comparable")
+            or params.get("binding_state") != binding.get("binding_state")
+        ):
+            return {"valid": False,
+                    "reason": "qualification_binding_changed",
+                    "message": "The benchmark/serving-route binding changed after this review was requested."}
+    return {"valid": True, "binding": binding}

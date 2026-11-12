@@ -2093,6 +2093,13 @@ async def send_chat_message(
             "agent_id": getattr(request, "agent_id", None)
             or ((request.context or {}).get("agent_id")),
         }
+        # FLEET/GOVERNANCE AUTHORITY (review hold, 2026-11-11): the fleet scope
+        # comes from the AUTHENTICATED principal, never from
+        # ``request.context`` (a caller-supplied workspace_id there used to
+        # steer meta-agent routing). The turn publishes that scope through
+        # ``core.request_scope`` from ``active_user_id`` (the signed-in User
+        # row) and the fleet handler consumes it there; no authority value is
+        # carried in the context dict, so there is nothing here to spoof.
         # WORKSPACE ON THE TURN CONTEXT (2026-10-01, cross-conversation
         # workbook memory): chat turns never carried a workspace_id, so
         # workspace-scoped seams (dialogue_state.workbook_bindings — a

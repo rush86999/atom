@@ -46,7 +46,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +58,24 @@ _DEFAULT_STATE_PATH = Path("./data/model_resolution_state.json")
 _resolved_model_cv: ContextVar[Optional[str]] = ContextVar(
     "atom_resolved_model", default=None
 )
+#: Echo of the CURRENT provider response, consumed exactly once by the next
+#: accepted route (:func:`set_served_route`). Kept separate from the resolved
+#: model so consuming it for identity never erases route telemetry.
+_echoed_response_model_cv: ContextVar[Optional[str]] = ContextVar(
+    "atom_echoed_response_model", default=None
+)
 
 
 def set_resolved_model(model_id: Optional[str]) -> None:
-    """Record the provider-echoed model ID for the current call context."""
+    """Record the provider-echoed model ID for the current call context.
+
+    This is actual response metadata, so it is also the pending transport
+    identity source: the next accepted route may claim it exactly once.
+    """
     _resolved_model_cv.set(model_id)
+    _echoed_response_model_cv.set(
+        model_id.strip() if isinstance(model_id, str) and model_id.strip()
+        else None)
 
 
 def get_resolved_model() -> Optional[str]:
@@ -72,6 +85,7 @@ def get_resolved_model() -> Optional[str]:
 
 def clear_resolved_model() -> None:
     _resolved_model_cv.set(None)
+    _echoed_response_model_cv.set(None)
 
 
 def _enabled() -> bool:
@@ -288,6 +302,81 @@ _routing_error_cv: _ContextVar[_Any] = _ContextVar(
 #: annotate each other's rows.
 _feedback_id_cv: _ContextVar[_Any] = _ContextVar(
     "atom_feedback_id", default=None)
+#: Optional campaign-owned sink for accepted provider calls. This is an
+#: transport hook, not authority: the sink only receives the provider echo the
+#: handler already accepted, and the benchmark producer independently validates
+#: the sealed journal against the durable execution.
+_campaign_transport_sink_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_campaign_transport_sink", default=None)
+#: Provider echo of the accepted call in this context. ``None`` when the
+#: accepted response carried no usable echo: accepted but not attributable.
+#: Campaign intake must reject that call, never backfill it from the served
+#: route.
+_accepted_response_identity_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_accepted_response_identity", default=None)
+
+
+def set_campaign_transport_sink(sink: Optional[Any]) -> None:
+    """Install (or clear) an in-process accepted-call sink for a campaign."""
+    _campaign_transport_sink_cv.set(sink)
+
+
+def get_campaign_transport_sink() -> Optional[Any]:
+    return _campaign_transport_sink_cv.get()
+
+
+def clear_campaign_transport_sink() -> None:
+    _campaign_transport_sink_cv.set(None)
+
+
+def set_echoed_response_model(model_id: Optional[str]) -> None:
+    """Record the model ID echoed in the provider's own response metadata.
+
+    This is the only source a ``response_identity`` may be derived from.
+    Called by the BYOK handler immediately after a provider response is
+    received (success or failure), so the pending echo always describes the
+    most recent response and never a previous attempt.
+    """
+    text = str(model_id).strip() if isinstance(model_id, str) else ""
+    _echoed_response_model_cv.set(text or None)
+
+
+def get_echoed_response_model() -> Optional[str]:
+    return _echoed_response_model_cv.get()
+
+
+def clear_echoed_response_model() -> None:
+    _echoed_response_model_cv.set(None)
+
+
+def accepted_transport_call() -> Optional[Dict[str, _Any]]:
+    """The accepted provider call for this context.
+
+    Only a ``served`` route (set by the handler after accepting a response)
+    qualifies; a request that was merely attempted stays audit-only.
+    ``response_identity`` is the provider's own echoed model paired with the
+    accepted provider, never the served route. An accepted response without a
+    usable echo is still reported with ``response_identity=None`` so intake can
+    reject the call instead of manufacturing an identity.
+    """
+    served = _served_route_cv.get()
+    if not served or not (str(served[0] or "").strip()
+                          and str(served[1] or "").strip()):
+        return None
+    requested = _requested_route_cv.get()
+    identity = _accepted_response_identity_cv.get()
+    return {
+        "recorded_by": "atom-llm-transport",
+        "accepted": True,
+        "response_identity": (
+            dict(identity) if isinstance(identity, Mapping) else None),
+        "served_route": {
+            "provider": str(served[0]), "model": str(served[1])},
+        "requested_route": (
+            {"provider": str(requested[0]), "model": str(requested[1])}
+            if requested else None),
+        "resolved_model": get_resolved_model(),
+    }
 
 
 def set_feedback_id(feedback_id: Optional[str]) -> None:
@@ -303,16 +392,46 @@ def clear_feedback_id() -> None:
 
 
 def set_requested_route(provider_id: Optional[str], model: Optional[str]) -> None:
+    # A new candidate attempt invalidates any echo captured for the previous
+    # response: only the route that is finally accepted may supply identity.
+    _echoed_response_model_cv.set(None)
     if provider_id or model:
         _requested_route_cv.set((str(provider_id or ""), str(model or "")))
 
 
 def set_served_route(provider_id: Optional[str], model: Optional[str]) -> None:
     if provider_id or model:
-        _served_route_cv.set((str(provider_id or ""), str(model or "")))
+        provider = str(provider_id or "")
+        served_model = str(model or "")
+        _served_route_cv.set((provider, served_model))
         # An accepted response supersedes any earlier candidate-exclusion
         # warning from the same boundary.
         _routing_error_cv.set(None)
+        # Bind identity to THIS accepted response. The model must come from the
+        # provider's own echo; the served route alone is never an identity.
+        # The pending echo is consumed so a retry cannot inherit it.
+        echoed_model = _identity(_echoed_response_model_cv.get())
+        _echoed_response_model_cv.set(None)
+        provider_identity = _identity(provider)
+        identity = (
+            {"provider": provider_identity, "model": echoed_model}
+            if provider_identity and echoed_model else None)
+        _accepted_response_identity_cv.set(identity)
+        # A campaign that opted into benchmark evidence may own an in-process
+        # journal. Record the accepted provider echo at the transport boundary
+        # itself, not from a caller's later claim. A missing echo is recorded
+        # as missing, never replaced by the served route.
+        sink = _campaign_transport_sink_cv.get()
+        if sink is not None:
+            try:
+                sink(
+                    provider,
+                    served_model,
+                    _requested_route_cv.get(),
+                    dict(identity) if identity else None,
+                )
+            except Exception as exc:  # noqa: BLE001 — observation is passive
+                logger.debug("campaign transport journal record skipped: %s", exc)
 
 
 def set_route_mode(mode: Optional[str]) -> None:
@@ -343,9 +462,11 @@ def clear_route_attribution() -> None:
     _route_mode_cv.set(None)
     _routing_profile_cv.set(None)
     _routing_error_cv.set(None)
+    _accepted_response_identity_cv.set(None)
     clear_feedback_id()
     # A previous call's echoed checkpoint must not be attributed to this one.
     clear_resolved_model()
+    clear_echoed_response_model()
 
 
 def get_route_attribution() -> Dict[str, _Any]:
@@ -367,4 +488,317 @@ def get_route_attribution() -> Dict[str, _Any]:
             if profile else None),
         "error": _routing_error_cv.get(),
         "routing_result_id": get_feedback_id(),
+        "transport": accepted_transport_call(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Durable evidence capture (graduation / episode provenance).
+#
+# The routing attribution above is call-local, but an agent run can span many
+# calls. Durable consumers (an AgentExecution or AgentEpisode offered as
+# qualification evidence) need the actual identity that served the run, not a
+# caller alias like "auto" and not an attempted-but-failed route. These helpers
+# therefore record only identities that are KNOWN; a missing identity stays
+# absent so historical rows remain honestly "unknown".
+# ---------------------------------------------------------------------------
+
+_UNKNOWN_IDENTITIES = frozenset({
+    "", "auto", "default", "unknown", "none", "null", "n/a",
+})
+_PROVENANCE_KEYS = (
+    "provider", "model", "requested_provider", "requested_model",
+    "resolved_model", "routing_result_id", "mode", "fallback", "source",
+    "serving_models", "unattributed_calls",
+)
+
+
+def _identity(value: Any) -> Optional[str]:
+    """Return a concrete, non-alias identity string, or None when unknown."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.casefold() in _UNKNOWN_IDENTITIES:
+        return None
+    return text
+
+
+def _route_pair(value: Any) -> Tuple[Optional[str], Optional[str]]:
+    if not isinstance(value, Mapping):
+        return None, None
+    return _identity(value.get("provider")), _identity(value.get("model"))
+
+
+def _serving_pair(value: Any) -> Optional[Dict[str, str]]:
+    """One validated (provider, model) serving pair, or None."""
+    if not isinstance(value, Mapping):
+        return None
+    provider = _identity(value.get("provider"))
+    model = _identity(value.get("model"))
+    if not provider and not model:
+        return None
+    pair: Dict[str, str] = {}
+    if provider:
+        pair["provider"] = provider
+    if model:
+        pair["model"] = model
+    return pair
+
+
+def _serving_models(*values: Any) -> list:
+    """Ordered, de-duplicated validated serving pairs (multi-step runs)."""
+    out: list = []
+    for value in values:
+        if not isinstance(value, (list, tuple)):
+            continue
+        for entry in value:
+            pair = _serving_pair(entry)
+            if pair and pair not in out:
+                out.append(pair)
+    return out
+
+
+def _unattributed_calls(*values: Any) -> Optional[int]:
+    for value in values:
+        if isinstance(value, bool) or not isinstance(value, int):
+            continue
+        if value > 0:
+            return value
+    return None
+
+
+def unknown_provenance() -> Dict[str, Any]:
+    """Explicit unknown marker: attribution was evaluated and unavailable.
+
+    Durable rows stay silent when no identity is known; evidence surfaces
+    (qualification bundles) use this marker so consumers can tell
+    "explicitly unknown" apart from a field that was dropped by accident.
+    Round-trips to empty through :func:`provenance_from_metadata`.
+    """
+    return {"source": "unknown"}
+
+
+def provenance_from_metadata(metadata: Any) -> Dict[str, Any]:
+    """Read provenance stored on durable metadata without inventing values.
+
+    Supports the structured ``model_provenance`` object written by the
+    recorder and the legacy top-level ``provider``/``model`` pair. A record
+    with neither remains unknown (empty dict), never defaulted to "auto".
+    """
+    if not isinstance(metadata, Mapping):
+        return {}
+    nested = metadata.get("model_provenance")
+    if isinstance(nested, Mapping) and nested:
+        out: Dict[str, Any] = {}
+        for key in _PROVENANCE_KEYS:
+            if key not in nested:
+                continue
+            if key == "fallback":
+                value = nested.get(key)
+                if isinstance(value, bool):
+                    out[key] = value
+                continue
+            if key == "serving_models":
+                serving = _serving_models(nested.get(key))
+                if serving:
+                    out[key] = serving
+                continue
+            if key == "unattributed_calls":
+                unattributed = _unattributed_calls(nested.get(key))
+                if unattributed is not None:
+                    out[key] = unattributed
+                continue
+            value = _identity(nested.get(key))
+            if value is not None:
+                out[key] = value
+        if out.get("provider") or out.get("model"):
+            return out
+        return {}
+    provider = _identity(metadata.get("provider"))
+    model = _identity(metadata.get("model"))
+    if not provider and not model:
+        return {}
+    out = {}
+    if provider:
+        out["provider"] = provider
+    if model:
+        out["model"] = model
+    for key in ("requested_provider", "requested_model"):
+        value = _identity(metadata.get(key))
+        if value is not None:
+            out[key] = value
+    return out
+
+
+def _first_identity(*values: Any) -> Optional[str]:
+    for value in values:
+        found = _identity(value)
+        if found:
+            return found
+    return None
+
+
+def _result_identity(payload: Mapping, nested: Mapping, key: str) -> Optional[str]:
+    return _first_identity(payload.get(key), nested.get(key))
+
+
+def _fallback_flag(
+    payload: Mapping,
+    nested: Mapping,
+    requested_provider: Optional[str],
+    requested_model: Optional[str],
+    provider: Optional[str],
+    model: Optional[str],
+) -> Optional[bool]:
+    fallback = payload.get("fallback")
+    if not isinstance(fallback, bool):
+        fallback = nested.get("fallback")
+    if isinstance(fallback, bool):
+        return fallback
+    if not (requested_provider or requested_model):
+        return None
+    if requested_provider and provider:
+        if requested_provider.casefold() != provider.casefold():
+            return True
+    if requested_model and model:
+        # A provider echo may append a date/snapshot
+        # (gpt-5.4 -> gpt-5.4-2026-03); compare normalized families instead
+        # of treating every resolved-suffix difference as a fallback.
+        return (
+            normalize_model_family(requested_model)
+            != normalize_model_family(model))
+    return False
+
+
+def capture_model_provenance(
+    result: Any = None, *, include_route_attribution: bool = True,
+) -> Dict[str, Any]:
+    """Capture the actual provider/model from a runtime result.
+
+    ``result`` may carry the caller-facing ``provider``/``model`` pair (and
+    optional requested/resolved fields), or an already-captured
+    ``model_provenance`` object. When the result does not identify the
+    serving route, the call-local route attribution is consulted — the
+    provider-echoed route is evidence, while an attempted-but-failed route is
+    not. Durable writers pass ``include_route_attribution=False`` so a
+    prior call's context-local route can never leak onto a record that had no
+    explicit runtime result.
+
+    The serving provider/model pair is selected ATOMICALLY from one trusted,
+    execution-bound source (runtime result, then the call-local served
+    route). A partial source is never completed from a different one, so a
+    mixed "new-provider/old-model" identity can never be reported.
+
+    Returns ``{}`` when no actual identity is known so durable evidence stays
+    silent rather than claiming an "auto"/default model.
+    """
+    payload = result if isinstance(result, Mapping) else {}
+    nested = payload.get("model_provenance")
+    nested = nested if isinstance(nested, Mapping) else {}
+
+    result_provider = _result_identity(payload, nested, "provider")
+    result_model = _result_identity(payload, nested, "model")
+    requested_provider = _result_identity(
+        payload, nested, "requested_provider")
+    requested_model = _result_identity(payload, nested, "requested_model")
+    resolved_model = _result_identity(payload, nested, "resolved_model")
+
+    attribution: Dict[str, Any] = {}
+    if include_route_attribution:
+        try:
+            attribution = get_route_attribution() or {}
+        except Exception:  # noqa: BLE001 — provenance is observational
+            attribution = {}
+
+    # ── Atomic serving-pair selection ──
+    # provider and model must come from ONE trusted, execution-bound source.
+    # Selecting them independently mixed a partial runtime result with
+    # call-local route attribution and reported a pair — new-provider/
+    # old-model — that never served anything. Candidate sources, most
+    # trusted first: the runtime result's own provider/model, then the
+    # call-local served route (the accepted response's route; a failed
+    # attempt never sets served_route).
+    serving_sources: list = []
+    if result_provider or result_model:
+        serving_sources.append(
+            ("runtime_result", result_provider, result_model))
+    if include_route_attribution:
+        served_provider, served_model = _route_pair(
+            attribution.get("served_route"))
+        if served_provider or served_model:
+            serving_sources.append((
+                "route_attribution",
+                served_provider,
+                _first_identity(
+                    served_model, attribution.get("resolved_model")),
+            ))
+    # A source that knows BOTH members wins (runtime result first, then the
+    # call-local served route); if none does, the highest-priority source
+    # yields a partial pair and the missing member stays absent — never
+    # backfilled from a different source.
+    chosen = next(
+        (s for s in serving_sources if s[1] and s[2]),
+        serving_sources[0] if serving_sources else None,
+    )
+    provider = chosen[1] if chosen else None
+    model = chosen[2] if chosen else None
+    if not provider and not model:
+        return {}
+    serving_source = chosen[0] if chosen else None
+    if (serving_source == "runtime_result" and nested
+            and (result_provider or result_model)
+            and nested.get("source") in ("runtime_result",
+                                         "route_attribution")):
+        # The serving pair was already captured once; preserve its honest
+        # source instead of relabelling attribution evidence as a runtime
+        # result on the durable round-trip through a result payload.
+        serving_source = str(nested.get("source"))
+
+    route_provider, route_model = (None, None)
+    if include_route_attribution:
+        route_provider, route_model = _route_pair(
+            attribution.get("requested_route"))
+    requested_provider = _first_identity(requested_provider, route_provider)
+    requested_model = _first_identity(requested_model, route_model)
+    resolved_model = _first_identity(
+        resolved_model, attribution.get("resolved_model")
+    ) if include_route_attribution else resolved_model
+
+    provenance: Dict[str, Any] = {}
+    for key, value in (
+            ("provider", provider),
+            ("model", model),
+            ("requested_provider", requested_provider),
+            ("requested_model", requested_model),
+            ("resolved_model", resolved_model)):
+        if value:
+            provenance[key] = value
+
+    routing_result_id = _first_identity(
+        payload.get("routing_result_id"),
+        nested.get("routing_result_id"),
+        attribution.get("routing_result_id"))
+    if routing_result_id:
+        provenance["routing_result_id"] = routing_result_id
+    mode = _first_identity(
+        payload.get("mode"), nested.get("mode"), attribution.get("mode"))
+    if mode:
+        provenance["mode"] = mode
+
+    serving = _serving_models(
+        payload.get("serving_models"), nested.get("serving_models"))
+    if serving:
+        provenance["serving_models"] = serving
+    unattributed = _unattributed_calls(
+        payload.get("unattributed_calls"), nested.get("unattributed_calls"))
+    if unattributed is not None:
+        provenance["unattributed_calls"] = unattributed
+
+    fallback = _fallback_flag(
+        payload, nested, requested_provider, requested_model, provider, model)
+    if isinstance(fallback, bool):
+        provenance["fallback"] = fallback
+
+    if serving_source:
+        provenance["source"] = serving_source
+    return provenance

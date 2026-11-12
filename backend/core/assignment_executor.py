@@ -7146,13 +7146,17 @@ class AssignmentExecutor:
         self,
         assignment: Dict[str, Any],
         step: Dict[str, Any],
+        run_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Re-evaluate runtime autonomy immediately before the effect claim.
 
         A durable wait/restart can outlive the decision that a hire was
         allowed to act. This consults the SAME gate a chat/canvas turn
         consults, using a fresh session so a revoked trust-calibration
-        grant is observed without process state.
+        grant is observed without process state. When the run carries a
+        repeat-task graduation route decision, the fresh evidence half is
+        revalidated too: a stale benchmark observation or a missing/conflicting
+        provider response identity demotes the effect to approval.
         """
         topic = self._autonomy_topic_for_step(step)
         if not topic:
@@ -7170,9 +7174,13 @@ class AssignmentExecutor:
 
             with self.lifecycle.runs._sessions()() as db:
                 gate = gate_for_topic(db, user_id, topic, agent_id)
-            if gate.get("outcome") == OUTCOME_EXECUTE:
-                return None
-            return gate
+                if gate.get("outcome") == OUTCOME_EXECUTE:
+                    route_revalidation = self._repeat_task_route_revalidation(
+                        db, run_id, agent_id, topic, assignment=assignment)
+                    if route_revalidation is not None:
+                        return route_revalidation
+                    return None
+                return gate
         except Exception as exc:  # noqa: BLE001 — fail closed for mutating work
             logger.warning(
                 "assignment %s: autonomy gate unavailable for %s: %s",
@@ -7184,6 +7192,173 @@ class AssignmentExecutor:
                     "Runtime autonomy could not be re-verified before this "
                     "mutating step; human approval is required."),
             }
+
+    def _repeat_task_route_revalidation(
+        self,
+        db: Any,
+        run_id: Optional[str],
+        agent_id: Optional[str],
+        topic: Optional[str] = None,
+        assignment: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Demote the effect claim when repeat-task evidence no longer holds.
+
+        Applicability is bound to independently durable assignment state: the
+        ``repeat_task_route`` marker the resolver wrote onto the persisted
+        plan survives a lost decision log. The decision log is the second,
+        complementary source (it covers runs recorded before the marker
+        existed and marker writes that failed). A persisted repeat
+        assignment whose route records are missing after a restart, and any
+        run whose decision log cannot be read, request supervision instead
+        of an unconditional effect claim. Unrelated routing — no marker, no
+        route decision — is untouched.
+        """
+        if not run_id or not agent_id:
+            return None
+        try:
+            from core.autonomy_policy import OUTCOME_EXECUTE, OUTCOME_PROPOSE
+            from core.llm.graduation_route import (
+                ROUTE_DECISION_KIND, revalidate_repeat_task_effect,
+            )
+
+            marker = (
+                assignment.get("repeat_task_route")
+                if isinstance(assignment, dict) else None)
+            if not isinstance(marker, dict):
+                marker = None
+            if marker is not None and str(
+                    marker.get("agent_id") or "") not in (
+                    "", str(agent_id or "")):
+                return {
+                    "topic": topic,
+                    "outcome": OUTCOME_PROPOSE,
+                    "reason": (
+                        "The assignment's repeat-task route marker belongs "
+                        "to a different agent; human approval is required."),
+                    "source": "repeat_task_route_recheck",
+                }
+
+            # Server-owned compiled-work half: the workload stamp is bound to
+            # the fingerprint of the compiled steps it was validated against.
+            # After a plan change or a restart the CURRENT durable steps are
+            # re-derived and re-checked here, before anything else is read.
+            compiled_revalidation = self._compiled_work_revalidation(
+                assignment, topic)
+            if compiled_revalidation is not None:
+                return compiled_revalidation
+
+            try:
+                decisions = self.lifecycle.runs.get_decisions(run_id)
+            except Exception as exc:  # noqa: BLE001 — fail closed
+                logger.warning(
+                    "run %s: decision log unreadable before effect claim: %s",
+                    run_id, exc)
+                return {
+                    "topic": topic,
+                    "outcome": OUTCOME_PROPOSE,
+                    "reason": (
+                        "The run's route decision log could not be read "
+                        "before this mutating step; human approval is "
+                        "required."),
+                    "source": "repeat_task_route_recheck",
+                }
+            has_route_context = any(
+                isinstance(entry, dict)
+                and str(entry.get("kind") or "") == ROUTE_DECISION_KIND
+                for entry in decisions or [])
+            if marker is not None and not has_route_context:
+                # Durable assignment state says this run used a repeat-task
+                # route, but its decision records are gone (lost records, a
+                # failed log write): the requirement survives the log.
+                return {
+                    "topic": topic,
+                    "outcome": OUTCOME_PROPOSE,
+                    "reason": (
+                        "This repeat-task assignment's route decision "
+                        "records are missing; route eligibility must be "
+                        "re-approved under supervision."),
+                    "source": "repeat_task_route_recheck",
+                }
+            if marker is None and not has_route_context:
+                return None
+            revalidation = revalidate_repeat_task_effect(
+                db, agent_id=agent_id, decisions=decisions,
+                assignment=assignment)
+            if revalidation is None:
+                return None
+            if str(revalidation.get("outcome") or "") == OUTCOME_EXECUTE:
+                return None
+            return {
+                "topic": topic,
+                "outcome": OUTCOME_PROPOSE,
+                "reason": str(revalidation.get("reason") or (
+                    "Repeat-task route evidence must be revalidated before "
+                    "this mutating step; human approval is required.")),
+                "route_state": revalidation.get("route_state"),
+                "build_state": revalidation.get("build_state"),
+                "source": "repeat_task_route_recheck",
+            }
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "run %s: repeat-task route revalidation failed: %s",
+                run_id, exc)
+            from core.autonomy_policy import OUTCOME_PROPOSE
+            return {
+                "topic": topic,
+                "outcome": OUTCOME_PROPOSE,
+                "reason": (
+                    "Repeat-task route evidence could not be revalidated "
+                    "before this mutating step; human approval is required."),
+                "source": "repeat_task_route_recheck",
+            }
+
+    def _compiled_work_revalidation(
+        self,
+        assignment: Optional[Dict[str, Any]],
+        topic: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Revalidate the server-owned compiled-work contract before an effect.
+
+        The workload stamp is bound (``workload_work``) to the fingerprint of
+        the compiled steps it was validated against. After a plan change or a
+        restart the CURRENT durable assignment is re-derived here: compiled
+        work that no longer satisfies the registered task's contract — a
+        different registered task's work, altered steps, or material that
+        cannot be verified — cannot claim the effect autonomously. Plans the
+        server did not fingerprint-bind (including every unstamped workload)
+        are untouched.
+        """
+        if not isinstance(assignment, dict):
+            return None
+        binding = assignment.get("workload_work")
+        if not isinstance(binding, dict):
+            return None
+        try:
+            from core.canvas_capability_service import compiled_work_contract
+
+            check = compiled_work_contract(
+                assignment.get("workload_scope"), assignment, binding=binding)
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "assignment %s: compiled-work contract unavailable: %s",
+                assignment.get("assignment_id"), exc)
+            check = {"ok": False, "reasons": ["compiled_work_unavailable"]}
+        if check.get("ok"):
+            return None
+        detail = ("; ".join(
+            str(reason) for reason in check.get("reasons") or []))[:400]
+        from core.autonomy_policy import OUTCOME_PROPOSE
+
+        return {
+            "topic": topic,
+            "outcome": OUTCOME_PROPOSE,
+            "reason": (
+                "This repeat-task assignment's compiled work no longer "
+                "satisfies the registered task's server-owned contract "
+                f"({detail or 'compiled_work_unavailable'}); human approval "
+                "is required."),
+            "source": "repeat_task_route_recheck",
+        }
 
     def _adapter_allows_standing(self, adapter: Any) -> bool:
         metadata = getattr(adapter, "metadata", None) or {}
@@ -7390,7 +7565,8 @@ class AssignmentExecutor:
         # before the effect claim. A grant that was valid when the assignment
         # was prepared (or before a restart) is not assumed to still hold.
         if not approval.get("required") and not authorized_by_grant:
-            autonomy_gate = self._autonomy_gate(assignment, step)
+            autonomy_gate = self._autonomy_gate(
+                assignment, step, run_id=run_id)
             if autonomy_gate is not None:
                 assignment = self._mark_step(assignment, step["step_id"], {
                     "autonomy": {

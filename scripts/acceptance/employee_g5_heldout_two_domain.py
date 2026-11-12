@@ -19,15 +19,20 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import sys
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import requests
 
 API = "http://127.0.0.1:8085"
 PASSWORD = "G5Browser-2026!"
 FIXTURES = Path("/private/tmp/atom-g5-heldout")
+BACKEND = Path(__file__).resolve().parents[2] / "backend"
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
 OBJECTIVE = (
     "Reconcile the supplier invoice INV-4491 for PO-7302 against the "
     "purchase order and the receiving record the warehouse still owes. While "
@@ -84,6 +89,131 @@ def durable(db: str, run_id: str) -> Dict[str, Any]:
     return lifecycle.get("assignment") or {}
 
 
+def _benchmark_enabled(explicit: Optional[bool]) -> bool:
+    """Opt-in only: an unchanged campaign does no benchmark work by default."""
+    try:
+        from core.employee_campaign_intake import benchmark_intake_enabled
+
+        return benchmark_intake_enabled(explicit)
+    except Exception:  # noqa: BLE001 — intake is additive
+        return False
+
+
+def _benchmark_execution_id(run_id: str) -> str:
+    return f"employee-campaign-{run_id}"
+
+
+def _benchmark_observation(
+    assignment: Dict[str, Any],
+    *,
+    restart: Any,
+    deliverable: Dict[str, Any],
+    artifact_text: str,
+    external_effects: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Observed campaign outputs only; never a score, time or route claim."""
+    steps = {
+        str(step.get("step_id")): step
+        for step in assignment.get("steps") or []
+        if isinstance(step, dict)
+    }
+    quote = next((
+        step for step in steps.values()
+        if step.get("adapter") == "quote.calculate"), {})
+    reconcile = next((
+        step for step in steps.values()
+        if step.get("adapter") == "invoice.reconcile"), {})
+    quote_result = quote.get("result") if isinstance(
+        quote.get("result"), dict) else {}
+    reconcile_result = reconcile.get("result") if isinstance(
+        reconcile.get("result"), dict) else {}
+    common = {
+        "assignment_status": assignment.get("status"),
+        "deliverables": {
+            "document": {
+                "status": deliverable.get("status"),
+                "text": artifact_text,
+            },
+        },
+        "external_effects": len(external_effects),
+    }
+    return {
+        "campaign": "employee-heldout-two-domain",
+        "cases": {
+            "heldout-quote": {
+                **common,
+                "steps": {"calculate": {
+                    "value": quote_result.get("value"),
+                    "currency": quote_result.get("currency"),
+                }},
+            },
+            "heldout-reconcile": {
+                **common,
+                "steps": {"reconcile": {
+                    "value": reconcile_result.get("value"),
+                    "currency": reconcile_result.get("currency"),
+                }},
+            },
+        },
+        "run": {"restart": restart if isinstance(restart, dict) else {}},
+    }
+
+
+def _record_benchmark_evidence(
+    *,
+    db: str,
+    run_id: str,
+    state: Dict[str, Any],
+    assignment: Dict[str, Any],
+    completed_at: Any,
+    observation: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Bind this campaign's real transport evidence to its completed execution.
+
+    The journal is assembled from the durable accepted provider calls the
+    transport recorded on this run, sealed with the assignment's completion
+    time, and handed to the production producer. The runner never supplies a
+    score, timestamp or served pair of its own.
+    """
+    try:
+        from core.employee_campaign_intake import (
+            accepted_transport_calls,
+            complete_campaign_execution,
+            record_campaign_evidence,
+            route_decisions,
+            unique_served_identity,
+        )
+    except Exception as exc:  # noqa: BLE001 — keep the campaign runnable
+        print(json.dumps({
+            "benchmark_evidence": {
+                "status": "unavailable", "detail": f"{type(exc).__name__}: {exc}"}}))
+        return None
+    execution_id = str(
+        state.get("benchmark_execution_id")
+        or _benchmark_execution_id(run_id))
+    decisions = route_decisions(db, run_id)
+    calls = accepted_transport_calls(decisions)
+    served = unique_served_identity(calls)
+    if completed_at:
+        complete_campaign_execution(
+            db_path=db,
+            execution_id=execution_id,
+            assignment=assignment,
+            completed_at=completed_at,
+            served_identity=served,
+        )
+    result = record_campaign_evidence(
+        db_path=db,
+        execution_id=execution_id,
+        campaign="employee-heldout-two-domain",
+        observation=observation,
+        completed_at=completed_at,
+        decisions=decisions,
+    )
+    state["benchmark_evidence"] = result
+    return result
+
+
 def _served_providers(value, found=None):
     """Collect actually served provider identities from captured rounds."""
     if found is None:
@@ -132,7 +262,17 @@ def main() -> int:
     parser.add_argument("--state", required=True)
     parser.add_argument("--db", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--benchmark-evidence", action="store_true", default=None,
+        help=(
+            "Record accepted provider evidence for the frozen employee "
+            "benchmark (also enabled by ATOM_EMPLOYEE_BENCHMARK_EVIDENCE=1). "
+            "No benchmark work happens when this is not enabled."))
+    parser.add_argument("--benchmark-id", default="")
     args = parser.parse_args()
+    if args.benchmark_id:
+        os.environ["ATOM_EMPLOYEE_BENCHMARK_ID"] = args.benchmark_id
+    benchmark = _benchmark_enabled(args.benchmark_evidence)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     state_path = Path(args.state)
@@ -202,6 +342,23 @@ def main() -> int:
                 "operation_id": item.get("operation_id"),
             } for item in assignment.get("steps") or []],
         }
+        if benchmark:
+            try:
+                from core.employee_campaign_intake import (
+                    start_campaign_execution,
+                )
+
+                execution_id = _benchmark_execution_id(run_id)
+                durable_start = durable(args.db, run_id)
+                start_campaign_execution(
+                    db_path=args.db,
+                    execution_id=execution_id,
+                    assignment=durable_start or record(body),
+                )
+                state["benchmark_execution_id"] = execution_id
+            except Exception as exc:  # noqa: BLE001 — additive evidence
+                state["benchmark_start_error"] = (
+                    f"{type(exc).__name__}: {exc}")
         state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(json.dumps(state, indent=1, default=str) + "\n")
         print(json.dumps({
@@ -347,6 +504,25 @@ def main() -> int:
         "checks": checks,
         "all_checks_passed": all(checks.values()),
     }
+    if benchmark:
+        completed_at = (
+            durable_assignment.get("completed_at")
+            or final.get("completed_at"))
+        observation = _benchmark_observation(
+            durable_assignment,
+            restart=state.get("restart") or {},
+            deliverable=deliverable,
+            artifact_text=text,
+            external_effects=external_effects,
+        )
+        _record_benchmark_evidence(
+            db=args.db,
+            run_id=run_id,
+            state=state,
+            assignment={**durable_assignment, "run_id": run_id},
+            completed_at=completed_at,
+            observation=observation,
+        )
     state_path.write_text(json.dumps(state, indent=1, default=str) + "\n")
     print(json.dumps(checks, indent=1))
     return 0 if all(checks.values()) else 1

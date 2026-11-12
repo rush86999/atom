@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
 from core.error_handlers import handle_not_found, handle_permission_denied
 from core.governance_cache import get_governance_cache
@@ -32,6 +32,28 @@ from core.autonomous_guardrails import AutonomousGuardrailService
 from core.policy_search_service import PGPolicySearchService
 
 logger = logging.getLogger(__name__)
+
+
+def agent_workspace_scope_condition(workspace_id: Optional[str]):
+    """SQL condition selecting agents visible in one authenticated scope.
+
+    ``workspace_id="default"`` is the single-tenant (Personal Edition) scope.
+    Agents registered WITHOUT a workspace (``workspace_id IS NULL`` — the API
+    create path and direct seeding) and legacy rows stamped with the literal
+    ``"default"`` workspace must ALL be visible there; the previous
+    ``== "default"`` filter silently hid every NULL-workspace agent from
+    GET /api/agents/ (and thus the Agent Control Center UI). Tenant-scoped
+    callers keep strict equality.
+
+    Shared by governance and recruitment matching so both answer the same
+    "which agents belong to this scope?" question.
+    """
+    if workspace_id in (None, "default"):
+        return or_(
+            AgentRegistry.workspace_id.is_(None),
+            AgentRegistry.workspace_id == "default",
+        )
+    return AgentRegistry.workspace_id == workspace_id
 
 
 def _max_nesting_depth(links: List[Any], root_agent_id: str) -> int:
@@ -337,20 +359,33 @@ class AgentGovernanceService:
     def _workspace_scope_condition(self):
         """Return the workspace scope filter for registry queries.
 
-        ``workspace_id="default"`` is the single-tenant (Personal Edition)
-        scope. Agents registered WITHOUT a workspace (workspace_id IS NULL —
-        the API create path and direct seeding) and legacy rows stamped with
-        the literal ``"default"`` workspace must ALL be visible there; the
-        previous ``== "default"`` filter silently hid every NULL-workspace
-        agent from GET /api/agents/ (and thus the Agent Control Center UI).
-        Tenant-scoped callers keep strict equality.
+        See ``agent_workspace_scope_condition`` — the same rule is reused by
+        recruitment matching so both layers agree on visible agents.
         """
-        if self.workspace_id in (None, "default"):
-            return or_(
+        return agent_workspace_scope_condition(self.workspace_id)
+
+    def _agent_scope_condition(
+        self, include_global_agent_id: Optional[str] = None,
+    ):
+        """Workspace scope plus a NARROW global-registry admission.
+
+        ``atom_main`` is the installation's own meta-agent and its persisted
+        registry row is global (no workspace), so a non-default authenticated
+        workspace cannot see it under strict equality. ``include_global_agent_id``
+        admits ONLY that one id when its row is actually global; every other
+        agent keeps the caller's exact workspace scope, and the caller's
+        tenant/workspace remain on ``self`` for policy and budget decisions.
+        """
+        condition = self._workspace_scope_condition()
+        if not include_global_agent_id:
+            return condition
+        return or_(
+            condition,
+            and_(
+                AgentRegistry.id == include_global_agent_id,
                 AgentRegistry.workspace_id.is_(None),
-                AgentRegistry.workspace_id == "default",
-            )
-        return AgentRegistry.workspace_id == self.workspace_id
+            ),
+        )
 
     def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
         """List all agents in the registry, optionally filtered by category"""
@@ -779,7 +814,11 @@ class AgentGovernanceService:
 
     # --- ADVANCED GOVERNANCE (SaaS Port) ---
 
-    def _budget_scope(self, agent_id: str) -> Dict[str, Any]:
+    def _budget_scope(
+        self,
+        agent_id: str,
+        include_global_agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Resolve the existing account key without treating a workspace as it."""
         from core.models import Workspace
         from core.personal_scope import resolve_tenant_id
@@ -790,7 +829,8 @@ class AgentGovernanceService:
         # actor/target authority: use the actual agent's account in that case.
         # Explicit request bindings still require their exact workspace.
         if self.tenant_id is not None or self.workspace_id not in (None, "default"):
-            conditions.append(self._workspace_scope_condition())
+            conditions.append(
+                self._agent_scope_condition(include_global_agent_id))
         agent = self.db.query(AgentRegistry).filter(*conditions).first()
         if agent is None:
             return {
@@ -811,6 +851,9 @@ class AgentGovernanceService:
                 "allowed": False,
                 "reason": "Agent/account scope changed before budget verification",
             }
+        # ``resolve_tenant_id`` prefers the caller's authenticated tenant, so a
+        # global root row (tenant NULL) is still billed to the request scope
+        # rather than falling back to the personal/default account.
         return {"tenant_id": resolve_tenant_id(self, agent, workspace)}
 
     @staticmethod
@@ -827,7 +870,11 @@ class AgentGovernanceService:
         }
 
     def _check_budget_sync(
-        self, agent_id: str, action_type: str, chain_id: Optional[str],
+        self,
+        agent_id: str,
+        action_type: str,
+        chain_id: Optional[str],
+        include_global_agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Use the existing sync ledger body in this Session's owning thread.
 
@@ -842,7 +889,7 @@ class AgentGovernanceService:
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
 
-            scope = self._budget_scope(agent_id)
+            scope = self._budget_scope(agent_id, include_global_agent_id)
             if scope.get("allowed") is False:
                 return scope
             return BudgetEnforcementService(self.db).check_budget_before_action_sync(
@@ -855,13 +902,17 @@ class AgentGovernanceService:
             return {"allowed": True}
 
     async def _check_budget_async(
-        self, agent_id: str, action_type: str, chain_id: Optional[str],
+        self,
+        agent_id: str,
+        action_type: str,
+        chain_id: Optional[str],
+        include_global_agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Keep the async API and the existing explicit degradation policy."""
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
 
-            scope = self._budget_scope(agent_id)
+            scope = self._budget_scope(agent_id, include_global_agent_id)
             if scope.get("allowed") is False:
                 return scope
             return await BudgetEnforcementService(self.db).check_budget_before_action(
@@ -879,17 +930,23 @@ class AgentGovernanceService:
         action_type: str,
         require_approval: bool = False,
         chain_id: Optional[str] = None,
+        include_global_agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Async governance API over the shared local-ledger decision.
 
         Synchronous callers inside async consumers also enforce the budget;
         neither entrypoint attempts to re-enter a running event loop.
+
+        ``include_global_agent_id`` narrowly admits the installation's global
+        root registry row (e.g. ``atom_main``) without weakening the caller's
+        own workspace/tenant for the maturity, policy and budget decision.
         """
         # Compute the maturity/complexity/recursion decision synchronously,
         # skipping the budget check (handled below via await).
         decision = self.can_perform_action(
             agent_id, action_type, require_approval=require_approval,
             chain_id=chain_id, _skip_budget=True,
+            include_global_agent_id=include_global_agent_id,
         )
         # A reviewable maturity denial is not a final refusal: callers may
         # offer action approval. Check its budget before offering that path,
@@ -900,7 +957,8 @@ class AgentGovernanceService:
             and decision.get("requires_human_approval") is True)
         if not decision.get("allowed", True) and not reviewable_maturity:
             return decision
-        budget_check = await self._check_budget_async(agent_id, action_type, chain_id)
+        budget_check = await self._check_budget_async(
+            agent_id, action_type, chain_id, include_global_agent_id)
         if not budget_check.get("allowed", True):
             return self._budget_refusal(budget_check)
         return decision
@@ -912,11 +970,12 @@ class AgentGovernanceService:
         require_approval: bool = False,
         chain_id: Optional[str] = None, # NEW Phase 10
         _skip_budget: bool = False,  # internal: used by can_perform_action_async
+        include_global_agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Hybrid maturity check with complexity-based enforcement"""
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
-            self._workspace_scope_condition()
+            self._agent_scope_condition(include_global_agent_id)
         ).first()
         
         if not agent:
@@ -984,10 +1043,13 @@ class AgentGovernanceService:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                 budget_check = loop.run_until_complete(
-                    self._check_budget_async(agent_id, action_type, chain_id))
+                    self._check_budget_async(
+                        agent_id, action_type, chain_id,
+                        include_global_agent_id))
             else:
                 budget_check = self._check_budget_sync(
-                    agent_id, action_type, chain_id)
+                    agent_id, action_type, chain_id,
+                    include_global_agent_id)
             if not budget_check.get("allowed", True):
                 return self._budget_refusal(budget_check)
 

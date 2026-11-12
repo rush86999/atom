@@ -1103,6 +1103,76 @@ def _make_memento(db, **kwargs):
     return MementoEngine(db=db, **kwargs)
 
 
+def _seed_learnable_execution(
+    db, exec_id="exec-x", tenant_id="t-1", agent_id="ag-1",
+    workspace_id="ws-1", agent_seeded=True,
+):
+    """Seed an execution (+ owning agent row) the authz gate will accept.
+
+    learn_from_execution resolves the execution through a fail-closed
+    tenant+owner lookup BEFORE analyze/propose, so contract tests must seed
+    an authorized row instead of relying on instance-mocked analyze alone.
+
+    The fixture engine is module-scoped, so an id may already exist from an
+    earlier test. Reset its owner/tenant/workspace to the values this case
+    requires — never let get-or-create silently reuse contradictory state.
+    """
+    from core.models import AgentExecution, AgentRegistry
+
+    if agent_seeded:
+        agent = db.get(AgentRegistry, agent_id)
+        if agent is None:
+            db.add(AgentRegistry(
+                id=agent_id, name="Agent", category="Operations",
+                module_path="test.module", class_name="TestAgent",
+                tenant_id=tenant_id, workspace_id=workspace_id,
+            ))
+        else:
+            agent.tenant_id = tenant_id
+            agent.workspace_id = workspace_id
+    execution = db.get(AgentExecution, exec_id)
+    if execution is None:
+        db.add(AgentExecution(
+            id=exec_id,
+            agent_id=agent_id if agent_seeded else None,
+            tenant_id=tenant_id,
+            status="completed",
+            input_summary="Sort a list",
+            result_summary="done",
+        ))
+    else:
+        execution.agent_id = agent_id if agent_seeded else None
+        execution.tenant_id = tenant_id
+    db.commit()
+
+
+def _learn_actor(role=None, workspace_id="ws-1", actor_id="u-learn"):
+    """Authenticated actor required by the distillation service boundary."""
+    from types import SimpleNamespace
+
+    from core.models import UserRole
+
+    return SimpleNamespace(
+        id=actor_id, role=role or UserRole.TEAM_LEAD,
+        workspace_id=workspace_id,
+    )
+
+
+def _distillation_candidates(db, execution_id="exec-x"):
+    """Candidates this module's learn endpoint produced for an execution.
+
+    The module-scoped fixture engine is shared with other tests that insert
+    SkillCandidate rows, so assertions must be scoped to the learn
+    endpoint's own failure_pattern signature, not global table counts.
+    """
+    return [
+        c for c in db.query(SkillCandidate).all()
+        if isinstance(c.failure_pattern, dict)
+        and c.failure_pattern.get("kind") == "execution_distillation"
+        and c.failure_pattern.get("execution_id") == execution_id
+    ]
+
+
 class TestMementoEngine:
     def test_analyze_episode_full_parse(self, db):
         from core.models import AgentEpisode, EpisodeSegment
@@ -1423,102 +1493,129 @@ class TestMementoEngine:
         assert result["error"] == "Execution models not available"
 
     def test_learn_from_execution_analysis_error(self, db):
+        _seed_learnable_execution(db)
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={"error": "nope"})
+        engine._analyze_execution_row = MagicMock(return_value={"error": "nope"})
         result = asyncio.run(engine.learn_from_execution(
             tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
+            actor=_learn_actor(),
         ))
         assert result["success"] is False
 
     def test_learn_from_execution_llm_failed(self, db):
+        _seed_learnable_execution(db)
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={"status": "completed"})
+        engine._analyze_execution_row = MagicMock(
+            return_value={"status": "completed"})
         engine.propose_code_change = AsyncMock(
             return_value="# Skill generation failed: down",
         )
         result = asyncio.run(engine.learn_from_execution(
             tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
+            actor=_learn_actor(),
         ))
         assert result["success"] is False
         assert "LLM unavailable" in result["error"]
 
-    def test_learn_from_execution_validation_failed(self, db):
+    def test_learn_from_execution_cross_workspace_denied(self, db):
+        """Fail-closed owner scoping: non-admin actors may only distill
+        executions of agents their workspace owns."""
+        from types import SimpleNamespace
+
+        from core.models import UserRole
+
+        _seed_learnable_execution(db)
+        _seed_learnable_execution(db, exec_id="exec-xw", agent_id="ag-xw")
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={"status": "completed"})
         engine.propose_code_change = AsyncMock(return_value="def x(): pass")
-        engine.validate_change = AsyncMock(return_value={"passed": False})
+        actor = SimpleNamespace(
+            id="u-1", role=UserRole.TEAM_LEAD, workspace_id="ws-OTHER")
         result = asyncio.run(engine.learn_from_execution(
-            tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
+            tenant_id="t-1", agent_id="ag-xw", execution_id="exec-xw",
+            actor=actor,
         ))
         assert result["success"] is False
-        assert "validation" in result
+        assert "not permitted" in result["error"]
+        assert result["authorization"]["code"] == "forbidden"
+        engine.propose_code_change.assert_not_awaited()
+        assert _distillation_candidates(db, "exec-xw") == []
+
+    def test_learn_from_execution_cross_tenant_denied(self, db):
+        """Fail-closed tenant scoping: another tenant's execution id is
+        indistinguishable from a missing one and never reaches the LLM."""
+        _seed_learnable_execution(db, exec_id="exec-xt", agent_id="ag-xt", tenant_id="t-OTHER")
+        engine = _make_memento(db)
+        engine.propose_code_change = AsyncMock(return_value="def x(): pass")
+        result = asyncio.run(engine.learn_from_execution(
+            tenant_id="t-1", agent_id="ag-xt", execution_id="exec-xt",
+            actor=_learn_actor(role="super_admin", workspace_id="ws-else"),
+        ))
+        assert result["success"] is False
+        assert "not found" in result["error"]
+        assert result["authorization"]["code"] == "not_found"
+        engine.propose_code_change.assert_not_awaited()
+        assert _distillation_candidates(db, "exec-xt") == []
 
     def test_learn_from_execution_invalid_name(self, db):
+        _seed_learnable_execution(db)
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={"status": "completed"})
+        engine._analyze_execution_row = MagicMock(
+            return_value={"status": "completed"})
         engine.propose_code_change = AsyncMock(return_value="def x(): pass")
-        engine.validate_change = AsyncMock(return_value={"passed": True})
         result = asyncio.run(engine.learn_from_execution(
             tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
-            skill_name="!!!", description="d",
+            skill_name="!!!", description="d", actor=_learn_actor(),
         ))
+        assert result["success"] is False
         assert result["error"] == "Invalid skill name"
+        assert _distillation_candidates(db, "exec-x") == []
 
-    def test_learn_from_execution_package_failed(self, db, monkeypatch):
+    def test_learn_from_execution_no_owning_agent_denied(self, db):
+        """Fail closed: an execution without an owning agent can never be
+        authorized (no candidate, no LLM work)."""
+        _seed_learnable_execution(db, exec_id="exec-xn", agent_id=None, agent_seeded=False)
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={
-            "status": "completed", "suggested_skill_name": "auto_x",
-            "failure_summary": "summary",
-        })
         engine.propose_code_change = AsyncMock(return_value="def x(): pass")
-        engine.validate_change = AsyncMock(return_value={"passed": True})
-
-        class FakeBuilder:
-            def create_skill_package(self, tenant_id, metadata, scripts):
-                return {"success": False, "message": "write failed"}
-
-        monkeypatch.setattr(
-            "core.skill_builder_service.SkillBuilderService", FakeBuilder,
-        )
         result = asyncio.run(engine.learn_from_execution(
-            tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
+            tenant_id="t-1", agent_id="ag-1", execution_id="exec-xn",
+            actor=_learn_actor(),
         ))
-        assert result["error"] == "write failed"
+        assert result["success"] is False
+        assert "not permitted" in result["error"]
+        assert result["authorization"]["code"] == "forbidden"
+        engine.propose_code_change.assert_not_awaited()
+        assert _distillation_candidates(db, "exec-xn") == []
 
-    def test_learn_from_execution_success(self, db, monkeypatch):
+    def test_learn_from_execution_success(self, db):
+        """New contract: pending SkillCandidate stored; no package write,
+        no registry import, no sandbox run — approval happens via the
+        Auto-Dev review surface."""
+        _seed_learnable_execution(db)
         engine = _make_memento(db)
-        engine.analyze_execution = AsyncMock(return_value={
+        engine._analyze_execution_row = MagicMock(return_value={
             "status": "completed", "suggested_skill_name": "auto_parser",
             "failure_summary": "summary",
         })
         engine.propose_code_change = AsyncMock(return_value="def x(): pass")
-        engine.validate_change = AsyncMock(return_value={"passed": True})
-
-        class FakeBuilder:
-            def create_skill_package(self, tenant_id, metadata, scripts):
-                return {"success": True, "skill_id": "sk-9"}
-
-        class FakeRegistry:
-            def __init__(self, session):
-                pass
-
-            async def import_skill(self, source, content, metadata):
-                assert "Generated from execution exec-x" in content
-                return {"success": True, "skill_id": "reg-1"}
-
-        monkeypatch.setattr(
-            "core.skill_builder_service.SkillBuilderService", FakeBuilder,
-        )
-        monkeypatch.setattr(
-            "core.skill_registry_service.SkillRegistryService", FakeRegistry,
-        )
         result = asyncio.run(engine.learn_from_execution(
             tenant_id="t-1", agent_id="ag-1", execution_id="exec-x",
             skill_name="My Custom Skill!", description="custom desc",
+            actor=_learn_actor(),
         ))
         assert result["success"] is True
+        assert result["status"] == "pending_approval"
         assert result["skill_name"] == "My Custom Skill!"
-        assert result["registry"]["success"] is True
+        assert result["candidate_id"]
+        # Generated material is not runnable pre-approval: nothing was
+        # packaged or registered.
+        assert "package" not in result
+        assert "registry" not in result
+        rows = _distillation_candidates(db)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.validation_status == "pending"
+        assert row.generated_code == "def x(): pass"
+        assert row.agent_id == "ag-1"
 
     def test_suggest_skill_name_derived(self):
         name = _make_memento(None)._suggest_skill_name("parse csv files quickly", "")

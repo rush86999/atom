@@ -1,0 +1,93 @@
+{
+  "schema": "atom-employee-benchmark-set-1",
+  "id": "employee-heldout-two-domain-2026-11-02",
+  "version": "1",
+  "frozen": "2026-11-02",
+  "title": "Employee held-out two-domain campaign",
+  "description": "Fixed unseen two-domain employee batch: the accepted industrial quote from an authorized price list under taught terms, and the supplier-invoice reconciliation against purchase order and receiving records. The set was fixed before scoring; a changed set or a changed scoring version is a new attempt and must be recorded as such.",
+  "source": {
+    "file_name": "employee_g5_heldout_two_domain.py",
+    "note": "Observation shape is the held-out campaign script's durable state: per-case assignment/step/deliverable results, plus run-level restart and effect counts."
+  },
+  "domains": [
+    "industrial_quote",
+    "procurement_bookkeeping"
+  ],
+  "scoring": {
+    "version": "employee-heldout-outcome-1",
+    "rule": "A case passes only when every declared check matches the durable observation. accuracy = passed cases / declared cases. A missing case is not observed and cannot pass.",
+    "determinate": true
+  },
+  "cases": {
+    "heldout-quote": {
+      "domain": "industrial_quote",
+      "subject_field": "case_id",
+      "note": "The independently computed quote total must come from the authorized price rows and the taught terms; delivery is served through the approved equivalent after the restart.",
+      "checks": [
+        {
+          "path": "assignment_status",
+          "one_of": [
+            "completed"
+          ]
+        },
+        {
+          "path": "steps.calculate.value",
+          "equals": "96.30"
+        },
+        {
+          "path": "steps.calculate.currency",
+          "equals": "USD"
+        },
+        {
+          "path": "deliverables.document.status",
+          "equals": "applied"
+        },
+        {
+          "path": "deliverables.document.text",
+          "contains": "96.30"
+        },
+        {
+          "path": "run.restart.same_wait",
+          "equals": true
+        },
+        {
+          "path": "external_effects",
+          "equals": 0
+        }
+      ]
+    },
+    "heldout-reconcile": {
+      "domain": "procurement_bookkeeping",
+      "subject_field": "case_id",
+      "note": "The invoice must reconcile to the receiving record and the purchase order, and the delivered review document must show the independently computed total.",
+      "checks": [
+        {
+          "path": "assignment_status",
+          "one_of": [
+            "completed"
+          ]
+        },
+        {
+          "path": "steps.reconcile.value",
+          "equals": "140.25"
+        },
+        {
+          "path": "steps.reconcile.currency",
+          "equals": "USD"
+        },
+        {
+          "path": "deliverables.document.text",
+          "contains": "140.25"
+        },
+        {
+          "path": "run.restart.same_wait",
+          "equals": true
+        },
+        {
+          "path": "external_effects",
+          "equals": 0
+        }
+      ]
+    }
+  }
+}

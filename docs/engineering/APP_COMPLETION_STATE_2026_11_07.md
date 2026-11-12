@@ -1,8 +1,32 @@
 # App completion state — 2026-11-07
 
-## Verified checkpoint — 2026-11-11, main `b017742d6`
+## Verified checkpoint — 2026-11-12, main `d1be5e816`
 
-Leading checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree `c019d609496fc9e0c97c966e880394e7f1fbb686`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
+Post-merge main CI [run 43155871096](https://github.com/rush86999/atom/actions/runs/43155871096) completed successfully for push head `d1be5e816a83c095bbf7894471797bbf3c241d20` (tree `37bdfe2d2a490c2d2da23d0bbafebf497758c457`; run 2797; 2026-11-12 04:36–06:06 UTC). All 11 jobs passed. This adds bounded COMPAT-01 installation/run evidence for the documented CPython 3.11–3.13 range on Ubuntu; it does not establish Python 3.14 or other platform support. The historical 2026-11-07 audit snapshot, its COMPAT-01 guard-only finding, the 143 claim records, the 18 goal-map rows and all historical scores remain unchanged.
+
+- **`quickstart-install` (3.11, 3.12, 3.13):** each matrix job passed on `ubuntu-latest` with Node 20. It verified fresh directories (`backend/venv` and `frontend-nextjs/node_modules` absent), ran `make setup`, passed installed-storage binary smoke (NumPy/PyArrow/LanceDB/FastEmbed imports plus one synthetic temporary LanceDB vector write/read; no app DB or embedding model), verified `backend/venv`, generated `backend/.env` with `SECRET_KEY=`, `frontend-nextjs/node_modules` and `frontend-nextjs/.env.local`, and booted `main_api_app` from the generated environment until `/alive` returned 200.
+- **Aggregate gate:** the `quickstart` job requires every interpreter installation to succeed and passed. The separate `full-app-boots` job also passed on Python 3.11 using requirements-installed dependencies.
+- **Boundary:** this is Linux CI evidence for the supported 3.11–3.13 quickstart path only. Python 3.14 and later are outside the documented range (the guard explicitly rejects 3.14 because `torch<3` has no wheels); Windows, macOS, ARM, Docker, non-CI hosts, browser login, process restart, PostgreSQL, external providers/models and application data were not exercised. `/alive` is a backend boot probe, not a full user journey.
+- Packet: [compat01_quickstart_main_ci_20261112](../acceptance/evidence/compat01_quickstart_main_ci_20261112/README.md).
+
+## Goal 3 offline document gate — 2026-11-12, frozen main `d34fe91d8`
+
+Independent frozen-source run at exact main `d34fe91d8` in `/private/tmp/atom-goal3-gate.1egP3E` (36.83s, exit 0) passed **79 tests, 8 warnings** across six suites: joined document lifecycle (`test_document_joined_lifecycle.py` — positive pre-delete and negative post-delete lexical/hybrid/legacy action results plus SQL, vector and file effects), delete truth (`test_document_delete_truth.py` — including base-plus-chunks single-receipt family), upload persistence outcome (`test_document_upload_persistence_outcome.py`), document scope authority (`test_document_scope_authority.py`), documents search workspace scope (`test_documents_search_workspace_scope.py`) and document export (`test_document_export.py`, including the bounded-size refusal). Isolation: scratch SQLite/data/office tree (LanceDB under the run's own `backend/data/atom_memory`) and OS-level network denial; the run launched no app server and made no live provider calls. Evidence: `/private/tmp/atom-goal3-gate.1egP3E/results.log`.
+
+Boundaries: this is local offline evidence at the recorded `d34fe91d8` source only. It is distinct from hosted CI — hosted selection on `d34fe91d8` covers stored-document upload persistence and export but not joined lifecycle or delete truth, and no hosted CI result is claimed by this entry — and distinct from the earlier browser episodes (the `b8d84615` joined upload/reopen/delete/restart journey and its byte-identical-path equivalence to `d34fe91d8`, which remain the separate browser/source-equivalence evidence). Broader release readiness remains open.
+
+## Narrow TASK-WAIT browser replay — 2026-11-12, source `758221755`
+
+A portable isolated replay at detached commit `758221755be124c579cee3398ffcc6e9357aa01d` exited 0 with **30/30 PASS** browser steps and released all three test listeners. The checkout was clean (zero tracked or backend modifications) and passed its 9/9 source-file and 55/55 fixture preflight before launch; all ten text-wait durations resolved to the expected 120/180 seconds and loopback-only network policy was verified before execution.
+
+- **Scenario:** one ordinary journey at that source: login; one automatic first source question; upload a source document without answering; verify that it appears in the authorized source picker; restart backend and frontend against the same world; recover the same question; select and submit the authorized source; obtain one verified result with one durable job/execution/task binding; replay the same accepted answer with no second job, objective, manual advance or additional effect. The accepted source remained bound to the uploaded document's verified text receipt.
+- **Source scope:** `758221755` is neither exact main nor the merged #886 head. It is the #886 reviewed source plus the two-driver timeout-only correction carried from `94c84cc7d`. #886 subsequently merged as `fdc2a0c22` (tree `c8ec6050f56e0d8a9fa636a55e8f354e2eb41564`). This run bounds `758221755` only; it does not qualify main, #886's merged tree, or any later head.
+- **Provider scope:** all model decisions were **simulated** — authored completions served by the existing loopback provider shim, not live model output. Only the provider response was substituted; routing, wait/resume, persistence, the ordinary upload route, task creation and the default oracle ran production code. No live provider, account, credential, send, spend, served-model quality, prompt quality or general judgment is claimed.
+- **Boundary:** this is one controlled question order and one local simulated-provider browser episode. It does not close TASK-WAIT-01 (multi-day waits, repeated/partial replies, revocation, cancellation/deadlines, both event orders, live multi-model quality) or full usage readiness. The 143 claim records, 18 goal-map rows and all historical scores remain unchanged. Raw prompts, captures and credentials remain private; only these sanitized summaries are published. Evidence: `/Volumes/Seagate Portable Drive/atom-taskwait-replay.xeOkaZ/replay-v3/execution`.
+
+## Prior verified checkpoint — 2026-11-11, main `b017742d6`
+
+Checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree `c019d609496fc9e0c97c966e880394e7f1fbb686`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
 
 ### Merged exact heads
 
@@ -27,6 +51,8 @@ Leading checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree 
 - Combined late-wait candidate `178776e7e12d89751a8c123755ef9e8d3b961e82` (tree `2631663f05e610acce15b26fb0aac896edbbb42f`) passed 32/32 steps with a 110-second authored first-question delay. The real backend recorded 41 same-job GETs before its first durable outcome broadcast; the ordinary UI displayed the exact question 115 seconds after admission without the manual Refresh fallback. It then uploaded, restarted against the same world, resumed once, produced one verified task and rejected duplicate effects.
 - The separate ordinary two-question Agents browser driver passed 29/29 steps on the same lineage: first and second durable questions, restart, stale-answer refusal, reload recovery, one verified task and no duplicate effect. This exercised one controlled question order; the existing `9e3bf045c` process evidence remains the separate both-orders episode.
 - These browser runs used controlled model responses. The production late-wait fix is on main through #849. Live model quality and broader readiness remain open.
+
+- Independent backend verification on merged main `2dcf41649` ran the Generic information-wait process, recovery-authority, and pending-file resume suites against scratch SQLite with loopback-only networking. Results were 219 passed and two expected failures in canvas truth-gate coverage. Separate-process controls verified same-job recovery after restart, accepted-source recovery before claim, and that uploading a source alone leaves the wait open. Browser evidence remains scoped to the candidate runs above. Local log: `/private/tmp/atom-wait-main.tUL77V/retry.log`.
 
 ### PostgreSQL admission concurrency (bounded)
 
