@@ -2056,21 +2056,58 @@ def inspect_workbook_bytes(
             ingested_at=ingested_at,
         )
 
+    def _load_pair(package: bytes):
+        return (
+            openpyxl.load_workbook(
+                io.BytesIO(package), data_only=False, read_only=False,
+                keep_links=False,
+            ),
+            openpyxl.load_workbook(
+                io.BytesIO(package), data_only=True, read_only=False,
+                keep_links=False,
+            ),
+        )
+
     try:
-        workbook = openpyxl.load_workbook(
-            io.BytesIO(content), data_only=False, read_only=False,
-            keep_links=False,
-        )
-        values_workbook = openpyxl.load_workbook(
-            io.BytesIO(content), data_only=True, read_only=False,
-            keep_links=False,
-        )
+        workbook, values_workbook = _load_pair(content)
     except Exception as exc:
-        return _fallback_artifact(
-            content, file_name, requested, provider, resource_id,
-            source_metadata, f"workbook parse failed: {exc}",
-            ingested_at=ingested_at,
-        )
+        # COMPATIBILITY RETRY (live WorkDrive workbook, 2026-11-12): openpyxl
+        # 3.1 validates font family ids as 0..14 in two independent readers.
+        # The shared-string reader rejects a well-formed producer
+        # `<rPr><family val="34">` even with rich_text=False; after that is
+        # normalised the stylesheet reader rejects the same out-of-range id in
+        # a direct `<styleSheet><fonts><font><family>` element. Both kill the
+        # read before the first row. Retry from a private in-memory package
+        # copy with only those font ids clamped. The artifact's hash / byte
+        # length below still describe `content`.
+        compatible = None
+        try:
+            from core.xlsx_openpyxl_compat import openpyxl_compatible_bytes
+
+            compatible = openpyxl_compatible_bytes(content)
+        except Exception as compat_err:  # noqa: BLE001 — keep the read failure
+            logger.debug(
+                f"workbook compat copy unavailable for {file_name}: {compat_err}")
+        try:
+            if compatible is None:
+                return _fallback_artifact(
+                    content, file_name, requested, provider, resource_id,
+                    source_metadata, f"workbook parse failed: {exc}",
+                    ingested_at=ingested_at,
+                )
+            workbook, values_workbook = _load_pair(compatible)
+            logger.info(
+                f"workbook read for {file_name} used the font compatibility "
+                f"copy ({str(exc).splitlines()[0]})")
+        except Exception as retry_exc:
+            logger.debug(
+                f"workbook compatibility retry failed for {file_name}: "
+                f"{retry_exc}")
+            return _fallback_artifact(
+                content, file_name, requested, provider, resource_id,
+                source_metadata, f"workbook parse failed: {exc}",
+                ingested_at=ingested_at,
+            )
 
     evidence: Dict[str, List[Dict[str, Any]]] = {
         target: [] for target in requested
