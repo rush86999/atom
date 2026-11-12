@@ -1663,6 +1663,54 @@ def _is_opencode_free_model(model: str) -> bool:
     return model.endswith(OPCODE_FREE_MODEL_SUFFIX)
 
 
+#: The ONE provider identity whose verified free catalog is authoritative for
+#: physical-attempt admission. A "-free" suffix, an alias ID, or the same model
+#: name on any other provider is NOT evidence of a free route.
+OPCODE_FREE_CATALOG_PROVIDER = "opencode-go"
+
+
+def _catalog_trusted_free_route(provider_id: str, model: str) -> bool:
+    """True only for an ALREADY-SELECTED curated OpenCode Go free route.
+
+    The fact comes from the shared provider catalog
+    (:data:`core.llm.opencode_catalog.OPCODE_KNOWN_FREE_MODELS`), which is the
+    trusted record of which gateway IDs are genuinely free — it is not derived
+    from an absent price or a ``-free`` suffix. Provider-qualified on purpose:
+    the same model name on another provider stays unknown. This never widens
+    the pricing/ranking catalog; callers have already passed the dispatch
+    route gate, and an explicit price (even one conflicting with the free
+    entry) always wins over this fact.
+    """
+    if provider_id != OPCODE_FREE_CATALOG_PROVIDER:
+        return False
+    # Imported lazily so the catalog module remains reloadable/monkeypatchable
+    # in tests and this hot module does not gain an import-time dependency.
+    from core.llm.opencode_catalog import OPCODE_KNOWN_FREE_MODELS
+
+    return model in OPCODE_KNOWN_FREE_MODELS
+
+
+def _dynamic_price_row_present(fetcher: Any, model: str) -> bool:
+    """True when the configured catalog HAS a row for ``model``.
+
+    ``estimate_cost`` returns ``None`` for two different states: the model is
+    truly absent/unknown, or a row IS present but its explicit monetary
+    material is partial/invalid. Only the first may fall through to the static
+    fallback or the curated free fact; masking a present-but-unusable row would
+    turn invalid pricing into a plausible charge (or into free). Fetchers
+    without the probe (test doubles) keep the historical fallback behavior.
+    """
+    probe = getattr(fetcher, "get_model_price", None)
+    if not callable(probe):
+        return False
+    try:
+        return probe(model) is not None
+    except Exception:
+        # Cannot prove absence: treat the row as present so invalid material
+        # is never silently replaced by a fallback or a free fact.
+        return True
+
+
 def _opencode_free_paid_fallback() -> dict:
     raw = os.getenv("OPENCODE_FREE_PAID_FALLBACK", "").strip()
     if raw:
@@ -4450,9 +4498,26 @@ class BYOKHandler:
             cost = fetcher.estimate_cost(
                 model, input_tokens_upper, output_tokens)
             if cost is None:
+                if _dynamic_price_row_present(fetcher, model):
+                    # The catalog HAS an explicit row but its material is
+                    # partial/invalid. Static fallback would hide that
+                    # malformed price, and the curated free fact must not
+                    # apply either: only a TRULY absent price may fall
+                    # through to those authorities.
+                    return None
                 cost = get_llm_cost(
                     model, input_tokens_upper, output_tokens)
             if cost is None:
+                # Absence is still unknown EXCEPT for an already-selected,
+                # provider-qualified curated free route: there the verified
+                # free catalog is an explicit free FACT for THIS route, not an
+                # inference from the missing price. An explicit price above
+                # (including one that conflicts with the free entry) wins;
+                # invalid pricing never reaches this branch. The static
+                # catalog is the repo's existing price authority, refreshed by
+                # the documented procedure in core.llm.opencode_catalog.
+                if _catalog_trusted_free_route(provider_id, model):
+                    return 0.0
                 return None
             if isinstance(cost, bool):
                 return None
@@ -4565,12 +4630,19 @@ class BYOKHandler:
         execution_id: Optional[str] = None,
         chain_id: Optional[str] = None,
         unknown: bool = False,
+        known_free: bool = False,
     ) -> Optional[float]:
         """Settle ONE physical response under its exact attempt identity.
 
         Uses the response's authoritative usage when present; missing usage
         becomes explicit unknown liability (never a fabricated free). Does
         not duplicate the caller's in-memory tracker/feedback writes.
+        ``known_free`` is the SAME attempt's authoritative numeric-zero
+        admission bound (verified free route or explicit $0 price): it keeps
+        that known-free contract at settlement instead of downgrading it to
+        unknown. A valid positive settlement cost still wins (the conflicting
+        price is authoritative for this attempt), and an explicit price found
+        here still wins for a paid bound.
         """
         usage = _response_usage(response)
         if usage is None:
@@ -4590,7 +4662,15 @@ class BYOKHandler:
             except Exception:
                 cost = None
             cost = _valid_cost(cost)
-        if unknown:
+        if known_free:
+            # Authoritative $0 admission bound for THIS attempt. Settlement
+            # preserves the same known-free contract only when no positive
+            # settlement exists; it must not become unknown liability just
+            # because the pricing catalog omits the free ID. A conflicting
+            # valid positive cost is real spend for this attempt and wins.
+            if cost is None:
+                cost = 0.0
+        elif unknown:
             # No proven bound/price existed for this attempt shape (e.g.
             # multimodal image tokens). The settlement is explicit unknown
             # liability, never a guess derived from a partial estimate.
@@ -7472,6 +7552,7 @@ class BYOKHandler:
                                 include_savings=True,
                                 request_id=_settlement_request_id,
                                 attempt_id=_attempt_id,
+                                known_free=(_reservation_bound == 0.0),
                             )
                         )
                         raise _EmptyCompletionError(
@@ -7492,6 +7573,7 @@ class BYOKHandler:
                                 include_savings=True,
                                 request_id=_settlement_request_id,
                                 attempt_id=_attempt_id,
+                                known_free=(_reservation_bound == 0.0),
                             )
                         )
                         # An empty visible payload is a FAILED attempt, not a
@@ -7535,6 +7617,10 @@ class BYOKHandler:
                                 reference_cost = get_llm_cost("gpt-4o", input_tokens, output_tokens)
 
                             cost = _valid_cost(cost)
+                            if cost is None and _reservation_bound == 0.0:
+                                # Same-attempt authoritative $0 admission bound
+                                # (verified free route or explicit zero price).
+                                cost = 0.0
                             reference_cost = _valid_cost(reference_cost)
                             savings_usd = max(0, reference_cost - cost) if (reference_cost is not None and cost is not None) else 0.0
 
@@ -7751,6 +7837,7 @@ class BYOKHandler:
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
                                             messages, _t_bound, _response_usage(response)),
+                                        known_free=(_t_bound == 0.0),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
@@ -7834,6 +7921,7 @@ class BYOKHandler:
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
                                             messages, _fb_bound, _response_usage(response)),
+                                        known_free=(_fb_bound == 0.0),
                                 )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
@@ -7991,6 +8079,7 @@ class BYOKHandler:
                                         chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
                                             messages, _heal_bound, _response_usage(response)),
+                                        known_free=(_heal_bound == 0.0),
                                     )
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
@@ -8095,6 +8184,7 @@ class BYOKHandler:
                                     chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
                                             messages, _paid_bound, _response_usage(response)),
+                                        known_free=(_paid_bound == 0.0),
                                 )
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
@@ -8236,6 +8326,7 @@ class BYOKHandler:
                             chain_id=chain_id,
                                         unknown=_image_cost_is_unknown(
                                             messages, _sweep_bound, _response_usage(response)),
+                                        known_free=(_sweep_bound == 0.0),
                         )
                         logger.warning(
                             "completion ladder sweep SUCCEEDED on %s/%s",
@@ -12478,6 +12569,7 @@ class BYOKHandler:
                                 prompt_str, task_type),
                             request_id=_settlement_request_id,
                             attempt_id=_attempt_id,
+                            known_free=(_chat_reservation_bound == 0.0),
                         )
                     )
                     self._bench_model(attempt_provider_id, model)
@@ -12505,6 +12597,13 @@ class BYOKHandler:
                     logger.warning(f"Could not attribute LLM cost: {cost_err}")
                 else:
                     cost = _valid_cost(cost)
+                    if cost is None and _chat_reservation_bound == 0.0:
+                        # THIS attempt was admitted at an authoritative $0
+                        # bound (verified free catalog route or explicit zero
+                        # price). Settlement keeps that known-free contract
+                        # instead of downgrading the same attempt to unknown.
+                        # A paid bound (explicit price) never reaches here.
+                        cost = 0.0
                     # Record even when the cost resolves to 0/None (unpriced
                     # model) — the budget guard enforces from recorded usage,
                     # so skipping would be unattributed spend. Only a FAILED
@@ -12660,6 +12759,7 @@ class BYOKHandler:
                             agent_id=agent_id,
                             unknown=_image_cost_is_unknown(
                                 messages, _t1_bound, _response_usage(response)),
+                            known_free=(_t1_bound == 0.0),
                         )
                         self._clear_model_cooldown(attempt_provider_id, model)
                         last_error = None
@@ -12807,6 +12907,7 @@ class BYOKHandler:
                                     agent_id=agent_id,
                                     unknown=_image_cost_is_unknown(
                                         messages, _chat_heal_bound, _response_usage(healed_response)),
+                                    known_free=(_chat_heal_bound == 0.0),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = attempt_provider_id
@@ -12962,6 +13063,7 @@ class BYOKHandler:
                                 agent_id=agent_id,
                                 unknown=_image_cost_is_unknown(
                                     messages, _chat_paid_bound, _response_usage(paid_response)),
+                                known_free=(_chat_paid_bound == 0.0),
                             )
                             self._last_used_model = paid_model
                             self._last_used_provider = attempt_provider_id
