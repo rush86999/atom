@@ -16,6 +16,7 @@ isolated (missing quality remains unknown).
 from __future__ import annotations
 
 import asyncio
+import weakref
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock, patch
 
@@ -139,6 +140,8 @@ def _configure_pool(handler, monkeypatch):
         "quality_score": 0.9,
         "context_window": 131072,
     }
+    _tag_sdk_clones(
+        handler.clients["local_ctrl1234"], handler.clients["local_pricey"])
 
     def _effective_cost(model, provider, estimated_tokens,
                         turn_index=0, **_kw):
@@ -184,12 +187,45 @@ def _invalid_proposal():
         }])
 
 
+# The fail-closed structured dispatch clones each SDK client with
+# ``with_options(max_retries=0)`` before handing it to Instructor. That clone
+# is a NEW object, so a response fixture keyed on the configured client's
+# identity must resolve the clone back to the route it came from.
+_CLONE_SOURCES = weakref.WeakKeyDictionary()
+
+
+def _tag_sdk_clones(*clients):
+    """Track the configured client behind each ``with_options`` clone."""
+    for client in clients:
+        if client is None or "_feedback_clone_tagger" in vars(client):
+            continue
+        original_with_options = client.with_options
+
+        def _with_options(*args, __client=client,
+                          __original=original_with_options, **kwargs):
+            clone = __original(*args, **kwargs)
+            _CLONE_SOURCES[clone] = __client
+            return clone
+
+        client.with_options = _with_options
+        client._feedback_clone_tagger = original_with_options
+
+
+def _configured_client(client):
+    """Resolve a dispatch clone to the configured client it was cloned from."""
+    try:
+        return _CLONE_SOURCES.get(client, client)
+    except TypeError:  # unhashable client double
+        return client
+
+
 def _route_aware_instructor(selected, *, invalid_client, valid_proposal):
     def _from_openai(client, **_kwargs):
         selected.append(client)
+        configured = _configured_client(client)
 
         def create(**_kwargs):
-            if client is invalid_client:
+            if configured is invalid_client:
                 return _invalid_proposal()
             return valid_proposal
 
@@ -322,7 +358,7 @@ def test_evaluated_bad_work_persists_and_changes_next_routing_decision(
         assert evaluation.get("recorded") is True, evaluation
         assert evaluation.get("failure_kind") == "wrong_evidence_selection"
         assert evaluation.get("profile") == "employee_evidence_selection"
-        assert selected and selected[0] is invalid_client
+        assert selected and _configured_client(selected[0]) is invalid_client
 
     rows = _rows(feedback_db)
     assert len(rows) == 3, [
@@ -355,7 +391,8 @@ def test_evaluated_bad_work_persists_and_changes_next_routing_decision(
     assert result["routing"]["served_route"] == {
         "provider": "local_pricey", "model": "pricey-model"}
     assert selected and all(
-        client is handler.clients["local_pricey"] for client in selected)
+        _configured_client(client) is handler.clients["local_pricey"]
+        for client in selected)
     # Same-route repair/retry is bounded; the excluded cheap route is never
     # re-dispatched and there is no multi-route sweep.
     assert 1 <= len(selected) <= 2
@@ -425,7 +462,8 @@ def test_evaluated_business_failure_changes_next_routing_decision(
     assert result["routing"]["served_route"] == {
         "provider": "local_pricey", "model": "pricey-model"}
     assert selected and all(
-        client is handler.clients["local_pricey"] for client in selected)
+        _configured_client(client) is handler.clients["local_pricey"]
+        for client in selected)
 
 
 def test_strict_qualification_pin_fails_instead_of_escaping(
