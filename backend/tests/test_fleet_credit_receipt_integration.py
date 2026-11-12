@@ -537,6 +537,190 @@ def test_finalizer_flag_off_applies_outcome_without_credit(
         assert _stats(fresh, action) == {}
 
 
+def test_meta_agent_finalizer_derives_scope_and_credits_once(
+        fleet_world, monkeypatch):
+    """The real ``AtomMetaAgent._finalize_agent_execution`` is the production
+    finalizer. Given a persisted parent execution, a pending audit row and no
+    caller-supplied scope, it derives tenant/workspace/agent from that
+    execution, joins the exact audit, and credits the child's durable receipt
+    exactly once across a replay."""
+    from core import atom_meta_agent as ama
+    from core.models import AgentTriggerMode
+
+    monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "true")
+    action = "finance.invoice.reconcile." + uuid.uuid4().hex
+    child = "child-meta-finalizer"
+    _seed_real_credit(
+        fleet_world, child=child, action=action,
+        operation_id="op-meta-finalizer")
+
+    # The execution is still running and its audit join is pending: exactly
+    # the state the real finalizer consumes.
+    with fleet_world.Session() as db:
+        parent = db.get(AgentExecution, "parent-exec")
+        parent.status = "running"
+        parent.result_summary = None
+        db.query(FleetRoutingAudit).filter_by(
+            id="audit-credit").one().success = None
+        db.commit()
+
+    with fleet_world.Session() as fresh:
+        assert _receipt_count(fresh) == 0
+        assert _stats(fresh, action) == {}
+
+    monkeypatch.setattr(ama, "SessionLocal", fleet_world.Session)
+    monkeypatch.setattr("core.database.get_db_session", fleet_world.session)
+
+    async def _noop_record_execution(*args, **kwargs):
+        return None
+
+    agent = ama.AtomMetaAgent.__new__(ama.AtomMetaAgent)
+    agent._record_execution = _noop_record_execution
+
+    async def _finalize():
+        await ama.AtomMetaAgent._finalize_agent_execution(
+            agent,
+            execution_id="parent-exec",
+            request="fleet goal",
+            result_payload={"status": "success"},
+            durable_status="success",
+            final_answer="done",
+            start_time=datetime.now(timezone.utc),
+            trigger_mode=AgentTriggerMode.MANUAL,
+            tenant_id=None,
+            context={},
+            fleet_audit_id="audit-credit",
+            fleet_success=True,
+            fleet_error=None,
+            fleet_model="model-x",
+            fleet_provider="provider-x",
+        )
+
+    asyncio.run(_finalize())
+
+    with fleet_world.Session() as fresh:
+        parent = fresh.get(AgentExecution, "parent-exec")
+        assert parent.status == "completed"
+        assert parent.result_summary == "done"
+        assert parent.duration_seconds is not None
+        assert fresh.get(FleetRoutingAudit, "audit-credit").success is True
+        assert _receipt_count(fresh) == 1
+        stats = _stats(fresh, action)
+        assert stats.get("verified_success") == 1
+        assert stats.get("success") == 1
+        assert stats.get("total") == 1
+
+    # Replay through the same finalizer: same outcome material, no new
+    # receipt, no second verified success.
+    asyncio.run(_finalize())
+
+    with fleet_world.Session() as fresh:
+        assert _receipt_count(fresh) == 1
+        stats = _stats(fresh, action)
+        assert stats.get("verified_success") == 1
+        assert stats.get("success") == 1
+        assert stats.get("total") == 1
+
+
+def test_meta_agent_finalizer_failed_outcome_earns_zero_credit(
+        fleet_world, monkeypatch):
+    """Failed-outcome twin (GLM audit 92248): the real
+    ``AtomMetaAgent._finalize_agent_execution`` joins a FAILED parent outcome
+    onto the exact pending audit while the child's real oracle-verified
+    receipt is still durable. From a fresh session the audit records the
+    failure and neither a credit receipt nor capability credit exists — a
+    verified child contribution must not mint credit for a failed chain
+    outcome."""
+    from core import atom_meta_agent as ama
+    from core.models import AgentTriggerMode
+
+    monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "true")
+    action = "finance.invoice.reconcile." + uuid.uuid4().hex
+    child = "child-meta-finalizer-failed"
+    _seed_real_credit(
+        fleet_world, child=child, action=action,
+        operation_id="op-meta-finalizer-failed")
+
+    # Pending audit join + running parent: exactly the state the real
+    # finalizer consumes, with the child's real receipt already durable.
+    with fleet_world.Session() as db:
+        parent = db.get(AgentExecution, "parent-exec")
+        parent.status = "running"
+        parent.result_summary = None
+        db.query(FleetRoutingAudit).filter_by(
+            id="audit-credit").one().success = None
+        db.commit()
+
+    with fleet_world.Session() as fresh:
+        assert _receipt_count(fresh) == 0
+        assert _stats(fresh, action) == {}
+        # The reused fixture is a REAL receipt: a succeeded generic-agent
+        # operation whose durable result was written after an independent
+        # oracle readback — not a status-only or forged claim.
+        receipt_row = fresh.query(TaskOperationRecord).filter(
+            TaskOperationRecord.operation_type
+            == f"generic:agent:{action}").one()
+        receipt = receipt_row.result_json
+        assert receipt.get("success") is True
+        assert receipt.get("oracle_verified") is True
+        assert receipt.get("status") == "success"
+        assert receipt.get("operation_id") == receipt_row.operation_id
+
+    fleet_error = "fleet run failed: ledger reconciliation mismatch"
+
+    monkeypatch.setattr(ama, "SessionLocal", fleet_world.Session)
+    monkeypatch.setattr("core.database.get_db_session", fleet_world.session)
+
+    async def _noop_record_execution(*args, **kwargs):
+        return None
+
+    agent = ama.AtomMetaAgent.__new__(ama.AtomMetaAgent)
+    agent._record_execution = _noop_record_execution
+
+    async def _finalize():
+        await ama.AtomMetaAgent._finalize_agent_execution(
+            agent,
+            execution_id="parent-exec",
+            request="fleet goal",
+            result_payload={"status": "failed"},
+            durable_status="failed",
+            final_answer="fleet run failed",
+            start_time=datetime.now(timezone.utc),
+            trigger_mode=AgentTriggerMode.MANUAL,
+            tenant_id=None,
+            context={},
+            fleet_audit_id="audit-credit",
+            fleet_success=False,
+            fleet_error=fleet_error,
+            fleet_model="model-x",
+            fleet_provider="provider-x",
+        )
+
+    asyncio.run(_finalize())
+
+    with fleet_world.Session() as fresh:
+        # Durable failed outcome on both the execution and the audit row.
+        parent = fresh.get(AgentExecution, "parent-exec")
+        assert parent.status == "failed"
+        assert fleet_error in (parent.error_message or "")
+        assert parent.duration_seconds is not None
+        assert fresh.get(FleetRoutingAudit, "audit-credit").success is False
+
+        # The real child receipt survives untouched, yet earns nothing:
+        # zero credit receipts and zero capability credit.
+        assert _receipt_count(fresh) == 0
+        assert _stats(fresh, action) == {}
+
+    # Replay through the same finalizer with identical failure material:
+    # the failure stays recorded exactly once and credit is still refused.
+    asyncio.run(_finalize())
+
+    with fleet_world.Session() as fresh:
+        assert fresh.get(FleetRoutingAudit, "audit-credit").success is False
+        assert _receipt_count(fresh) == 0
+        assert _stats(fresh, action) == {}
+
+
 def test_pre_revocation_work_cannot_become_new_success(
         fleet_world, monkeypatch):
     monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "true")
