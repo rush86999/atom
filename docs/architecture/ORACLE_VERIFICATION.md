@@ -28,7 +28,7 @@ Verifiers (system of record, NOT tool claim):
 
 | Action | Verifier | Reads |
 |---|---|---|
-| `trigger_workflow` | workflow row exists + status active/running/enabled | `Workflow` |
+| `trigger_workflow` | definition readiness (exists + active/running/enabled) **and** a committed execution whose id, definition, frozen input digest and frozen caller scope match the request | `Workflow`, `WorkflowExecution` |
 | `tasks.create` | Kanban task persists | `BoardTask` (`core.models_board`) |
 | `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
 | `mini_app_scaffold` | scaffold receipt + app/canvas/starter scope, name, dependencies and operation | `MiniApp`, `Canvas`, `CanvasLogic`, `CanvasAudit` |
@@ -37,6 +37,16 @@ Verifiers (system of record, NOT tool claim):
 | `mini_app_publish` | publish receipt + current app status/version and manifest/blueprint/initial-state digests | `MiniApp`, `Canvas`, `CanvasAudit` |
 | `mini_app_install` | install receipt + new instance canvas, installation row, state seed and published blueprint/version | `Canvas`, `MiniAppInstallation`, `CanvasState`, `CanvasLogic`, `CanvasAudit` |
 | `mini_app_db_write` | record receipt + exact affected record ids, sequences and payload digests (never a page-wide count) | `CanvasRecord`, `CanvasAudit` |
+
+`trigger_workflow` keeps definition readiness as a separate check: an active
+definition is necessary but never sufficient. The verifier requires the exact
+committed `WorkflowExecution` returned by the handler, binds its definition id
+to the frozen request, compares its persisted input digest with the authorized
+input, and requires the frozen `_atom_execution_scope` (workspace/tenant) to
+match the server-owned expectation. An active definition with no execution, a
+foreign execution, or an execution for another request/scope is refuted. This
+also preserves verify-before-retry semantics: a committed execution blocks a
+duplicate retry, while a missing execution allows one.
 
 `mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
 (SQL NULL / JSON null / empty object / full object) plus the app owner, tenant,

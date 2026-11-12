@@ -3126,8 +3126,14 @@ What is your next step?"""
             # dict (in-place mutation cannot rewrite authority) and never a
             # result-owned expected key.
             handler_context = dict(context or {})
-            if claim_operation_id:
-                handler_context["operation_id"] = claim_operation_id
+            # Prefer the durable claim id, but an oracle-covered action also
+            # needs the server-owned operation identity it was frozen with:
+            # the handler binds the committed effect (for ``trigger_workflow``
+            # the execution row) to that identity, so a lost response can be
+            # reconciled without the result that never arrived.
+            durable_dispatch_id = claim_operation_id or operation_id
+            if durable_dispatch_id:
+                handler_context["operation_id"] = durable_dispatch_id
             handler_context.setdefault("agent_id", getattr(self, "id", None))
             # Server-owned subsecond ordering; SQLite CURRENT_TIMESTAMP alone
             # cannot distinguish dispatches around a same-second correction.
@@ -3221,15 +3227,37 @@ What is your next step?"""
                 # P3b (arXiv 2608.02645): verify-before-retry. The effect may
                 # have landed despite the timeout — re-derive against the
                 # system of record BEFORE any retry advice. Reads keep their
-                # historical advisory path; a declared mutation has no
+                # historical advisory path; an oracle-covered action has no
                 # retry invitation unless the postcondition is confirmed.
                 postcondition_met = False
                 try:
-                    from core.oracle import verify_before_retry
+                    from core.oracle import (
+                        get_postcondition,
+                        verify_before_retry,
+                    )
+
+                    oracle_covered = get_postcondition(tool_name) is not None
+                except Exception:  # noqa: BLE001 - unavailable means unproven
+                    oracle_covered = False
+                try:
                     with get_db_session() as oracle_db:
+                        # Carry the pre-dispatch frozen expectation: a timeout
+                        # reconciliation must compare the durable effect with
+                        # the SAME authorized request/scope, not a bare retry
+                        # payload.
+                        retry_context = {
+                            **authorized, **(expected or {}), "db": oracle_db}
+                        # The handler binds the committed effect to this
+                        # server-owned identity before dispatch. A result
+                        # execution id is never necessary — and never
+                        # sufficient — for reconciliation.
+                        frozen_operation_id = str(
+                            (expected or {}).get(
+                                "_oracle_expected_operation_id") or "").strip()
+                        if frozen_operation_id:
+                            retry_context["execution_id"] = frozen_operation_id
                         postcondition_met = await verify_before_retry(
-                            tool_name, {**authorized, "db": oracle_db}
-                        )
+                            tool_name, retry_context)
                 except Exception as oracle_err:
                     logger.debug(f"verify_before_retry skipped: {oracle_err}")
                 if postcondition_met:
@@ -3243,24 +3271,26 @@ What is your next step?"""
                         f"verified its postcondition is already met. "
                         f"Do NOT retry — treat the action as succeeded."
                     )
-                if mutating:
+                if mutating or oracle_covered:
                     from core import outbound_operation_claim as claims
                     evidence = (
                         "tool timed out after dispatch and no independent "
                         "postcondition verdict confirmed the landed effect"
                     )
-                    self._mark_claim_status(
-                        claim, claims.UNCERTAIN_EFFECT,
-                        expected_status=claims.DISPATCHING)
+                    durable_operation_id = claim_operation_id or operation_id
+                    if mutating:
+                        self._mark_claim_status(
+                            claim, claims.UNCERTAIN_EFFECT,
+                            expected_status=claims.DISPATCHING)
                     self._record_uncertain_operation(
-                        context, tool_name, operation_id, evidence)
+                        context, tool_name, durable_operation_id, evidence)
                     return {
                         "success": False,
                         "status": "uncertain",
                         "action_result": "uncertain",
                         "business_success": False,
                         "effect_state": "unknown",
-                        "operation_id": operation_id,
+                        "operation_id": durable_operation_id,
                         "durable_claim": bool(claim and claim.get("won")),
                         "oracle_verified": False,
                         "oracle_evidence": evidence,
@@ -3270,7 +3300,8 @@ What is your next step?"""
                             f"Tool '{tool_name}' timed out after dispatch and "
                             f"may have applied an effect. Do NOT retry or "
                             f"resend"
-                            + (f" operation {operation_id}" if operation_id else "")
+                            + (f" operation {durable_operation_id}"
+                               if durable_operation_id else "")
                             + "; reconcile it first."),
                     }
                 return f"Error: Tool '{tool_name}' timed out. You may try once more if critical."

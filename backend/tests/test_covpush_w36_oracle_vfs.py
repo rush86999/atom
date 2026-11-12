@@ -13,7 +13,11 @@ from types import SimpleNamespace as NS
 from unittest.mock import Mock, patch
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from core.models import Workflow, WorkflowExecution
 from core.oracle import (
     OracleResult,
     get_postcondition,
@@ -23,6 +27,7 @@ from core.oracle import (
     verify_before_retry,
 )
 from core.oracle import postcondition_verifiers as pv  # noqa: F401  (registers verifiers)
+from core.oracle.request_expectations import build_request_expectations
 from core.vfs_base import (
     VFSNode,
     VFSProvider,
@@ -46,6 +51,33 @@ def await_coroutine(coro):
         return loop.run_until_complete(coro)
     finally:
         loop.close()
+
+
+@pytest.fixture()
+def workflow_db():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool)
+    Workflow.__table__.create(engine)
+    WorkflowExecution.__table__.create(engine)
+    session = sessionmaker(bind=engine, expire_on_commit=False)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+def _trigger_expected(workflow_id="w1"):
+    return build_request_expectations(
+        "trigger_workflow",
+        {"workflow_id": workflow_id, "input_data": {}},
+        operation_id="exec-1",
+        tenant_id="tenant-1",
+        workspace_id="ws-1",
+        actor_id="user-1",
+        agent_id="agent-1",
+    )
 
 
 class TestOracleCore:
@@ -100,36 +132,40 @@ class TestWorkflowVerifier:
     def test_missing_context(self):
         assert await_coroutine(pv._verify_workflow_triggered({})).verified is False
 
-    def test_workflow_not_in_db(self):
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+    def test_workflow_not_in_db(self, workflow_db):
+        expected = _trigger_expected()
         result = await_coroutine(pv._verify_workflow_triggered(
-            {"workflow_id": "w1", "db": db}))
+            {"execution_id": "exec-1", "db": workflow_db, **expected}))
         assert result.verified is False
         assert "not in DB" in result.evidence
 
-    def test_workflow_active(self):
-        wf = NS(id="w1", status="active")
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = wf
+    def test_workflow_active_alone_is_not_enough(self, workflow_db):
+        expected = _trigger_expected()
+        workflow_db.add(Workflow(
+            id="w1", name="W1", tenant_id="tenant-1", status="active"))
+        workflow_db.commit()
         result = await_coroutine(pv._verify_workflow_triggered(
-            {"workflow_id": "w1", "db": db}))
-        assert result.verified is True
-        assert "active" in result.evidence
-
-    def test_workflow_inactive(self):
-        wf = NS(id="w1", status="paused")
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = wf
-        result = await_coroutine(pv._verify_workflow_triggered(
-            {"workflow_id": "w1", "db": db}))
+            {"execution_id": "exec-1", "db": workflow_db, **expected}))
         assert result.verified is False
+        assert "not committed" in result.evidence
+
+    def test_workflow_inactive(self, workflow_db):
+        expected = _trigger_expected()
+        workflow_db.add(Workflow(
+            id="w1", name="W1", tenant_id="tenant-1", status="paused"))
+        workflow_db.commit()
+        result = await_coroutine(pv._verify_workflow_triggered(
+            {"execution_id": "exec-1", "db": workflow_db, **expected}))
+        assert result.verified is False
+        assert "not active" in result.evidence
 
     def test_db_readback_exception(self):
-        db = Mock()
-        db.query.side_effect = RuntimeError("db down")
-        result = await_coroutine(pv._verify_workflow_triggered(
-            {"workflow_id": "w1", "db": db}))
+        expected = _trigger_expected()
+        with patch.object(
+                pv, "_fresh_read_with_db",
+                side_effect=RuntimeError("db down")):
+            result = await_coroutine(pv._verify_workflow_triggered(
+                {"execution_id": "exec-1", **expected}))
         assert result.verified is False
         assert "read-back failed" in result.evidence
 
@@ -140,10 +176,11 @@ class TestTaskVerifier:
 
     def test_task_exists(self):
         db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = NS(id="t1")
+        db.query.return_value.filter.return_value.first.return_value = NS(
+            id="t1", title="do it", board_id=None)
         result = await_coroutine(pv._verify_task_created({"task_id": "t1", "db": db}))
         assert result.verified is True
-        assert "present" in result.evidence
+        assert "BoardTask t1" in result.evidence
 
     def test_task_absent(self):
         db = Mock()

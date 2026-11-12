@@ -185,6 +185,29 @@ def build_request_expectations(
     expected_board_id = (
         str(args.get("board_id") or "") if name == "tasks.create" else "")
 
+    # A workflow trigger is proven by the durable execution it creates, not by
+    # the definition being active.  Freeze the exact definition identity and
+    # input digest here; the verifier compares them with the committed
+    # ``WorkflowExecution`` row.  The reserved execution-scope key is
+    # server-owned and is stripped from the business input before hashing.
+    expected_workflow_id = ""
+    expected_workflow_input_sha256 = ""
+    if name == "trigger_workflow":
+        expected_workflow_id = str(args.get("workflow_id") or "").strip()
+        workflow_input = args.get("input_data")
+        if workflow_input is None:
+            workflow_input = {}
+        if isinstance(workflow_input, dict):
+            workflow_input = copy.deepcopy(workflow_input)
+            try:
+                from core.workflow_engine import EXECUTION_SCOPE_KEY
+
+                workflow_input.pop(EXECUTION_SCOPE_KEY, None)
+            except Exception:  # noqa: BLE001 - leave the input unbound
+                pass
+        expected_workflow_input_sha256 = approved_payload_sha256(
+            workflow_input)
+
     # Shopify product material is frozen from the accepted business arguments
     # (never from the handler's returned object).  The verifier compares this
     # projection with a fresh provider readback, so a matching title alone can
@@ -394,6 +417,9 @@ def build_request_expectations(
         "_oracle_expected_title": expected_present_title,
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
+        "_oracle_expected_workflow_id": expected_workflow_id,
+        "_oracle_expected_workflow_input_sha256": (
+            expected_workflow_input_sha256),
         "_oracle_expected_shopify_product": expected_shopify_product,
         "_oracle_expected_shopify_blog": expected_shopify_blog,
         "_oracle_expected_shopify_article": expected_shopify_article,

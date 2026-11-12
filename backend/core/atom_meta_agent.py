@@ -2314,15 +2314,72 @@ What is your next step?"""
         AttributeError (masked as "Tool error. Please try again."). The special
         tool was dead since the Jan 2026 port. Now delegates to the workflow
         engine's execution path.
+
+        The direct meta-agent dispatch must report success only after the
+        committed ``WorkflowExecution`` is read back from the durable store.
+        The engine's return value is not proof: a lost response (or a fake
+        engine) would otherwise be reported as a completed trigger.  The
+        caller's authenticated scope is frozen into the execution inputs so
+        the oracle can bind the row to this exact request/scope.
         """
         try:
             from core.workflow_engine import get_workflow_engine
             if not workflow_id:
                 return "Error: workflow_id is required for trigger_workflow"
             engine = get_workflow_engine()
-            input_data = params or {}
+            input_data = dict(params or {})
+            ctx = context or {}
+            workspace_id = str(
+                ctx.get("workspace_id")
+                or getattr(self, "workspace_id", "")
+                or "default")
+            tenant_id = str(
+                ctx.get("tenant_id")
+                or getattr(self, "tenant_id", None)
+                or workspace_id)
             execution_id = await engine.start_workflow(
-                {"id": workflow_id}, input_data)
+                {"id": workflow_id}, input_data,
+                scope={"workspace_id": workspace_id, "tenant_id": tenant_id},
+            )
+
+            # System-of-record readback: the execution row must exist and carry
+            # this exact frozen request/scope. No row (or a foreign row) is an
+            # unconfirmed trigger, never a success message.
+            from core.database import get_db_session
+            from core.oracle import validate
+            from core.oracle.request_expectations import (
+                build_request_expectations,
+            )
+
+            expected = build_request_expectations(
+                "trigger_workflow",
+                {"workflow_id": workflow_id, "input_data": input_data},
+                operation_id=str(execution_id or ""),
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                actor_id=str(
+                    ctx.get("user_id") or ctx.get("actor_id") or ""),
+                agent_id=str(ctx.get("agent_id") or "atom_main"),
+            )
+            with get_db_session() as db:
+                verdict = await validate("trigger_workflow", {
+                    "workflow_id": workflow_id,
+                    "execution_id": execution_id,
+                    "db": db,
+                    **expected,
+                })
+            if verdict is None or not verdict.verified:
+                evidence = (
+                    verdict.evidence if verdict is not None
+                    else "no trigger_workflow verifier")
+                logger.error(
+                    "Workflow %s execution %s not confirmed committed: %s",
+                    workflow_id, execution_id, evidence)
+                return (
+                    f"Error: workflow {workflow_id} execution {execution_id} "
+                    f"was not confirmed in the durable store ({evidence}). "
+                    f"Do NOT retry blindly; reconcile the execution first."
+                )
             return f"Workflow {workflow_id} triggered (execution {execution_id})"
         except Exception as e:
             logger.error(f"Failed to trigger workflow {workflow_id}: {e}")

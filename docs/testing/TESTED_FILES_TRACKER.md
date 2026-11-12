@@ -9831,3 +9831,11 @@ pid 11051, `git_commit a3aa31ba4`.
 **Deliberately NOT done** (left to ZCode per the agreed split, recorded in `notes/AGENT_COORDINATION.md`): `settings_catalog.py` rows for `ATOM_INTEGRATION_READ_CACHE_ENABLED` / `ATOM_INTEGRATION_READ_CACHE_TTL` (env vars work today; only the admin-UI toggle is missing).
 
 **Verification**: `test_integration_read_gaps.py` (37) + `test_mcp_tools_list_pagination.py` (13) + `test_mcp_client.py` (11) + `test_mcp_server.py` = 86 passed. Regression: `covpush_universal` + `covpush_w85_universal_workflow` + `covpush_integrations_core` + `integration_dispatch_parity` = 0 new failures vs the clean-HEAD baseline (33 pre-existing remain). NOTE for the next operator: `test_chat_tool_planner_comms_supplement.py` and `test_chat_tools_universal_generalization.py` each break 39 `test_covpush_mcp_svc.py` tests when batched (reproduced at clean HEAD in an isolated worktree — pre-existing cross-file pollution, not a regression); run `test_covpush_mcp_svc.py` alone.
+
+## Session 2026-11-12 — trigger_workflow oracle proof (committed execution binding)
+
+**Why**: the verifier certified an active `Workflow` definition alone. An active definition with no execution passed, so a trigger that never ran could be reported verified.
+
+**Files**: `backend/core/oracle/postcondition_verifiers.py` (requires exact committed `WorkflowExecution` + definition readiness + frozen input digest + frozen `_atom_execution_scope`; fresh-session read), `backend/core/oracle/request_expectations.py` (freezes workflow id + input digest), `backend/integrations/mcp_service.py` (freezes caller scope into execution inputs/context), `backend/core/generic_agent.py` (timeout verify-before-retry carries the frozen expectation), docs updated.
+
+**Verification**: `tests/core/test_oracle_trigger_workflow_execution_binding.py` (12) + `tests/core/test_oracle_and_two_tier_confidence.py` + `test_covpush_w31_generic_agent.py` + `test_covpush_w36_oracle_vfs.py` + `test_oracle_connected_mutations.py` + `test_oracle_effect_families.py` + `test_oracle_registry_verification_gap.py` = 160 passed; request-expectations/radio/BPE batch 66 passed; round69 trigger MCP gate 6 passed. Scratch SQLite only; no live DB/provider/push/commit.

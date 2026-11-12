@@ -1891,9 +1891,41 @@ class MCPService(IntegrationService):
                         "error": "Workflow has critical MCP actions or could not be resolved; execution refused."
                     }
 
+                # Freeze the authenticated caller's scope into the durable
+                # execution inputs; the oracle binds the committed
+                # WorkflowExecution row to this exact request and scope.
+                from core.workflow_engine import freeze_execution_scope
+
+                tool_context = context or {}
+                scope_workspace = str(
+                    tool_context.get("workspace_id") or "default")
+                scope_tenant = str(tool_context.get("tenant_id") or "default")
+                input_data = freeze_execution_scope(
+                    input_data,
+                    workspace_id=scope_workspace,
+                    tenant_id=scope_tenant,
+                )
+                execution_context = {
+                    "workspace_id": scope_workspace,
+                    "tenant_id": scope_tenant,
+                }
+                if tool_context.get("user_id"):
+                    execution_context["user_id"] = tool_context["user_id"]
+
+                # Reuse the server-owned durable operation identity as the
+                # execution run key. A lost response can then reconcile against
+                # the committed WorkflowExecution even though the tool result
+                # never arrived. The model-visible arguments cannot supply it.
+                durable_operation_id = str(
+                    tool_context.get("operation_id") or "").strip()
+
                 # Trigger via execute_workflow (async)
                 # Since execute_tool is async, we can await it
-                context = await orchestrator.execute_workflow(wf_id, input_data)
+                context = await orchestrator.execute_workflow(
+                    wf_id, input_data,
+                    execution_context=execution_context,
+                    execution_id=durable_operation_id or None,
+                )
 
                 return {
                     "status": context.status.value,
