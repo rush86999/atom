@@ -178,6 +178,7 @@ def served_app(tmp_path):
         "ENVIRONMENT": "development",
         "DATABASE_URL": f"sqlite:///{db_path}",
         "ATOM_DATA_DIR": str(scratch / "data"),
+        "ATOM_OFFICE_DIR": str(scratch / "data" / "office"),
         "LANCEDB_URI": str(scratch / "data" / "atom_memory"),
         "LANCEDB_URI_BASE": str(scratch / "data" / "atom_memory"),
         "BYOK_CONFIG_FILE": str(scratch / "byok_config.json"),
