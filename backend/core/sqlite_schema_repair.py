@@ -285,6 +285,7 @@ def repair_known_drift() -> None:
         from core.database import get_db_session
         from core.models import (
             AgentReasoningStep,
+            AgentRegistry,
             AgentTemplate,
             Canvas,
             ExperienceItem,
@@ -321,6 +322,14 @@ def repair_known_drift() -> None:
             # agent_templates.verified_record (goal-run evidence on sellable
             # listings) — see 20260912_agent_verified_record.
             ensure_sqlite_columns(engine, AgentTemplate)
+            # agent_registry.promotion_episode_floor (user-tunable promotion
+            # floor added 2026-09-23 with no Alembic migration). A legacy
+            # SQLite file lacks the column, and every ORM read of the table —
+            # including startup's ensure_admin_user → ensure_demo_agent and
+            # GET /api/agents/{id} — fails with "no such column:
+            # agent_registry.promotion_episode_floor". The generic model-column
+            # repair adds only what the model has and the table lacks.
+            ensure_sqlite_columns(engine, AgentRegistry)
 
             # Marketing intelligence models (marketing/models.py) carry
             # workspace_id, but pre-existing SQLite files were created from
