@@ -417,6 +417,15 @@ jobs:
 
           '
 
+      - name: Run canvas sheet cell persistence controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_canvas_sheets_cell.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/api/test_canvas_sheets_cell_persistence.py -q --tb=short --timeout=300 --timeout-method=thread
+
       - name: Run generated workflow handoff and fresh-process controls
         env:
           TESTING: "1"
@@ -447,6 +456,15 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_workflow_output_export.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run trigger workflow execution binding oracle controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_oracle_trigger_binding.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/core/test_oracle_trigger_workflow_execution_binding.py -q --tb=short --timeout=300 --timeout-method=thread
 
       - name: Run reviewed web authority and library regression controls
         env:
@@ -600,6 +618,40 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_promotion_evidence_gate.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      # Agent registry schema repair regression (additive): the legacy
+      # SQLite agent_registry drift — the pre-2026-09-23 table shape
+      # missing promotion_episode_floor — is rebuilt in a per-test
+      # tmp_path sqlite file and repaired through the real startup hook
+      # (core.sqlite_schema_repair.repair_known_drift), with auth and
+      # database dependencies overridden in-process, so the lane never
+      # touches a live database, credential, port or running service.
+      - name: Run legacy agent registry startup repair controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_agent_registry_repair.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_agent_registry_schema_repair.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      # Minimal launcher schema repair regression (additive): the documented
+      # daily dev entrypoint `uvicorn minimal_app:app` has its own startup
+      # hook, so the main_api_app lifespan repair (df0fb0f3c) never ran
+      # there. The drift — agent_registry missing promotion_episode_floor —
+      # is rebuilt in a per-test tmp_path sqlite file and repaired through
+      # the real minimal_app._startup_bootstrap in a subprocess, with the
+      # scratch DATABASE_URL and a tmp_path bootstrap password file, so the
+      # lane never touches a live database, credential, port or running
+      # service.
+      - name: Run minimal launcher startup repair controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_minimal_app_startup_repair.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_minimal_app_startup_schema_repair.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # WO-OPS-04 release-rollback regression (additive): the disposable
       # rollback journey for release_tool.py — target validation,

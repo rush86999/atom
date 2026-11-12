@@ -154,6 +154,7 @@ class OrgHubService:
             BUNDLE_VERSION,
             SENSITIVITY_LADDER,
             BundleError,
+            is_removed_document,
             sign_and_audit_bundle,
         )
 
@@ -219,7 +220,7 @@ class OrgHubService:
                     "updated_at": doc_stamp.isoformat(),
                     "external_id": doc.external_id,
                 }
-                if doc.freshness_status == "removed":
+                if is_removed_document(doc):
                     # Tombstone: member imports mark the matching doc removed.
                     if doc.external_id not in tombstones:
                         tombstones.append(doc.external_id)

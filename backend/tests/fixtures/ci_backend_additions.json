@@ -263,6 +263,26 @@
     "run": "python -m pytest tests/test_promotion_evidence_gate.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
+    "name": "Run legacy agent registry startup repair controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_agent_registry_repair.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/test_agent_registry_schema_repair.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run minimal launcher startup repair controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_minimal_app_startup_repair.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/test_minimal_app_startup_schema_repair.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
     "name": "Run release rollback identity and preservation controls",
     "env": {
       "TESTING": "1",
@@ -306,6 +326,16 @@
     "run": "served_stale_root=$(mktemp -d \"${RUNNER_TEMP}/served-stale-XXXXXX\")\npython -m pytest tests/test_served_spreadsheet_stale_cache.py \\\n  -q --tb=short --timeout=900 --timeout-method=thread \\\n  --basetemp=\"${served_stale_root}/pytest\"\n"
   },
   {
+    "name": "Run canvas sheet cell persistence controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_canvas_sheets_cell.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/api/test_canvas_sheets_cell_persistence.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
     "name": "Run reviewed prompt skill process restart controls",
     "env": {
       "TESTING": "1",
@@ -317,5 +347,15 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_mem07_prompt_skill_process_restart.py tests/test_mem07_served_prompt_skill_process_restart.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run trigger workflow execution binding oracle controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_oracle_trigger_binding.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/core/test_oracle_trigger_workflow_execution_binding.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]

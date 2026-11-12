@@ -451,6 +451,92 @@ def test_finalizer_does_not_credit_a_nonunique_execution_join(
         assert _stats(fresh, action) == {}
 
 
+def test_finalizer_replay_credits_once_from_fresh_sessions(
+        fleet_world, monkeypatch):
+    """The documented finalizer replay: the first join applies the pending
+    audit and credits that exact outcome, the second is an already-applied
+    replay that adds neither a receipt nor another verified success."""
+    from core.fleet_orchestration import fleet_routing_stats as frs
+
+    monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "true")
+    action = "finance.invoice.verify." + uuid.uuid4().hex
+    child = "child-finalizer-replay"
+    _seed_real_credit(
+        fleet_world, child=child, action=action,
+        operation_id="op-finalizer-replay")
+
+    # The execution finalized before its audit join: the outcome is pending
+    # exactly once, which is the state the real finalizer consumes.
+    with fleet_world.Session() as db:
+        db.query(FleetRoutingAudit).filter_by(
+            id="audit-credit").one().success = None
+        db.commit()
+
+    monkeypatch.setattr("core.database.get_db_session", fleet_world.session)
+    first = frs.record_fleet_execution_outcome(
+        "parent-exec", True, audit_id="audit-credit", tenant_id=TENANT,
+        workspace_id=WORKSPACE, agent_id="atom-fleet")
+    assert first["status"] == "applied", first
+    assert first["applied"] == ["audit-credit"], first
+    assert first["already_applied"] == [], first
+
+    with fleet_world.Session() as fresh:
+        assert _receipt_count(fresh) == 1
+        stats = _stats(fresh, action)
+        assert stats.get("verified_success") == 1
+        assert stats.get("success") == 1
+
+    replay = frs.record_fleet_execution_outcome(
+        "parent-exec", True, audit_id="audit-credit", tenant_id=TENANT,
+        workspace_id=WORKSPACE, agent_id="atom-fleet")
+    assert replay["status"] == "already_applied", replay
+    assert replay["already_applied"] == ["audit-credit"], replay
+    assert replay["applied"] == [], replay
+
+    with fleet_world.Session() as fresh:
+        assert _receipt_count(fresh) == 1
+        stats = _stats(fresh, action)
+        assert stats.get("verified_success") == 1
+        assert stats.get("total") == 1
+
+
+def test_finalizer_flag_off_applies_outcome_without_credit(
+        fleet_world, monkeypatch):
+    """Negative twin: with the credit flag OFF the finalizer still joins the
+    exact outcome, but never writes a receipt or verified success."""
+    from core.fleet_orchestration import fleet_routing_stats as frs
+
+    monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "false")
+    action = "finance.invoice.verify." + uuid.uuid4().hex
+    child = "child-finalizer-flag-off"
+    _seed_real_credit(
+        fleet_world, child=child, action=action,
+        operation_id="op-finalizer-flag-off")
+
+    with fleet_world.Session() as db:
+        db.query(FleetRoutingAudit).filter_by(
+            id="audit-credit").one().success = None
+        db.commit()
+
+    monkeypatch.setattr("core.database.get_db_session", fleet_world.session)
+    first = frs.record_fleet_execution_outcome(
+        "parent-exec", True, audit_id="audit-credit", tenant_id=TENANT,
+        workspace_id=WORKSPACE, agent_id="atom-fleet")
+    assert first["status"] == "applied", first
+    assert first["applied"] == ["audit-credit"], first
+
+    replay = frs.record_fleet_execution_outcome(
+        "parent-exec", True, audit_id="audit-credit", tenant_id=TENANT,
+        workspace_id=WORKSPACE, agent_id="atom-fleet")
+    assert replay["status"] == "already_applied", replay
+
+    with fleet_world.Session() as fresh:
+        assert fresh.query(FleetRoutingAudit).filter_by(
+            id="audit-credit").one().success is True
+        assert _receipt_count(fresh) == 0
+        assert _stats(fresh, action) == {}
+
+
 def test_pre_revocation_work_cannot_become_new_success(
         fleet_world, monkeypatch):
     monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "true")
