@@ -17,11 +17,13 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from tests.test_goal9_physical_attempts import _CloneableStructuredClient
 from tests.test_oracle_mini_app_host_mutations import USER, host
 from core.agent_governance_service import AgentGovernanceService
 from core.budget_enforcement_service import BudgetEnforcementService
@@ -162,11 +164,12 @@ def _structured_handler(monkeypatch):
             calls["count"] += 1
             return _FakeResult()
 
-    class _FakeChat:
-        completions = _FakeCompletions()
+    wire_client = _CloneableStructuredClient(_FakeCompletions().create)
 
-    class _FakeInstructor:
-        chat = _FakeChat()
+    def _fake_from_openai(client, **kwargs):
+        return SimpleNamespace(chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=client.chat.completions.create)))
 
     class _Pricing:
         def estimate_cost(self, model_name, input_tokens, output_tokens):
@@ -189,15 +192,14 @@ def _structured_handler(monkeypatch):
 
     monkeypatch.setattr(byok_handler, "get_db_session", _fake_db)
     monkeypatch.setattr(
-        byok_handler.instructor, "from_openai",
-        lambda *a, **k: _FakeInstructor())
+        byok_handler.instructor, "from_openai", _fake_from_openai)
     monkeypatch.setattr(
         byok_handler, "get_pricing_fetcher", lambda: _Pricing())
 
     handler = object.__new__(BYOKHandler)
     handler.workspace_id = WORKSPACE
     handler.tenant_id = TENANT
-    handler.clients = {"openai": object()}
+    handler.clients = {"openai": wire_client}
     handler.env_key_providers = {"openai"}
     handler._local_routes = set()
     handler.refresh_credentials_if_changed = lambda: None

@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tests.test_goal9_physical_attempts import (
+    _CloneableStructuredClient,
     _IMAGE_MESSAGES,
     _attempt_rows,
     _make_handler,
@@ -45,8 +46,11 @@ def _plan():
 def _structured(handler, create, **kwargs):
     import core.llm.byok_handler as bh
 
+    handler.clients["openai"] = _CloneableStructuredClient(create)
+
     def _fake_from_openai(client, **kw):
-        return NS(chat=NS(completions=NS(create=create)))
+        return NS(chat=NS(completions=NS(
+            create=client.chat.completions.create)))
 
     with patch.object(bh.instructor, "from_openai", _fake_from_openai):
         return asyncio.run(handler.generate_structured_response(
@@ -62,8 +66,7 @@ def _structured(handler, create, **kwargs):
 
 def _handler(monkeypatch, tmp_path):
     return _make_handler(
-        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
-        sync={"openai": MagicMock(name="structured-client")})
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]})
 
 
 def test_structured_recovery_retry_gets_own_attempt_and_settlement(
