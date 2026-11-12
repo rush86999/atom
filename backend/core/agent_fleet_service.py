@@ -257,10 +257,15 @@ class AgentFleetService:
             logger.error(f"Cannot update blackboard: Chain {chain_id} not found")
             return
 
-        current_metadata = chain.metadata_json or {}
+        # JSONColumn is a plain (non-mutable) JSON type: mutating the loaded
+        # dict in place and assigning the same object back leaves the attribute
+        # unchanged from SQLAlchemy's perspective, so the commit emits no
+        # UPDATE and a fresh session loses the update. Build a new dict so the
+        # attribute assignment is observable.
+        current_metadata = dict(chain.metadata_json or {})
         current_metadata.update(updates)
         chain.metadata_json = current_metadata
-        
+
         self.db.commit()
         logger.info(f"Updated blackboard for chain {chain_id}")
 
