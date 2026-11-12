@@ -434,8 +434,8 @@ class TestGovernanceRouting:
     async def test_check_governance_allowed(self):
         agent = make_agent()
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(
-            return_value=SimpleNamespace(allowed=True, reason=None))
+        gov.can_perform_action_async = AsyncMock(
+            return_value={"allowed": True, "reason": None})
         db = MagicMock()
         db.__enter__ = MagicMock(return_value=db)
         db.__exit__ = MagicMock(return_value=False)
@@ -448,8 +448,8 @@ class TestGovernanceRouting:
     async def test_check_governance_denied(self):
         agent = make_agent()
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(
-            return_value=SimpleNamespace(allowed=False, reason="maturity"))
+        gov.can_perform_action_async = AsyncMock(
+            return_value={"allowed": False, "reason": "maturity"})
         db = MagicMock()
         db.__enter__ = MagicMock(return_value=db)
         db.__exit__ = MagicMock(return_value=False)

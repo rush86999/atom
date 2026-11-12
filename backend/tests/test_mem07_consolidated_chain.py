@@ -227,6 +227,29 @@ def _approve_and_apply(env, candidate):
     return client, headers, approved.json()["data"], applied.json()["data"]
 
 
+def _list_skill(client, headers, candidate_id, *, status):
+    response = client.get(
+        "/api/autodev/candidates", params={"status": status},
+        headers=headers)
+    assert response.status_code == 200, response.text
+    return next(
+        item for item in response.json()["data"]["candidates"]
+        if item["kind"] == "skill" and item["id"] == str(candidate_id))
+
+
+def _machine_validate(env, candidate_id):
+    """Run the real machine-validation path; only the sandbox leaf is doubled."""
+    from core.auto_dev.memento_engine import MementoEngine
+
+    sandbox = SimpleNamespace(
+        execute_raw_python=AsyncMock(return_value={
+            "status": "success", "output": "", "execution_seconds": 0.0}))
+    result = asyncio.run(MementoEngine(
+        db=env["db"], sandbox=sandbox).validate_candidate(
+            candidate_id, env["tenant"].id))
+    assert result["passed"] is True, result
+
+
 def _fresh_prompt(env, query):
     from core.generic_agent import GenericAgent
 
@@ -343,6 +366,44 @@ def test_changed_reviewed_material_cannot_apply(env):
     assert response.status_code == 409, response.text
     assert "stale_review" in response.text
     _assert_no_promotion(env)
+
+
+def test_list_apply_eligibility_tracks_review_binding(env):
+    candidate, _calls = _pending_candidate_from_tool_error(env)
+    client, headers = _http_client(env)
+
+    # Machine validation alone writes ``validated`` but is not human review.
+    _machine_validate(env, candidate.id)
+    machine = _list_skill(
+        client, headers, candidate.id, status="validated")
+    assert machine["status"] == "validated", machine
+    assert machine["reviewed"] is False, machine
+    assert machine["apply_eligible"] is False, machine
+
+    approved = client.post(
+        f"/api/autodev/skills/{candidate.id}/approve", headers=headers)
+    assert approved.status_code == 200, approved.text
+    reviewed = _list_skill(
+        client, headers, candidate.id, status="validated")
+    assert reviewed["reviewed"] is True, reviewed
+    assert reviewed["apply_eligible"] is True, reviewed
+
+    # Material changed after review makes the binding stale; the list signal
+    # mirrors the authoritative apply refusal.
+    current = env["db"].query(SkillCandidate).filter(
+        SkillCandidate.id == candidate.id).one()
+    current.skill_description = "Replacement instructions after review"
+    env["db"].commit()
+
+    stale = _list_skill(
+        client, headers, candidate.id, status="validated")
+    assert stale["reviewed"] is True, stale
+    assert stale["apply_eligible"] is False, stale
+
+    refused = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert refused.status_code == 409, refused.text
+    assert "stale_review" in refused.text
 
 
 def test_http_review_apply_requires_real_authentication(env):

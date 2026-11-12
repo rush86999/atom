@@ -15,9 +15,13 @@ import { useWebSocket } from "@/hooks/useWebSocket";
    integration layer records on executions — WHICH tool keeps failing for
  *   this agent, before a proposed fix even exists.
  *
- * Self-fetching via GET /api/autodev/candidates and
- * GET /api/autodev/tool-errors; mutations go through the /approve and
- * /reject endpoints.
+ * Self-fetching via GET /api/autodev/candidates?status=pending and
+ * ?status=validated, plus GET /api/autodev/tool-errors. Pending items go
+ * through /approve and /reject. A validated skill gets the separate explicit
+ * typed /apply step only while its review binding still matches the current
+ * material (apply_eligible === true); machine-validated or stale-binding
+ * skills stay reviewable via approve/reject. The panel never runs the
+ * proposed code.
  */
 
 interface Candidate {
@@ -30,6 +34,10 @@ interface Candidate {
   code: string;
   status: string;
   created_at: string | null;
+  // Advisory review state from the list endpoint. Absent means "not reviewed"
+  // / "not apply-eligible"; only an explicit true unlocks Apply.
+  apply_eligible?: boolean;
+  reviewed?: boolean;
 }
 
 interface Guidance {
@@ -49,13 +57,61 @@ interface ToolError {
   last_seen: string;
 }
 
-export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
+/** Surface the backend's structured refusal instead of inventing success. */
+function applyFailureMessage(error: any): string {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  const nested = detail?.error?.message;
+  if (typeof nested === "string" && nested.trim()) return nested;
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return `Apply failed: ${error.message}`;
+  }
+  return "Apply refused — reload and review the current snapshot.";
+}
+
+interface AutoDevReviewPanelProps {
+  agentId?: string | null;
+  /**
+   * Optional display names keyed by the agent IDs already carried on each
+   * candidate. The workspace-wide review list spans agents, so reviewers need
+   * a name before approving or applying a skill. Missing names fall back to a
+   * neutral label; the raw agent ID is never rendered.
+   */
+  agentNames?: Record<string, string | null | undefined>;
+}
+
+/** Reviewer-facing agent label: never leaks the opaque agent ID. */
+function AgentName({
+  agentId,
+  agentNames,
+}: {
+  agentId: string | null;
+  agentNames?: Record<string, string | null | undefined>;
+}) {
+  if (!agentId) return null;
+  const name = agentNames?.[agentId]?.trim();
+  return (
+    <span
+      className="text-xs text-muted-foreground"
+      data-testid="autodev-agent-name"
+    >
+      Agent: {name || "Unnamed agent"}
+    </span>
+  );
+}
+
+export function AutoDevReviewPanel({
+  agentId,
+  agentNames,
+}: AutoDevReviewPanelProps) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [validatedSkills, setValidatedSkills] = useState<Candidate[]>([]);
   const [toolErrors, setToolErrors] = useState<ToolError[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [guidance, setGuidance] = useState<Guidance[]>([]);
   // Frames are read from the socket's `onMessage` listener rather than the
   // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside a
@@ -66,14 +122,38 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
   const { onMessage } = useWebSocket();
   const guidanceReloadInFlight = useRef(false);
 
-  const load = useCallback(async () => {
+  // The list endpoint is status-scoped (default pending). Approved-but-not-
+  // applied skills are a separate status, so fetch both in the reviewer's
+  // scope instead of treating approval as permission to apply.
+  const candidateUrl = useCallback(
+    (status: "pending" | "validated") => {
+      const params = new URLSearchParams({ status });
+      if (agentId) params.set("agent_id", agentId);
+      return `/api/autodev/candidates?${params.toString()}`;
+    },
+    [agentId]
+  );
+
+  const load = useCallback(async (): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get<{
-        data: { candidates: Candidate[]; count: number };
-      }>("/api/autodev/candidates");
-      setCandidates(res.data?.data?.candidates ?? []);
+      const [pendingRes, approvedRes] = await Promise.all([
+        apiClient.get<{
+          data: { candidates: Candidate[]; count: number };
+        }>(candidateUrl("pending")),
+        apiClient.get<{
+          data: { candidates: Candidate[]; count: number };
+        }>(candidateUrl("validated")),
+      ]);
+      setCandidates(pendingRes.data?.data?.candidates ?? []);
+      // Typed apply exists only for skill candidates; a validated tool
+      // mutation keeps its own review lifecycle and gets no Apply button.
+      setValidatedSkills(
+        (approvedRes.data?.data?.candidates ?? []).filter(
+          (c) => c.kind === "skill" && c.status === "validated"
+        )
+      );
       const g = await apiClient.get<{
         data: { guidance: Guidance[]; count: number };
       }>("/api/autodev/guidance");
@@ -86,12 +166,14 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
       } else {
         setToolErrors([]);
       }
+      return true;
     } catch (e) {
       setError("Could not load Auto-Dev review data");
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [agentId]);
+  }, [agentId, candidateUrl]);
 
   useEffect(() => {
     load();
@@ -119,6 +201,42 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
     }
   };
 
+  // Explicit typed application, separate from approval. The backend writes
+  // prompt instructions only; generated code stays review-only and is never
+  // executed or used to widen this agent's authority.
+  const applyReviewedSkill = async (id: string) => {
+    setNotice(null);
+    setError(null);
+    setApplyingId(id);
+    let failure: string | null = null;
+    let success =
+      "Reviewed skill applied as a typed prompt skill. Proposed code was not executed.";
+    try {
+      const res = await apiClient.post<{
+        data?: { already_applied?: boolean };
+      }>(`/api/autodev/skills/${id}/apply`);
+      if (res.data?.data?.already_applied) {
+        success = "This reviewed skill was already applied — no changes were made.";
+      }
+    } catch (e) {
+      failure = applyFailureMessage(e);
+    }
+
+    // Always re-read the server state after an attempt. Never move the card
+    // optimistically: a refusal may leave it approved, a success may promote it.
+    const refreshed = await load();
+    setApplyingId(null);
+    if (failure) {
+      setError(failure);
+    } else if (refreshed) {
+      setNotice(success);
+    } else {
+      setError(
+        "The apply request finished, but the review list could not be refreshed. Reload to confirm."
+      );
+    }
+  };
+
   return (
     <div className="space-y-4" data-testid="autodev-review-panel">
       <div className="flex items-center justify-between">
@@ -126,7 +244,8 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
           <h3 className="text-lg font-semibold">Auto-Dev Fixes</h3>
           <p className="text-sm text-muted-foreground">
             Fixes your agents&apos; evolution harness proposed from repeated tool
-            failures. Nothing changes until you approve it here.
+            failures. Approval records your review; applying a reviewed skill is
+            a separate explicit step. Proposed code is never executed.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load}>
@@ -174,6 +293,9 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
                   {c.kind === "mutation" ? "Tool fix" : "New skill"}
                 </Badge>
                 <span className="font-medium">{c.name}</span>
+                {c.kind === "skill" && (
+                  <AgentName agentId={c.agent_id} agentNames={agentNames} />
+                )}
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => act(c.kind, c.id, "approve")}>
@@ -205,6 +327,96 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
           </div>
         ))}
       </div>
+
+      {/* Validated skills — review state decides whether Apply is offered */}
+      {validatedSkills.length > 0 && (
+        <div
+          className="space-y-2"
+          data-testid="autodev-approved-skills"
+          aria-label="Validated skills awaiting review or apply"
+        >
+          <h4 className="text-sm font-semibold">Validated skills</h4>
+          <p className="text-xs text-muted-foreground">
+            Validation is not review. Apply appears only while a review of this
+            exact snapshot is still current; otherwise approve or reject the
+            material. Applying installs the prompt instructions only — proposed
+            code is never executed.
+          </p>
+          {validatedSkills.map((c) => {
+            const canApply =
+              c.status === "validated" && c.apply_eligible === true;
+            return (
+              <div
+                key={c.id}
+                className="rounded-md border border-green-300 bg-green-50 p-3 space-y-2 dark:border-green-800 dark:bg-green-950"
+                data-testid={`autodev-approved-skill-${c.id}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {canApply ? "Reviewed skill" : "Needs review"}
+                    </Badge>
+                    <span className="font-medium">{c.name}</span>
+                    {c.kind === "skill" && (
+                      <AgentName agentId={c.agent_id} agentNames={agentNames} />
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {canApply ? (
+                      <Button
+                        size="sm"
+                        onClick={() => applyReviewedSkill(c.id)}
+                        disabled={applyingId !== null}
+                      >
+                        {applyingId === c.id ? "Applying…" : "Apply"}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => act("skill", c.id, "approve")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => act("skill", c.id, "reject")}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {c.description && (
+                  <p className="text-sm text-muted-foreground">{c.description}</p>
+                )}
+                {c.failure && (
+                  <p className="text-sm text-muted-foreground">
+                    Failing with: {c.failure}
+                  </p>
+                )}
+                {c.code && (
+                  <div>
+                    <button
+                      className="text-xs text-muted-foreground underline"
+                      onClick={() => setExpanded(expanded === c.id ? null : c.id)}
+                    >
+                      {expanded === c.id ? "Hide proposed code" : "Show proposed code"}
+                    </button>
+                    {expanded === c.id && (
+                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-xs">
+                        {c.code}
+                      </pre>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Recent tool errors */}
       {agentId && toolErrors.length > 0 && (

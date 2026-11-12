@@ -241,8 +241,8 @@ class TestIntentRouting:
                     with patch('core.atom_meta_agent.CapabilityGraduationService'):
                         with patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
                             with patch('core.atom_meta_agent.QueenAgent') as mock_queen:
-                                mock_gov.return_value.canPerformAction = AsyncMock(
-                                    return_value=Mock(allowed=True, reason=None)
+                                mock_gov.return_value.can_perform_action_async = AsyncMock(
+                                    return_value={"allowed": True, "reason": None}
                                 )
                                 mock_queen.return_value.generate_blueprint = AsyncMock(
                                     return_value={
@@ -279,8 +279,8 @@ class TestIntentRouting:
                     with patch('core.atom_meta_agent.CapabilityGraduationService'):
                         with patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
                             with patch('core.fleet_admiral.FleetAdmiral') as mock_admiral:
-                                mock_gov.return_value.canPerformAction = AsyncMock(
-                                    return_value=Mock(allowed=True, reason=None)
+                                mock_gov.return_value.can_perform_action_async = AsyncMock(
+                                    return_value={"allowed": True, "reason": None}
                                 )
                                 mock_admiral.return_value.recruit_and_execute = AsyncMock(
                                     return_value={"chain_id": "chain-1", "specialists_count": 2}
@@ -475,8 +475,8 @@ class TestGovernanceIntegration:
                 with patch('core.atom_meta_agent.AgentFleetService'):
                     with patch('core.atom_meta_agent.CapabilityGraduationService'):
                         with patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
-                            mock_gov.return_value.canPerformAction = AsyncMock(
-                                return_value=Mock(allowed=True, reason=None)
+                            mock_gov.return_value.can_perform_action_async = AsyncMock(
+                                return_value={"allowed": True, "reason": None}
                             )
 
                             agent = AtomMetaAgent()
@@ -498,11 +498,11 @@ class TestGovernanceIntegration:
                 with patch('core.atom_meta_agent.AgentFleetService'):
                     with patch('core.atom_meta_agent.CapabilityGraduationService'):
                         with patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
-                            mock_gov.return_value.canPerformAction = AsyncMock(
-                                return_value=Mock(
-                                    allowed=False,
-                                    reason="STUDENT agents cannot execute deletions"
-                                )
+                            mock_gov.return_value.can_perform_action_async = AsyncMock(
+                                return_value={
+                                    "allowed": False,
+                                    "reason": "STUDENT agents cannot execute deletions",
+                                }
                             )
 
                             agent = AtomMetaAgent()

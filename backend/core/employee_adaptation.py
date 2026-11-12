@@ -1188,6 +1188,7 @@ async def propose_adaptation(
     provider_model: Optional[Sequence[str]] = None,
     deadline: Optional[float] = None,
     attempt_journal: Any = None,
+    strict_pin: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Propose a response; a provider failure falls back deterministically.
 
@@ -1214,6 +1215,9 @@ async def propose_adaptation(
     #: Shared mutable receipt for the awaited call. Created here, written by
     #: ``pinned_structured_call`` in whatever task actually ran, read here.
     provenance: Dict[str, Any] = {}
+    #: Evidence-pinned graduation routes force exact-route-or-failure on
+    #: every stage: an unqualified unpinned fallback may never be dispatched.
+    strict_pin_forced = strict_pin
 
     def _remaining() -> Optional[float]:
         if deadline is None:
@@ -1377,6 +1381,7 @@ async def propose_adaptation(
             tenant_id=context.get("identity", {}).get("tenant_id"),
             attempt_observer=_observer(stage_name),
             provenance=provenance,
+            strict_pin=strict_pin_forced,
         )
         try:
             if remaining is None:

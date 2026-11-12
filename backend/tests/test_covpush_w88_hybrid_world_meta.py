@@ -2260,7 +2260,7 @@ async def test_meta_route_chat_bypasses_governance(meta_agent):
 
 async def test_meta_route_workflow_allowed(meta_agent):
     gov = ama.AgentGovernanceService.return_value
-    gov.canPerformAction = AsyncMock(return_value=SimpleNamespace(allowed=True))
+    gov.can_perform_action_async = AsyncMock(return_value={"allowed": True})
     queen = MagicMock()
     queen.generate_blueprint = AsyncMock(return_value={
         "blueprint_id": "b1", "architecture_name": "A", "nodes": [{}]})
@@ -2273,7 +2273,7 @@ async def test_meta_route_workflow_allowed(meta_agent):
 
 async def test_meta_route_task_allowed(meta_agent, monkeypatch):
     gov = ama.AgentGovernanceService.return_value
-    gov.canPerformAction = AsyncMock(return_value=SimpleNamespace(allowed=True))
+    gov.can_perform_action_async = AsyncMock(return_value={"allowed": True})
     admiral = MagicMock()
     admiral.recruit_and_execute = AsyncMock(return_value={
         "chain_id": "c1", "specialists_count": 3})
@@ -2285,8 +2285,8 @@ async def test_meta_route_task_allowed(meta_agent, monkeypatch):
 
 async def test_meta_route_denied_proposes_chat(meta_agent):
     gov = ama.AgentGovernanceService.return_value
-    gov.canPerformAction = AsyncMock(return_value=SimpleNamespace(
-        allowed=False, reason="maturity too low"))
+    gov.can_perform_action_async = AsyncMock(return_value={
+        "allowed": False, "reason": "maturity too low"})
     meta_agent.llm.generate_response = AsyncMock(return_value="try chat instead")
     intent = SimpleNamespace(category=ama.IntentCategory.TASK)
     res = await meta_agent.route_with_governance("do task", intent, "u1")

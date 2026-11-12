@@ -306,7 +306,7 @@ def routing_snapshot(
     if capture:
         for key in (
                 "mode", "requested_route", "served_route", "resolved_model",
-                "profile", "error", "routing_result_id"):
+                "profile", "error", "routing_result_id", "transport"):
             if key in capture:
                 attribution[key] = capture[key]
     return attribution
@@ -360,6 +360,7 @@ async def pinned_structured_call(
     attempt_observer: Optional[Any] = None,
     capability_profile: Optional[str] = None,
     provenance: Optional[Dict[str, Any]] = None,
+    strict_pin: Optional[bool] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
 
@@ -484,8 +485,12 @@ async def pinned_structured_call(
     # The auto-derived profile used by ordinary employee calls keeps its
     # historical unpinned fallback; an explicit server qualification profile
     # is exact-route-or-failure. It never escapes on exception, None,
-    # timeout or malformed output.
-    strict_pin = bool(pinned and capability_profile)
+    # timeout or malformed output. A caller may also force strictness
+    # directly (``strict_pin=True``) for an evidence-pinned graduation route
+    # whose profile is resolved by the call label; ``None`` keeps the
+    # historical behavior byte-identically.
+    strict_pin = bool(pinned) and (
+        bool(capability_profile) if strict_pin is None else bool(strict_pin))
 
     _t0 = _time.monotonic()
     _pinned_attempt = 0

@@ -1257,6 +1257,19 @@ def _run_scenario(args: argparse.Namespace) -> int:
             step("fixture_through_public_routes", {
                 "agent_created": bool(fixture.get("agent_id")),
                 "agent_promoted": fixture.get("agent_promote_status") == 200,
+                "qualification_gate_enforced": (
+                    (fixture.get("qualification_gate_refusal") or {}).get(
+                        "code") == "QUALIFICATION_REQUIRED"
+                    and (fixture.get("qualification_gate_refusal") or {}).get(
+                        "gate_allowed") is False),
+                "owner_exception_scoped": (
+                    (fixture.get("owner_exception_policy") or {}).get(
+                        "agent_ids") == [fixture.get("agent_id")]),
+                "exception_claims_no_qualification": (
+                    fixture.get("promote_claims_capability_qualification")
+                    is False
+                    and fixture.get("promote_assessment_state")
+                    == "manual_override"),
                 "board_created": bool(fixture.get("board_id")),
                 "column_present": bool(fixture.get("column_id")),
             }, details=fixture)
@@ -1504,12 +1517,12 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     page, '[data-testid="agent-job-wait-panel"]', 180000)
                 first_question = D3._wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == SOURCE_QUESTION, 180000,
+                    lambda text: text == SOURCE_QUESTION, 180,
                     "source question")
                 first_status = D3._wait_for_text(
                     page, '[data-testid="agent-job-status"]',
                     lambda text: "Waiting for your answer" in text,
-                    180000, "waiting status")
+                    180, "waiting status")
                 first_blocking = page.locator(
                     '[data-testid="agent-job-blocking"]').inner_text().strip()
                 panel_text = page.locator(
@@ -1599,7 +1612,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     upload_body = {}
                 upload_notice = D3._wait_for_text(
                     page, '[data-testid="assignment-notice"]',
-                    lambda text: SOURCE_FILE_NAME in text, 120000,
+                    lambda text: SOURCE_FILE_NAME in text, 120,
                     "upload notice")
                 catalog = _source_catalog(api)
                 source_row = catalog["selected"]
@@ -1665,7 +1678,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     page, '[data-testid="agent-job-wait-panel"]', 180000)
                 same_question = D3._wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == SOURCE_QUESTION, 180000,
+                    lambda text: text == SOURCE_QUESTION, 180,
                     "same source question")
                 job_back = D3._read_job(api, fixture["agent_id"], job_id)
                 wait_back = job_back["data"].get("wait") or {}
@@ -1785,7 +1798,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     page, '[data-testid="agent-job-wait-panel"]', 180000)
                 after_restart_question = D3._wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == SOURCE_QUESTION, 180000,
+                    lambda text: text == SOURCE_QUESTION, 180,
                     "same source question after restart")
                 job2 = D3._read_job(api, fixture["agent_id"], job_id)
                 wait2 = job2["data"].get("wait") or {}
