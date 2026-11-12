@@ -1674,6 +1674,7 @@ QUALIFICATION_EVIDENCE_KINDS = {"agent_episode", "agent_execution", "artifact", 
 # promotion semantics they had before benchmark/route binding existed.
 QUALIFICATION_BINDING_SCHEMA = "atom-qualification-binding-1"
 QUALIFICATION_BINDING_SOURCE_REVISION = "v2-binding"
+RUNTIME_BASELINE_SCHEMA = "atom-runtime-qualification-baseline-1"
 BENCHMARK_IDENTITY_KEYS = ("benchmark_identity", "benchmark")
 BENCHMARK_DATASET_KEYS = ("dataset_sha256", "dataset_hash", "dataset_sha")
 BENCHMARK_RUBRIC_KEYS = ("rubric_version", "rubric")
@@ -2335,7 +2336,35 @@ def find_qualification_receipt(
     *,
     receipt_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Resolve the exact protected pointer; never borrow another latest row."""
+    """Resolve the exact protected pointer; never borrow another latest row.
+
+    This is the pre-transition authorization read: the receipt must have been
+    written while the agent still held its source tier. Post-promotion runtime
+    baseline resolution is a separate question and must not relax this gate.
+    """
+    return _find_qualification_receipt_for_source(
+        db, agent, target_level, policy_bundle,
+        receipt_id=receipt_id,
+        expected_source_level=str(agent.status or ""),
+    )
+
+
+def _find_qualification_receipt_for_source(
+    db: Session,
+    agent: AgentRegistry,
+    target_level: str,
+    policy_bundle: Dict[str, Any],
+    *,
+    receipt_id: Optional[str] = None,
+    expected_source_level: str,
+) -> Dict[str, Any]:
+    """Scoped receipt validation against an explicit durable source tier.
+
+    Every check except the source-tier comparison is the same validation the
+    promotion gate has always performed. Callers that authorize a transition
+    must pass the agent's current tier; only the committed post-promotion
+    baseline resolver passes the recorded ``from_level`` from PromotionHistory.
+    """
     policy = policy_bundle["policy"]
     pointer = str(receipt_id or getattr(agent, "last_exam_id", None) or "")
     if not pointer:
@@ -2373,7 +2402,8 @@ def find_qualification_receipt(
         return {"ok": False, "state": "unresolved_scope",
                 "message": "The receipt target tier binding is missing or different."}
     if not _nonempty_str(receipt.current_level) or str(
-            receipt.current_level).lower() != str(agent.status or "").lower():
+            receipt.current_level).lower() != str(
+                expected_source_level or "").lower():
         return {"ok": False, "state": "unresolved_stale",
                 "message": "The receipt source tier binding is missing or changed."}
     if not _nonempty_str(metadata.get("policy_revision")) or (
@@ -2707,6 +2737,175 @@ def evaluate_qualification_gate(
         "review_action_id": action_id,
         "next_action": _qualification_next_action(
             state, message, action_id=action_id),
+    }
+
+
+def _runtime_baseline_unresolved(
+    state: str, message: str, **details: Any,
+) -> Dict[str, Any]:
+    return {
+        "ok": False,
+        "state": str(state or "unresolved_missing"),
+        "message": str(message),
+        "candidate_capability_qualified": False,
+        "repeat_task_comparable": False,
+        "binding": None,
+        "binding_state": None,
+        "serving_routes": [],
+        "benchmark_identity": None,
+        "next_action": (
+            "Use the normal supervised path; do not inherit a qualification "
+            "baseline."),
+        **details,
+    }
+
+
+def resolve_runtime_qualification_baseline(
+    db: Session,
+    agent: AgentRegistry,
+) -> Dict[str, Any]:
+    """Resolve the repeat-task baseline established by the current promotion.
+
+    ``find_qualification_receipt`` is deliberately the pre-transition
+    authorization read: it requires ``receipt.current_level`` to equal the
+    agent's current tier. Once STUDENT -> INTERN has committed, that same
+    receipt is no longer a valid authorization for another promotion, but it
+    remains the verified durable baseline for repeat work on the tier it
+    established.
+
+    This resolver therefore starts from the newest scoped committed
+    PromotionHistory transition into the agent's current tier, then requires
+    that single decision to bind the protected receipt pointer and to be an
+    adjacent-tier transition, then runs the existing scoped receipt validator
+    with the recorded ``from_level`` as the expected source tier. A newer
+    nonmatching promotion or owner exception supersedes older matching rows,
+    so an older receipt cannot survive it. The promotion gate itself is
+    unchanged and never calls this resolver. Any missing, moved, non-adjacent
+    or stale material is unresolved, and no caller-supplied scope, evidence or
+    benchmark claim is consulted.
+    """
+    agent_id = str(getattr(agent, "id", "") or "").strip()
+    current_level = str(getattr(agent, "status", "") or "").strip().lower()
+    if not agent_id or current_level not in (
+            "student", "intern", "supervised", "autonomous"):
+        return _runtime_baseline_unresolved(
+            "unresolved_scope",
+            "The agent identity or current tier is missing or unknown.")
+
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    pointer = str(getattr(agent, "last_exam_id", None) or "").strip()
+    if not pointer:
+        return _runtime_baseline_unresolved(
+            "unresolved_missing",
+            "No protected qualification receipt pointer is recorded.")
+
+    promotion_rows = (
+        db.query(PromotionHistory)
+        .filter(PromotionHistory.agent_id == agent_id)
+        .order_by(
+            PromotionHistory.promoted_at.desc(),
+            PromotionHistory.id.desc(),
+        )
+        .populate_existing()
+        .all()
+    )
+
+    # The query is newest-first. The newest scoped committed transition INTO
+    # the current tier is the tier-establishing decision, and it is resolved
+    # before any receipt or shape check: a newer nonmatching promotion or
+    # owner exception supersedes older matching rows. An older matching
+    # receipt therefore cannot survive a newer decision about this tier.
+    history = None
+    scope_mismatch = False
+    for row in promotion_rows:
+        if str(row.to_level or "").strip().lower() != current_level:
+            continue
+        if not _durable_scope_matches(
+                getattr(row, "tenant_id", None), tenant_id):
+            scope_mismatch = True
+            continue
+        history = row
+        break
+
+    if history is None:
+        if scope_mismatch:
+            return _runtime_baseline_unresolved(
+                "unresolved_scope",
+                "The committed promotion for the current tier is outside "
+                "the agent's current tenant scope.")
+        return _runtime_baseline_unresolved(
+            "unresolved_missing",
+            "No committed promotion history establishes the current tier.")
+
+    if not (
+            _nonempty_str(getattr(history, "exam_id", None))
+            and str(history.exam_id) == pointer):
+        return _runtime_baseline_unresolved(
+            "unresolved_stale",
+            "The newest committed transition into the current tier does "
+            "not bind the protected receipt pointer.")
+
+    if _next_tier(
+            str(getattr(history, "from_level", "") or "")) != current_level:
+        return _runtime_baseline_unresolved(
+            "unresolved_stale",
+            "The newest committed transition into the current tier is not "
+            "an adjacent-tier transition.")
+
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        return _runtime_baseline_unresolved(
+            error.get("state") or "configuration_required",
+            error.get("message") or "The assessment policy is unavailable.",
+            **{"assessment": error},
+        )
+
+    receipt = _find_qualification_receipt_for_source(
+        db, agent, current_level, policy_bundle,
+        receipt_id=pointer,
+        expected_source_level=str(history.from_level or ""),
+    )
+    if not receipt.get("ok"):
+        return _runtime_baseline_unresolved(
+            receipt.get("state") or "unresolved_missing",
+            receipt.get("message") or (
+                "The committed qualification receipt is no longer valid."),
+        )
+
+    binding = receipt.get("binding")
+    binding_material = binding if isinstance(binding, dict) else {}
+    return {
+        "ok": True,
+        "state": "valid",
+        "schema": RUNTIME_BASELINE_SCHEMA,
+        "agent_id": agent_id,
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "promotion_id": str(history.id),
+        "promotion_type": str(history.promotion_type or ""),
+        "promoted_by": str(history.promoted_by or ""),
+        "promoted_at": (
+            None if history.promoted_at is None
+            else str(history.promoted_at)),
+        "source_level": str(history.from_level or "").strip().lower(),
+        "target_level": current_level,
+        "receipt_id": receipt["receipt_id"],
+        "reviewed_by": receipt["reviewed_by"],
+        "review_action_id": receipt.get("review_action_id"),
+        "source_revision": receipt["source_revision"],
+        "binding_schema": receipt.get("binding_schema"),
+        "binding": binding,
+        "binding_state": receipt.get("binding_state"),
+        "benchmark_identity": binding_material.get("benchmark_identity"),
+        "serving_routes": list(
+            binding_material.get("serving_routes") or []),
+        "repeat_task_comparable": bool(
+            receipt.get("repeat_task_comparable") is True),
+        "candidate_capability_qualified": True,
+        "receipt_fingerprint": receipt.get("receipt_fingerprint"),
+        "review_fingerprint": receipt.get("review_fingerprint"),
+        "next_action": None,
     }
 
 

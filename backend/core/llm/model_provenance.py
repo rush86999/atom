@@ -58,11 +58,24 @@ _DEFAULT_STATE_PATH = Path("./data/model_resolution_state.json")
 _resolved_model_cv: ContextVar[Optional[str]] = ContextVar(
     "atom_resolved_model", default=None
 )
+#: Echo of the CURRENT provider response, consumed exactly once by the next
+#: accepted route (:func:`set_served_route`). Kept separate from the resolved
+#: model so consuming it for identity never erases route telemetry.
+_echoed_response_model_cv: ContextVar[Optional[str]] = ContextVar(
+    "atom_echoed_response_model", default=None
+)
 
 
 def set_resolved_model(model_id: Optional[str]) -> None:
-    """Record the provider-echoed model ID for the current call context."""
+    """Record the provider-echoed model ID for the current call context.
+
+    This is actual response metadata, so it is also the pending transport
+    identity source: the next accepted route may claim it exactly once.
+    """
     _resolved_model_cv.set(model_id)
+    _echoed_response_model_cv.set(
+        model_id.strip() if isinstance(model_id, str) and model_id.strip()
+        else None)
 
 
 def get_resolved_model() -> Optional[str]:
@@ -72,6 +85,7 @@ def get_resolved_model() -> Optional[str]:
 
 def clear_resolved_model() -> None:
     _resolved_model_cv.set(None)
+    _echoed_response_model_cv.set(None)
 
 
 def _enabled() -> bool:
@@ -288,6 +302,81 @@ _routing_error_cv: _ContextVar[_Any] = _ContextVar(
 #: annotate each other's rows.
 _feedback_id_cv: _ContextVar[_Any] = _ContextVar(
     "atom_feedback_id", default=None)
+#: Optional campaign-owned sink for accepted provider calls. This is an
+#: transport hook, not authority: the sink only receives the provider echo the
+#: handler already accepted, and the benchmark producer independently validates
+#: the sealed journal against the durable execution.
+_campaign_transport_sink_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_campaign_transport_sink", default=None)
+#: Provider echo of the accepted call in this context. ``None`` when the
+#: accepted response carried no usable echo: accepted but not attributable.
+#: Campaign intake must reject that call, never backfill it from the served
+#: route.
+_accepted_response_identity_cv: _ContextVar[_Any] = _ContextVar(
+    "atom_accepted_response_identity", default=None)
+
+
+def set_campaign_transport_sink(sink: Optional[Any]) -> None:
+    """Install (or clear) an in-process accepted-call sink for a campaign."""
+    _campaign_transport_sink_cv.set(sink)
+
+
+def get_campaign_transport_sink() -> Optional[Any]:
+    return _campaign_transport_sink_cv.get()
+
+
+def clear_campaign_transport_sink() -> None:
+    _campaign_transport_sink_cv.set(None)
+
+
+def set_echoed_response_model(model_id: Optional[str]) -> None:
+    """Record the model ID echoed in the provider's own response metadata.
+
+    This is the only source a ``response_identity`` may be derived from.
+    Called by the BYOK handler immediately after a provider response is
+    received (success or failure), so the pending echo always describes the
+    most recent response and never a previous attempt.
+    """
+    text = str(model_id).strip() if isinstance(model_id, str) else ""
+    _echoed_response_model_cv.set(text or None)
+
+
+def get_echoed_response_model() -> Optional[str]:
+    return _echoed_response_model_cv.get()
+
+
+def clear_echoed_response_model() -> None:
+    _echoed_response_model_cv.set(None)
+
+
+def accepted_transport_call() -> Optional[Dict[str, _Any]]:
+    """The accepted provider call for this context.
+
+    Only a ``served`` route (set by the handler after accepting a response)
+    qualifies; a request that was merely attempted stays audit-only.
+    ``response_identity`` is the provider's own echoed model paired with the
+    accepted provider, never the served route. An accepted response without a
+    usable echo is still reported with ``response_identity=None`` so intake can
+    reject the call instead of manufacturing an identity.
+    """
+    served = _served_route_cv.get()
+    if not served or not (str(served[0] or "").strip()
+                          and str(served[1] or "").strip()):
+        return None
+    requested = _requested_route_cv.get()
+    identity = _accepted_response_identity_cv.get()
+    return {
+        "recorded_by": "atom-llm-transport",
+        "accepted": True,
+        "response_identity": (
+            dict(identity) if isinstance(identity, Mapping) else None),
+        "served_route": {
+            "provider": str(served[0]), "model": str(served[1])},
+        "requested_route": (
+            {"provider": str(requested[0]), "model": str(requested[1])}
+            if requested else None),
+        "resolved_model": get_resolved_model(),
+    }
 
 
 def set_feedback_id(feedback_id: Optional[str]) -> None:
@@ -303,16 +392,46 @@ def clear_feedback_id() -> None:
 
 
 def set_requested_route(provider_id: Optional[str], model: Optional[str]) -> None:
+    # A new candidate attempt invalidates any echo captured for the previous
+    # response: only the route that is finally accepted may supply identity.
+    _echoed_response_model_cv.set(None)
     if provider_id or model:
         _requested_route_cv.set((str(provider_id or ""), str(model or "")))
 
 
 def set_served_route(provider_id: Optional[str], model: Optional[str]) -> None:
     if provider_id or model:
-        _served_route_cv.set((str(provider_id or ""), str(model or "")))
+        provider = str(provider_id or "")
+        served_model = str(model or "")
+        _served_route_cv.set((provider, served_model))
         # An accepted response supersedes any earlier candidate-exclusion
         # warning from the same boundary.
         _routing_error_cv.set(None)
+        # Bind identity to THIS accepted response. The model must come from the
+        # provider's own echo; the served route alone is never an identity.
+        # The pending echo is consumed so a retry cannot inherit it.
+        echoed_model = _identity(_echoed_response_model_cv.get())
+        _echoed_response_model_cv.set(None)
+        provider_identity = _identity(provider)
+        identity = (
+            {"provider": provider_identity, "model": echoed_model}
+            if provider_identity and echoed_model else None)
+        _accepted_response_identity_cv.set(identity)
+        # A campaign that opted into benchmark evidence may own an in-process
+        # journal. Record the accepted provider echo at the transport boundary
+        # itself, not from a caller's later claim. A missing echo is recorded
+        # as missing, never replaced by the served route.
+        sink = _campaign_transport_sink_cv.get()
+        if sink is not None:
+            try:
+                sink(
+                    provider,
+                    served_model,
+                    _requested_route_cv.get(),
+                    dict(identity) if identity else None,
+                )
+            except Exception as exc:  # noqa: BLE001 — observation is passive
+                logger.debug("campaign transport journal record skipped: %s", exc)
 
 
 def set_route_mode(mode: Optional[str]) -> None:
@@ -343,9 +462,11 @@ def clear_route_attribution() -> None:
     _route_mode_cv.set(None)
     _routing_profile_cv.set(None)
     _routing_error_cv.set(None)
+    _accepted_response_identity_cv.set(None)
     clear_feedback_id()
     # A previous call's echoed checkpoint must not be attributed to this one.
     clear_resolved_model()
+    clear_echoed_response_model()
 
 
 def get_route_attribution() -> Dict[str, _Any]:
@@ -367,6 +488,7 @@ def get_route_attribution() -> Dict[str, _Any]:
             if profile else None),
         "error": _routing_error_cv.get(),
         "routing_result_id": get_feedback_id(),
+        "transport": accepted_transport_call(),
     }
 
 

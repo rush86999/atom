@@ -2809,12 +2809,21 @@ class BYOKHandler:
         flags in _record_outcome_feedback. Best-effort: never raises.
         """
         try:
-            from core.llm.model_provenance import set_resolved_model
+            from core.llm.model_provenance import (
+                set_echoed_response_model,
+                set_resolved_model,
+            )
 
             if response is None:
                 return
             raw = getattr(response, "_raw_response", None) or response
-            set_resolved_model(getattr(raw, "model", None))
+            echoed = getattr(raw, "model", None)
+            echoed = echoed if isinstance(echoed, str) else None
+            set_resolved_model(echoed)
+            # The same raw-response field is the ONLY source of an explicit
+            # transport identity; a later accepted route consumes it exactly
+            # once (``set_served_route``), so retries cannot inherit it.
+            set_echoed_response_model(echoed)
         except Exception:
             pass
 

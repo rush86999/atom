@@ -25,9 +25,11 @@ from sqlalchemy.orm.attributes import flag_modified
 import core.agent_graduation_service as grad
 from core.agent_graduation_service import (
     QUALIFICATION_BINDING_SCHEMA,
+    commit_qualified_transition,
     evaluate_qualification_gate,
     find_qualification_receipt,
     request_qualification_review,
+    resolve_runtime_qualification_baseline,
     validate_qualification_evidence,
     validate_qualification_review_binding,
     write_qualification_receipt_from_review,
@@ -40,6 +42,7 @@ from core.models import (
     GraduationExam,
     HITLAction,
     HITLActionStatus,
+    PromotionHistory,
     Tenant,
     User,
     Workspace,
@@ -509,3 +512,217 @@ def test_legacy_receipt_keeps_existing_promotion_semantics(world):
         flag_modified(execution, "metadata_json")
         db.commit()
     assert _read(world)["ok"] is True
+
+
+def _promote_to_intern(world):
+    with world.Session() as db:
+        result = commit_qualified_transition(
+            db,
+            agent_id=AGENT,
+            target_level="INTERN",
+            actor_id=SUPERVISOR,
+            readiness={"ready": True, "score": 0.88, "gaps": []},
+            source="focused-post-promotion-test",
+            operation_id="post-promotion-baseline",
+        )
+    assert result["status"] == "verified", result
+    return result
+
+
+def test_post_promotion_baseline_after_actual_promotion_and_restart(world):
+    receipt_id = _approve_and_write(world, _request(world))
+    promoted = _promote_to_intern(world)
+    history_id = promoted["data"]["promotion_history_id"]
+
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        history = db.query(PromotionHistory).filter(
+            PromotionHistory.agent_id == AGENT).one()
+        assert agent.status == "intern"
+        assert history.id == history_id
+        assert history.exam_id == receipt_id == agent.last_exam_id
+        assert (history.from_level, history.to_level) == ("student", "intern")
+
+        # The pre-transition authorization read is unchanged: the receipt
+        # that authorized STUDENT -> INTERN is no longer current-tier valid.
+        refused = find_qualification_receipt(
+            db, agent, "INTERN", get_assessment_policy(db))
+        assert refused["ok"] is False
+        assert refused["state"] == "unresolved_stale"
+        assert evaluate_qualification_gate(
+            db, agent, "SUPERVISED")["allowed"] is False
+
+    # Fresh engine/session on the durable file, then resolve the baseline the
+    # committed transition established.
+    world.reopen()
+    with world.Session() as db:
+        baseline = resolve_runtime_qualification_baseline(
+            db, db.get(AgentRegistry, AGENT))
+
+    assert baseline["ok"] is True, baseline
+    assert baseline["state"] == "valid"
+    assert baseline["promotion_id"] == history_id
+    assert baseline["source_level"] == "student"
+    assert baseline["target_level"] == "intern"
+    assert baseline["receipt_id"] == receipt_id
+    assert baseline["repeat_task_comparable"] is True
+    assert baseline["binding_state"] == "bound"
+    assert baseline["serving_routes"] == [
+        {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+    assert baseline["benchmark_identity"] == {
+        "dataset_sha256": DATASET_SHA,
+        "rubric_version": "heldout-v1",
+        "workload_scope": SCOPE,
+    }
+
+
+def test_post_promotion_baseline_fails_closed_on_scope_stale_and_transition(world):
+    _approve_and_write(world, _request(world))
+    _promote_to_intern(world)
+    world.reopen()
+
+    def baseline():
+        with world.Session() as db:
+            return resolve_runtime_qualification_baseline(
+                db, db.get(AgentRegistry, AGENT))
+
+    assert baseline()["ok"] is True
+
+    # Evidence moved outside the agent's current scope is not reusable even
+    # though the committed transition and receipt still exist.
+    with world.Session() as db:
+        execution = db.get(AgentExecution, "exec-1")
+        original_scope = (execution.tenant_id, execution.workspace_id)
+        execution.tenant_id = "foreign-tenant"
+        execution.workspace_id = "foreign-workspace"
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_scope"
+    with world.Session() as db:
+        execution = db.get(AgentExecution, "exec-1")
+        execution.tenant_id, execution.workspace_id = original_scope
+        db.commit()
+    world.reopen()
+    assert baseline()["ok"] is True
+
+    # Evidence changed after the receipt is stale, not a new baseline.
+    with world.Session() as db:
+        episode = db.get(AgentEpisode, "ep-1")
+        original_task = episode.task_description
+        original_updated_at = episode.updated_at
+        episode.task_description = "changed after the committed promotion"
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_stale"
+    with world.Session() as db:
+        episode = db.get(AgentEpisode, "ep-1")
+        episode.task_description = original_task
+        episode.updated_at = original_updated_at
+        db.commit()
+    world.reopen()
+    assert baseline()["ok"] is True
+
+    # A promotion row that does not bind the protected receipt pointer cannot
+    # become the runtime baseline.
+    with world.Session() as db:
+        history = db.query(PromotionHistory).filter(
+            PromotionHistory.agent_id == AGENT).one()
+        original_exam_id = history.exam_id
+        history.exam_id = None
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_stale"
+
+    # Removing the committed transition removes the baseline entirely.
+    with world.Session() as db:
+        history = db.query(PromotionHistory).filter(
+            PromotionHistory.agent_id == AGENT).one()
+        history.exam_id = original_exam_id
+        db.delete(history)
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_missing"
+
+
+def test_newer_nonmatching_transition_supersedes_older_matching_receipt(world):
+    """The newest committed transition into the current tier is authoritative.
+
+    A newer promotion that binds a different receipt, or that is not an
+    adjacent-tier transition (an owner exception), must fail the runtime
+    baseline closed. It must never fall back to an older matching receipt.
+    """
+    receipt_id = _approve_and_write(world, _request(world))
+    promoted = _promote_to_intern(world)
+    established_id = promoted["data"]["promotion_history_id"]
+    world.reopen()
+
+    def baseline():
+        with world.Session() as db:
+            return resolve_runtime_qualification_baseline(
+                db, db.get(AgentRegistry, AGENT))
+
+    assert baseline()["promotion_id"] == established_id
+
+    with world.Session() as db:
+        established = db.get(PromotionHistory, established_id)
+        assert established.exam_id == receipt_id
+        promoted_at = established.promoted_at
+
+    # A newer committed transition into INTERN bound to a different receipt
+    # supersedes the older row that binds the protected pointer.
+    with world.Session() as db:
+        db.add(PromotionHistory(
+            id="later-different-receipt",
+            agent_id=AGENT,
+            tenant_id=TENANT,
+            from_level="student",
+            to_level="intern",
+            promotion_type="manual",
+            readiness_score=0.9,
+            exam_id="other-receipt",
+            promoted_by=SUPERVISOR,
+            justification="later decision with another receipt",
+            promoted_at=promoted_at + timedelta(minutes=5),
+        ))
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_stale"
+    assert result.get("promotion_id") is None
+
+    # A newer non-adjacent transition carrying the same receipt pointer (an
+    # owner exception recorded without an adjacent source tier) supersedes it
+    # too: the older matching receipt cannot survive it.
+    with world.Session() as db:
+        db.delete(db.get(PromotionHistory, "later-different-receipt"))
+        db.add(PromotionHistory(
+            id="later-non-adjacent",
+            agent_id=AGENT,
+            tenant_id=TENANT,
+            from_level="",
+            to_level="intern",
+            promotion_type="manual",
+            readiness_score=0.9,
+            exam_id=receipt_id,
+            promoted_by=SUPERVISOR,
+            justification="later owner exception",
+            promoted_at=promoted_at + timedelta(minutes=5),
+        ))
+        db.commit()
+    result = baseline()
+    assert result["ok"] is False
+    assert result["state"] == "unresolved_stale"
+
+    # Removing the superseding decision restores the committed baseline.
+    with world.Session() as db:
+        db.delete(db.get(PromotionHistory, "later-non-adjacent"))
+        db.commit()
+    world.reopen()
+    restored = baseline()
+    assert restored["ok"] is True, restored
+    assert restored["promotion_id"] == established_id
+    assert restored["receipt_id"] == receipt_id

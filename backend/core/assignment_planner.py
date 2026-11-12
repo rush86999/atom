@@ -385,8 +385,15 @@ def plan_assignment(
     standing_authority: Optional[Dict[str, Any]] = None,
     budget: Optional[Dict[str, Any]] = None,
     facts: Optional[Sequence[Dict[str, Any]]] = None,
+    workload_scope: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Build and validate an assignment plan from opaque descriptors."""
+    """Build and validate an assignment plan from opaque descriptors.
+
+    ``workload_scope`` is SERVER-owned workload identity (resolved by the
+    route from a registered repeat-task reference); callers never pass
+    request payload here. It is persisted verbatim on the plan so the
+    repeat-task route resolver reads durable, server-derived scope.
+    """
     teaching = teaching_snapshot or new_teaching_snapshot(
         revision="untrained")
     aggregate: Optional[Dict[str, Any]] = None
@@ -687,6 +694,7 @@ def plan_assignment(
         authorized_actions=actions,
         completion_criteria=criteria,
         facts=list(facts or []),
+        workload_scope=workload_scope,
         budget={
             "max_steps": max(4, min(len(steps) + 8, 40)),
             "max_attempts_per_step": 3,

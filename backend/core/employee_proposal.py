@@ -1341,6 +1341,7 @@ async def propose_employee_work(
     deadline_seconds: float = 120.0,
     provider_model: Optional[Sequence[str]] = None,
     attempt_journal: Any = None,
+    strict_pin: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
@@ -1406,6 +1407,7 @@ async def propose_employee_work(
                 tenant_id=context.get("identity", {}).get("tenant_id"),
                 attempt_observer=_observe,
                 provenance=provenance,
+                strict_pin=strict_pin,
             )
             budget = max(0.0, float(deadline_seconds or 0.0))
             result = (
