@@ -440,6 +440,48 @@ class _FakeClient:
             completions=_FakeCompletions(owner, provider_id))
 
 
+#: The handler's client snapshot was built from THIS revision. It is a stable
+#: stand-in for the durable key-store revision, so the dispatch-time
+#: ``refresh_credentials_if_changed`` backstop never believes the key store
+#: changed mid-test and rebuilds real SDK clients over the fakes.
+_FAKE_CREDENTIAL_SIGNATURE = "test:stable-credential-revision"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_credential_store(monkeypatch):
+    """Never read the machine's real BYOK key store from these tests."""
+    monkeypatch.setattr(
+        bh, "key_store_signature", lambda: _FAKE_CREDENTIAL_SIGNATURE)
+
+
+#: What the fake providers below are DISCOVERED to serve. The dispatch gate is
+#: real (unknown catalogue is not a yes); these tests just supply the catalogue
+#: that the fake endpoints would have reported. ``alpha-model-2`` is
+#: deliberately included so a credential rejection — not the catalogue — is
+#: what keeps alpha from being asked for its second model.
+_FAKE_PROVIDER_CATALOGUE = {
+    "alpha": ["primary-model", "m1", "alpha-model-2"],
+    "beta": ["fallback-model", "fb", "fb-1"],
+    "gamma": ["fb-2"],
+}
+
+
+@pytest.fixture(autouse=True)
+def _fake_provider_catalogue(tmp_path, monkeypatch):
+    """Give the in-process registry a catalogue for the fake providers.
+
+    Without it every dispatch is refused as ``unknown_catalog`` before the
+    fake client is ever called, and the streaming/fallback tests would pass or
+    fail for a reason unrelated to what they pin.
+    """
+    import core.llm.model_route_registry as mrr
+
+    catalogue = ProviderModelCatalog(path=str(tmp_path / "routes.json"))
+    for provider_id, models in _FAKE_PROVIDER_CATALOGUE.items():
+        catalogue.record_discovery(provider_id, models)
+    monkeypatch.setattr(mrr, "_CATALOG", catalogue)
+
+
 class _RouteHarness:
     """A BYOKHandler with two fake providers and no network."""
 
@@ -458,6 +500,14 @@ class _RouteHarness:
             self.handler.async_clients[provider_id] = client
         self.handler.env_key_providers = set()
         self.handler.credential_service = None
+        # The fake clients above ARE the initialized snapshot; pairing them
+        # with the fake revision makes the dispatch-time credential check a
+        # no-op instead of a real client rebuild.
+        self.handler.credential_signature = _FAKE_CREDENTIAL_SIGNATURE
+        self.handler._credential_signature = _FAKE_CREDENTIAL_SIGNATURE
+        # No real BYOK store either: a stray rebuild must resolve no keys.
+        self.handler.byok_manager = MagicMock()
+        self.handler.byok_manager.get_api_key.return_value = None
         self.handler.health_monitor = MagicMock()
         self.handler._track_llm_call = MagicMock()
         self.handler._capture_echoed_model = MagicMock()
