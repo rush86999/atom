@@ -604,3 +604,38 @@ Fixture-state note: the module-scoped covpush learn helpers now reset an
 existing agent/execution row's tenant/owner/workspace to the case's
 required values instead of silently reusing contradictory get-or-create
 state.
+
+### Follow-up verification: mounted signed-token /learn proof
+
+Files touched: `backend/tests/test_learn_routes.py` and this note. Test-only;
+no production behavior change.
+
+- Added `TestLearnRouteSignedToken`: a real `create_access_token` bearer
+  is validated by the real `get_current_user` / `get_current_tenant` /
+  `require_permission` chain against a scratch SQLite User/Tenant/
+  Workspace (workspace_admin, populated workspace scope). No FastAPI
+  `dependency_overrides` are installed at all — only the module-level
+  `SessionLocal` bindings (core + audit/domain middleware) are redirected
+  to the scratch factory for the test's duration.
+- The positive case asserts a PENDING `SkillCandidate`, tenant/agent
+  scoping, and that the builder/registry were never called; the model
+  transport is a doubled inert string, so no provider call or generated-
+  code execution occurs.
+- The denial case covers the standard missing-credential response only,
+  with a harmless nonexistent execution id; asserts 401/403, zero
+  candidates, and the model leaf never awaited.
+- Fixed `_restore_mounted_app_overrides` to resolve `main_api_app` again
+  at teardown. When the module was first imported inside the test (the
+  lazy mounted-client helpers), the setup snapshot saw `None`, so the
+  first mounted test's overrides were left installed process-wide.
+
+Verified under `sandbox-exec -p '(version 1)(allow default)(deny
+network*)'`, `TESTING=1`, and a unique temp-dir SQLite `DATABASE_URL` per
+run (never `backend/data/atom.db`): `tests/test_learn_routes.py` 30/30;
+cleanup-ordering repro (`TestLearnRoute::test_success_stores_pending_
+candidate` then `TestLearnRouteSignedToken`) 3/3;
+`test_covpush_w82a_autodev.py -k MementoEngine` +
+`test_covpush_autodev2.py -k MementoEngineCoverage` 30/30;
+`test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12; autodev
+review/apply/boundary suites 21/21. No live DB, provider call, generated-
+code execution, push or PR.

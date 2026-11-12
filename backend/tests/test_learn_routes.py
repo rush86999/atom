@@ -25,10 +25,13 @@ from core.models import (
     AgentExecution,
     AgentReasoningStep,
     AgentRegistry,
+    RevokedToken,
     Skill,
     SkillExecution,
     Tenant,
+    User,
     UserRole,
+    UserStatus,
     Workspace,
     Base,
     workspace_skills,
@@ -41,15 +44,23 @@ from core.models import (
 
 @pytest.fixture(autouse=True)
 def _restore_mounted_app_overrides():
-    """Keep per-test dependency overrides from leaking into other files."""
+    """Keep per-test dependency overrides from leaking into other files.
+
+    ``main_api_app`` may be imported DURING the test (the mounted-client
+    helpers import it lazily), so the module has to be looked up again at
+    teardown. Snapshotting only at setup left the first mounted test's
+    overrides installed for every later test process-wide.
+    """
     import sys
 
     module = sys.modules.get("main_api_app")
-    before = dict(module.app.dependency_overrides) if module else None
-    yield
-    if module is not None:
-        module.app.dependency_overrides.clear()
-        if before:
+    before = dict(module.app.dependency_overrides) if module else {}
+    try:
+        yield
+    finally:
+        module = sys.modules.get("main_api_app")
+        if module is not None:
+            module.app.dependency_overrides.clear()
             module.app.dependency_overrides.update(before)
 
 
@@ -734,6 +745,192 @@ class TestLearnRoute:
                 headers={"Authorization": "Bearer test"},
             )
         assert resp.status_code == 404, resp.text
+
+
+@pytest.fixture()
+def signed_scratch_app(tmp_path, monkeypatch):
+    """Mounted app + REAL auth chain against a scratch SQLite file.
+
+    No FastAPI ``dependency_overrides`` are installed. ``get_db`` reads the
+    module-level ``SessionLocal`` binding at request time, so redirecting
+    that binding is enough to keep every request-scoped session on the
+    scratch file. ``get_current_user``/``get_current_tenant`` and
+    ``require_permission`` then run their normal JWT + RBAC path against
+    the seeded scratch User/Tenant/Workspace rows.
+
+    The only doubled leaf is the model transport (``propose_code_change``
+    in each test), so no provider call or generated-code execution occurs.
+    """
+    from fastapi.testclient import TestClient
+
+    from core.auth import create_access_token
+    from main_api_app import app
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'learn-signed-token.db'}",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            Tenant.__table__,
+            Workspace.__table__,
+            User.__table__,
+            RevokedToken.__table__,
+            AgentExecution.__table__,
+            AgentReasoningStep.__table__,
+            AgentRegistry.__table__,
+            SkillCandidate.__table__,
+        ],
+    )
+    factory = sessionmaker(bind=engine)
+    db = factory()
+
+    tenant = Tenant(
+        id="tenant-signed", name="Signed Tenant", subdomain="signed-scratch"
+    )
+    workspace = Workspace(
+        id="ws-signed", name="Signed Workspace", tenant_id=tenant.id
+    )
+    user = User(
+        id="user-signed",
+        tenant_id=tenant.id,
+        workspace_id=workspace.id,
+        email="signed.actor@example.invalid",
+        hashed_password="inert-credential-material",
+        first_name="Signed",
+        last_name="Actor",
+        role=UserRole.WORKSPACE_ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db.add_all([tenant, workspace, user])
+    db.commit()
+
+    _seed_agent(
+        db,
+        agent_id="agent-signed",
+        tenant_id=tenant.id,
+        workspace_id=workspace.id,
+    )
+    _seed_execution(
+        db,
+        agent_id="agent-signed",
+        tenant_id=tenant.id,
+        exec_id="exec-signed",
+    )
+
+    # Request-time DB bindings: core get_db plus the middleware modules that
+    # bound SessionLocal by value at import. Never a dependency override.
+    monkeypatch.setattr("core.database.SessionLocal", factory)
+    monkeypatch.setattr("middleware.audit_middleware.SessionLocal", factory)
+    monkeypatch.setattr(
+        "middleware.domain_routing_middleware.SessionLocal", factory
+    )
+
+    token = create_access_token({"sub": user.id}, user=user)
+    client = TestClient(app)
+    try:
+        yield {
+            "client": client,
+            "db": db,
+            "engine": engine,
+            "tenant": tenant,
+            "workspace": workspace,
+            "user": user,
+            "headers": {"Authorization": f"Bearer {token}"},
+        }
+    finally:
+        db.close()
+        engine.dispose()
+
+
+class TestLearnRouteSignedToken:
+    """Mounted /learn with a legitimately signed token — no auth overrides.
+
+    The positive case proves the scratch actor is authorized end-to-end by
+    the real dependencies (JWT signature/credential binding, tenant
+    resolution, RBAC role). The denial case proves the standard missing-
+    credential response and that an inert execution id never reaches the
+    model/storage path.
+    """
+
+    def _assert_auth_dependencies_are_real(self):
+        from core.auth import get_current_tenant, get_current_user
+        from core.database import get_db
+        from main_api_app import app
+
+        assert get_current_user not in app.dependency_overrides
+        assert get_current_tenant not in app.dependency_overrides
+        assert get_db not in app.dependency_overrides
+
+    def test_signed_token_creates_pending_candidate(self, signed_scratch_app):
+        self._assert_auth_dependencies_are_real()
+
+        generated = (
+            "def inert_signed_marker():\n"
+            "    return 'INERT_SIGNED_TOKEN_MARKER'\n"
+        )
+        with patch.object(
+            MementoEngine,
+            "propose_code_change",
+            new=AsyncMock(return_value=generated),
+        ) as mock_propose, patch(
+            "core.skill_builder_service.SkillBuilderService"
+        ) as MockBuilder, patch(
+            "core.skill_registry_service.SkillRegistryService"
+        ) as MockReg:
+            resp = signed_scratch_app["client"].post(
+                "/api/v1/learn",
+                json={"execution_id": "exec-signed"},
+                headers=signed_scratch_app["headers"],
+            )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["success"] is True
+        data = body["data"]
+        assert data["status"] == "pending_approval"
+        assert data["candidate_id"]
+        assert data["skill_name"].startswith("auto_")
+
+        db = signed_scratch_app["db"]
+        db.expire_all()
+        candidate = db.query(SkillCandidate).one()
+        assert candidate.validation_status == "pending"
+        assert candidate.tenant_id == "tenant-signed"
+        assert candidate.agent_id == "agent-signed"
+        assert candidate.skill_name == data["skill_name"]
+        assert candidate.generated_code == generated
+        assert candidate.failure_pattern["execution_id"] == "exec-signed"
+
+        # Unapproved generated material stays non-runnable.
+        mock_propose.assert_awaited_once()
+        MockBuilder.assert_not_called()
+        MockReg.assert_not_called()
+
+    def test_missing_credentials_denies_inert_execution(
+        self, signed_scratch_app
+    ):
+        self._assert_auth_dependencies_are_real()
+
+        db = signed_scratch_app["db"]
+        with patch.object(
+            MementoEngine,
+            "propose_code_change",
+            new=AsyncMock(return_value="def inert():\n    return 1"),
+        ) as mock_propose:
+            resp = signed_scratch_app["client"].post(
+                "/api/v1/learn",
+                # Harmless inert id: no such execution exists anywhere.
+                json={"execution_id": "inert-no-such-execution"},
+            )
+
+        assert resp.status_code in (401, 403), resp.text
+        db.expire_all()
+        assert db.query(SkillCandidate).count() == 0
+        mock_propose.assert_not_awaited()
 
 
 class TestLearnReviewApplyChain:
