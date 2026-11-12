@@ -14,7 +14,7 @@ What is real here:
   auth/role dependencies. Approval is not application; application writes a
   prompt-only package (no generated executable code) and assigns it to the
   reviewed workspace.
-* Consumption: three separate OS processes start from the SAME scratch DB
+* Consumption: four separate OS processes start from the SAME scratch DB
   and skills root. Each runs the real ``GenericAgent._react_step`` prompt
   assembly (including ``SkillRetrievalService``) for the ordinary request.
   Only the model transport is doubled — ``generate_structured`` captures the
@@ -251,8 +251,6 @@ def world(tmp_path, monkeypatch):
                 user, execution])
     db.commit()
 
-    from core.database import SessionLocal, get_db_session
-
     @contextmanager
     def _session():
         # Same contract as the real helper: usable as ``with get_db_session()``
@@ -270,9 +268,6 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr("core.database.SessionLocal", factory)
     monkeypatch.setattr("core.database.get_db_session", _session)
     monkeypatch.setattr("core.generic_agent.get_db_session", _session)
-    # Keep the imports above meaningful to linters and the original names
-    # available for restoration at teardown.
-    assert SessionLocal is not None and get_db_session is not None
 
     try:
         yield {
@@ -509,3 +504,7 @@ def test_reviewed_prompt_skill_is_consumed_after_os_process_restart(
     other_system = other_view["system_instruction"] or ""
     assert marker not in other_system
     assert "The following skills may be relevant" not in other_system
+    assert len({
+        pending_view["pid"], reviewed_view["pid"],
+        applied_view["pid"], other_view["pid"],
+    }) == 4
