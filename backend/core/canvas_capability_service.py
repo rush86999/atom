@@ -41,7 +41,7 @@ from decimal import (
     ROUND_HALF_UP,
 )
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
 from sqlalchemy import func, update
@@ -223,6 +223,275 @@ def assessment_qualification(
         "scope_reasons": ["unregistered"],
         "registry": registry.get("path"),
     }
+
+
+def _policy_anchor(scope: Any) -> str:
+    """The case/whitespace-normalized identity anchor of a workload scope."""
+    policy = scope.get("task_policy") if isinstance(scope, Mapping) else scope
+    return " ".join(str(policy or "").split()).casefold()
+
+
+def _text_restates(anchor: str, text: Any) -> bool:
+    """Deterministic containment: the text restates the anchor verbatim.
+
+    Case- and whitespace-insensitive; the final punctuation of the anchor is
+    optional. No model, no scoring, no model-specific branching.
+    """
+    if not anchor:
+        return False
+    stated = " ".join(str(text or "").split()).casefold()
+    return anchor in stated or anchor.rstrip(".") in stated
+
+
+def _work_states_registered_task(scope: Any, work: Any) -> bool:
+    """Whether the caller's actual work statement IS the registered task.
+
+    Naming a registered task is not authority over its workload. The
+    registered workload's own policy text is the identity anchor: the
+    caller's work (the objective the server is about to execute) must
+    restate it (see :func:`_text_restates`' containment rule). Anything that
+    does not restate the registered policy fails closed, so the assignment
+    stays workload-unknown and the runtime supervises.
+    """
+    return _text_restates(_policy_anchor(scope), work)
+
+
+def registered_workload_scope(
+    task_id: Any, work: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """The server-owned canonical workload scope of a registered task.
+
+    Assignment creation may only NAME a registered repeat task; the workload
+    identity itself is resolved here, from the server-controlled assessment
+    qualification registry — never from the request. Naming the task is not
+    enough to inherit it: when ``work`` is supplied (the caller's actual
+    objective/work statement the server is about to execute), the canonical
+    scope is returned only if that work restates the registered task's own
+    policy (see ``_work_states_registered_task``). A valid registration ID
+    paired with an unrelated objective therefore stays ``None`` — exactly
+    like an unknown or revoked reference — so the assignment remains
+    workload-unknown and the runtime supervises. Unknown keys cannot
+    broaden the recorded contract (the same canonical reducer the durable
+    receipt binding uses), a revoked registration no longer defines the
+    workload, and registry qualification status is deliberately NOT
+    consulted: it says which configuration may act autonomously, not what
+    the registered task is.
+    """
+    wanted = str(task_id or "").strip()
+    if not wanted:
+        return None
+    registry = load_assessment_qualification_registry()
+    for entry in registry.get("configurations") or []:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("id") or "").strip() != wanted:
+            continue
+        if entry.get("capability") != _ASSESSMENT_CAPABILITY:
+            continue
+        if bool(entry.get("revoked")):
+            return None
+        from core.agent_graduation_service import _binding_scope
+
+        scope = _binding_scope(entry.get("scope"))
+        if work is not None and not _work_states_registered_task(scope, work):
+            return None
+        return scope
+    return None
+
+
+COMPILED_WORK_BINDING_SCHEMA = "atom-compiled-work-binding-1"
+
+#: Input keys whose string material is part of a step's executable work
+#: substance (the caller-visible work text; run-state fields are never
+#: identity material).
+_COMPILED_TEXT_KEYS = (
+    "title", "subject", "body", "content", "fact", "detail", "question",
+    "expression", "action",
+)
+
+
+def compiled_work_fingerprint(plan: Any) -> Optional[str]:
+    """Canonical identity hash of the plan's ACTUAL compiled steps.
+
+    The projection covers the executable work material only — identity,
+    operation class, adapter, title, instruction, effect, requirement flag,
+    dependencies and inputs — never mutable run state (status, attempts,
+    results, timestamps), so an executor's progress updates do not move the
+    identity while ANY change to the compiled work itself does. Material
+    that cannot be verified returns None; callers fail closed on it.
+    """
+    steps = plan.get("steps") if isinstance(plan, Mapping) else None
+    if not isinstance(steps, list) or not steps:
+        return None
+    projection = []
+    for step in steps:
+        if not isinstance(step, Mapping):
+            return None
+        projection.append({
+            "step_id": step.get("step_id"),
+            "operation_type": step.get("operation_type"),
+            "adapter": step.get("adapter"),
+            "title": step.get("title"),
+            "instruction": step.get("instruction"),
+            "effect": step.get("effect"),
+            "required": bool(step.get("required", True)),
+            "depends_on": list(step.get("depends_on") or []),
+            "inputs": step.get("inputs"),
+        })
+    from core.assignment_plan import canonical_sha256
+
+    try:
+        return canonical_sha256(projection)
+    except Exception:  # noqa: BLE001 — an unverifiable plan fails closed
+        return None
+
+
+def _compiled_work_text(plan: Any) -> str:
+    """The plan's own compiled work substance.
+
+    Every text field the compiled steps and deliverables actually carry,
+    including the material the server composed from the caller's work
+    descriptors (deliverable descriptions/contents, step titles,
+    instructions and work-bearing inputs). The caller's objective itself is
+    NOT read here: matching it is the wording gate, and the point of this
+    contract is that matching the objective does not bind the work.
+    """
+    parts: List[str] = []
+    if isinstance(plan, Mapping):
+        for step in plan.get("steps") or []:
+            if not isinstance(step, Mapping):
+                continue
+            parts.append(str(step.get("title") or ""))
+            parts.append(str(step.get("instruction") or ""))
+            inputs = step.get("inputs")
+            if isinstance(inputs, Mapping):
+                for key in _COMPILED_TEXT_KEYS:
+                    value = inputs.get(key)
+                    if isinstance(value, str):
+                        parts.append(value)
+        for deliverable in plan.get("deliverables") or []:
+            if not isinstance(deliverable, Mapping):
+                continue
+            for key in ("description", "content", "body", "title"):
+                value = deliverable.get(key)
+                if isinstance(value, str):
+                    parts.append(value)
+    return " ".join(parts)
+
+
+def _registered_policy_anchors(exclude: Any = None) -> List[str]:
+    """Every registered task's policy anchor except the excluded workload."""
+    excluded = _policy_anchor(exclude)
+    anchors: List[str] = []
+    for entry in load_assessment_qualification_registry().get(
+            "configurations") or []:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("capability") != _ASSESSMENT_CAPABILITY:
+            continue
+        anchor = _policy_anchor(entry.get("scope"))
+        if not anchor or anchor == excluded or anchor in anchors:
+            continue
+        anchors.append(anchor)
+    return anchors
+
+
+def compiled_work_conflict(scope: Any, plan: Any) -> Optional[str]:
+    """A registered task's policy the plan's compiled work performs, if any.
+
+    The caller's objective restating the registered task (the wording gate)
+    does not bind the compiled work: the server composes the actual
+    executable steps from the caller's descriptors, an explicit proposed
+    plan or a model proposal. This is the server-owned task contract on
+    that compiled work: the substance the steps and deliverables actually
+    carry must not perform a DIFFERENT registered task's workload — the
+    exact valid task ID paired with another task's compiled work never
+    inherits the requested task's identity. Deterministic containment
+    against the server registry (no model, no scoring); substance that
+    restates no registered task passes.
+    """
+    text = _compiled_work_text(plan)
+    if not text.strip():
+        return None
+    for anchor in _registered_policy_anchors(exclude=scope):
+        if _text_restates(anchor, text):
+            return anchor
+    return None
+
+
+def compiled_work_binding(task_id: Any, plan: Any) -> Optional[Dict[str, Any]]:
+    """The server-owned binding of a validated compiled work, or None."""
+    fingerprint = compiled_work_fingerprint(plan)
+    if not fingerprint:
+        return None
+    return {
+        "schema": COMPILED_WORK_BINDING_SCHEMA,
+        "task_id": str(task_id or "").strip(),
+        "compiled_fingerprint": fingerprint,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def compiled_work_contract(
+    scope: Any,
+    plan: Any,
+    *,
+    binding: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Server-owned compiled-work contract for a registered repeat task.
+
+    The compiled work must (a) exist and be verifiable, (b) not perform a
+    different registered task's workload, and (c) — when a stamp-time
+    binding is supplied — still be the SAME compiled work the contract
+    validated: any plan change (a replanned step, a swapped adapter, a
+    model-produced replacement) moves the fingerprint and the workload
+    stamp no longer applies. Every unknown shape fails closed.
+    """
+    reasons: List[str] = []
+    fingerprint = compiled_work_fingerprint(plan)
+    if not fingerprint:
+        reasons.append("compiled_work_missing")
+    conflict = compiled_work_conflict(scope, plan)
+    if conflict is not None:
+        reasons.append(f"compiled_work_conflict:{conflict}")
+    if binding is not None:
+        recorded = (
+            str(binding.get("compiled_fingerprint") or "")
+            if isinstance(binding, Mapping) else "")
+        if not recorded or not fingerprint or fingerprint != recorded:
+            reasons.append("compiled_work_changed")
+    return {"ok": not reasons, "reasons": reasons}
+
+
+def bind_compiled_registered_work(plan: Any, task_id: Any) -> None:
+    """Stamp-time compiled-work hold on a composed assignment plan.
+
+    Called by the server's own composition paths AFTER the plan's steps
+    exist and BEFORE the run is created. A workload scope stamped from the
+    caller's objective restatement survives only when the ACTUAL compiled
+    steps satisfy the registered task's server-owned contract; otherwise
+    the scope is stripped and the plan stays workload-unknown — the normal
+    supervised path, never a qualification shortcut. On success the
+    validated compiled work is fingerprint-bound on the plan so the
+    executor's effect gate can revalidate the SAME work before any
+    autonomous effect after a plan change or a restart.
+    """
+    if not isinstance(plan, dict):
+        return
+    scope = plan.get("workload_scope")
+    if not scope:
+        return
+    contract = compiled_work_contract(scope, plan)
+    binding = (
+        compiled_work_binding(task_id, plan) if contract.get("ok") else None)
+    if binding is None:
+        plan["workload_scope"] = None
+        logger.debug(
+            "registered task %r: compiled work failed the server-owned "
+            "contract (%s); workload scope stripped",
+            task_id, ", ".join(contract.get("reasons") or []))
+        return
+    plan["workload_work"] = binding
 
 
 def assessment_review_policy() -> str:

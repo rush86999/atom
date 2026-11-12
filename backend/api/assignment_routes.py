@@ -6,10 +6,9 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
-from core.local_paths import resolve_local_path
-
 import copy
 import json
+import logging
 import mimetypes
 import os
 import time
@@ -17,6 +16,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
+
+from core.local_paths import resolve_local_path
 
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -69,6 +70,8 @@ from core.intervention_service import intervention_service
 from core.models import AgentRegistry, HITLAction, HITLActionStatus, UserRole
 from core.security.rbac import user_meets_role
 from core.task_lifecycle import TaskLifecycle
+
+logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/assignments", tags=["Assignments"])
 
@@ -148,6 +151,10 @@ class EmployeeObjectiveStart(BaseModel):
     teaching_terms: Dict[str, Any] = {}
     requested_output: Optional[str] = None
     use_model: bool = True
+    #: Reference to a SERVER-registered repeat task; the scope is resolved
+    #: server-side only (see ``_registered_workload_scope``) and stamped
+    #: only when the objective restates the registered workload.
+    registered_task_id: Optional[str] = None
 
 
 class EmployeeAdvance(BaseModel):
@@ -180,6 +187,65 @@ class AssignmentStart(BaseModel):
     authorized_actions: List[str] = []
     standing_authority: Optional[Dict[str, Any]] = None
     budget: Optional[Dict[str, Any]] = None
+    #: Reference to a SERVER-registered repeat task. Only the reference is
+    #: accepted; the workload scope itself is resolved from the
+    #: server-controlled registry (never from request payload), and it is
+    #: stamped only when the objective restates the registered workload.
+    registered_task_id: Optional[str] = None
+
+
+def _registered_workload_scope(
+    task_id: Optional[str], work: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Resolve the server-owned workload scope of a registered task.
+
+    The caller may only name the task AND must actually request the
+    registered task's work: the canonical scope comes from the
+    server-controlled registry via the existing capability service, and it
+    is stamped only when the caller's own objective restates the registered
+    workload (see ``registered_workload_scope``). A caller-asserted scope
+    anywhere in the request payload is never read here; an unknown or
+    revoked reference leaves the assignment workload-unknown, and so does a
+    valid registration ID named alongside unrelated work — the normal
+    supervised path, never a qualification shortcut.
+    """
+    try:
+        from core.canvas_capability_service import registered_workload_scope
+
+        return registered_workload_scope(task_id, work=work)
+    except Exception as exc:  # noqa: BLE001 — fail closed to unknown
+        logger.warning(
+            "registered task %r scope lookup unavailable: %s", task_id, exc)
+        return None
+
+
+def _bind_compiled_workload(
+    plan: Dict[str, Any], task_id: Optional[str],
+) -> None:
+    """Stamp-time compiled-work hold on the server-composed plan.
+
+    Matching the caller's objective does not bind the compiled work: the
+    server composes the actual executable steps from the caller's
+    descriptors (or an explicit proposed plan, or a model proposal). The
+    stamped workload scope survives only when those ACTUAL compiled steps
+    satisfy the registered task's server-owned contract, and the validated
+    work is fingerprint-bound so the executor's effect gate revalidates the
+    SAME work before any autonomous effect after a plan change or restart.
+    If the hold itself is unavailable, the scope is stripped — the
+    assignment is never stamped without the contract.
+    """
+    try:
+        from core.canvas_capability_service import (
+            bind_compiled_registered_work,
+        )
+
+        bind_compiled_registered_work(plan, task_id)
+    except Exception as exc:  # noqa: BLE001 — fail closed to unknown
+        logger.warning(
+            "registered task %r compiled-work hold unavailable: %s",
+            task_id, exc)
+        if isinstance(plan, dict):
+            plan["workload_scope"] = None
 
 
 def _scoped_run(run_id: str, current_user: User) -> Dict[str, Any]:
@@ -431,6 +497,224 @@ def _employee_provider_model() -> Optional[tuple]:
     provider, model = raw.split(":", 1)
     provider, model = provider.strip(), model.strip()
     return (provider, model) if provider and model else None
+
+
+def _record_graduation_route_decision(
+    executor: Any, run_id: str, decision: Optional[Mapping[str, Any]],
+) -> None:
+    """Append the durable repeat-task route decision (audit + effect gate).
+
+    The assignment executor's autonomy re-check reads this entry back after a
+    durable wait/restart, so the log — not a cache — carries the decision.
+    The full comparison payload stays in the decision object; the log carries
+    its digest for audit without bloating the run record.
+    """
+    if not isinstance(decision, Mapping):
+        return
+    entry = dict(decision)
+    comparison = entry.pop("comparison", None)
+    if comparison is not None:
+        import hashlib
+
+        entry["comparison_digest"] = hashlib.sha256(json.dumps(
+            comparison, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+    try:
+        executor.lifecycle.runs.append_decision(run_id, entry)
+    except Exception:  # noqa: BLE001 — routing attribution cannot break the job
+        pass
+
+
+def _record_route_identity(
+    executor: Any,
+    run_id: str,
+    route_pin: tuple,
+    route_decision: Optional[Dict[str, Any]],
+    result: Any,
+) -> None:
+    """Validate the provider response identity of one graduation-pinned call.
+
+    A missing or conflicting served identity makes the result ineligible for
+    autonomous use; the classification is appended durably so the assignment
+    executor's effect gate reads it back after any wait/restart.
+    """
+    from core.llm.graduation_route import (
+        STATE_PINNED, IDENTITY_VERIFIED, response_build_identity,
+        validate_served_identity,
+    )
+
+    if not isinstance(route_decision, Mapping):
+        return
+    routing = (result or {}).get("routing") if isinstance(result, Mapping) else None
+    # The benchmark build bound at resolution is what the accepted response
+    # must echo. The callable route stays the pin; the build is a separate
+    # identity. Recording both lets the durable effect gate reject a missing
+    # or changed echo after a restart.
+    identity_state = validate_served_identity(
+        route_pin, routing,
+        expected_build=route_decision.get("selected_build"))
+    route_decision["identity_state"] = identity_state
+    route_decision["identity_build"] = response_build_identity(routing)
+    route_decision["autonomous_eligible"] = (
+        identity_state == IDENTITY_VERIFIED
+        and route_decision.get("route_state") == STATE_PINNED)
+    _record_graduation_route_decision(executor, run_id, route_decision)
+
+
+def _record_route_marker(
+    executor: Any, run_id: str, decision: Optional[Mapping[str, Any]],
+) -> None:
+    """Bind repeat-task applicability to independently durable plan state.
+
+    The marker is written onto the assignment plan itself (CAS-validated),
+    so the assignment executor's effect gate can require supervision even
+    when the run's decision log is lost, truncated or unreadable after a
+    restart. A failed marker write keeps the decision log as the remaining
+    applicability source and is logged, never swallowed silently.
+    """
+    if not isinstance(decision, Mapping):
+        return
+    from core.llm.graduation_route import ROUTE_DECISION_KIND
+
+    marker = {
+        "schema": "atom-repeat-task-route-marker-1",
+        "kind": str(decision.get("kind") or ROUTE_DECISION_KIND),
+        "agent_id": str(decision.get("agent_id") or ""),
+        "route_state": str(decision.get("route_state") or ""),
+        "selected_route": copy.deepcopy(decision.get("selected_route")),
+        "selected_build": decision.get("selected_build"),
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    def compute(record, current):
+        updated = copy.deepcopy(current)
+        updated["repeat_task_route"] = marker
+        return updated, marker
+
+    try:
+        executor.lifecycle.mutate_assignment(
+            run_id, compute, rationale="repeat-task route marker")
+    except Exception as exc:  # noqa: BLE001 — decision log stays the backup
+        logger.warning(
+            "assignment %s: durable repeat-task route marker not persisted: "
+            "%s", decision.get("assignment_id") or run_id, exc)
+
+
+def _resolve_assignment_graduation_route(
+    executor: Any,
+    run_id: str,
+    record: Mapping[str, Any],
+    llm: Any,
+) -> Dict[str, Any]:
+    """Resolve the repeat-task route from durable graduation evidence.
+
+    Reads the agent's committed qualification baseline and benchmark binding,
+    requires the current assignment's server-derived workload identity to
+    match that binding, revalidates fresh same-benchmark evidence for every
+    evidenced route against the established baseline (the receipt's original
+    serving model), and filters the selected route through the existing
+    capability profile plus the structured qualification pin before any
+    attempt. The durable evidence governs the repeat-task scope; the
+    caller/operator pin only keeps governing when no comparable receipt pins
+    a route. Returns ``{"decision": ..., "pin": ...}``.
+    """
+    from core.llm.graduation_route import (
+        ROUTE_DECISION_KIND, STATE_PINNED, STATE_UNROUTED,
+        filter_route_for_attempt, resolve_repeat_task_route,
+    )
+
+    assignment = record.get("assignment") or {}
+    provenance = assignment.get("provenance") or {}
+    agent_id = str(provenance.get("agent_id") or "").strip()
+    if not agent_id:
+        return {"decision": None, "pin": None}
+    decision: Optional[Dict[str, Any]] = None
+    pin: Optional[tuple] = None
+    try:
+        with executor.lifecycle.runs._sessions()() as db:
+            from core.models import AgentRegistry
+
+            agent = db.get(AgentRegistry, agent_id)
+            if agent is None:
+                return {"decision": None, "pin": None}
+            workspace_id = (
+                str(assignment.get("workspace_id") or "")
+                or str(getattr(agent, "workspace_id", "") or ""))
+            tenant_id = (
+                str(assignment.get("tenant_id") or "")
+                or str(getattr(agent, "tenant_id", "") or ""))
+            # Discovery measured evidence: the same profile-scoped feedback
+            # layer the attempt filter consults, so a quarantined route is
+            # excluded from discovery instead of winning selection and
+            # demoting the resolution. Unknown evidence is the prior.
+            try:
+                from core.llm.capability_profiles import (
+                    load_feedback_evidence,
+                    resolve_capability_profile,
+                )
+                from core.llm.graduation_route import ROUTE_PROFILE
+
+                measured = load_feedback_evidence(
+                    resolve_capability_profile(ROUTE_PROFILE, None, ""),
+                    workspace_id=workspace_id, tenant_id=tenant_id,
+                )
+            except Exception as exc:  # noqa: BLE001 — evidence is the prior
+                logger.debug(
+                    "assignment %s: discovery evidence lookup skipped: %s",
+                    assignment.get("assignment_id"), exc)
+                measured = {}
+            decision = resolve_repeat_task_route(
+                db, agent, assignment=record.get("assignment"),
+                measured_evidence=measured)
+            if decision.get("route_state") == STATE_PINNED:
+                selected = decision.get("selected_route") or {}
+                ranked = {
+                    f"{item.get('provider')}/{item.get('model')}": item
+                    for item in decision.get("ranked_routes") or []
+                }
+                score = (ranked.get(
+                    f"{selected.get('provider')}/"
+                    f"{selected.get('model')}") or {}).get("score")
+                allowed = filter_route_for_attempt(
+                    selected,
+                    quality=score,
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                    llm_service=llm,
+                )
+                decision["capability_filter"] = {
+                    "allowed": allowed.get("allowed"),
+                    "reasons": allowed.get("reasons") or [],
+                }
+                if allowed.get("allowed") and allowed.get("pin"):
+                    pin = tuple(allowed["pin"])
+                else:
+                    decision["route_state"] = "supervised"
+                    decision["selected_route"] = None
+                    decision["reasons"] = list(decision.get("reasons") or [])
+                    decision["reasons"].extend(
+                        allowed.get("reasons") or ["capability_filter_refused"])
+                    decision["autonomous_eligible"] = False
+    except Exception as exc:  # noqa: BLE001 — fail closed to the normal path
+        logger.warning(
+            "assignment %s: graduation route resolution unavailable: %s",
+            assignment.get("assignment_id"), exc)
+        decision = {
+            "kind": ROUTE_DECISION_KIND,
+            "route_state": "supervised",
+            "agent_id": agent_id,
+            "reasons": ["route_resolution_unavailable"],
+            "identity_state": None,
+            "autonomous_eligible": False,
+        }
+    if decision is not None and decision.get("route_state") != STATE_UNROUTED:
+        decision["kind"] = ROUTE_DECISION_KIND
+        decision.setdefault("agent_id", agent_id)
+        decision.setdefault("identity_state", None)
+        decision.setdefault("autonomous_eligible", False)
+        _record_graduation_route_decision(executor, run_id, decision)
+        _record_route_marker(executor, run_id, decision)
+    return {"decision": decision, "pin": pin}
 
 
 @router.post("")
@@ -846,11 +1130,18 @@ async def start_assignment(
                 "source_fingerprint": source_fingerprint(resolved_sources),
             },
             proposed_steps=body.proposed_steps,
+            workload_scope=_registered_workload_scope(
+                body.registered_task_id, body.objective),
         )
         if body.proposed_steps is not None:
             validate_proposed_plan(plan)
     except (AssignmentPlanError, StepInputError, TaskLifecycleError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    # Server-owned compiled-work hold: the stamped scope survives only when
+    # the plan's ACTUAL compiled steps satisfy the registered task's
+    # contract, and the validated work is fingerprint-bound for effect-time
+    # revalidation.
+    _bind_compiled_workload(plan, body.registered_task_id)
 
     executor = _executor({
         "workspace_id": current_user.workspace_id or "default",
@@ -984,8 +1275,28 @@ def _routing_history_entry(
     error_code = (
         str(error.get("code") or "")
         if isinstance(error, Mapping) else "")
-    if not error_code and not routing.get("mode"):
+    transport = routing.get("transport")
+    transport = transport if isinstance(transport, Mapping) else {}
+    if not error_code and not routing.get("mode") \
+            and not transport.get("accepted"):
         return None
+    accepted: Optional[bool] = None
+    response_identity = None
+    if isinstance(transport.get("accepted"), bool):
+        accepted = transport["accepted"]
+    if isinstance(transport.get("response_identity"), Mapping):
+        response_identity = dict(transport["response_identity"])
+    served = routing.get("served_route")
+    if accepted is None:
+        # Legacy/other transports may not emit the explicit transport block.
+        # Their accepted served route is audit telemetry only: it is not a
+        # provider echo, so it must not become ``response_identity`` (intake
+        # rejects the call instead of scoring a fabricated identity).
+        if isinstance(served, Mapping) and served.get("provider") \
+                and served.get("model"):
+            accepted = True
+        elif error_code:
+            accepted = False
     return {
         "kind": "employee_route",
         "stage": str(stage or "employee")[:80],
@@ -997,6 +1308,10 @@ def _routing_history_entry(
         "profile": routing.get("profile"),
         "routing_result_id": routing.get("routing_result_id"),
         "error_code": error_code or None,
+        # Transport evidence for campaign benchmark intake: only an accepted
+        # provider echo is identity; the requested route stays audit-only.
+        "accepted": accepted,
+        "response_identity": response_identity,
     }
 
 
@@ -1132,9 +1447,22 @@ async def _advance_employee_work(
 
     deadline = time.monotonic() + max(0.0, float(deadline_seconds))
     rounds: List[Dict[str, Any]] = []
+    #: Repeat-task graduation route. Resolved once per advance from durable
+    #: evidence; when a route is pinned it supersedes the caller/operator pin
+    #: and dispatches strictly (exact route or failure). Otherwise the
+    #: existing routing is untouched and the effect gate supervises.
+    route_pin: Optional[tuple] = None
+    route_decision: Optional[Dict[str, Any]] = None
     for _ in range(max_rounds):
         record = executor.lifecycle.get_task(run_id) or {}
         assignment = record.get("assignment") or {}
+        if route_decision is None:
+            resolution = _resolve_assignment_graduation_route(
+                executor, run_id, record, llm)
+            route_decision = resolution.get("decision")
+            if route_decision is not None and resolution.get("pin"):
+                route_pin = resolution["pin"]
+                provider_model = route_pin
         status = str(assignment.get("status") or "")
         if status in ("failed", "cancelled"):
             break
@@ -1193,7 +1521,11 @@ async def _advance_employee_work(
             discovery = await propose_employee_work(
                 context, llm_service=llm,
                 deadline_seconds=remaining,
-                provider_model=provider_model)
+                provider_model=provider_model,
+                strict_pin=True if route_pin else None)
+            if route_pin:
+                _record_route_identity(
+                    executor, run_id, route_pin, route_decision, discovery)
             proposal = discovery.get("proposal") or {}
             round_record = {
                 "source": discovery.get("source"),
@@ -1257,7 +1589,12 @@ async def _advance_employee_work(
                     repaired = await propose_employee_work(
                         repair_context, llm_service=llm,
                         deadline_seconds=remaining,
-                        provider_model=provider_model)
+                        provider_model=provider_model,
+                        strict_pin=True if route_pin else None)
+                    if route_pin:
+                        _record_route_identity(
+                            executor, run_id, route_pin, route_decision,
+                            repaired)
                     repair_proposal = repaired.get("proposal") or {}
                     round_record["repair_source"] = repaired.get("source")
                     round_record["repair_sources"] = [
@@ -1333,7 +1670,11 @@ async def _advance_employee_work(
         proposal_result = await propose_adaptation(
             context, observations, assignment=assignment, llm_service=llm,
             provider_model=provider_model,
-            deadline=deadline)
+            deadline=deadline,
+            strict_pin=True if route_pin else None)
+        if route_pin:
+            _record_route_identity(
+                executor, run_id, route_pin, route_decision, proposal_result)
         for observed in observations:
             if observed.get("kind") == "waiting_state" and observed.get(
                     "step_id"):
@@ -1647,7 +1988,12 @@ async def start_employee_objective(
             "objective_identities": objective_identity_hints(
                 body.objective),
         },
+        workload_scope=_registered_workload_scope(
+            body.registered_task_id, body.objective),
     )
+    # Server-owned compiled-work hold on the model-compiled plan (same
+    # contract as the direct creation path).
+    _bind_compiled_workload(plan, body.registered_task_id)
     requested_output = str(body.requested_output or "").strip().lower()
     if requested_output:
         from core.assignment_plan import new_deliverable

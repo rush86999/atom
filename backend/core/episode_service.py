@@ -680,6 +680,36 @@ class EpisodeService:
         except ImportError:
             pass
 
+        # Provenance is a reserved metadata key owned by the execution:
+        # caller-supplied values are stripped and only validated server-owned
+        # execution evidence is copied. A caller must never be able to
+        # relabel which provider/model served the run, and an execution with
+        # no captured identity stays unknown (no "auto").
+        try:
+            from core.llm.model_provenance import provenance_from_metadata
+
+            for _reserved_key in (
+                    "model_provenance", "provider", "model",
+                    "requested_provider", "requested_model"):
+                merged_metadata.pop(_reserved_key, None)
+            _execution_metadata = (
+                execution.metadata_json
+                if isinstance(execution.metadata_json, dict) else {})
+            _execution_provenance = provenance_from_metadata(
+                _execution_metadata)
+            if _execution_provenance:
+                merged_metadata["model_provenance"] = dict(
+                    _execution_provenance)
+                for _prov_key in (
+                        "provider", "model",
+                        "requested_provider", "requested_model"):
+                    if _execution_provenance.get(_prov_key):
+                        merged_metadata[_prov_key] = (
+                            _execution_provenance[_prov_key])
+        except Exception as _prov_err:  # noqa: BLE001 — observational only
+            logger.debug(
+                f"episode model provenance skipped: {_prov_err}")
+
         # The execution is the durable owner of the run's scope; the agent is
         # the fallback for older/partial execution rows, then the Personal
         # Edition default. Never infer scope from caller/model metadata —

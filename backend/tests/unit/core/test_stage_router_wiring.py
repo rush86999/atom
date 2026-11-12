@@ -58,6 +58,11 @@ def build_agent(llm: AsyncMock) -> GenericAgent:
     agent._custom_action_specs = {}
     agent._run_maturity = None
     agent._stage_group = None
+    # Run-level provenance state (normally initialized in __init__); same
+    # pattern as tests/test_graduation_model_provenance.py::_agent.
+    agent._last_model_provenance = {}
+    agent._serving_models = []
+    agent._unattributed_llm_calls = 0
     agent.mcp = AsyncMock()
     agent.mcp.get_all_tools = AsyncMock(return_value=[])
     agent.llm = llm
