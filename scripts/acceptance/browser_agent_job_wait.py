@@ -103,6 +103,23 @@ PRIORITY_ANSWER = "high"
 FINAL_ANSWER = "Created the closing task from both authorized facts."
 ADMIN_EMAIL = "admin@example.com"
 
+# Current governance (main #831): manual promotion runs
+# evaluate_qualification_gate(..., manual=True) and a fresh unqualified agent
+# is refused with QUALIFICATION_REQUIRED/409. The fixture provisions the
+# documented owner assessment policy (docs/agents/graduation.md) with ONE
+# delta — an explicit, exact-agent-scoped manual exception for this run's
+# fresh agent id — through the audited admin settings API, mirroring
+# backend/tests/conftest.py::experience_only_qualification_exception. Every
+# tier stays qualification-required; the exception never claims candidate
+# capability qualification and no receipt is faked.
+OWNER_POLICY_SETTING = "ATOM_GRADUATION_ASSESSMENT_POLICY"
+OWNER_POLICY_SCHEMA = "atom-graduation-assessment-policy-1"
+OWNER_POLICY_REVISION = "taskwait-fixture-1"
+OWNER_EXCEPTION_REASON = (
+    "Scratch acceptance world fixture: manual promotion of this exact fresh "
+    "agent id under the documented owner exception; unassessed progression "
+    "that never claims capability qualification.")
+
 FORBIDDEN_PORTS = {3000: "user frontend", 8001: "user backend",
                    8000: "atom-saas backend"}
 SHIM_DEFAULT_LABEL = (
@@ -1200,26 +1217,77 @@ def _api_client(port: int, token: Optional[str] = None):
                         headers=headers, timeout=120, trust_env=False)
 
 
+def _cap(value: Any, limit: int = 300) -> Any:
+    if value is None:
+        return None
+    text = value if isinstance(value, str) else str(value)
+    return text[:limit]
+
+
 def _safe_error_body(response: Any) -> Any:
+    """Bounded structured error projection.
+
+    Keeps a qualification-gate refusal observable: the promote 409 carries
+    the gate assessment (state/allowed/review_action_id) and dropping it
+    hides the exact refusal cause (Execution 1 lesson). Two production body
+    shapes exist and both must parse: (a) NESTED — a wrapping envelope with
+    ``detail.error``/``detail.assessment``; (b) FLAT — the Atom exception
+    handlers (``core.base_routes.atom_exception_handler``,
+    ``core.error_handler.http_exception_handler``) return ``exc.detail``
+    directly when it is a dict, so the live 409 body has ``error``/
+    ``assessment`` at the TOP level with no ``detail`` key. Every captured
+    string is truncated to a fixed cap; nothing here writes unbounded
+    evidence.
+    """
     try:
         body = response.json()
     except Exception:
         return {"status": getattr(response, "status_code", getattr(response, "status", None))}
-    detail = body.get("detail")
-    if isinstance(detail, dict):
+    raw_detail = body.get("detail")
+    detail: Any
+    assessment: Any = None
+    if isinstance(raw_detail, dict):
+        error = raw_detail.get("error")
+        source = error if isinstance(error, dict) else raw_detail
         detail = {
-            "code": (detail.get("error") or {}).get("code")
-            if isinstance(detail.get("error"), dict) else detail.get("code"),
-            "message": (detail.get("error") or {}).get("message")
-            if isinstance(detail.get("error"), dict) else detail.get("message"),
+            "code": source.get("code"),
+            "message": _cap(source.get("message")),
         }
-    elif not isinstance(detail, str):
-        detail = str(detail)[:300] if detail is not None else None
+        gate = raw_detail.get("assessment")
+        if isinstance(gate, dict):
+            assessment = {
+                "state": gate.get("state"),
+                "allowed": gate.get("allowed"),
+                "message": _cap(gate.get("message")),
+                "review_action_id": gate.get("review_action_id"),
+            }
+    elif isinstance(body.get("error"), dict) or (
+            body.get("code") or body.get("assessment")):
+        # FLAT shape: the handler emitted exc.detail as the whole body.
+        error = body.get("error")
+        source = error if isinstance(error, dict) else body
+        detail = {
+            "code": source.get("code"),
+            "message": _cap(source.get("message")),
+        }
+        gate = body.get("assessment")
+        if isinstance(gate, dict):
+            assessment = {
+                "state": gate.get("state"),
+                "allowed": gate.get("allowed"),
+                "message": _cap(gate.get("message")),
+                "review_action_id": gate.get("review_action_id"),
+            }
+    elif isinstance(raw_detail, str):
+        detail = raw_detail[:300]
+    else:
+        detail = _cap(raw_detail)
     return {
         "status": response.status_code,
         "success": body.get("success"),
         "detail": detail,
         "error": body.get("error") if isinstance(body.get("error"), str) else None,
+        "assessment": assessment,
     }
 
 
@@ -1308,7 +1376,93 @@ def _password_for_run(args: argparse.Namespace, world: Path,
         "driver deliberately does not seed a cookie instead of the real form.")
 
 
+def _owner_exception_policy(agent_id: str) -> Dict[str, Any]:
+    """The strict owner assessment policy with one scoped fixture delta.
+
+    Identical in shape to the catalog default and to
+    ``backend/tests/conftest.py::experience_only_qualification_exception``:
+    every tier stays qualification-required; the only change is an explicit
+    manual exception naming this run's exact fresh agent id, with a recorded
+    reason and empty domains. ``backend/tests/api/`` proves this exact shape
+    validates strictly and that an unnamed agent stays refused.
+    """
+    return {
+        "schema_version": OWNER_POLICY_SCHEMA,
+        "revision": OWNER_POLICY_REVISION,
+        "default_required": True,
+        "tiers": {"intern": True, "supervised": True, "autonomous": True},
+        "exceptions": {
+            "legacy": {
+                "allowed": False, "agent_ids": [], "domains": [],
+                "state": "legacy_unassessed",
+            },
+            "manual": {
+                "allowed": True, "agent_ids": [str(agent_id)], "domains": [],
+                "reason": OWNER_EXCEPTION_REASON,
+                "state": "manual_override",
+            },
+            "system": {
+                "allowed": False, "agent_ids": [], "domains": [],
+                "state": "system_exempt",
+            },
+        },
+        "evaluator": "human_review",
+        "rubric_version": "heldout-v1",
+        "source_revision": "agent-evidence-v1",
+    }
+
+
+def _apply_owner_exception(api: Any, agent_id: str) -> Dict[str, Any]:
+    """Write the scoped owner policy into the isolated run DB, via the API.
+
+    The strict resolver reads env before the DB row, so a set environment
+    variable would shadow this write and make the provisioning a lie; that is
+    refused loudly instead. The write goes through the audited admin settings
+    route and must resolve back as a DB row.
+    """
+    if os.environ.get(OWNER_POLICY_SETTING) is not None:
+        raise DriverError(
+            f"{OWNER_POLICY_SETTING} is set in the driver environment; an env "
+            "value would shadow the scratch-world policy row. Unset it for "
+            "this run instead of provisioning a policy that cannot apply.")
+    policy = _owner_exception_policy(agent_id)
+    response = api.put(
+        f"/api/v1/admin/settings/{OWNER_POLICY_SETTING}",
+        json={"value": policy})
+    if response.status_code != 200:
+        raise DriverError(
+            "owner assessment policy write failed: "
+            f"{_safe_error_body(response)}")
+    data = (response.json() or {}).get("data") or {}
+    if data.get("source") != "db":
+        raise DriverError(
+            "owner assessment policy write did not resolve from the scratch "
+            f"DB row (source={data.get('source')!r})")
+    manual = policy["exceptions"]["manual"]
+    return {
+        "setting": OWNER_POLICY_SETTING,
+        "revision": str(policy["revision"]),
+        "source": data.get("source"),
+        "agent_ids": list(manual["agent_ids"]),
+        "state": "manual_override",
+        "reason_recorded": bool(manual["reason"]),
+        "tiers_still_required": dict(policy["tiers"]),
+    }
+
+
 def _setup_fixture(api: Any) -> Dict[str, Any]:
+    """Create the scratch fixture through public routes, under current governance.
+
+    The promote route is exercised twice on purpose. First the fresh
+    unqualified agent must be refused by the qualification gate with a
+    structured QUALIFICATION_REQUIRED/409 — captured, never dropped, never
+    treated as success. Then the existing exact-agent-scoped owner exception
+    is provisioned through the audited settings API and the SAME public route
+    promotes the agent, returning the gate assessment it recorded in the
+    promotion audit. No product governance is weakened and no receipt is
+    faked: the audit carries state=manual_override with
+    candidate_capability_qualified=false and no exam id.
+    """
     created = api.post("/api/agents/custom", json={
         "name": AGENT_NAME,
         "description": "Scratch employee for the browser information-wait acceptance.",
@@ -1321,9 +1475,44 @@ def _setup_fixture(api: Any) -> Dict[str, Any]:
                    or created_body.get("agent_id") or "")
     if not agent_id:
         raise DriverError("agent create returned no agent_id")
+
+    refused = api.post(f"/api/agents/{agent_id}/promote")
+    refusal = _safe_error_body(refused)
+    refusal_detail = refusal.get("detail") or {}
+    refusal_gate = refusal.get("assessment") or {}
+    if not (refused.status_code == 409
+            and refusal_detail.get("code") == "QUALIFICATION_REQUIRED"):
+        raise DriverError(
+            "unqualified agent promote was not refused by the qualification "
+            "gate (the governance contract changed; review before "
+            f"continuing): {refusal}")
+
+    policy_meta = _apply_owner_exception(api, agent_id)
+
     promoted = api.post(f"/api/agents/{agent_id}/promote")
     if promoted.status_code != 200:
-        raise DriverError(f"agent promote failed: {_safe_error_body(promoted)}")
+        raise DriverError(
+            "agent promote failed after the scoped owner exception: "
+            f"{_safe_error_body(promoted)}")
+    promote_data = (promoted.json() or {}).get("data") or {}
+    assessment = promote_data.get("assessment") or {}
+    exception = assessment.get("exception") or {}
+    if promote_data.get("agent_status") != "autonomous":
+        raise DriverError(
+            "promote did not land autonomous: "
+            f"{promote_data.get('agent_status')!r}")
+    if assessment.get("state") != "manual_override":
+        raise DriverError(
+            f"promote assessment state is not manual_override: {assessment}")
+    if assessment.get("candidate_capability_qualified") is not False:
+        raise DriverError(
+            "the owner exception must never claim capability qualification: "
+            f"{assessment}")
+    if list(exception.get("agent_ids") or []) != [agent_id]:
+        raise DriverError(
+            "the manual exception is not scoped to exactly this fixture "
+            f"agent: {exception}")
+
     board = api.post("/api/boards", json={
         "name": BOARD_NAME,
         "seed_default_columns": True,
@@ -1347,6 +1536,17 @@ def _setup_fixture(api: Any) -> Dict[str, Any]:
         "agent_id": agent_id,
         "agent_name": AGENT_NAME,
         "agent_promote_status": promoted.status_code,
+        "qualification_gate_refusal": {
+            "status": refused.status_code,
+            "code": refusal_detail.get("code"),
+            "gate_state": refusal_gate.get("state"),
+            "gate_allowed": refusal_gate.get("allowed"),
+            "review_action_id": refusal_gate.get("review_action_id"),
+        },
+        "owner_exception_policy": policy_meta,
+        "promote_assessment_state": assessment.get("state"),
+        "promote_claims_capability_qualification":
+            assessment.get("candidate_capability_qualified"),
         "board_id": board_id,
         "board_name": BOARD_NAME,
         "column_id": str(columns[0]["id"]),
@@ -1794,6 +1994,19 @@ def _run_scenario(args: argparse.Namespace) -> int:
             step("fixture_through_public_routes", {
                 "agent_created": bool(fixture.get("agent_id")),
                 "agent_promoted": fixture.get("agent_promote_status") == 200,
+                "qualification_gate_enforced": (
+                    (fixture.get("qualification_gate_refusal") or {}).get(
+                        "code") == "QUALIFICATION_REQUIRED"
+                    and (fixture.get("qualification_gate_refusal") or {}).get(
+                        "gate_allowed") is False),
+                "owner_exception_scoped": (
+                    (fixture.get("owner_exception_policy") or {}).get(
+                        "agent_ids") == [fixture.get("agent_id")]),
+                "exception_claims_no_qualification": (
+                    fixture.get("promote_claims_capability_qualification")
+                    is False
+                    and fixture.get("promote_assessment_state")
+                    == "manual_override"),
                 "board_created": bool(fixture.get("board_id")),
                 "column_present": bool(fixture.get("column_id")),
             }, details=fixture)

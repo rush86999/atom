@@ -1257,6 +1257,19 @@ def _run_scenario(args: argparse.Namespace) -> int:
             step("fixture_through_public_routes", {
                 "agent_created": bool(fixture.get("agent_id")),
                 "agent_promoted": fixture.get("agent_promote_status") == 200,
+                "qualification_gate_enforced": (
+                    (fixture.get("qualification_gate_refusal") or {}).get(
+                        "code") == "QUALIFICATION_REQUIRED"
+                    and (fixture.get("qualification_gate_refusal") or {}).get(
+                        "gate_allowed") is False),
+                "owner_exception_scoped": (
+                    (fixture.get("owner_exception_policy") or {}).get(
+                        "agent_ids") == [fixture.get("agent_id")]),
+                "exception_claims_no_qualification": (
+                    fixture.get("promote_claims_capability_qualification")
+                    is False
+                    and fixture.get("promote_assessment_state")
+                    == "manual_override"),
                 "board_created": bool(fixture.get("board_id")),
                 "column_present": bool(fixture.get("column_id")),
             }, details=fixture)
