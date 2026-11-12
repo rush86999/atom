@@ -28,7 +28,7 @@ Verifiers (system of record, NOT tool claim):
 
 | Action | Verifier | Reads |
 |---|---|---|
-| `trigger_workflow` | workflow row exists + status active/running/enabled | `Workflow` |
+| `trigger_workflow` | definition readiness (exists + active/running/enabled) **and** a committed execution whose id, definition, frozen input digest and frozen caller scope match the request | `Workflow`, `WorkflowExecution` |
 | `tasks.create` | Kanban task persists | `BoardTask` (`core.models_board`) |
 | `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
 | `mini_app_scaffold` | scaffold receipt + app/canvas/starter scope, name, dependencies and operation | `MiniApp`, `Canvas`, `CanvasLogic`, `CanvasAudit` |
@@ -37,6 +37,27 @@ Verifiers (system of record, NOT tool claim):
 | `mini_app_publish` | publish receipt + current app status/version and manifest/blueprint/initial-state digests | `MiniApp`, `Canvas`, `CanvasAudit` |
 | `mini_app_install` | install receipt + new instance canvas, installation row, state seed and published blueprint/version | `Canvas`, `MiniAppInstallation`, `CanvasState`, `CanvasLogic`, `CanvasAudit` |
 | `mini_app_db_write` | record receipt + exact affected record ids, sequences and payload digests (never a page-wide count) | `CanvasRecord`, `CanvasAudit` |
+
+`trigger_workflow` keeps definition readiness as a separate check: an active
+definition is necessary but never sufficient. The verifier requires the exact
+committed `WorkflowExecution` returned by the handler, binds its definition id
+to the frozen request, compares its persisted input digest with the authorized
+input, and requires the frozen `_atom_execution_scope` (workspace/tenant) to
+match the server-owned expectation. An active definition with no execution, a
+foreign execution, or an execution for another request/scope is refuted. This
+also preserves verify-before-retry semantics: a committed execution blocks a
+duplicate retry, while a missing execution allows one.
+
+The trigger's durable run key is the server-owned operation identity frozen
+before dispatch. The MCP trigger binds the `WorkflowExecution` to that
+identity, so a lost response (a timeout after the commit) is reconciled from
+the frozen snapshot without trusting a result execution id that never arrived.
+A result id that contradicts the frozen identity is forged/mismatched proof and
+is refused. When no server-owned identity exists, the timeout path keeps the
+effect uncertain with no automatic retry rather than inviting a blind resend.
+The meta-agent's direct dispatch path likewise reads the committed execution
+back before reporting success; an uncommitted or foreign execution is reported
+as unconfirmed, never as a completed trigger.
 
 `mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
 (SQL NULL / JSON null / empty object / full object) plus the app owner, tenant,
