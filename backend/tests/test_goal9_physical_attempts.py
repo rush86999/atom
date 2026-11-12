@@ -222,6 +222,28 @@ class _ChatClient:
         return action["response"]
 
 
+class _CloneableStructuredClient:
+    """SDK-shaped structured double with clone and wire-call surfaces.
+
+    The structured dispatcher clones the configured client with
+    ``with_options(max_retries=0)`` and rebinds ``chat.completions.create``
+    on that clone. The clone therefore has to be a distinct object whose wire
+    ``create`` invokes the scripted response, and the Instructor double has
+    to call the create it receives from that clone instead of a side copy.
+    """
+
+    def __init__(self, create):
+        self._create = create
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=self._wire_create))
+
+    def _wire_create(self, **kwargs):
+        return self._create(**kwargs)
+
+    def with_options(self, **kwargs):
+        return _CloneableStructuredClient(self._create)
+
+
 def _stream(handler, model, provider_id, **kwargs):
     messages = kwargs.pop("messages", None) or [
         {"role": "user", "content": "hello"}]

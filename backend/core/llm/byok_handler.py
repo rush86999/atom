@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import importlib
+import itertools
 import json
 import logging
 import math
@@ -887,6 +888,193 @@ class _StreamRequestState:
         pair = (str(provider_id or ""), str(model or ""))
         self.attempted_pairs.add(pair)
         self.attempts[pair] = self.attempts.get(pair, 0) + 1
+
+
+def _accounting_blocked_cause(exc: BaseException) -> Optional["_AccountingBlockedError"]:
+    """Find the admission refusal inside a wrapper exception chain.
+
+    Instructor wraps every exception its internal retry loop raises in
+    ``InstructorRetryException`` (the schema-reask loop is the retry owner
+    for unprofiled calls). The wrapper must still surface the accounting
+    refusal as an accounting event, never as a schema failure that could
+    escalate or fall back to another paid route.
+    """
+    seen: Set[int] = set()
+    current: Optional[BaseException] = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, _AccountingBlockedError):
+            return current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return None
+
+
+class _StructuredPhysicalDispatch:
+    """Admit and settle EVERY physical request an Instructor dispatch issues.
+
+    ``generate_structured_response`` reserves one conservative admission for
+    the dispatch it is about to make. Instructor owns a bounded internal
+    retry loop (schema re-ask / transport retry) and can therefore issue MORE
+    than one physical request for that dispatch. This wrapper claims the
+    call-scoped admission for the FIRST request and reserves/settles every
+    additional request under its own server-owned attempt id, so one
+    authorization can never cover two wire calls. The outer provider cascade
+    and its recovery loop are unchanged: route-level retries remain theirs.
+
+    The client is cloned with ``max_retries=0`` for this dispatch only: a
+    hidden SDK retry is another physical request that no admission covers.
+    If the clone or the transport binding fails, the dispatch is refused
+    BEFORE admission (fail closed) — never dispatched on the unwrapped
+    client under the single call-scoped reservation.
+    """
+
+    def __init__(
+        self,
+        *,
+        handler: "BYOKHandler",
+        request_id: str,
+        provider_id: str,
+        model: str,
+        next_attempt_id,
+        agent_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+    ) -> None:
+        self._handler = handler
+        self._request_id = request_id
+        self._provider_id = provider_id
+        self._model = model
+        self._next_attempt_id = next_attempt_id
+        self._agent_id = agent_id
+        self._chain_id = chain_id
+        self._schema_text: Optional[str] = None
+        self._claim: Optional[Dict[str, Any]] = None
+        self._original_create = None
+        # One invocation == one wire request (SDK retries disabled).
+        self.physical_calls = 0
+        # (input_tokens, output_tokens, cost) of the most recently settled call.
+        self.last_usage: Tuple[int, int, Optional[float]] = (0, 0, None)
+        self.refusal: Optional[_AccountingBlockedError] = None
+
+    def set_claim(
+        self,
+        *,
+        attempt_id: str,
+        bound: Optional[float],
+        unknown: bool,
+        schema_text: Optional[str],
+    ) -> None:
+        """Bind the caller's pre-dispatch admission to the first wire call."""
+        self._claim = {
+            "attempt_id": attempt_id,
+            "bound": bound,
+            "unknown": unknown,
+            "known_free": bound == 0.0,
+        }
+        self._schema_text = schema_text
+
+    def wrap_client(self, client: Any) -> Any:
+        """Return a one-dispatch client whose transport create is admitted.
+
+        FAIL CLOSED: if the client cannot be cloned or its transport create
+        cannot be bound, refuse the dispatch BEFORE the caller reserves its
+        call-scoped admission. Returning the unwrapped client (the old
+        behavior) silently downgraded the guarantee: Instructor's internal
+        retry — or a hidden SDK retry — could then issue several wire
+        requests covered by ONE reservation. A wrapper failure is therefore
+        an accounting-bound refusal, never a provider failure to fall back
+        from.
+
+        Callers MUST invoke this before ``_admit_physical_attempt``: the
+        raise then precedes any reservation, so a clone/bind failure cannot
+        leave an orphan reservation behind.
+        """
+        try:
+            dispatch_client = client.with_options(max_retries=0)
+        except Exception as clone_err:
+            logger.error(
+                "[structured-dispatch] %s client cannot be cloned for "
+                "per-physical admission (%s); refusing dispatch before "
+                "admission",
+                self._provider_id, type(clone_err).__name__)
+            raise _AccountingBlockedError(
+                f"structured dispatch for {self._provider_id}/{self._model} "
+                f"refused before admission: client clone failed "
+                f"({type(clone_err).__name__})"
+            ) from clone_err
+        try:
+            completions = dispatch_client.chat.completions
+            original_create = completions.create
+            completions.create = self.create
+        except Exception as bind_err:
+            logger.error(
+                "[structured-dispatch] %s transport create cannot be "
+                "wrapped (%s); refusing dispatch before admission",
+                self._provider_id, type(bind_err).__name__)
+            raise _AccountingBlockedError(
+                f"structured dispatch for {self._provider_id}/{self._model} "
+                f"refused before admission: transport create cannot be "
+                f"wrapped ({type(bind_err).__name__})"
+            ) from bind_err
+        self._original_create = original_create
+        return dispatch_client
+
+    def create(self, **kwargs: Any) -> Any:
+        """One wire request: claim/admit, dispatch, settle that exact call."""
+        self.physical_calls += 1
+        messages = kwargs.get("messages")
+        claim = self._claim
+        self._claim = None
+        if claim is not None:
+            # The dispatcher already reserved this attempt before dispatch.
+            attempt_id = claim["attempt_id"]
+            bound = claim["bound"]
+            unknown = claim["unknown"]
+            known_free = claim["known_free"]
+        else:
+            # Instructor re-issued the same job: it is a NEW physical attempt.
+            attempt_id = self._next_attempt_id()
+            try:
+                bound = self._handler._admit_physical_attempt(
+                    request_id=self._request_id,
+                    attempt_id=attempt_id,
+                    provider_id=self._provider_id,
+                    model=self._model,
+                    messages=messages,
+                    max_output_tokens=kwargs.get("max_tokens"),
+                    agent_id=self._agent_id,
+                    chain_id=self._chain_id,
+                    schema_text=self._schema_text,
+                    extra_kwargs={
+                        key: value for key, value in kwargs.items()
+                        if key not in ("messages", "model", "prompt")
+                    },
+                )
+            except _AccountingBlockedError as refusal:
+                self.refusal = refusal
+                raise
+            unknown = _image_cost_is_unknown(messages, bound)
+            known_free = bound == 0.0
+        response = self._original_create(**kwargs)
+        # Settle BEFORE returning to Instructor: a later re-ask must see this
+        # call's actual spend in the budget state that admits it.
+        cost = self._handler._settle_physical_response(
+            provider_id=self._provider_id,
+            model=self._model,
+            response=response,
+            request_id=self._request_id,
+            attempt_id=attempt_id,
+            agent_id=self._agent_id,
+            chain_id=self._chain_id,
+            unknown=unknown,
+            known_free=known_free,
+        )
+        usage = _response_usage(response)
+        self.last_usage = (
+            _usage_value(usage, "prompt_tokens", "input_tokens"),
+            _usage_value(usage, "completion_tokens", "output_tokens"),
+            cost,
+        )
+        return response
 
 
 def _stream_connect_timeout_seconds() -> float:
@@ -9694,6 +9882,17 @@ class BYOKHandler:
                 and cascade_options == [tuple(provider_model)]) else None
             _attempted_any = False
             _attempt_count = 0
+            # One monotonic attempt id per PHYSICAL paid call. The outer
+            # recovery loop and Instructor's own internal retries both draw
+            # from this sequence, so a re-issue can never reuse an earlier
+            # admission (same request binding, distinct attempt identity).
+            _attempt_sequence = itertools.count(1)
+
+            def _next_structured_attempt_id() -> str:
+                return (
+                    f"{_structured_settlement_request_id}:"
+                    f"{next(_attempt_sequence)}")
+
             _structured_skipped = 0
             # 2026-09-23 route-exclusion trace: every refused candidate with
             # its reason + evidence age, emitted as ONE correlated line when
@@ -9826,13 +10025,29 @@ class BYOKHandler:
                         _structured_skipped += 1
                         failed_providers.add(provider_id)
                         continue
-                    instructor_client = instructor.from_openai(client)
                     _json_mode = (
                         str(output_mode or "").strip().lower() == "json"
                         or f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED)
-                    if _json_mode:
-                        instructor_client = instructor.from_openai(
-                            client, mode=instructor.Mode.JSON)
+                    # ONE ADMISSION PER WIRE CALL. The call-scoped admission
+                    # below covers the FIRST physical request; Instructor's
+                    # own internal retry (default for unprofiled calls) is
+                    # still allowed, and the wrapper admits/settles every
+                    # additional wire request under its own attempt id.
+                    _dispatcher = _StructuredPhysicalDispatch(
+                        handler=self,
+                        request_id=_structured_settlement_request_id,
+                        provider_id=provider_id,
+                        model=model,
+                        agent_id=agent_id,
+                        chain_id=chain_id,
+                        next_attempt_id=_next_structured_attempt_id,
+                    )
+                    _dispatch_client = _dispatcher.wrap_client(client)
+                    instructor_client = (
+                        instructor.from_openai(
+                            _dispatch_client, mode=instructor.Mode.JSON)
+                        if _json_mode
+                        else instructor.from_openai(_dispatch_client))
                     # MEASURED, NOT ADOPTED (round-19 A/B,
                     # ab_native_schema_20261014_173715.json): a native
                     # json_schema response_format for registered ollama
@@ -10048,8 +10263,7 @@ class BYOKHandler:
                             _attempted_any = True
                             _attempt_count += 1
                             _structured_attempt_id = (
-                                f"{_structured_settlement_request_id}:"
-                                f"{_attempt_count}")
+                                _next_structured_attempt_id())
                             _structured_schema_text = None
                             try:
                                 if hasattr(response_model, "model_json_schema"):
@@ -10111,6 +10325,15 @@ class BYOKHandler:
                                 _image_cost_is_unknown(
                                     _structured_dispatch_messages,
                                     _structured_reservation_bound))
+                            # Bind this call-scoped admission to the first
+                            # wire request. Any Instructor re-issue after it
+                            # gets its own admission in the dispatcher.
+                            _dispatcher.set_claim(
+                                attempt_id=_structured_attempt_id,
+                                bound=_structured_reservation_bound,
+                                unknown=_structured_cost_unknown,
+                                schema_text=_structured_schema_text,
+                            )
                             # PLAN-ATTEMPT ATTRIBUTION, BEFORE THE
                             # BLOCKING CALL (verifier work order, round
                             # 19): the completion trace below emits only
@@ -10205,23 +10428,39 @@ class BYOKHandler:
                             _record_structured_latency(
                                 provider_id, model,
                                 time.time() - _structured_start)
-                            _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
-                                self._record_provider_usage(
-                                    provider_id,
-                                    model,
-                                    result,
-                                    agent_id=agent_id,
-                                    chain_id=chain_id,
-                                    complexity=complexity,
-                                    is_managed_service=is_managed,
-                                    request_id=_structured_settlement_request_id,
-                                    attempt_id=_structured_attempt_id,
-                                    durable_unknown=(
-                                        _structured_cost_unknown),
-                                    known_free=(
-                                        _structured_reservation_bound == 0.0),
+                            if _dispatcher.physical_calls:
+                                # The transport wrapper already settled EACH
+                                # physical request (including this one) under
+                                # its own attempt id. Do not settle the final
+                                # parsed response again.
+                                (_attempt_input_tokens,
+                                 _attempt_output_tokens,
+                                 _attempt_cost) = _dispatcher.last_usage
+                            else:
+                                # Doubled instructor (tests) bypasses the
+                                # transport wrapper: the call-scoped
+                                # admission is the one physical attempt.
+                                (_attempt_input_tokens,
+                                 _attempt_output_tokens,
+                                 _attempt_cost) = (
+                                    self._record_provider_usage(
+                                        provider_id,
+                                        model,
+                                        result,
+                                        agent_id=agent_id,
+                                        chain_id=chain_id,
+                                        complexity=complexity,
+                                        is_managed_service=is_managed,
+                                        request_id=(
+                                            _structured_settlement_request_id),
+                                        attempt_id=_structured_attempt_id,
+                                        durable_unknown=(
+                                            _structured_cost_unknown),
+                                        known_free=(
+                                            _structured_reservation_bound
+                                            == 0.0),
+                                    )
                                 )
-                            )
                             if _structured_output_missing(result):
                                 self._bench_model(provider_id, model)
                                 self._trace_structured_route(
@@ -10278,7 +10517,7 @@ class BYOKHandler:
                                     f"mode and memoizing the pair"
                                 )
                                 instructor_client = instructor.from_openai(
-                                    client, mode=instructor.Mode.JSON)
+                                    _dispatch_client, mode=instructor.Mode.JSON)
                                 continue
 
                             # (1b) MODEL-PROTOCOL-UNSUPPORTED endpoints
@@ -10309,7 +10548,7 @@ class BYOKHandler:
                                         f"retrying once in JSON mode")
                                     instructor_client = (
                                         instructor.from_openai(
-                                            client,
+                                            _dispatch_client,
                                             mode=instructor.Mode.JSON))
                                     _json_mode = True
                                     continue
@@ -10523,6 +10762,19 @@ class BYOKHandler:
                             "model_inflight")
                         _structured_skipped += 1
                         continue
+                    if isinstance(attempt_err, _DurableUsageIntentUnavailable):
+                        # Accounting refusal is not a provider failure and
+                        # must stop the request: no cascade hop may re-dispatch
+                        # without a durable bound.
+                        raise
+                    _retry_refusal = _accounting_blocked_cause(attempt_err)
+                    if _retry_refusal is not None:
+                        logger.error(
+                            "Structured dispatch of %s/%s refused before a "
+                            "physical retry (%s) — stopping the cascade",
+                            provider_id, model, type(_retry_refusal).__name__)
+                        raise _DurableUsageIntentUnavailable(
+                            "durable usage intent unavailable") from None
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
 

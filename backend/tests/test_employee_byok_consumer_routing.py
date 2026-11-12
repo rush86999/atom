@@ -8,6 +8,7 @@ selected client; only the provider transport is doubled.
 from __future__ import annotations
 
 import asyncio
+import weakref
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +25,42 @@ from core.employee_work_requests import (
 )
 from core.llm.byok_handler import QueryComplexity
 from core.llm_service import LLMService
+
+
+@pytest.fixture()
+def routing_db(tmp_path, monkeypatch):
+    """Test-local scratch SQLite owning the scoped tenant/workspace rows.
+
+    Model generation is admitted through the real durable budget writer,
+    which fails closed for an explicitly named tenant that has no Tenant
+    row. These controls therefore own their scope rows instead of relying
+    on a tenant being seeded externally. Only the routing metadata strings
+    are doubles; admission and settlement hit this disposable database.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import core.database as database
+    import core.models  # noqa: F401 — registers every table on Base
+    from core.database import Base
+    from core.models import Tenant, Workspace
+
+    db_path = tmp_path / "employee-byok-routing.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    with Session() as db:
+        db.add(Tenant(
+            id="tenant-ctrl", name="BYOK routing control",
+            subdomain="byok-routing-ctrl"))
+        db.add(Workspace(
+            id="ws-ctrl", name="BYOK routing control",
+            tenant_id="tenant-ctrl"))
+        db.commit()
+    monkeypatch.setattr(database, "SessionLocal", Session)
+    yield {"engine": engine, "Session": Session, "path": db_path}
+    engine.dispose()
 
 
 def _service(handler):
@@ -63,6 +100,8 @@ def _configure_pool(handler, monkeypatch, *, cheap_fails=False,
         "supports_structured": True,
     }
     handler.clients["local_pricey"] = MagicMock(name="pricey-client")
+    _tag_sdk_clones(
+        handler.clients["local_ctrl1234"], handler.clients["local_pricey"])
     handler._local_routes["pricey-model"] = {
         "provider_key": "local_pricey",
         "workspace_id": handler.workspace_id,
@@ -89,6 +128,38 @@ def _configure_pool(handler, monkeypatch, *, cheap_fails=False,
     monkeypatch.setattr(
         "core.llm.byok_handler.load_feedback_evidence",
         lambda *args, **kwargs: {})
+
+
+# The fail-closed structured dispatch clones each SDK client with
+# ``with_options(max_retries=0)`` before handing it to Instructor. That clone
+# is a NEW object, so a response fixture keyed on the configured client's
+# identity must resolve the clone back to the route it came from.
+_CLONE_SOURCES = weakref.WeakKeyDictionary()
+
+
+def _tag_sdk_clones(*clients):
+    """Track the configured client behind each ``with_options`` clone."""
+    for client in clients:
+        if client is None or "_byok_clone_tagger" in vars(client):
+            continue
+        original_with_options = client.with_options
+
+        def _with_options(*args, __client=client,
+                          __original=original_with_options, **kwargs):
+            clone = __original(*args, **kwargs)
+            _CLONE_SOURCES[clone] = __client
+            return clone
+
+        client.with_options = _with_options
+        client._byok_clone_tagger = original_with_options
+
+
+def _configured_client(client):
+    """Resolve a dispatch clone to the configured client it was cloned from."""
+    try:
+        return _CLONE_SOURCES.get(client, client)
+    except TypeError:  # unhashable client double
+        return client
 
 
 def _fake_instructor(selected, proposal, fail_models=()):
@@ -130,7 +201,8 @@ def _proposal():
         }])
 
 
-def test_employee_proposal_auto_selects_cheaper_capable_route(monkeypatch):
+def test_employee_proposal_auto_selects_cheaper_capable_route(
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -152,7 +224,8 @@ def test_employee_proposal_auto_selects_cheaper_capable_route(monkeypatch):
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
     assert result["routing"]["profile"]["name"] == (
         "employee_evidence_selection")
-    assert selected and selected[0] is handler.clients["local_ctrl1234"]
+    assert selected and (
+        _configured_client(selected[0]) is handler.clients["local_ctrl1234"])
 
 
 def test_employee_proposal_enforces_the_caller_deadline():
@@ -170,7 +243,8 @@ def test_employee_proposal_enforces_the_caller_deadline():
     assert result["errors"]
 
 
-def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
+def test_employee_proposal_measured_failure_excludes_cheap_route(
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -203,11 +277,12 @@ def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
         "provider": "local_pricey", "model": "pricey-model"}
     assert result["routing"]["served_route"] == {
         "provider": "local_pricey", "model": "pricey-model"}
-    assert selected and selected[0] is handler.clients["local_pricey"]
+    assert selected and (
+        _configured_client(selected[0]) is handler.clients["local_pricey"])
 
 
 def test_employee_proposal_failed_costlier_route_does_not_displace_cheap(
-        monkeypatch):
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -242,7 +317,8 @@ def test_employee_proposal_failed_costlier_route_does_not_displace_cheap(
     # dispatched in its place.
     assert 1 <= len(selected) <= 2
     assert all(
-        client is handler.clients["local_ctrl1234"] for client in selected)
+        _configured_client(client) is handler.clients["local_ctrl1234"]
+        for client in selected)
 
 
 def test_employee_proposal_scope_failure_never_borrows_another_scope():
@@ -261,7 +337,7 @@ def test_employee_proposal_scope_failure_never_borrows_another_scope():
 
 
 def test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts(
-        monkeypatch):
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
 
     context = {
@@ -322,7 +398,7 @@ def test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts(
 
 
 def test_employee_proposal_no_eligible_route_keeps_deterministic_receipts(
-        monkeypatch):
+        monkeypatch, routing_db):
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
         both_failed = {
@@ -351,7 +427,8 @@ def test_employee_proposal_no_eligible_route_keeps_deterministic_receipts(
     assert result["proposal"]["proposal_kind"] == "evidence_read"
 
 
-def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
+def test_employee_wait_choice_uses_the_dedicated_profile(
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
     from core.employee_attempt_journal import AttemptJournal
@@ -407,7 +484,8 @@ def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
 
 
-def test_employee_adaptation_auto_route_records_served_route(monkeypatch):
+def test_employee_adaptation_auto_route_records_served_route(
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
     from core.employee_attempt_journal import AttemptJournal
@@ -476,4 +554,5 @@ def test_employee_adaptation_auto_route_records_served_route(monkeypatch):
         "employee_adaptive_planning_compact")
     assert result["routing"]["served_route"] == {
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
-    assert selected and selected[0] is handler.clients["local_ctrl1234"]
+    assert selected and (
+        _configured_client(selected[0]) is handler.clients["local_ctrl1234"])
