@@ -272,18 +272,20 @@ def _ops_preview(ops: List[Any], limit: int = 2) -> str:
 # swallows provider errors by contract (a failed plan is `None` so the
 # caller keeps its own failure contract). The KIND of that failure is
 # needed downstream to keep empty output, malformed output, a provider
-# error and a deadline cancellation apart, so it is published here rather
-# than changing the return contract every caller depends on.
-_LAST_PLAN_FAILURE: Dict[str, Any] = {"kind": None, "detail": ""}
+# error and a deadline cancellation apart, so it is written into a
+# call-local capture rather than changing the return contract every caller
+# depends on. There is no process-wide fallback: a consumer that did not
+# pass a capture has no diagnosis beyond EMPTY.
+def _plan_failure_kind_from_seam(
+        capture: Optional[Dict[str, Any]] = None) -> str:
+    """The failure kind recorded for THIS call by the planning wrapper.
 
-
-
-def _plan_failure_kind_from_seam() -> str:
-    """The failure kind published by the pinned planning wrapper."""
+    ``capture`` is the caller-owned mapping passed to
+    ``pinned_structured_call``. Reading only it keeps an overlapping or
+    previous call's failure from being reported as this call's diagnosis.
+    """
     try:
-        from core.llm import pinned_planning as _pp
-
-        return (str(_pp.LAST_FAILURE.get("kind") or "")
+        return (str((capture or {}).get("kind") or "")
                 or CanvasPlanOutcome.EMPTY)
     except Exception:  # noqa: BLE001
         return CanvasPlanOutcome.EMPTY
@@ -424,6 +426,7 @@ async def _plan_structured(
     tenant_id: Optional[str] = None,
     execution_id: Optional[str] = None,
     stage: str = "canvas_edit_plan",
+    failure_capture: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Structured canvas-planning call routed by BPC (no model pin).
 
@@ -495,6 +498,7 @@ async def _plan_structured(
         stage=stage,
         system_instruction=system_instruction,
         call_kwargs=_pin or None,
+        failure_capture=failure_capture,
         log_label="canvas edit planning",
         task_type="planning",
         # A multi-row table rebuild via patch ops carries LARGE replace
@@ -4544,12 +4548,10 @@ async def plan_canvas_edit(
         lessons_len=len(list(lessons or [])),
         prompt=prompt, manifest=prompt_manifest)
 
-    try:
-        from core.llm import pinned_planning as _pp
-
-        _pp.LAST_FAILURE.update(kind=None, detail="", label="")
-    except Exception:  # noqa: BLE001 — diagnostic seam is additive
-        pass
+    # Request-owned diagnostic: the wrapper clears and fills this mapping for
+    # THIS call, so an overlapping planning call cannot supply the failure
+    # kind read below.
+    plan_failure: Dict[str, Any] = {}
     plan = await _plan_structured(
         llm_service,
         prompt=prompt,
@@ -4560,6 +4562,7 @@ async def plan_canvas_edit(
         tenant_id=tenant_id,
         execution_id=execution_id,
         stage="canvas_edit_plan",
+        failure_capture=plan_failure,
     )
     _capture_plan_debug(
         "edit_plan_result", eid=execution_id, attempt=1,
@@ -4579,7 +4582,7 @@ async def plan_canvas_edit(
         # aims at the boundary that actually failed.
         raise CanvasPlanUnavailable(
             "canvas edit planning LLM returned no plan (provider failure)",
-            kind=_plan_failure_kind_from_seam())
+            kind=_plan_failure_kind_from_seam(plan_failure))
     if not plan.wants_edit:
         # D4: a plan that says "not an edit" while carrying operations is
         # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
