@@ -785,9 +785,14 @@ def _evaluate_candidate(
             reasons.append("below_accuracy_floor")
         if baseline_block is not None and (
                 baseline_block["state"] == "established"):
-            if (baseline_score is not None
-                    and (chosen.accuracy is None
-                         or chosen.accuracy < baseline_score)):
+            # The baseline is a floor, so a passing result must demonstrate a
+            # score at or above it. A missing score cannot demonstrate that,
+            # including when the baseline's own score is unrecorded: absence
+            # of a comparison point is never a licence to select below the
+            # workload's capability floor.
+            if chosen.accuracy is None or (
+                    baseline_score is not None
+                    and chosen.accuracy < baseline_score):
                 reasons.append("baseline_not_met")
             if baseline_abstention_scored and chosen.abstention is not True:
                 reasons.append("abstention_not_met")
