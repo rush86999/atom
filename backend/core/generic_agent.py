@@ -131,6 +131,17 @@ class GenericAgent:
         # Maturity floor string (STUDENT < INTERN < SUPERVISED < AUTONOMOUS);
         # set once per execution run, None = unrestricted.
         self._run_maturity: Optional[str] = None
+        # Actual provider/model that served this run's LLM calls, kept per
+        # run so durable episode evidence reports what answered rather than
+        # the caller alias ("auto") or an attempted-but-failed route.
+        # ``_last_model_provenance`` is the per-call evidence of the latest
+        # accepted call; ``_serving_models`` is the de-duplicated set of
+        # identities that served the run's multi-step work;
+        # ``_unattributed_llm_calls`` counts accepted calls whose identity
+        # was unavailable (explicit unknown coverage).
+        self._last_model_provenance: Dict[str, Any] = {}
+        self._serving_models: List[Dict[str, Any]] = []
+        self._unattributed_llm_calls: int = 0
 
         # Stage router (Switchyard port): tier group of the previous ReAct
         # turn (``capable``/``efficient``), tracked so handoff notes fire on
@@ -232,6 +243,12 @@ class GenericAgent:
         Accommodates timeouts and streaming callbacks.
         """
         context = context or {}
+
+        # Provenance is per run: a previous run's served route must never be
+        # attributed to this execution when the new run has no LLM calls.
+        self._last_model_provenance = {}
+        self._serving_models = []
+        self._unattributed_llm_calls = 0
 
         # R81c (G9): stamp run identity + tier into the dispatch context so
         # the shared P2 capability gate and P9 sandbox gate engage on this
@@ -1108,6 +1125,21 @@ class GenericAgent:
         except Exception as _bpe_err:
             logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
 
+        # Provenance is part of the runtime result so the durable recorder
+        # (and any caller) sees the identity that actually served this run.
+        # The runtime result is authoritative; per-call evidence remembered
+        # across this run's accepted LLM calls is the fallback; the serving
+        # set covers multi-step work and unattributed calls count as
+        # explicit unknown coverage. Unknown runs stay silent.
+        _provenance = self._execution_model_provenance(execution_result)
+        if _provenance:
+            execution_result["model_provenance"] = _provenance
+            for _key in (
+                    "provider", "model",
+                    "requested_provider", "requested_model"):
+                if _provenance.get(_key):
+                    execution_result.setdefault(_key, _provenance[_key])
+
         await self._record_execution(task_input, execution_result, context)
 
         # R81 (G5): persist an episode for session-linked runs so workflow/
@@ -1429,6 +1461,84 @@ class GenericAgent:
         except Exception as e:
             logger.debug(f"success-rate measurement skipped: {e}")
             return None
+
+    @staticmethod
+    def _begin_call_provenance_scope() -> None:
+        """Clear route attribution left by earlier calls in this context.
+
+        Called before each ReAct LLM dispatch so the evidence remembered
+        after the call can only be this call's own: an accepted response
+        stamps the served route during the call, while a failed or
+        deterministic branch leaves nothing behind to inherit. Never raises.
+        """
+        try:
+            from core.llm.model_provenance import clear_route_attribution
+
+            clear_route_attribution()
+        except Exception:  # noqa: BLE001 — provenance is observational
+            pass
+
+    def _remember_model_provenance(self) -> None:
+        """Remember the route evidence of the LLM call just accepted.
+
+        Evidence is the call-local route attribution stamped after an
+        accepted response; the dispatch scope was cleared before the call,
+        so anything present now was set by this call. The shared handler
+        ``_last_used_*`` stash is deliberately NOT a source: it is
+        cross-call mutable state that a concurrent caller can overwrite,
+        and stale/shared state must never become provenance. A call with no
+        attributable identity counts as explicit unknown coverage instead
+        of inheriting the previous call's identity. Never raises into the
+        loop.
+        """
+        try:
+            from core.llm.model_provenance import capture_model_provenance
+
+            provenance = capture_model_provenance()
+        except Exception:  # noqa: BLE001 — provenance is observational
+            provenance = {}
+        if not (provenance.get("provider") or provenance.get("model")):
+            self._unattributed_llm_calls += 1
+            return
+        self._last_model_provenance = provenance
+        pair = {
+            key: provenance[key]
+            for key in ("provider", "model") if provenance.get(key)
+        }
+        if pair and pair not in self._serving_models:
+            self._serving_models.append(pair)
+
+    def _execution_model_provenance(
+        self, execution_result: Any,
+    ) -> Dict[str, Any]:
+        """Build the run-level durable provenance from execution-bound evidence.
+
+        The runtime result is authoritative when it names a concrete
+        identity; otherwise the per-call evidence remembered across this
+        run's accepted LLM calls is used. Multi-step runs keep the
+        de-duplicated set of serving models, and calls whose attribution
+        was unavailable count as explicit unknown coverage instead of
+        silently extending the last known identity over those steps. A run
+        with no known identity stays silent (never "auto"). Never raises.
+        """
+        try:
+            from core.llm.model_provenance import capture_model_provenance
+
+            provenance = capture_model_provenance(
+                execution_result, include_route_attribution=False)
+        except Exception:  # noqa: BLE001 — provenance is observational
+            provenance = {}
+        if not provenance:
+            provenance = dict(self._last_model_provenance or {})
+        if not provenance:
+            return {}
+        if self._serving_models:
+            provenance.setdefault(
+                "serving_models",
+                [dict(pair) for pair in self._serving_models])
+        if self._unattributed_llm_calls:
+            provenance["unattributed_calls"] = self._unattributed_llm_calls
+        return provenance
 
     async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None, utility_delta: Optional[float] = None) -> ReActStep:
         """
@@ -1804,7 +1914,12 @@ What is your next step?"""
         # Use BYOK's tenant-aware structured generation (respects BYOK vs Managed subscription)
         # Pass screenshot if available and vision is enabled
         image_payload = self.last_screenshot if self.vision_enabled else None
-        
+
+        # Per-call provenance scope: only an accepted response in THIS call
+        # may stamp the served route; a failed or deterministic branch must
+        # not inherit the previous call's identity.
+        self._begin_call_provenance_scope()
+
         structured_result = await self.llm.generate_structured(
             prompt=user_prompt,
             system_instruction=system_prompt,
@@ -1838,9 +1953,11 @@ What is your next step?"""
 
         if structured_result:
             _audit_llm(structured_result.model_dump())
+            self._remember_model_provenance()
             return structured_result
         
         # Fallback: Use LLMService for raw response
+        self._begin_call_provenance_scope()
         raw_response = await self.llm.generate(
             prompt=user_prompt,
             system_instruction=system_prompt,
@@ -1864,6 +1981,7 @@ What is your next step?"""
         raw_lower = (raw_response or "").lower().strip()
         has_final_marker = raw_lower.startswith("final answer:") or raw_lower.startswith("answer:")
         _audit_llm(raw_response)
+        self._remember_model_provenance()
         return ReActStep(
             thought=raw_response[:200] if raw_response else "Unable to reason",
             final_answer=raw_response if has_final_marker else None
@@ -3454,6 +3572,28 @@ What is your next step?"""
                     if result.get("terminal_authority_denial"):
                         _metadata["terminal_authority_denial"] = list(
                             result.get("authority_denials") or [])
+                    # Durable model provenance for graduation evidence. The
+                    # runtime result is authoritative; route attribution is
+                    # only a fallback. Unknown stays absent (never "auto"),
+                    # so historical rows are not silently relabelled.
+                    try:
+                        from core.llm.model_provenance import (
+                            capture_model_provenance,
+                        )
+
+                        _provenance = capture_model_provenance(
+                            result, include_route_attribution=False)
+                    except Exception:  # noqa: BLE001 — observational only
+                        _provenance = {}
+                    if _provenance:
+                        _metadata["model_provenance"] = _provenance
+                        for _prov_key in (
+                                "provider", "model",
+                                "requested_provider", "requested_model"):
+                            if _provenance.get(_prov_key):
+                                _metadata[_prov_key] = _provenance[_prov_key]
+                            else:
+                                _metadata.pop(_prov_key, None)
 
                     if _existing is None:
                         _exec = AgentExecution(

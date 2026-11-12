@@ -1302,9 +1302,9 @@ class TestCheckGovernanceClass:
     @pytest.mark.asyncio
     async def test_denied_returns_reason(self, meta_agent, monkeypatch):
         agent, sl = meta_agent
-        decision = SimpleNamespace(allowed=False, reason="maturity too low")
+        decision = {"allowed": False, "reason": "maturity too low"}
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(return_value=decision)
+        gov.can_perform_action_async = AsyncMock(return_value=decision)
         with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
             allowed, reason = await agent._check_governance("u1", "a1", "workflow")
         assert allowed is False
@@ -1313,9 +1313,9 @@ class TestCheckGovernanceClass:
     @pytest.mark.asyncio
     async def test_allowed(self, meta_agent):
         agent, sl = meta_agent
-        decision = SimpleNamespace(allowed=True, reason=None)
+        decision = {"allowed": True, "reason": None}
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(return_value=decision)
+        gov.can_perform_action_async = AsyncMock(return_value=decision)
         with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
             allowed, reason = await agent._check_governance("u1", "a1", "task")
         assert allowed is True

@@ -146,6 +146,43 @@ def review_revision(candidate: Any) -> int:
         return 0
 
 
+def review_eligibility(
+    candidate: Any, *, tenant_id: str, workspace_id: str,
+) -> Dict[str, Any]:
+    """Read-only mirror of the review gate ``apply_reviewed_skill`` enforces.
+
+    ``validation_status == "validated"`` is ALSO what machine validation
+    writes (``MementoEngine.validate_candidate``), so the status alone does not
+    prove a human reviewed the material. This reports whether a review binding
+    exists and whether it still matches the CURRENT tenant/workspace/agent
+    scope and material digest.
+
+    It is a presentation signal only: it never authorizes or applies anything.
+    ``apply_reviewed_skill`` re-runs the same checks atomically at apply time,
+    so a client that ignores this signal is still refused.
+    """
+    review = _review_snapshot(candidate)
+    reviewed = bool(review)
+    result: Dict[str, Any] = {
+        "apply_eligible": False,
+        "reviewed": reviewed,
+    }
+    if (not reviewed
+            or str(getattr(candidate, "validation_status", "") or "")
+            != "validated"):
+        return result
+    agent_id = str(getattr(candidate, "agent_id", "") or "")
+    if (str(review.get("tenant_id") or "") != str(tenant_id or "")
+            or str(review.get("workspace_id") or "") != str(workspace_id or "")
+            or str(review.get("agent_id") or "") != agent_id):
+        return result
+    expected = _binding_digest(
+        candidate, tenant_id=str(tenant_id or ""),
+        workspace_id=str(workspace_id or ""), agent_id=agent_id)
+    result["apply_eligible"] = str(review.get("digest") or "") == expected
+    return result
+
+
 def review_revision_predicate(db: Session, revision: int):
     """DB predicate for the exact review revision; fail closed if unsupported."""
     from sqlalchemy import func, or_

@@ -496,3 +496,146 @@ Status: focused failing test reproduced the gap first, then passed with the
 fix. `login.test.tsx` 24/24, `tests/auth` 165/165 and the two affected
 accessibility suites 41/41 pass on linked `node_modules`. No live
 SMTP/account/app run, no push.
+
+## Session: /learn endpoint authorization hardening (2026-11-12)
+
+Worktree `/private/tmp/atom-learn-hardening.yna8t0`. Checked the
+active-sessions table first; no one owned the learn path, auto-dev
+memento engine, or their tests.
+
+Files touched: `backend/api/learn_routes.py`,
+`backend/core/auto_dev/memento_engine.py`,
+`backend/tests/test_learn_routes.py`,
+`backend/tests/test_covpush_w72b_api_routes.py` (TestLearnRoutes only),
+`backend/tests/test_covpush_autodev2.py` (MementoEngine learn tests only),
+`backend/tests/test_covpush_w82a_autodev.py` (MementoEngine learn tests
+only), this note.
+
+Change (behavior change — flagging per ground rules):
+1. `POST /api/v1/learn` execution lookup is now tenant+owner scoped and
+   FAIL CLOSED inside `MementoEngine._load_authorized_execution` BEFORE
+   any model/storage/sandbox operation: the row must carry the
+   authenticated tenant's id (NULL-tenant rows always deny), must have an
+   owning `AgentRegistry` row in the same tenant, and non-ADMIN actors
+   may only distill executions of agents their workspace owns — the same
+   explicit tenant-admin policy as `api/autodev_review_routes
+   ._candidate_agent`. Cross-tenant ids answer exactly like missing rows
+   (404, no existence leak); workspace denial maps to 403. The route now
+   passes the authenticated user as `actor`.
+2. Unapproved generated material can no longer become runnable: the
+   endpoint no longer sandbox-executes, packages
+   (`SkillBuilderService`) or registers (`SkillRegistryService.import_
+   skill`) LLM-generated code. It stores a PENDING `SkillCandidate`
+   reusing the existing Auto-Dev approval mechanism
+   (`/api/autodev/skills/{id}/approve` → `apply_reviewed_skill`, which
+   registers a typed prompt skill and never writes/runs generated
+   executable code). Response contract changed: `status:
+   "pending_approval"` + `candidate_id` instead of `package`/`registry`.
+
+Status: `tests/test_learn_routes.py` 18/18 (engine + full-app route
+tests incl. cross-tenant 404, cross-workspace 403, no-owning-agent deny,
+admin cross-workspace allow, pending-candidate + no-package/no-registry
+assertions), `TestLearnRoutes` in `test_covpush_w72b_api_routes.py`
+green, `test_autodev_review_routes.py` 5/5, `test_reviewed_improvement
+_apply.py` green. Pre-existing unrelated failures (identical on stashed
+baseline): 3 `TestReflectionEngineCoverage` + 3 `TestDynamicBenchmark
+Fetcher` + `validate_candidate` order-dependency in the covpush suites.
+All runs used `TESTING=1` and a scratch `DATABASE_URL` (in-memory or
+temp-dir SQLite); no live DB, no app/model calls, no push.
+
+### Follow-up: distillation boundary hardening + mounted review/apply proof
+
+Continuing the same worktree after the first worker exited (its commit
+`3448cf99f` preserved; nothing force-reset). Additional files touched:
+`backend/core/auto_dev/memento_engine.py`, `backend/api/learn_routes.py`,
+`backend/tests/test_learn_routes.py`,
+`backend/tests/test_covpush_w72b_api_routes.py` (TestLearnRoutes only),
+`backend/tests/test_covpush_autodev2.py` and
+`backend/tests/test_covpush_w82a_autodev.py` (learn tests only), this
+note.
+
+Hardening (no contract change for `analyze_execution` callers):
+
+1. `learn_from_execution` now REQUIRES keyword `actor` (no `None`
+   default). `_load_authorized_execution` denies an actor with no
+   populated `id` as `unauthenticated` BEFORE any DB read, so the
+   service boundary can no longer be called anonymously.
+2. Non-ADMIN actors need a POPULATED workspace scope on BOTH sides. The
+   previous check compared two blank scopes as equal, which is not
+   evidence of ownership; `"" == ""` now denies with `forbidden`
+   ("unpopulated workspace scope"). ADMIN+ remains the explicit
+   tenant-admin policy (workspace scope not part of the decision).
+3. The distillation path analyzes the row returned by the authorized
+   lookup (`_analyze_execution_row`). The former raw-id second query
+   (`analyze_execution`) is gone from this path; its public signature,
+   unscoped read behavior and result shape are preserved for other
+   callers, and one implementation now backs both.
+4. Denials are structured: `{allowed: false, code, http_status, message}`
+   on the result's `authorization` field. `api/learn_routes.py` maps
+   `http_status`/`message` and no longer greps error text; text-only
+   failures still fall through to 422, proven by tests where the text and
+   the structured code disagree.
+5. Pending material stays unusable: the mounted `/api/autodev/skills/
+   {id}/apply` refuses a learn-created pending candidate (409
+   `candidate_not_reviewed`) and writes nothing; after an explicit
+   mounted approve+apply only the typed prompt package (`SKILL.md`,
+   `Skill.type="prompt"`) is persisted — the inert generated-code marker
+   never reaches the package, `Skill.long_description`, or `Skill.config`.
+
+Verification environment (all runs): `TESTING=1`; a unique scratch
+`DATABASE_URL` per run (temp-dir SQLite, never `backend/data/atom.db`);
+OS network denial via a `usercustomize.py` on `PYTHONPATH` that hard-fails
+INET/INET6 `connect`/`connect_ex`/`create_connection`/`getaddrinfo`; no
+live DB, no provider call, no generated-code execution, no push/PR.
+
+Test results:
+- `tests/test_learn_routes.py` 28/28 (engine authz matrix incl. missing
+  actor with `db.query` booby-trapped, blank actor/owner/both scopes,
+  admin blank-scope policy, already-authorized analysis, route
+  structured-code mapping, and the mounted learn→approve→apply chain on
+  scratch storage).
+- `test_covpush_w82a_autodev.py -k MementoEngine` 36/36;
+  `test_covpush_autodev2.py -k MementoEngineCoverage` 30/30.
+- `test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12.
+- `test_autodev_review_routes.py` + `test_reviewed_improvement_apply.py`
+  + `test_reviewed_improvement_boundaries.py` 21/21.
+
+Fixture-state note: the module-scoped covpush learn helpers now reset an
+existing agent/execution row's tenant/owner/workspace to the case's
+required values instead of silently reusing contradictory get-or-create
+state.
+
+### Follow-up verification: mounted signed-token /learn proof
+
+Files touched: `backend/tests/test_learn_routes.py` and this note. Test-only;
+no production behavior change.
+
+- Added `TestLearnRouteSignedToken`: a real `create_access_token` bearer
+  is validated by the real `get_current_user` / `get_current_tenant` /
+  `require_permission` chain against a scratch SQLite User/Tenant/
+  Workspace (workspace_admin, populated workspace scope). No FastAPI
+  `dependency_overrides` are installed at all — only the module-level
+  `SessionLocal` bindings (core + audit/domain middleware) are redirected
+  to the scratch factory for the test's duration.
+- The positive case asserts a PENDING `SkillCandidate`, tenant/agent
+  scoping, and that the builder/registry were never called; the model
+  transport is a doubled inert string, so no provider call or generated-
+  code execution occurs.
+- The denial case covers the standard missing-credential response only,
+  with a harmless nonexistent execution id; asserts 401/403, zero
+  candidates, and the model leaf never awaited.
+- Fixed `_restore_mounted_app_overrides` to resolve `main_api_app` again
+  at teardown. When the module was first imported inside the test (the
+  lazy mounted-client helpers), the setup snapshot saw `None`, so the
+  first mounted test's overrides were left installed process-wide.
+
+Verified under `sandbox-exec -p '(version 1)(allow default)(deny
+network*)'`, `TESTING=1`, and a unique temp-dir SQLite `DATABASE_URL` per
+run (never `backend/data/atom.db`): `tests/test_learn_routes.py` 30/30;
+cleanup-ordering repro (`TestLearnRoute::test_success_stores_pending_
+candidate` then `TestLearnRouteSignedToken`) 3/3;
+`test_covpush_w82a_autodev.py -k MementoEngine` +
+`test_covpush_autodev2.py -k MementoEngineCoverage` 30/30;
+`test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12; autodev
+review/apply/boundary suites 21/21. No live DB, provider call, generated-
+code execution, push or PR.

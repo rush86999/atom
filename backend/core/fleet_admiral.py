@@ -78,8 +78,16 @@ class FleetAdmiral:
 
         # Initialize recruitment intelligence for specialist matching
         self.recruitment_intelligence: Optional[RecruitmentIntelligenceService] = None
+        # Authenticated scope the cached recruitment service was built with.
+        # None means "not built here" (an injected/preset instance).
+        self._recruitment_scope: Optional[tuple] = None
 
-    def _initialize_recruitment_intelligence(self):
+    def _initialize_recruitment_intelligence(
+        self,
+        *,
+        workspace_id: str = "default",
+        tenant_id: Optional[str] = None,
+    ):
         """
         Lazy initialize RecruitmentIntelligenceService with all dependencies.
 
@@ -87,9 +95,22 @@ class FleetAdmiral:
         until actually needed.
 
         SINGLE-TENANT: No BudgetEnforcementService dependency (removed from upstream)
+
+        The governance and optimization services inside recruitment are
+        workspace/tenant scoped. A cached instance built for one request scope
+        must not answer for another: ``workspace_id="default"`` admits legacy
+        NULL-workspace agents, while a non-default workspace requires exact
+        equality. Rebuild when the authenticated scope changes.
         """
+        scope = (workspace_id or "default", tenant_id)
         if self.recruitment_intelligence is not None:
-            return
+            if self._recruitment_scope is None:
+                # Externally injected (tests/subclasses): adopt this scope.
+                self._recruitment_scope = scope
+                return
+            if self._recruitment_scope == scope:
+                return
+            # Scope changed: fall through and rebuild a correctly scoped graph.
 
         from core.specialist_matcher import SpecialistMatcher
         from core.recruitment_analytics_service import RecruitmentAnalyticsService
@@ -103,9 +124,13 @@ class FleetAdmiral:
             analytics=RecruitmentAnalyticsService(self.db),
             fleet_service=self.fleet_service,
             optimizer=FleetOptimizationService(self.db),
-            governance=AgentGovernanceService(self.db)
+            governance=AgentGovernanceService(
+                self.db, workspace_id=scope[0], tenant_id=scope[1]),
+            workspace_id=scope[0],
+            tenant_id=scope[1],
             # budget parameter removed - no billing/quota in upstream
         )
+        self._recruitment_scope = scope
 
         logger.info("[FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)")
 
@@ -222,7 +247,13 @@ Return JSON matching the TaskAnalysis schema."""
         logger.info(f"[FleetAdmiral] Initialized fleet chain: {chain.id}")
 
         # Step 3: Recruit specialists using RecruitmentIntelligenceService
-        self._initialize_recruitment_intelligence()
+        # Forward the authenticated scope: the recruitment governance check
+        # runs as a workspace-scoped query, so a non-default workspace must be
+        # named explicitly or its own agents are invisible ("Agent not found").
+        self._initialize_recruitment_intelligence(
+            workspace_id=workspace_id or "default",
+            tenant_id=tenant_id,
+        )
 
         recruitment_result = await self.recruitment_intelligence.orchestrate_recruitment(
             goal=task,

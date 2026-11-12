@@ -154,19 +154,33 @@ class SpecialistMatcher:
     # ------------------------------------------------------------------
     # New API (used by RecruitmentIntelligenceService)
     # ------------------------------------------------------------------
-    def get_all_available_domains(self, user_id: Optional[str] = None) -> List[str]:
-        """Return the distinct agent categories present in the registry."""
+    def get_all_available_domains(
+        self,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> List[str]:
+        """Return the distinct agent categories present in the registry.
+
+        ``workspace_id`` applies the same visibility rule governance uses
+        (default scope = NULL/"default"; any other workspace = exact). Omitting
+        it keeps the legacy unscoped behavior for direct/back-compat callers.
+        """
         try:
             from core.models import AgentRegistry
         except Exception:
             return list(DOMAIN_ALIASES.keys())
         try:
-            rows = (
-                self.db.query(AgentRegistry.category)
-                .filter(AgentRegistry.enabled.is_(True))
-                .distinct()
-                .all()
+            query = self.db.query(AgentRegistry.category).filter(
+                AgentRegistry.enabled.is_(True)
             )
+            if workspace_id is not None:
+                from core.agent_governance_service import (
+                    agent_workspace_scope_condition,
+                )
+
+                query = query.filter(
+                    agent_workspace_scope_condition(workspace_id))
+            rows = query.distinct().all()
             return [r[0] for r in rows if r[0]]
         except Exception:
             return list(DOMAIN_ALIASES.keys())
@@ -176,11 +190,17 @@ class SpecialistMatcher:
         domains: List[str],
         user_id: Optional[str] = None,
         limit_per_domain: int = 3,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Return ranked specialist candidates keyed by domain.
 
         Each candidate dict carries the roster-shape fields
         RecruitmentIntelligenceService reads (agent_id, name, capability_score).
+
+        When ``workspace_id`` is supplied, candidates are restricted to agents
+        visible in that scope (the same rule governance enforces). Without it,
+        a foreign-workspace agent could rank first, be denied by governance,
+        and abort recruitment even though an in-scope specialist exists.
         """
         try:
             from core.models import AgentRegistry
@@ -191,12 +211,19 @@ class SpecialistMatcher:
         for domain in domains:
             keywords = [domain] + DOMAIN_ALIASES.get(domain.lower(), [])
             try:
-                agents = (
+                query = (
                     self.db.query(AgentRegistry)
                     .filter(AgentRegistry.enabled.is_(True))
                     .filter(AgentRegistry.category.ilike(f"%{domain}%"))
-                    .all()
                 )
+                if workspace_id is not None:
+                    from core.agent_governance_service import (
+                        agent_workspace_scope_condition,
+                    )
+
+                    query = query.filter(
+                        agent_workspace_scope_condition(workspace_id))
+                agents = query.all()
             except Exception:
                 agents = []
 

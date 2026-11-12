@@ -11,6 +11,10 @@ auto-deploy" risk the capability gate exists to prevent.
 Lifecycle honored:
   - SkillCandidate: pending → validated (approve) / rejected → promoted via
     the existing skill promote flow (api/skill_routes /promote).
+  - Machine validation writes ``validated`` too (sandbox pass), so that status
+    is NOT proof of human review. GET /candidates reports ``apply_eligible``
+    from the recorded review binding (scope + material); the explicit
+    /skills/{id}/apply route remains the authority.
   - ToolMutation: pending → approved / rejected (sandbox validation can run
     separately via AlphaEvolverEngine.sandbox_execute_mutation).
   - GET /tool-errors aggregates the structured tool_error entries recorded
@@ -40,6 +44,7 @@ from core.models import (
 from core.reviewed_improvement import (
     apply_reviewed_skill,
     review_binding,
+    review_eligibility,
     review_revision,
     review_revision_predicate,
 )
@@ -158,7 +163,16 @@ async def list_candidates(
     current_user: User = Depends(require_role(UserRole.TEAM_LEAD)),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Pending Auto-Dev proposals for the reviewer's scope."""
+    """Status-scoped Auto-Dev proposals for the reviewer's scope.
+
+    Skill items also report the review state so the UI cannot mistake machine
+    validation (sandbox ``validated``) for human approval:
+    ``reviewed`` says a human review binding exists; ``apply_eligible`` says
+    that binding still matches the CURRENT scope and material. Machine-validated
+    candidates keep ``reviewed=False`` and stay in the list so they can be sent
+    through ``/skills/{id}/approve``; approving also refreshes a stale binding.
+    The signal is advisory only — ``/apply`` re-checks and stays authoritative.
+    """
     tenant_id = str(tenant.id)
 
     items: List[Dict[str, Any]] = []
@@ -176,7 +190,28 @@ async def list_candidates(
             AgentRegistry, AgentRegistry.id == SkillCandidate.agent_id,
         ).filter(
             AgentRegistry.workspace_id == str(current_user.workspace_id))
-    for c in skill_q.order_by(SkillCandidate.created_at.desc()).limit(50):
+    skill_rows = (
+        skill_q.order_by(SkillCandidate.created_at.desc()).limit(50).all())
+
+    # One lookup for the CURRENT target workspace. A moved or missing employee
+    # makes an old review binding inapplicable (the apply route refuses it).
+    agent_ids = {str(c.agent_id) for c in skill_rows if c.agent_id}
+    agent_workspaces: Dict[str, str] = {}
+    if agent_ids:
+        agent_workspaces = {
+            str(row.id): str(row.workspace_id or "")
+            for row in db.query(
+                AgentRegistry.id, AgentRegistry.workspace_id,
+            ).filter(
+                AgentRegistry.id.in_(agent_ids),
+                AgentRegistry.tenant_id == tenant_id,
+            )
+        }
+
+    for c in skill_rows:
+        eligibility = review_eligibility(
+            c, tenant_id=tenant_id,
+            workspace_id=agent_workspaces.get(str(c.agent_id or ""), ""))
         items.append({
             "kind": "skill",
             "id": str(c.id),
@@ -187,9 +222,11 @@ async def list_candidates(
             "code": (c.generated_code or "")[:2000],
             "status": c.validation_status,
             "created_at": _iso(c.created_at),
+            **eligibility,
         })
 
-    # Tool mutations are tenant-scoped (no agent_id column).
+    # Tool mutations are tenant-scoped (no agent_id column) and never go
+    # through the typed skill apply step, so they are not apply-eligible.
     mut_q = db.query(ToolMutation).filter(
         ToolMutation.tenant_id == tenant_id,
         ToolMutation.sandbox_status == status,
@@ -205,6 +242,7 @@ async def list_candidates(
             "code": (m.mutated_code or "")[:2000],
             "status": m.sandbox_status,
             "created_at": _iso(m.created_at),
+            "apply_eligible": False,
         })
 
     items.sort(key=lambda x: x["created_at"] or "", reverse=True)

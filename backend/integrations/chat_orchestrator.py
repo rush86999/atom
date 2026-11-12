@@ -38703,14 +38703,63 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         Atom will analyze the request, spawn specialty agents if needed, and coordinate response.
         """
         try:
-            from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
-            
+            from core.atom_meta_agent import AgentTriggerMode
+            from core.atom_meta_agent import get_atom_agent as _default_agent
+            try:
+                from core.atom_meta_agent import (
+                    get_scoped_atom_agent as _scoped_agent,
+                )
+            except ImportError:  # older/minimal doubles only expose default
+                _scoped_agent = None
+
             # Get user from session if available
             user_id = session.get("user_id", "default_user")
             session_id = session.get("id")
-            
-            # Get or create Atom instance
-            atom = get_atom_agent()
+
+            # Get or create Atom instance in the AUTHENTICATED request scope.
+            # The process-wide singleton is built for the default workspace, so
+            # reusing it for a non-default caller made the meta-agent, its
+            # recruitment governance and its audit rows all answer as
+            # "default". ``core.request_scope`` is published by
+            # ``process_chat_message`` from the authenticated User row for the
+            # lifetime of the turn (set at turn start, reset in its finally),
+            # and travels in the contextvar rather than in the request dict —
+            # so ``context["workspace_id"]`` / ``["tenant_id"]`` remain CLIENT
+            # data and can never choose the fleet's durable scope. Direct
+            # callers with no published scope keep the deliberate default.
+            from core.request_scope import current_request_scope
+
+            _request_scope = current_request_scope()
+            workspace_id = str(
+                _request_scope.get("workspace_id") or "default")
+            tenant_id = _request_scope.get("tenant_id")
+            tenant_id = str(tenant_id) if tenant_id is not None else None
+            scoped_factory = _scoped_agent
+            if (workspace_id, tenant_id) in (
+                    ("default", None), ("default", "default")):
+                atom = _default_agent()
+            elif scoped_factory is not None:
+                atom = scoped_factory(workspace_id, tenant_id)
+            else:
+                # Compatibility with minimal atom modules (older test doubles)
+                # that only expose the default factory.
+                atom = _default_agent(workspace_id)
+
+            # Thread the SAME authenticated scope into execution so downstream
+            # legs cannot read a spoofed request-context workspace/tenant.
+            # Drop the retired reserved keys defensively: older in-flight
+            # callers must not leak internal authority names downstream.
+            execute_context = {
+                **(context or {}),
+                "intent_analysis": intent_analysis,
+                "session_id": session_id,
+                "user_id": user_id,
+                "workspace_id": workspace_id,
+            }
+            execute_context.pop("_authenticated_workspace_id", None)
+            execute_context.pop("_authenticated_tenant_id", None)
+            if tenant_id is not None:
+                execute_context["tenant_id"] = tenant_id
 
             # Stream live ReAct steps to the Agent Workspace panel while the
             # run executes. Emission is failure-isolated (the emitter swallows
@@ -38729,12 +38778,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # Execute through Atom
             result = await atom.execute(
                 request=message,
-                context={
-                    "intent_analysis": intent_analysis,
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    **(context or {})
-                },
+                context=execute_context,
                 trigger_mode=AgentTriggerMode.MANUAL,
                 step_callback=step_callback,
             )

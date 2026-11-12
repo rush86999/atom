@@ -417,6 +417,25 @@ def ensure_atom_registry_persisted(db) -> "AgentRegistry":
     return row
 
 
+def _governance_scope(owner: Any) -> tuple[str, Optional[str]]:
+    """Resolve the authenticated governance scope for one meta-agent owner.
+
+    Governance queries are workspace-scoped: ``workspace_id="default"`` is the
+    single-tenant scope and also admits legacy NULL-workspace agents, while a
+    non-default workspace requires exact equality. A caller that forgets to
+    forward its own authenticated scope therefore cannot see its own agents
+    (``Agent not found``) — the deny is fail-closed but wrong. Forward the
+    request scope whenever it is available, and never let a non-string
+    placeholder (e.g. a test double attribute) masquerade as a workspace.
+    """
+    workspace = getattr(owner, "workspace_id", None)
+    tenant = getattr(owner, "tenant_id", None)
+    return (
+        workspace if isinstance(workspace, str) and workspace else "default",
+        tenant if isinstance(tenant, str) and tenant else None,
+    )
+
+
 class AtomMetaAgent:
     """
     The central Atom agent that orchestrates all platform capabilities.
@@ -3649,22 +3668,40 @@ Provide your Mentorship Guidance:"""
         Returns:
             (allowed, reason) - allowed=True if governance check passes
         """
+        workspace_id, tenant_id = _governance_scope(self)
+        # ``atom_main`` is the installation's own meta-agent and its persisted
+        # registry row is global (workspace NULL), so a non-default workspace
+        # has to be able to route through it. Admit ONLY that global row in the
+        # lookup; the governance service keeps the authenticated workspace and
+        # tenant so maturity, policy and budget still resolve the caller's
+        # effective scope (never a None/default fallback).
+        include_global = (
+            "atom_main"
+            if agent_id == "atom_main" and workspace_id not in (None, "default")
+            else None
+        )
+
         with SessionLocal() as db:
-            governance = AgentGovernanceService(db)
-            decision = await governance.canPerformAction(
-                user_id=user_id,  # Changed from tenant_id
+            governance = AgentGovernanceService(
+                db, workspace_id=workspace_id, tenant_id=tenant_id)
+            # Real async governance API (agent_id/action_type); the former
+            # camelCase `canPerformAction(user_id=..., action=...)` exists
+            # on no AgentGovernanceService build, so every ordinary
+            # fleet-eligible TASK raised AttributeError and fell back to
+            # Queen→ReAct.
+            decision = await governance.can_perform_action_async(
                 agent_id=agent_id,
-                action=f"route_to_{route_category}"
+                action_type=f"route_to_{route_category}",
+                include_global_agent_id=include_global,
             )
+            if decision.get("allowed"):
+                return True, None
 
-            if not decision.allowed:
-                logger.warning(
-                    "[MetaAgent] Governance denied %s routing for agent %s: %s",
-                    route_category, agent_id, decision.reason,
-                )
-                return False, decision.reason
-
-            return True, None
+            logger.warning(
+                "[MetaAgent] Governance denied %s routing for agent %s: %s",
+                route_category, agent_id, decision.get("reason"),
+            )
+            return False, decision.get("reason")
 
     async def route_with_governance(
         self,
@@ -4058,21 +4095,28 @@ async def _check_governance(
     """
     from core.database import SessionLocal
     
+    workspace_id, tenant_id = _governance_scope(self)
+    include_global = (
+        "atom_main"
+        if agent_id == "atom_main" and workspace_id not in (None, "default")
+        else None
+    )
     with SessionLocal() as db:
-        governance = AgentGovernanceService(db)
-        decision = await governance.canPerformAction(
-            user_id=user_id,
+        governance = AgentGovernanceService(
+            db, workspace_id=workspace_id, tenant_id=tenant_id)
+        decision = await governance.can_perform_action_async(
             agent_id=agent_id,
-            action=f"route_to_{route_category}"
+            action_type=f"route_to_{route_category}",
+            include_global_agent_id=include_global,
         )
 
-        if not decision.allowed:
+        if not decision.get("allowed"):
             # Log governance denial (simplified - no AuditLogger in upstream)
             logger.warning(
                 f"[MetaAgent] Governance denied {route_category} routing: "
-                f"{decision.reason}"
+                f"{decision.get('reason')}"
             )
-            return False, decision.reason
+            return False, decision.get("reason")
 
         return True, None
 
@@ -4174,11 +4218,13 @@ async def _route_to_task(
 
     with SessionLocal() as db:
         fleet_admiral = FleetAdmiral(db, self.llm)
-        
+        workspace_id, tenant_id = _governance_scope(self)
         result = await fleet_admiral.recruit_and_execute(
             task=request,
             user_id=user_id,
-            root_agent_id=agent_id
+            root_agent_id=agent_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
         )
 
         return {

@@ -85,6 +85,22 @@ def _bounded(value: Any, limit: int) -> str:
     return str(value or "")[:limit]
 
 
+def _server_workload_scope(value: Any) -> Any:
+    """Accept only server-composed workload identity material on the plan.
+
+    The canonical reducer has already run in the server-owned writer
+    (``canvas_capability_service.registered_workload_scope``); this guard
+    keeps a malformed or empty value off the durable plan instead of
+    persisting something the resolver would misread. A mapping scope and a
+    nonblank string scope are the two durable shapes.
+    """
+    if isinstance(value, dict) and value:
+        return copy.deepcopy(value)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
 def _json_safe(value: Any, *, depth: int = 0) -> Any:
     """Bound and JSON-safe a caller value. No semantic rewriting."""
     if depth > 4:
@@ -475,6 +491,7 @@ def new_assignment(
     standing_authority: Optional[Dict[str, Any]] = None,
     facts: Optional[Sequence[Dict[str, Any]]] = None,
     business_requirements: Optional[Sequence[Dict[str, Any]]] = None,
+    workload_scope: Optional[Any] = None,
 ) -> Dict[str, Any]:
     objective_text = _bounded(objective, 4000).strip()
     if not objective_text:
@@ -517,6 +534,11 @@ def new_assignment(
         "facts": normalize_facts(facts or []),
         "business_requirements": normalize_business_requirements(
             business_requirements or []),
+        # Server-owned workload identity, written ONLY by the server's own
+        # composition path (e.g. a registered repeat-task lookup). It is the
+        # durable field the repeat-task route resolver reads; caller payload
+        # can never set it because no request field reaches this argument.
+        "workload_scope": _server_workload_scope(workload_scope),
         "budget": {
             "max_steps": max(1, min(int(
                 (budget or {}).get("max_steps") or 40), 200)),

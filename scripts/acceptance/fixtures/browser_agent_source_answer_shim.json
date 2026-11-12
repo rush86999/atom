@@ -40,6 +40,8 @@
     {
       "response": {
         "tool": "ReActStep",
+        "stall_seconds": 110,
+        "stall_first_n": 1,
         "tool_call": {
           "name": "ReActStep",
           "arguments": {
