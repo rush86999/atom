@@ -608,11 +608,9 @@ class TestRoutingHelpers:
     async def test_check_governance_allowed(self):
         from core.atom_meta_agent import _check_governance
         agent = make_agent()
-        decision = MagicMock()
-        decision.allowed = True
-        decision.reason = None
+        decision = {"allowed": True, "reason": None}
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(return_value=decision)
+        gov.can_perform_action_async = AsyncMock(return_value=decision)
         with patch("core.database.SessionLocal") as mock_session, \
              patch("core.atom_meta_agent.AgentGovernanceService",
                    return_value=gov):
@@ -624,11 +622,9 @@ class TestRoutingHelpers:
     async def test_check_governance_denied(self):
         from core.atom_meta_agent import _check_governance
         agent = make_agent()
-        decision = MagicMock()
-        decision.allowed = False
-        decision.reason = "maturity too low"
+        decision = {"allowed": False, "reason": "maturity too low"}
         gov = MagicMock()
-        gov.canPerformAction = AsyncMock(return_value=decision)
+        gov.can_perform_action_async = AsyncMock(return_value=decision)
         with patch("core.database.SessionLocal") as mock_session, \
              patch("core.atom_meta_agent.AgentGovernanceService",
                    return_value=gov):
