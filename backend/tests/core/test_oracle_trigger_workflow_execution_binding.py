@@ -549,3 +549,28 @@ async def test_meta_agent_direct_dispatch_refuses_foreign_execution(
 
     assert "not confirmed" in out
     assert "bound to workflow 'wf-other'" in out
+
+
+@pytest.mark.asyncio
+async def test_meta_agent_direct_dispatch_readback_failure_is_no_retry(
+        db, monkeypatch):
+    """A returned run key with an unreadable store must not invite a retry."""
+    import core.database as database
+    import core.workflow_engine as workflow_engine
+
+    _definition(db)
+    engine = _CommittingEngine(lambda: _session_scope(db))
+    monkeypatch.setattr(
+        workflow_engine, "get_workflow_engine", lambda: engine)
+
+    def _unavailable():
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(database, "get_db_session", _unavailable)
+
+    out = await _meta_agent()._trigger_workflow(
+        "wf-1", {"customer": "acme"},
+        {"workspace_id": "ws-1", "tenant_id": "tenant-1"})
+
+    assert "Do NOT retry" in out
+    assert "exec-meta-1" in out

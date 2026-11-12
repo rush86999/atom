@@ -3126,12 +3126,14 @@ What is your next step?"""
             # dict (in-place mutation cannot rewrite authority) and never a
             # result-owned expected key.
             handler_context = dict(context or {})
-            # Prefer the durable claim id, but an oracle-covered action also
-            # needs the server-owned operation identity it was frozen with:
-            # the handler binds the committed effect (for ``trigger_workflow``
-            # the execution row) to that identity, so a lost response can be
+            # Prefer the durable claim id; otherwise carry only the trusted
+            # runtime-context operation identity (never a model-authored
+            # argument). An oracle-covered action needs it because the handler
+            # binds the committed effect (for ``trigger_workflow`` the
+            # execution row) to that identity, so a lost response can be
             # reconciled without the result that never arrived.
-            durable_dispatch_id = claim_operation_id or operation_id
+            durable_dispatch_id = claim_operation_id or str(
+                (context or {}).get("operation_id") or "").strip()
             if durable_dispatch_id:
                 handler_context["operation_id"] = durable_dispatch_id
             handler_context.setdefault("agent_id", getattr(self, "id", None))
@@ -3272,13 +3274,13 @@ What is your next step?"""
                         f"Do NOT retry — treat the action as succeeded."
                     )
                 if mutating or oracle_covered:
-                    from core import outbound_operation_claim as claims
                     evidence = (
                         "tool timed out after dispatch and no independent "
                         "postcondition verdict confirmed the landed effect"
                     )
                     durable_operation_id = claim_operation_id or operation_id
                     if mutating:
+                        from core import outbound_operation_claim as claims
                         self._mark_claim_status(
                             claim, claims.UNCERTAIN_EFFECT,
                             expected_status=claims.DISPATCHING)

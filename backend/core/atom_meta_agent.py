@@ -2322,6 +2322,7 @@ What is your next step?"""
         caller's authenticated scope is frozen into the execution inputs so
         the oracle can bind the row to this exact request/scope.
         """
+        execution_id = None
         try:
             from core.workflow_engine import get_workflow_engine
             if not workflow_id:
@@ -2382,6 +2383,17 @@ What is your next step?"""
                 )
             return f"Workflow {workflow_id} triggered (execution {execution_id})"
         except Exception as e:
+            if execution_id:
+                # The engine returned a run key, so an effect may already
+                # exist. An unreadable store is uncertainty, not a safe retry.
+                logger.error(
+                    "Workflow %s execution %s outcome could not be confirmed: "
+                    "%s", workflow_id, execution_id, e)
+                return (
+                    f"Error: workflow {workflow_id} dispatch outcome for "
+                    f"execution {execution_id} could not be confirmed ({e}). "
+                    f"Do NOT retry blindly; reconcile the execution first."
+                )
             logger.error(f"Failed to trigger workflow {workflow_id}: {e}")
             return f"Error triggering workflow {workflow_id}: {e}"
 
