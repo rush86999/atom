@@ -5861,11 +5861,21 @@ def _memory_store_base() -> Path:
 def _load_documents_df():
     """SYNC (callers must to_thread): full documents table for excerpt
     extraction — a file-ingest table with full text can be large, so this
-    load is the expensive part and must run once per search, not per hit."""
-    import lancedb
+    load is the expensive part and must run once per search, not per hit.
 
-    table = lancedb.connect(str(_memory_store_base() / "default")).open_table("documents")
-    return table.to_arrow().to_pandas()
+    Fault-isolated: None when the table/store is unavailable. Missing
+    excerpts are not missing search hits — the caller still has the hybrid
+    result and its preview fallback, and must not discard the whole block
+    just because this optional enrichment could not load."""
+    try:
+        import lancedb
+
+        table = lancedb.connect(
+            str(_memory_store_base() / "default")).open_table("documents")
+        return table.to_arrow().to_pandas()
+    except Exception as e:  # noqa: BLE001 — absence of the store is not an error
+        logger.debug(f"documents table unavailable for excerpts: {e}")
+        return None
 
 
 #: Projected documents table (id/text) + its load timestamp, TTL-cached.

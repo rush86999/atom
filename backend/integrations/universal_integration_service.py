@@ -3070,10 +3070,20 @@ class UniversalIntegrationService:
         elif service == "zoho_workdrive":
             # Same per-user token resolution as _execute_storage.  The
             # strict envelope keeps an unavailable grant/search from looking
-            # like an empty corpus.
+            # like an empty corpus, but THIS helper's contract is a list
+            # (search() and the MCP fan-out iterate it), so unwrap the items
+            # rather than returning the envelope dict. The user-facing
+            # execute/search path (_execute_storage) still returns the
+            # error envelope unchanged.
             if hasattr(storage_service, "search_files_envelope"):
-                return await storage_service.search_files_envelope(
+                result = await storage_service.search_files_envelope(
                     context.get("user_id") or token, query)
+                if isinstance(result, dict) and result.get("status") == "error":
+                    logger.warning(
+                        "WorkDrive search unavailable: %s",
+                        result.get("error") or result.get("message") or result)
+                    return []
+                return (result or {}).get("items") or []
             return await storage_service.search_files(
                 context.get("user_id") or token, query)
         elif service == "onedrive":
