@@ -7,7 +7,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_canvas_submit_oracle_regression.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run authenticated web task and project controls",
@@ -79,7 +79,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/api/test_conversation_learning_native_chat.py tests/api/test_reviewed_learning_configuration_mutation.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run workflow output export completion and provenance controls",
