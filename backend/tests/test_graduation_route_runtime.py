@@ -1625,6 +1625,74 @@ def test_discovery_excludes_quarantined_route(world):
         f"{CANDIDATE[0]}/{CANDIDATE[1]}") or [])
 
 
+def test_explicit_unscored_replacement_never_clears_baseline_floor(world):
+    """A passing replacement without an accuracy score never qualifies.
+
+    An older durable writer generation may record a passing benchmark verdict
+    without a comparable accuracy score (the current writer always scores, so
+    the shape is supplied here as validated comparison rows). Discovery
+    already refuses such a route: the capability profile's workload floor
+    cannot be demonstrated, so it is excluded as ``below_quality_prior``. The
+    explicit operator path must not bypass that floor just because the route
+    was named: a passing result with no score cannot show it meets the
+    baseline, and a baseline whose own score is unrecorded is not a floor to
+    relax below.
+    """
+    fresh = _utc_now() - timedelta(days=2)
+    world.add_benchmark_evidence(
+        "exec-baseline", *BASELINE, observed_at=fresh)
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        rows = load_repeat_task_evidence(db, agent)
+
+    baseline_row = dict(rows[0])
+    baseline_row["accuracy"] = None
+    replacement_row = {
+        **baseline_row,
+        "provider": CANDIDATE[0],
+        "model": CANDIDATE[1],
+        "model_provenance": {
+            "provider": CANDIDATE[0], "model": CANDIDATE[1]},
+        "evidence_id": "employee-benchmark:test:unscored-replacement",
+        "observed_at": _newer(fresh).isoformat(),
+        "passed": True,
+        "accuracy": None,
+    }
+    replacement_row.pop("resolved_model", None)
+    evidence = [baseline_row, replacement_row]
+
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        discovered = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=evidence)
+        explicit = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            candidates=[CANDIDATE], evidence_rows=evidence)
+
+    # Normal discovery cannot admit the unscored route at all.
+    assert discovered["route_state"] == STATE_SUPERVISED
+    assert discovered["candidate_source"] == "discovered"
+    assert discovered["selected_route"] is None
+    assert "no_profile_eligible_candidate" in discovered["reasons"]
+    assert any(
+        "below_quality_prior" in (item.get("reasons") or [])
+        for item in discovered["discovery"]["excluded"])
+
+    # Naming the same route explicitly compares it, but it still cannot clear
+    # the baseline floor without a score.
+    assert explicit["route_state"] == STATE_SUPERVISED
+    assert explicit["candidate_source"] == "operator"
+    assert explicit["selected_route"] is None
+    assert explicit["autonomous_eligible"] is False
+    candidate = explicit["comparison"]["candidates"][0]
+    assert candidate["passed"] is True
+    assert candidate["score"] is None
+    assert candidate["evidence_state"] == "failed"
+    assert candidate["reasons"] == ["baseline_not_met"]
+    assert explicit["comparison"]["ranked"] == []
+
+
 # --- Validated campaign-writer evidence (the only route evidence) -----------
 
 
