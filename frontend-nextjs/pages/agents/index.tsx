@@ -13,7 +13,9 @@ import { GuidedAgentCreator } from "@/components/Agents/GuidedAgentCreator";
 import { AutomationSuggestionsPanel } from "@/components/Agents/AutomationSuggestionsPanel";
 import { AgentMaturityGuideDialog } from "@/components/Agents/AgentMaturityGuide";
 import AgentJobWaitPanel from "@/components/Agents/AgentJobWaitPanel";
+import { AutoDevReviewPanel } from "@/components/Agents/AutoDevReviewPanel";
 import { getCurrentUser } from "@/lib/identity";
+import { useUserRole } from "@/lib/user-role";
 import {
     rememberAgentJob,
     loadLastAgentJob,
@@ -80,6 +82,20 @@ const AgentsDashboard = () => {
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const { toast } = useToast();
+
+    // Auto-Dev review (reviewed prompt-skill approval/apply) is TEAM_LEAD+ on
+    // the backend. Role only drives whether the tab is offered — the route
+    // re-checks tenant/workspace/review state and stays authoritative. While
+    // the role is unknown (still loading / fetch failed) the tab fails open,
+    // mirroring Sidebar navigation: hiding it on a transient failure would
+    // strand the supervisor, while the backend still refuses a real 403.
+    const { role, isSupervisor } = useUserRole();
+    const canReviewFixes = !role || isSupervisor;
+    // The reviewer queue spans agents; reuse the already-fetched list to label
+    // each candidate with the employee's name instead of an opaque ID.
+    const agentNamesById = Object.fromEntries(
+        agents.map((a) => [a.id, a.name])
+    );
 
     // The timestamp is fixed at append time so re-renders never rewrite the
     // history of older lines.
@@ -691,10 +707,17 @@ const AgentsDashboard = () => {
                             />
                         )}
                         <Tabs defaultValue="career">
-                            <TabsList className="w-full grid grid-cols-3">
+                            <TabsList
+                                className={`w-full grid ${canReviewFixes ? "grid-cols-4" : "grid-cols-3"}`}
+                            >
                                 <TabsTrigger value="career">Career path</TabsTrigger>
                                 <TabsTrigger value="approvals">Approvals</TabsTrigger>
                                 <TabsTrigger value="automate">Automate</TabsTrigger>
+                                {canReviewFixes && (
+                                    <TabsTrigger value="fixes" data-testid="autodev-review-tab">
+                                        Fixes
+                                    </TabsTrigger>
+                                )}
                             </TabsList>
                             <TabsContent value="career" className="mt-3 space-y-3">
                                 <MaturityProgression
@@ -723,6 +746,24 @@ const AgentsDashboard = () => {
                                     }}
                                 />
                             </TabsContent>
+                            {canReviewFixes && (
+                                <TabsContent
+                                    value="fixes"
+                                    className="mt-3 bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm"
+                                >
+                                    {/* Deliberately not scoped to activeAgentId:
+                                        the reviewer queue is tenant/workspace-
+                                        scoped by the backend, and reviewed
+                                        skills must stay reachable even when the
+                                        agent that produced them is not the one
+                                        currently running. Passing an agent id
+                                        would narrow the queue to that one agent
+                                        and hide everyone else's fixes; Apply is
+                                        gated per candidate by apply_eligible,
+                                        not by agent selection. */}
+                                    <AutoDevReviewPanel agentNames={agentNamesById} />
+                                </TabsContent>
+                            )}
                         </Tabs>
                     </div>
                 </div>
