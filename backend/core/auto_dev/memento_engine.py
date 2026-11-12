@@ -429,6 +429,12 @@ class MementoEngine(BaseLearningEngine):
         """
         Analyze a completed agent execution into a success/step trace.
 
+        NOTE: this lookup is intentionally NOT authorization-scoped — it is
+        a read helper. Production callers (``learn_from_execution``) must
+        authorize the execution via ``_load_authorized_execution`` BEFORE
+        calling this, so no model/storage/sandbox work happens for a
+        denied execution.
+
         Unlike ``analyze_episode`` (which assumes a failed episode), this
         handles ANY outcome (success or failure): it pulls the
         ``AgentExecution`` row plus its ordered ``AgentReasoningStep`` rows
@@ -513,6 +519,77 @@ class MementoEngine(BaseLearningEngine):
                 "error": "Execution models not available",
             }
 
+    def _load_authorized_execution(
+        self, tenant_id: Any, execution_id: str, actor: Any | None = None
+    ) -> tuple[Any | None, dict[str, str] | None]:
+        """
+        Tenant+owner-scoped execution lookup. Fail closed.
+
+        - The execution must exist AND carry the authenticated tenant's id;
+          rows with a NULL tenant_id can never match (deny).
+        - The execution must have an owning agent whose AgentRegistry row
+          exists in the same tenant.
+        - Actors below ADMIN may only distill executions of agents owned by
+          their own workspace — the same explicit tenant-admin policy as the
+          Auto-Dev review surface (``api/autodev_review_routes
+          ._candidate_agent``).
+
+        The lookup runs BEFORE any model, storage or sandbox operation, so a
+        denied execution never reaches the LLM, the filesystem or the
+        sandbox. "not found" phrasing deliberately does not distinguish a
+        missing row from a cross-tenant id (no existence leak across
+        tenants).
+
+        Returns ``(execution, None)`` on success, or ``(None, denial)``
+        where denial is ``{"error": ...}``.
+        """
+        from core.models import AgentExecution, AgentRegistry, UserRole
+        from core.security.rbac import role_level
+
+        tenant_key = str(tenant_id or "")
+        if not tenant_key:
+            return None, {"error": f"Execution {execution_id} not found"}
+
+        execution = (
+            self.db.query(AgentExecution)
+            .filter(
+                AgentExecution.id == execution_id,
+                AgentExecution.tenant_id == tenant_key,
+            )
+            .first()
+        )
+        if execution is None:
+            return None, {"error": f"Execution {execution_id} not found"}
+
+        if not execution.agent_id:
+            return None, {
+                "error": f"Execution {execution_id} has no owning agent; "
+                "distillation not permitted"
+            }
+        agent = (
+            self.db.query(AgentRegistry)
+            .filter(AgentRegistry.id == execution.agent_id)
+            .first()
+        )
+        if agent is None or str(agent.tenant_id) != tenant_key:
+            # Owning agent missing or cross-tenant: answer exactly like a
+            # missing row so the endpoint cannot probe other tenants' ids.
+            return None, {"error": f"Execution {execution_id} not found"}
+
+        if (
+            actor is not None
+            and role_level(getattr(actor, "role", None))
+            < role_level(UserRole.ADMIN)
+            and str(getattr(actor, "workspace_id", "") or "")
+            != str(getattr(agent, "workspace_id", "") or "")
+        ):
+            return None, {
+                "error": f"Execution {execution_id} belongs to another "
+                "workspace; distillation not permitted"
+            }
+
+        return execution, None
+
     async def learn_from_execution(
         self,
         tenant_id: str,
@@ -520,38 +597,49 @@ class MementoEngine(BaseLearningEngine):
         execution_id: str,
         skill_name: str | None = None,
         description: str | None = None,
+        *,
+        actor: Any | None = None,
     ) -> dict[str, Any]:
         """
-        Distill a completed agent execution into a reusable Python skill.
+        Distill a completed agent execution into a REVIEWABLE skill candidate.
+
+        Authorization is fail closed: ``_load_authorized_execution`` scopes
+        the execution to the authenticated tenant and owner (workspace, for
+        non-admin actors) BEFORE any model, storage or sandbox operation.
 
         Pipeline:
-            1. analyze_execution(execution_id) — success/step trace
-            2. propose_code_change(trace) — LLM generates the skill script
-            3. validate_change(code) — execute in the sandbox
-            4. SkillBuilderService.create_skill_package — write disk package
-            5. SkillRegistryService.import_skill — register/discoverable
+            1. _load_authorized_execution — tenant+owner-scoped, fail closed
+            2. analyze_execution(execution_id) — success/step trace
+            3. propose_code_change(trace) — LLM generates the skill script
+            4. SkillCandidate(validation_status="pending") — stored for review
 
-        Returns a dict with ``success`` plus the package + registry results.
+        The generated code is NOT executed in the sandbox, NOT packaged and
+        NOT registered here — unapproved generated material must not become
+        runnable. It only becomes usable after a supervisor approves it via
+        the existing Auto-Dev approval mechanism
+        (``api/autodev_review_routes``: approve → ``apply_reviewed_skill``,
+        which registers a typed prompt skill and never writes, imports or
+        runs generated executable code).
+
+        Returns a dict with ``success`` plus the pending candidate reference.
         """
+        execution, denial = self._load_authorized_execution(
+            tenant_id, execution_id, actor=actor
+        )
+        if denial:
+            return {"success": False, **denial}
+
         analysis = await self.analyze_execution(execution_id)
         if "error" in analysis:
             return {"success": False, "error": analysis["error"]}
 
         code = await self.propose_code_change(analysis)
-        if code.startswith("# Skill generation failed"):
+        if code.startswith(
+            ("# Skill generation failed", "# Skill generation skipped")
+        ):
             return {
                 "success": False,
                 "error": "Skill generation failed — LLM unavailable",
-            }
-
-        validation = await self.validate_change(
-            code=code, test_inputs=[{}], tenant_id=tenant_id
-        )
-        if not validation.get("passed"):
-            return {
-                "success": False,
-                "error": "Skill validation failed in sandbox",
-                "validation": validation,
             }
 
         name = (
@@ -569,57 +657,43 @@ class MementoEngine(BaseLearningEngine):
             or f"Skill distilled from execution {execution_id}"
         )
 
-        # 1. Write a disk package via SkillBuilderService
-        from core.skill_builder_service import SkillBuilderService, SkillMetadata
-
-        builder = SkillBuilderService()
-        package_result = builder.create_skill_package(
-            tenant_id=tenant_id,
-            metadata=SkillMetadata(
-                name=name,
-                description=desc,
-                version="1.0.0",
-                author="Memento-Learn",
-                capabilities=[],
-                instructions=f"Generated from execution {execution_id}.",
-            ),
-            scripts={f"{safe_name}.py": code},
+        # Store as a PENDING candidate — the existing Auto-Dev approval
+        # mechanism. No disk package, no registry import, no sandbox run.
+        candidate = SkillCandidate(
+            tenant_id=str(tenant_id),
+            agent_id=str(execution.agent_id) if execution.agent_id else None,
+            source_episode_id=None,
+            skill_name=name,
+            skill_description=desc,
+            generated_code=code,
+            failure_pattern={
+                "kind": "execution_distillation",
+                "execution_id": execution_id,
+                "status": analysis.get("status"),
+                "failure_summary": analysis.get("failure_summary"),
+                "step_count": analysis.get("step_count"),
+            },
+            validation_status="pending",
         )
-        if not package_result.get("success"):
-            return {
-                "success": False,
-                "error": package_result.get("message", "Package creation failed"),
-            }
+        self.db.add(candidate)
+        self.db.commit()
+        self.db.refresh(candidate)
 
-        # 2. Register in the skill registry so it is discoverable/executable
-        skill_md_content = (
-            f"---\n"
-            f"name: {name}\n"
-            f"description: {desc}\n"
-            f"version: 1.0.0\n"
-            f"author: Memento-Learn\n"
-            f"---\n\n"
-            f"# {name}\n\n"
-            f"{desc}\n\n"
-            f"## Instructions\n"
-            f"Generated from execution {execution_id}.\n\n"
-            f"```python\n{code}\n```\n"
+        logger.info(
+            f"Learn endpoint stored pending skill candidate '{safe_name}' "
+            f"from execution {execution_id} (tenant {tenant_id})"
         )
-        from core.skill_registry_service import SkillRegistryService
-
-        registry = SkillRegistryService(self.db)
-        import_result = await registry.import_skill(
-            source="raw_content",
-            content=skill_md_content,
-            metadata={"imported_by": "learn_endpoint"},
-        )
-
         return {
             "success": True,
+            "status": "pending_approval",
             "execution_id": execution_id,
+            "candidate_id": str(candidate.id),
             "skill_name": name,
-            "package": package_result,
-            "registry": import_result,
+            "message": (
+                "Skill candidate stored for supervisor review; it is not "
+                "registered or runnable until approved via the Auto-Dev "
+                "review surface"
+            ),
         }
 
     # --- Internal helpers ---

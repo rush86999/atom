@@ -1,18 +1,34 @@
+# -*- coding: utf-8 -*-
 """
 Round 72 — Workstream B: /learn endpoint (workflow→skill distillation).
 
 Covers MementoEngine.analyze_execution / learn_from_execution plus the
-POST /api/v1/learn route (success, missing execution → 404, unauth → 401,
-and the registry listability of a distilled skill).
+POST /api/v1/learn route.
+
+2026-11 hardening contract: the execution lookup is tenant+owner scoped
+(fail closed, authenticated actor) BEFORE any model/storage/sandbox
+operation, and distillation stores a PENDING Auto-Dev SkillCandidate —
+generated material is never executed, packaged or registered until a
+supervisor approves it via the Auto-Dev review surface.
 """
 import pytest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from core.auto_dev.memento_engine import MementoEngine
-from core.models import AgentExecution, AgentReasoningStep, SkillExecution, Base
+from core.auto_dev.models import SkillCandidate
+from core.models import (
+    AgentExecution,
+    AgentReasoningStep,
+    AgentRegistry,
+    SkillExecution,
+    UserRole,
+    Base,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -21,12 +37,18 @@ from core.models import AgentExecution, AgentReasoningStep, SkillExecution, Base
 
 def _make_session():
     """In-memory SQLite session with only the tables this test needs."""
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(
         engine,
         tables=[
             AgentExecution.__table__,
             AgentReasoningStep.__table__,
+            AgentRegistry.__table__,
+            SkillCandidate.__table__,
             SkillExecution.__table__,
         ],
     )
@@ -34,11 +56,36 @@ def _make_session():
     return Session(), engine
 
 
-def _seed_execution(db, status="completed") -> str:
+def _seed_agent(
+    db, agent_id="agent-1", tenant_id="tenant-1", workspace_id="ws-1"
+):
+    """Insert the owning AgentRegistry row for an execution."""
+    agent = AgentRegistry(
+        id=agent_id,
+        name="Test Agent",
+        category="Operations",
+        module_path="test.module",
+        class_name="TestAgent",
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    db.add(agent)
+    db.commit()
+    return agent
+
+
+def _seed_execution(
+    db,
+    status="completed",
+    agent_id="agent-1",
+    tenant_id="tenant-1",
+    exec_id=None,
+) -> str:
     """Insert an AgentExecution + reasoning steps; return the execution id."""
     execution = AgentExecution(
-        agent_id="agent-1",
-        tenant_id="tenant-1",
+        id=exec_id,
+        agent_id=agent_id,
+        tenant_id=tenant_id,
         status=status,
         input_summary="Summarize the quarterly sales report",
         result_summary="done",
@@ -73,6 +120,11 @@ def _seed_execution(db, status="completed") -> str:
     return execution.id
 
 
+def _actor(role=UserRole.TEAM_LEAD, workspace_id="ws-1"):
+    """Lightweight authenticated-actor stand-in (inert test data)."""
+    return SimpleNamespace(id="user-1", role=role, workspace_id=workspace_id)
+
+
 class TestMementoAnalyzeExecution:
     def test_builds_success_step_trace(self):
         db, _ = _make_session()
@@ -100,83 +152,232 @@ class TestMementoAnalyzeExecution:
 
 
 class TestMementoLearnFromExecution:
-    @patch("core.auto_dev.memento_engine.MementoEngine.propose_code_change",
-           new=AsyncMock(return_value="def summarize(x):\n    return x"))
-    @patch("core.auto_dev.memento_engine.MementoEngine.validate_change",
-           new=AsyncMock(return_value={"passed": True}))
-    def test_success_writes_package_and_registers(self):
+    """Hardened contract: authorized lookup → pending candidate; the
+    generated code is never executed, packaged or registered pre-approval."""
+
+    def test_success_stores_pending_candidate_without_packaging(self):
         db, _ = _make_session()
         exec_id = _seed_execution(db)
+        _seed_agent(db)
 
         engine = MementoEngine(db=db)
-
-        with patch("core.skill_builder_service.SkillBuilderService") as MockBuilder, \
-             patch("core.skill_registry_service.SkillRegistryService") as MockReg:
-            MockBuilder.return_value.create_skill_package.return_value = {
-                "success": True, "path": "/tmp/skill", "scripts": ["auto_summarize.py"]
-            }
-            MockReg.return_value.import_skill = AsyncMock(return_value={
-                "skill_id": "s-1", "skill_name": "auto_summarize", "status": "Active"
-            })
-
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+            new=AsyncMock(return_value="def summarize(x):\n    return x"),
+        ) as mock_propose, patch(
+            "core.skill_builder_service.SkillBuilderService"
+        ) as MockBuilder, patch(
+            "core.skill_registry_service.SkillRegistryService"
+        ) as MockReg:
             result = asyncio_run(engine.learn_from_execution(
                 tenant_id="tenant-1",
                 agent_id="agent-1",
                 execution_id=exec_id,
+                actor=_actor(role=UserRole.TEAM_LEAD, workspace_id="ws-1"),
             ))
 
-        assert result["success"] is True
-        assert result["execution_id"] == exec_id
+        assert result["success"] is True, result
+        assert result["status"] == "pending_approval"
         assert result["skill_name"].startswith("auto_")
-        MockBuilder.return_value.create_skill_package.assert_called_once()
-        MockReg.return_value.import_skill.assert_called_once()
+        assert result["candidate_id"]
 
-    @patch("core.auto_dev.memento_engine.MementoEngine.propose_code_change",
-           new=AsyncMock(return_value="def summarize(x):\n    return x"))
-    @patch("core.auto_dev.memento_engine.MementoEngine.validate_change",
-           new=AsyncMock(return_value={"passed": True}))
+        candidate = (
+            db.query(SkillCandidate)
+            .filter(SkillCandidate.tenant_id == "tenant-1")
+            .one()
+        )
+        assert candidate.validation_status == "pending"
+        assert candidate.generated_code == "def summarize(x):\n    return x"
+        assert candidate.agent_id == "agent-1"
+        assert candidate.skill_name == result["skill_name"]
+
+        # Unapproved generated material must not become runnable: no disk
+        # package, no registry import, no sandbox execution on this path.
+        MockBuilder.assert_not_called()
+        MockReg.assert_not_called()
+        mock_propose.assert_awaited_once()
+
     def test_honors_skill_name_override(self):
         db, _ = _make_session()
         exec_id = _seed_execution(db)
+        _seed_agent(db)
         engine = MementoEngine(db=db)
 
-        with patch("core.skill_builder_service.SkillBuilderService") as MockBuilder, \
-             patch("core.skill_registry_service.SkillRegistryService") as MockReg:
-            MockBuilder.return_value.create_skill_package.return_value = {"success": True}
-            MockReg.return_value.import_skill = AsyncMock(return_value={})
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+            new=AsyncMock(return_value="def x():\n    return 1"),
+        ):
             result = asyncio_run(engine.learn_from_execution(
                 tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
                 skill_name="My Custom Skill",
             ))
 
+        assert result["success"] is True
         assert result["skill_name"] == "My Custom Skill"
+        candidate = db.query(SkillCandidate).one()
+        assert candidate.skill_name == "My Custom Skill"
+        assert candidate.validation_status == "pending"
 
-    @patch("core.auto_dev.memento_engine.MementoEngine.propose_code_change",
-           new=AsyncMock(return_value="def x():\n    return 1"))
-    @patch("core.auto_dev.memento_engine.MementoEngine.validate_change",
-           new=AsyncMock(return_value={"passed": False, "error": "sandbox"}))
-    def test_validation_failure_returns_error(self):
+    def test_missing_execution_denies_before_llm(self):
         db, _ = _make_session()
-        exec_id = _seed_execution(db)
+        _seed_agent(db)
+        engine = MementoEngine(db=db)
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id="nope",
+                actor=_actor(),
+            ))
+        assert result["success"] is False
+        assert "not found" in result["error"].lower()
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_cross_tenant_execution_denied_before_llm(self):
+        """Another tenant's execution id is indistinguishable from a missing
+        one (404 semantics) and must never reach the LLM or storage."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db, tenant_id="tenant-2")
+        _seed_agent(db, tenant_id="tenant-2", workspace_id="ws-9")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.SUPER_ADMIN),
+            ))
+        assert result["success"] is False
+        assert "not found" in result["error"].lower()
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_null_tenant_execution_denied(self):
+        """Fail closed: a NULL-tenant execution can never match the
+        authenticated tenant."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db, tenant_id=None)
         engine = MementoEngine(db=db)
         result = asyncio_run(engine.learn_from_execution(
             tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
-        ))
-        assert result["success"] is False
-        assert "validation failed" in result["error"]
-
-    def test_missing_execution_returns_error(self):
-        db, _ = _make_session()
-        engine = MementoEngine(db=db)
-        result = asyncio_run(engine.learn_from_execution(
-            tenant_id="tenant-1", agent_id="agent-1", execution_id="nope",
+            actor=_actor(role=UserRole.SUPER_ADMIN),
         ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_execution_without_owning_agent_denied(self):
+        """No owning agent → ownership cannot be established → deny."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db, agent_id=None)
+        engine = MementoEngine(db=db)
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.SUPER_ADMIN),
+            ))
+        assert result["success"] is False
+        assert "not permitted" in result["error"].lower()
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_cross_workspace_actor_denied_before_llm(self):
+        """Non-admin actor may only distill executions of agents their
+        workspace owns (same policy as autodev_review_routes
+        _candidate_agent)."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="ws-1")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.TEAM_LEAD, workspace_id="ws-2"),
+            ))
+        assert result["success"] is False
+        assert "not permitted" in result["error"].lower()
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_admin_actor_may_operate_across_workspace(self):
+        """Explicit tenant-admin policy (mirrors _candidate_agent): ADMIN+
+        may distill within their tenant across workspaces."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="ws-1")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+            new=AsyncMock(return_value="def x():\n    return 1"),
+        ):
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.ADMIN, workspace_id="ws-2"),
+            ))
+        assert result["success"] is True
+        candidate = db.query(SkillCandidate).one()
+        assert candidate.validation_status == "pending"
+
+    def test_missing_owning_agent_row_denied(self):
+        """Execution points at an agent id with no registry row (or a
+        cross-tenant agent) → same answer as a missing execution."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        # No AgentRegistry row seeded at all.
+        engine = MementoEngine(db=db)
+        result = asyncio_run(engine.learn_from_execution(
+            tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+            actor=_actor(role=UserRole.SUPER_ADMIN),
+        ))
+        assert result["success"] is False
+        assert "not found" in result["error"].lower()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_blank_tenant_denied(self):
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db)
+        engine = MementoEngine(db=db)
+        result = asyncio_run(engine.learn_from_execution(
+            tenant_id="", agent_id="agent-1", execution_id=exec_id,
+            actor=_actor(),
+        ))
+        assert result["success"] is False
+        assert "not found" in result["error"].lower()
+        assert db.query(SkillCandidate).count() == 0
 
 
 class TestLearnRoute:
-    def _client(self, db_session, monkeypatch):
+    """Route-level: authorized behavior + denial mapping after the fix."""
+
+    def _memory_db(self):
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(
+            engine,
+            tables=[
+                AgentExecution.__table__,
+                AgentReasoningStep.__table__,
+                AgentRegistry.__table__,
+                SkillCandidate.__table__,
+            ],
+        )
+        Session = sessionmaker(bind=engine)
+        return Session()
+
+    def _client(self, db_session, monkeypatch, role=UserRole.SUPER_ADMIN,
+                workspace_id="ws-1"):
         from fastapi.testclient import TestClient
         from main_api_app import app
         from core.auth import get_current_tenant, get_current_user
@@ -185,6 +386,8 @@ class TestLearnRoute:
 
         fake_user = MagicMock()
         fake_user.id = "user-1"
+        fake_user.role = role
+        fake_user.workspace_id = workspace_id
         fake_tenant = MagicMock()
         fake_tenant.id = "tenant-1"
 
@@ -203,27 +406,16 @@ class TestLearnRoute:
         resp = client.post("/api/v1/learn", json={"execution_id": "e1"})
         assert resp.status_code in (401, 403)
 
-    def test_success_endpoint(self, db_session, monkeypatch):
-        db_session.add(AgentExecution(id="e1", status="completed", input_summary="t"))
-        db_session.commit()
+    def test_success_stores_pending_candidate(self, monkeypatch):
+        db = self._memory_db()
+        _seed_agent(db)
+        _seed_execution(db, exec_id="e1")
 
-        with patch.object(MementoEngine, "analyze_execution",
-                          new=AsyncMock(return_value={
-                              "execution_id": "e1", "task_description": "t",
-                              "suggested_skill_name": "auto_learn", "failure_summary": "f",
-                          })), \
-             patch.object(MementoEngine, "propose_code_change",
+        with patch.object(MementoEngine, "propose_code_change",
                           new=AsyncMock(return_value="def learn():\n    return 1")), \
-             patch.object(MementoEngine, "validate_change",
-                          new=AsyncMock(return_value={"passed": True})), \
              patch("core.skill_builder_service.SkillBuilderService") as MockBuilder, \
              patch("core.skill_registry_service.SkillRegistryService") as MockReg:
-            MockBuilder.return_value.create_skill_package.return_value = {"success": True}
-            MockReg.return_value.import_skill = AsyncMock(return_value={
-                "skill_id": "s-1", "skill_name": "auto_learn", "status": "Active"
-            })
-
-            client = self._client(db_session, monkeypatch)
+            client = self._client(db, monkeypatch)
             resp = client.post(
                 "/api/v1/learn",
                 json={"execution_id": "e1"},
@@ -233,19 +425,71 @@ class TestLearnRoute:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
-        assert body["data"]["skill_name"] == "auto_learn"
-        assert body["data"]["registry"]["skill_id"] == "s-1"
+        assert body["data"]["status"] == "pending_approval"
+        assert body["data"]["candidate_id"]
+        assert body["data"]["skill_name"].startswith("auto_")
+        candidate = (
+            db.query(SkillCandidate)
+            .filter(SkillCandidate.tenant_id == "tenant-1")
+            .one()
+        )
+        assert candidate.validation_status == "pending"
+        assert candidate.agent_id == "agent-1"
+        # Unapproved generated material must not become runnable.
+        MockBuilder.assert_not_called()
+        MockReg.assert_not_called()
 
-    def test_missing_execution_404(self, db_session, monkeypatch):
-        with patch.object(MementoEngine, "analyze_execution",
-                          new=AsyncMock(return_value={"error": "Execution nope not found"})):
-            client = self._client(db_session, monkeypatch)
+    def test_missing_execution_404(self, monkeypatch):
+        db = self._memory_db()
+        _seed_agent(db)
+        client = self._client(db, monkeypatch)
+        resp = client.post(
+            "/api/v1/learn",
+            json={"execution_id": "nope"},
+            headers={"Authorization": "Bearer test"},
+        )
+        assert resp.status_code == 404, resp.text
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_cross_tenant_execution_404(self, monkeypatch):
+        """Another tenant's execution is denied (indistinguishable from
+        missing) and never reaches the LLM."""
+        db = self._memory_db()
+        _seed_agent(db, tenant_id="tenant-2", workspace_id="ws-9")
+        _seed_execution(db, tenant_id="tenant-2", exec_id="e1")
+
+        with patch.object(MementoEngine, "propose_code_change",
+                          new=AsyncMock(return_value="def x():\n    return 1")):
+            client = self._client(db, monkeypatch)
             resp = client.post(
                 "/api/v1/learn",
-                json={"execution_id": "nope"},
+                json={"execution_id": "e1"},
                 headers={"Authorization": "Bearer test"},
             )
         assert resp.status_code == 404, resp.text
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_cross_workspace_403_and_no_candidate(self, monkeypatch):
+        """Non-admin actor distilling another workspace's execution → 403,
+        no LLM work, no candidate."""
+        db = self._memory_db()
+        _seed_agent(db, workspace_id="ws-1")
+        _seed_execution(db, exec_id="e1")
+
+        with patch.object(MementoEngine, "propose_code_change",
+                          new=AsyncMock(return_value="def x():\n    return 1")) as mock_propose:
+            client = self._client(
+                db, monkeypatch, role=UserRole.TEAM_LEAD, workspace_id="ws-2"
+            )
+            resp = client.post(
+                "/api/v1/learn",
+                json={"execution_id": "e1"},
+                headers={"Authorization": "Bearer test"},
+            )
+        assert resp.status_code == 403, resp.text
+        assert "not permitted" in resp.json()["detail"].lower()
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
 
 
 class TestRegistryListability:

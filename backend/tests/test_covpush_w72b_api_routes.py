@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -1331,6 +1331,7 @@ class TestLearnRoutes:
         engine_cls.return_value.learn_from_execution.assert_awaited_once_with(
             tenant_id="tenant-1", agent_id="u-72", execution_id="exec-1",
             skill_name="my_skill", description="distilled skill",
+            actor=ANY,
         )
 
     def test_learn_success_defaults(self, client, engine_cls):
@@ -1340,6 +1341,7 @@ class TestLearnRoutes:
         engine_cls.return_value.learn_from_execution.assert_awaited_once_with(
             tenant_id="tenant-1", agent_id="u-72", execution_id="exec-1",
             skill_name=None, description=None,
+            actor=ANY,
         )
 
     def test_learn_user_without_id(self, client, engine_cls):
@@ -1358,6 +1360,7 @@ class TestLearnRoutes:
         engine_cls.return_value.learn_from_execution.assert_awaited_once_with(
             tenant_id="tenant-1", agent_id=None, execution_id="exec-1",
             skill_name=None, description=None,
+            actor=ANY,
         )
 
     def test_learn_execution_not_found(self, client, engine_cls):
@@ -1366,6 +1369,16 @@ class TestLearnRoutes:
         resp = client.post("/api/v1/learn", json={"execution_id": "nope"})
         assert resp.status_code == 404
         assert "Execution not found" in resp.json()["detail"]
+
+    def test_learn_workspace_denial_is_403(self, client, engine_cls):
+        """Owner-scope denial (engine, fail closed) maps to 403."""
+        engine_cls.return_value.learn_from_execution.return_value = self._result(
+            success=False,
+            error="Execution exec-1 belongs to another workspace; "
+                  "distillation not permitted")
+        resp = client.post("/api/v1/learn", json={"execution_id": "exec-1"})
+        assert resp.status_code == 403
+        assert "not permitted" in resp.json()["detail"].lower()
 
     def test_learn_not_found_case_insensitive(self, client, engine_cls):
         engine_cls.return_value.learn_from_execution.return_value = self._result(

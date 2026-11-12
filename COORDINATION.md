@@ -496,3 +496,49 @@ Status: focused failing test reproduced the gap first, then passed with the
 fix. `login.test.tsx` 24/24, `tests/auth` 165/165 and the two affected
 accessibility suites 41/41 pass on linked `node_modules`. No live
 SMTP/account/app run, no push.
+
+## Session: /learn endpoint authorization hardening (2026-11-12)
+
+Worktree `/private/tmp/atom-learn-hardening.yna8t0`. Checked the
+active-sessions table first; no one owned the learn path, auto-dev
+memento engine, or their tests.
+
+Files touched: `backend/api/learn_routes.py`,
+`backend/core/auto_dev/memento_engine.py`,
+`backend/tests/test_learn_routes.py`,
+`backend/tests/test_covpush_w72b_api_routes.py` (TestLearnRoutes only),
+`backend/tests/test_covpush_autodev2.py` (MementoEngine learn tests only),
+`backend/tests/test_covpush_w82a_autodev.py` (MementoEngine learn tests
+only), this note.
+
+Change (behavior change — flagging per ground rules):
+1. `POST /api/v1/learn` execution lookup is now tenant+owner scoped and
+   FAIL CLOSED inside `MementoEngine._load_authorized_execution` BEFORE
+   any model/storage/sandbox operation: the row must carry the
+   authenticated tenant's id (NULL-tenant rows always deny), must have an
+   owning `AgentRegistry` row in the same tenant, and non-ADMIN actors
+   may only distill executions of agents their workspace owns — the same
+   explicit tenant-admin policy as `api/autodev_review_routes
+   ._candidate_agent`. Cross-tenant ids answer exactly like missing rows
+   (404, no existence leak); workspace denial maps to 403. The route now
+   passes the authenticated user as `actor`.
+2. Unapproved generated material can no longer become runnable: the
+   endpoint no longer sandbox-executes, packages
+   (`SkillBuilderService`) or registers (`SkillRegistryService.import_
+   skill`) LLM-generated code. It stores a PENDING `SkillCandidate`
+   reusing the existing Auto-Dev approval mechanism
+   (`/api/autodev/skills/{id}/approve` → `apply_reviewed_skill`, which
+   registers a typed prompt skill and never writes/runs generated
+   executable code). Response contract changed: `status:
+   "pending_approval"` + `candidate_id` instead of `package`/`registry`.
+
+Status: `tests/test_learn_routes.py` 18/18 (engine + full-app route
+tests incl. cross-tenant 404, cross-workspace 403, no-owning-agent deny,
+admin cross-workspace allow, pending-candidate + no-package/no-registry
+assertions), `TestLearnRoutes` in `test_covpush_w72b_api_routes.py`
+green, `test_autodev_review_routes.py` 5/5, `test_reviewed_improvement
+_apply.py` green. Pre-existing unrelated failures (identical on stashed
+baseline): 3 `TestReflectionEngineCoverage` + 3 `TestDynamicBenchmark
+Fetcher` + `validate_candidate` order-dependency in the covpush suites.
+All runs used `TESTING=1` and a scratch `DATABASE_URL` (in-memory or
+temp-dir SQLite); no live DB, no app/model calls, no push.
