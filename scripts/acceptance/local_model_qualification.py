@@ -45,7 +45,11 @@ def _scratch_environment(ollama_url: str, model: str) -> Path:
     ):
         os.environ.pop(name, None)
     os.environ.update({
-        "TESTING": "1",
+        # TESTING=0 keeps core.database on the explicit scratch DATABASE_URL.
+        # TESTING=1 would silently reroute the probe to the shared
+        # backend/test_integration.db instead of this run's disposable file.
+        "TESTING": "0",
+        "ENVIRONMENT": "test",
         "DATABASE_URL": f"sqlite:///{tmp}/atom.db",
         "ATOM_DATA_DIR": str(tmp / "data"),
         "LANCEDB_URI": str(tmp / "data" / "atom_memory"),
@@ -57,6 +61,11 @@ def _scratch_environment(ollama_url: str, model: str) -> Path:
         "ATOM_PRODUCT_PROFILE": "core",
         "ENABLE_SCHEDULER": "false",
         "ENABLE_INGESTION_SYNC": "false",
+        # Preserve the TESTING=1 qualification semantics that used to fall
+        # out of the forced test database: no auxiliary cheap-NLU model calls
+        # and no live agent-work execution.
+        "ATOM_CHEAP_NLU_LLM": "false",
+        "ATOM_GOAL_RUN_AGENT_WORK": "false",
         "OLLAMA_BASE_URL": ollama_url,
         "OLLAMA_CONTEXT_WINDOW": "16384",
         "OLLAMA_MODEL": model,
@@ -67,6 +76,68 @@ def _scratch_environment(ollama_url: str, model: str) -> Path:
     })
     (tmp / "data").mkdir(parents=True, exist_ok=True)
     return tmp
+
+
+def _initialize_scratch_database(scratch_root: Path) -> Path:
+    """Create the app schema in this run's verified disposable SQLite file.
+
+    Uses the same initialization as ``main_api_app`` startup
+    (``repair_known_drift`` + ``Base.metadata.create_all`` + the default
+    tenant/workspace bootstrap) so consumers such as the provider-policy
+    resolver see ``runtime_settings`` and ``workspaces`` instead of failing
+    closed before any local model call. Before any schema write it requires
+    the actual SQLite target of the live ``core.database`` engine to match
+    the exact absolute ``atom.db`` inside the fresh scratch root, and it
+    refuses every other target — including the repo's shared test database —
+    so no run ever touches a database outside its own disposable file. It
+    never writes a provider-policy row, so the installation policy and
+    ``ATOM_LOCAL_ONLY`` stay authoritative.
+    """
+    from sqlalchemy import inspect
+
+    from core.database import engine, get_db_session
+
+    logger = logging.getLogger(__name__)
+    engine_url = engine.url
+    if engine_url.get_backend_name() != "sqlite" or not engine_url.database:
+        raise RuntimeError(
+            f"refusing to initialize non-SQLite database: {engine_url}")
+
+    target = Path(engine_url.database).expanduser().resolve()
+    expected = (scratch_root / "atom.db").resolve()
+    if target != expected:
+        raise RuntimeError(
+            "refusing to initialize a database outside this run's scratch "
+            f"root: {target} (expected {expected})")
+
+    try:
+        from core.sqlite_schema_repair import repair_known_drift
+
+        repair_known_drift()
+    except Exception as exc:  # noqa: BLE001 - repair is best-effort at boot
+        logger.warning("schema drift repair skipped: %s", exc)
+
+    from core.auto_dev import models as _autodev_models  # noqa: F401
+    from core.models import Base
+
+    Base.metadata.create_all(bind=engine)
+
+    missing = [
+        name for name in ("runtime_settings", "workspaces", "tenants")
+        if not inspect(engine).has_table(name)
+    ]
+    if missing:
+        raise RuntimeError(
+            "scratch database initialization incomplete: missing "
+            + ", ".join(missing))
+
+    from core.admin_bootstrap import ensure_default_tenant_and_workspace
+
+    with get_db_session() as db:
+        ensure_default_tenant_and_workspace(db)
+
+    logger.info("scratch database initialized: %s", target)
+    return target
 
 
 def _write_calls(out: Path, calls: List[Dict[str, Any]]) -> None:
@@ -610,10 +681,11 @@ async def main() -> int:
         (args.planner, args.goal, args.alignment, args.failure_controls))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    _scratch_environment(args.ollama_url, args.model)
+    scratch_root = _scratch_environment(args.ollama_url, args.model)
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s %(name)s %(message)s")
+    _initialize_scratch_database(scratch_root)
 
     from core.llm_service import LLMService
 
