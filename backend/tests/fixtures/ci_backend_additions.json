@@ -7,7 +7,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_canvas_submit_oracle_regression.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run authenticated web task and project controls",
@@ -79,7 +79,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/api/test_conversation_learning_native_chat.py tests/api/test_reviewed_learning_configuration_mutation.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run workflow output export completion and provenance controls",
@@ -132,7 +132,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/api/test_graduation_qualification_join.py tests/test_assessment_rules_semantics.py tests/unit/core/test_notification_service.py tests/test_caller_transaction_ownership.py tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material 'tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote]' tests/test_agent_decision_contract.py::test_unqualified_manual_promotion_is_not_an_authority_bypass tests/test_graduation_direct_recording_probe.py tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_without_qualification_never_dispatches -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/api/test_graduation_qualification_join.py tests/test_assessment_rules_semantics.py tests/unit/core/test_notification_service.py tests/test_caller_transaction_ownership.py tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material 'tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote]' tests/test_agent_decision_contract.py::test_unqualified_manual_promotion_is_not_an_authority_bypass tests/test_graduation_direct_recording_probe.py tests/test_graduation_model_provenance.py tests/test_graduation_route_runtime.py tests/test_graduation_runtime_build_verification.py tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_without_qualification_never_dispatches tests/test_campaign_transport_identity.py tests/test_employee_campaign_benchmark_intake.py tests/test_employee_benchmark_evidence.py tests/test_model_evidence_comparison.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run generated Canvas Office export receipt and file controls",
@@ -263,6 +263,16 @@
     "run": "python -m pytest tests/test_promotion_evidence_gate.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
+    "name": "Run release rollback identity and preservation controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_release_rollback.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_rollback.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
     "name": "Run goal utility loop regression controls",
     "env": {
       "TESTING": "1",
@@ -282,5 +292,18 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_org_politics_scheduled_worker_offline.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run reviewed prompt skill process restart controls",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_mem07_process_restart.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-mem07-restart",
+      "ATOM_WORKSPACE_SKILLS_ROOT": "${{ runner.temp }}/atom-mem07-restart/skills",
+      "LANCEDB_URI": "${{ runner.temp }}/atom-mem07-restart/lancedb",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/test_mem07_prompt_skill_process_restart.py tests/test_mem07_served_prompt_skill_process_restart.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]

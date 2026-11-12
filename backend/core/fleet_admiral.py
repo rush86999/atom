@@ -43,6 +43,49 @@ class TaskAnalysis(BaseModel):
     reasoning: str = Field(description="Explanation of the analysis")
 
 
+# Recruitment evidence that may be written to the durable chain blackboard.
+# Everything else in the model/recruitment result is dropped rather than
+# forwarded wholesale.
+_RECRUITMENT_PLAN_FIELDS = (
+    "goal_analysis",
+    "required_domains",
+    "domain_rationale",
+    "complexity_estimate",
+    "estimated_parallelizable",
+    "suggested_specialist_count",
+)
+_RECRUITMENT_ROSTER_FIELDS = (
+    "agent_id",
+    "agent_name",
+    "domain",
+    "capability_score",
+)
+
+
+def _allowlisted_recruitment_evidence(
+    recruitment_result: Dict[str, Any],
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Return only the known decision rationale and roster fields.
+
+    The recruitment result is model/telemetry-shaped; writing it wholesale to
+    the blackboard would persist arbitrary keys. Keep the durable evidence to
+    the fields the fleet actually decided on.
+    """
+    raw_plan = recruitment_result.get("recruitment_plan")
+    plan = (
+        {key: raw_plan[key] for key in _RECRUITMENT_PLAN_FIELDS if key in raw_plan}
+        if isinstance(raw_plan, dict) else {}
+    )
+    roster = []
+    for item in recruitment_result.get("recruitment_roster") or []:
+        if isinstance(item, dict):
+            roster.append({
+                key: item[key]
+                for key in _RECRUITMENT_ROSTER_FIELDS if key in item
+            })
+    return plan, roster
+
+
 class FleetAdmiral:
     """
     Fleet Admiral - Dynamic Agent Recruitment Orchestrator (Single-Tenant)
@@ -294,12 +337,19 @@ Return JSON matching the TaskAnalysis schema."""
             specialists_recruited.append(link)
             logger.info(f"[FleetAdmiral] Recruited {specialist['agent_name']} for {specialist['domain']}")
 
-        # Step 5: Update blackboard with recruitment results
+        # Step 5: Update blackboard with recruitment results and the
+        # allowlisted decision evidence (rationale + selected roster). This is
+        # the same durable write the fleet already commits; no separate
+        # analytics transaction is introduced.
+        recruitment_plan, persisted_roster = _allowlisted_recruitment_evidence(
+            recruitment_result)
         self.fleet_service.update_blackboard(
             chain_id=chain.id,
             updates={
                 "task_analysis": task_analysis,
                 "recruitment_phase": "complete",
+                "recruitment_plan": recruitment_plan,
+                "recruitment_roster": persisted_roster,
                 "specialists_recruited": [
                     {
                         "agent_id": s["agent_id"],
