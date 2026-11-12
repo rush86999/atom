@@ -50,16 +50,33 @@ from typing import Any, Dict, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
-
-# Boundary-diagnostic seam (owner assignment 3): this wrapper converts
-# every provider error to ``None`` by contract so callers keep their own
-# failure contract. The KIND of the failure still has to reach the caller —
-# empty output, malformed output, a provider/protocol error and a caller
-# deadline are different boundaries and must not share one diagnosis.
-LAST_FAILURE: dict = {"kind": None, "detail": "", "label": ""}
+_FAILURE_FIELDS = {"kind": None, "detail": "", "label": ""}
 
 
-def _publish_failure(label: str, err: BaseException) -> None:
+def _new_failure_record(label: str = "") -> Dict[str, Any]:
+    """A fresh diagnostic record owned by ONE call."""
+    record = dict(_FAILURE_FIELDS)
+    record["label"] = label or ""
+    return record
+
+
+def _copy_failure(record: Mapping[str, Any],
+                  capture: Optional[Dict[str, Any]]) -> None:
+    """Mirror a call-local record into the caller-owned capture."""
+    if capture is None:
+        return
+    capture.clear()
+    capture.update(dict(record))
+
+
+# Boundary-diagnostic seam (owner assignment 3): the KIND of a failure must
+# reach the caller even though every provider error is converted to ``None``.
+# There is deliberately NO process-wide "last failure" record. A caller that
+# needs the diagnosis owns a mapping and passes it as ``failure_capture``;
+# the wrapper writes only that mapping. This keeps overlapping and sequential
+# calls from lending each other a failure kind.
+def _publish_failure(label: str, err: BaseException,
+                     record: Dict[str, Any]) -> None:
     name = type(err).__name__
     text = f"{name} {err}".lower()
     if "nosuitableconfiguredmodelerror" in name.lower() or (
@@ -72,8 +89,30 @@ def _publish_failure(label: str, err: BaseException) -> None:
         kind = "malformed_structured_output"
     else:
         kind = "provider_failure"
-    LAST_FAILURE.update(kind=kind, detail=f"{name}: {str(err)[:160]}",
-                        label=label)
+    record.update(kind=kind, detail=f"{name}: {str(err)[:160]}",
+                  label=label)
+
+
+def _mark_success(record: Dict[str, Any]) -> None:
+    """The call produced a result: its TERMINAL diagnosis is empty.
+
+    A rejected pinned attempt publishes its own error before the unpinned
+    retry runs. When that retry succeeds the CALL did not fail, so the
+    caller-owned capture must not keep reporting the discarded attempt as
+    the outcome. Per-attempt observer events were emitted with their own
+    copy of the error before this point, so the attempt stays visible in the
+    attempt journal without mislabelling the finished call.
+    """
+    record.update(kind=None, detail="", label=record.get("label") or "")
+
+
+def _mark_cancelled(record: Dict[str, Any], label: str,
+                    err: BaseException) -> None:
+    """A caller deadline/cancellation is a distinct boundary, not an empty
+    result. ``CancelledError`` must still propagate unchanged."""
+    record.update(kind="deadline_cancelled",
+                  detail=f"{type(err).__name__}: {str(err)[:160]}",
+                  label=label)
 
 
 def build_provider_model_pin(
@@ -186,16 +225,24 @@ def resolve_pinned_provider_model(
     return {}
 
 
-async def _record_if_cancelled(coro, log_label, task_type, t0):
+async def _record_if_cancelled(coro, log_label, task_type, t0,
+                               failure=None, failure_capture=None):
     """Await ``coro``; if the CALLER's budget cancelled us, record a
     timeout outcome for the model this call resolved to — cancelled
     planning calls otherwise leave no routing feedback and a
-    budget-burning model keeps winning the route (live 2026-09-15/16)."""
+    budget-burning model keeps winning the route (live 2026-09-15/16).
+
+    The cancellation is also published to THIS call's explicit diagnostic
+    record (``failure``/``failure_capture``) so a consumer can distinguish a
+    deadline from an empty answer without reading any shared state."""
     import time as _time
 
     try:
         return await coro
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as err:
+        if failure is not None:
+            _mark_cancelled(failure, log_label, err)
+            _copy_failure(failure, failure_capture)
         try:
             from core.llm.learning_router_registry import record_timeout_outcome
 
@@ -360,6 +407,7 @@ async def pinned_structured_call(
     attempt_observer: Optional[Any] = None,
     capability_profile: Optional[str] = None,
     provenance: Optional[Dict[str, Any]] = None,
+    failure_capture: Optional[Dict[str, Any]] = None,
     strict_pin: Optional[bool] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
@@ -397,7 +445,30 @@ async def pinned_structured_call(
         awaiting this wrapper, even when the await crossed a child-task
         boundary. It is cleared at entry so a failed call can never reuse an
         older receipt.
+
+        ``failure_capture`` is a caller-owned mutable mapping carrying THIS
+        call's failure kind/detail/label. It is cleared at entry and updated
+        at exit (including the empty record when the call produced no
+        exception), so a caller can read its own diagnostic even when another
+        call finished in between.
+
+        A FAILED attempt is not a failed CALL: when the pinned attempt raises
+        (or returns nothing) and the unpinned retry then yields a result, the
+        terminal record is empty — the rejected pin's error lives in the
+        attempt's own observer event. When the retry also produces nothing,
+        the last attempt's failure kind is retained, so "fallback empty"
+        still reads as a failure.
     """
+    # A call's diagnostics are its own: open a fresh record before any
+    # provider work, so a previous or overlapping call can neither lend this
+    # call its failure nor be erased by it. Only the caller-owned mapping is
+    # written; there is no process-wide record.
+    failure = _new_failure_record(log_label)
+    _copy_failure(failure, failure_capture)
+
+    def _finish_failure() -> None:
+        _copy_failure(failure, failure_capture)
+
     if provenance is not None:
         # Preserve caller-seeded REQUEST facts (mode/requested route/profile):
         # a cancelled child may never reach _capture_provenance, and those
@@ -508,13 +579,13 @@ async def pinned_structured_call(
             result = await _record_if_cancelled(
                 llm_service.generate_structured_response(
                     **base, **pin_kwargs),
-                log_label, task_type, _t0)
+                log_label, task_type, _t0, failure, failure_capture)
         except Exception as pinned_err:  # noqa: BLE001
             _observer_notify(
                 attempt_observer, "failure", label=log_label, attempt=1,
                 route="pinned", seconds=_time.monotonic() - _pinned_started,
                 exception=pinned_err)
-            _publish_failure(log_label, pinned_err)
+            _publish_failure(log_label, pinned_err, failure)
             if strict_pin:
                 if set_routing_error is not None:
                     _kind = "no_suitable_configured_model" if (
@@ -528,6 +599,7 @@ async def pinned_structured_call(
                     log_label, pin_kwargs.get("provider_model"),
                     type(pinned_err).__name__, pinned_err)
                 _capture_provenance(provenance)
+                _finish_failure()
                 return None
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
@@ -546,12 +618,14 @@ async def pinned_structured_call(
                 usage=_usage_payload(result),
                 routing=_route_snapshot(),
                 parsed=_parsed_payload(result), raw=_raw_payload(result))
+            _mark_success(failure)
             _capture_provenance(provenance)
+            _finish_failure()
             return result
         _observer_notify(
             attempt_observer, "no_result", label=log_label, attempt=1,
             route="pinned", seconds=_time.monotonic() - _pinned_started,
-            failure=dict(LAST_FAILURE))
+            failure=dict(failure))
         if strict_pin:
             if set_routing_error is not None:
                 set_routing_error(
@@ -562,6 +636,7 @@ async def pinned_structured_call(
                 "failed qualification attempt, no unpinned fallback",
                 log_label, pin_kwargs.get("provider_model"))
             _capture_provenance(provenance)
+            _finish_failure()
             return None
         logger.info(
             "%s pinned call (%s) returned no result — retrying unpinned "
@@ -593,8 +668,12 @@ async def pinned_structured_call(
         try:
             fallback_result = await _record_if_cancelled(
                 llm_service.generate_structured_response(**fallback_kwargs),
-                log_label, task_type, _t0)
+                log_label, task_type, _t0, failure, failure_capture)
             if fallback_result is not None:
+                # The pin's failure was per-ATTEMPT, not the call's outcome:
+                # a successful retry must not leave the caller's capture
+                # reporting the discarded route as a terminal failure.
+                _mark_success(failure)
                 if clear_routing_error is not None:
                     clear_routing_error()
                 _observer_notify(
@@ -614,8 +693,9 @@ async def pinned_structured_call(
                     attempt_observer, "no_result", label=log_label,
                     attempt=2, route="unpinned_fallback",
                     seconds=_time.monotonic() - _fallback_started,
-                    failure=dict(LAST_FAILURE))
+                    failure=dict(failure))
             _capture_provenance(provenance)
+            _finish_failure()
             return fallback_result
         except Exception as unpinned_err:  # noqa: BLE001
             _observer_notify(
@@ -623,7 +703,7 @@ async def pinned_structured_call(
                 route="unpinned_fallback",
                 seconds=_time.monotonic() - _fallback_started,
                 exception=unpinned_err)
-            _publish_failure(log_label, unpinned_err)
+            _publish_failure(log_label, unpinned_err, failure)
             if set_routing_error is not None:
                 _kind = "no_suitable_configured_model" if (
                     "nosuitableconfiguredmodelerror"
@@ -632,6 +712,7 @@ async def pinned_structured_call(
                 set_routing_error(_kind, str(unpinned_err))
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
             _capture_provenance(provenance)
+            _finish_failure()
             return None
 
     _observer_notify(
@@ -645,7 +726,7 @@ async def pinned_structured_call(
     try:
         direct_result = await _record_if_cancelled(
             llm_service.generate_structured_response(**base),
-            log_label, task_type, _t0)
+            log_label, task_type, _t0, failure, failure_capture)
         if direct_result is not None:
             _observer_notify(
                 attempt_observer, "parsed", label=log_label, attempt=1,
@@ -655,20 +736,22 @@ async def pinned_structured_call(
                 routing=_route_snapshot(),
                 parsed=_parsed_payload(direct_result),
                 raw=_raw_payload(direct_result))
+            _mark_success(failure)
         else:
             _observer_notify(
                 attempt_observer, "no_result", label=log_label, attempt=1,
                 route="unpinned",
                 seconds=_time.monotonic() - _direct_started,
-                failure=dict(LAST_FAILURE))
+                failure=dict(failure))
         _capture_provenance(provenance)
+        _finish_failure()
         return direct_result
     except Exception as err:  # noqa: BLE001
         _observer_notify(
             attempt_observer, "failure", label=log_label, attempt=1,
             route="unpinned", seconds=_time.monotonic() - _direct_started,
             exception=err)
-        _publish_failure(log_label, err)
+        _publish_failure(log_label, err, failure)
         if set_routing_error is not None:
             name = type(err).__name__.lower()
             text = str(err).lower()
@@ -683,4 +766,5 @@ async def pinned_structured_call(
             set_routing_error(code, str(err))
         logger.warning("%s call raised: %s", log_label, err)
         _capture_provenance(provenance)
+        _finish_failure()
         return None

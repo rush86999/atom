@@ -2424,18 +2424,17 @@ async def interpret_turn_request(
     started = time.perf_counter()
     try:
         from core.llm.pinned_planning import (
-            LAST_FAILURE,
             pinned_structured_call,
             resolve_pinned_provider_model,
         )
 
         # The wrapper converts provider errors to None by contract; keep
         # the interpretation's explicit reason by reading ITS OWN call's
-        # published failure (a unique label avoids the shared-dict race
-        # with the canvas editor).
+        # capture. There is no process-wide fallback, so an overlapping or
+        # previous call can neither supply nor erase this diagnosis.
         _interpret_label = (
             f"turn interpretation:{request_id or session_id or '-'}")
-        LAST_FAILURE.update(kind=None, detail="", label="")
+        interpret_failure: Dict[str, Any] = {}
         try:
             reset_interpret_capture(_interpret_label)
         except Exception:  # noqa: BLE001 — capture is additive
@@ -2484,6 +2483,7 @@ async def interpret_turn_request(
                 log_label=_interpret_label,
                 stage="turn_interpretation",
                 execution_id=request_id or session_id or "-",
+                failure_capture=interpret_failure,
             ),
             timeout=_INTERPRET_TIMEOUT_S,
         )
@@ -2507,14 +2507,15 @@ async def interpret_turn_request(
                     return _schema_rejection("invalid_action_kind")
                 if not _last.get("action_count"):
                     return _schema_rejection("no_actions_proposed")
+        _failure = interpret_failure
         if (result is None
-                and LAST_FAILURE.get("label") == _interpret_label
-                and LAST_FAILURE.get("kind")):
-            if LAST_FAILURE.get("kind") == "deadline_cancelled":
+                and _failure.get("label") == _interpret_label
+                and _failure.get("kind")):
+            if _failure.get("kind") == "deadline_cancelled":
                 raise asyncio.TimeoutError()
             raise RuntimeError(
                 "structured interpretation failed: "
-                f"{LAST_FAILURE.get('kind')}")
+                f"{_failure.get('kind')}")
     except asyncio.TimeoutError:
         _interpret_failures += 1
         _interpret_metrics["timeout"] += 1
