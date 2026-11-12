@@ -700,12 +700,17 @@ jobs:
         run: |
           python -m pytest tests/test_goal_utility_loop_regression.py -q --tb=short --timeout=300 --timeout-method=thread
 
-      # TEAM-05 offline scheduled-worker configured-dispatch regression
-      # (additive): the production configured-dispatch seam the nightly
-      # worker reaches is exercised end to end with the REAL BYOKHandler,
-      # route ranking and provider policy. Only the configured SDK client's
-      # completion leaf is scripted; credentials are test-only and the
-      # scratch SQLite file is the real persistence boundary.
+      # TEAM-05 offline scheduled-worker configured-dispatch regression and
+      # the qualification driver's offline guards (additive): the production
+      # configured-dispatch seam the nightly worker reaches is exercised end
+      # to end with the REAL BYOKHandler, route ranking and provider policy.
+      # Only the configured SDK client's completion leaf is scripted;
+      # credentials are test-only and the scratch SQLite file is the real
+      # persistence boundary. tests/test_team05_live_qualification.py adds
+      # only the driver's offline logic checks (loopback refusal, exact
+      # freshness, isolation guards, observation-derived verdicts); its live
+      # Ollama run stays opt-in behind --run-live and refuses to start under
+      # pytest/CI, so no provider, network or live DB is contacted here.
       - name: Run offline scheduled alignment dispatch controls
         env:
           TESTING: "1"
@@ -714,7 +719,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_org_politics_scheduled_worker_offline.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_org_politics_scheduled_worker_offline.py tests/test_team05_live_qualification.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # Served spreadsheet stale-cache regression (additive): a real uvicorn
       # process on loopback serves the public upload + chat boundary with an
