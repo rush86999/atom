@@ -770,7 +770,8 @@ def _accepted_response_identity(
     transport = attribution.get("transport")
     transport = transport if isinstance(transport, Mapping) else None
     if transport is not None:
-        if "accepted" in transport and transport.get("accepted") is not True:
+        if transport.get("accepted") is not True:
+            # Only the transport's own accepted verdict is identity.
             return None, None
         identity = transport.get("response_identity")
         if isinstance(identity, Mapping):
@@ -865,10 +866,21 @@ def validate_served_identity(
                 != normalize_model_family(expected_model)):
             # A build of a different model family is not this route's build.
             return IDENTITY_CONFLICT
-        if _is_concrete_build(bound_build):
-            if _model_key(echo_model) != _model_key(bound_build):
-                return IDENTITY_CONFLICT
-            return IDENTITY_VERIFIED
+    # A request pinned to an exact concrete build is only proven by that same
+    # build. This rejects a same-family later build and a shorter/unversioned
+    # echo; the bare alias case below still accepts the build that answered.
+    if _is_concrete_build(expected_model):
+        if (not _is_concrete_build(echo_model)
+                or _model_key(echo_model) != _model_key(expected_model)):
+            return IDENTITY_CONFLICT
+        if (bound_build is not None and _is_concrete_build(bound_build)
+                and _model_key(bound_build) != _model_key(expected_model)):
+            return IDENTITY_CONFLICT
+        return IDENTITY_VERIFIED
+    if bound_build is not None and _is_concrete_build(bound_build):
+        if _model_key(echo_model) != _model_key(bound_build):
+            return IDENTITY_CONFLICT
+        return IDENTITY_VERIFIED
     if normalize_model_family(echo_model) != normalize_model_family(
             expected_model):
         return IDENTITY_CONFLICT

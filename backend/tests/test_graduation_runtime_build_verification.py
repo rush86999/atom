@@ -160,10 +160,12 @@ def test_resolution_binds_callable_alias_and_benchmark_build(alias_world):
 
 
 def test_served_identity_build_twins():
-    echo = lambda model: {  # noqa: E731 - compact twin table
-        "served_route": {"provider": ALIAS[0], "model": ALIAS[1]},
-        "resolved_model": model,
-    }
+    def echo(model, served=None):
+        return {
+            "served_route": {
+                "provider": ALIAS[0], "model": served or ALIAS[1]},
+            "resolved_model": model,
+        }
 
     # Matched build: the echo is exactly the benchmark build.
     assert validate_served_identity(
@@ -185,6 +187,21 @@ def test_served_identity_build_twins():
     assert validate_served_identity(
         ALIAS, echo(ALIAS[1]), expected_build=ALIAS_BUILD,
     ) == IDENTITY_CONFLICT
+
+    # An exact versioned request is only proven by that same build; the bare
+    # alias still accepts the build that answered it.
+    assert validate_served_identity(
+        (ALIAS[0], ALIAS_BUILD), echo(ALIAS_OTHER_BUILD, served=ALIAS_BUILD),
+    ) == IDENTITY_CONFLICT
+    assert validate_served_identity(
+        (ALIAS[0], ALIAS_BUILD), echo(ALIAS[1], served=ALIAS_BUILD),
+    ) == IDENTITY_CONFLICT
+    assert validate_served_identity(
+        (ALIAS[0], ALIAS_BUILD), echo(ALIAS_BUILD, served=ALIAS_BUILD),
+    ) == IDENTITY_VERIFIED
+    assert validate_served_identity(
+        ALIAS, echo(ALIAS_BUILD),
+    ) == IDENTITY_VERIFIED
 
     # The accepted transport echo is the identity source.
     assert validate_served_identity(ALIAS, {
