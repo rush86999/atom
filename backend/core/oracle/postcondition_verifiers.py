@@ -74,23 +74,165 @@ def _material_fields(action: str) -> tuple:
 
 @register_postcondition("trigger_workflow")
 async def _verify_workflow_triggered(ctx: Dict[str, Any]) -> OracleResult:
-    """A triggered workflow must actually exist in the DB and be runnable."""
-    workflow_id = ctx.get("workflow_id")
-    db = ctx.get("db")
-    if not workflow_id or not db:
-        return OracleResult("trigger_workflow", False, "missing workflow_id or db session")
-    try:
-        from core.models import Workflow
-        wf = db.query(Workflow).filter(Workflow.id == workflow_id).first()
-        if wf is None:
-            return OracleResult("trigger_workflow", False, f"workflow {workflow_id} not in DB")
-        active = str(getattr(wf, "status", "")).lower() in {"active", "running", "enabled", "true"}
+    """A trigger is proven by the committed execution it created.
+
+    Definition readiness is a separate precondition: an active ``Workflow`` row
+    says the definition *could* run, not that this invocation ran it.  The
+    postcondition therefore requires a ``WorkflowExecution`` row whose exact
+    id matches the returned execution, whose definition identity matches the
+    frozen request, and whose persisted input digest and frozen caller scope
+    match the server-owned expectation snapshot taken before dispatch.
+    """
+    action = "trigger_workflow"
+    expected_workflow_id = str(
+        ctx.get("_oracle_expected_workflow_id") or "").strip()
+    expected_input_digest = str(
+        ctx.get("_oracle_expected_workflow_input_sha256") or "").strip()
+    expected_workspace = str(
+        ctx.get("_oracle_expected_workspace_id") or "").strip()
+    expected_tenant = str(
+        ctx.get("_oracle_expected_tenant_id") or "").strip()
+    result_execution_id = str(ctx.get("execution_id") or "").strip()
+    expected_operation_id = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+
+    # The durable run key is the server-owned operation identity frozen before
+    # dispatch. The producer binds the committed execution to it, so a lost
+    # response can be reconciled without trusting a returned execution id.
+    # A result id that contradicts the frozen identity is a forged/mismatched
+    # proof and must never certify a different run.
+    if expected_operation_id:
+        if result_execution_id and result_execution_id != expected_operation_id:
+            return OracleResult(
+                action, False,
+                f"result execution id {result_execution_id!r} does not match "
+                f"the server-owned operation identity "
+                f"{expected_operation_id!r}")
+        execution_id = expected_operation_id
+    else:
+        execution_id = result_execution_id
+
+    if not expected_workflow_id:
         return OracleResult(
-            "trigger_workflow", verified=active,
-            evidence=f"workflow.status == {getattr(wf, 'status', None)!r}",
-        )
-    except Exception as e:
-        return OracleResult("trigger_workflow", False, f"DB read-back failed: {e}")
+            action, False,
+            "no frozen workflow identity for the authorized request")
+    if not expected_input_digest:
+        return OracleResult(
+            action, False,
+            "no frozen workflow input digest for the authorized request")
+    if not expected_workspace and not expected_tenant:
+        return OracleResult(
+            action, False,
+            "no frozen caller scope for the authorized request")
+    if not execution_id:
+        return OracleResult(
+            action, False,
+            "no exact execution id in the result; an active definition is "
+            "not proof that this trigger ran")
+
+    try:
+        from core.models import Workflow, WorkflowExecution
+
+        def _read(session):
+            definition = (
+                session.query(Workflow)
+                .filter(Workflow.id == expected_workflow_id)
+                .first()
+            )
+            execution = (
+                session.query(WorkflowExecution)
+                .filter(WorkflowExecution.execution_id == execution_id)
+                .first()
+            )
+            return definition, execution
+
+        # Fresh session: the caller's identity map must not certify a dirty
+        # execution row that was never committed to the durable store.
+        definition, execution = _fresh_read_with_db(ctx, _read)
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(action, False, f"DB read-back failed: {e}")
+
+    # Readiness is its own check and never substitutes for execution proof.
+    if definition is None:
+        return OracleResult(
+            action, False,
+            f"workflow definition {expected_workflow_id} not in DB")
+    active = str(getattr(definition, "status", "")).lower() in {
+        "active", "running", "enabled", "true"}
+    if not active:
+        return OracleResult(
+            action, False,
+            f"workflow definition status == "
+            f"{getattr(definition, 'status', None)!r}, not active")
+
+    if execution is None:
+        return OracleResult(
+            action, False,
+            f"definition {expected_workflow_id} is ready but execution "
+            f"{execution_id} is not committed")
+
+    observed_workflow_id = str(
+        getattr(execution, "workflow_id", "") or "").strip()
+    if observed_workflow_id != expected_workflow_id:
+        return OracleResult(
+            action, False,
+            f"execution {execution_id} is bound to workflow "
+            f"{observed_workflow_id!r}, not {expected_workflow_id!r}")
+
+    raw_input = getattr(execution, "input_data", None)
+    if isinstance(raw_input, str):
+        try:
+            observed_input = json.loads(raw_input) if raw_input.strip() else {}
+        except (TypeError, ValueError) as e:
+            return OracleResult(
+                action, False,
+                f"execution input_data is unreadable: {type(e).__name__}")
+    elif raw_input is None:
+        observed_input = {}
+    else:
+        observed_input = raw_input
+    if not isinstance(observed_input, dict):
+        return OracleResult(
+            action, False,
+            "execution input_data is not a request object")
+
+    from core.workflow_engine import EXECUTION_SCOPE_KEY
+
+    frozen_scope = observed_input.get(EXECUTION_SCOPE_KEY)
+    if not isinstance(frozen_scope, dict):
+        return OracleResult(
+            action, False,
+            f"execution {execution_id} carries no frozen caller scope")
+    observed_input = {
+        key: value for key, value in observed_input.items()
+        if key != EXECUTION_SCOPE_KEY
+    }
+    from core.oracle.request_expectations import approved_payload_sha256
+
+    observed_input_digest = approved_payload_sha256(observed_input)
+    if not observed_input_digest or observed_input_digest != expected_input_digest:
+        return OracleResult(
+            action, False,
+            "execution input does not match the frozen authorized request")
+
+    observed_workspace = str(
+        frozen_scope.get("workspace_id") or "").strip()
+    observed_tenant = str(frozen_scope.get("tenant_id") or "").strip()
+    if expected_workspace and observed_workspace != expected_workspace:
+        return OracleResult(
+            action, False,
+            f"execution scope workspace {observed_workspace!r} != "
+            f"{expected_workspace!r}")
+    if expected_tenant and observed_tenant != expected_tenant:
+        return OracleResult(
+            action, False,
+            f"execution scope tenant {observed_tenant!r} != "
+            f"{expected_tenant!r}")
+
+    return OracleResult(
+        action, True,
+        f"workflow {expected_workflow_id} is ready; execution {execution_id} "
+        f"is committed with the frozen request and caller scope")
 
 
 async def _verify_connected_mutation(ctx: Dict[str, Any]) -> OracleResult:

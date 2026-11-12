@@ -8,12 +8,90 @@ Two concerns:
    coerce_match_level_for_storage defaults to AMBIGUOUS (RN3), and the new
    external tiers pass through unchanged.
 """
-import pytest
+from contextlib import contextmanager
+import json
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from core.models import Workflow, WorkflowExecution
+from core.oracle.request_expectations import build_request_expectations
+from core.workflow_engine import EXECUTION_SCOPE_KEY
 from core.selector_confidence_service import (
     MatchConfidence, EXTERNAL_VERIFIED, EXTERNAL_REFUTED, NEEDS_EXTERNAL_VALIDATION,
     HIGH, PARTIAL, AMBIGUOUS, _VALID_LEVELS, coerce_match_level_for_storage,
 )
+
+
+@pytest.fixture()
+def workflow_store():
+    """Scratch SQLite store for trigger-workflow execution binding."""
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool)
+    Workflow.__table__.create(engine)
+    WorkflowExecution.__table__.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def _session():
+        session = Session()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    try:
+        yield _session
+    finally:
+        engine.dispose()
+
+
+def _trigger_expected(workflow_id="wf-1", input_data=None,
+                      workspace_id="ws-1", tenant_id="tenant-1",
+                      operation_id="exec-1"):
+    return build_request_expectations(
+        "trigger_workflow",
+        {"workflow_id": workflow_id, "input_data": input_data or {}},
+        operation_id=operation_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        actor_id="user-1",
+        agent_id="agent-1",
+    )
+
+
+def _seed_definition(db, workflow_id="wf-1", status="active"):
+    row = Workflow(
+        id=workflow_id, name=f"Workflow {workflow_id}",
+        tenant_id="tenant-1", status=status)
+    db.add(row)
+    db.commit()
+    return row
+
+
+def _seed_execution(db, execution_id="exec-1", workflow_id="wf-1", *,
+                    input_data=None, scope=None, status="RUNNING"):
+    payload = dict(input_data or {})
+    if scope is not None:
+        payload[EXECUTION_SCOPE_KEY] = scope
+    row = WorkflowExecution(
+        execution_id=execution_id, workflow_id=workflow_id,
+        status=status, input_data=json.dumps(payload))
+    db.add(row)
+    db.commit()
+    return row
+
+
+def _trigger_ctx(db, expected, execution_id="exec-1", workflow_id="wf-1"):
+    return {
+        "workflow_id": workflow_id,
+        "execution_id": execution_id,
+        "db": db,
+        **expected,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -58,39 +136,46 @@ def test_coerce_passes_new_tiers_through():
 # Postcondition oracle (P3a)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_oracle_catches_lying_tool(monkeypatch):
-    """A tool claims {verified:true} but the workflow row doesn't exist → oracle refutes."""
+async def test_oracle_catches_lying_tool(monkeypatch, workflow_store):
+    """Experiment 1: an active definition without an execution is refuted."""
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
-    # Importing postcondition_verifiers registers the verifiers.
     import core.oracle.postcondition_verifiers  # noqa: F401
     from core.oracle import validate
 
-    # Simulate a DB session where the workflow is absent (the tool lied).
-    from unittest.mock import MagicMock
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
+    expected = _trigger_expected(workflow_id="wf-ghost",
+                                 operation_id="exec-ghost")
+    with workflow_store() as db:
+        # The definition is active, but no execution row was committed.
+        _seed_definition(db, workflow_id="wf-ghost")
+        result = await validate(
+            "trigger_workflow",
+            _trigger_ctx(db, expected, execution_id="exec-ghost",
+                         workflow_id="wf-ghost"))
 
-    result = await validate("trigger_workflow", {"workflow_id": "wf-ghost", "db": db})
     assert result is not None
-    assert result.verified is False, "oracle must refute a tool whose effect isn't in the DB"
+    assert result.verified is False
+    assert "not committed" in result.evidence
 
 
 @pytest.mark.asyncio
-async def test_oracle_confirms_real_effect(monkeypatch):
-    """A tool that actually created the workflow row → oracle confirms."""
+async def test_oracle_confirms_real_effect(monkeypatch, workflow_store):
+    """A committed execution bound to the request/scope → oracle confirms."""
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
     import core.oracle.postcondition_verifiers  # noqa: F401
     from core.oracle import validate
-    from types import SimpleNamespace
-    from unittest.mock import MagicMock
 
-    wf = SimpleNamespace(id="wf-1", status="active")
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = wf
+    expected = _trigger_expected()
+    with workflow_store() as db:
+        _seed_definition(db)
+        _seed_execution(
+            db, input_data={},
+            scope={"workspace_id": "ws-1", "tenant_id": "tenant-1"},
+            status="COMPLETED")
+        result = await validate("trigger_workflow", _trigger_ctx(db, expected))
 
-    result = await validate("trigger_workflow", {"workflow_id": "wf-1", "db": db})
-    assert result.verified is True
-    assert "active" in result.evidence
+    assert result is not None
+    assert result.verified is True, result.evidence
+    assert "exec-1" in result.evidence
 
 
 @pytest.mark.asyncio
@@ -159,33 +244,43 @@ async def test_verify_before_retry_flag_off_returns_false(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_verify_before_retry_effect_landed_blocks_retry(monkeypatch):
-    """Timeout but effect landed → verify() True → do NOT retry (no duplicate)."""
+async def test_verify_before_retry_effect_landed_blocks_retry(
+        monkeypatch, workflow_store):
+    """Timeout but a bound execution landed → do NOT retry (no duplicate)."""
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
     import core.oracle.postcondition_verifiers  # noqa: F401
     from core.oracle import verify_before_retry
-    from types import SimpleNamespace
-    from unittest.mock import MagicMock
 
-    wf = SimpleNamespace(id="wf-1", status="active")
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = wf
+    expected = _trigger_expected()
+    with workflow_store() as db:
+        _seed_definition(db)
+        _seed_execution(
+            db, input_data={},
+            scope={"workspace_id": "ws-1", "tenant_id": "tenant-1"})
+        landed = await verify_before_retry(
+            "trigger_workflow", _trigger_ctx(db, expected))
 
-    assert await verify_before_retry("trigger_workflow", {"workflow_id": "wf-1", "db": db}) is True
+    assert landed is True
 
 
 @pytest.mark.asyncio
-async def test_verify_before_retry_effect_missing_allows_retry(monkeypatch):
-    """Timeout and effect genuinely missing → verify() False → retry is correct."""
+async def test_verify_before_retry_effect_missing_allows_retry(
+        monkeypatch, workflow_store):
+    """Timeout and no committed execution → retry is correct."""
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
     import core.oracle.postcondition_verifiers  # noqa: F401
     from core.oracle import verify_before_retry
-    from unittest.mock import MagicMock
 
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
+    expected = _trigger_expected(workflow_id="wf-ghost",
+                                 operation_id="exec-missing")
+    with workflow_store() as db:
+        _seed_definition(db, workflow_id="wf-ghost")
+        landed = await verify_before_retry(
+            "trigger_workflow",
+            _trigger_ctx(db, expected, execution_id="exec-missing",
+                         workflow_id="wf-ghost"))
 
-    assert await verify_before_retry("trigger_workflow", {"workflow_id": "wf-ghost", "db": db}) is False
+    assert landed is False
 
 
 @pytest.mark.asyncio
@@ -266,37 +361,51 @@ def _mock_db(first_value):
 
 
 @pytest.mark.asyncio
-async def test_oracle_check_stamps_refuted_string_result(monkeypatch):
-    """Tool claims success but workflow row is absent → observation tagged UNVERIFIED."""
+async def test_oracle_check_stamps_refuted_string_result(
+        monkeypatch, workflow_store):
+    """Tool claims success but no execution committed → observation UNVERIFIED."""
     import core.oracle.postcondition_verifiers  # noqa: F401
     import core.generic_agent as ga
 
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
     monkeypatch.delenv("ATOM_ORACLE_ENFORCE", raising=False)
-    db = _mock_db(None)
-    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+    expected = _trigger_expected(workflow_id="wf-ghost",
+                                 operation_id="exec-ghost")
+    with workflow_store() as db:
+        _seed_definition(db, workflow_id="wf-ghost")
+    monkeypatch.setattr(ga, "get_db_session", workflow_store)
 
     agent = _bare_agent()
     out = await agent._oracle_check(
-        "trigger_workflow", {"workflow_id": "wf-ghost"}, "Workflow triggered OK"
+        "trigger_workflow",
+        {"workflow_id": "wf-ghost", "execution_id": "exec-ghost"},
+        "Workflow triggered OK", expected=expected,
     )
     assert "[ORACLE:UNVERIFIED" in out
 
 
 @pytest.mark.asyncio
-async def test_oracle_check_stamps_verified_dict_result(monkeypatch):
-    """Real effect in the DB → dict result gains oracle_verified=True."""
+async def test_oracle_check_stamps_verified_dict_result(
+        monkeypatch, workflow_store):
+    """Committed execution in the DB → dict result gains oracle_verified=True."""
     import core.oracle.postcondition_verifiers  # noqa: F401
     import core.generic_agent as ga
 
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
     monkeypatch.delenv("ATOM_ORACLE_ENFORCE", raising=False)
-    db = _mock_db(SimpleNamespace(id="wf-1", status="active"))
-    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+    expected = _trigger_expected()
+    with workflow_store() as db:
+        _seed_definition(db)
+        _seed_execution(
+            db, input_data={},
+            scope={"workspace_id": "ws-1", "tenant_id": "tenant-1"})
+    monkeypatch.setattr(ga, "get_db_session", workflow_store)
 
     agent = _bare_agent()
     out = await agent._oracle_check(
-        "trigger_workflow", {"workflow_id": "wf-1"}, {"status": "ok"}
+        "trigger_workflow",
+        {"workflow_id": "wf-1", "input_data": {}},
+        {"status": "ok", "execution_id": "exec-1"}, expected=expected,
     )
     assert out["oracle_verified"] is True
     assert out["oracle_evidence"]

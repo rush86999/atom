@@ -911,10 +911,24 @@ class TestAtomMetaAgentGaps:
     async def test_trigger_workflow(self, meta_agent, monkeypatch):
         agent, sl, ama = meta_agent
         assert "required" in await agent._trigger_workflow(None, {}, {})
+        import core.oracle as oracle_mod
         import core.workflow_engine as we
+        from contextlib import nullcontext
+        from core.oracle import OracleResult
+
         eng = MagicMock()
         eng.start_workflow = AsyncMock(return_value="exec-1")
         monkeypatch.setattr(we, "get_workflow_engine", lambda: eng, raising=False)
+        # The direct path now requires committed readback; this test owns the
+        # delegation/branching, not the store (scratch-SQLite readback lives in
+        # test_oracle_trigger_workflow_execution_binding.py).
+        monkeypatch.setattr(
+            oracle_mod, "validate",
+            AsyncMock(return_value=OracleResult(
+                "trigger_workflow", True, "exec-1 committed")))
+        import core.database as database
+        monkeypatch.setattr(
+            database, "get_db_session", lambda: nullcontext(None))
         assert "exec-1" in await agent._trigger_workflow("wf-1", {"a": 1}, {})
         monkeypatch.setattr(we, "get_workflow_engine",
                             MagicMock(side_effect=RuntimeError("x")), raising=False)

@@ -14,8 +14,13 @@ raised ceiling (a scoped sub-bundle for e.g. the finance team).
 
 Idempotent imports: the ``document_ingestions`` unique (workspace_id, doc_id)
 row is the dedup key; unchanged records are skipped, changed ones re-ingested.
-Tombstones propagate source deletions (GDPR erasure) — imports mark matching
-documents ``freshness_status='removed'``.
+Deleted documents keep a durable ``freshness_status='removed'`` tombstone row,
+so exports MUST omit their bodies; a snapshot never serializes removed content.
+The hub delta protocol additionally carries tombstones and imports mark matching
+documents ``freshness_status='removed'``. Snapshot exports deliberately do not
+emit tombstones yet: the import contract keys them by bare ``external_id`` (no
+``integration_id`` / source timestamp), which is ambiguous for a multi-source
+snapshot. See ``build_bundle``.
 """
 from __future__ import annotations
 
@@ -72,6 +77,17 @@ def _content_hash(record: Dict[str, Any]) -> str:
 
 def _doc_id(integration_id: str, external_id: str) -> str:
     return f"{integration_id}:{external_id}"
+
+
+def is_removed_document(doc: Any) -> bool:
+    """True when an ingested row is a durable deletion tombstone.
+
+    ``freshness_status='removed'`` is the repo-wide revocation marker for a
+    document deleted at its source. The row is intentionally retained (so a
+    stale producer cannot recreate it), which means every export surface must
+    treat it as "no content" rather than as a normal record.
+    """
+    return str(getattr(doc, "freshness_status", "") or "").strip().lower() == "removed"
 
 
 def sign_and_audit_bundle(
@@ -170,6 +186,14 @@ class OrgDataBundleService:
                 sensitivity = doc.sensitivity or "internal"
                 if sensitivity not in allowed:
                     excluded[sensitivity] = excluded.get(sensitivity, 0) + 1
+                    continue
+                if is_removed_document(doc):
+                    # A removed row is a durable tombstone, not content: its
+                    # preview/file metadata must never re-enter a snapshot.
+                    # No snapshot tombstone is emitted (see module docstring):
+                    # the Phase-2 import contract cannot disambiguate a bare
+                    # external_id across sources or order it against newer
+                    # local state, so the safe snapshot behavior is omission.
                     continue
                 preview = (doc.content_preview or "")[:MAX_PREVIEW_CHARS]
                 record = {
