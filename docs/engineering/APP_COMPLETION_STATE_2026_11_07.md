@@ -1,8 +1,17 @@
 # App completion state — 2026-11-07
 
-## Verified checkpoint — 2026-11-11, main `b017742d6`
+## Verified checkpoint — 2026-11-12, main `d1be5e816`
 
-Leading checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree `c019d609496fc9e0c97c966e880394e7f1fbb686`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
+Post-merge main CI [run 43155871096](https://github.com/rush86999/atom/actions/runs/43155871096) completed successfully for push head `d1be5e816a83c095bbf7894471797bbf3c241d20` (tree `37bdfe2d2a490c2d2da23d0bbafebf497758c457`; run 2797; 2026-11-12 04:36–06:06 UTC). All 11 jobs passed. This adds bounded COMPAT-01 installation/run evidence for the documented CPython 3.11–3.13 range on Ubuntu; it does not establish Python 3.14 or other platform support. The historical 2026-11-07 audit snapshot, its COMPAT-01 guard-only finding, the 143 claim records, the 18 goal-map rows and all historical scores remain unchanged.
+
+- **`quickstart-install` (3.11, 3.12, 3.13):** each matrix job passed on `ubuntu-latest` with Node 20. It verified fresh directories (`backend/venv` and `frontend-nextjs/node_modules` absent), ran `make setup`, passed installed-storage binary smoke (NumPy/PyArrow/LanceDB/FastEmbed imports plus one synthetic temporary LanceDB vector write/read; no app DB or embedding model), verified `backend/venv`, generated `backend/.env` with `SECRET_KEY=`, `frontend-nextjs/node_modules` and `frontend-nextjs/.env.local`, and booted `main_api_app` from the generated environment until `/alive` returned 200.
+- **Aggregate gate:** the `quickstart` job requires every interpreter installation to succeed and passed. The separate `full-app-boots` job also passed on Python 3.11 using requirements-installed dependencies.
+- **Boundary:** this is Linux CI evidence for the supported 3.11–3.13 quickstart path only. Python 3.14 and later are outside the documented range (the guard explicitly rejects 3.14 because `torch<3` has no wheels); Windows, macOS, ARM, Docker, non-CI hosts, browser login, process restart, PostgreSQL, external providers/models and application data were not exercised. `/alive` is a backend boot probe, not a full user journey.
+- Packet: [compat01_quickstart_main_ci_20261112](../acceptance/evidence/compat01_quickstart_main_ci_20261112/README.md).
+
+## Prior verified checkpoint — 2026-11-11, main `b017742d6`
+
+Checkpoint for main at `b017742d6d64b421fae713b2048cb6c432ac8d46`, tree `c019d609496fc9e0c97c966e880394e7f1fbb686`. It records bounded verified scope only. The historical 143 claim records and 18 goal-map rows below are unchanged. Full usage readiness remains OPEN.
 
 ### Merged exact heads
 
