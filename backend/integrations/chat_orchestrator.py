@@ -14823,6 +14823,12 @@ class ChatOrchestrator:
                             "aggregate_record"),
                         "formula_reference": bool(
                             _direct_result.get("formula_reference")),
+                        # STRICT DIRECT PROOF (opt-in, issue 620 replay):
+                        # persists beside the workbook result so a replay
+                        # can require the exact resource id + downloaded
+                        # byte SHA-256 from the SAME execution.
+                        "direct_source_proof": _direct_result.get(
+                            "direct_source_proof"),
                     }
                     try:
                         # PIN-AFTER-FINALIZATION (as the ask lane): the
@@ -15135,6 +15141,8 @@ class ChatOrchestrator:
                                 else None),
                             "deterministic_delivery": True,
                             "file_identity": _direct_identity,
+                            "direct_source_proof": _direct_result.get(
+                                "direct_source_proof"),
                             "workbook_read": _direct_result_row["workbook_read"],
                             "coverage_complete": _direct_complete,
                             "calculation_complete": (
@@ -20075,6 +20083,25 @@ class ChatOrchestrator:
             publish_identity=True,
         )
 
+    def _strict_workdrive_proof_enabled(
+        self, pending_task: Dict[str, Any],
+    ) -> bool:
+        """Opt-in only: strict direct WorkDrive proof for a workbook read.
+
+        The live replay turns this on in the serving process with
+        ``ATOM_620_STRICT_WORKDRIVE_PROOF=1`` (or
+        ``ATOM_STRICT_WORKDRIVE_PROOF=1``); callers may also set it on the
+        pending task. Default behavior is unchanged and makes no live call.
+        """
+        for name in (
+            "ATOM_620_STRICT_WORKDRIVE_PROOF",
+            "ATOM_STRICT_WORKDRIVE_PROOF",
+        ):
+            if str(os.getenv(name) or "").strip().lower() in (
+                    "1", "true", "yes", "on"):
+                return True
+        return bool((pending_task or {}).get("strict_workdrive_proof"))
+
     async def _direct_confirmed_file_read(
         self,
         pending_task: Dict[str, Any],
@@ -20362,6 +20389,12 @@ class ChatOrchestrator:
                         "execution_id": execution_id,
                         "session_id": session_id,
                         "request_id": request_id,
+                        # STRICT DIRECT PROOF (issue 620, opt-in): the named
+                        # file lane must answer from the bytes downloaded in
+                        # this execution when the replay asks for it.
+                        "strict_workdrive_proof": (
+                            self._strict_workdrive_proof_enabled(pending_task)
+                        ),
                         # CANVAS RIDES THE BRAND CHANNEL (2026-09-25
                         # review round 5): the objective's item lines
                         # ('Roper Whitney … No. 381') live on the canvas
@@ -20405,6 +20438,9 @@ class ChatOrchestrator:
             "source": meta.get("source"),
             "content_hash": meta.get("content_hash"),
             "content_hash_algorithm": meta.get("content_hash_algorithm"),
+            "content_sha256": meta.get("content_sha256"),
+            "evidence_kind": meta.get("evidence_kind"),
+            "direct_source_proof": meta.get("direct_source_proof"),
             "ingested_at": meta.get("ingested_at"),
             "source_modified_at": meta.get("source_modified_at"),
             "version_verified": meta.get("version_verified"),
@@ -20412,7 +20448,9 @@ class ChatOrchestrator:
             "coverage_complete": coverage_complete,
             "coverage_limits": meta.get("coverage_limits") or {},
             "workbook_read": meta.get("workbook_read"),
-            "execution_id": meta.get("execution_id"),
+            # The read and any opt-in direct proof share the caller's
+            # execution id; the named-file lane does not stamp one itself.
+            "execution_id": meta.get("execution_id") or execution_id,
         }
         _selection_record = meta.get("table_selection")
         _selection_valid = False
@@ -20467,6 +20505,7 @@ class ChatOrchestrator:
                 if isinstance(meta.get("datasets_aggregate"), dict) else None),
             "read_executed": _read_executed,
             "formula_reference": bool(meta.get("formula_reference")),
+            "direct_source_proof": meta.get("direct_source_proof"),
             "reason": "" if block else "file-scoped reader returned no result",
         }
         _selection_review = None

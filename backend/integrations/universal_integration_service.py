@@ -2306,6 +2306,11 @@ class UniversalIntegrationService:
         download path.
         """
         user_id = context.get("user_id")
+        # STRICT DIRECT PROOF (issue 620, opt-in): the workbook answer must be
+        # derived from the bytes downloaded in THIS call. On this path the
+        # materialized-copy fast paths are skipped deliberately — a cached
+        # dataset answer may never stand in for the direct download.
+        strict_direct = bool(context.get("strict_workdrive_proof"))
         query = (params.get("query") or "").strip()
         file_id = params.get("file_id") or params.get("id")
         file_name: Optional[str] = None
@@ -2320,7 +2325,8 @@ class UniversalIntegrationService:
 
         try:
             if (
-                (identity_verified or not callable(
+                not strict_direct
+                and (identity_verified or not callable(
                     getattr(storage_service, "get_file_metadata", None)
                 ))
                 and query and context.get("llm_service")
@@ -2654,7 +2660,10 @@ class UniversalIntegrationService:
             # unavailable, bad SQL, zero rows) falls through to the ordinary
             # download→extract→excerpt path, so this can only SKIP a
             # 13MB-download/10s-parse round trip, never degrade an answer.
-            if identity_verified and query and context.get("llm_service"):
+            if (
+                not strict_direct
+                and identity_verified and query and context.get("llm_service")
+            ):
                 try:
                     from core.integrations.token_store import (
                         connected_source_grant_state,
@@ -2880,7 +2889,10 @@ class UniversalIntegrationService:
                         f"workbook read artifact unavailable for {file_name}: "
                         f"{artifact_err}"
                     )
-                if not workbook_read or not workbook_read.get("all_sheets_searched"):
+                if not strict_direct and (
+                    not workbook_read
+                    or not workbook_read.get("all_sheets_searched")
+                ):
                     try:
                         from core.sheet_dataset_service import (
                             ensure_sheet_dataset,
@@ -2980,6 +2992,67 @@ class UniversalIntegrationService:
                     )
             except Exception:  # noqa: BLE001 — metadata only
                 dataset_note = ""
+            content_sha256 = hashlib.sha256(content).hexdigest()
+            strict_receipt = None
+            if strict_direct:
+                # STRICT DIRECT PROOF (issue 620, opt-in): the receipt is
+                # emitted only after the downloaded bytes produced the
+                # workbook artifact. A missing/incomplete artifact is an
+                # explicit retrieval failure — never a materialized fallback.
+                artifact_sha256 = str(
+                    (workbook_read or {}).get("sha256")
+                    or (workbook_read or {}).get("content_hash") or ""
+                )
+                if (
+                    service != "zoho_workdrive"
+                    or not workbook_read
+                    or not workbook_read.get("all_sheets_searched")
+                    or artifact_sha256 != content_sha256
+                ):
+                    return {"status": "success", "data": {
+                        "found": True,
+                        "served": False,
+                        "identity_verified": identity_verified,
+                        "resource_id": str(file_id),
+                        "provider": service,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "read_completed": False,
+                        "coverage_complete": False,
+                        "content_sha256": content_sha256,
+                        "evidence_kind": "direct_download_unavailable",
+                        "strict_read_receipt": None,
+                        "strict_proof_error": (
+                            "downloaded workbook artifact is unavailable or "
+                            "does not match the downloaded bytes"
+                        ),
+                        "message": (
+                            "Strict WorkDrive verification requires the "
+                            "workbook artifact parsed from the downloaded "
+                            "bytes; no materialized copy was used."
+                        ),
+                    }}
+                strict_receipt = {
+                    "schema": "workdrive-direct-receipt-1",
+                    "provider": service,
+                    "operation": "read_storage_file",
+                    "resource_id": str(file_id),
+                    "file_name": file_name,
+                    "sha256": content_sha256,
+                    "sha1": hashlib.sha1(content).hexdigest(),
+                    "bytes": len(content),
+                    "execution_id": str(context.get("execution_id") or ""),
+                    "evidence_kind": "downloaded_bytes",
+                    "materialized": False,
+                    "version": (
+                        (identity.get("source_metadata") or {}).get("version")
+                        or (identity.get("source_metadata") or {}).get(
+                            "modified_at")
+                    ),
+                    "workbook_sha256": artifact_sha256,
+                    "workbook_resource_id": str(file_id),
+                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                }
             return {"status": "success", "data": {
                 "found": True,
                 "served": True,
@@ -2990,7 +3063,11 @@ class UniversalIntegrationService:
                 "read_completed": True,
                 "coverage_complete": coverage_complete,
                 "workbook_read": workbook_read,
-                "content_sha256": hashlib.sha256(content).hexdigest(),
+                "content_sha256": content_sha256,
+                **({"content_sha1": hashlib.sha1(content).hexdigest()}
+                   if strict_direct else {}),
+                **({"strict_read_receipt": strict_receipt}
+                   if strict_direct else {}),
                 "file_id": file_id,
                 "file_name": file_name,
                 "chars_extracted": len(text),
