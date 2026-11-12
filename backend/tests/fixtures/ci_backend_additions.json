@@ -314,6 +314,18 @@
     "run": "python -m pytest tests/test_org_politics_scheduled_worker_offline.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
+    "name": "Run served spreadsheet stale-cache regression control",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_served_spreadsheet_stale_cache.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-served-spreadsheet-stale-cache",
+      "LANCEDB_URI": "${{ runner.temp }}/atom-served-spreadsheet-stale-cache/lancedb",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "served_stale_root=$(mktemp -d \"${RUNNER_TEMP}/served-stale-XXXXXX\")\npython -m pytest tests/test_served_spreadsheet_stale_cache.py \\\n  -q --tb=short --timeout=900 --timeout-method=thread \\\n  --basetemp=\"${served_stale_root}/pytest\"\n"
+  },
+  {
     "name": "Run canvas sheet cell persistence controls",
     "env": {
       "TESTING": "1",
