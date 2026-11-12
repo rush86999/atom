@@ -163,12 +163,32 @@ def _startup_bootstrap() -> None:
     (missing parent revisions). ``create_all`` is idempotent: it only
     creates tables that don't already exist.
 
+    Before ``create_all``, it runs the shared SQLite schema-drift repair
+    (``core.sqlite_schema_repair.repair_known_drift``) so a legacy dev DB
+    missing a model column can still be bootstrapped and read.
+
     Then calls ``ensure_admin_user()`` to create admin@example.com.
     """
     try:
-        from backend.core.database import engine
-        from backend.core.models import Base
+        # Use the canonical core.* modules, not a second backend.core.* copy:
+        # the mounted routers and core.admin_bootstrap open sessions through
+        # core.database, so schema repair must run against that same engine.
+        from core.database import engine
+        from core.models import Base
         from core.user_preference_service import UserPreference
+
+        # SQLite schema-drift repair BEFORE create_all — the same supported
+        # hook main_api_app's lifespan calls. This launcher is the documented
+        # daily dev entrypoint, and a legacy SQLite file missing a model column
+        # (e.g. agent_registry.promotion_episode_floor) otherwise makes every
+        # agent read fail and silently breaks ensure_admin_user →
+        # ensure_demo_agent, which catches its own error.
+        try:
+            from core.sqlite_schema_repair import repair_known_drift
+
+            repair_known_drift()
+        except Exception as drift_exc:
+            logger.warning("Schema drift repair skipped: %s", drift_exc)
 
         # create_all is idempotent (checkfirst=True by default) — only
         # creates tables that don't exist. Some model classes share table
@@ -181,7 +201,7 @@ def _startup_bootstrap() -> None:
         logger.warning("Schema create_all skipped (tables likely exist): %s", exc)
 
     try:
-        from backend.core.database import engine
+        from core.database import engine
         from core.user_preference_service import UserPreference
         UserPreference.__table__.create(bind=engine, checkfirst=True)
         logger.info("user_preferences table verified/created")
@@ -189,7 +209,7 @@ def _startup_bootstrap() -> None:
         logger.warning("Failed to verify/create user_preferences table: %s", exc)
 
     try:
-        from backend.core.admin_bootstrap import ensure_admin_user
+        from core.admin_bootstrap import ensure_admin_user
 
         ensure_admin_user()
     except Exception as exc:  # pragma: no cover - startup logging only
