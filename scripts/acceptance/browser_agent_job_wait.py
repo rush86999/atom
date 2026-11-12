@@ -2193,11 +2193,11 @@ def _run_scenario(args: argparse.Namespace) -> int:
                                180000)
                 first_question = _wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == Q1, 180000, "first question")
+                    lambda text: text == Q1, 180, "first question")
                 first_status = _wait_for_text(
                     page, '[data-testid="agent-job-status"]',
                     lambda text: "Waiting for your answer" in text,
-                    180000, "waiting status")
+                    180, "waiting status")
                 first_blocking = page.locator(
                     '[data-testid="agent-job-blocking"]').inner_text().strip()
                 panel_text = page.locator(
@@ -2323,7 +2323,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                                180000)
                 after_restart_question = _wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == Q1, 180000, "same first question")
+                    lambda text: text == Q1, 180, "same first question")
                 job2 = _read_job(api, fixture["agent_id"], job_id)
                 wait2 = job2["data"].get("wait") or {}
                 shim2 = _shim_snapshot(args.shim_port)
@@ -2378,7 +2378,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
 
                 second_question = _wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == Q2, 180000, "second question")
+                    lambda text: text == Q2, 180, "second question")
                 job3 = _read_job(api, fixture["agent_id"], job_id)
                 wait3 = job3["data"].get("wait") or {}
                 shim3 = _shim_snapshot(args.shim_port)
@@ -2452,7 +2452,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                                180000)
                 reload_question = _wait_for_text(
                     page, '[data-testid="agent-job-question"]',
-                    lambda text: text == Q2, 180000, "same second question")
+                    lambda text: text == Q2, 180, "same second question")
                 job4 = _read_job(api, fixture["agent_id"], job_id)
                 wait4 = job4["data"].get("wait") or {}
                 shim4 = _shim_snapshot(args.shim_port)
