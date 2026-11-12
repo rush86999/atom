@@ -26,6 +26,14 @@ At frozen clean source `1b5d4ad5`, the review-replay skill-apply browser run `20
 - **Scope.** The replay verifies approval, application and durable readback within one isolated browser session at the tested commit. Process-restart consumption requires separate evidence.
 
 Evidence: portable-drive review-replay run `20261112T140945Z_8yworf` (`evidence/scenario.json`, `evidence/source.json`, screenshots).
+## Narrow TASK-WAIT browser replay — 2026-11-12, source `758221755`
+
+A portable isolated replay at detached commit `758221755be124c579cee3398ffcc6e9357aa01d` exited 0 with **30/30 PASS** browser steps and released all three test listeners. The checkout was clean (zero tracked or backend modifications) and passed its 9/9 source-file and 55/55 fixture preflight before launch; all ten text-wait durations resolved to the expected 120/180 seconds and loopback-only network policy was verified before execution.
+
+- **Scenario:** one ordinary journey at that source: login; one automatic first source question; upload a source document without answering; verify that it appears in the authorized source picker; restart backend and frontend against the same world; recover the same question; select and submit the authorized source; obtain one verified result with one durable job/execution/task binding; replay the same accepted answer with no second job, objective, manual advance or additional effect. The accepted source remained bound to the uploaded document's verified text receipt.
+- **Source scope:** `758221755` is neither exact main nor the merged #886 head. It is the #886 reviewed source plus the two-driver timeout-only correction carried from `94c84cc7d`. #886 subsequently merged as `fdc2a0c22` (tree `c8ec6050f56e0d8a9fa636a55e8f354e2eb41564`). This run bounds `758221755` only; it does not qualify main, #886's merged tree, or any later head.
+- **Provider scope:** all model decisions were **simulated** — authored completions served by the existing loopback provider shim, not live model output. Only the provider response was substituted; routing, wait/resume, persistence, the ordinary upload route, task creation and the default oracle ran production code. No live provider, account, credential, send, spend, served-model quality, prompt quality or general judgment is claimed.
+- **Boundary:** this is one controlled question order and one local simulated-provider browser episode. It does not close TASK-WAIT-01 (multi-day waits, repeated/partial replies, revocation, cancellation/deadlines, both event orders, live multi-model quality) or full usage readiness. The 143 claim records, 18 goal-map rows and all historical scores remain unchanged. Raw prompts, captures and credentials remain private; only these sanitized summaries are published. Evidence: `/Volumes/Seagate Portable Drive/atom-taskwait-replay.xeOkaZ/replay-v3/execution`.
 
 ## Prior verified checkpoint — 2026-11-11, main `b017742d6`
 
