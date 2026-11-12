@@ -25,15 +25,33 @@ from core.models import (
     AgentExecution,
     AgentReasoningStep,
     AgentRegistry,
+    Skill,
     SkillExecution,
+    Tenant,
     UserRole,
+    Workspace,
     Base,
+    workspace_skills,
 )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _restore_mounted_app_overrides():
+    """Keep per-test dependency overrides from leaking into other files."""
+    import sys
+
+    module = sys.modules.get("main_api_app")
+    before = dict(module.app.dependency_overrides) if module else None
+    yield
+    if module is not None:
+        module.app.dependency_overrides.clear()
+        if before:
+            module.app.dependency_overrides.update(before)
+
 
 def _make_session():
     """In-memory SQLite session with only the tables this test needs."""
@@ -210,6 +228,7 @@ class TestMementoLearnFromExecution:
             result = asyncio_run(engine.learn_from_execution(
                 tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
                 skill_name="My Custom Skill",
+                actor=_actor(role=UserRole.TEAM_LEAD, workspace_id="ws-1"),
             ))
 
         assert result["success"] is True
@@ -231,6 +250,8 @@ class TestMementoLearnFromExecution:
             ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert result["authorization"]["code"] == "not_found"
+        assert result["authorization"]["http_status"] == 404
         mock_propose.assert_not_awaited()
         assert db.query(SkillCandidate).count() == 0
 
@@ -251,6 +272,7 @@ class TestMementoLearnFromExecution:
             ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert result["authorization"]["code"] == "not_found"
         mock_propose.assert_not_awaited()
         assert db.query(SkillCandidate).count() == 0
 
@@ -266,6 +288,7 @@ class TestMementoLearnFromExecution:
         ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert result["authorization"]["code"] == "not_found"
         assert db.query(SkillCandidate).count() == 0
 
     def test_execution_without_owning_agent_denied(self):
@@ -282,6 +305,8 @@ class TestMementoLearnFromExecution:
             ))
         assert result["success"] is False
         assert "not permitted" in result["error"].lower()
+        assert result["authorization"]["code"] == "forbidden"
+        assert result["authorization"]["http_status"] == 403
         mock_propose.assert_not_awaited()
         assert db.query(SkillCandidate).count() == 0
 
@@ -303,6 +328,7 @@ class TestMementoLearnFromExecution:
             ))
         assert result["success"] is False
         assert "not permitted" in result["error"].lower()
+        assert result["authorization"]["code"] == "forbidden"
         mock_propose.assert_not_awaited()
         assert db.query(SkillCandidate).count() == 0
 
@@ -339,6 +365,7 @@ class TestMementoLearnFromExecution:
         ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert result["authorization"]["code"] == "not_found"
         assert db.query(SkillCandidate).count() == 0
 
     def test_blank_tenant_denied(self):
@@ -352,7 +379,168 @@ class TestMementoLearnFromExecution:
         ))
         assert result["success"] is False
         assert "not found" in result["error"].lower()
+        assert result["authorization"]["code"] == "not_found"
         assert db.query(SkillCandidate).count() == 0
+
+    def test_missing_actor_denied_before_storage_access(self):
+        """Authenticated actor context is REQUIRED at the service boundary:
+        a missing/anonymous actor is denied before any DB model or storage
+        lookup."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db)
+        engine = MementoEngine(db=db)
+
+        with patch.object(
+            db, "query", side_effect=AssertionError("storage accessed")
+        ), patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=None,
+            ))
+
+        assert result["success"] is False
+        assert result["authorization"]["code"] == "unauthenticated"
+        assert result["authorization"]["http_status"] == 403
+        mock_propose.assert_not_awaited()
+
+    def test_non_admin_blank_actor_workspace_denied(self):
+        """A populated owner scope cannot be claimed by an actor with no
+        workspace scope."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="ws-1")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.TEAM_LEAD, workspace_id=""),
+            ))
+
+        assert result["success"] is False
+        assert result["authorization"]["code"] == "forbidden"
+        assert "unpopulated workspace" in result["authorization"]["message"]
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_non_admin_blank_owner_workspace_denied(self):
+        """An owner with no workspace scope cannot be distilled by a
+        non-admin actor, even one that has a workspace."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.TEAM_LEAD, workspace_id="ws-1"),
+            ))
+
+        assert result["success"] is False
+        assert result["authorization"]["code"] == "forbidden"
+        assert "unpopulated workspace" in result["authorization"]["message"]
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_non_admin_blank_scopes_do_not_collide(self):
+        """Regression: two empty scopes compare equal; that must NOT be
+        treated as ownership. Both sides must be populated."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+        ) as mock_propose:
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.MEMBER, workspace_id=""),
+            ))
+
+        assert result["success"] is False
+        assert result["authorization"]["code"] == "forbidden"
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_admin_may_operate_with_blank_workspace_scopes(self):
+        """ADMIN+ is the explicit tenant-admin policy: workspace scope is
+        not part of the decision for them."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db, workspace_id="")
+        engine = MementoEngine(db=db)
+
+        with patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+            new=AsyncMock(return_value="def x():\n    return 1"),
+        ):
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(role=UserRole.ADMIN, workspace_id=""),
+            ))
+
+        assert result["success"] is True
+        assert db.query(SkillCandidate).one().validation_status == "pending"
+
+    def test_analyzes_already_authorized_row_without_second_lookup(self):
+        """The distillation path must analyze the row returned by the
+        authorized lookup, not re-fetch it through the unscoped
+        ``analyze_execution`` helper."""
+        db, _ = _make_session()
+        exec_id = _seed_execution(db)
+        _seed_agent(db)
+        engine = MementoEngine(db=db)
+
+        with patch.object(
+            MementoEngine, "analyze_execution",
+            side_effect=AssertionError("second unscoped lookup"),
+        ), patch(
+            "core.auto_dev.memento_engine.MementoEngine.propose_code_change",
+            new=AsyncMock(return_value="def x():\n    return 1"),
+        ):
+            result = asyncio_run(engine.learn_from_execution(
+                tenant_id="tenant-1", agent_id="agent-1", execution_id=exec_id,
+                actor=_actor(),
+            ))
+
+        assert result["success"] is True
+        candidate = db.query(SkillCandidate).one()
+        assert candidate.failure_pattern["execution_id"] == exec_id
+        assert candidate.failure_pattern["step_count"] == 3
+
+
+def _mounted_client(db_session, monkeypatch, role=UserRole.SUPER_ADMIN,
+                    workspace_id="ws-1", user_id="user-1"):
+    """Full mounted app with authenticated actor/tenant/DB overrides."""
+    from fastapi.testclient import TestClient
+    from main_api_app import app
+    from core.auth import get_current_tenant, get_current_user
+    from core.database import get_db
+    import core.security_dependencies as sec_deps
+
+    fake_user = MagicMock()
+    fake_user.id = user_id
+    fake_user.role = role
+    fake_user.workspace_id = workspace_id
+    fake_tenant = MagicMock()
+    fake_tenant.id = "tenant-1"
+
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[get_current_tenant] = lambda: fake_tenant
+    app.dependency_overrides[get_db] = lambda: db_session
+    monkeypatch.setattr(
+        sec_deps.RBACService, "check_permission", staticmethod(lambda u, p: True)
+    )
+    return TestClient(app)
 
 
 class TestLearnRoute:
@@ -378,26 +566,9 @@ class TestLearnRoute:
 
     def _client(self, db_session, monkeypatch, role=UserRole.SUPER_ADMIN,
                 workspace_id="ws-1"):
-        from fastapi.testclient import TestClient
-        from main_api_app import app
-        from core.auth import get_current_tenant, get_current_user
-        from core.database import get_db
-        import core.security_dependencies as sec_deps
-
-        fake_user = MagicMock()
-        fake_user.id = "user-1"
-        fake_user.role = role
-        fake_user.workspace_id = workspace_id
-        fake_tenant = MagicMock()
-        fake_tenant.id = "tenant-1"
-
-        app.dependency_overrides[get_current_user] = lambda: fake_user
-        app.dependency_overrides[get_current_tenant] = lambda: fake_tenant
-        app.dependency_overrides[get_db] = lambda: db_session
-        monkeypatch.setattr(
-            sec_deps.RBACService, "check_permission", staticmethod(lambda u, p: True)
+        return _mounted_client(
+            db_session, monkeypatch, role=role, workspace_id=workspace_id
         )
-        return TestClient(app)
 
     def test_401_unauth(self):
         from fastapi.testclient import TestClient
@@ -490,6 +661,204 @@ class TestLearnRoute:
         assert "not permitted" in resp.json()["detail"].lower()
         mock_propose.assert_not_awaited()
         assert db.query(SkillCandidate).count() == 0
+
+    def test_non_admin_blank_workspace_403(self, monkeypatch):
+        """Unpopulated actor scope on the route is a policy denial (403)."""
+        db = self._memory_db()
+        _seed_agent(db, workspace_id="ws-1")
+        _seed_execution(db, exec_id="e1")
+
+        with patch.object(MementoEngine, "propose_code_change",
+                          new=AsyncMock(return_value="def x():\n    return 1")) as mock_propose:
+            client = self._client(
+                db, monkeypatch, role=UserRole.TEAM_LEAD, workspace_id=""
+            )
+            resp = client.post(
+                "/api/v1/learn",
+                json={"execution_id": "e1"},
+                headers={"Authorization": "Bearer test"},
+            )
+        assert resp.status_code == 403, resp.text
+        mock_propose.assert_not_awaited()
+        assert db.query(SkillCandidate).count() == 0
+
+    def test_route_uses_structured_outcome_not_error_text(self, monkeypatch):
+        """A forbidden outcome whose text happens to say "not found" must
+        still map 403 — the route may not infer policy from message text."""
+        db = self._memory_db()
+        client = self._client(db, monkeypatch)
+        denial = {
+            "allowed": False,
+            "code": "forbidden",
+            "http_status": 403,
+            "message": "workspace policy denied",
+        }
+        with patch.object(
+            MementoEngine, "learn_from_execution",
+            new=AsyncMock(return_value={
+                "success": False,
+                "error": "Execution e1 not found",
+                "authorization": denial,
+            }),
+        ):
+            resp = client.post(
+                "/api/v1/learn",
+                json={"execution_id": "e1"},
+                headers={"Authorization": "Bearer test"},
+            )
+        assert resp.status_code == 403, resp.text
+        assert resp.json()["detail"] == "workspace policy denied"
+
+    def test_route_uses_not_found_outcome_despite_policy_text(self, monkeypatch):
+        """Inverse: a not_found outcome whose text says "not permitted"
+        maps 404, again proving code-based mapping."""
+        db = self._memory_db()
+        client = self._client(db, monkeypatch)
+        denial = {
+            "allowed": False,
+            "code": "not_found",
+            "http_status": 404,
+            "message": "Execution e1 not found",
+        }
+        with patch.object(
+            MementoEngine, "learn_from_execution",
+            new=AsyncMock(return_value={
+                "success": False,
+                "error": "distillation not permitted",
+                "authorization": denial,
+            }),
+        ):
+            resp = client.post(
+                "/api/v1/learn",
+                json={"execution_id": "e1"},
+                headers={"Authorization": "Bearer test"},
+            )
+        assert resp.status_code == 404, resp.text
+
+
+class TestLearnReviewApplyChain:
+    """The mounted learn → approve → apply chain on scratch storage.
+
+    Unapproved material must stay pending and unusable; after explicit
+    review+apply the only persisted skill artifact is the supported typed
+    prompt skill (SKILL.md), never the generated executable code.
+    """
+
+    GENERATED = (
+        "def inert_generated_marker():\n"
+        "    return 'INERT_GENERATED_CODE_MARKER'\n"
+    )
+
+    def _chain_db(self):
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(
+            engine,
+            tables=[
+                Tenant.__table__,
+                Workspace.__table__,
+                AgentExecution.__table__,
+                AgentReasoningStep.__table__,
+                AgentRegistry.__table__,
+                SkillCandidate.__table__,
+                SkillExecution.__table__,
+                Skill.__table__,
+                workspace_skills,
+            ],
+        )
+        Session = sessionmaker(bind=engine)
+        return Session()
+
+    def _seed_chain(self, db):
+        db.add(Tenant(id="tenant-1", name="Tenant One", subdomain="chain-one"))
+        db.add(Workspace(id="ws-1", name="Workspace One", tenant_id="tenant-1"))
+        db.add(AgentRegistry(
+            id="agent-chain", name="Chain Agent", category="Operations",
+            module_path="test.chain", class_name="ChainAgent",
+            tenant_id="tenant-1", workspace_id="ws-1",
+        ))
+        db.add(AgentExecution(
+            id="chain-exec", agent_id="agent-chain", tenant_id="tenant-1",
+            status="completed", input_summary="Inert fixture task",
+            result_summary="done",
+        ))
+        db.commit()
+
+    def test_pending_is_unavailable_then_approved_apply_persists_prompt_only(
+        self, tmp_path, monkeypatch
+    ):
+        store = tmp_path / "scratch-skill-store"
+        monkeypatch.setenv("ATOM_WORKSPACE_SKILLS_ROOT", str(store))
+        db = self._chain_db()
+        self._seed_chain(db)
+        client = _mounted_client(
+            db, monkeypatch, role=UserRole.TEAM_LEAD, workspace_id="ws-1"
+        )
+
+        with patch.object(
+            MementoEngine, "propose_code_change",
+            new=AsyncMock(return_value=self.GENERATED),
+        ):
+            learned = client.post(
+                "/api/v1/learn", json={"execution_id": "chain-exec"})
+            assert learned.status_code == 200, learned.text
+            candidate_id = learned.json()["data"]["candidate_id"]
+            assert learned.json()["data"]["status"] == "pending_approval"
+
+            # 1. Pending is not permission: apply is refused and nothing
+            #    runnable is written.
+            refused = client.post(
+                f"/api/autodev/skills/{candidate_id}/apply")
+            assert refused.status_code == 409, refused.text
+            assert "candidate_not_reviewed" in refused.text
+
+            db.expire_all()
+            assert db.query(Skill).count() == 0
+            assert db.query(SkillExecution).count() == 0
+            assert not store.exists() or not list(store.rglob("*"))
+
+            # 2. Explicit review, then explicit apply.
+            approved = client.post(
+                f"/api/autodev/skills/{candidate_id}/approve")
+            assert approved.status_code == 200, approved.text
+            applied = client.post(
+                f"/api/autodev/skills/{candidate_id}/apply")
+            assert applied.status_code == 200, applied.text
+
+        data = applied.json()["data"]
+        assert data["status"] == "promoted"
+        assert data["generated_code_applied"] is False
+
+        db.expire_all()
+        skills = db.query(Skill).all()
+        assert len(skills) == 1
+        skill = skills[0]
+        # Only the supported typed prompt skill is persisted.
+        assert skill.type == "prompt"
+        assert self.GENERATED.strip() not in (skill.long_description or "")
+        assert "INERT_GENERATED_CODE_MARKER" not in str(skill.config)
+        assert (
+            db.query(workspace_skills)
+            .filter(workspace_skills.c.skill_id == skill.id)
+            .count()
+            == 1
+        )
+        candidate = (
+            db.query(SkillCandidate)
+            .filter(SkillCandidate.id == candidate_id)
+            .one()
+        )
+        assert candidate.validation_status == "promoted"
+
+        files = [p for p in store.rglob("*") if p.is_file()]
+        assert [p.name for p in files] == ["SKILL.md"]
+        markdown = files[0].read_text(encoding="utf-8")
+        assert "INERT_GENERATED_CODE_MARKER" not in markdown
+        assert "## Instructions" in markdown
+        assert not list(store.rglob("*.py"))
 
 
 class TestRegistryListability:

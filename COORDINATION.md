@@ -542,3 +542,65 @@ baseline): 3 `TestReflectionEngineCoverage` + 3 `TestDynamicBenchmark
 Fetcher` + `validate_candidate` order-dependency in the covpush suites.
 All runs used `TESTING=1` and a scratch `DATABASE_URL` (in-memory or
 temp-dir SQLite); no live DB, no app/model calls, no push.
+
+### Follow-up: distillation boundary hardening + mounted review/apply proof
+
+Continuing the same worktree after the first worker exited (its commit
+`3448cf99f` preserved; nothing force-reset). Additional files touched:
+`backend/core/auto_dev/memento_engine.py`, `backend/api/learn_routes.py`,
+`backend/tests/test_learn_routes.py`,
+`backend/tests/test_covpush_w72b_api_routes.py` (TestLearnRoutes only),
+`backend/tests/test_covpush_autodev2.py` and
+`backend/tests/test_covpush_w82a_autodev.py` (learn tests only), this
+note.
+
+Hardening (no contract change for `analyze_execution` callers):
+
+1. `learn_from_execution` now REQUIRES keyword `actor` (no `None`
+   default). `_load_authorized_execution` denies an actor with no
+   populated `id` as `unauthenticated` BEFORE any DB read, so the
+   service boundary can no longer be called anonymously.
+2. Non-ADMIN actors need a POPULATED workspace scope on BOTH sides. The
+   previous check compared two blank scopes as equal, which is not
+   evidence of ownership; `"" == ""` now denies with `forbidden`
+   ("unpopulated workspace scope"). ADMIN+ remains the explicit
+   tenant-admin policy (workspace scope not part of the decision).
+3. The distillation path analyzes the row returned by the authorized
+   lookup (`_analyze_execution_row`). The former raw-id second query
+   (`analyze_execution`) is gone from this path; its public signature,
+   unscoped read behavior and result shape are preserved for other
+   callers, and one implementation now backs both.
+4. Denials are structured: `{allowed: false, code, http_status, message}`
+   on the result's `authorization` field. `api/learn_routes.py` maps
+   `http_status`/`message` and no longer greps error text; text-only
+   failures still fall through to 422, proven by tests where the text and
+   the structured code disagree.
+5. Pending material stays unusable: the mounted `/api/autodev/skills/
+   {id}/apply` refuses a learn-created pending candidate (409
+   `candidate_not_reviewed`) and writes nothing; after an explicit
+   mounted approve+apply only the typed prompt package (`SKILL.md`,
+   `Skill.type="prompt"`) is persisted — the inert generated-code marker
+   never reaches the package, `Skill.long_description`, or `Skill.config`.
+
+Verification environment (all runs): `TESTING=1`; a unique scratch
+`DATABASE_URL` per run (temp-dir SQLite, never `backend/data/atom.db`);
+OS network denial via a `usercustomize.py` on `PYTHONPATH` that hard-fails
+INET/INET6 `connect`/`connect_ex`/`create_connection`/`getaddrinfo`; no
+live DB, no provider call, no generated-code execution, no push/PR.
+
+Test results:
+- `tests/test_learn_routes.py` 28/28 (engine authz matrix incl. missing
+  actor with `db.query` booby-trapped, blank actor/owner/both scopes,
+  admin blank-scope policy, already-authorized analysis, route
+  structured-code mapping, and the mounted learn→approve→apply chain on
+  scratch storage).
+- `test_covpush_w82a_autodev.py -k MementoEngine` 36/36;
+  `test_covpush_autodev2.py -k MementoEngineCoverage` 30/30.
+- `test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12.
+- `test_autodev_review_routes.py` + `test_reviewed_improvement_apply.py`
+  + `test_reviewed_improvement_boundaries.py` 21/21.
+
+Fixture-state note: the module-scoped covpush learn helpers now reset an
+existing agent/execution row's tenant/owner/workspace to the case's
+required values instead of silently reusing contradictory get-or-create
+state.

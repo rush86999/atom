@@ -76,13 +76,14 @@ async def learn_from_execution(
 
     if not result.get("success"):
         error = result.get("error", "Unknown error")
-        lowered = str(error).lower()
-        # Denials first: workspace-owner denial (403), then missing /
-        # cross-tenant execution (404 — no existence leak across tenants).
-        if "not permitted" in lowered:
-            raise HTTPException(status_code=403, detail=error)
-        if "not found" in lowered:
-            raise HTTPException(status_code=404, detail=error)
+        # Authorization denials are structured by the engine; map their
+        # explicit code/status instead of matching human-readable text.
+        authorization = result.get("authorization")
+        if isinstance(authorization, dict) and authorization.get("allowed") is False:
+            raise HTTPException(
+                status_code=int(authorization.get("http_status") or 403),
+                detail=authorization.get("message") or error,
+            )
         logger.warning(
             f"Learn endpoint could not distill execution {payload.execution_id}: {error}"
         )

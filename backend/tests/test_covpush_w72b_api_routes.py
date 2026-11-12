@@ -1316,8 +1316,12 @@ class TestLearnRoutes:
             m.return_value.learn_from_execution = AsyncMock()
             yield m
 
-    def _result(self, success=True, skill_name="distilled_skill", error=None):
-        return {"success": success, "skill_name": skill_name, "error": error}
+    def _result(self, success=True, skill_name="distilled_skill", error=None,
+                authorization=None):
+        result = {"success": success, "skill_name": skill_name, "error": error}
+        if authorization is not None:
+            result["authorization"] = authorization
+        return result
 
     def test_learn_success(self, client, engine_cls):
         engine_cls.return_value.learn_from_execution.return_value = self._result()
@@ -1365,26 +1369,44 @@ class TestLearnRoutes:
 
     def test_learn_execution_not_found(self, client, engine_cls):
         engine_cls.return_value.learn_from_execution.return_value = self._result(
-            success=False, error="Execution not found")
+            success=False, error="Execution not found",
+            authorization={
+                "allowed": False, "code": "not_found", "http_status": 404,
+                "message": "Execution not found"})
         resp = client.post("/api/v1/learn", json={"execution_id": "nope"})
         assert resp.status_code == 404
         assert "Execution not found" in resp.json()["detail"]
 
     def test_learn_workspace_denial_is_403(self, client, engine_cls):
-        """Owner-scope denial (engine, fail closed) maps to 403."""
+        """Owner-scope denial (engine, fail closed) maps to 403 by code."""
         engine_cls.return_value.learn_from_execution.return_value = self._result(
             success=False,
             error="Execution exec-1 belongs to another workspace; "
-                  "distillation not permitted")
+                  "distillation not permitted",
+            authorization={
+                "allowed": False, "code": "forbidden", "http_status": 403,
+                "message": "workspace policy denied"})
         resp = client.post("/api/v1/learn", json={"execution_id": "exec-1"})
         assert resp.status_code == 403
-        assert "not permitted" in resp.json()["detail"].lower()
+        assert resp.json()["detail"] == "workspace policy denied"
 
-    def test_learn_not_found_case_insensitive(self, client, engine_cls):
+    def test_learn_text_only_failure_does_not_drive_status(self, client, engine_cls):
+        """No structured authorization outcome means no authz mapping —
+        human-readable text is never parsed for policy."""
         engine_cls.return_value.learn_from_execution.return_value = self._result(
-            success=False, error="NOt FOUND anywhere")
+            success=False, error="NOt FOUND anywhere and not permitted")
         resp = client.post("/api/v1/learn", json={"execution_id": "nope"})
-        assert resp.status_code == 404
+        assert resp.status_code == 422
+
+    def test_learn_structured_forbidden_beats_not_found_text(
+            self, client, engine_cls):
+        engine_cls.return_value.learn_from_execution.return_value = self._result(
+            success=False, error="Execution not found",
+            authorization={
+                "allowed": False, "code": "forbidden", "http_status": 403,
+                "message": "denied"})
+        resp = client.post("/api/v1/learn", json={"execution_id": "nope"})
+        assert resp.status_code == 403
 
     def test_learn_other_failure(self, client, engine_cls):
         engine_cls.return_value.learn_from_execution.return_value = self._result(

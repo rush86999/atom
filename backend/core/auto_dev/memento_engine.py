@@ -25,6 +25,29 @@ from core.auto_dev.models import SkillCandidate
 
 logger = logging.getLogger(__name__)
 
+# Structured authorization outcomes for the execution-distillation boundary.
+# The route maps these codes to HTTP status; it must never infer policy by
+# matching human-readable error text.
+AUTHZ_UNAUTHENTICATED = "unauthenticated"
+AUTHZ_NOT_FOUND = "not_found"
+AUTHZ_FORBIDDEN = "forbidden"
+
+_AUTHZ_HTTP_STATUS: dict[str, int] = {
+    AUTHZ_UNAUTHENTICATED: 403,
+    AUTHZ_NOT_FOUND: 404,
+    AUTHZ_FORBIDDEN: 403,
+}
+
+
+def _authz_denial(code: str, message: str) -> dict[str, Any]:
+    """Serializable denial the route can act on without parsing ``error``."""
+    return {
+        "allowed": False,
+        "code": code,
+        "http_status": _AUTHZ_HTTP_STATUS[code],
+        "message": message,
+    }
+
 
 class MementoEngine(BaseLearningEngine):
     """
@@ -430,10 +453,11 @@ class MementoEngine(BaseLearningEngine):
         Analyze a completed agent execution into a success/step trace.
 
         NOTE: this lookup is intentionally NOT authorization-scoped — it is
-        a read helper. Production callers (``learn_from_execution``) must
-        authorize the execution via ``_load_authorized_execution`` BEFORE
-        calling this, so no model/storage/sandbox work happens for a
-        denied execution.
+        an unscoped read helper whose contract is preserved for existing
+        callers. ``learn_from_execution`` must never use it for its own
+        lookup: it authorizes the execution first and then analyzes the
+        ALREADY-AUTHORIZED row via ``_analyze_execution_row`` (one scoped
+        read, no second raw-id fetch).
 
         Unlike ``analyze_episode`` (which assumes a failed episode), this
         handles ANY outcome (success or failure): it pulls the
@@ -457,61 +481,13 @@ class MementoEngine(BaseLearningEngine):
             }
         """
         try:
-            from core.models import AgentExecution, AgentReasoningStep
+            from core.models import AgentExecution
 
             execution = (
                 self.db.query(AgentExecution)
                 .filter(AgentExecution.id == execution_id)
                 .first()
             )
-            if not execution:
-                return {"error": f"Execution {execution_id} not found"}
-
-            steps = (
-                self.db.query(AgentReasoningStep)
-                .filter(AgentReasoningStep.execution_id == execution_id)
-                .order_by(AgentReasoningStep.step_number.asc())
-                .all()
-            )
-
-            step_trace = [
-                {
-                    "step_number": s.step_number,
-                    "step_type": s.step_type,
-                    "thought": s.thought,
-                    "action": s.action,
-                    "observation": s.observation,
-                    "verified": s.verified,
-                }
-                for s in steps
-            ]
-
-            task_desc = execution.input_summary or ""
-            outcome = execution.status or ""
-            error_trace = execution.error_message or ""
-
-            return {
-                "execution_id": execution_id,
-                "agent_id": str(execution.agent_id) if execution.agent_id else None,
-                "tenant_id": str(execution.tenant_id) if execution.tenant_id else None,
-                "status": outcome,
-                "task_description": task_desc,
-                "result_summary": execution.result_summary,
-                "error_trace": error_trace,
-                "steps": step_trace,
-                "step_count": len(step_trace),
-                "tool_calls_attempted": [
-                    s["action"] for s in step_trace if s.get("action")
-                ],
-                "failure_summary": (
-                    f"{outcome}: {task_desc[:100]}. Errors: {error_trace[:200]}"
-                    if error_trace
-                    else f"{outcome}: {task_desc[:100]}"
-                ),
-                "suggested_skill_name": self._suggest_skill_name(
-                    task_desc, error_trace
-                ),
-            }
         except ImportError:
             logger.warning("Execution models not available")
             return {
@@ -519,12 +495,84 @@ class MementoEngine(BaseLearningEngine):
                 "error": "Execution models not available",
             }
 
+        if not execution:
+            return {"error": f"Execution {execution_id} not found"}
+
+        return self._analyze_execution_row(execution)
+
+    def _analyze_execution_row(self, execution: Any) -> dict[str, Any]:
+        """Build the trace from an execution row the caller ALREADY authorized.
+
+        Single source of truth for the trace shape: ``analyze_execution``
+        resolves a row (unscoped helper contract) and delegates here;
+        ``learn_from_execution`` passes the row returned by
+        ``_load_authorized_execution`` so no second, unscoped lookup exists
+        on the distillation path.
+        """
+        execution_id = str(execution.id)
+        try:
+            from core.models import AgentReasoningStep
+
+            steps = (
+                self.db.query(AgentReasoningStep)
+                .filter(AgentReasoningStep.execution_id == execution_id)
+                .order_by(AgentReasoningStep.step_number.asc())
+                .all()
+            )
+        except ImportError:
+            logger.warning("Execution models not available")
+            return {
+                "execution_id": execution_id,
+                "error": "Execution models not available",
+            }
+
+        step_trace = [
+            {
+                "step_number": s.step_number,
+                "step_type": s.step_type,
+                "thought": s.thought,
+                "action": s.action,
+                "observation": s.observation,
+                "verified": s.verified,
+            }
+            for s in steps
+        ]
+
+        task_desc = execution.input_summary or ""
+        outcome = execution.status or ""
+        error_trace = execution.error_message or ""
+
+        return {
+            "execution_id": execution_id,
+            "agent_id": str(execution.agent_id) if execution.agent_id else None,
+            "tenant_id": str(execution.tenant_id) if execution.tenant_id else None,
+            "status": outcome,
+            "task_description": task_desc,
+            "result_summary": execution.result_summary,
+            "error_trace": error_trace,
+            "steps": step_trace,
+            "step_count": len(step_trace),
+            "tool_calls_attempted": [
+                s["action"] for s in step_trace if s.get("action")
+            ],
+            "failure_summary": (
+                f"{outcome}: {task_desc[:100]}. Errors: {error_trace[:200]}"
+                if error_trace
+                else f"{outcome}: {task_desc[:100]}"
+            ),
+            "suggested_skill_name": self._suggest_skill_name(
+                task_desc, error_trace
+            ),
+        }
+
     def _load_authorized_execution(
-        self, tenant_id: Any, execution_id: str, actor: Any | None = None
-    ) -> tuple[Any | None, dict[str, str] | None]:
+        self, tenant_id: Any, execution_id: str, *, actor: Any
+    ) -> tuple[Any | None, dict[str, Any] | None]:
         """
         Tenant+owner-scoped execution lookup. Fail closed.
 
+        - ``actor`` is REQUIRED: distillation is an authenticated operation,
+          so a missing/anonymous actor is denied before any lookup.
         - The execution must exist AND carry the authenticated tenant's id;
           rows with a NULL tenant_id can never match (deny).
         - The execution must have an owning agent whose AgentRegistry row
@@ -532,23 +580,35 @@ class MementoEngine(BaseLearningEngine):
         - Actors below ADMIN may only distill executions of agents owned by
           their own workspace — the same explicit tenant-admin policy as the
           Auto-Dev review surface (``api/autodev_review_routes
-          ._candidate_agent``).
+          ._candidate_agent``). For those actors BOTH workspace scopes must
+          be populated: two blank scopes are not evidence of ownership.
 
         The lookup runs BEFORE any model, storage or sandbox operation, so a
         denied execution never reaches the LLM, the filesystem or the
-        sandbox. "not found" phrasing deliberately does not distinguish a
+        sandbox. "not found" outcomes deliberately do not distinguish a
         missing row from a cross-tenant id (no existence leak across
         tenants).
 
-        Returns ``(execution, None)`` on success, or ``(None, denial)``
-        where denial is ``{"error": ...}``.
+        Returns ``(execution, None)`` on success, or ``(None, denial)`` where
+        denial is a structured, HTTP-mappable outcome:
+        ``{"allowed": False, "code": ..., "http_status": ..., "message": ...}``.
         """
         from core.models import AgentExecution, AgentRegistry, UserRole
         from core.security.rbac import role_level
 
+        actor_id = str(getattr(actor, "id", "") or "").strip()
+        if not actor_id:
+            return None, _authz_denial(
+                AUTHZ_UNAUTHENTICATED,
+                "Authenticated actor context is required for skill "
+                "distillation",
+            )
+
         tenant_key = str(tenant_id or "")
         if not tenant_key:
-            return None, {"error": f"Execution {execution_id} not found"}
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
 
         execution = (
             self.db.query(AgentExecution)
@@ -559,13 +619,16 @@ class MementoEngine(BaseLearningEngine):
             .first()
         )
         if execution is None:
-            return None, {"error": f"Execution {execution_id} not found"}
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
 
         if not execution.agent_id:
-            return None, {
-                "error": f"Execution {execution_id} has no owning agent; "
-                "distillation not permitted"
-            }
+            return None, _authz_denial(
+                AUTHZ_FORBIDDEN,
+                f"Execution {execution_id} has no owning agent; "
+                "distillation not permitted",
+            )
         agent = (
             self.db.query(AgentRegistry)
             .filter(AgentRegistry.id == execution.agent_id)
@@ -574,19 +637,29 @@ class MementoEngine(BaseLearningEngine):
         if agent is None or str(agent.tenant_id) != tenant_key:
             # Owning agent missing or cross-tenant: answer exactly like a
             # missing row so the endpoint cannot probe other tenants' ids.
-            return None, {"error": f"Execution {execution_id} not found"}
+            return None, _authz_denial(
+                AUTHZ_NOT_FOUND, f"Execution {execution_id} not found"
+            )
 
-        if (
-            actor is not None
-            and role_level(getattr(actor, "role", None))
-            < role_level(UserRole.ADMIN)
-            and str(getattr(actor, "workspace_id", "") or "")
-            != str(getattr(agent, "workspace_id", "") or "")
-        ):
-            return None, {
-                "error": f"Execution {execution_id} belongs to another "
-                "workspace; distillation not permitted"
-            }
+        if role_level(getattr(actor, "role", None)) < role_level(UserRole.ADMIN):
+            actor_workspace = str(
+                getattr(actor, "workspace_id", "") or ""
+            ).strip()
+            owner_workspace = str(agent.workspace_id or "").strip()
+            # Two empty scopes compare equal but establish no ownership;
+            # require a populated scope on BOTH sides for non-admin actors.
+            if not actor_workspace or not owner_workspace:
+                return None, _authz_denial(
+                    AUTHZ_FORBIDDEN,
+                    f"Execution {execution_id} has an unpopulated workspace "
+                    "scope; distillation not permitted",
+                )
+            if actor_workspace != owner_workspace:
+                return None, _authz_denial(
+                    AUTHZ_FORBIDDEN,
+                    f"Execution {execution_id} belongs to another workspace; "
+                    "distillation not permitted",
+                )
 
         return execution, None
 
@@ -598,18 +671,21 @@ class MementoEngine(BaseLearningEngine):
         skill_name: str | None = None,
         description: str | None = None,
         *,
-        actor: Any | None = None,
+        actor: Any,
     ) -> dict[str, Any]:
         """
         Distill a completed agent execution into a REVIEWABLE skill candidate.
 
-        Authorization is fail closed: ``_load_authorized_execution`` scopes
-        the execution to the authenticated tenant and owner (workspace, for
-        non-admin actors) BEFORE any model, storage or sandbox operation.
+        Authorization is fail closed at this service boundary:
+        ``actor`` is REQUIRED (no anonymous default) and
+        ``_load_authorized_execution`` scopes the execution to the
+        authenticated tenant and owner (workspace, for non-admin actors)
+        BEFORE any model, storage or sandbox operation.
 
         Pipeline:
             1. _load_authorized_execution — tenant+owner-scoped, fail closed
-            2. analyze_execution(execution_id) — success/step trace
+            2. _analyze_execution_row(execution) — trace of the
+               ALREADY-AUTHORIZED row
             3. propose_code_change(trace) — LLM generates the skill script
             4. SkillCandidate(validation_status="pending") — stored for review
 
@@ -626,10 +702,14 @@ class MementoEngine(BaseLearningEngine):
         execution, denial = self._load_authorized_execution(
             tenant_id, execution_id, actor=actor
         )
-        if denial:
-            return {"success": False, **denial}
+        if denial is not None:
+            return {
+                "success": False,
+                "error": denial["message"],
+                "authorization": denial,
+            }
 
-        analysis = await self.analyze_execution(execution_id)
+        analysis = self._analyze_execution_row(execution)
         if "error" in analysis:
             return {"success": False, "error": analysis["error"]}
 
