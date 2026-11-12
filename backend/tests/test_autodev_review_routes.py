@@ -112,6 +112,132 @@ def test_list_candidates_unifies_skills_and_mutations(env):
     assert body["count"] == 2
     names = {c["name"] for c in body["candidates"]}
     assert names == {"outlook_search_fix", "outlook.search_emails"}
+    # Nothing pending has been reviewed, and only skills have an apply path.
+    assert all(c["apply_eligible"] is False for c in body["candidates"])
+    skill = next(c for c in body["candidates"] if c["kind"] == "skill")
+    assert skill["reviewed"] is False
+
+
+def _machine_validated_candidate(Session):
+    """A candidate the sandbox validated — no human review binding."""
+    db = Session()
+    try:
+        db.add(SkillCandidate(
+            id="cand-machine", tenant_id="tenant-1", agent_id="agent-1",
+            skill_name="machine_validated_fix",
+            skill_description="Sandbox-approved instructions",
+            generated_code="def run(): ...",
+            failure_pattern={"failure_summary": "repeated tool failure"},
+            validation_status="validated",
+            validation_result={"passed": True, "test_results": []}))
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_list_candidates_machine_validation_is_not_apply_eligible(env):
+    """`validated` is not approval: only the review binding unlocks apply."""
+    Session, client = env
+    _machine_validated_candidate(Session)
+
+    response = client.get(
+        "/api/autodev/candidates", params={"status": "validated"})
+    assert response.status_code == 200, response.text
+    listed = response.json()["data"]["candidates"]
+    skill = next(c for c in listed if c["id"] == "cand-machine")
+    # Still listed so the UI can send it to review.
+    assert skill["status"] == "validated"
+    assert skill["reviewed"] is False
+    assert skill["apply_eligible"] is False
+
+    approved = client.post("/api/autodev/skills/cand-machine/approve")
+    assert approved.status_code == 200, approved.text
+    response = client.get(
+        "/api/autodev/candidates", params={"status": "validated"})
+    skill = next(
+        c for c in response.json()["data"]["candidates"]
+        if c["id"] == "cand-machine")
+    assert skill["reviewed"] is True
+    assert skill["apply_eligible"] is True
+
+    # Material changed after review: the binding no longer matches, but the
+    # candidate stays listed so it can be reviewed again.
+    db = Session()
+    try:
+        row = db.query(SkillCandidate).filter(
+            SkillCandidate.id == "cand-machine").one()
+        row.skill_description = "Replacement instructions after review"
+        db.commit()
+    finally:
+        db.close()
+    response = client.get(
+        "/api/autodev/candidates", params={"status": "validated"})
+    skill = next(
+        c for c in response.json()["data"]["candidates"]
+        if c["id"] == "cand-machine")
+    assert skill["reviewed"] is True
+    assert skill["apply_eligible"] is False
+
+    re_reviewed = client.post("/api/autodev/skills/cand-machine/approve")
+    assert re_reviewed.status_code == 200, re_reviewed.text
+    response = client.get(
+        "/api/autodev/candidates", params={"status": "validated"})
+    skill = next(
+        c for c in response.json()["data"]["candidates"]
+        if c["id"] == "cand-machine")
+    assert skill["apply_eligible"] is True
+
+
+def test_machine_validated_candidate_apply_is_refused(env):
+    """The list signal and the authoritative apply gate agree: no review, no apply."""
+    Session, client = env
+    _machine_validated_candidate(Session)
+
+    response = client.post("/api/autodev/skills/cand-machine/apply")
+    assert response.status_code == 409, response.text
+    assert "candidate_not_reviewed" in response.text
+
+    db = Session()
+    try:
+        row = db.query(SkillCandidate).filter(
+            SkillCandidate.id == "cand-machine").one()
+        assert row.validation_status == "validated"
+    finally:
+        db.close()
+
+
+def test_list_candidates_requires_current_workspace_scope_for_apply(env):
+    """A moved employee makes the old workspace binding ineligible."""
+    from types import SimpleNamespace
+
+    Session, client = env
+    _machine_validated_candidate(Session)
+    approved = client.post("/api/autodev/skills/cand-machine/approve")
+    assert approved.status_code == 200, approved.text
+
+    db = Session()
+    try:
+        db.add(Workspace(
+            id="workspace-2", name="Workspace Two", tenant_id="tenant-1"))
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == "agent-1").one()
+        agent.workspace_id = "workspace-2"
+        db.commit()
+    finally:
+        db.close()
+
+    # An admin can still see the candidate; the binding must not follow it.
+    client.app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id="admin-1", role="admin", workspace_id="workspace-1",
+        tenant_id="tenant-1")
+    response = client.get(
+        "/api/autodev/candidates", params={"status": "validated"})
+    assert response.status_code == 200, response.text
+    skill = next(
+        c for c in response.json()["data"]["candidates"]
+        if c["id"] == "cand-machine")
+    assert skill["reviewed"] is True
+    assert skill["apply_eligible"] is False
 
 
 def test_approve_skill_marks_validated_and_commits(env):

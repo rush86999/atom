@@ -112,8 +112,10 @@ class TestOrchestrate:
         svc.matcher.find_specialists_for_domains.return_value = {
             "finance": [{"agent_id": "a1", "name": "A1", "capability_score": 0.9}]
         }
-        svc.governance.can_perform_action = AsyncMock(return_value=True)
-        svc.optimizer.get_optimization_parameters = AsyncMock(return_value={"level": "low"})
+        svc.governance.can_perform_action_async = AsyncMock(
+            return_value={"allowed": True})
+        svc.optimizer.get_optimization_parameters = MagicMock(
+            return_value={"level": "low"})
         result = await svc.orchestrate_recruitment("reconcile", "u1", {}, chain_id="chain-1")
         assert result["success"] is True
         assert result["recruitment_roster"][0]["agent_id"] == "a1"
@@ -131,7 +133,8 @@ class TestOrchestrate:
         svc.matcher.find_specialists_for_domains.return_value = {
             "finance": [{"agent_id": "a1", "name": "A1", "capability_score": 0.9}]
         }
-        svc.governance.can_perform_action = AsyncMock(return_value=False)
+        svc.governance.can_perform_action_async = AsyncMock(
+            return_value={"allowed": False})
         result = await svc.orchestrate_recruitment("reconcile", "u1", {})
         assert result["success"] is False
         assert "Governance" in result["error"]
@@ -142,7 +145,8 @@ class TestOrchestrate:
         svc.matcher.find_specialists_for_domains.return_value = {
             "finance": [{"agent_id": "a1", "name": "A1", "capability_score": 0.9}]
         }
-        svc.governance.can_perform_action = AsyncMock(return_value=True)
+        svc.governance.can_perform_action_async = AsyncMock(
+            return_value={"allowed": True})
         svc._estimate_fleet_cost = MagicMock(return_value=5.0)
         chain = SimpleNamespace(budget_limit_usd=1.0)
         svc.db.query.return_value.get.return_value = chain

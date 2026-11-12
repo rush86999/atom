@@ -53,7 +53,8 @@ class RecruitmentIntelligenceService:
     SINGLE-TENANT ARCHITECTURE:
     - budget parameter is optional (None in upstream)
     - No quota enforcement
-    - Uses user_id instead of tenant_id
+    - ``user_id`` identifies the acting user; ``workspace_id``/``tenant_id``
+      (when supplied) scope governance and key analytics/optimization history
 
     Ported from atom-saas
     Changes: Made budget optional, removed quota checks, replaced tenant_id with user_id
@@ -65,6 +66,12 @@ class RecruitmentIntelligenceService:
         "engineering", "hr", "procurement", "communications", "intelligence"
     ]
 
+    # Scope defaults also cover partially-constructed instances (tests using
+    # ``__new__`` or direct attribute wiring) so catalog/analytics keying never
+    # fails on a missing modern attribute.
+    workspace_id = "default"
+    tenant_id: Optional[str] = None
+
     def __init__(
         self,
         db: Session,
@@ -74,7 +81,9 @@ class RecruitmentIntelligenceService:
         fleet_service: AgentFleetService,
         optimizer: FleetOptimizationService,
         governance: AgentGovernanceService,
-        budget: Optional[Any] = None  # Made optional, no BudgetEnforcementService in upstream
+        budget: Optional[Any] = None,  # Made optional, no BudgetEnforcementService in upstream
+        workspace_id: str = "default",
+        tenant_id: Optional[str] = None,
     ):
         self.db = db
         self.llm = llm
@@ -84,6 +93,13 @@ class RecruitmentIntelligenceService:
         self.optimizer = optimizer
         self.governance = governance
         self.budget = budget  # Optional: None in upstream (no billing)
+        # Authenticated request scope. ``workspace_id="default"`` is the
+        # single-tenant scope; a non-default workspace must be forwarded so
+        # governance sees the right agents. ``tenant_id`` is the account that
+        # analytics/optimization history is keyed by (never the acting user id
+        # when a real tenant is known).
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id
 
     async def analyze_goal_domains(
         self,
@@ -159,14 +175,18 @@ Return JSON matching the RecruitmentPlan schema."""
 
     def _build_domain_catalog(self, user_id: str) -> str:
         """Build formatted catalog of available domains for LLM."""
-        domains = self.matcher.get_all_available_domains(user_id)
+        domains = self.matcher.get_all_available_domains(
+            user_id, workspace_id=self.workspace_id)
+
+        from core.agent_governance_service import agent_workspace_scope_condition
 
         catalog_lines = []
         for domain in domains:
-            # Count agents for this domain
+            # Count agents for this domain within the authenticated scope.
             agent_count = self.db.query(AgentRegistry).filter(
                 AgentRegistry.user_id == user_id,
-                AgentRegistry.category.ilike(f"%{domain}%")
+                AgentRegistry.category.ilike(f"%{domain}%"),
+                agent_workspace_scope_condition(self.workspace_id),
             ).count()
 
             catalog_lines.append(f"- {domain.title()}: {agent_count} specialist(s) available")
@@ -248,6 +268,13 @@ Return JSON matching the RecruitmentPlan schema."""
             Dict with recruitment success/failure status and roster
         """
         try:
+            # Analytics/optimization history is keyed by the account (tenant),
+            # not the acting user. FleetAdmiral forwards the chain's actual
+            # tenant; the user-id fallback preserves the legacy single-tenant
+            # behavior for direct callers that carry no account binding.
+            analytics_tenant = self.tenant_id or user_id
+            analytics_workspace = self.workspace_id or "default"
+
             # Step 1: Analyze goal to identify domains
             recruitment_plan = await self.analyze_goal_domains(
                 goal=goal,
@@ -266,7 +293,8 @@ Return JSON matching the RecruitmentPlan schema."""
             specialist_matches = self.matcher.find_specialists_for_domains(
                 domains=recruitment_plan.required_domains,
                 user_id=user_id,
-                limit_per_domain=3
+                limit_per_domain=3,
+                workspace_id=self.workspace_id,
             )
 
             # Validate we have specialists for all required domains
@@ -283,22 +311,35 @@ Return JSON matching the RecruitmentPlan schema."""
                 }
 
             # Step 3: Governance checks
-            # Check if recruitment is allowed (maturity, permissions)
-            for domain, matches in specialist_matches.items():
-                for specialist in matches:
-                    # Check governance
-                    can_recruit = await self.governance.can_perform_action(
-                        user_id=user_id,
-                        agent_id=specialist["agent_id"],
-                        action="recruit_specialist"
-                    )
+            # Select the specialist that will actually be recruited for each
+            # domain (the top-ranked match) and authorize ONLY that selection.
+            # Runner-up matches are alternatives, not recruits: checking them
+            # too meant a denied runner-up aborted recruitment even though the
+            # authorized selected specialist was available (and burned budget
+            # decisions for agents that were never going to run).
+            selected_specialists = {
+                domain: matches[0]
+                for domain, matches in specialist_matches.items()
+            }
+            for domain, specialist in selected_specialists.items():
+                # Check governance through the service's real async API.
+                # (The former `can_perform_action(user_id=..., action=...)`
+                # call matched no signature on AgentGovernanceService, so
+                # every real recruitment raised TypeError and returned
+                # `fleet_status="failed"` with zero specialists; the unit
+                # doubles hid it. The async entrypoint also enforces the
+                # budget gate.)
+                decision = await self.governance.can_perform_action_async(
+                    specialist["agent_id"], "recruit_specialist"
+                )
+                can_recruit = bool((decision or {}).get("allowed"))
 
-                    if not can_recruit:
-                        return {
-                            "success": False,
-                            "error": f"Governance blocked recruitment of {specialist['name']} for {domain}",
-                            "recruitment_plan": recruitment_plan.dict()
-                        }
+                if not can_recruit:
+                    return {
+                        "success": False,
+                        "error": f"Governance blocked recruitment of {specialist['name']} for {domain}",
+                        "recruitment_plan": recruitment_plan.dict()
+                    }
 
             # Step 4: Budget check (upstream: no budget enforcement)
             # SaaS version checks budget here, but upstream skips this step
@@ -324,19 +365,22 @@ Return JSON matching the RecruitmentPlan schema."""
             # Step 5: Build recruitment roster with optimization
             recruitment_roster = []
 
-            for domain, matches in specialist_matches.items():
-                # Take top specialist for this domain
-                if matches:
-                    top_specialist = matches[0]
-
+            for domain, top_specialist in selected_specialists.items():
+                # Build the roster from the SAME selections Step 3 authorized
+                # (top-ranked match per domain; runner-ups are not recruited).
+                if top_specialist:
                     # Get optimization parameters
                     sub_task = recruitment_plan.domain_rationale.get(
                         domain,
                         f"Handle {domain} aspects of: {goal}"
                     )
 
-                    opt_params = await self.optimizer.get_optimization_parameters(
-                        user_id=user_id,
+                    # FleetOptimizationService is a synchronous service and
+                    # takes the account (tenant) whose domain history is being
+                    # optimized. The acting user id is not a tenant key; using
+                    # it silently selected an empty history slice.
+                    opt_params = self.optimizer.get_optimization_parameters(
+                        tenant_id=analytics_tenant,
                         domain=domain,
                         task_description=sub_task
                     )
@@ -354,6 +398,8 @@ Return JSON matching the RecruitmentPlan schema."""
                 self.analytics.record_recruitment_decision(
                     chain_id=chain_id,
                     user_id=user_id,
+                    tenant_id=analytics_tenant,
+                    workspace_id=analytics_workspace,
                     goal=goal,
                     identified_domains=recruitment_plan.required_domains,
                     domain_rationale=recruitment_plan.domain_rationale,

@@ -3,9 +3,16 @@
 
 POST /api/v1/learn  {execution_id, skill_name?, description?}
 
-Distills a completed agent execution into a reusable Python skill:
-analyze → LLM-generate script → sandbox validate → write package →
-register in the skill registry (discoverable/executable).
+Distills a completed agent execution into a REVIEWABLE skill candidate:
+tenant+owner-authorized execution lookup (fail closed, using the
+authenticated tenant/user BEFORE any model, storage or sandbox operation)
+→ analyze → LLM-generate script → store as a PENDING Auto-Dev
+SkillCandidate.
+
+Nothing is executed, packaged or registered here: unapproved generated
+material cannot become runnable. The candidate only becomes usable after
+supervisor approval through the existing Auto-Dev approval mechanism
+(api/autodev_review_routes: approve → apply as a typed prompt skill).
 """
 
 import logging
@@ -49,7 +56,7 @@ async def learn_from_execution(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Distill a completed agent execution into a reusable Python skill."""
+    """Distill a completed agent execution into a reviewable skill candidate."""
     try:
         engine = MementoEngine(db=db)
         result = await engine.learn_from_execution(
@@ -58,6 +65,10 @@ async def learn_from_execution(
             execution_id=payload.execution_id,
             skill_name=payload.skill_name,
             description=payload.description,
+            # Authenticated context for the fail-closed owner check inside
+            # the engine — the execution lookup is tenant+workspace scoped
+            # BEFORE any model, storage or sandbox operation.
+            actor=current_user,
         )
     except Exception as e:
         logger.error(f"Learn endpoint failed for execution {payload.execution_id}: {e}")
@@ -65,8 +76,14 @@ async def learn_from_execution(
 
     if not result.get("success"):
         error = result.get("error", "Unknown error")
-        if "not found" in str(error).lower():
-            raise HTTPException(status_code=404, detail=error)
+        # Authorization denials are structured by the engine; map their
+        # explicit code/status instead of matching human-readable text.
+        authorization = result.get("authorization")
+        if isinstance(authorization, dict) and authorization.get("allowed") is False:
+            raise HTTPException(
+                status_code=int(authorization.get("http_status") or 403),
+                detail=authorization.get("message") or error,
+            )
         logger.warning(
             f"Learn endpoint could not distill execution {payload.execution_id}: {error}"
         )
@@ -74,6 +91,6 @@ async def learn_from_execution(
 
     return router.success_response(
         data=result,
-        message=f"Skill '{result.get('skill_name')}' distilled from execution "
-                f"{payload.execution_id}",
+        message=f"Skill candidate '{result.get('skill_name')}' distilled from "
+                f"execution {payload.execution_id} — pending supervisor approval",
     )

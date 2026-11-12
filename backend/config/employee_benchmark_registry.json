@@ -1,0 +1,25 @@
+{
+  "schema": "atom-employee-benchmark-registry-1",
+  "_comment": "Server-controlled employee benchmark registry. A benchmark is usable only through the frozen dataset digest, scoring version and task scope pinned here. Changing any of them is a new benchmark attempt; a prior AgentExecution record that no longer matches becomes ineligible on revalidation. This registry is not a leaderboard and grants no routing or effect authority by itself.",
+  "benchmarks": [
+    {
+      "id": "employee-heldout-two-domain-2026-11-02",
+      "capability": "employee_assignment.delivery",
+      "dataset": "employee_benchmark/heldout_two_domain_2026_11_02.json",
+      "dataset_sha256": "01b734f6127f29eb51b4802d63e755e48448ef0fec9b744e0377c7d46ab31d7c",
+      "scoring_version": "employee-heldout-outcome-1",
+      "rubric_version": "employee-heldout-v1",
+      "contract_version": "employee-benchmark-1",
+      "task_scope": {
+        "task_policy": "Deliver an accurate, cited industrial quote from the authorized price list under the taught terms, and reconcile the supplier invoice against the purchase order and receiving records; prepare only the supported review document and perform no unsupported external effect.",
+        "decision_options": [
+          "retrieve",
+          "calculate",
+          "present",
+          "edit"
+        ],
+        "subject_field": "case_id"
+      }
+    }
+  ]
+}
