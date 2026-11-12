@@ -311,7 +311,9 @@ def _active_dataset_entry(db_path: Path, timeout_s: float = 60.0):
 
 
 def _contains_number(text: str, value: Decimal) -> bool:
-    pattern = rf"(?<![\d.]){re.escape(str(value))}(?:\.0+)?(?![\d.])"
+    # Word/letter boundaries keep a version hash containing "999" from being
+    # read as the stale figure; a real figure is delimited by space/punctuation.
+    pattern = rf"(?<![\w.]){re.escape(str(value))}(?:\.0+)?(?![\w.])"
     return re.search(pattern, text) is not None
 
 
