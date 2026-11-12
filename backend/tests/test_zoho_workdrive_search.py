@@ -181,6 +181,11 @@ async def test_universal_storage_zoho_search_passes_acting_user():
     svc = UniversalIntegrationService(workspace_id="default")
     storage = MagicMock()
     storage.access_token = None
+    storage.search_files_envelope = AsyncMock(return_value={
+        "status": "success",
+        "provider": "zoho_workdrive",
+        "items": [{"id": "f1", "name": "Consolidated Price List 2019.xlsx"}],
+    })
     storage.search_files = AsyncMock(return_value=[
         {"id": "f1", "name": "Consolidated Price List 2019.xlsx"}])
     ctx = {"user_id": "user-1", "tenant_id": "default",
@@ -188,7 +193,9 @@ async def test_universal_storage_zoho_search_passes_acting_user():
     result = await svc._execute_storage(
         "zoho_workdrive", "search", {"query": "consolidated price list", "limit": 8}, ctx)
     assert result["status"] == "success"
-    storage.search_files.assert_awaited_once_with("user-1", "consolidated price list", limit=8)
+    storage.search_files_envelope.assert_awaited_once_with(
+        "user-1", "consolidated price list", limit=8)
+    storage.search_files.assert_not_awaited()
     assert result["data"][0]["name"] == "Consolidated Price List 2019.xlsx"
 
 
@@ -201,11 +208,17 @@ async def test_universal_search_storage_zoho_branch_returns_list():
     svc = UniversalIntegrationService(workspace_id="default")
     storage = MagicMock()
     storage.access_token = None
+    storage.search_files_envelope = AsyncMock(return_value={
+        "status": "success",
+        "provider": "zoho_workdrive",
+        "items": [{"id": "f1", "name": "A.xlsx"}],
+    })
     storage.search_files = AsyncMock(return_value=[{"id": "f1", "name": "A.xlsx"}])
     out = await svc._search_storage(
         "zoho_workdrive", "A.xlsx",
         {"user_id": "user-1", "registry": _stub_registry(storage)})
     assert out == [{"id": "f1", "name": "A.xlsx"}]
+    storage.search_files_envelope.assert_awaited_once_with("user-1", "A.xlsx")
 
 
 @pytest.mark.asyncio
@@ -214,11 +227,14 @@ async def test_planner_workdrive_search_happy_path_carries_rule():
     and the evidence block carries the grounding contract."""
     plan = ToolPlan(use_tool=True, service="zoho_workdrive", intent="search",
                     query="consolidated price list", reason="file lookup")
-    fake_execute = AsyncMock(return_value={
+    fake_search = AsyncMock(return_value={
         "status": "success",
         "data": [{"id": "f1", "name": "Consolidated Price List 2019.xlsx"}],
     })
-    with patch("integrations.universal_integration_service.UniversalIntegrationService.execute", fake_execute):
+    # zoho_workdrive.search is a SEARCHABLE_SERVICE: the executor routes a
+    # plain search through UniversalIntegrationService.search(), not
+    # execute(). Patch the seam that actually runs.
+    with patch("integrations.universal_integration_service.UniversalIntegrationService.search", fake_search):
         block = await execute_tool_plan(plan, "user-1", "default", {})
     assert block and "Consolidated Price List 2019.xlsx" in block
     assert _GROUNDING_RULE in block

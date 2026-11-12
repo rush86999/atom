@@ -188,7 +188,12 @@ class TestMissHandoffThreading:
         src = inspect.getsource(orch.ChatOrchestrator._get_qwen_response)
         # all four levers consume the PARAMETERS (the docstring may quote
         # the old bug, so the live forms are pinned):
-        assert "or miss_handoff):" in src                        # assembly
+        # assembly is unconditional when enabled; a file-scoped turn is
+        # LESSONS-ONLY unless the handoff fired (so the handoff still
+        # restores full assembly — the 2026-10-01 exception).
+        assert "if assembly_enabled():" in src
+        assert "_lessons_only = bool(" in src
+        assert "_file_scoped_request and not miss_handoff)" in src
         assert "_live_file_lookup_ran = bool(miss_handoff)" in src
         assert "_file_lookup_attempted = bool(miss_handoff)" in src
         assert "if miss_handoff and miss_handoff_block:" in src  # evidence
