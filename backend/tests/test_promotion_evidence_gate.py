@@ -22,24 +22,39 @@ Fix under test: promotion additionally requires (env-tunable)
   - episode success ratio >= ATOM_PROMOTION_MIN_SUCCESS_RATIO (default 0.7)
 Confidence still accumulates per session; the response carries a promotion
 progress block so UIs can show "2/3 sessions · 7/10 clean runs".
+
+PR #831 added a second, orthogonal requirement: the STUDENT→INTERN tier
+change itself is committed through ``commit_qualified_transition``, so the
+shared scoped capability-qualification gate must also allow it. Training
+readiness alone is necessary but no longer sufficient. The positive fixtures
+below therefore drive the same server-owned request -> human review ->
+receipt path the product uses; they never fabricate a passed receipt.
 """
 import os
 import tempfile
+import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import sessionmaker
 
-from core.database import Base
+from api.agent_routes import router as agent_router
+from api.episode_routes import router as episode_router
+from core.auth import get_current_user
+from core.database import Base, get_db
 from core.models import (
     AgentEpisode,
+    AgentExecution,
     AgentRegistry,
     AgentStatus,
     BlockedTriggerContext,
     TriggerSource,
     User,
 )
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.student_training_service import (
     InsufficientTrainingEvidenceError,
     StudentTrainingService,
@@ -77,6 +92,16 @@ def _promotion_supervisor(db):
             hashed_password="h", first_name="Supervisor", last_name="One",
             role="team_lead", status="active", is_active=True,
             tenant_id=None, workspace_id=None,
+        ))
+        db.commit()
+    # Qualification approval requires AGENT_MANAGE (team_lead does not have
+    # it); keep a separate admin reviewer, matching the real approvals queue.
+    if db.get(User, "qualification-reviewer") is None:
+        db.add(User(
+            id="qualification-reviewer", email="reviewer@example.invalid",
+            hashed_password="h", first_name="Qualification",
+            last_name="Reviewer", role="admin", status="active",
+            is_active=True, tenant_id=None, workspace_id=None,
         ))
         db.commit()
 
@@ -154,7 +179,65 @@ async def _run_session(db, agent, score=0.9, successes=3, failures=0):
         total_tasks=10,
         capabilities_developed=["crm"],
         capability_gaps_remaining=[],
-    ))
+    ), actor_id="supervisor")
+
+
+def _client(db, user_id="supervisor"):
+    """Real API surface under the same scratch DB and supervisor identity."""
+    app = FastAPI()
+    app.include_router(episode_router)
+    app.include_router(agent_router)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: db.get(User, user_id)
+    return TestClient(app)
+
+
+def _grant_qualification(db, agent, target="INTERN"):
+    """Request -> human review -> server-owned receipt, through the API.
+
+    The graduation contract requires a passed, scoped capability
+    qualification for every upward transition. This seeds a real held-out
+    execution and exercises the same endpoints the UI uses, so the receipt is
+    produced by the server (not written by the test).
+    """
+    execution = AgentExecution(
+        id=f"exec-{uuid.uuid4().hex[:10]}",
+        agent_id=agent.id,
+        tenant_id=resolve_tenant_id(agent),
+        workspace_id=resolve_workspace_id(agent),
+        status="completed",
+        input_summary="held-out qualification task",
+        result_summary="actual durable qualification output",
+        completed_at=datetime.now(),
+    )
+    db.add(execution)
+    db.commit()
+
+    client = _client(db)
+    requested = client.post(
+        "/api/episodes/graduation/qualification/request",
+        json={
+            "agent_id": agent.id,
+            "target_maturity": target,
+            "evidence_refs": [
+                {"kind": "agent_execution", "id": execution.id}
+            ],
+            "rubric_version": "heldout-v1",
+        },
+    )
+    assert requested.status_code == 200, requested.text
+    action_id = requested.json()["data"]["action_id"]
+
+    approved = _client(db, user_id="qualification-reviewer").post(
+        f"/api/agents/approvals/{action_id}",
+        json={"decision": "approved", "feedback": "held-out work reviewed"},
+    )
+    assert approved.status_code == 200, approved.text
+    resume = (approved.json().get("data") or {}).get("resume") or {}
+    assert resume.get("resumed") is True, approved.json()
+    db.expire_all()
+    db.refresh(agent)
+    return resume.get("receipt_id")
 
 
 @pytest.mark.asyncio
@@ -176,7 +259,7 @@ async def test_one_session_never_promotes_a_fresh_hire(db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_promotes_after_three_sessions_and_clean_record(db, monkeypatch):
+async def test_three_sessions_earn_readiness_then_qualification_promotes(db, monkeypatch):
     monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
     monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
     agent = _hire(db)
@@ -189,9 +272,26 @@ async def test_promotes_after_three_sessions_and_clean_record(db, monkeypatch):
 
     result = await _run_session(db, agent)  # third session
 
+    # Readiness is satisfied, but the tier change still needs the shared
+    # scoped qualification receipt (PR #831).
+    assert result["promoted_to_intern"] is False
+    assert result["promotion"]["ready"] is True
+    assert result["promotion"]["pathway"] == "self_directed"
+    assert result["promotion"]["assessment"]["required"] is True
+    assert result["promotion"]["assessment"]["state"] == "unresolved_missing"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.STUDENT.value
+
+    # The normal server-owned request -> review -> receipt path unlocks the
+    # transition that the clean record already earned.
+    receipt_id = _grant_qualification(db, agent)
+    result = await _run_session(db, agent)  # qualified completion
+
     assert result["promoted_to_intern"] is True
+    assert result["promotion"]["transition"]["status"] == "verified"
     db.refresh(agent)
     assert agent.status == AgentStatus.INTERN.value
+    assert agent.last_exam_id == receipt_id
 
 
 @pytest.mark.asyncio
@@ -211,7 +311,7 @@ async def test_poor_work_record_blocks_promotion_despite_sessions(db, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_env_knobs_relax_the_gate(db, monkeypatch):
+async def test_env_knobs_relax_readiness_but_not_qualification(db, monkeypatch):
     monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
     monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "2")
     monkeypatch.setenv("ATOM_PROMOTION_MIN_SUCCESS_RATIO", "0.5")
@@ -220,7 +320,18 @@ async def test_env_knobs_relax_the_gate(db, monkeypatch):
 
     result = await _run_session(db, agent)
 
+    assert result["promoted_to_intern"] is False
+    assert result["promotion"]["ready"] is True
+    assert result["promotion"]["assessment"]["state"] == "unresolved_missing"
+
+    receipt_id = _grant_qualification(db, agent)
+    result = await _run_session(db, agent)
+
     assert result["promoted_to_intern"] is True
+    assert result["promotion"]["transition"]["status"] == "verified"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.INTERN.value
+    assert agent.last_exam_id == receipt_id
 
 
 @pytest.mark.asyncio
@@ -242,8 +353,10 @@ async def test_progress_block_reports_evidence_counts(db, monkeypatch):
 
 # ---------------------------------------------------------------------------
 # System-agent exemption: atom_main / Chat Assistant are the bootstrapping
-# pathway — the platform's own agents must not be trapped behind an
-# apprenticeship designed for user-hired employees.
+# pathway — the platform's own agents must not be trapped behind the
+# apprenticeship evidence floors designed for user-hired employees. That
+# readiness exemption is NOT a qualification: PR #831 requires the shared
+# scoped capability receipt for every upward tier change.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -307,7 +420,7 @@ async def test_evidence_requirement_kill_switch(db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_system_chat_assistant_promotes_immediately(db, monkeypatch):
+async def test_system_chat_assistant_requires_scoped_qualification(db, monkeypatch):
     monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
     monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
     agent = _hire(db, agent_id="chat-assistant-1", confidence=0.5)
@@ -318,20 +431,45 @@ async def test_system_chat_assistant_promotes_immediately(db, monkeypatch):
 
     result = await _run_session(db, agent)
 
+    # Readiness is exempt for system agents; the tier change is not.
+    assert result["promoted_to_intern"] is False
+    assert result["promotion"]["ready"] is True
+    assert result["promotion"]["pathway"] == "system_agent"
+    assert result["promotion"]["assessment"]["state"] == "unresolved_missing"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.STUDENT.value
+
+    _grant_qualification(db, agent)
+    result = await _run_session(db, agent)
+
     assert result["promoted_to_intern"] is True
     assert result["promotion"]["pathway"] == "system_agent"
+    assert result["promotion"]["transition"]["status"] == "verified"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.INTERN.value
 
 
 @pytest.mark.asyncio
-async def test_atom_main_id_is_exempt(db, monkeypatch):
+async def test_atom_main_requires_scoped_qualification(db, monkeypatch):
     monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
     monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
     agent = _hire(db, agent_id="atom_main", confidence=0.5)
 
     result = await _run_session(db, agent)
 
+    assert result["promoted_to_intern"] is False
+    assert result["promotion"]["ready"] is True
+    assert result["promotion"]["pathway"] == "system_agent"
+    assert result["promotion"]["assessment"]["state"] == "unresolved_missing"
+
+    _grant_qualification(db, agent)
+    result = await _run_session(db, agent)
+
     assert result["promoted_to_intern"] is True
     assert result["promotion"]["pathway"] == "system_agent"
+    assert result["promotion"]["transition"]["status"] == "verified"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.INTERN.value
 
 
 # ---------------------------------------------------------------------------
@@ -451,7 +589,8 @@ async def test_meta_agent_teaches_system_students(db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mentor_pathway_graduates_with_half_the_field_evidence(db, monkeypatch):
-    """Apprenticeship under a qualified role mentor halves the solo floor."""
+    """Apprenticeship under a qualified role mentor halves the solo floor;
+    the tier change still needs the scoped qualification receipt."""
     monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
     monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
     _seed_role_mentor(db)
@@ -465,5 +604,18 @@ async def test_mentor_pathway_graduates_with_half_the_field_evidence(db, monkeyp
 
     result = await _run_session(db, agent)  # third MENTORED session
 
+    assert result["promoted_to_intern"] is False
+    assert result["promotion"]["ready"] is True
+    assert result["promotion"]["pathway"] == "mentor_taught"
+    assert result["promotion"]["assessment"]["state"] == "unresolved_missing"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.STUDENT.value
+
+    _grant_qualification(db, agent)
+    result = await _run_session(db, agent)  # qualified mentored completion
+
     assert result["promoted_to_intern"] is True
     assert result["promotion"]["pathway"] == "mentor_taught"
+    assert result["promotion"]["transition"]["status"] == "verified"
+    db.refresh(agent)
+    assert agent.status == AgentStatus.INTERN.value
