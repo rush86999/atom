@@ -269,6 +269,9 @@ def evaluate(
     state_after_2: Dict[str, Any],
     expected_revision: str = "",
     outage_mode: bool = False,
+    strict_workdrive_proof: bool = False,
+    expected_resource_id: str = "",
+    expected_sha256: str = "",
 ) -> Dict[str, Any]:
     reply = str(r2.get("message") or "")
     lower = reply.lower()
@@ -340,7 +343,10 @@ def evaluate(
             "indexed content" in row["evidence"].lower() or "indexed content" in lower
             for row in missing_rows
         ),
-        "provenance_present": source_refs and "materialized copy" in lower,
+        "provenance_present": source_refs and (
+            "materialized copy" in lower
+            or (strict_workdrive_proof and "downloaded" in lower)
+        ),
         "named_file_only": not foreign_files and workbook_name in lower,
         "no_protocol_leakage": not any(token in lower for token in protocol_tokens),
         "no_model_arithmetic": not any(token in lower for token in arithmetic_tokens),
@@ -351,6 +357,44 @@ def evaluate(
             )
         ),
     }
+    if strict_workdrive_proof:
+        # OPT-IN STRICT DIRECT WORKDRIVE PROOF (issue 620): the persisted
+        # workbook result must carry a direct download from THIS execution,
+        # bound to the exact resource id and the SHA-256 of the bytes the
+        # answer was derived from. A materialized copy's hash, a filename, or
+        # a successful fetch not joined to the returned result is not proof.
+        from core.workdrive_direct_proof import (
+            strict_workdrive_proof_checks,
+        )
+
+        persisted = (
+            state_after_2.get("result")
+            if isinstance(state_after_2, dict) else None
+        )
+        persisted = persisted if isinstance(persisted, dict) else {}
+        persisted_identity = persisted.get("identity")
+        persisted_identity = (
+            persisted_identity if isinstance(persisted_identity, dict) else {}
+        )
+        persisted_structured = persisted.get("structured_result")
+        persisted_structured = (
+            persisted_structured
+            if isinstance(persisted_structured, dict) else None
+        )
+        proof = persisted.get("direct_source_proof")
+        if not isinstance(proof, dict):
+            proof = persisted_identity.get("direct_source_proof")
+        if not isinstance(proof, dict) and isinstance(
+                persisted_structured, dict):
+            proof = persisted_structured.get("direct_source_proof")
+        checks.update(strict_workdrive_proof_checks(
+            proof=proof,
+            identity=persisted_identity,
+            structured_result=persisted_structured,
+            execution_id=str(persisted.get("execution_id") or ""),
+            expected_resource_id=expected_resource_id,
+            expected_sha256=expected_sha256,
+        ))
     return {
         "checks": checks,
         "all_pass": all(checks.values()),
@@ -361,6 +405,7 @@ def evaluate(
         "trace_meta": trace_meta,
         "pending_after_turn1": state_after_1,
         "pending_after_turn2": state_after_2,
+        "strict_workdrive_proof": bool(strict_workdrive_proof),
     }
 
 
@@ -419,12 +464,17 @@ def build_report(
     state_after_2: Dict[str, Any],
     expected_revision: str,
     outage_mode: bool = False,
+    strict_workdrive_proof: bool = False,
+    expected_resource_id: str = "",
+    expected_sha256: str = "",
 ) -> Dict[str, Any]:
     report = evaluate(
         identity_before, identity_after, r1, r2, steps, trace_meta,
         state_after_1, state_after_2, expected_revision, outage_mode,
+        strict_workdrive_proof, expected_resource_id, expected_sha256,
     )
     report["outage_mode"] = outage_mode
+    report["strict_workdrive_proof"] = bool(strict_workdrive_proof)
     report["identity_before"] = identity_before
     report["identity_after"] = identity_after
     report["turn1"] = {
@@ -507,6 +557,9 @@ async def main_async(args: argparse.Namespace) -> int:
                 state_after_2,
                 args.expected_revision,
                 args.outage_mode,
+                args.strict_workdrive_proof,
+                args.expected_resource_id,
+                args.expected_sha256,
             )
             retry_report = evaluate_retry(state_after_2, state_after_3, r3)
             report["retry"] = {
@@ -546,6 +599,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--outage-mode",
         action="store_true",
         help="accept a deliberately unavailable first-turn narration path",
+    )
+    parser.add_argument(
+        "--strict-workdrive-proof",
+        action="store_true",
+        help=(
+            "require a direct WorkDrive download in the same execution, "
+            "bound to the exact resource id and the downloaded bytes' "
+            "SHA-256; the server process must also run with "
+            "ATOM_620_STRICT_WORKDRIVE_PROOF=1"
+        ),
+    )
+    parser.add_argument(
+        "--expected-resource-id", default="",
+        help="exact WorkDrive resource id the proof must name",
+    )
+    parser.add_argument(
+        "--expected-sha256", default="",
+        help="exact SHA-256 of the downloaded bytes the proof must carry",
     )
     parser.add_argument("--output", default="")
     return asyncio.run(main_async(parser.parse_args(argv)))

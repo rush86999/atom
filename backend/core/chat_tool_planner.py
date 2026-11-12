@@ -6813,6 +6813,9 @@ def _build_workbook_structured_record(
     order_hint: Optional[str] = None,
     requested_sheets: Optional[List[str]] = None,
     scope_sources: Optional[Dict[str, str]] = None,
+    source_service: str = "datasets",
+    evidence_kind: str = "materialized_copy",
+    live_vs_saved: str = "saved copy",
 ) -> Dict[str, Any]:
     """Artifact-native record for one scan attempt (one attempt id even
     when the evidence revision is unchanged). Pure build — no retrieval,
@@ -6838,14 +6841,16 @@ def _build_workbook_structured_record(
     return build_structured_record(
         source_identity={
             "file_name": file_name,
-            "service": "datasets",
+            "service": source_service,
             "source": (prov or {}).get("source"),
             "resource_id": (prov or {}).get("resource_id"),
             "content_hash": (prov or {}).get("content_hash"),
+            "content_hash_algorithm": (prov or {}).get(
+                "content_hash_algorithm"),
             "ingested_at": (prov or {}).get("ingested_at"),
             "source_modified_at": (prov or {}).get("source_modified_at"),
-            "live_vs_saved": "saved copy",
-            "evidence_kind": "materialized_copy",
+            "live_vs_saved": live_vs_saved,
+            "evidence_kind": evidence_kind,
         },
         evidence_revision=revision,
         attempt_id=attempt_id,
@@ -7224,6 +7229,252 @@ def review_requested(
         ])
     texts.append(message)
     return any(_assessment_request(str(text or "")) for text in texts if text)
+
+
+async def _strict_named_workdrive_block(
+    *,
+    plan: Any,
+    key: tuple,
+    names: Dict[tuple, str],
+    item_tokens: List[str],
+    query: str,
+    msg_text: str,
+    context: Optional[Dict[str, Any]],
+    catalog_truncated: bool,
+    scan_attempt_id: str,
+) -> str:
+    """Opt-in strict WorkDrive read (issue 620 replay).
+
+    The answer is derived ONLY from the existing
+    ``UniversalIntegrationService._read_storage_file`` path: it downloads the
+    exact resource in this execution, parses those bytes with
+    ``inspect_workbook_bytes``, and returns the workbook artifact. A failed
+    direct read is an explicit retrieval failure — the materialized copy is
+    never used as a fallback under strict verification.
+    """
+    from core.answer_presentation import present_from_record
+    from core.invocation_events import SCAN_END, record as _record_event
+    from core.workbook_read_artifact import (
+        extract_attributes,
+        extract_field_requests,
+    )
+    from core.workdrive_direct_proof import (
+        DOWNLOADED_KIND,
+        MATERIALIZED_KIND,
+        SCHEMA,
+        join_proof_to_record,
+        read_workdrive_workbook_direct,
+    )
+
+    ctx = dict(context or {})
+    execution_id = str(ctx.get("execution_id") or "")
+    file_name = names.get(key)
+    resource_id = str(key[1] or "")
+    meta = getattr(plan, "_result_meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        plan._result_meta = meta
+
+    context_texts = [query] + ([msg_text] if msg_text else [])
+    for entry in ctx.get("history") or []:
+        if isinstance(entry, dict) and entry.get("message"):
+            context_texts.append(str(entry["message"]))
+    _attr_words = extract_attributes(context_texts, item_tokens)
+    _field_requests = extract_field_requests(context_texts)
+
+    direct = await read_workdrive_workbook_direct(
+        user_id=ctx.get("user_id"),
+        workspace_id=ctx.get("workspace_id"),
+        resource_id=resource_id,
+        file_name=file_name,
+        query=query,
+        context={
+            **ctx,
+            "history": ctx.get("history") or [],
+            "requested_targets": ctx.get("requested_targets") or [],
+        },
+        execution_id=execution_id,
+        tenant_id=ctx.get("tenant_id"),
+    )
+    data = direct.get("data") if isinstance(direct.get("data"), dict) else {}
+    proof = direct.get("proof")
+    workbook_read = (
+        data.get("workbook_read")
+        if isinstance(data.get("workbook_read"), dict) else None
+    )
+    failure = ""
+    if direct.get("status") != "success":
+        failure = str(direct.get("error") or "strict WorkDrive read failed")
+    elif not isinstance(proof, dict) or proof.get("status") != "verified":
+        failure = str(
+            direct.get("error")
+            or "downloaded workbook bytes are not verifiable")
+    elif not workbook_read:
+        failure = "downloaded workbook artifact unavailable"
+
+    if failure:
+        unavailable = {
+            "schema": SCHEMA,
+            "status": "unavailable",
+            "reason": failure[:240],
+            "provider": "zoho_workdrive",
+            "resource_id": resource_id or None,
+            "execution_id": execution_id or None,
+            "evidence_kind": "direct_download_unavailable",
+            "answer_source": MATERIALIZED_KIND,
+            "materialized": True,
+        }
+        meta["direct_source_proof"] = unavailable
+        meta["storage_read"] = {
+            "service": "zoho_workdrive",
+            "file_id": resource_id or None,
+            "resource_id": resource_id or None,
+            "file_name": file_name,
+            "source": "zoho_workdrive",
+            "identity_verified": False,
+            "completed": False,
+            "coverage_complete": False,
+            "evidence_kind": MATERIALIZED_KIND,
+            "direct_source_proof": unavailable,
+            "execution_id": execution_id or None,
+            "note": "strict direct WorkDrive read failed; no fallback used",
+        }
+        _record_event(
+            SCAN_END,
+            outcome="read_failed",
+            evidence_revision=f"{resource_id}:unavailable",
+            detail={"strict_workdrive_proof": False, "reason": failure[:240]},
+        )
+        return _with_grounding(
+            "LIVE TOOL RESULTS (zoho_workdrive.read_storage_file) — the "
+            f"strict direct WorkDrive read failed: {failure[:240]}. No "
+            "materialized-copy fallback was served; report this as a "
+            "RETRIEVAL FAILURE, never as an absence claim."
+        )
+
+    artifact_hash = str(
+        workbook_read.get("content_hash")
+        or workbook_read.get("sha256") or "")
+    sheets = workbook_read.get("sheets") or []
+    coverage = workbook_read.get("coverage") or {}
+    artifact_complete = bool(
+        workbook_read.get("all_sheets_searched")
+        and not workbook_read.get("truncated")
+        and coverage.get("complete")
+    )
+    prov = {
+        "source": "zoho_workdrive",
+        "resource_id": resource_id,
+        "content_hash": artifact_hash,
+        "content_hash_algorithm": "sha256",
+        "ingested_at": (
+            data.get("ingested_at") or workbook_read.get("ingested_at")
+        ),
+        "source_modified_at": data.get("source_modified_at"),
+        "sheets_indexed": len(sheets),
+        "sheets_searched": len(sheets),
+    }
+    coverage_limits = {
+        "catalog_rows_seen": None,
+        "catalog_truncated": bool(catalog_truncated),
+        "indexed_sheets": len(sheets),
+        "scanned_sheets": len(sheets),
+        "row_display_cap": 8,
+        "artifact_available": True,
+        "artifact_complete": artifact_complete,
+        "probe_failed": False,
+        "unmaterialized_sheets": [],
+        "read_status": coverage.get("read_status"),
+        "absence_claimable": coverage.get("absence_claimable"),
+        "unreadable_sheet_count": coverage.get("unreadable_sheet_count"),
+        "error_category": coverage.get("error_category"),
+        "strict_direct_download": True,
+        "workbook_bytes_sha256": artifact_hash,
+        "execution_id": execution_id,
+    }
+    artifact_outcomes = {
+        str(outcome.get("target")): outcome
+        for outcome in (coverage.get("outcomes") or [])
+        if isinstance(outcome, dict)
+    }
+    record = _build_workbook_structured_record(
+        item_tokens=item_tokens,
+        artifact_outcomes=artifact_outcomes,
+        per_item={},
+        field_requests=_field_requests,
+        file_name=file_name,
+        prov=prov,
+        coverage_limits=coverage_limits,
+        evidence_action="new_read",
+        attempt_id=scan_attempt_id,
+        order_hint=" ".join(v for v in (query, msg_text) if v),
+        source_service="zoho_workdrive",
+        evidence_kind=DOWNLOADED_KIND,
+        live_vs_saved="downloaded bytes",
+    )
+    record = join_proof_to_record(record, proof)
+    answer = str(present_from_record(record).get("answer") or "")
+    if not answer.strip():
+        answer = (
+            "Workbook read: downloaded WorkDrive bytes parsed but produced "
+            "no per-item answer."
+        )
+
+    storage_read = {
+        "service": "zoho_workdrive",
+        "file_id": resource_id,
+        "resource_id": resource_id,
+        "file_name": file_name,
+        "source": "zoho_workdrive",
+        "evidence_kind": DOWNLOADED_KIND,
+        "content_hash": artifact_hash,
+        "content_hash_algorithm": "sha256",
+        "content_sha256": data.get("content_sha256") or artifact_hash,
+        "ingested_at": prov["ingested_at"],
+        "source_modified_at": prov["source_modified_at"],
+        "identity_verified": True,
+        "completed": artifact_complete,
+        "coverage_complete": artifact_complete,
+        "coverage_limits": coverage_limits,
+        "workbook_read": workbook_read,
+        "read_completed": True,
+        "served": True,
+        "execution_id": execution_id,
+        "direct_source_proof": proof,
+        "strict_read_receipt": data.get("strict_read_receipt"),
+        "structured_result": record,
+        "rendered_answer": answer[:24000],
+        "note": "strict direct WorkDrive read (downloaded bytes)",
+    }
+    meta["direct_source_proof"] = proof
+    meta["storage_read"] = storage_read
+    _set_structured_result(plan, record)
+    _set_rendered_answer(plan, answer)
+    _record_event(
+        SCAN_END,
+        outcome="new_read",
+        evidence_revision=f"{artifact_hash}:downloaded",
+        detail={
+            "strict_workdrive_proof": True,
+            "resource_id": resource_id,
+            "sha256": artifact_hash,
+            "execution_id": execution_id,
+            "item_tokens": list(item_tokens or []),
+        },
+    )
+    lines = [
+        "LIVE TOOL RESULTS (zoho_workdrive.read_storage_file, file='"
+        f"{file_name}') — the answer below was derived from the DOWNLOADED "
+        "WorkDrive bytes in this execution:",
+        "Source: DOWNLOADED COPY — resource="
+        f"{resource_id}, sha256={artifact_hash}, "
+        f"bytes={workbook_read.get('byte_length')}, execution={execution_id}",
+        "Coverage — sheets searched="
+        f"{len(sheets)}; coverage_complete={artifact_complete}",
+        "",
+        answer,
+    ]
+    return _with_grounding("\n".join(lines))
 
 
 async def _datasets_named_file_block(
@@ -8163,6 +8414,24 @@ async def _datasets_named_file_block(
         "attempt_id": _scan_attempt_id,
     }
     record_event(SCAN_START, **_scan_ctx)
+    if (
+        (context or {}).get("strict_workdrive_proof")
+        and str(key[0] or "") == "zoho_workdrive"
+        and str(key[1] or "")
+    ):
+        # STRICT OPT-IN (issue 620): bypass the materialized-copy scan and
+        # answer only from the bytes downloaded by _read_storage_file.
+        return await _strict_named_workdrive_block(
+            plan=plan,
+            key=key,
+            names=names,
+            item_tokens=item_tokens,
+            query=query,
+            msg_text=msg_text,
+            context=context,
+            catalog_truncated=catalog_truncated,
+            scan_attempt_id=_scan_attempt_id,
+        )
     aliases_tried: Dict[str, List[str]] = {}
     per_item: Dict[str, Optional[Dict[str, Any]]] = {}
     probe_failed = False
