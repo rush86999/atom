@@ -15,6 +15,17 @@ Independent frozen-source run at exact main `d34fe91d8` in `/private/tmp/atom-go
 
 Boundaries: this is local offline evidence at the recorded `d34fe91d8` source only. It is distinct from hosted CI — hosted selection on `d34fe91d8` covers stored-document upload persistence and export but not joined lifecycle or delete truth, and no hosted CI result is claimed by this entry — and distinct from the earlier browser episodes (the `b8d84615` joined upload/reopen/delete/restart journey and its byte-identical-path equivalence to `d34fe91d8`, which remain the separate browser/source-equivalence evidence). Broader release readiness remains open.
 
+## Merged PR #888 review-replay browser proof — 2026-11-12
+
+PR #888 tested head `1b5d4ad5` (`1b5d4ad579c68c92fb319ce3d111e09fe84a0da0`) merged into main as `bca2d0d8b4d633d037ff12129b24e39c3e638132`, a two-parent merge on prior main `c569067ec`; the browser evidence applies to the tested head.
+
+At frozen clean source `1b5d4ad5`, the review-replay skill-apply browser run `20261112T140945Z_8yworf` (2026-11-12 14:09–14:12 UTC, harness `enforced-isolation-v3.2`, driver `aab884b6…e855c`) passed **16 stages / 91 assertions** with status PASS:
+
+- **Isolation:** scratch API-seeded fixture DB (371 tables, 0 dev rows, integrity ok), loopback-only backend (port 53025) and Next frontend (port 53026), seatbelt local-only network enforcement, strict whitelisted server env (no credentials), no live DB, provider, account or connected write.
+- **Journey:** ordinary UI login to the served frontend, then the served `/agents` Fixes tab (required — no API mutation fallback): approve clicked on the real pending candidate card (200, status `validated`), apply clicked (200, status `promoted`). The single seeded candidate's generated code stayed inert — never imported, executed, or written into the package. Readback confirmed a typed prompt-only skill: SKILL.md-only package, no code files, no inline-code or file-path columns, marker absent from SKILL.md/config/served body, workspace link and registry execution bound. Network capture: 147 requests + 12 WebSockets, all `127.0.0.1` on this rig, zero non-loopback attempts.
+- **Scope.** The replay verifies approval, application and durable readback within one isolated browser session at the tested commit. Process-restart consumption requires separate evidence.
+
+Evidence: portable-drive review-replay run `20261112T140945Z_8yworf` (`evidence/scenario.json`, `evidence/source.json`, screenshots).
 ## Narrow TASK-WAIT browser replay — 2026-11-12, source `758221755`
 
 A portable isolated replay at detached commit `758221755be124c579cee3398ffcc6e9357aa01d` exited 0 with **30/30 PASS** browser steps and released all three test listeners. The checkout was clean (zero tracked or backend modifications) and passed its 9/9 source-file and 55/55 fixture preflight before launch; all ten text-wait durations resolved to the expected 120/180 seconds and loopback-only network policy was verified before execution.
