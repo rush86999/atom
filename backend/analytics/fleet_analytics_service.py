@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from core.models import DelegationChain, AgentExecution, TokenUsage, HITLAction, HITLActionStatus
+from core.sql_json import json_field_equals
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,10 @@ class FleetAnalyticsService:
         """
         from core.models import ChainLink
 
-        # Filter links by domain (stored in context_json)
+        # Filter links by domain (stored in context_json). Use the shared
+        # portable comparison: SQLite is the Personal-Edition default and its
+        # json_extract raises "malformed JSON" for the whole statement on one
+        # corrupt row, while PostgreSQL has no json_extract at all.
         links = self.db.query(
             func.count(ChainLink.id).label("total_interactions"),
             func.avg(ChainLink.duration_ms).label("avg_duration_ms"),
@@ -101,7 +105,8 @@ class FleetAnalyticsService:
             func.sum(case((ChainLink.status == 'failed', 1), else_=0)).label("failure_count")
         ).join(DelegationChain).filter(
             DelegationChain.tenant_id == tenant_id,
-            func.json_extract_path_text(ChainLink.context_json, 'domain') == domain
+            json_field_equals(
+                self.db, ChainLink.context_json, "$.domain", domain)
         ).first()
 
         # Aggregate HITL for this domain
@@ -111,7 +116,8 @@ class FleetAnalyticsService:
             func.sum(case((HITLAction.status == HITLActionStatus.REJECTED.value, 1), else_=0)).label("rejected_count")
         ).filter(
             HITLAction.tenant_id == tenant_id,
-            func.json_extract_path_text(HITLAction.params, 'domain') == domain
+            json_field_equals(
+                self.db, HITLAction.params, "$.domain", domain)
         ).first()
 
         success_count = links.success_count or 0

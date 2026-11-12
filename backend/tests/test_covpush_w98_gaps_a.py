@@ -1326,9 +1326,9 @@ class TestAtomMetaAgentGaps:
         agent, sl, ama = meta_agent
         db = sl.return_value.__enter__.return_value
         gov = ama.AgentGovernanceService.return_value
-        gov.canPerformAction = AsyncMock(return_value=NS(allowed=True))
+        gov.can_perform_action_async = AsyncMock(return_value={"allowed": True})
         assert await agent._check_governance("u1", "atom", "workflow") == (True, None)
-        gov.canPerformAction = AsyncMock(return_value=NS(allowed=False, reason="no"))
+        gov.can_perform_action_async = AsyncMock(return_value={"allowed": False, "reason": "no"})
         assert await agent._check_governance("u1", "atom", "workflow") == (False, "no")
 
     async def test_handle_data_event_trigger(self, meta_agent, monkeypatch):
@@ -1431,9 +1431,9 @@ class TestAtomMetaAgentGaps:
 
         # module-level _check_governance
         gov = ama.AgentGovernanceService.return_value
-        gov.canPerformAction = AsyncMock(return_value=NS(allowed=False, reason="no"))
+        gov.can_perform_action_async = AsyncMock(return_value={"allowed": False, "reason": "no"})
         assert await ama._check_governance(fake, "u1", "atom", "workflow") == (False, "no")
-        gov.canPerformAction = AsyncMock(return_value=NS(allowed=True))
+        gov.can_perform_action_async = AsyncMock(return_value={"allowed": True})
         assert await ama._check_governance(fake, "u1", "atom", "workflow") == (True, None)
 
     def test_get_atom_agent_singleton(self, meta_agent):
