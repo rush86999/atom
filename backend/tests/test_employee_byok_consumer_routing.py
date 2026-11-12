@@ -27,6 +27,42 @@ from core.llm.byok_handler import QueryComplexity
 from core.llm_service import LLMService
 
 
+@pytest.fixture()
+def routing_db(tmp_path, monkeypatch):
+    """Test-local scratch SQLite owning the scoped tenant/workspace rows.
+
+    Model generation is admitted through the real durable budget writer,
+    which fails closed for an explicitly named tenant that has no Tenant
+    row. These controls therefore own their scope rows instead of relying
+    on a tenant being seeded externally. Only the routing metadata strings
+    are doubles; admission and settlement hit this disposable database.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import core.database as database
+    import core.models  # noqa: F401 — registers every table on Base
+    from core.database import Base
+    from core.models import Tenant, Workspace
+
+    db_path = tmp_path / "employee-byok-routing.db"
+    engine = create_engine(
+        f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    with Session() as db:
+        db.add(Tenant(
+            id="tenant-ctrl", name="BYOK routing control",
+            subdomain="byok-routing-ctrl"))
+        db.add(Workspace(
+            id="ws-ctrl", name="BYOK routing control",
+            tenant_id="tenant-ctrl"))
+        db.commit()
+    monkeypatch.setattr(database, "SessionLocal", Session)
+    yield {"engine": engine, "Session": Session, "path": db_path}
+    engine.dispose()
+
+
 def _service(handler):
     service = LLMService.__new__(LLMService)
     service._get_handler = lambda **_kw: handler
@@ -165,7 +201,8 @@ def _proposal():
         }])
 
 
-def test_employee_proposal_auto_selects_cheaper_capable_route(monkeypatch):
+def test_employee_proposal_auto_selects_cheaper_capable_route(
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -206,7 +243,8 @@ def test_employee_proposal_enforces_the_caller_deadline():
     assert result["errors"]
 
 
-def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
+def test_employee_proposal_measured_failure_excludes_cheap_route(
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -244,7 +282,7 @@ def test_employee_proposal_measured_failure_excludes_cheap_route(monkeypatch):
 
 
 def test_employee_proposal_failed_costlier_route_does_not_displace_cheap(
-        monkeypatch):
+        monkeypatch, routing_db):
     selected = []
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
@@ -299,7 +337,7 @@ def test_employee_proposal_scope_failure_never_borrows_another_scope():
 
 
 def test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts(
-        monkeypatch):
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
 
     context = {
@@ -360,7 +398,7 @@ def test_employee_adaptation_no_eligible_route_keeps_unresolved_receipts(
 
 
 def test_employee_proposal_no_eligible_route_keeps_deterministic_receipts(
-        monkeypatch):
+        monkeypatch, routing_db):
     with _handler_fixture() as handler:
         _configure_pool(handler, monkeypatch)
         both_failed = {
@@ -389,7 +427,8 @@ def test_employee_proposal_no_eligible_route_keeps_deterministic_receipts(
     assert result["proposal"]["proposal_kind"] == "evidence_read"
 
 
-def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
+def test_employee_wait_choice_uses_the_dedicated_profile(
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
     from core.employee_attempt_journal import AttemptJournal
@@ -445,7 +484,8 @@ def test_employee_wait_choice_uses_the_dedicated_profile(monkeypatch):
         "provider": "local_ctrl1234", "model": "llama3.1:8b"}
 
 
-def test_employee_adaptation_auto_route_records_served_route(monkeypatch):
+def test_employee_adaptation_auto_route_records_served_route(
+        monkeypatch, routing_db):
     from core.assignment_plan import new_assignment
     from core.employee_adaptation import WorkAdaptationProposal
     from core.employee_attempt_journal import AttemptJournal
