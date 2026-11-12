@@ -459,4 +459,48 @@ describe('AutoDevReviewPanel', () => {
     expect(screen.queryByTestId('autodev-approved-skills')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument();
   });
+
+  it('shows the agent display name on workspace-wide pending and validated skills', async () => {
+    const otherSkill = {
+      ...PENDING_SKILL,
+      id: 'skill-2',
+      agent_id: 'agent-2',
+      name: 'repair_calendar_conflicts',
+    };
+    mockLists({
+      pending: [PENDING_SKILL, otherSkill],
+      validated: [VALIDATED_SKILL],
+    });
+
+    render(
+      <AutoDevReviewPanel
+        agentNames={{
+          'agent-1': 'Ada Lovelace',
+          'agent-2': 'Grace Hopper',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      // Pending and validated cards both carry the reviewer-facing name.
+      expect(screen.getAllByText('Agent: Ada Lovelace')).toHaveLength(2);
+      expect(screen.getByText('Agent: Grace Hopper')).toBeInTheDocument();
+    });
+    // Opaque agent IDs stay out of the reviewer UI.
+    expect(screen.queryByText(/agent-1|agent-2/)).not.toBeInTheDocument();
+  });
+
+  it('falls back gracefully without leaking an agent ID when no name is known', async () => {
+    mockLists({ pending: [PENDING_SKILL], validated: [VALIDATED_SKILL] });
+
+    render(<AutoDevReviewPanel agentNames={{ 'someone-else': 'Grace Hopper' }} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Agent: Unnamed agent')).toHaveLength(2);
+    });
+    expect(screen.queryByText(/agent-1/)).not.toBeInTheDocument();
+    // A missing name never blocks the review action.
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Approve' }).length).toBeGreaterThan(0);
+  });
 });

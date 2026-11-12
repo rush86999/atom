@@ -69,7 +69,41 @@ function applyFailureMessage(error: any): string {
   return "Apply refused — reload and review the current snapshot.";
 }
 
-export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
+interface AutoDevReviewPanelProps {
+  agentId?: string | null;
+  /**
+   * Optional display names keyed by the agent IDs already carried on each
+   * candidate. The workspace-wide review list spans agents, so reviewers need
+   * a name before approving or applying a skill. Missing names fall back to a
+   * neutral label; the raw agent ID is never rendered.
+   */
+  agentNames?: Record<string, string | null | undefined>;
+}
+
+/** Reviewer-facing agent label: never leaks the opaque agent ID. */
+function AgentName({
+  agentId,
+  agentNames,
+}: {
+  agentId: string | null;
+  agentNames?: Record<string, string | null | undefined>;
+}) {
+  if (!agentId) return null;
+  const name = agentNames?.[agentId]?.trim();
+  return (
+    <span
+      className="text-xs text-muted-foreground"
+      data-testid="autodev-agent-name"
+    >
+      Agent: {name || "Unnamed agent"}
+    </span>
+  );
+}
+
+export function AutoDevReviewPanel({
+  agentId,
+  agentNames,
+}: AutoDevReviewPanelProps) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [validatedSkills, setValidatedSkills] = useState<Candidate[]>([]);
   const [toolErrors, setToolErrors] = useState<ToolError[]>([]);
@@ -259,6 +293,9 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
                   {c.kind === "mutation" ? "Tool fix" : "New skill"}
                 </Badge>
                 <span className="font-medium">{c.name}</span>
+                {c.kind === "skill" && (
+                  <AgentName agentId={c.agent_id} agentNames={agentNames} />
+                )}
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => act(c.kind, c.id, "approve")}>
@@ -320,6 +357,9 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
                       {canApply ? "Reviewed skill" : "Needs review"}
                     </Badge>
                     <span className="font-medium">{c.name}</span>
+                    {c.kind === "skill" && (
+                      <AgentName agentId={c.agent_id} agentNames={agentNames} />
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {canApply ? (
