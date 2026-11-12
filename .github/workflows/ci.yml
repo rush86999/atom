@@ -434,7 +434,7 @@ jobs:
           ATOM_DATA_DIR: ${{ runner.temp }}/atom-native-learning
           SECRET_KEY: ci-test-secret-key
           ENVIRONMENT: development
-        run: 'python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread
+        run: 'python -m pytest tests/api/test_conversation_learning_native_chat.py tests/api/test_reviewed_learning_configuration_mutation.py tests/test_conversation_learning.py tests/test_conversation_learning_routes.py -q --tb=short --timeout=300 --timeout-method=thread
 
           '
 
