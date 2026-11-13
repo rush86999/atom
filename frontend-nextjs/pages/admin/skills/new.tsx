@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { SecurityScanner } from '@/components/ui/SecurityScanner'
 import { useSecurityScanner } from '@/hooks/useSecurityScanner'
+import { SkillPackageList } from '@/components/admin/skills/SkillPackageList'
 
 export default function NewSkillPage() {
     const { data: session } = useSession() as any
@@ -20,6 +21,9 @@ export default function NewSkillPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    // Bumped after a successful create so the published-package catalogue
+    // re-reads and shows the new package without a manual refresh.
+    const [packagesRefreshSignal, setPackagesRefreshSignal] = useState(0)
 
     // Form State
     const [name, setName] = useState('')
@@ -64,6 +68,7 @@ export default function NewSkillPage() {
             }
 
             setSuccess(`Skill '${name}' created successfully`)
+            setPackagesRefreshSignal((current) => current + 1)
 
         } catch (err: any) {
             setError(err.message)
@@ -107,6 +112,8 @@ export default function NewSkillPage() {
                         {success}
                     </div>
                 )}
+
+                <SkillPackageList refreshSignal={packagesRefreshSignal} />
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

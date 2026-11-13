@@ -9,6 +9,17 @@ jest.mock("next-auth/react", () => ({
   getSession: jest.fn(),
 }));
 
+// The catalogue is covered by its own suite; here we only verify the admin
+// page hosts it and bumps its refresh signal after a successful create.
+jest.mock("@/components/admin/skills/SkillPackageList", () => ({
+  SkillPackageList: ({ refreshSignal }: { refreshSignal?: number }) => (
+    <div
+      data-testid="skill-package-list"
+      data-refresh-signal={String(refreshSignal ?? 0)}
+    />
+  ),
+}));
+
 describe("NewSkillPage", () => {
   const mockFetch = jest.fn();
 
@@ -33,6 +44,10 @@ describe("NewSkillPage", () => {
       expect(
         screen.getByRole("button", { name: /create skill package/i })
       ).toBeInTheDocument();
+      expect(screen.getByTestId("skill-package-list")).toHaveAttribute(
+        "data-refresh-signal",
+        "0"
+      );
     });
   });
 
@@ -104,6 +119,11 @@ describe("NewSkillPage", () => {
           screen.getByText("Skill 'data-scraper' created successfully")
         ).toBeInTheDocument();
       });
+      // The published catalogue re-reads after a successful create.
+      expect(screen.getByTestId("skill-package-list")).toHaveAttribute(
+        "data-refresh-signal",
+        "1"
+      );
     });
 
     it("should show backend error detail when creation fails", async () => {
