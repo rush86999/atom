@@ -202,10 +202,17 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
+     * - monaco (the bundled editor build; static vendor JS/CSS/workers)
      * - favicon.ico (favicon file)
      * - public folder
+     *
+     * `/monaco/` must be public like `_next/static`: the canvas editor loads
+     * it from `public/monaco/vs`, and a session redirect there turns every
+     * editor asset into a login bounce (and breaks offline/expired-session
+     * rendering). The files are Microsoft's MIT-licensed editor build, carry
+     * no workspace data, and are replaced at dev/build startup.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|monaco/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
 

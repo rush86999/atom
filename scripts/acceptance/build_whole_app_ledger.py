@@ -274,10 +274,14 @@ add(area="chat", feature="Chat text turn", action="Send a text turn and reload h
     evidence=[{"kind": "evidence", "path": PKG, "detail": "pre 15/15 includes the chat journey"}],
     notes="Not re-run in the isolated world because no LLM credentials/spend are authorized.")
 add(area="canvas", feature="Canvas create/edit/reload", action="Create a canvas artifact, edit it, reload",
-    status="unproven",
-    evidence=[{"kind": "browser", "path": f"{D}/browser-breadth-admin.json", "detail": "/canvas renders; no artifact transition executed"}],
-    first_failed_transition="Render only.",
-    next_action="Run the existing canvas journey against this world or reuse the packaged J5 evidence.")
+    status="verified", candidate_bound=False, config="wa045-canvas-offline-20261113",
+    evidence=[{"kind": "browser", "path": "docs/acceptance/evidence/wa045_canvas_offline_20261113/canvas-blank-lifecycle.json",
+               "detail": "Bundled-editor run on clean f201216b6, external traffic refused: artifact 30d1b84b-e5aa-41b3-8085-f7ed76553369 created by the gallery button, PUT 200 verified, reload read back the exact 5-line body (sha256 9c0ef031..., same as prior runs), history create+update, 32/32 checks, 0 non-loopback requests, 26 local /monaco/vs assets"},
+              {"kind": "browser", "path": "docs/acceptance/evidence/wa045_canvas_connected_20261113/canvas-connected-browser.json",
+               "detail": "Earlier signed-in browser on 8bb0c66f5: artifact cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9 saved with PUT 200, reopened and read back the exact 3-line body (sha256 22171224..., 103 chars); that run still fetched Monaco static assets from jsDelivr (GET-only) and is superseded for offline claims"},
+              {"kind": "browser", "path": "docs/acceptance/evidence/wa045_canvas_blank_20261113/canvas-blank-lifecycle.json",
+               "detail": "Committed harness 29/29 on 8bb0c66f5: new blank canvas -> verified PUT -> reload read-back; artifact id, text hash, GET and scratch-DB rows agree"}],
+    notes="All runs used a fresh isolated world's scratch database on the named revision; no live data or provider call. The offline run is authoritative: the editor now loads from the app's bundled /monaco/vs build, so the transition is proven with every non-loopback request refused. The earlier connected run is retained as historical corroboration, not as an offline claim. See docs/acceptance/WA-045_CANVAS_CREATE_EDIT_RELOAD_2026-11-13.md.")
 add(area="search", feature="Search query", action="Search memory/documents and inspect results",
     status="partial",
     evidence=[{"kind": "api", "path": f"{D}/priority-flows.log", "detail": "document search returned the uploaded txt/docx/pptx"},
@@ -609,6 +613,14 @@ out_json.write_text(json.dumps(doc, indent=2) + "\n")
 # Markdown view
 lines = [
     "# Atom whole-app readiness ledger — 2026-10-27",
+    "",
+    "> **Superseded for launch scope (2026-10-27).** The product decision in",
+    "> `CORE_RELEASE_SCOPE_2026-10-27.md` replaces the whole-app finish line with",
+    "> the core company-data + trained-agent workspace. This ledger remains the",
+    "> preserved whole-app history; current readiness is",
+    "> `CORE_RELEASE_LEDGER_2026-10-27.md`. The product decision now exists, so",
+    "> the core-profile gate that this ledger excluded is in scope for the",
+    "> successor.",
     "",
     f"Candidate: `{CANDIDATE['commit']}` (tree `{CANDIDATE['tree']}`), branch `{CANDIDATE['branch']}`.",
     "",

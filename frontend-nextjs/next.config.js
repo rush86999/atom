@@ -1,5 +1,15 @@
 const path = require('path');
 const fs = require('fs');
+const { syncMonacoAssets } = require('./scripts/sync-monaco-assets');
+
+// The canvas editor must load offline: bundle monaco-editor's static build
+// into public/monaco/vs instead of the loader's jsDelivr default. Run it here
+// (not an npm lifecycle hook) so `next dev`, `next build`, the acceptance
+// harness, Docker and Tauri all serve the same local assets. Unit tests load
+// this config too; they must not copy 15 MB or depend on the generated tree.
+if (process.env.NODE_ENV !== 'test') {
+  syncMonacoAssets({ log: (message) => console.log(`[next.config] ${message}`) });
+}
 
 // API base resolution (fail-fast): NEXT_PUBLIC_API_URL from the real env
 // wins; .env.local is a dev convenience fallback; a localhost default is
