@@ -84,3 +84,59 @@ def test_complete_evidence_requires_invoice_reconciliation(driver, tmp_path):
             driver._validate_shim()
     finally:
         driver.FIXTURE = original
+
+
+def _scratch_run_db(path: Path, lifecycle: dict) -> str:
+    """A scratch goal_runs row shaped like a real run3 parameters column."""
+    import sqlite3
+
+    con = sqlite3.connect(path)
+    try:
+        con.execute("create table goal_runs (id text primary key, parameters text)")
+        con.execute(
+            "insert into goal_runs (id, parameters) values (?, ?)",
+            ("run3", json.dumps({"task_lifecycle": lifecycle})))
+        con.commit()
+    finally:
+        con.close()
+    return "run3"
+
+
+def test_open_questions_read_the_sibling_task_revision(driver, tmp_path):
+    """Regression: unresolved entries live in task_lifecycle.task_revision,
+    a SIBLING of assignment. An assignment-only projection hid the one open
+    invoice question on the real run3 SQLite."""
+    db = tmp_path / "run3.db"
+    lifecycle = {
+        "assignment": {
+            "assignment_id": "a-1",
+            "status": "waiting",
+            "steps": [],
+        },
+        "task_revision": {
+            "revision": 2,
+            "unresolved": [
+                {"question_id": "q-open", "status": "open",
+                 "question": f"Which source contains {driver.INVOICE}?"},
+                {"question_id": "q-done", "status": "resolved",
+                 "question": "already answered"},
+            ],
+        },
+    }
+    run_id = _scratch_run_db(db, lifecycle)
+
+    record = driver._durable_assignment(db, run_id)
+    assert record["assignment_id"] == "a-1"
+    assert record["status"] == "waiting"
+    assert record["task_revision"]["revision"] == 2
+
+    open_questions = driver._open_questions(record)
+    assert [q["question_id"] for q in open_questions] == ["q-open"]
+    assert driver.INVOICE in open_questions[0]["question"]
+
+
+def test_missing_run_reads_as_empty(driver, tmp_path):
+    db = tmp_path / "empty.db"
+    _scratch_run_db(db, {"assignment": {}, "task_revision": {"unresolved": []}})
+    assert driver._durable_assignment(db, "absent") == {}
+    assert driver._open_questions(driver._durable_assignment(db, "absent")) == []

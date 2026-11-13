@@ -274,6 +274,15 @@ def _run_preflight(args: argparse.Namespace) -> int:
 
 
 def _durable_assignment(db_path: Path, run_id: str) -> Dict[str, Any]:
+    """The durable task record the driver observes, read-only.
+
+    ``task_lifecycle`` persists ``assignment`` and ``task_revision`` as
+    SIBLINGS; the revision (which owns ``unresolved``) is never nested in
+    the assignment. Project the sibling onto the returned record so
+    ``_open_questions`` reads the same authoritative revision the backend
+    does (run3 SQLite: one open entry lived only under
+    ``task_lifecycle.task_revision``, so an assignment-only read saw none).
+    """
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         row = con.execute(
@@ -283,12 +292,18 @@ def _durable_assignment(db_path: Path, run_id: str) -> Dict[str, Any]:
     if row is None:
         return {}
     params = json.loads(row[0] or "{}")
-    return (params.get("task_lifecycle") or {}).get("assignment") or {}
+    lifecycle = params.get("task_lifecycle") or {}
+    assignment = lifecycle.get("assignment") or {}
+    record = dict(assignment)
+    if isinstance(lifecycle.get("task_revision"), dict):
+        record["task_revision"] = lifecycle["task_revision"]
+    return record
 
 
 def _open_questions(assignment: Dict[str, Any]) -> List[Dict[str, Any]]:
     unresolved = (assignment.get("task_revision") or {}).get("unresolved") or []
-    return [item for item in unresolved if item.get("status") == "open"]
+    return [item for item in unresolved
+            if isinstance(item, dict) and item.get("status") == "open"]
 
 
 def _reconciliations(assignment: Dict[str, Any]) -> List[Dict[str, Any]]:
