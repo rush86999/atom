@@ -32,13 +32,16 @@ simulated model decisions / controlled transport; they do not prove served
 model quality or general judgment.
 
 Scenario (one job, no second job):
-  login -> enabled agent Run objective -> durable question 1 -> real backend
-  and frontend restart while waiting -> same job answer -> question 2 ->
-  partial-reply and stale-answer refusals (the second wait stays pending) ->
-  page reload -> same job answer -> real registered ``tasks.create`` /
-  default oracle -> one durable BoardTask. Duplicate-answer, partial-reply
-  (blank material) and stale-answer negatives run on the same job; no
-  separate cancelled-job is created.
+  login -> enabled agent Run objective -> durable question 1 asks for BOTH
+  facts (title and priority) -> real backend and frontend restart while
+  waiting -> signed-in UI supplies ONE fact (the title), which is a genuine
+  partial reply: the same durable job stays waiting for the remaining
+  priority -> question 2 asks only that remaining fact -> blank-reply and
+  stale-answer refusals (the second wait stays pending) -> page reload ->
+  signed-in UI supplies the remaining priority -> real registered
+  ``tasks.create`` / default oracle -> one durable BoardTask. Duplicate-answer,
+  blank-reply and stale-answer negatives run on the same job; no separate
+  cancelled-job is created.
 
 Usage
 -----
@@ -98,10 +101,17 @@ BOARD_NAME = "Browser wait acceptance"
 OBJECTIVE = (
     "Create a closing task after asking me for its exact title and priority."
 )
-Q1 = "What title should the closing task have?"
+# The first wait asks for both facts the objective names. The signed-in UI
+# reply supplies only the title, so it is a genuine partial reply (one
+# requested fact present, the other still missing), not a complete answer to
+# question 1. The same durable job must then ask only for the remaining fact.
+Q1 = "What title and priority should the closing task have?"
+Q1_MISSING_FACT = "task title and priority"
 Q2 = "What priority should the closing task have?"
+Q2_MISSING_FACT = "priority"
 TITLE_ANSWER = "Quarterly close checklist"
 PRIORITY_ANSWER = "high"
+PARTIAL_ANSWER = TITLE_ANSWER
 FINAL_ANSWER = "Created the closing task from both authorized facts."
 ADMIN_EMAIL = "admin@example.com"
 
@@ -853,10 +863,26 @@ def _schema_probe(scratch_dir: Path) -> Dict[str, Any]:
         if s["kind"] == "final_answer"
         and FINAL_ANSWER in str(s["detail"].get("final_answer") or "")
     ]
-    if not wait_q or wait_q[0]["detail"].get("missing_fact") != "task title":
-        raise PreflightError("first information_wait does not request the title")
-    if not wait_p or wait_p[0]["detail"].get("missing_fact") != "priority":
-        raise PreflightError("second information_wait does not request priority")
+    first_wait = wait_q[0]["detail"] if wait_q else {}
+    first_question = str(first_wait.get("question") or "").lower()
+    if not (
+        "title" in first_question and "priority" in first_question
+        and first_wait.get("missing_fact") == Q1_MISSING_FACT
+    ):
+        raise PreflightError(
+            "first information_wait does not request BOTH facts needed for "
+            "the genuine partial reply")
+    if not (
+        wait_p
+        and wait_p[0]["detail"].get("missing_fact") == Q2_MISSING_FACT
+        and wait_p[0]["detail"].get("question") == Q2
+    ):
+        raise PreflightError(
+            "second information_wait does not request only the remaining "
+            "priority fact")
+    if PRIORITY_ANSWER.lower() in PARTIAL_ANSWER.lower():
+        raise PreflightError(
+            "partial reply must not contain the remaining priority fact")
     if not actions:
         raise PreflightError("no tasks.create action envelope")
     if not finals:
@@ -903,6 +929,13 @@ def _schema_probe(scratch_dir: Path) -> Dict[str, Any]:
         "fixture_sha256": _sha256_file(FIXTURE),
         "tool_name": "ReActStep",
         "response_count": len(responses),
+        "partial_reply_contract": {
+            "first_wait_requests": ["title", "priority"],
+            "first_reply_supplies": ["title"],
+            "first_reply_omits": ["priority"],
+            "remaining_wait_requests": ["priority"],
+            "completion_is_same_job": True,
+        },
         "parsed_steps": steps,
         "provider_shim_index_keys": index_keys,
         "provider_shim_bare_fallback": "ReActStep" in index,
@@ -1709,11 +1742,12 @@ def _post_answer(api: Any, agent_id: str, job_id: str, answer: str,
 
 def _post_partial_answer(api: Any, agent_id: str, job_id: str,
                          answer: str, correlation_id: str) -> Dict[str, Any]:
-    """Submit an incomplete reply aimed at the current wait.
+    """Submit a blank-material reply aimed at the current wait.
 
     The reply names the current wait but carries no usable answer material
-    (blank after trimming). It is a partial reply, not a fact: the route must
-    refuse it before acceptance and leave the same wait pending.
+    (blank after trimming). It is not a fact and not the genuine partial reply
+    above: the route must refuse it before acceptance and leave the same wait
+    pending.
     """
     response = api.post(
         f"/api/agents/{agent_id}/jobs/{job_id}/answer",
@@ -1831,6 +1865,15 @@ def _durable_state(db_path: Path, agent_id: str, job_id: str,
             "user_feedback": row[3],
             "correlation_id": snapshot.get("correlation_id")
             or params.get("correlation_id"),
+            # The durable params keep the authored question/fact even after a
+            # wait is approved; the context snapshot intentionally records the
+            # server-owned binding, not the model's wording. Read both so the
+            # evidence can prove a partial reply was answered against the
+            # request that asked for BOTH facts, then the remaining-fact wait
+            # asked only for the priority.
+            "question": params.get("question") or snapshot.get("question"),
+            "missing_fact": params.get("missing_fact")
+            or snapshot.get("missing_fact"),
         })
 
     exec_steps: List[Dict[str, Any]] = []
@@ -2253,9 +2296,17 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "wait_id_present": bool(wait1.get("id")),
                     "correlation_present": bool(wait1.get("correlation_id")),
                     "question_exact": wait1.get("question") == Q1,
+                    "question_requests_title": (
+                        "title" in str(wait1.get("question") or "").lower()),
+                    "question_requests_priority": (
+                        "priority" in str(wait1.get("question") or "").lower()),
+                    "missing_fact_exact": (
+                        wait1.get("missing_fact") == Q1_MISSING_FACT),
                     "ui_question_exact": first_question == Q1,
                     "ui_waiting_status": "Waiting for your answer" in first_status,
                     "ui_blocking_fact": "task title" in first_blocking.lower(),
+                    "ui_blocking_fact_includes_both": (
+                        "priority" in first_blocking.lower()),
                     "panel_says_information_not_approval": (
                         "not approval of an action" in panel_text.lower()),
                     "no_completion": page.locator(
@@ -2387,7 +2438,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     '[data-testid="agent-job-answer-input"]')
                 answer_submit = page.locator(
                     '[data-testid="agent-job-answer-submit"]')
-                answer_input.fill(TITLE_ANSWER)
+                answer_input.fill(PARTIAL_ANSWER)
                 with page.expect_response(
                         lambda response: (
                             response.request.method == "POST"
@@ -2407,8 +2458,22 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "same_execution_id": str(
                         answer_data.get("execution_id")) == execution_id,
                     "still_waiting": answer_data.get("job_status") == "waiting",
+                    "question_requested_both_facts": (
+                        "title" in Q1.lower() and "priority" in Q1.lower()),
+                    "partial_reply_omits_priority": (
+                        PRIORITY_ANSWER.lower()
+                        not in PARTIAL_ANSWER.lower()),
+                    "partial_reply_names_title": (
+                        TITLE_ANSWER in PARTIAL_ANSWER),
                     "single_answer_post": len(answer_posts) == 1,
-                }, details={"response": _public_job(answer_data)})
+                }, details={
+                    "response": _public_job(answer_data),
+                    "reply_scope": (
+                        "genuine partial reply: Q1 requested title and "
+                        "priority; the UI supplied only the title"),
+                    "supplied_fact": TITLE_ANSWER,
+                    "remaining_fact": Q2_MISSING_FACT,
+                })
 
                 second_question = _wait_for_text(
                     page, '[data-testid="agent-job-question"]',
@@ -2428,6 +2493,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         wait3.get("correlation_id")
                         != wait1.get("correlation_id")),
                     "question_exact": wait3.get("question") == Q2,
+                    "missing_fact_exact": (
+                        wait3.get("missing_fact") == Q2_MISSING_FACT),
                     "ui_question_exact": second_question == Q2,
                     "answer_input_cleared": answer_input.input_value() == "",
                     "no_completion": page.locator(
@@ -2437,20 +2504,78 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         len(waits_after_first) == 2
                         and waits_after_first[0].get("status") == "approved"
                         and waits_after_first[0].get("user_feedback")
-                        == TITLE_ANSWER),
+                        == PARTIAL_ANSWER),
+                    "first_wait_requested_both_facts": (
+                        len(waits_after_first) == 2
+                        and "title" in str(
+                            waits_after_first[0].get("question") or "").lower()
+                        and "priority" in str(
+                            waits_after_first[0].get("question") or "").lower()),
                     "second_wait_pending": (
                         len(waits_after_first) == 2
                         and waits_after_first[1].get("status") == "pending"),
+                    "second_wait_asks_only_remaining_priority": (
+                        len(waits_after_first) == 2
+                        and waits_after_first[1].get("question") == Q2
+                        and waits_after_first[1].get("missing_fact")
+                        == Q2_MISSING_FACT),
                 }, details={"job_read": job3["public"],
                             "waits": waits_after_first,
                             "shim_calls": shim3["calls"]})
+
+                # ---- genuine partial reply -> remaining fact (same job) ----
+                # The first UI answer supplied the title but not the priority
+                # that question 1 requested. That partial reply must leave the
+                # SAME durable job/execution waiting for the remaining fact,
+                # with no new job, task, completion or provider-driven effect.
+                partial_state = _durable_state(
+                    db_path, fixture["agent_id"], job_id, execution_id,
+                    fixture["board_id"])
+                step("genuine_partial_reply_left_remaining_fact", {
+                    "first_wait_requested_both_facts": (
+                        "title" in Q1.lower() and "priority" in Q1.lower()),
+                    "reply_supplied_title_only": (
+                        PARTIAL_ANSWER == TITLE_ANSWER
+                        and PRIORITY_ANSWER.lower()
+                        not in PARTIAL_ANSWER.lower()),
+                    "reply_persisted_on_first_wait": (
+                        bool(partial_state["waits"])
+                        and partial_state["waits"][0].get("user_feedback")
+                        == PARTIAL_ANSWER),
+                    "same_job_id": (
+                        str(job3["data"].get("job_id")) == job_id),
+                    "same_execution_id": str(
+                        job3["data"].get("execution_id")) == execution_id,
+                    "same_job_still_waiting": (
+                        job3["data"].get("job_status") == "waiting"),
+                    "remaining_fact_is_priority": (
+                        wait3.get("question") == Q2
+                        and wait3.get("missing_fact") == Q2_MISSING_FACT),
+                    "remaining_wait_pending": (
+                        len(partial_state["waits"]) == 2
+                        and partial_state["waits"][1].get("status")
+                        == "pending"),
+                    "no_task_before_remaining_fact": (
+                        partial_state["counts"][
+                            "tasks_on_scratch_board"] == 0),
+                    "no_second_job": (
+                        partial_state["counts"]["jobs_for_agent"] == 1),
+                    "no_completion": page.locator(
+                        '[data-testid="agent-job-completed"]').count() == 0,
+                }, details={
+                    "supplied_fact": TITLE_ANSWER,
+                    "remaining_fact": Q2_MISSING_FACT,
+                    "waits": partial_state["waits"],
+                    "job_read": job3["public"],
+                })
                 _screenshot(page, out, "03_second_question.png")
 
-                # ---- partial-reply negative (same second wait) ----
-                # A reply that names the current wait but carries only a blank
-                # answer is incomplete, not a fact. It must be refused before
-                # acceptance so the second wait stays pending with no
-                # continuation or effect.
+                # ---- blank-reply negative (same second wait) ----
+                # A reply that names the current wait but carries only blank
+                # material is not a fact. It must be refused before acceptance
+                # so the second wait stays pending with no continuation or
+                # effect. This is distinct from the genuine partial reply
+                # above, which supplied one requested fact and was accepted.
                 calls_before_partial = shim3["calls"]
                 partial = _post_partial_answer(
                     api, fixture["agent_id"], job_id, "   ",
@@ -2462,7 +2587,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 state_after_partial = _durable_state(
                     db_path, fixture["agent_id"], job_id, execution_id,
                     fixture["board_id"])
-                step("partial_reply_refused", {
+                step("blank_reply_refused", {
                     "http_422": partial["status"] == 422,
                     "answer_material_required": (
                         partial.get("code") == "answer_or_source_required"),
@@ -2496,13 +2621,14 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 }, details={
                     "response_status": partial["status"],
                     "response_detail": partial["detail"],
-                    "partial_material": (
+                    "blank_material": (
                         "blank answer material aimed at the current second "
                         "wait; refused before acceptance"),
                     "ui_note": (
                         "The panel disables Send for blank material; the "
-                        "API-level 422 is the authoritative partial-reply "
-                        "control."),
+                        "API-level 422 is the authoritative blank-reply "
+                        "control. The earlier genuine partial reply supplied "
+                        "a real fact and was accepted."),
                 })
 
                 # ---- stale-answer negative (same job, no second job) ----
@@ -2663,6 +2789,14 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "second_answer_persisted": (
                         len(waits) == 2
                         and waits[1].get("user_feedback") == PRIORITY_ANSWER),
+                    "partial_then_remaining_same_job": (
+                        len(waits) == 2
+                        and waits[0].get("status") == "approved"
+                        and waits[0].get("user_feedback") == PARTIAL_ANSWER
+                        and waits[1].get("status") == "approved"
+                        and waits[1].get("user_feedback") == PRIORITY_ANSWER
+                        and durable["job"]["id"] == job_id
+                        and durable["execution"]["id"] == execution_id),
                     "one_board_task": (
                         len(tasks) == 1
                         and tasks[0].get("title") == TITLE_ANSWER
