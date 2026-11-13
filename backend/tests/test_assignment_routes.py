@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import json
 import os
 import shutil
@@ -282,6 +283,83 @@ def _teaching_agent(route_env, name: str, font: str, audience: str) -> str:
         workspace_id="ws-1",
     )
     return agent.id
+
+
+def _multi_quote_catalog(route_env, tmp_path, monkeypatch):
+    """A raw CSV materialized exactly as the ordinary upload path does.
+
+    The fixture on disk is a plain CSV; the catalog entry points at the same
+    product materialization (Parquet) the upload pipeline creates.  No quote
+    reader, compiler or calculator is mocked.
+    """
+    import pandas as pd
+
+    monkeypatch.setenv("ATOM_DATA_DIR", str(tmp_path))
+    root = tmp_path / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    raw = tmp_path / "multi_quote_parts.csv"
+    raw.write_text(
+        "Item,Category,Quantity,Unit Price,Currency\n"
+        "A,A,2,100.00,USD\n"
+        "B,B,3,50.00,USD\n",
+        encoding="utf-8",
+    )
+    frame = pd.read_csv(raw)
+    frame["__sheet_row"] = list(range(2, len(frame) + 2))
+    parquet = root / "multi-quote-parts.parquet"
+    frame.to_parquet(parquet, index=False)
+    columns = [
+        {"name": column,
+         "samples": [value.item() if hasattr(value, "item") else value
+                     for value in frame[column].head(2).tolist()]}
+        for column in frame.columns
+    ]
+    coverage = {
+        "known": True, "source_row_count": len(frame),
+        "materialized_row_count": len(frame), "truncated": False,
+    }
+    entry = DatasetEntry(
+        id="multi-quote-entry",
+        workspace_id="ws-1", tenant_id="tenant-1", created_by="lead-1",
+        source_kind="file", source="onedrive",
+        external_id="multi-quote-drive-1",
+        file_name="multi_quote_parts.csv", content_hash="c" * 40,
+        entity_name="Parts", dataset_name="multi_quote_parts",
+        parquet_path=str(parquet), row_count=len(frame),
+        column_count=len(frame.columns),
+        columns_json={"columns": columns, "coverage": coverage},
+        ingested_at=datetime.now() + timedelta(minutes=5),
+        status="active",
+    )
+    route_env["db"].add(entry)
+    existing = route_env["db"].query(IntegrationToken).filter(
+        IntegrationToken.user_id == "lead-1",
+        IntegrationToken.provider == "onedrive",
+    ).first()
+    if existing is None:
+        route_env["db"].add(IntegrationToken(
+            id="token-multi-quote", tenant_id="tenant-1",
+            user_id="lead-1", workspace_id="ws-1", provider="onedrive",
+            access_token="controlled-acceptance-not-a-secret",
+            status="active"))
+    route_env["db"].commit()
+    return entry
+
+
+def _multi_quote_agreement(tmp_path, rate: str, name: str):
+    import docx
+
+    path = tmp_path / name
+    document = docx.Document()
+    document.add_paragraph("Customer: Acme Fabrication")
+    document.add_paragraph("Governing agreement: AF-2026")
+    document.add_paragraph(
+        f"Contract term: category B lines carry a {rate}% contract discount.")
+    document.add_paragraph(
+        "This document supplies the governing commercial term; no customer "
+        "delivery date is stated.")
+    document.save(path)
+    return path
 
 
 def _scotch_catalog(route_env, tmp_path, monkeypatch):
@@ -3459,6 +3537,201 @@ def test_objective_only_runs_typed_adaptive_follow_up(
                 if step.get("adapter") == "quote.calculate")
     assert calc["status"] == "applied"
     assert calc["result"]["value"] == "370.00"
+
+
+def _start_public_multi_quote(
+        route_env, tmp_path, monkeypatch, rates):
+    """Drive the public objective route with raw CSV + DOCX sources.
+
+    The model-owned proposal supplies only source selection and column names.
+    It never supplies line items, a discount rule or a rate; the rate exists
+    only in the DOCX fixture text.
+    """
+    _multi_quote_catalog(route_env, tmp_path, monkeypatch)
+    agreements = [
+        _multi_quote_agreement(
+            tmp_path, rate, f"multi_quote_agreement_{rate}.docx")
+        for rate in rates
+    ]
+
+    async def initial(context, **_kwargs):
+        unread = [
+            source for source in context.get("sources") or []
+            if not source.get("read")
+        ]
+        if not unread:
+            return {
+                "proposal": {
+                    "proposal_kind": "evidence_read",
+                    "reason": "all authorized evidence is read",
+                    "evidence_reads": [],
+                },
+                "source": "model",
+                "technical_fallback": False,
+                "errors": [],
+            }
+        chosen = unread[0]
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": f"Read {chosen.get('file_name') or 'authorized source'}",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read an authorized source",
+                    "source_id": chosen["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    async def adaptation(context, observations, **_kwargs):
+        tabular = next(
+            observation for observation in observations
+            if observation.get("shape") == "tabular")
+        request = QuoteCalculationRequest(
+            operation="quote_calculation",
+            source_step_id=str(tabular["step_id"]),
+            columns=QuoteColumns(
+                item_id="Item", quantity="Quantity", unit_price="Unit Price",
+                currency="Currency", category="Category"),
+            currency="USD",
+            freight=MoneyTerm(value="20.00", authority_ref="freight"),
+            tax=TaxTerm(basis="none", authority_ref="tax_basis"),
+            reason="calculate the quote from the accepted rows and agreement")
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="accepted rows and agreement support the quote",
+                observation_ids=[
+                    observation["observation_id"]
+                    for observation in observations],
+                work_request=request).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+            "attempt_id": "public-multi-quote-1",
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", initial)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+
+    payload = {
+        "objective": (
+            "Prepare the Acme quote from the authorized price rows and "
+            "governing agreement"),
+        "sources": [
+            *[{"kind": "document", "path": str(path)}
+              for path in agreements],
+            {"kind": "workbook", "dataset_name": "multi_quote_parts",
+             "sheet": "Parts"},
+        ],
+        "authorized_actions": ["retrieve", "calculate"],
+        "teaching_terms": {
+            "currency": "USD", "freight": "20.00", "tax_basis": "none",
+        },
+        "use_model": True,
+    }
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json=payload)
+    return response, agreements, payload
+
+
+@pytest.mark.parametrize(
+    "rate,expected_rate,expected_total",
+    [("5", "0.05", "362.50"), ("7", "0.07", "359.50")],
+)
+def test_public_from_objective_extracts_docx_discount(
+        route_env, tmp_path, monkeypatch, rate, expected_rate,
+        expected_total):
+    """The public route reads the rate from the DOCX, not from the request.
+
+    Independent arithmetic (5% control):
+      A 2 x 100.00            = 200.00
+      B 3 x 50.00, 5% on B    = 142.50
+      freight                 =  20.00
+      explicit no tax         =   0.00
+      total                   = 362.50
+    The 7% control changes only the document text: 359.50.
+    """
+    response, agreements, payload = _start_public_multi_quote(
+        route_env, tmp_path, monkeypatch, [rate])
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "completed", (
+        assignment, body["adaptive_rounds"], body["proposal_errors"])
+
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc = next(
+        step for step in internal["steps"]
+        if step.get("adapter") == "quote.calculate")
+    receipt = calc["result"]["calculation_receipt"]
+    assert receipt["total"] == expected_total, receipt
+    assert [row["discount_rate"] for row in calc["result"]["rows"]] == [
+        "0", expected_rate]
+
+    rule = receipt["discount_rules"][0]
+    docx_sha = hashlib.sha256(agreements[0].read_bytes()).hexdigest()
+    assert rule["rate"] == expected_rate
+    assert rule["when"] == {"category": "B"}
+    assert rule["source_ref"]["resource_id"] == (
+        f"fixture:{agreements[0].name}")
+    assert rule["source_ref"]["version"] == docx_sha
+    assert rule["source_ref"].get("sha256") == docx_sha, rule["source_ref"]
+    assert rule["authority"].endswith(docx_sha)
+    assert any(
+        item.get("resource_id") == f"fixture:{agreements[0].name}"
+        and item.get("source_version") == docx_sha
+        for item in receipt["source_evidence"]), receipt["source_evidence"]
+    assert any(
+        item.get("resource_id") == "multi-quote-entry"
+        for item in receipt["source_evidence"]), receipt["source_evidence"]
+
+    # The request carried no line items, discount rule or rate.
+    encoded = json.dumps(payload).lower()
+    assert "discount" not in encoded
+    assert "line_items" not in encoded
+
+
+def test_public_docx_discount_conflict_asks_for_clarification(
+        route_env, tmp_path, monkeypatch):
+    """Two authorized agreements disagree; the run asks, never picks one."""
+    response, agreements, _payload = _start_public_multi_quote(
+        route_env, tmp_path, monkeypatch, ["5", "7"])
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", (
+        assignment, body["adaptive_rounds"], body["proposal_errors"])
+
+    gaps = body["assignment"]["open_gaps"]
+    conflict = next(
+        gap for gap in gaps
+        if gap.get("concept") == "discount_rule_conflict")
+    binding = (conflict.get("inputs") or {}).get("quote_discount") or {}
+    assert sorted(
+        candidate["rate"]
+        for candidate in binding.get("candidate_rules") or []) == [
+            "0.05", "0.07"]
+    candidate_sources = {
+        candidate["source_ref"]["resource_id"]
+        for candidate in binding.get("candidate_rules") or []
+    }
+    assert candidate_sources == {
+        f"fixture:{path.name}" for path in agreements}
+    assert "Which discount governs" in conflict["question"]
 
 
 def test_advance_route_adopts_typed_work_from_applied_evidence(
