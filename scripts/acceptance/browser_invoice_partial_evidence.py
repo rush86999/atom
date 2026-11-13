@@ -188,8 +188,15 @@ def _validate_shim() -> Dict[str, Any]:
                 raise PreflightError("complete-evidence response wrong operation")
         elif "missing_prerequisites" in match:
             model = WorkAdaptationProposal.model_validate(payload)
-            if model.decision != "retain":
-                raise PreflightError("incomplete-evidence response must retain")
+            if model.decision != "clarify" or not model.clarification:
+                raise PreflightError(
+                    "incomplete-evidence response must ask for the invoice")
+            if INVOICE not in model.clarification.question:
+                raise PreflightError(
+                    "incomplete-evidence question does not name the invoice")
+            if list(model.clarification.missing_roles) != ["invoice"]:
+                raise PreflightError(
+                    "incomplete-evidence question is not scoped to invoice")
         elif "planning reasoner" in match:
             model = EmployeeWorkProposal.model_validate(payload)
             if model.proposal_kind != "evidence_read":
@@ -214,8 +221,9 @@ def _validate_shim() -> Dict[str, Any]:
         "provider_shim_keys": [str(key) for key in index],
         "state_selection": (
             "prompt discriminators: 'planning reasoner' -> initial evidence "
-            "reads; 'missing_prerequisites' -> retain while invoice incomplete; "
-            "'allowed_step_ids' -> typed invoice reconciliation once complete"),
+            "reads; 'missing_prerequisites' -> one targeted invoice question "
+            "while incomplete; 'allowed_step_ids' -> typed invoice "
+            "reconciliation once complete"),
     }
 
 

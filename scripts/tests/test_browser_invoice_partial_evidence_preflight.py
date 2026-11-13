@@ -47,10 +47,10 @@ def test_authored_shim_is_real_schema_and_indexed(driver):
     assert len(result["responses"]) == 3
     assert result["responses"][0]["model"] == "WorkAdaptationProposal"
     assert result["responses"][0]["payload"]["decision"] == "replan"
-    assert result["responses"][1]["payload"]["decision"] == "retain"
-    assert result["responses"][2]["model"] == "EmployeeWorkProposal"
+    assert result["responses"][1]["model"] == "EmployeeWorkProposal"
+    assert result["responses"][2]["payload"]["decision"] == "clarify"
     assert (
-        result["responses"][2]["payload"]["evidence_reads"][0]["source_id"]
+        result["responses"][1]["payload"]["evidence_reads"][0]["source_id"]
         == "fixture:po.json")
     assert len(result["provider_shim_keys"]) == 3
 

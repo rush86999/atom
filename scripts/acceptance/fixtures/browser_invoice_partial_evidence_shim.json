@@ -8,12 +8,12 @@
       "response": "{\"decision\":\"replan\",\"reason\":\"The accepted invoice, purchase-order and receiving evidence support one reconciliation; the compiler owns the role binding.\",\"observation_ids\":[],\"work_request\":{\"operation\":\"invoice_reconciliation\",\"currency\":\"USD\",\"reason\":\"Reconcile the complete invoice against the accepted purchase order and receiving record.\"},\"clarification\":null}"
     },
     {
-      "match": "missing_prerequisites",
-      "response": "{\"decision\":\"retain\",\"reason\":\"The invoice is not yet accepted evidence; the deterministic missing-prerequisite floor keeps the same obligation open.\",\"observation_ids\":[]}"
-    },
-    {
       "match": "accountable employee's planning reasoner",
       "response": "{\"proposal_kind\":\"evidence_read\",\"reason\":\"Read the two authorized procurement records that are already in scope.\",\"evidence_reads\":[{\"step_id\":\"evidence-1\",\"title\":\"Read purchase order\",\"source_id\":\"fixture:po.json\",\"reason\":\"The purchase order establishes the approved quantity and unit price.\"},{\"step_id\":\"evidence-2\",\"title\":\"Read receiving record\",\"source_id\":\"fixture:receiving.json\",\"reason\":\"The receiving record establishes what was actually received.\"}],\"clarification\":null}"
+    },
+    {
+      "match": "missing_prerequisites",
+      "response": "{\"decision\":\"clarify\",\"reason\":\"The accepted evidence is missing the invoice role.\",\"observation_ids\":[],\"clarification\":{\"question\":\"Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?\",\"concept\":\"invoice_reconciliation\",\"unblocks\":\"invoice reconciliation\",\"expected_answer_type\":\"source\",\"missing_roles\":[\"invoice\"]}}"
     }
   ]
 }
