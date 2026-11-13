@@ -27,7 +27,8 @@ try {
  * Env (set by scripts/acceptance/canvas_blank_lifecycle.py):
  *   CANVAS_BLANK_BASE            frontend origin (http://127.0.0.1:PORT)
  *   CANVAS_BLANK_API             backend origin
- *   CANVAS_BLANK_PASSWORD_FILE   0600 scratch-admin password file
+ *   CANVAS_BLANK_ADMIN_PASSWORD  scratch-admin login, injected by the driver
+ *                                through this process's environment
  *   CANVAS_BLANK_OUT             directory for this run's harness JSON
  *   CANVAS_BLANK_MONACO_CDN      optional: "allow" (default) pins the editor
  *                                asset CDN; "deny" refuses every non-loopback
@@ -40,7 +41,7 @@ try {
 
 const BASE = process.env.CANVAS_BLANK_BASE || 'http://127.0.0.1:3181';
 const API = process.env.CANVAS_BLANK_API || 'http://127.0.0.1:8181';
-const PASSWORD_FILE = process.env.CANVAS_BLANK_PASSWORD_FILE;
+const PW = process.env.CANVAS_BLANK_ADMIN_PASSWORD;
 const OUT = process.env.CANVAS_BLANK_OUT
   ? path.resolve(process.env.CANVAS_BLANK_OUT)
   : path.join(__dirname, '..', '..', 'tmp-wa045');
@@ -70,11 +71,10 @@ const fail = (name, detail) => record(name, false, detail);
 
 const sha256 = (value) => crypto.createHash('sha256').update(value, 'utf8').digest('hex');
 
-if (!PASSWORD_FILE) {
-  console.error('FATAL CANVAS_BLANK_PASSWORD_FILE is required');
+if (!PW) {
+  console.error('FATAL CANVAS_BLANK_ADMIN_PASSWORD is required');
   process.exit(2);
 }
-const PW = fs.readFileSync(PASSWORD_FILE, 'utf8').trim();
 fs.mkdirSync(OUT, { recursive: true });
 
 async function login(page) {

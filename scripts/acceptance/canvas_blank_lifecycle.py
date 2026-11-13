@@ -461,10 +461,10 @@ def main() -> int:
 
     # ── First write happens only after every refusal above ──────────────
     secret_key = secrets.token_urlsafe(48)
-    admin_password = secrets.token_urlsafe(24)
-    password_file = run_dir / ".admin_password"
-    password_file.write_text(admin_password)
-    password_file.chmod(0o600)
+    # Generated in-process for this scratch world only; handed to the browser
+    # harness through its environment so no credential is ever written to disk
+    # or to a committed artifact.
+    admin_login = secrets.token_urlsafe(24)
     world_data = world / "data"
     for sub in ("office", "assignments", "task_locks", "email_attachments", "atom_memory"):
         (world_data / sub).mkdir(parents=True, exist_ok=True)
@@ -506,7 +506,7 @@ def main() -> int:
             "BYOK_KEYS_FILE": str(world_data / "byok_keys.json"),
             "BYOK_ENC_KEY_FILE": str(world_data / "byok_encryption_key"),
             "SECRET_KEY": secret_key,
-            "ADMIN_PASSWORD": admin_password,
+            "ADMIN_PASSWORD": admin_login,
             "ATOM_PRODUCT_PROFILE": "core",
             "ENABLE_SCHEDULER": "false",
             "ENABLE_INGESTION_SYNC": "false",
@@ -582,7 +582,7 @@ def main() -> int:
         harness_env.update({
             "CANVAS_BLANK_BASE": f"http://127.0.0.1:{args.frontend_port}",
             "CANVAS_BLANK_API": f"http://127.0.0.1:{args.backend_port}",
-            "CANVAS_BLANK_PASSWORD_FILE": str(password_file),
+            "CANVAS_BLANK_ADMIN_PASSWORD": admin_login,
             "CANVAS_BLANK_OUT": str(harness_dir),
             "CANVAS_BLANK_MONACO_CDN": monaco_policy,
             "NODE_PATH": str(FRONTEND / "node_modules"),
