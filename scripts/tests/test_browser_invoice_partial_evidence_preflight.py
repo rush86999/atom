@@ -49,6 +49,8 @@ def test_authored_shim_is_real_schema_and_indexed(driver):
     assert result["responses"][0]["payload"]["decision"] == "replan"
     assert result["responses"][1]["model"] == "WorkAdaptationProposal"
     assert result["responses"][1]["payload"]["decision"] == "replan"
+    assert result["responses"][1]["payload"]["observation_ids"] == [
+        "fixture-observation"]
     assert result["responses"][2]["model"] == "CompactWaitChoiceProposal"
     assert result["responses"][2]["payload"]["decision"] == "clarify"
     assert result["responses"][3]["model"] == "EmployeeWorkProposal"
@@ -261,6 +263,8 @@ def _partial_follow_up_prompt():
 
 
 def test_complete_follow_up_routes_to_reconciliation(driver, tmp_path):
+    from scripts.orchestration_acceptance import provider_shim
+
     index = _shim_index(driver, tmp_path)
     prompt = _complete_follow_up_prompt()
 
@@ -271,9 +275,11 @@ def test_complete_follow_up_routes_to_reconciliation(driver, tmp_path):
 
     key, response = _select(index, prompt)
     assert key == '"ready_operations": ["invoice_reconciliation"]'
-    payload = json.loads(response)
+    payload = json.loads(provider_shim.bind_prompt_observation_ids(
+        response, prompt))
     assert payload["decision"] == "replan"
     assert payload["work_request"]["operation"] == "invoice_reconciliation"
+    assert payload["observation_ids"] == ["evidence-209dfab9b6ecd2f491bf"]
 
 
 def test_partial_follow_up_still_asks_for_the_invoice(driver, tmp_path):
@@ -313,3 +319,89 @@ def test_compact_complete_continuation_keeps_its_own_replan(driver, tmp_path):
     assert key == "allowed_step_ids"
     assert json.loads(response)["work_request"]["operation"] == (
         "invoice_reconciliation")
+
+
+def test_full_follow_up_replan_binds_the_prompts_observation_ids(
+        driver, tmp_path):
+    """The served full-schema replan must cite the request's own handles.
+
+    ``adopt_adaptation`` refuses a replan with an empty observation list, so a
+    static authored ``[]`` produced a schema-valid completion that could never
+    be adopted. The shim now expands ``{OBSERVATION_IDS}`` from the prompt.
+    """
+    from scripts.orchestration_acceptance import provider_shim
+
+    index = _shim_index(driver, tmp_path)
+    prompt = _complete_follow_up_prompt()
+    key, response = _select(index, prompt)
+    assert key == driver.FULL_FOLLOW_UP_MATCH
+    assert provider_shim.OBSERVATION_IDS_PLACEHOLDER in response
+
+    bound = provider_shim.bind_prompt_observation_ids(response, prompt)
+    payload = json.loads(bound)
+    assert payload["observation_ids"] == ["evidence-209dfab9b6ecd2f491bf"]
+    assert payload["decision"] == "replan"
+    assert payload["work_request"]["operation"] == "invoice_reconciliation"
+
+
+def test_prompt_observation_binding_fails_closed_without_observations(
+        driver):
+    from scripts.orchestration_acceptance import provider_shim
+
+    with pytest.raises(ValueError, match="names no observation ids"):
+        provider_shim.bind_prompt_observation_ids(
+            '{"observation_ids": {OBSERVATION_IDS}, "decision": "replan"}',
+            "no observation block in this request")
+
+
+def test_production_adoption_still_refuses_an_empty_observation_replan(
+        driver):
+    """The fixture is fixed; the production guard must stay in place."""
+    from types import SimpleNamespace
+
+    from core.employee_adaptation import PlanPatchError, adopt_adaptation
+
+    lifecycle = SimpleNamespace(get_task=lambda _run_id: {
+        "task_version": 1,
+        "assignment": {
+            "plan_revision": 1, "steps": [], "authorized_actions": [],
+            "patch_history": [],
+        },
+    })
+    proposal = {
+        "decision": "replan",
+        "observation_ids": [],
+        "work_request": {
+            "operation": "invoice_reconciliation",
+            "invoice_step_id": "source-4",
+            "purchase_order_step_id": "source-1",
+            "receiving_step_id": "source-2",
+            "currency": "USD",
+        },
+    }
+    with pytest.raises(PlanPatchError, match="requires observation ids"):
+        adopt_adaptation(lifecycle, "run", proposal)
+    assert proposal["observation_ids"] == []
+
+
+def test_full_follow_up_without_prompt_bound_ids_fails_preflight(
+        driver, tmp_path):
+    from scripts.orchestration_acceptance import provider_shim
+
+    doc = json.loads(driver.FIXTURE.read_text(encoding="utf-8"))
+    raw = doc["responses"][1]["response"]
+    bound = provider_shim.bind_prompt_observation_ids(
+        raw, 'OBSERVATIONS:\n[{"observation_id": "fixture-observation"}]')
+    payload = json.loads(bound)
+    payload["observation_ids"] = []
+    doc["responses"][1]["response"] = json.dumps(payload)
+    path = tmp_path / "empty_full_observation_ids.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    original = driver.FIXTURE
+    driver.FIXTURE = path
+    try:
+        with pytest.raises(driver.PreflightError,
+                           match="refuses an empty observation list"):
+            driver._validate_shim()
+    finally:
+        driver.FIXTURE = original

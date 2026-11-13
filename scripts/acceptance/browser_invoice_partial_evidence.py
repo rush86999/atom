@@ -78,9 +78,10 @@ SHIM_DEFAULT_LABEL = (
 #: carries the ready operation itself. The invoice_patch_MqoAP4 capture used
 #: the full shape (2 follow-up requests, neither naming allowed_step_ids), so
 #: a readiness discriminator is required in addition to the compact one.
+FULL_FOLLOW_UP_MATCH = '"ready_operations": ["invoice_reconciliation"]'
 COMPLETE_EVIDENCE_MATCHES = (
     "allowed_step_ids",
-    '"ready_operations": ["invoice_reconciliation"]',
+    FULL_FOLLOW_UP_MATCH,
 )
 
 
@@ -204,15 +205,31 @@ def _validate_shim() -> Dict[str, Any]:
     doc = _shim_doc()
     if SHIM_DEFAULT_LABEL not in str(doc.get("default") or ""):
         raise PreflightError("shim default is not labelled as simulated")
+    if doc.get("fail_unmatched") is not True:
+        raise PreflightError(
+            "shim must fail unmatched requests so a prompt the fixture cannot "
+            "bind cannot silently receive an unrelated decision")
     responses = doc.get("responses")
     if not isinstance(responses, list) or len(responses) != 5:
         raise PreflightError("shim must author exactly five state responses")
+    #: Stand-in OBSERVATIONS block: the full follow-up completion binds the
+    #: request's opaque ids with {OBSERVATION_IDS}; preflight must prove that
+    #: token resolves to exactly the ids this prompt names.
+    sample_prompt = (
+        'OBSERVATIONS:\n[{"observation_id": "fixture-observation"}]')
     parsed: List[Dict[str, Any]] = []
     for index, entry in enumerate(responses):
         raw = entry.get("response")
         if not isinstance(raw, str):
             raise PreflightError(f"response[{index}] must be JSON text")
-        payload = json.loads(raw)
+        try:
+            bound_raw = provider_shim.bind_prompt_observation_ids(
+                raw, sample_prompt)
+        except ValueError as exc:
+            raise PreflightError(
+                f"response[{index}] cannot bind prompt observation ids: "
+                f"{exc}") from exc
+        payload = json.loads(bound_raw)
         match = str(entry.get("match") or "")
         if _is_complete_evidence_match(match):
             model = WorkAdaptationProposal.model_validate(payload)
@@ -221,6 +238,22 @@ def _validate_shim() -> Dict[str, Any]:
                 raise PreflightError("complete-evidence response is not a replan")
             if model.work_request.operation != "invoice_reconciliation":
                 raise PreflightError("complete-evidence response wrong operation")
+            if FULL_FOLLOW_UP_MATCH in match:
+                # The full follow-up path does not bind observations
+                # server-side; adopt_adaptation refuses a replan whose
+                # observation_ids are empty. A literal id would be a per-run
+                # handle this authored response cannot know.
+                if provider_shim.OBSERVATION_IDS_PLACEHOLDER not in raw:
+                    raise PreflightError(
+                        "full follow-up replan must bind the request's "
+                        "observation ids with "
+                        f"{provider_shim.OBSERVATION_IDS_PLACEHOLDER}; "
+                        "production adoption refuses an empty observation "
+                        "list")
+                if payload.get("observation_ids") != ["fixture-observation"]:
+                    raise PreflightError(
+                        "full follow-up replan did not bind the prompt's "
+                        "observation ids")
         elif "You choose one bounded next response" in match:
             model = None
             model_name = "CompactWaitChoiceProposal"
@@ -274,7 +307,9 @@ def _validate_shim() -> Dict[str, Any]:
             "targeted invoice question; complete evidence -> typed invoice "
             "reconciliation, matched by 'allowed_step_ids' on the compact "
             "continuation or by a ready invoice_reconciliation operation on "
-            "the full follow-up prompt"),
+            "the full follow-up prompt. The full follow-up completion binds "
+            "the request's own observation ids with {OBSERVATION_IDS}; the "
+            "compact path leaves that binding to the server"),
     }
 
 

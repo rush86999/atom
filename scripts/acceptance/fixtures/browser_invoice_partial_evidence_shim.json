@@ -2,6 +2,7 @@
   "_label": "SIMULATED MODEL DECISIONS / CONTROLLED TRANSPORT. Authored JSON completions for the isolated loopback provider shim. Not served-model output; not a general-judgment claim.",
   "_protocol": "OpenAI-compatible /v1/chat/completions content consumed by the real employee planning/adaptation structured consumer through LLMService.",
   "default": "SIMULATED CONTROL TRANSPORT: no authored completion matched this request. This text must not be read as accepted work or a served-model decision.",
+  "fail_unmatched": true,
   "responses": [
     {
       "match": "allowed_step_ids",
@@ -9,7 +10,7 @@
     },
     {
       "match": "\"ready_operations\": [\"invoice_reconciliation\"]",
-      "response": "{\"decision\":\"replan\",\"reason\":\"The accepted invoice, purchase-order and receiving evidence support one reconciliation; the compiler owns the role binding.\",\"observation_ids\":[],\"work_request\":{\"operation\":\"invoice_reconciliation\",\"currency\":\"USD\",\"reason\":\"Reconcile the complete invoice against the accepted purchase order and receiving record.\"},\"clarification\":null}"
+      "response": "{\"decision\":\"replan\",\"reason\":\"The accepted invoice, purchase-order and receiving evidence support one reconciliation; the compiler owns the role binding.\",\"observation_ids\":{OBSERVATION_IDS},\"work_request\":{\"operation\":\"invoice_reconciliation\",\"currency\":\"USD\",\"reason\":\"Reconcile the complete invoice against the accepted purchase order and receiving record.\"},\"clarification\":null}"
     },
     {
       "match": "You choose one bounded next response for an employee whose objective has a missing prerequisite",
