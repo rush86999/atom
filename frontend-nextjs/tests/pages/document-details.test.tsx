@@ -254,6 +254,7 @@ describe("DocumentDetailsPage deletion", () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
     expect(mockToastSuccess).not.toHaveBeenCalled();
     expect(mockToastError).toHaveBeenCalledWith("Deletion not confirmed");
+    expect(screen.getByTestId("document-delete")).toBeDisabled();
   });
 
   test("an unknown delete outcome is disclosed without leaving or retrying", async () => {
@@ -278,6 +279,7 @@ describe("DocumentDetailsPage deletion", () => {
     expect(mockDelete).toHaveBeenCalledTimes(1);
     expect(mockRouterPush).not.toHaveBeenCalled();
     expect(mockToastSuccess).not.toHaveBeenCalled();
+    expect(screen.getByTestId("document-delete")).toBeDisabled();
   });
 
   test("a not-found delete is disclosed and does not navigate as if deleted", async () => {
@@ -295,6 +297,7 @@ describe("DocumentDetailsPage deletion", () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
     expect(mockToastSuccess).not.toHaveBeenCalled();
     expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("document-delete")).toBeDisabled();
   });
 
   test("an already-removed receipt reports that truthfully and returns to the library", async () => {

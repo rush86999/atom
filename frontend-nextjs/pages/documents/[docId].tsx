@@ -36,6 +36,9 @@ export default function DocumentDetailsPage() {
     const [exportError, setExportError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+    // Set for partial/unknown (do_not_repeat) or a definitively absent
+    // document; re-reading the page is the reconciliation step.
+    const [deleteBlocked, setDeleteBlocked] = useState(false);
 
     useEffect(() => {
         if (!docId) return;
@@ -123,8 +126,10 @@ export default function DocumentDetailsPage() {
                 ? error
                 : new DocumentDeleteError({ outcome: 'unknown' });
             // Disclose the truth and stay put. Partial/unknown deletions are
-            // do_not_repeat, so no automatic retry is attempted here.
+            // do_not_repeat, so no automatic retry is attempted here and the
+            // control stays disabled until the page is re-read.
             setDeleteNotice(deleteFailureMessage(failure.outcome));
+            setDeleteBlocked(failure.outcome !== 'failed');
             toast.error(failure.outcome === 'failed' ? 'Delete failed' : 'Deletion not confirmed');
         } finally {
             setDeleting(false);
@@ -201,7 +206,10 @@ export default function DocumentDetailsPage() {
                         className="ml-auto shrink-0 text-destructive"
                         data-testid="document-delete"
                         onClick={handleDelete}
-                        disabled={deleting}
+                        disabled={deleting || deleteBlocked}
+                        title={deleteBlocked
+                            ? 'Deletion not verified — reload before trying again'
+                            : 'Delete document'}
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
                         {deleting ? 'Deleting…' : 'Delete'}
