@@ -7387,6 +7387,10 @@ class BYOKHandler:
             self._pending_routing_result_id = None
 
             # --- Phase 14.5: Coordinated Vision Logic ---
+            # The job identity exists BEFORE the auxiliary vision dispatch:
+            # that dispatch is itself a paid physical attempt and must bind
+            # its durable admission/settlement to this same request.
+            _settlement_request_id = str(uuid.uuid4())
             if requires_vision:
                 # Check if the primary ranked model supports vision natively
                 primary_provider, primary_model = options[0] if options else (None, None)
@@ -7396,7 +7400,11 @@ class BYOKHandler:
                     vision_desc = await self._get_coordinated_vision_description(
                         image_payload=image_payload,
                         tenant_plan=tenant_plan,
-                        is_managed=is_managed
+                        is_managed=is_managed,
+                        request_id=_settlement_request_id,
+                        agent_id=agent_id,
+                        execution_id=execution_id,
+                        chain_id=chain_id,
                     )
                     if vision_desc:
                         mapping_instr = (
@@ -7504,7 +7512,6 @@ class BYOKHandler:
             _pristine_messages = [dict(m) for m in messages] if messages else None
             _request_has_image = bool(image_payload) or _has_inline_image(
                 messages)
-            _settlement_request_id = str(uuid.uuid4())
             _settlement_attempts = [0]
             _accounting_blocked = False
             for provider_id, model in options:
@@ -9721,6 +9728,10 @@ class BYOKHandler:
             options = apply_failed_pin_exclusion(options, exclude_provider_model)
 
             # --- Phase 14.5: Coordinated Vision Logic ---
+            # Job identity exists before the auxiliary vision dispatch (its
+            # own paid physical attempt) so admission and settlement bind to
+            # this structured call.
+            _structured_settlement_request_id = str(uuid.uuid4())
             if image_payload:
                 primary_provider, primary_model = options[0] if options else (None, None)
                 if primary_model and not self._model_supports_vision(primary_model):
@@ -9728,7 +9739,10 @@ class BYOKHandler:
                     vision_desc = await self._get_coordinated_vision_description(
                         image_payload=image_payload,
                         tenant_plan=tenant_plan,
-                        is_managed=is_managed
+                        is_managed=is_managed,
+                        request_id=_structured_settlement_request_id,
+                        agent_id=agent_id,
+                        chain_id=chain_id,
                     )
                     if vision_desc:
                         mapping_instr = (
@@ -9830,11 +9844,11 @@ class BYOKHandler:
                 f"structured-{uuid.uuid4().hex[:12]}"
             )
             # Server-owned settlement identity created ONCE per structured
-            # call, before the provider loop. Never derived from a caller
-            # header/trace (two no-trace or pinned calls must not collapse
-            # onto the same unique attempt_id), and never regenerated on a
-            # replay of the same settlement.
-            _structured_settlement_request_id = str(uuid.uuid4())
+            # call, before the provider loop (and before the auxiliary vision
+            # dispatch above). Never derived from a caller header/trace (two
+            # no-trace or pinned calls must not collapse onto the same unique
+            # attempt_id), and never regenerated on a replay of the same
+            # settlement.
             if self._structured_route_trace_enabled():
                 logger.info(
                     "[structured-route-trace] %s",
@@ -11440,10 +11454,35 @@ class BYOKHandler:
         except Exception as e:
             logger.warning(f"Could not get cheapest models: {e}")
             return []
-    async def _get_coordinated_vision_description(self, image_payload: str, tenant_plan: str, is_managed: bool) -> Optional[str]:
+    async def _get_coordinated_vision_description(
+        self,
+        image_payload: str,
+        tenant_plan: str,
+        is_managed: bool,
+        *,
+        request_id: Optional[str] = None,
+        attempt_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+    ) -> Optional[str]:
         """
         Calls a vision-only model to extract a semantic description of an image.
         This allows non-vision reasoning models to understand visual context.
+
+        This auxiliary image dispatch is a REAL paid chargeable attempt, so it
+        uses the same physical-attempt contract as every other dispatch:
+        ``max_retries=0`` on the transport, a durable admission/reservation
+        BEFORE the wire call, and an exact/unknown settlement under the same
+        attempt id afterwards. ``request_id`` lets chat/structured/PDF callers
+        bind the attempt to their job (workspace/tenant attribution comes from
+        the handler); a caller without a job id gets a server-owned one.
+
+        Accounting refusal is NOT a provider failure: ``_AccountingBlockedError``
+        (unknown/absent image price under hard_stop, invalid price, unavailable
+        ledger) propagates so the caller stops instead of falling through to
+        the main paid dispatch. Provider failures still return None, leaving
+        the active reservation/unknown liability on the ledger.
         """
         # Pick a vision-only model (Janus). The provider must pass the same
         # immutable policy as every other dispatch: auxiliary image content
@@ -11507,16 +11546,75 @@ class BYOKHandler:
                     "[provider-policy] BLOCKED vision auxiliary %s/%s",
                     provider, model)
                 return None
+            # ONE retry owner: this dispatch owns exactly one physical wire
+            # request. Clone the client with retries disabled so a hidden SDK
+            # retry cannot become a second paid request under one admission.
+            # A clone/bind failure is an accounting refusal (fail closed), not
+            # a provider failure to fall back from.
+            try:
+                dispatch_client = client.with_options(max_retries=0)
+                transport_create = dispatch_client.chat.completions.create
+            except Exception as clone_err:
+                logger.error(
+                    "[vision-attempt] %s client cannot be cloned for "
+                    "per-physical admission (%s); refusing dispatch before "
+                    "admission", provider, type(clone_err).__name__)
+                raise _AccountingBlockedError(
+                    f"vision auxiliary dispatch for {provider}/{model} "
+                    f"refused before admission: client clone failed "
+                    f"({type(clone_err).__name__})"
+                ) from clone_err
+
+            _request_id = request_id or f"vision-{uuid.uuid4().hex}"
+            _attempt_id = attempt_id or (
+                f"{_request_id}:vision:{uuid.uuid4().hex[:12]}")
+            # Durable paid-liability intent BEFORE dispatch. The request
+            # carries an inline image, so the existing admission marks the
+            # cost explicitly unknown: hard_stop refuses before the provider
+            # call, while observe/no-limit modes retain unknown liability.
+            # An authoritative numeric-zero price keeps a genuinely free
+            # route free.
+            _bound = self._admit_physical_attempt(
+                request_id=_request_id,
+                attempt_id=_attempt_id,
+                provider_id=provider,
+                model=model,
+                messages=messages,
+                max_output_tokens=500,
+                agent_id=agent_id,
+                execution_id=execution_id,
+                chain_id=chain_id,
+            )
             response = await _to_thread_safe(
-                client.chat.completions.create,
+                transport_create,
                 model=model,
                 messages=messages,
                 max_tokens=500
             )
             self._capture_echoed_model(response)
+            # Settle this exact attempt before returning. A complete provider
+            # usage report is authoritative for the image-bearing request;
+            # otherwise the image contribution stays explicit unknown.
+            self._settle_physical_response(
+                provider_id=provider,
+                model=model,
+                response=response,
+                request_id=_request_id,
+                attempt_id=_attempt_id,
+                agent_id=agent_id,
+                execution_id=execution_id,
+                chain_id=chain_id,
+                unknown=_image_cost_is_unknown(
+                    messages, _bound, usage=_response_usage(response)),
+                known_free=(_bound == 0.0),
+            )
 
             desc = response.choices[0].message.content
             return desc
+        except _AccountingBlockedError:
+            # Budget/price/ledger refusal: stop the request. Never fall back
+            # to (or continue into) another paid dispatch.
+            raise
         except Exception as e:
             logger.error(f"Coordinated vision extraction failed: {e}")
             return None

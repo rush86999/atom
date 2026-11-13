@@ -1564,6 +1564,9 @@ class TestCoordinatedVision:
             mock_response.choices[0].message.content = "Screenshot shows a button at [500, 200]"
 
             mock_client.chat.completions.create.return_value = mock_response
+            # The dispatch clones the client with max_retries=0; keep the
+            # configured transport on the clone for this unit test.
+            mock_client.with_options.return_value = mock_client
             handler.clients = {"openai": mock_client}
 
             result = await handler._get_coordinated_vision_description(
@@ -1588,6 +1591,7 @@ class TestCoordinatedVision:
             mock_response.choices[0].message.content = "Gemini analysis"
 
             mock_gemini_client.chat.completions.create.return_value = mock_response
+            mock_gemini_client.with_options.return_value = mock_gemini_client
             handler.clients = {"gemini": mock_gemini_client}
 
             result = await handler._get_coordinated_vision_description(
@@ -1607,6 +1611,7 @@ class TestCoordinatedVision:
 
             mock_client = MagicMock()
             mock_client.chat.completions.create.side_effect = Exception("Vision API failed")
+            mock_client.with_options.return_value = mock_client
 
             handler.clients = {"openai": mock_client}
 
@@ -3215,6 +3220,7 @@ class TestTokenCountingAndVision:
 
             mock_client = MagicMock()
             mock_client.chat.completions.create = MagicMock(return_value=mock_response)
+            mock_client.with_options.return_value = mock_client
             handler.clients = {"gemini": mock_client, "openai": MagicMock()}
 
             # Run async test

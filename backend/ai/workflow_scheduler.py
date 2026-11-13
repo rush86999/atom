@@ -1,4 +1,5 @@
 from datetime import datetime
+import importlib
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -54,8 +55,16 @@ class WorkflowScheduler:
     def start(self):
         """Start the scheduler"""
         if not self.scheduler.running:
-            self.reschedule_system_pipelines()
+            # Start BEFORE registering System Pipelines. Registration used to
+            # run first, so jobs waited in APScheduler's pending list and were
+            # serialized inside start(); a job the jobstore cannot pickle then
+            # escaped this method and left the whole WorkflowScheduler down
+            # (2026-11-12 mounted-path blocker). With the scheduler running,
+            # reschedule_system_pipelines() persists each job immediately and
+            # its own exception handler keeps a bad pipeline from taking the
+            # scheduler (and every workflow schedule) down with it.
             self.scheduler.start()
+            self.reschedule_system_pipelines()
             logger.info("WorkflowScheduler started")
 
     def reschedule_system_pipelines(self):
@@ -74,12 +83,19 @@ class WorkflowScheduler:
             from integrations.atom_projects_memory_pipeline import projects_pipeline
             from integrations.atom_sales_memory_pipeline import sales_pipeline
 
+            # Presence check only. The jobs themselves must NOT reference the
+            # instances: SQLAlchemyJobStore pickles bound-method `self`, and
+            # each pipeline owns a LanceDBMemoryManager holding a
+            # `threading.Lock`, so `pipeline.run_pipeline` raised
+            # "cannot pickle '_thread.lock' object" on every start. Register
+            # the module-level dispatcher with the pipeline NAME instead; the
+            # singleton is resolved at fire time (see _run_system_pipeline).
             pipelines = {
                 'sales': sales_pipeline,
                 'projects': projects_pipeline,
             }
 
-            for name, pipeline in pipelines.items():
+            for name in pipelines:
                 config = pipeline_config.get(name, {})
                 mode = config.get("mode", "scheduled")
                 job_id = f"system_{name}_ingestion"
@@ -95,10 +111,11 @@ class WorkflowScheduler:
                     logger.info(f"Setting {name} pipeline to SCHEDULED ({cron_expr})")
 
                 self.scheduler.add_job(
-                    pipeline.run_pipeline,
+                    _run_system_pipeline,
                     trigger,
                     id=job_id,
-                    replace_existing=True
+                    replace_existing=True,
+                    args=[name],
                 )
 
             logger.info("✓ System Memory Pipelines (Re)Scheduled")
@@ -376,6 +393,31 @@ class WorkflowScheduler:
                 "trigger": str(job.trigger)
             })
         return jobs
+
+
+# ========================================================================
+# System Pipeline job dispatch
+#
+# SQLAlchemyJobStore pickles job args, and the pipeline instances own a
+# LanceDBMemoryManager with a `threading.Lock` — unpicklable by design. Jobs
+# therefore persist this module-level callable plus the pipeline *name* only,
+# and resolve the live singleton when the job fires (the instance is a
+# process-wide singleton anyway, so a persisted copy would be stale even if
+# it could be serialized).
+# ========================================================================
+
+_SYSTEM_PIPELINE_TARGETS = {
+    'sales': ('integrations.atom_sales_memory_pipeline', 'sales_pipeline'),
+    'projects': ('integrations.atom_projects_memory_pipeline', 'projects_pipeline'),
+}
+
+
+async def _run_system_pipeline(name: str) -> None:
+    """Run one System Memory Pipeline by name (picklable job target)."""
+    module_name, attribute = _SYSTEM_PIPELINE_TARGETS[name]
+    pipeline = getattr(importlib.import_module(module_name), attribute)
+    await pipeline.run_pipeline()
+
 
 # Global instance
 workflow_scheduler = WorkflowScheduler()
