@@ -487,6 +487,30 @@ def test_changed_registered_artifact_is_refused_before_execution(
     assert fake_sandbox.calls == []
 
 
+def test_changed_linked_skill_code_is_refused(review_env, monkeypatch):
+    candidate = _pending_candidate(review_env, name="tampered_linked_skill")
+    _approved, applied = _approve_and_apply(review_env, candidate)
+
+    skill = review_env["db"].query(Skill).filter(
+        Skill.id == applied["skill_id"]).one()
+    skill.code = skill.code + "\n# changed\n"
+    review_env["db"].commit()
+
+    fake_sandbox = _FakeDockerSandbox()
+    monkeypatch.setattr(
+        "core.skill_registry_service.HazardSandbox", lambda: fake_sandbox)
+    client = _skill_client(
+        review_env["db"], review_env["tenant"], review_env["workspace"])
+    response = client.post("/api/skills/execute", json={
+        "skill_id": applied["registry_execution_id"],
+        "inputs": SYNTHETIC_INPUTS,
+        "agent_id": review_env["agent"].id,
+    })
+    assert response.status_code == 409, response.text
+    assert "reviewed_executable_artifact_changed" in response.text
+    assert fake_sandbox.calls == []
+
+
 def test_changed_candidate_is_refused_after_apply(review_env, monkeypatch):
     candidate = _pending_candidate(review_env, name="tampered_candidate")
     _approved, applied = _approve_and_apply(review_env, candidate)

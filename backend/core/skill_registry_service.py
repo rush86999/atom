@@ -718,6 +718,22 @@ class SkillRegistryService:
                 "reviewed_executable_artifact_changed: registry package must "
                 "contain exactly one python block")
 
+        from core.models import Skill
+
+        linked_skill_id = str(skill.get("linked_skill_id") or "")
+        linked_skill = (
+            self.db.query(Skill)
+            .filter(Skill.id == linked_skill_id)
+            .first()
+        )
+        if (linked_skill is None
+                or str(linked_skill.type or "") != "script"
+                or str(linked_skill.code or "").rstrip("\n")
+                != code_blocks[0].rstrip("\n")):
+            raise ValueError(
+                "reviewed_executable_artifact_changed: linked Skill code/type "
+                "differs from the registered artifact")
+
         return verify_executable_artifact(
             binding=binding,
             candidate=candidate,

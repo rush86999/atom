@@ -410,6 +410,9 @@ async def execute_skill(
                  "reviewed_executable_artifact_changed")):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail=message) from e
+        if message.startswith("reviewed_executable_policy_rejected"):
+            raise HTTPException(
+                status_code=422, detail=message) from e
         logger.error(f"Execution validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
