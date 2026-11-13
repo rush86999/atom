@@ -147,6 +147,10 @@ describe("deleteDocument refuses to certify unverified success responses", () =>
       data: { ...body.data, verification: undefined },
       metadata: { ...body.metadata, verification: undefined },
     })],
+    ["a payload-only receipt without the route envelope", (body: any) => ({
+      ...body,
+      metadata: undefined,
+    })],
   ])("%s throws an unknown, non-retryable outcome", async (_label, mutate) => {
     deleteMock.mockResolvedValue({ status: 200, data: mutate(verifiedBody()) });
 

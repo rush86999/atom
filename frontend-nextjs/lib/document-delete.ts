@@ -201,12 +201,11 @@ function interpretSuccess(
   const body = asRecord(data);
   const metadata = asRecord(body?.metadata);
   const payload = asRecord(body?.data);
-  const verification =
-    asRecord(metadata?.verification) ?? asRecord(payload?.verification);
+  // The route always emits its receipt under `metadata`; read identity and
+  // verification from there only so a malformed payload cannot mask a
+  // missing/foreign receipt.
+  const verification = asRecord(metadata?.verification);
   const verificationStatus = opaqueIdentity(verification?.status);
-
-  const targetId =
-    opaqueIdentity(metadata?.target_id) ?? opaqueIdentity(payload?.doc_id);
   const payloadIdentity = payload?.doc_id;
   const payloadMatches =
     payloadIdentity === undefined || payloadIdentity === docId;
@@ -216,10 +215,10 @@ function interpretSuccess(
     status !== undefined &&
     status >= 200 &&
     status < 300 &&
+    metadata?.target_id === docId &&
+    payloadMatches &&
     verificationStatus !== undefined &&
     CONFIRMED_VERIFICATION.has(verificationStatus) &&
-    targetId === docId &&
-    payloadMatches &&
     // A "verified" receipt must also claim the cleanup completed; anything
     // else is a partial outcome that the route should already have refused.
     (verificationStatus !== "verified" || payload?.complete === true);
