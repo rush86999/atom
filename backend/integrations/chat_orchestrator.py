@@ -3267,6 +3267,32 @@ def _canvas_edit_shaped(
     )
 
 
+def _direct_task_uses_turn_words(
+    task: Optional[Dict[str, Any]], message: str,
+) -> bool:
+    """Whether THIS turn's own words replace the stored ask for a read.
+
+    A confirmation restates the objective's filename, so item mining over its
+    prose yields tokens that would rewrite ``original_message`` and mint a new
+    request digest for the same authorization — the exact split that made a
+    second live read and a second job (2026-11-12 confirmation review).  A
+    confirmation continues the stored ask; only a turn that names its own work
+    (revised targets or mined items) may replace the executed words.
+    """
+    if not isinstance(task, dict):
+        return False
+    if task.get("confirmation_turn"):
+        return False
+    if task.get("revised_targets"):
+        return True
+    try:
+        from core.target_set_resolution import extract_items_from_text
+
+        return bool(extract_items_from_text(message))
+    except Exception:  # noqa: BLE001 — floor: keep the stored ask
+        return False
+
+
 def _planner_returned_none_message(message: str) -> str:
     """No-apply wording when no APPLICABLE plan was produced.
 
@@ -10882,6 +10908,32 @@ class ChatOrchestrator:
                     logger.warning(
                         "[pending-file-task] operation classification "
                         "failed — refresh semantics degraded: %r", _op_err)
+                # CONFIRMATION BOOKKEEPING (2026-11-12 review): a bare
+                # confirmation continues the stored objective.  The flag is
+                # BOOKKEEPING ONLY — it is not a scope field, it never
+                # rewrites original_message, and the confirmed mention is
+                # never substituted into the pinned file identity.  Refresh,
+                # re-run and entity-set-edit turns change what is authorized
+                # and are deliberately excluded, so they keep their own
+                # digest and their own job.
+                try:
+                    from core.pending_file_task import (
+                        entity_set_edit as _entity_set_edit,
+                        is_filename_confirmation as _is_confirming,
+                        is_retrieval_refresh_request as _is_refresh_turn,
+                    )
+
+                    _confirmation_turn = bool(
+                        _is_confirming(message)
+                        and not _is_refresh_turn(message)
+                        and _entity_set_edit(message) is None)
+                except Exception:  # noqa: BLE001 — bookkeeping is additive
+                    _confirmation_turn = False
+                _pending_file_task["confirmation_turn"] = _confirmation_turn
+                if _confirmation_turn:
+                    _pending_file_task["confirmation_message"] = message
+                else:
+                    _pending_file_task.pop("confirmation_message", None)
             # DELIVERY RETRY WITHOUT RE-READING (2026-09-24 review): a
             # RETRIEVED structured result whose delivery never reached the
             # user (reply-model failure, budget overrun, restart) is
@@ -14404,18 +14456,11 @@ class ChatOrchestrator:
                             # retry ('search the file again') carries no
                             # new words — it keeps the stored original, so
                             # the stored objective's items stay the ask.
-                            try:
-                                from core.target_set_resolution import (
-                                    extract_items_from_text as _rm_extract,
-                                )
-
-                                if (_direct_task.get("revised_targets")
-                                        or _rm_extract(message)):
-                                    _direct_task = dict(
-                                        _direct_task,
-                                        original_message=message)
-                            except Exception:  # noqa: BLE001 — floor follows
-                                pass
+                            if _direct_task_uses_turn_words(
+                                    _direct_task, message):
+                                _direct_task = dict(
+                                    _direct_task,
+                                    original_message=message)
                             _direct_result = await self._direct_confirmed_file_read(
                                 _direct_task,
                                 history,
@@ -14427,6 +14472,96 @@ class ChatOrchestrator:
                                 execution_id=_execution_id,
                                 request_id=(context or {}).get("request_id"),
                             )
+                if _direct_result.get("background_pending"):
+                    # ISSUE 620: the interactive deadline was reached and the
+                    # strict read is now a DURABLE background job. Reply with
+                    # the honest acknowledgement; do NOT fall through to a
+                    # planner/narration lane that would start a second read.
+                    _background_read = _direct_result.get(
+                        "background_read") or {}
+                    _background_job = str(
+                        _background_read.get("job_id") or "")
+                    _background_message = (
+                        "The workbook read is still running in the "
+                        "background"
+                        + (f" (job {_background_job[:12]})"
+                           if _background_job else "")
+                        + ". I kept the request on this conversation; the "
+                        "result will be saved here when it finishes, and a "
+                        "retry will deliver it without re-reading the "
+                        "workbook."
+                    )
+                    try:
+                        from core.pending_file_task import (
+                            FILE_TASK_SESSION_KEY,
+                        )
+
+                        if isinstance(_pending_file_task, dict):
+                            if _background_job:
+                                # DURABLE CONFIRMATION JOIN: the in-flight
+                                # job id rides the task carrier, so a later
+                                # confirmation turn attaches to THIS job
+                                # instead of scheduling a second read — and
+                                # it survives a restart with the task.
+                                _pending_file_task = dict(
+                                    _pending_file_task,
+                                    background_job_id=_background_job)
+                            session[FILE_TASK_SESSION_KEY] = (
+                                _pending_file_task)
+                    except Exception:  # noqa: BLE001 — carrier is additive
+                        pass
+                    _direct_response = {
+                        "success": True,
+                        "message": _background_message,
+                        "session_id": session_id,
+                        "execution_id": _execution_id,
+                        "intent": "search",
+                        "confidence": 0.9,
+                        "data": {
+                            "background_read": _background_read,
+                            "background_pending": True,
+                            "resumable": True,
+                            "deterministic_delivery": True,
+                            "file_identity": (
+                                _direct_result.get("identity") or {}),
+                            "coverage_complete": False,
+                        },
+                        "model": "deterministic",
+                        "provider": "structured",
+                        "requires_confirmation": False,
+                        "next_steps": [
+                            "The result will appear here when the "
+                            "background read finishes."
+                        ],
+                        "suggested_actions": [],
+                    }
+                    self._update_session(
+                        session,
+                        message,
+                        _direct_response,
+                        {"primary_intent": "search", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id,
+                        "partial"
+                    )
+                    self._finish_chat_execution(
+                        _execution_id,
+                        "partial",
+                        _background_message,
+                        session=session,
+                        message=message,
+                        response=_direct_response,
+                        deadline=_deadline,
+                        pending_task=_pending_file_task,
+                        authorized_actions=["read"],
+                    )
+                    logger.info(
+                        "[workdrive-background] acknowledged over-deadline "
+                        "strict read (job=%s, origin=%s)",
+                        _background_job[:12] or "-",
+                        str(_execution_id or "")[:12] or "-")
+                    return _direct_response
                 _direct_review_ask = False
                 try:
                     _direct_review_text = str(
@@ -20102,6 +20237,140 @@ class ChatOrchestrator:
                 return True
         return bool((pending_task or {}).get("strict_workdrive_proof"))
 
+    def _schedule_strict_workdrive_background_read(
+        self,
+        pending_task: Dict[str, Any],
+        *,
+        message: str,
+        user_id: Optional[str],
+        session_id: str,
+        workspace_id: Optional[str],
+        execution_id: Optional[str],
+        history: Optional[List[Dict[str, Any]]] = None,
+        canvas: Optional[Dict[str, Any]] = None,
+        session: Optional[Dict[str, Any]] = None,
+        spawn: bool = True,
+        read_runner: Any = None,
+        attach_job_id: Optional[str] = None,
+        confirmation_turn: bool = False,
+        confirmation_message: Optional[str] = None,
+        confirmed_mention: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Schedule the durable background half of an over-deadline read.
+
+        The interactive deadline is NOT extended here.  The job gets its own
+        execution id and re-runs only the strict WorkDrive read; delivery is
+        persisted on the existing ``_pending_file_result`` carrier.
+
+        On a CONFIRMATION turn (proven by the resume lane) the scheduler
+        attaches to the request's already-running job — by ``attach_job_id``
+        from the carrier, or by durable identity after a restart — and
+        returns that job's ORIGINAL digest instead of minting a new one.
+        """
+        from core import workdrive_background_delivery as _background
+
+        task = dict(pending_task or {})
+        resolved = dict(task.get("resolved_file") or {})
+        mention = str(task.get("mention") or "").strip()
+        resource_id = str(
+            resolved.get("resource_id") or resolved.get("file_id") or ""
+        ).strip()
+        file_name = str(
+            resolved.get("file_name") or mention or ""
+        ).strip()
+        original = str(task.get("original_message") or message or "").strip()
+        # SCOPE IS THE ACCEPTED REQUEST.  ``confirmed_mention`` is retry
+        # bookkeeping (which name the user confirmed) and is deliberately NOT
+        # a source of resource/file_name here: substituting it would change
+        # the digest for the same authorization.  The stored task's pinned
+        # identity and original ask are the only inputs.
+        return _background.schedule_strict_workdrive_read(
+            session_id=session_id,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            execution_id=execution_id,
+            original_message=original,
+            query=original,
+            mention=mention,
+            resource_id=resource_id,
+            file_name=file_name,
+            requested_targets=task.get("requested_targets") or [],
+            requested_fields=task.get("requested_fields") or [],
+            identity=resolved,
+            pending_task=task,
+            history=history or [],
+            canvas=canvas,
+            agent_id=str(task.get("agent_id") or ""),
+            tenant_id=str(getattr(self, "tenant_id", "") or ""),
+            request_id=None,
+            attach_job_id=attach_job_id,
+            confirmation_turn=confirmation_turn,
+            confirmation_message=confirmation_message,
+            confirmed_mention=confirmed_mention,
+            session=session,
+            spawn=spawn,
+            read_runner=read_runner,
+        )
+
+    @staticmethod
+    def _persisted_background_delivery_response(
+        persisted: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Shape a validated persisted background row as a direct-lane read.
+
+        The row is the exact answer job #1 already produced: serving it
+        re-executes no read, and its identity/proof ride along unchanged.
+        """
+        meta = {
+            "service": "zoho_workdrive",
+            "file_id": (
+                (persisted.get("identity") or {}).get("file_id")),
+            "resource_id": (
+                (persisted.get("identity") or {}).get("resource_id")),
+            "file_name": (
+                (persisted.get("identity") or {}).get("file_name")),
+            "source": "zoho_workdrive",
+            "evidence_kind": "downloaded_bytes",
+            "content_hash": (
+                (persisted.get("identity") or {}).get("content_hash")),
+            "content_hash_algorithm": "sha256",
+            "content_sha256": (
+                (persisted.get("identity") or {}).get("content_sha256")),
+            "identity_verified": True,
+            "completed": True,
+            "coverage_complete": bool(
+                persisted.get("coverage_complete")),
+            "coverage_limits": (
+                (persisted.get("identity") or {}).get(
+                    "coverage_limits") or {}),
+            "workbook_read": persisted.get("workbook_read"),
+            "structured_result": persisted.get("structured_result"),
+            "rendered_answer": persisted.get("rendered"),
+            "direct_source_proof": persisted.get("direct_source_proof"),
+            "strict_read_receipt": persisted.get("strict_read_receipt"),
+            "execution_id": persisted.get("execution_id"),
+            "background_delivery": persisted.get("background_delivery"),
+        }
+        logger.info(
+            "[workdrive-background] retry served from the persisted "
+            "delivery (job=%s); zero workbook reads",
+            str(((persisted.get("background_delivery") or {})
+                 .get("job_id")) or "")[:12] or "-")
+        return {
+            "ok": True,
+            "block": str(persisted.get("rendered") or ""),
+            "meta": meta,
+            "identity": dict(persisted.get("identity") or {}),
+            "identity_verified": True,
+            "coverage_complete": bool(persisted.get("coverage_complete")),
+            "retrieval_complete": True,
+            "rendered_answer": str(persisted.get("rendered") or ""),
+            "structured_result": persisted.get("structured_result"),
+            "read_executed": False,
+            "served_from_persisted_delivery": True,
+            "background_delivery": persisted.get("background_delivery"),
+        }
+
     async def _direct_confirmed_file_read(
         self,
         pending_task: Dict[str, Any],
@@ -20126,6 +20395,168 @@ class ChatOrchestrator:
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        # ISSUE 620 — DELIVERY-WITHOUT-RE-READ.  A strict read that finished
+        # in the background is already on the durable carrier.  A bare
+        # re-delivery retry serves that exact result; an explicit re-run or
+        # source refresh still performs a live read below.
+        _resume_operation = str(
+            (pending_task or {}).get("operation") or "").strip().lower()
+        _task_status = str(
+            (pending_task or {}).get("status") or "").strip().lower()
+        if (_resume_operation == "re-deliver"
+                or (not _resume_operation
+                    and _task_status in ("retrieved", "delivered"))):
+            try:
+                from core.workdrive_background_delivery import (
+                    canonical_request_digest,
+                    load_persisted_workdrive_delivery,
+                    request_scope_from_task,
+                )
+
+                _persisted_identity = dict(
+                    (pending_task or {}).get("resolved_file") or {})
+                _scope = request_scope_from_task(
+                    session_id=session_id,
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    resource_id=(
+                        _persisted_identity.get("resource_id")
+                        or _persisted_identity.get("file_id")),
+                    file_name=(
+                        _persisted_identity.get("file_name") or mention),
+                    original_message=original,
+                    requested_targets=(
+                        (pending_task or {}).get("requested_targets") or []),
+                    requested_fields=(
+                        (pending_task or {}).get("requested_fields") or []),
+                )
+                _persisted = load_persisted_workdrive_delivery(
+                    session_id,
+                    user_id=user_id,
+                    expected_original_digest=canonical_request_digest(_scope),
+                    workspace_id=workspace_id,
+                )
+            except Exception as _persisted_err:  # noqa: BLE001
+                logger.debug(
+                    "[workdrive-background] persisted delivery load "
+                    "skipped: %r", _persisted_err)
+                _persisted = None
+            if isinstance(_persisted, dict):
+                return self._persisted_background_delivery_response(
+                    _persisted)
+        # CONFIRMATION REUSE — ATTACH TO THE RUNNING JOB (2026-11-12
+        # review).  While this request's background job is still unfinished,
+        # a bare confirmation continues THAT read: no new digest, no second
+        # live attempt, no second job.  The resume lane proved continuity
+        # (matching_pending_task) and stamped ``confirmation_turn``; refresh
+        # / re-run / entity-set-edit turns never carry that stamp, so a
+        # genuinely distinct request still reads and schedules on its own
+        # scope.  A persisted delivery above always wins, because that is
+        # the exact result the user is confirming.
+        if ((pending_task or {}).get("confirmation_turn")
+                and ((pending_task or {}).get("background_job_id")
+                     or self._strict_workdrive_proof_enabled(pending_task))):
+            _confirmation_identity = dict(
+                (pending_task or {}).get("resolved_file") or {})
+            _confirmation_job_id = str(
+                (pending_task or {}).get("background_job_id") or "")
+            if _confirmation_job_id:
+                # RETRY AFTER THE JOB FINISHED: the confirmation keeps job
+                # #1's ORIGINAL digest, so job #1's persisted row IS the
+                # answer — serve it without re-reading.  Filtering by job id
+                # makes this independent of the confirmation's wording.
+                try:
+                    from core.workdrive_background_delivery import (
+                        load_persisted_workdrive_delivery,
+                    )
+
+                    _delivered_row = load_persisted_workdrive_delivery(
+                        session_id,
+                        user_id=user_id,
+                        workspace_id=workspace_id,
+                        job_id=_confirmation_job_id,
+                    )
+                except Exception as _delivered_err:  # noqa: BLE001
+                    logger.debug(
+                        "[workdrive-background] confirmation delivery load "
+                        "skipped: %r", _delivered_err)
+                    _delivered_row = None
+                if isinstance(_delivered_row, dict):
+                    return self._persisted_background_delivery_response(
+                        _delivered_row)
+            try:
+                from core.workdrive_background_delivery import (
+                    reuse_in_flight_workdrive_read,
+                )
+
+                _attached_read = reuse_in_flight_workdrive_read(
+                    session_id=session_id,
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    resource_id=(
+                        _confirmation_identity.get("resource_id")
+                        or _confirmation_identity.get("file_id")),
+                    file_name=(
+                        _confirmation_identity.get("file_name") or mention),
+                    requested_targets=(
+                        (pending_task or {}).get("requested_targets") or []),
+                    requested_fields=(
+                        (pending_task or {}).get("requested_fields") or []),
+                    attach_job_id=(
+                        (pending_task or {}).get("background_job_id")),
+                    confirmation_message=(
+                        (pending_task or {}).get("confirmation_message")
+                        or original),
+                    confirmed_mention=(
+                        (pending_task or {}).get("confirmed_mention")
+                        or mention),
+                )
+            except Exception as _attach_err:  # noqa: BLE001
+                logger.debug(
+                    "[workdrive-background] confirmation reuse skipped: %r",
+                    _attach_err)
+                _attached_read = None
+            if (isinstance(_attached_read, dict)
+                    and _attached_read.get("ok")):
+                logger.info(
+                    "[workdrive-background] confirmation attached to running "
+                    "job %s (%s); zero live reads",
+                    str(_attached_read.get("job_id") or "")[:12],
+                    _attached_read.get("attach_mode") or "job")
+                return {
+                    "ok": True,
+                    "background_pending": True,
+                    "background_read": _attached_read,
+                    "block": "",
+                    "rendered_answer": "",
+                    "reason": (
+                        "the confirmation continues the same background "
+                        "read"),
+                    "identity": _confirmation_identity,
+                    "identity_verified": False,
+                    "coverage_complete": False,
+                    "retrieval_complete": False,
+                    "read_executed": False,
+                    "meta": {
+                        "background_read": _attached_read,
+                        "storage_read": {
+                            "service": "zoho_workdrive",
+                            "resource_id": (
+                                _confirmation_identity.get("resource_id")
+                                or _confirmation_identity.get("file_id")),
+                            "file_id": (
+                                _confirmation_identity.get("file_id")
+                                or _confirmation_identity.get("resource_id")),
+                            "file_name": _confirmation_identity.get(
+                                "file_name"),
+                            "identity_verified": False,
+                            "completed": False,
+                            "coverage_complete": False,
+                            "background_pending": True,
+                            "execution_id": _attached_read.get("job_id"),
+                        },
+                    },
+                }
         # REVIEW READ AUTHORITY: the accepted objective's record identifiers
         # scope the read. File names and requested field labels mined from the
         # prose are not targets.
@@ -20407,6 +20838,118 @@ class ChatOrchestrator:
                 ),
                 timeout=timeout,
             )
+        except asyncio.TimeoutError:
+            # ISSUE 620 — DURABLE BACKGROUND DELIVERY.  The interactive
+            # deadline above is unchanged; when the strict WorkDrive read
+            # outlives it, the SAME authorized read continues as a durable
+            # job with its own execution id.  The turn returns a truthful
+            # "still running" acknowledgement and the completed result rides
+            # the existing persisted-delivery carrier.
+            scheduled: Dict[str, Any] = {}
+            if self._strict_workdrive_proof_enabled(pending_task):
+                try:
+                    scheduled = (
+                        self._schedule_strict_workdrive_background_read(
+                            pending_task,
+                            message=original,
+                            user_id=user_id,
+                            session_id=session_id,
+                            workspace_id=workspace_id,
+                            execution_id=execution_id,
+                            history=history,
+                            canvas=canvas,
+                            session=None,
+                            # A confirmation that reached the deadline must
+                            # still attach to the request's running job
+                            # rather than schedule a second one (the
+                            # pre-check above normally gets there first;
+                            # this is the race-safe second line).
+                            attach_job_id=(
+                                (pending_task or {}).get(
+                                    "background_job_id")),
+                            confirmation_turn=bool(
+                                (pending_task or {}).get(
+                                    "confirmation_turn")),
+                            confirmation_message=(
+                                (pending_task or {}).get(
+                                    "confirmation_message") or ""),
+                            confirmed_mention=(
+                                (pending_task or {}).get(
+                                    "confirmed_mention") or ""),
+                        )
+                    )
+                except Exception as schedule_err:  # noqa: BLE001
+                    logger.warning(
+                        "[workdrive-background] scheduling after the "
+                        "interactive deadline failed: %r", schedule_err)
+                    scheduled = {
+                        "ok": False,
+                        "reason": "schedule_failed",
+                        "error": f"{type(schedule_err).__name__}: "
+                                 f"{schedule_err}",
+                    }
+            if scheduled.get("ok"):
+                resolved = dict(pending_task.get("resolved_file") or {})
+                logger.info(
+                    "[workdrive-background] interactive deadline reached; "
+                    "job %s continues the strict read (origin execution %s)",
+                    str(scheduled.get("job_id") or "")[:12],
+                    str(execution_id or "")[:12] or "-")
+                return {
+                    "ok": True,
+                    "background_pending": True,
+                    "background_read": scheduled,
+                    "block": "",
+                    "rendered_answer": "",
+                    "reason": (
+                        "strict WorkDrive read exceeded the interactive "
+                        "deadline and is continuing in the background"),
+                    "identity": resolved,
+                    "identity_verified": False,
+                    "coverage_complete": False,
+                    "retrieval_complete": False,
+                    "read_executed": False,
+                    "meta": {
+                        "background_read": scheduled,
+                        "storage_read": {
+                            "service": "zoho_workdrive",
+                            "resource_id": (
+                                resolved.get("resource_id")
+                                or resolved.get("file_id")),
+                            "file_id": (
+                                resolved.get("file_id")
+                                or resolved.get("resource_id")),
+                            "file_name": resolved.get("file_name"),
+                            "identity_verified": False,
+                            "completed": False,
+                            "coverage_complete": False,
+                            "background_pending": True,
+                            "execution_id": scheduled.get("job_id"),
+                        },
+                    },
+                }
+            if scheduled and not scheduled.get("ok"):
+                logger.warning(
+                    "[workdrive-background] strict read could not continue "
+                    "in the background: %s",
+                    scheduled.get("reason") or "unknown")
+                return {
+                    "ok": False,
+                    "block": "",
+                    "background_pending": False,
+                    "background_read": scheduled,
+                    "reason": (
+                        "interactive deadline reached and the durable "
+                        "background read could not be scheduled: "
+                        f"{scheduled.get('reason') or 'unknown'}"),
+                }
+            logger.warning(
+                "[pending-file-task] direct confirmed read timed out")
+            return {
+                "ok": False,
+                "block": "",
+                "reason": "direct confirmed read timed out",
+            }
         except Exception as exc:
             logger.warning(
                 "[pending-file-task] direct confirmed read failed: %r", exc
@@ -38510,7 +39053,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.database import get_db_session
             from core.models import ChatMessage as ChatMessageModel
 
+            _user_id: Optional[str] = None
             with get_db_session() as db:
+                try:
+                    from core.models import ChatSession as ChatSessionModel
+
+                    _session_row = (
+                        db.query(ChatSessionModel)
+                        .filter(ChatSessionModel.id == session_id)
+                        .first()
+                    )
+                    if _session_row is not None:
+                        _user_id = str(
+                            getattr(_session_row, "user_id", "") or ""
+                        ) or None
+                except Exception:  # noqa: BLE001 — optional identity
+                    _user_id = None
                 rows = (
                     db.query(ChatMessageModel)
                     .filter(
@@ -38527,8 +39085,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception:
                     continue
                 result = meta.get("pending_file_result")
-                if isinstance(result, dict) and result.get("rendered"):
-                    return result
+                if not (isinstance(result, dict) and result.get("rendered")):
+                    continue
+                # ISSUE 620: a background strict-workbook delivery is only
+                # served while its authorization, ORIGINAL request digest and
+                # WORKSPACE scope still hold.  A revoked grant, a row built
+                # for another objective, or a result retrieved for another
+                # workspace falls through (never served) instead of being
+                # replayed as if it were current.
+                if result.get("background_delivery"):
+                    try:
+                        from core.workdrive_background_delivery import (
+                            persisted_delivery_is_valid,
+                        )
+
+                        if not persisted_delivery_is_valid(
+                                result, user_id=_user_id,
+                                workspace_id=workspace_id):
+                            logger.warning(
+                                "[workdrive-background] persisted delivery "
+                                "withheld: authorization, original digest or "
+                                "workspace scope no longer holds")
+                            continue
+                    except Exception as guard_err:  # noqa: BLE001
+                        logger.warning(
+                            "[workdrive-background] persisted delivery "
+                            "validation failed: %r", guard_err)
+                        continue
+                return result
         except Exception as e:  # noqa: BLE001 — loader is best-effort
             logger.debug(f"pending file result load skipped: {e}")
         return None
