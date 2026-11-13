@@ -298,6 +298,79 @@ jobs:
         run: |
           python -m pytest tests/test_mem07_consolidated_chain.py tests/test_lead_mem07_natural_event.py tests/test_lead_mem07_real_prompt_chain.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Reviewed benign executable skills: the prompt-only controls above are
+      # the regression twin.  The executable path has NO host fallback, so this
+      # step must fail (not skip) when the runner cannot start a container.
+      # The focused unit test is retained.  The served service-restart journey
+      # is the hosted real-Docker acceptance test AND the only writer of the
+      # acceptance record (process A approves/applies, a NEW process B executes
+      # through the ordinary POST /api/skills/execute route, then the durable
+      # receipt is re-read from scratch SQLite after the service stopped).
+      # The Docker-leaf replay (tests/test_reviewed_executable_skill_docker.py)
+      # also writes ATOM_ACCEPTANCE_OUTPUT, so it is deliberately NOT run in
+      # this step: two writers would race over the single record path.
+      - name: Run reviewed executable acceptance (unit + real Docker restart)
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_executable.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_REQUIRE_DOCKER_SANDBOX: "1"
+          # Read by tests/test_reviewed_executable_service_restart.py via
+          # os.getenv("ATOM_ACCEPTANCE_OUTPUT"); that full-service journey is
+          # the only test in this step that emits the acceptance record.
+          ATOM_ACCEPTANCE_OUTPUT: "${{ runner.temp }}/reviewed-executable-acceptance.json"
+        run: |
+          docker info > /dev/null
+          # HazardSandbox does not auto-pull; a missing base image would fail
+          # the replay for an infrastructure reason, so pull it explicitly.
+          docker pull python:3.11-slim
+          docker image inspect python:3.11-slim > /dev/null
+          python -m pytest \
+            tests/test_reviewed_executable_skill.py \
+            tests/test_reviewed_executable_service_restart.py \
+            -q --tb=short --timeout=900 --timeout-method=thread
+          # Fail closed if the real-Docker record was not emitted or does not
+          # actually prove a container ran and the receipt survived the service
+          # restart (no host fallback is acceptable).
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          record_path = Path(os.environ["ATOM_ACCEPTANCE_OUTPUT"])
+          if not record_path.is_file():
+              raise SystemExit(
+                  f"real-Docker acceptance receipt missing: {record_path}")
+          record = json.loads(record_path.read_text(encoding="utf-8"))
+          if record.get("docker_sandbox_real") is not True:
+              raise SystemExit(
+                  f"acceptance receipt does not prove real Docker: {record}")
+          if record.get("sandbox_backend") != "docker":
+              raise SystemExit(
+                  f"acceptance receipt backend is not docker: {record}")
+          if not str(record.get("container_id") or "").startswith("skill_"):
+              raise SystemExit(
+                  f"acceptance receipt has no skill container id: {record}")
+          if record.get("nonce_echo_verified") is not True:
+              raise SystemExit(
+                  "acceptance receipt did not verify the container nonce: "
+                  f"{record}")
+          if record.get("durable_receipt_verified") is not True:
+              raise SystemExit(
+                  "acceptance receipt did not re-read the durable receipt "
+                  f"after restart: {record}")
+          print(f"real-Docker acceptance receipt verified: {record_path}")
+          PY
+
+      - name: Upload reviewed executable acceptance record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-executable-acceptance
+          path: ${{ runner.temp }}/reviewed-executable-acceptance.json
+          if-no-files-found: error
+
       # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
       # skips under pytest when AI fakes break provider resolution, so run the
       # exit-coded standalone harness for the real recall@k regression gate

@@ -380,7 +380,10 @@ async def execute_skill(
         result = await service.execute_skill(
             skill_id=request.skill_id,
             inputs=request.inputs,
-            agent_id=request.agent_id
+            agent_id=request.agent_id,
+            tenant_id=str(getattr(current_user, "tenant_id", "") or ""),
+            workspace_id=str(getattr(current_user, "workspace_id", "") or ""),
+            user_id=str(getattr(current_user, "id", "") or ""),
         )
 
         if result["success"]:
@@ -396,11 +399,22 @@ async def execute_skill(
             )
 
     except ValueError as e:
+        message = str(e)
+        if message.startswith(
+                ("reviewed_executable_workspace_mismatch",
+                 "reviewed_executable_scope_required")):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=message) from e
+        if message.startswith(
+                ("reviewed_executable_not_approved",
+                 "reviewed_executable_artifact_changed")):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=message) from e
         logger.error(f"Execution validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Internal error"
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Execution failed: {e}")
         raise HTTPException(

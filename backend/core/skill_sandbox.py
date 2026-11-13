@@ -107,14 +107,83 @@ class HazardSandbox:
         - Always use read_only=True
         - Limit resources with mem_limit and cpu_quota
         """
+        receipt = self._run_python_container(
+            code=code,
+            inputs=inputs,
+            timeout_seconds=timeout_seconds,
+            memory_limit=memory_limit,
+            cpu_limit=cpu_limit,
+            image=image,
+        )
+        if receipt.get("ok"):
+            return str(receipt.get("stdout") or "")
+        return str(
+            receipt.get("error")
+            or "SANDBOX_ERROR: Sandbox execution failed")
+
+    def execute_python_receipt(
+        self,
+        code: str,
+        inputs: Dict[str, Any],
+        timeout_seconds: int = 30,
+        memory_limit: str = "256m",
+        cpu_limit: float = 0.5,
+        image: Optional[str] = None,
+        nonce: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Execute Python code and return the container receipt.
+
+        Used by the reviewed-executable path, which must prove that the code
+        actually ran in a fresh ``skill_*`` container (not on the host) and
+        must persist a durable execution receipt.  The returned dict contains
+        ``ok``, ``stdout``/``stderr``, ``exit_code``, ``container_id``,
+        ``image``, backend/security flags and the optional nonce the container
+        was started with.
+        """
+        return self._run_python_container(
+            code=code,
+            inputs=inputs,
+            timeout_seconds=timeout_seconds,
+            memory_limit=memory_limit,
+            cpu_limit=cpu_limit,
+            image=image,
+            nonce=nonce,
+        )
+
+    def _run_python_container(
+        self,
+        *,
+        code: str,
+        inputs: Dict[str, Any],
+        timeout_seconds: int,
+        memory_limit: str,
+        cpu_limit: float,
+        image: Optional[str],
+        nonce: Optional[str] = None,
+    ) -> Dict[str, Any]:
         container_id = f"skill_{uuid.uuid4().hex[:8]}"
 
         # Use custom image or default base image
         container_image = image if image else "python:3.11-slim"
+        receipt: Dict[str, Any] = {
+            "ok": False,
+            "stdout": "",
+            "stderr": "",
+            "exit_code": -1,
+            "container_id": container_id,
+            "image": container_image,
+            "backend": "docker",
+            "network_disabled": True,
+            "read_only": True,
+            "ephemeral": True,
+            "timeout_seconds": timeout_seconds,
+            "nonce": nonce,
+        }
 
         try:
             # Create wrapper script that injects inputs and executes code
-            wrapper_script = self._create_wrapper_script(code, inputs)
+            wrapper_script = self._create_wrapper_script(
+                code, inputs, nonce=nonce)
 
             logger.info(f"Starting container {container_id} with limits: "
                        f"mem={memory_limit}, cpu={cpu_limit}, timeout={timeout_seconds}s, "
@@ -138,9 +207,14 @@ class HazardSandbox:
             )
 
             result = output.decode("utf-8")
+            receipt.update({
+                "ok": True,
+                "stdout": result,
+                "exit_code": 0,
+            })
             logger.info(f"Container {container_id} completed successfully")
 
-            return result
+            return receipt
 
         except Exception as e:
             error_type = type(e).__name__
@@ -148,19 +222,24 @@ class HazardSandbox:
             if error_type == 'ContainerError':
                 # ContainerError has stderr attribute
                 stderr_msg = e.stderr.decode('utf-8') if hasattr(e, 'stderr') and e.stderr else str(e)
-                error_msg = f"Container execution failed: {stderr_msg}"
+                error_msg = f"EXECUTION_ERROR: Container execution failed: {stderr_msg}"
                 logger.error(f"Container {container_id} error: {error_msg}")
-                return f"EXECUTION_ERROR: {error_msg}"
-
             elif error_type == 'APIError':
-                error_msg = f"Docker API error: {str(e)}"
+                stderr_msg = str(e)
+                error_msg = f"DOCKER_ERROR: Docker API error: {str(e)}"
                 logger.error(f"Container {container_id} API error: {error_msg}")
-                return f"DOCKER_ERROR: {error_msg}"
-
             else:
-                error_msg = f"Sandbox execution failed: {str(e)}"
+                stderr_msg = str(e)
+                error_msg = f"SANDBOX_ERROR: Sandbox execution failed: {str(e)}"
                 logger.error(f"Container {container_id} unexpected error: {error_msg}")
-                return f"SANDBOX_ERROR: {error_msg}"
+
+            receipt.update({
+                "ok": False,
+                "stderr": stderr_msg,
+                "error": error_msg,
+                "exit_code": int(getattr(e, "exit_code", -1) or -1),
+            })
+            return receipt
 
     def execute_nodejs(
         self,
@@ -251,17 +330,30 @@ class HazardSandbox:
                 logger.error(f"Node.js container {container_id} unexpected error: {error_msg}")
                 return f"SANDBOX_ERROR: {error_msg}"
 
-    def _create_wrapper_script(self, code: str, inputs: Dict[str, Any]) -> str:
+    def _create_wrapper_script(
+        self,
+        code: str,
+        inputs: Dict[str, Any],
+        nonce: Optional[str] = None,
+    ) -> str:
         """
         Create wrapper script that injects inputs and executes skill code.
 
         Args:
             code: Python code to execute
             inputs: Input variables to inject
+            nonce: Optional per-execution value exposed as
+                ``__atom_sandbox_nonce__``; the reviewed-executable harness
+                echoes it so the caller can prove this exact container ran.
 
         Returns:
             str: Complete wrapper script
         """
+        nonce_line = ""
+        if nonce is not None:
+            nonce_line = (
+                "\n__atom_sandbox_nonce__ = "
+                f"{json.dumps(str(nonce))}\n")
         return f"""
 import sys
 import json
@@ -269,10 +361,14 @@ import json
 # Inject inputs into global scope
 inputs = {json.dumps(inputs)}
 globals().update(inputs)
-
-# Execute skill code
+{nonce_line}
+# Compile the reviewed source instead of splicing it into this try block:
+# splicing would require every reviewed line to be pre-indented and silently
+# broke multi-line skills.  The source is a Python string here, never a
+# command line, so it is evaluated by exec inside the same isolated process.
+_atom_skill_source = {repr(str(code))}
 try:
-{code}
+    exec(compile(_atom_skill_source, "<atom-skill>", "exec"), globals())
 except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
