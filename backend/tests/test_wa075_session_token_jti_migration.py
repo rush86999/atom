@@ -11,8 +11,8 @@ pointed at it for the subprocess; no live development database is opened.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -61,22 +61,18 @@ def _build_pre_migration_database(db_path: Path) -> None:
 
 
 def _run_alembic(tmp_path: Path, db_path: Path, *arguments: str) -> None:
+    alembic_bin = shutil.which("alembic")
+    if not alembic_bin:
+        pytest.skip("alembic console script is not available on PATH")
     environment = os.environ.copy()
     environment["DATABASE_URL"] = f"sqlite:///{db_path}"
     environment["TESTING"] = "0"
+    environment.pop("PYTHONPATH", None)
     # Run outside backend/ so the local ``backend/alembic`` package directory
     # cannot shadow the installed Alembic package.
-    environment.pop("PYTHONPATH", None)
-    runner = (
-        "import sys\n"
-        "sys.path = [p for p in sys.path if p not in ('', '.') "
-        "and not p.rstrip('/').endswith('/backend')]\n"
-        "from alembic.config import main\n"
-        "main()\n"
-    )
     result = subprocess.run(
         [
-            sys.executable, "-c", runner,
+            alembic_bin,
             "-c", str(BACKEND_DIR / "alembic.ini"),
             *arguments,
         ],
