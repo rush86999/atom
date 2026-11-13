@@ -83,6 +83,17 @@ _BACKGROUND_BUDGET_SECONDS = float(
 _MAX_RECOVERY_ATTEMPTS = int(
     os.getenv("ATOM_WORKDRIVE_BACKGROUND_MAX_ATTEMPTS", "2") or 2)
 
+#: GHOST-RUN BOUND (2026-11-12 review finding 3).  ``owner_liveness`` reports
+#: ``unknown`` for a missing stamp and for an owner on another host — and
+#: "unknown" is deliberately NOT evidence of death, so a container restart with
+#: a changed hostname leaves a RUNNING row that no pass may take over and no
+#: pass may finish: its schedule gate stays held, every re-ask collapses onto
+#: it, and the read never delivers.  An attempt older than twice the run budget
+#: cannot still be inside that budget, so it is treated as a ghost REGARDLESS
+#: of the liveness verdict: recovery may claim it and, when its retry budget is
+#: exhausted, finish it (which releases the gate).
+_STALE_RUN_SECONDS = max(_BACKGROUND_BUDGET_SECONDS * 2.0, 120.0)
+
 _JOB_STATUS_SCHEDULED = "scheduled"
 _JOB_STATUS_RUNNING = "running"
 _JOB_STATUS_COMPLETED = "completed"
@@ -431,6 +442,12 @@ def _record_confirmation_on_job(
     }
     try:
         with get_db_session() as db:
+            # LOCK-FIRST: see ``_lock_job_row``.  The runner mutates this same
+            # JSON column from another transaction/process; reading before the
+            # lock is what allowed a stale confirmation copy to overwrite a
+            # fresh claim (attempts reset, owner lost, lease unreachable).
+            if not _lock_job_row(db, job_id):
+                return
             row = db.query(AgentExecution).filter(
                 AgentExecution.id == str(job_id)).first()
             if row is None:
@@ -470,6 +487,78 @@ def _job_from_row(row: Any) -> Optional[Dict[str, Any]]:
     return job
 
 
+def _lock_job_row(db: Any, job_id: str) -> bool:
+    """Take this job row's write lock BEFORE reading it.
+
+    WHY: confirmation bookkeeping used to be a plain read-modify-write of the
+    whole ``metadata_json`` blob.  A confirmation arrives WHILE the runner is
+    claiming/storing in another transaction, so the read could snapshot a
+    scheduled row (``attempts=0``, no owner) and then commit that stale copy
+    LAST — reverting the runner's claim.  The next claim then recomputed
+    ``run:1``, hit the lease that already existed, and the job was wedged
+    forever.
+
+    A no-op self-assignment UPDATE is portable (PostgreSQL row lock, SQLite
+    write lock) and runs as the FIRST statement of the transaction, so the
+    read that follows observes the runner's committed state and no writer can
+    commit between our read and our write.
+    """
+    from core.models import AgentExecution
+
+    updated = (
+        db.query(AgentExecution)
+        .filter(AgentExecution.id == str(job_id))
+        .update(
+            {AgentExecution.status: AgentExecution.status},
+            synchronize_session=False,
+        )
+    )
+    return bool(updated)
+
+
+def _parse_timestamp(value: Any) -> Optional[float]:
+    """Epoch seconds for an ISO-8601 string / datetime / numeric stamp."""
+    if isinstance(value, datetime):
+        moment = value
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=timezone.utc)
+        return moment.timestamp()
+    if isinstance(value, (int, float)) and value:
+        return float(value)
+    text = _text(value)
+    if not text:
+        return None
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.timestamp()
+
+
+def _run_started_at(job: Dict[str, Any], row: Any) -> Optional[float]:
+    """When the CURRENT run attempt began (fallbacks for legacy rows)."""
+    for candidate in (
+        job.get("last_attempt_at"),
+        job.get("started_at"),
+        job.get("created_at"),
+        getattr(row, "started_at", None),
+    ):
+        stamp = _parse_timestamp(candidate)
+        if stamp:
+            return stamp
+    return None
+
+
+def _run_is_stale(job: Dict[str, Any], row: Any, *, now: Optional[float] = None) -> bool:
+    """Whether this run has outlived any possible in-budget execution."""
+    started = _run_started_at(job, row)
+    if not started:
+        return False
+    return (time.time() if now is None else now) - started >= _STALE_RUN_SECONDS
+
+
 def _job_is_in_flight(job: Any, row: Any) -> bool:
     """Whether this durable job is still unfinished (scheduled/running)."""
     if not isinstance(job, dict):
@@ -493,8 +582,129 @@ def _schedule_gate_event_id(session_id: Any, original_digest: Any) -> Optional[s
         f"{session}|{digest}", _SCHEDULE_GATE_REVISION, _SCHEDULE_EVENT_TYPE)
 
 
+def _job_row_is_terminal(row: Any) -> bool:
+    """Whether this durable job row can never run/deliver again."""
+    status = str(getattr(row, "status", "") or "")
+    if status in ("failed", "completed", "cancelled"):
+        return True
+    job = _metadata_job(getattr(row, "metadata_json", None))
+    return str((job or {}).get("status") or "") in (
+        _JOB_STATUS_FAILED, _JOB_STATUS_COMPLETED)
+
+
+def _release_terminal_schedule_gate(
+    gate_id: Optional[str], *, expected_job_id: Optional[str] = None,
+) -> bool:
+    """Release a schedule gate whose owning job row is terminal (or gone).
+
+    The gate's only normal release point is ``_finish_job``.  A row failed by
+    the GENERIC boot sweep (``core.execution_recovery``) is terminal without
+    passing through this module, so its gate is orphaned: a re-ask conflicts,
+    ``_active_job_for`` correctly finds no active job, and the request can
+    never be scheduled again (review finding 4).
+
+    Only a gate whose owner is provably terminal is removed; a live job's gate
+    is never touched.  ``expected_job_id`` makes the caller's intent explicit:
+    never delete a gate a newer re-ask has since re-pointed elsewhere.
+    """
+    gate = _text(gate_id)
+    if not gate:
+        return False
+    try:
+        from core.database import get_db_session
+        from core.models import AgentExecution, DeliveryEvent
+
+        with get_db_session() as db:
+            event = db.query(DeliveryEvent).filter(
+                DeliveryEvent.event_id == gate).first()
+            if event is None:
+                return False
+            owner = _text(event.job_id)
+            if expected_job_id and owner != _text(expected_job_id):
+                return False
+            row = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == owner)
+                .first()
+                if owner else None
+            )
+            if row is not None and not _job_row_is_terminal(row):
+                return False
+            deleted = (
+                db.query(DeliveryEvent)
+                .filter(
+                    DeliveryEvent.event_id == gate,
+                    DeliveryEvent.job_id == owner,
+                )
+                .delete(synchronize_session=False)
+            )
+            db.commit()
+            if deleted:
+                logger.info(
+                    "[workdrive-background] released orphaned schedule gate "
+                    "held by terminal job %s", (owner or "<missing>")[:12])
+            return bool(deleted)
+    except Exception as exc:  # noqa: BLE001 — a failed release must not crash
+        logger.debug(
+            "[workdrive-background] schedule gate release skipped: %r", exc)
+        return False
+
+
+def _sweep_terminal_schedule_gates() -> int:
+    """Boot sweep: drop gates whose owning job can never finish.
+
+    Same root cause as ``_release_terminal_schedule_gate`` (the gate's only
+    release point is ``_finish_job``), handled in bulk so a restart repairs
+    gates orphaned while no workdrive pass was running.  A gate whose job row
+    no longer exists can never be released by that row either, so it is swept
+    as well; the gate and its job row are always written in one transaction,
+    so a visible gate without its row means the row is gone, not in flight.
+    """
+    released = 0
+    try:
+        from core.database import get_db_session
+        from core.models import AgentExecution, DeliveryEvent
+
+        with get_db_session() as db:
+            gates = (
+                db.query(DeliveryEvent)
+                .filter(DeliveryEvent.result_revision
+                        == _SCHEDULE_GATE_REVISION)
+                .limit(500)
+                .all()
+            )
+            for gate in gates:
+                owner = _text(gate.job_id)
+                row = (
+                    db.query(AgentExecution)
+                    .filter(AgentExecution.id == owner)
+                    .first()
+                    if owner else None
+                )
+                if row is not None and not _job_row_is_terminal(row):
+                    continue
+                released += (
+                    db.query(DeliveryEvent)
+                    .filter(
+                        DeliveryEvent.event_id == gate.event_id,
+                        DeliveryEvent.job_id == owner,
+                    )
+                    .delete(synchronize_session=False)
+                )
+            if released:
+                db.commit()
+                logger.info(
+                    "[workdrive-background] swept %s orphaned schedule "
+                    "gate(s) held by terminal/missing jobs", released)
+    except Exception as exc:  # noqa: BLE001 — boot pass must never crash
+        logger.debug(
+            "[workdrive-background] schedule gate sweep skipped: %r", exc)
+    return released
+
+
 def _claim_run_lease(
     db: Any, *, job_id: str, attempt: int, session_id: str,
+    takeover: bool = False,
 ) -> bool:
     """Arbitrate one run attempt on the shared delivery-event primary key.
 
@@ -503,37 +713,57 @@ def _claim_run_lease(
     win, so only one of them may download.  A crash leaves the lease behind,
     but the next recovery pass reads the incremented attempt and therefore
     acquires ``run:n+2`` — restart recovery is preserved.
+
+    ``takeover`` adds ONE deterministic fallback revision.  It is used only
+    when this caller is deliberately replacing a stale/verified-dead owner,
+    and it exists because a lease can outlive the attempt counter that named
+    it (the 2026-11-12 review's wedged-job case: a reverted ``attempts`` made
+    every pass retry ``run:1`` and hit its own leftover lease forever).  The
+    fallback id is still deterministic, so even two simultaneous repairers
+    cannot both win.
     """
     from core.job_delivery import job_event_id
     from core.models import DeliveryEvent
+    from sqlalchemy.exc import IntegrityError
 
-    revision = f"run:{int(attempt)}"
-    db.add(DeliveryEvent(
-        event_id=job_event_id(job_id, revision, _CLAIM_EVENT_TYPE),
-        conversation_id=_text(session_id) or f"job:{_text(job_id)}",
-        job_id=_text(job_id),
-        result_revision=revision,
-    ))
-    try:
-        db.flush()
-    except Exception as exc:  # noqa: BLE001
-        from sqlalchemy.exc import IntegrityError
+    revisions = [f"run:{int(attempt)}"]
+    if takeover:
+        revisions.append(f"run:{int(attempt)}:takeover")
+    for index, revision in enumerate(revisions):
+        db.add(DeliveryEvent(
+            event_id=job_event_id(job_id, revision, _CLAIM_EVENT_TYPE),
+            conversation_id=_text(session_id) or f"job:{_text(job_id)}",
+            job_id=_text(job_id),
+            result_revision=revision,
+        ))
+        try:
+            db.flush()
+            return True
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            if not isinstance(exc, IntegrityError):
+                raise
+            if index == len(revisions) - 1:
+                return False  # another process owns this run
+    return False
 
-        db.rollback()
-        if isinstance(exc, IntegrityError):
-            return False  # another process owns this run
-        raise
-    return True
 
-
-def _owner_allows_takeover(row: Any, *, allow_live_owner: bool) -> bool:
+def _owner_allows_takeover(
+    row: Any, *, allow_live_owner: bool, stale: bool = False,
+) -> bool:
     """Whether a claimed job may be taken over by THIS process.
 
     Only a VERIFIED dead owner is replaceable.  ``live``/``self`` is another
     runner, and ``unknown`` (another host, missing stamp, failed inspection —
     see ``core.execution_ownership``) is explicitly NOT evidence of death.
+
+    The one exception is ``stale``: a run whose attempt began longer ago than
+    twice its own hard budget cannot still be inside that budget, so the
+    verdict no longer identifies a runner that can deliver.  That is what
+    bounds an ``unknown``-owner zombie (review finding 3) without weakening
+    the "we cannot tell, do not touch" stance for a fresh attempt.
     """
-    if allow_live_owner:
+    if allow_live_owner or stale:
         return True
     try:
         from core.execution_ownership import owner_liveness
@@ -546,6 +776,7 @@ def _owner_allows_takeover(row: Any, *, allow_live_owner: bool) -> bool:
 
 def _claim_job_for_run(
     job_id: str, *, allow_live_owner: bool = False,
+    allow_failed: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """Claim the next run attempt for this job, or return None.
 
@@ -554,6 +785,14 @@ def _claim_job_for_run(
     mutates the row.  A live (or unknowable) owner is never replaced — the
     liveness verdict is re-read from the FRESH row, not from the recovery
     scan's snapshot.  On success the CURRENT process is stamped as owner.
+
+    TERMINALITY (review finding 5): ``failed`` is terminal for this module
+    everywhere else (``_job_is_in_flight``/``_active_job_for`` and every
+    confirmation gate), so it is terminal here too.  Only the restart-recovery
+    pass may revive a failed row, and only by passing ``allow_failed`` for an
+    owner it can prove is gone (dead or stale): that keeps the generic boot
+    sweep's externally-failed row repairable without letting a racing loser
+    turn an announced failure into a success.
 
     The lease insert is the FIRST statement of its transaction (a small read
     phase precedes it).  That ordering matters on SQLite: taking the write
@@ -572,16 +811,57 @@ def _claim_job_for_run(
         job = _job_from_row(row)
         if job is None:
             return None
+        if _terminal_delivery(job, db=db) is not None:
+            # Another writer already produced this job's ONE terminal message.
+            # Re-running it can only write a second (or clobber the durable
+            # result behind the one the user already saw).
+            logger.info(
+                "[workdrive-background] claim refused for job %s: its terminal "
+                "delivery is already written", str(job_id)[:12])
+            return None
         attempts = int(job.get("attempts") or 0)
+        job_status = str(job.get("status") or "")
+        row_status = str(row.status or "")
+        if row_status in ("completed", "cancelled") or (
+                job_status == _JOB_STATUS_COMPLETED):
+            return None
+        failed = (row_status == "failed"
+                  or job_status == _JOB_STATUS_FAILED)
+        if failed and not allow_failed:
+            logger.info(
+                "[workdrive-background] claim refused for job %s: the job is "
+                "failed (terminal)", str(job_id)[:12])
+            return None
+        stale_run = attempts > 0 and _run_is_stale(job, row)
         # A scheduled job's first attempt (attempts == 0) has no runner yet.
-        # Every later attempt must prove its predecessor is dead.
-        if attempts > 0 and not _owner_allows_takeover(
-                row, allow_live_owner=allow_live_owner):
+        # Every later attempt must prove its predecessor is gone (verified
+        # dead, or stale beyond any possible in-budget run).  A failed row
+        # with NO attempt was never in a runner's hands (a boot sweep
+        # terminalized a job that never started), so recovery may re-run it
+        # without displacing anyone.
+        takeover = bool(
+            allow_live_owner
+            or (failed and allow_failed and attempts == 0)
+        )
+        if (attempts > 0 or failed) and not takeover:
+            takeover = _owner_allows_takeover(
+                row, allow_live_owner=False, stale=stale_run)
+        if failed and not takeover:
+            logger.info(
+                "[workdrive-background] claim refused for job %s: failed row "
+                "and its owner cannot be verified gone", str(job_id)[:12])
+            return None
+        if attempts > 0 and not takeover:
             logger.info(
                 "[workdrive-background] claim refused for job %s: owner is "
                 "still live or cannot be verified dead",
                 str(job_id)[:12])
             return None
+        if stale_run:
+            logger.info(
+                "[workdrive-background] claim for job %s takes over a stale "
+                "run (attempt %s older than %.0fs)",
+                str(job_id)[:12], attempts, _STALE_RUN_SECONDS)
         session_id = _text(job.get("session_id"))
 
     # --- write phase: lease first, then (only if won) the row mutation ------
@@ -592,13 +872,37 @@ def _claim_job_for_run(
     attempt = attempts + 1
     try:
         with get_db_session() as db:
-            if not _claim_run_lease(
-                    db, job_id=str(job_id), attempt=attempt,
-                    session_id=session_id):
-                logger.info(
-                    "[workdrive-background] claim for job %s attempt %s lost "
-                    "to another process", str(job_id)[:12], attempt)
-                return None
+            won = _claim_run_lease(
+                db, job_id=str(job_id), attempt=attempt,
+                session_id=session_id, takeover=takeover)
+            if not won:
+                # A legitimate loser of the lease sees the winner's committed
+                # attempt bump on the fresh row.  An UNCHANGED counter with a
+                # taken lease is an orphan from a corrupted job record (the
+                # 2026-11-12 review's wedged shape: a reverted ``attempts``
+                # made every pass retry its own leftover ``run:1`` forever).
+                # Self-repair once with the deterministic takeover revision.
+                fresh_row = db.query(AgentExecution).filter(
+                    AgentExecution.id == str(job_id)).first()
+                fresh_job = (
+                    _job_from_row(fresh_row)
+                    if fresh_row is not None else None)
+                orphan_lease = (
+                    isinstance(fresh_job, dict)
+                    and int(fresh_job.get("attempts") or 0) == attempts)
+                if orphan_lease and not takeover:
+                    logger.warning(
+                        "[workdrive-background] job %s attempt %s lease is "
+                        "orphaned (counter still %s); repairing it",
+                        str(job_id)[:12], attempt, attempts)
+                    won = _claim_run_lease(
+                        db, job_id=str(job_id), attempt=attempt,
+                        session_id=session_id, takeover=True)
+                if not won:
+                    logger.info(
+                        "[workdrive-background] claim for job %s attempt %s "
+                        "lost to another process", str(job_id)[:12], attempt)
+                    return None
             row = db.query(AgentExecution).filter(
                 AgentExecution.id == str(job_id)).first()
             job = _job_from_row(row) if row is not None else None
@@ -617,6 +921,11 @@ def _claim_job_for_run(
             if str(row.status or "") in ("completed", "cancelled"):
                 db.rollback()
                 return None
+            if (str(row.status or "") == "failed"
+                    or str(job.get("status") or "") == _JOB_STATUS_FAILED):
+                if not allow_failed:
+                    db.rollback()
+                    return None
             job["status"] = _JOB_STATUS_RUNNING
             job["attempts"] = attempt
             job["last_attempt_at"] = _now_iso()
@@ -643,6 +952,13 @@ def _store_job_result(job_id: str, result_row: Dict[str, Any]) -> None:
 
     A crash after this write and before the assistant message is written is
     recoverable without a second download: recovery re-delivers this row.
+
+    TERMINAL GUARD (review finding 7): if another attempt has already written
+    this job's ONE terminal message (typically the failure notice that won the
+    terminal primary key), storing this result would leave the durable row
+    claiming ``completed`` with bytes the user never saw, while the message
+    they did see says the read failed.  The delivered message is authoritative,
+    so this becomes a no-op.
     """
     from core.database import get_db_session
     from core.models import AgentExecution
@@ -653,6 +969,13 @@ def _store_job_result(job_id: str, result_row: Dict[str, Any]) -> None:
         if row is None:
             return
         job = _job_from_row(row) or {}
+        terminal = _terminal_delivery(job, db=db)
+        if terminal is not None:
+            logger.info(
+                "[workdrive-background] not storing a result for job %s: its "
+                "terminal delivery (%s) is already written",
+                str(job_id)[:12], terminal)
+            return
         job["status"] = _JOB_STATUS_COMPLETED
         job["result"] = result_row
         job["completed_at"] = _now_iso()
@@ -662,7 +985,26 @@ def _store_job_result(job_id: str, result_row: Dict[str, Any]) -> None:
 
 
 def _finish_job(job_id: str, status: str, *, error: str = "",
-                summary: str = "") -> None:
+                summary: str = "", respect_terminal: bool = False) -> None:
+    """Write the job's durable terminal state and release its schedule gate.
+
+    ``respect_terminal`` is for the POST-DELIVERY call sites only: when a
+    concurrent attempt's failure notice won the terminal primary key while this
+    one was running, this pass must not overwrite that job as ``completed`` —
+    it has to record the state the user was actually told (review finding 7).
+    """
+    if respect_terminal and status == _JOB_STATUS_COMPLETED:
+        _row, current = _get_job(job_id)
+        terminal = (
+            _terminal_delivery(current) if isinstance(current, dict) else None)
+        if terminal == "failed":
+            logger.info(
+                "[workdrive-background] job %s keeps its announced failure: "
+                "another attempt's failure notice is terminal",
+                str(job_id)[:12])
+            status = _JOB_STATUS_FAILED
+            error = error or "another attempt's failure notice is terminal"
+            summary = "terminal failure already delivered"
     from core.database import get_db_session
     from core.models import AgentExecution, DeliveryEvent, ExecutionStatus
 
@@ -1038,6 +1380,12 @@ def schedule_strict_workdrive_read(
             return _reused_schedule(
                 winner, digest=digest, authorization=state,
                 execution_id=execution_id, session=session)
+        # A gate held by a job that is already terminal (typically failed by
+        # the generic boot sweep, which never touches this module) can never
+        # be released by ``_finish_job``.  Release it here instead of failing
+        # this request forever, then retry the insert.
+        if _release_terminal_schedule_gate(gate_id):
+            continue
 
     if not scheduled:
         logger.warning(
@@ -1510,13 +1858,19 @@ def _delivery_metadata(job: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, An
     }
 
 
-def _terminal_delivery(job: Dict[str, Any]) -> Optional[str]:
+def _terminal_delivery(
+    job: Dict[str, Any], *, db: Any = None,
+) -> Optional[str]:
     """Status of this job's already-written terminal delivery, if any.
 
     Both the successful result (``delivered``) and the honest failure notice
     (``failed``) are TERMINAL for one job: at most one of them may ever be
     written.  Recovery consults this so an announced failure is not re-run
     into a second message.
+
+    Pass ``db`` to read through a caller's session.  That matters on a
+    single-connection store (and keeps every check inside the one transaction
+    that acts on it); omit it to open a short-lived session of its own.
     """
     job_id = _text(job.get("job_id"))
     session_id = _text(job.get("session_id"))
@@ -1526,32 +1880,42 @@ def _terminal_delivery(job: Dict[str, Any]) -> Optional[str]:
         from core.database import get_db_session
         from core.models import ChatMessage
 
-        with get_db_session() as db:
-            rows = (
-                db.query(ChatMessage)
-                .filter(
-                    ChatMessage.conversation_id == session_id,
-                    ChatMessage.role == "assistant",
-                    ChatMessage.metadata_json.like(f"%{job_id}%"),
-                )
-                .order_by(ChatMessage.created_at.desc(),
-                          ChatMessage.id.desc())
-                .limit(12)
-                .all()
-            )
-        for row in rows:
-            try:
-                meta = json.loads(row.metadata_json or "{}")
-            except Exception:  # noqa: BLE001
-                continue
-            marker = meta.get("workdrive_background_read")
-            if isinstance(marker, dict) and _text(
-                    marker.get("job_id")) == job_id:
-                status = _text(marker.get("status"))
-                if status in ("delivered", "failed"):
-                    return status
+        if db is not None:
+            return _terminal_delivery_in_session(db, job_id, session_id,
+                                                 ChatMessage)
+        with get_db_session() as own:
+            return _terminal_delivery_in_session(own, job_id, session_id,
+                                                 ChatMessage)
     except Exception as exc:  # noqa: BLE001 — best effort
         logger.debug("[workdrive-background] delivered check skipped: %r", exc)
+    return None
+
+
+def _terminal_delivery_in_session(
+    db: Any, job_id: str, session_id: str, model: Any,
+) -> Optional[str]:
+    rows = (
+        db.query(model)
+        .filter(
+            model.conversation_id == session_id,
+            model.role == "assistant",
+            model.metadata_json.like(f"%{job_id}%"),
+        )
+        .order_by(model.created_at.desc(), model.id.desc())
+        .limit(12)
+        .all()
+    )
+    for row in rows:
+        try:
+            meta = json.loads(row.metadata_json or "{}")
+        except Exception:  # noqa: BLE001
+            continue
+        marker = meta.get("workdrive_background_read")
+        if isinstance(marker, dict) and _text(
+                marker.get("job_id")) == job_id:
+            status = _text(marker.get("status"))
+            if status in ("delivered", "failed"):
+                return status
     return None
 
 
@@ -1800,6 +2164,7 @@ async def execute_background_read(
     session: Optional[Dict[str, Any]] = None,
     read_runner: Optional[Callable[..., Any]] = None,
     allow_live_owner: bool = False,
+    allow_failed: bool = False,
 ) -> Dict[str, Any]:
     """Run one durable strict WorkDrive read to completion.
 
@@ -1865,7 +2230,8 @@ async def execute_background_read(
                     "reason": "persisted_result_invalid"}
         delivered = deliver_persisted_result(job, stored, session=session)
         _finish_job(job["job_id"], _JOB_STATUS_COMPLETED,
-                    summary="recovered persisted delivery")
+                    summary="recovered persisted delivery",
+                    respect_terminal=True)
         return {
             "ok": True,
             "job_id": job["job_id"],
@@ -1876,7 +2242,8 @@ async def execute_background_read(
         }
 
     claimed = _claim_job_for_run(
-        job["job_id"], allow_live_owner=allow_live_owner)
+        job["job_id"], allow_live_owner=allow_live_owner,
+        allow_failed=allow_failed)
     if not isinstance(claimed, dict):
         return {"ok": False, "job_id": job["job_id"],
                 "reason": "job_claim_failed"}
@@ -1932,7 +2299,8 @@ async def execute_background_read(
     delivered = deliver_persisted_result(job, row_out, session=session)
     _finish_job(
         job["job_id"], _JOB_STATUS_COMPLETED,
-        summary=f"strict WorkDrive read delivered from {rendered[:80]!r}")
+        summary=f"strict WorkDrive read delivered from {rendered[:80]!r}",
+        respect_terminal=True)
     logger.info(
         "[workdrive-background] job %s completed: bytes=%s sha256=%s "
         "execution=%s delivered=%s",
@@ -2144,8 +2512,13 @@ async def recover_pending_strict_workdrive_reads(
         "skipped_delivered": 0,
         "skipped_terminal": 0,
         "failed": 0,
+        "gates_released": 0,
         "details": [],
     }
+    # Reclaim gates orphaned by rows terminalized outside ``_finish_job``
+    # (generic boot sweep) BEFORE the per-job pass, so a job that this pass
+    # repairs is never blocked by its own stale gate.
+    stats["gates_released"] = _sweep_terminal_schedule_gates()
     try:
         rows = _job_rows()
     except Exception as exc:  # noqa: BLE001 — boot pass must never crash
@@ -2205,7 +2578,8 @@ async def recover_pending_strict_workdrive_reads(
                     and str(row.status or "") == "running"
                     and str(job.get("status") or "") == _JOB_STATUS_RUNNING
                     and int(job.get("attempts") or 0) > 0
-                    and _owner_is_live(row)):
+                    and _owner_is_live(row)
+                    and not _run_is_stale(job, row)):
                 stats["skipped_live"] += 1
                 stats["details"].append({
                     "job_id": job_id, "skipped": "live_owner"})
@@ -2222,7 +2596,11 @@ async def recover_pending_strict_workdrive_reads(
                 continue
             out = await execute_background_read(
                 job_id, read_runner=read_runner,
-                allow_live_owner=allow_live_owner)
+                allow_live_owner=allow_live_owner,
+                # THIS pass is the repair lane: a row the generic boot sweep
+                # failed while its owner died is claimable by the recovery
+                # pass (the claim still requires a gone/stale owner).
+                allow_failed=True)
             if out.get("ok"):
                 stats["rerun"] += 1
                 if out.get("delivered"):
