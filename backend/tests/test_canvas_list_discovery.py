@@ -418,6 +418,20 @@ class TestRouteBoundary:
         resp = route_client.get("/api/canvas/?limit=5000")
         assert resp.status_code == 422  # FastAPI validation (le=200)
 
+    def test_route_accepts_unslashed_path(
+        self, db_session, discovery_user, patched_session, route_client
+    ):
+        """The dashboard's same-origin fetch("/api/canvas/") is normalized by
+        Next.js to "/api/canvas". Without an unslashed GET route FastAPI
+        returns 405 (the POST "" route matches the path but not the method),
+        so the dashboard's recent-canvases panel silently stays empty."""
+        self._seed(db_session, discovery_user)
+        resp = route_client.get("/api/canvas?q=acme", follow_redirects=False)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["canvases"][0]["canvas_id"] == "cv-hit"
+
 
 # ============================================================================
 # Session scoping + version counts (agent-chat Artifacts panel)
