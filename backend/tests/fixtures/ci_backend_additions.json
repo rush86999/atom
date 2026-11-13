@@ -321,7 +321,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/test_org_politics_scheduled_worker_offline.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/test_org_politics_scheduled_worker_offline.py tests/test_team05_live_qualification.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run served spreadsheet stale-cache regression control",

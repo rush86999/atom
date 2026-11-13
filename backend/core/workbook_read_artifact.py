@@ -20,7 +20,10 @@ import json
 import logging
 import os
 import re
+import zipfile
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
+from itertools import chain
 from typing import Any, Dict, List, Optional, Sequence
 
 from core.hybrid_search.documents_hybrid import error_category
@@ -965,11 +968,19 @@ def merged_anchor_for_cell(ranges: Sequence[str], cell: str) -> Optional[Dict[st
     return None
 
 
-def _matches_target(target: str, value: Any) -> bool:
-    text = _cell_text(value)
+@lru_cache(maxsize=1024)
+def _target_match_patterns(target: str) -> tuple:
+    """Compiled word-boundary patterns for one requested target.
+
+    The candidate expansion is unchanged: the literal target, a
+    punctuation-stripped form, a comma-stripped number, and the bare form of
+    a "No. 381" honorific. The patterns are compiled once per distinct
+    target because a targeted read tests every cell of every sheet against
+    every target (issue #620: eight targets over 46 sheets).
+    """
     target_text = str(target or "").strip()
-    if not text or not target_text:
-        return False
+    if not target_text:
+        return ()
     candidates = [target_text]
     # COMMA-FORMATTED PART NUMBERS (2026-10-02 live): the source sheet
     # writes '56,100' — the ask's '56,100' or '56100' must match both
@@ -985,14 +996,37 @@ def _matches_target(target: str, value: Any) -> bool:
     bare = re.sub(r"(?i)^no\.\s*", "", target_text)
     if bare and bare != target_text:
         candidates.append(bare)
-    return any(
-        re.search(
-            rf"(?<![A-Za-z0-9_-]){re.escape(cand)}(?![A-Za-z0-9_-])",
-            text,
+    return tuple(
+        re.compile(
+            rf"(?<![A-Za-z0-9_-]){re.escape(candidate)}(?![A-Za-z0-9_-])",
             re.IGNORECASE,
-        ) is not None
-        for cand in candidates
+        )
+        for candidate in candidates
     )
+
+
+def _patterns_match(text: str, patterns: Sequence[Any]) -> bool:
+    return any(pattern.search(text) is not None for pattern in patterns)
+
+
+def _target_match_matchers(targets: Sequence[str]) -> List[tuple]:
+    return [(target, _target_match_patterns(target)) for target in targets]
+
+
+def _alias_match_matchers(
+    alias_map: Dict[str, List[str]],
+) -> List[tuple]:
+    return [
+        (alias, list(alias_targets), _target_match_patterns(alias))
+        for alias, alias_targets in alias_map.items()
+    ]
+
+
+def _matches_target(target: str, value: Any) -> bool:
+    text = _cell_text(value)
+    if not text:
+        return False
+    return _patterns_match(text, _target_match_patterns(target))
 
 
 
@@ -2021,14 +2055,329 @@ _RELATIONSHIP_NS = (
     "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 )
 
-# Bounds for the streamed OOXML cached-value scan — the same spirit as
+# Bounds for the streamed OOXML scan — the same spirit as
 # ``core.xlsx_openpyxl_compat``: bounded memory, explicit caps, and NO silent
 # truncation. A cap violation raises, and the caller then restores the legacy
-# second openpyxl load, so a bound can only cost time, never correctness.
+# openpyxl read, so a bound can only cost time, never correctness.
 MAX_OOXML_SHARED_STRINGS_BYTES = 64 * 1024 * 1024
 MAX_OOXML_WORKBOOK_BYTES = 16 * 1024 * 1024
 MAX_OOXML_WORKSHEET_BYTES = 256 * 1024 * 1024
+MAX_OOXML_STYLES_BYTES = 64 * 1024 * 1024
 MAX_OOXML_SCAN_TOTAL_BYTES = 512 * 1024 * 1024
+
+#: ``_infer_header_map`` reads at most the first 12 rows and may extend
+#: through three more; buffering 15 logical rows is enough to decide a
+#: header before the rest of the worksheet is streamed.
+_OOXML_HEADER_SCAN_ROWS = 15
+#: The artifact reports at most 200 merged ranges per sheet (see the
+#: openpyxl lane), so the streamed lane keeps the same first-200 order.
+_OOXML_MAX_MERGED_RANGES = 200
+
+_CELL_REF_RE = re.compile(r"^([A-Za-z]{1,3})(\d{1,7})$")
+
+
+class _OoxmlStreamDeclined(RuntimeError):
+    """The package cannot be inspected by the bounded OOXML streaming lane.
+
+    Declining is always safe: the caller keeps the openpyxl read, so a bound
+    (or an unsupported construct) costs time, never correctness.
+    """
+
+
+def _ooxml_local_tag(tag: Any) -> str:
+    return str(tag).rsplit("}", 1)[-1]
+
+
+def _ooxml_cast_number(text: str) -> Any:
+    """Same rule as ``openpyxl.worksheet._reader._cast_number``."""
+    if "." in text or "E" in text or "e" in text:
+        return float(text)
+    return int(text)
+
+
+def _ooxml_detach(parent: Any, element: Any) -> None:
+    """Drop ``element`` from ``parent`` so its subtree can be freed."""
+    if parent is None:
+        return
+    try:
+        parent.remove(element)
+    except ValueError:
+        pass  # not a direct child of the tracked parent
+
+
+def _ooxml_rich_text(element: Any) -> str:
+    """Concatenated plain text of a shared/inline string element.
+
+    Mirrors ``openpyxl.cell.text.Text.content``: the plain ``<t>`` plus the
+    ``<t>`` of every rich-text ``<r>`` run; phonetic runs (``<rPh>``) are
+    ignored, exactly as openpyxl ignores them.
+    """
+    parts: List[str] = []
+    for child in element:
+        tag = _ooxml_local_tag(child.tag)
+        if tag == "t":
+            parts.append(child.text or "")
+        elif tag == "r":
+            for sub in child:
+                if _ooxml_local_tag(sub.tag) == "t":
+                    parts.append(sub.text or "")
+    return "".join(parts)
+
+
+def _ooxml_iterparse(handle: Any):
+    """defusedxml iterparse over one part, dangerous features forbidden.
+
+    DTDs, entity expansion and external references are rejected outright
+    rather than resolved. If defusedxml cannot be imported the scan DECLINES;
+    it never falls back to the stdlib parser, which would reopen the
+    DTD/entity path (same contract as ``core.xlsx_openpyxl_compat``).
+    """
+    try:
+        from defusedxml import ElementTree as SafeET
+    except Exception as exc:  # noqa: BLE001 — DECLINE; never a stdlib parse
+        raise _OoxmlStreamDeclined(
+            "defusedxml unavailable; OOXML scan declined "
+            f"({exc})") from exc
+    return SafeET.iterparse(
+        handle, events=("start", "end"),
+        forbid_dtd=True, forbid_entities=True, forbid_external=True,
+    )
+
+
+def _ooxml_open_part(
+    archive: Any, name: str, limit: int, budget: Dict[str, int],
+):
+    """Open one zip member under its per-part cap and the scan budget.
+
+    The declared uncompressed size is checked before the stream starts, so an
+    oversized part costs nothing to reject; ``zipfile`` enforces the declared
+    size while reading.
+    """
+    info = archive.getinfo(name)  # KeyError -> scan declines
+    size = int(info.file_size or 0)
+    if size > limit:
+        raise _OoxmlStreamDeclined(
+            f"{name} expands to {size} bytes (cap {limit}); "
+            "OOXML scan declined")
+    if size > budget["remaining"]:
+        raise _OoxmlStreamDeclined(
+            f"OOXML scan budget exhausted at {name} "
+            f"({budget['remaining']} of {budget['limit']} bytes remaining); "
+            "OOXML scan declined")
+    budget["remaining"] -= size
+    return archive.open(info, "r")
+
+
+def _ooxml_shared_strings(
+    archive: Any, budget: Dict[str, int], limit: int,
+) -> List[str]:
+    """The workbook's shared-string table, streamed and bounded.
+
+    ``x005F_`` escaping is stripped exactly as openpyxl's
+    ``read_string_table`` does, so cell text is byte-comparable with a
+    ``rich_text=False`` openpyxl load.
+    """
+    strings: List[str] = []
+    if "xl/sharedStrings.xml" not in set(archive.namelist()):
+        return strings
+    with _ooxml_open_part(
+        archive, "xl/sharedStrings.xml", limit, budget,
+    ) as handle:
+        sst = None
+        for event, element in _ooxml_iterparse(handle):
+            if event == "start":
+                if _ooxml_local_tag(element.tag) == "sst":
+                    sst = element
+                continue
+            if _ooxml_local_tag(element.tag) == "si":
+                strings.append(
+                    _ooxml_rich_text(element).replace("x005F_", ""))
+                _ooxml_detach(sst, element)
+    return strings
+
+
+def _ooxml_relationship_targets(
+    archive: Any, budget: Dict[str, int], limit: int,
+) -> Dict[str, tuple]:
+    """``{Id: (Target, TargetMode, Type)}`` for workbook-level relationships."""
+    targets: Dict[str, tuple] = {}
+    with _ooxml_open_part(
+        archive, "xl/_rels/workbook.xml.rels", limit, budget,
+    ) as handle:
+        for event, rel in _ooxml_iterparse(handle):
+            if event == "start" or _ooxml_local_tag(rel.tag) != "Relationship":
+                continue
+            rel_id = rel.get("Id")
+            if rel_id:
+                targets[rel_id] = (
+                    rel.get("Target", ""),
+                    (rel.get("TargetMode") or "Internal").strip().lower(),
+                    rel.get("Type", ""),
+                )
+    return targets
+
+
+def _ooxml_workbook_index(
+    archive: Any,
+    names: set,
+    rel_targets: Dict[str, tuple],
+    budget: Dict[str, int],
+    limit: int,
+    *,
+    openpyxl_paths: bool,
+) -> tuple:
+    """Worksheet ``(title, part)`` pairs in workbook order, plus the epoch.
+
+    Relationship resolution is normally the lenient one the cached-value scan
+    has always used. ``openpyxl_paths=True`` reproduces
+    ``openpyxl.packaging.relationship.get_dependents`` exactly (relative
+    targets resolve against ``xl/``, absolute targets lose their leading
+    slash) so a streamed read selects precisely the sheets a full openpyxl
+    load selects; that mode also drops chartsheets, which ``load_workbook``
+    keeps out of ``workbook.worksheets``.
+
+    A sheet whose relationship is external declines the scan: silently
+    skipping it would report its content as absent — a silent parity break.
+    """
+    import posixpath
+
+    sheets: List[tuple] = []
+    seen_titles = set()
+    date1904 = False
+    with _ooxml_open_part(
+        archive, "xl/workbook.xml", limit, budget,
+    ) as handle:
+        for event, element in _ooxml_iterparse(handle):
+            tag = _ooxml_local_tag(element.tag)
+            if tag == "workbookPr":
+                if event != "start":
+                    raw = (element.get("date1904") or "").strip().lower()
+                    date1904 = raw in ("1", "true")
+                continue
+            if event == "start" or tag != "sheet":
+                continue
+            title = element.get("name")
+            rid = element.get(f"{_RELATIONSHIP_NS}id")
+            target, mode, rel_type = rel_targets.get(rid) or ("", "", "")
+            if not (title and target):
+                continue
+            if mode != "internal":
+                raise _OoxmlStreamDeclined(
+                    f"sheet {title!r} uses a TargetMode={mode!r} "
+                    "relationship; external references are forbidden — "
+                    "OOXML scan declined")
+            if openpyxl_paths:
+                if "chartsheet" in (rel_type or "").lower():
+                    continue
+                if target.startswith("/"):
+                    part = target[1:]
+                else:
+                    part = posixpath.normpath(posixpath.join("xl", target))
+            else:
+                if target.startswith("/"):
+                    part = posixpath.normpath(target.lstrip("/"))
+                elif not target.startswith("xl/"):
+                    part = posixpath.normpath(f"xl/{target}")
+                else:
+                    part = posixpath.normpath(target)
+                if ".." in part.split("/"):
+                    continue
+            if part not in names:
+                continue  # inert: never a member of this package
+            if openpyxl_paths and title in seen_titles:
+                # openpyxl de-duplicates worksheet titles by renaming; a
+                # streamed read cannot reproduce that renaming faithfully.
+                raise _OoxmlStreamDeclined(
+                    f"duplicate worksheet title {title!r}; OOXML scan "
+                    "declined")
+            seen_titles.add(title)
+            sheets.append((title, part))
+    return sheets, date1904
+
+
+def _ooxml_number_formats(
+    archive: Any, budget: Dict[str, int], limit: int,
+) -> tuple:
+    """``(formats, date_styles, timedelta_styles)`` from ``xl/styles.xml``.
+
+    Reproduces ``openpyxl.styles.stylesheet.Stylesheet._normalise_numbers``
+    and the ``NumberFormatDescriptor`` lookup: custom format codes are
+    re-based onto the builtin table when they equal a builtin code, otherwise
+    indexed at 164+N in first-seen order. Numeric cells are converted to
+    dates/times by STYLE INDEX, exactly as openpyxl's cell parser does, so the
+    same serial becomes the same ``datetime``.
+    """
+    if "xl/styles.xml" not in set(archive.namelist()):
+        return ["General"], set(), set()
+    from openpyxl.styles.numbers import (
+        BUILTIN_FORMATS,
+        BUILTIN_FORMATS_MAX_SIZE,
+        BUILTIN_FORMATS_REVERSE,
+        is_date_format,
+        is_timedelta_format,
+    )
+
+    custom: Dict[int, str] = {}
+    xf_ids: List[Any] = []
+    container = None
+    with _ooxml_open_part(
+        archive, "xl/styles.xml", limit, budget,
+    ) as handle:
+        for event, element in _ooxml_iterparse(handle):
+            tag = _ooxml_local_tag(element.tag)
+            if event == "start":
+                if tag in ("numFmts", "cellStyleXfs", "cellXfs", "dxfs"):
+                    container = tag
+                continue
+            if tag == "numFmt" and container == "numFmts":
+                try:
+                    custom[int(element.get("numFmtId"))] = (
+                        element.get("formatCode") or "")
+                except (TypeError, ValueError):
+                    raise _OoxmlStreamDeclined(
+                        "invalid numFmtId in stylesheet; OOXML scan declined")
+            elif tag == "xf" and container == "cellXfs":
+                xf_ids.append(element.get("numFmtId"))
+            elif tag == container:
+                container = None
+    if not xf_ids:
+        return ["General"], set(), set()
+
+    external_formats: List[str] = []
+    number_formats: List[str] = []
+    date_formats = set()
+    timedelta_formats = set()
+    for raw in xf_ids:
+        try:
+            num_fmt_id = 0 if raw in (None, "") else int(raw)
+        except (TypeError, ValueError):
+            raise _OoxmlStreamDeclined(
+                "invalid cellXfs numFmtId; OOXML scan declined")
+        code = custom.get(num_fmt_id)
+        if code is not None:
+            if code in BUILTIN_FORMATS_REVERSE:
+                num_fmt_id = BUILTIN_FORMATS_REVERSE[code]
+            else:
+                if code not in external_formats:
+                    external_formats.append(code)
+                num_fmt_id = (
+                    external_formats.index(code) + BUILTIN_FORMATS_MAX_SIZE)
+        if num_fmt_id < BUILTIN_FORMATS_MAX_SIZE:
+            fmt = BUILTIN_FORMATS.get(num_fmt_id, "General")
+        else:
+            offset = num_fmt_id - BUILTIN_FORMATS_MAX_SIZE
+            if offset >= len(external_formats):
+                raise _OoxmlStreamDeclined(
+                    "cellXfs references an undefined number format; OOXML "
+                    "scan declined")
+            fmt = external_formats[offset]
+        number_formats.append(fmt)
+        index = len(number_formats) - 1
+        if is_date_format(fmt):
+            date_formats.add(index)
+        if is_timedelta_format(fmt):
+            timedelta_formats.add(index)
+    return number_formats, date_formats, timedelta_formats
 
 
 def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
@@ -2058,27 +2407,25 @@ def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
 
     Security and resource bounds (2026-11-12 hardening of issue #620):
 
-    * PARSING IS DEFUSEDXML-ONLY. Every part is parsed through
-      ``defusedxml.ElementTree`` with ``forbid_dtd``, ``forbid_entities`` and
-      ``forbid_external`` all set — a DTD, an entity definition or an
-      external reference is rejected outright. If defusedxml cannot be
-      imported the scan DECLINES (raises); it never falls back to the stdlib
-      parser, which would reopen the DTD/entity path (same contract as
-      ``core.xlsx_openpyxl_compat``).
+    * PARSING IS DEFUSEDXML-ONLY (``_ooxml_iterparse``). Every part is parsed
+      through ``defusedxml.ElementTree`` with ``forbid_dtd``,
+      ``forbid_entities`` and ``forbid_external`` all set. If defusedxml
+      cannot be imported the scan DECLINES (raises); it never falls back to
+      the stdlib parser.
     * WORKSHEET PARTS ARE STREAMED. No part is materialised as a tree:
       cells are read from their own end event (so ``<f>``/``<v>`` text is
       still intact), then each cell is pruned from its row and cleared, and
       each completed row is pruned from ``sheetData``. Peak memory stays
       proportional to one row plus the worksheet's small framing elements,
       never to the part size.
-    * EVERY PART IS BOUNDED. Per-part byte caps and a total scan budget are
-      checked BEFORE a part is opened (from the zip's declared uncompressed
-      size, which ``zipfile`` enforces on read). A cap violation raises; the
-      scan never returns truncated results.
-    * EXTERNAL RELATIONSHIPS ARE FORBIDDEN. A sheet whose workbook
-      relationship carries ``TargetMode="External"`` declines the scan;
-      relationships no sheet references (for example an external hyperlink
-      entry) are ignored and cannot change the map.
+    * EVERY PART IS BOUNDED (``_ooxml_open_part``). Per-part byte caps and a
+      total scan budget are checked BEFORE a part is opened (from the zip's
+      declared uncompressed size, which ``zipfile`` enforces on read). A cap
+      violation raises; the scan never returns truncated results.
+    * EXTERNAL RELATIONSHIPS ARE FORBIDDEN (``_ooxml_workbook_index``). A
+      sheet whose workbook relationship carries ``TargetMode="External"``
+      declines the scan; relationships no sheet references (for example an
+      external hyperlink entry) are ignored and cannot change the map.
     * A shared-string index outside the table declines the scan rather than
       returning a wrong or silently wrapped value.
 
@@ -2086,161 +2433,30 @@ def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
     caller then falls back to the legacy second openpyxl load rather than
     silently dropping cached values.
     """
-    import posixpath
-    import zipfile
-
-    try:
-        from defusedxml import ElementTree as SafeET
-    except Exception as exc:  # noqa: BLE001 — DECLINE; never a stdlib parse
-        raise RuntimeError(
-            "defusedxml unavailable; OOXML cached-value scan declined "
-            f"({exc})") from exc
-
-    def _local(tag: str) -> str:
-        return tag.rsplit("}", 1)[-1]
-
-    def _cast_number(text: str) -> Any:
-        # Same rule as openpyxl's _cast_number.
-        if "." in text or "E" in text or "e" in text:
-            return float(text)
-        return int(text)
-
-    def _streamed(handle):
-        """defusedxml iterparse over one part, all dangerous features
-        forbidden: DTDs, entity expansion and external references are
-        rejected outright rather than resolved."""
-        return SafeET.iterparse(
-            handle, events=("start", "end"),
-            forbid_dtd=True, forbid_entities=True, forbid_external=True,
-        )
-
-    def _detach(parent, element) -> None:
-        """Drop ``element`` from ``parent`` so its subtree can be freed."""
-        if parent is None:
-            return
-        try:
-            parent.remove(element)
-        except ValueError:
-            pass  # not a direct child of the tracked parent
-
-    def _shared_text(si) -> str:
-        parts: List[str] = []
-        for child in si:
-            tag = _local(child.tag)
-            if tag == "t":
-                parts.append(child.text or "")
-            elif tag == "r":
-                parts.extend(
-                    sub.text or "" for sub in child
-                    if _local(sub.tag) == "t")
-        return "".join(parts)
-
-    budget = {"remaining": MAX_OOXML_SCAN_TOTAL_BYTES}
-
-    def _open_part(archive: "zipfile.ZipFile", name: str, limit: int):
-        """Open one zip member under its per-part cap and the scan budget.
-
-        The declared uncompressed size is checked before the stream starts,
-        so an oversized part costs nothing to reject; ``zipfile`` enforces
-        the declared size while reading.
-        """
-        info = archive.getinfo(name)  # KeyError -> scan declines
-        size = int(info.file_size or 0)
-        if size > limit:
-            raise RuntimeError(
-                f"{name} expands to {size} bytes (cap {limit}); "
-                "cached-value scan declined")
-        if size > budget["remaining"]:
-            raise RuntimeError(
-                f"OOXML scan budget exhausted at {name} "
-                f"({budget['remaining']} of {MAX_OOXML_SCAN_TOTAL_BYTES} "
-                "bytes remaining); cached-value scan declined")
-        budget["remaining"] -= size
-        return archive.open(info, "r")
-
+    budget = {
+        "remaining": MAX_OOXML_SCAN_TOTAL_BYTES,
+        "limit": MAX_OOXML_SCAN_TOTAL_BYTES,
+    }
     with zipfile.ZipFile(io.BytesIO(content)) as archive:
         names = set(archive.namelist())
-        shared_strings: List[str] = []
-        if "xl/sharedStrings.xml" in names:
-            with _open_part(
-                archive, "xl/sharedStrings.xml",
-                MAX_OOXML_SHARED_STRINGS_BYTES,
-            ) as handle:
-                sst = None
-                for event, element in _streamed(handle):
-                    tag = _local(element.tag)
-                    if event == "start":
-                        if tag == "sst":
-                            sst = element
-                        continue
-                    if tag == "si":
-                        # The element's own children are intact here; the
-                        # removal below releases the whole subtree.
-                        shared_strings.append(_shared_text(element))
-                        _detach(sst, element)
-
-        # Relationships: keep (Target, TargetMode) per Id. External-mode
-        # relationships no sheet references are IGNORED (they cannot name a
-        # part in this package); a sheet's own relationship must be internal.
-        rel_targets: Dict[str, tuple] = {}
-        with _open_part(
-            archive, "xl/_rels/workbook.xml.rels", MAX_OOXML_WORKBOOK_BYTES,
-        ) as handle:
-            for event, rel in _streamed(handle):
-                if event == "start" or _local(rel.tag) != "Relationship":
-                    continue
-                rel_id = rel.get("Id")
-                if rel_id:
-                    rel_targets[rel_id] = (
-                        rel.get("Target", ""),
-                        (rel.get("TargetMode") or "Internal").strip().lower(),
-                    )
-
-        sheet_parts: Dict[str, str] = {}
-        with _open_part(
-            archive, "xl/workbook.xml", MAX_OOXML_WORKBOOK_BYTES,
-        ) as handle:
-            for event, sheet in _streamed(handle):
-                if event == "start" or _local(sheet.tag) != "sheet":
-                    continue
-                title = sheet.get("name")
-                rid = sheet.get(f"{_RELATIONSHIP_NS}id")
-                target, mode = rel_targets.get(rid) or ("", "")
-                if not (title and target):
-                    continue
-                if mode != "internal":
-                    # EXTERNAL REFERENCES ARE FORBIDDEN (2026-11-12
-                    # hardening): silently skipping the sheet would report
-                    # its formula cache as "unavailable" — a silent parity
-                    # break. The scan declines instead and the caller
-                    # restores the legacy behavior for the whole workbook.
-                    raise RuntimeError(
-                        f"sheet {title!r} uses a "
-                        f"TargetMode={mode!r} relationship; external "
-                        "references are forbidden — cached-value scan "
-                        "declined")
-                if target.startswith("/"):
-                    # Package-absolute part name.
-                    normalized = posixpath.normpath(target.lstrip("/"))
-                elif not target.startswith("xl/"):
-                    # Workbook-level relationships resolve against xl/;
-                    # normpath also resolves legitimate "../" targets that
-                    # the legacy prefixing left unmapped.
-                    normalized = posixpath.normpath(f"xl/{target}")
-                else:
-                    normalized = posixpath.normpath(target)
-                if ".." in normalized.split("/") or normalized not in names:
-                    continue  # inert: never a member of this package
-                sheet_parts[title] = normalized
+        shared_strings = _ooxml_shared_strings(
+            archive, budget, MAX_OOXML_SHARED_STRINGS_BYTES)
+        rel_targets = _ooxml_relationship_targets(
+            archive, budget, MAX_OOXML_WORKBOOK_BYTES)
+        sheet_parts, _date1904 = _ooxml_workbook_index(
+            archive, names, rel_targets, budget, MAX_OOXML_WORKBOOK_BYTES,
+            openpyxl_paths=False)
 
         cached: Dict[str, Dict[str, tuple]] = {}
-        for title, part in sheet_parts.items():
+        for title, part in sheet_parts:
             values: Dict[str, tuple] = {}
-            with _open_part(archive, part, MAX_OOXML_WORKSHEET_BYTES) as handle:
+            with _ooxml_open_part(
+                archive, part, MAX_OOXML_WORKSHEET_BYTES, budget,
+            ) as handle:
                 row = None
                 sheet_data = None
-                for event, element in _streamed(handle):
-                    tag = _local(element.tag)
+                for event, element in _ooxml_iterparse(handle):
+                    tag = _ooxml_local_tag(element.tag)
                     if event == "start":
                         if tag == "row":
                             row = element
@@ -2255,7 +2471,7 @@ def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
                             has_formula = False
                             raw = None
                             for child in element:
-                                child_tag = _local(child.tag)
+                                child_tag = _ooxml_local_tag(child.tag)
                                 if child_tag == "f":
                                     has_formula = True
                                 elif child_tag == "v":
@@ -2276,10 +2492,10 @@ def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
                                             # own loader errors on this,
                                             # so decline and let the
                                             # legacy load decide.
-                                            raise RuntimeError(
+                                            raise _OoxmlStreamDeclined(
                                                 f"shared string index "
                                                 f"{index} out of range; "
-                                                "cached-value scan declined")
+                                                "OOXML scan declined")
                                         values[ref] = (
                                             "s", shared_strings[index])
                                 elif cell_type == "b":
@@ -2303,22 +2519,307 @@ def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
                                 else:
                                     try:
                                         values[ref] = (
-                                            "n", _cast_number(raw))
+                                            "n", _ooxml_cast_number(raw))
                                     except (TypeError, ValueError):
                                         values[ref] = ("s", raw)
                     if tag == "c":
                         # Release the consumed cell regardless of whether
                         # it contributed a cached value.
-                        _detach(row, element)
+                        _ooxml_detach(row, element)
                         element.clear()
                     elif tag == "row":
                         if row is element:
                             row = None
-                        _detach(sheet_data, element)
+                        _ooxml_detach(sheet_data, element)
                     elif tag == "sheetData":
                         element.clear()
             cached[title] = values
         return cached
+
+
+class _StreamedCell:
+    """The subset of ``openpyxl.cell.cell.Cell`` row evaluation reads."""
+
+    __slots__ = ("row", "column", "coordinate", "value", "number_format")
+
+    def __init__(
+        self, row: int, column: int, coordinate: str, value: Any,
+        number_format: str,
+    ) -> None:
+        self.row = row
+        self.column = column
+        self.coordinate = coordinate
+        self.value = value
+        self.number_format = number_format
+
+
+def _ooxml_blank_cell(row: int, column: int) -> _StreamedCell:
+    """The empty cell openpyxl materialises for a gap in a row."""
+    return _StreamedCell(
+        row, column, f"{_column_letter(column)}{row}", None, "General")
+
+
+def _ooxml_cell_ref(ref: str) -> tuple:
+    match = _CELL_REF_RE.match(str(ref or "").strip())
+    if not match:
+        raise _OoxmlStreamDeclined(
+            f"invalid cell reference {ref!r}; OOXML scan declined")
+    return int(match.group(2)), _col_index(match.group(1).upper())
+
+
+def _ooxml_style_id(element: Any) -> int:
+    raw = element.get("s")
+    if raw in (None, ""):
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise _OoxmlStreamDeclined(
+            f"invalid style index {raw!r}; OOXML scan declined")
+
+
+@lru_cache(maxsize=1)
+def _openpyxl_value_helpers() -> tuple:
+    """Lazily-bound openpyxl converters (one import, reused per cell)."""
+    from openpyxl.formula.translate import Translator
+    from openpyxl.utils.datetime import from_ISO8601, from_excel
+
+    return from_excel, from_ISO8601, Translator
+
+
+def _ooxml_cell_value(
+    element: Any,
+    *,
+    coordinate: str,
+    style_id: int,
+    shared_strings: Sequence[str],
+    number_formats: Sequence[str],
+    date_formats: set,
+    timedelta_formats: set,
+    epoch: Any,
+    shared_formulae: Dict[str, Any],
+    value_helpers: tuple,
+) -> Any:
+    """One cell's ``data_only=False`` value, exactly as openpyxl parses it.
+
+    Formula cells carry ``"=" + text`` (shared-formula followers are
+    translated, as openpyxl's parser does). Literal cells apply the same
+    shared-string / boolean / error / ISO-date / numeric casting, including
+    the style-driven serial-to-date conversion.
+    """
+    from_excel, from_ISO8601, translator_cls = value_helpers
+
+    data_type = element.get("t") or "n"
+    formula = None
+    raw = None
+    inline = None
+    for child in element:
+        tag = _ooxml_local_tag(child.tag)
+        if tag == "f":
+            formula = child
+        elif tag == "v":
+            raw = child.text
+        elif tag == "is":
+            inline = child
+    raw = raw or None
+
+    if formula is not None:
+        text = "="
+        if formula.text is not None:
+            text += formula.text
+        formula_type = formula.get("t")
+        if formula_type in ("array", "dataTable"):
+            # openpyxl returns ArrayFormula/DataTableFormula objects here,
+            # which no consumer of this artifact can interpret as a cell
+            # value. Decline rather than fabricate a string form.
+            raise _OoxmlStreamDeclined(
+                f"{formula_type} formula at {coordinate}; OOXML scan "
+                "declined")
+        if formula_type == "shared":
+            key = formula.get("si")
+            translator = shared_formulae.get(key)
+            if translator is not None:
+                text = translator.translate_formula(coordinate)
+            elif text != "=":
+                shared_formulae[key] = translator_cls(text, coordinate)
+        return text
+
+    if data_type == "n":
+        if raw is None:
+            return None
+        value = _ooxml_cast_number(raw)
+        if style_id in date_formats:
+            try:
+                value = from_excel(
+                    value, epoch, timedelta=style_id in timedelta_formats)
+            except (OverflowError, ValueError):
+                value = "#VALUE!"
+        return value
+    if data_type == "s":
+        if raw is None:
+            return None
+        try:
+            index = int(raw)
+        except ValueError:
+            raise _OoxmlStreamDeclined(
+                f"invalid shared-string index {raw!r}; OOXML scan declined")
+        if not 0 <= index < len(shared_strings):
+            raise _OoxmlStreamDeclined(
+                f"shared string index {index} out of range; OOXML scan "
+                "declined")
+        return shared_strings[index]
+    if data_type == "b":
+        if raw is None:
+            return None
+        return bool(int(raw))
+    if data_type == "str":
+        return raw
+    if data_type == "e":
+        return raw
+    if data_type == "d":
+        if raw is None:
+            return None
+        return from_ISO8601(raw)
+    if data_type == "inlineStr":
+        return _ooxml_rich_text(inline) if inline is not None else None
+    return raw
+
+
+def _ooxml_worksheet_rows(
+    archive: Any,
+    part: str,
+    *,
+    shared_strings: Sequence[str],
+    number_formats: Sequence[str],
+    date_formats: set,
+    timedelta_formats: set,
+    epoch: Any,
+    budget: Dict[str, int],
+    worksheet_cap: int,
+    stats: Dict[str, Any],
+):
+    """Yield a worksheet's logical rows, one bounded row at a time.
+
+    Each yielded row is a list of ``_StreamedCell`` in column order, matching
+    ``openpyxl.worksheet.worksheet.Worksheet.iter_rows``. Leading row gaps are
+    yielded as empty rows while the header window is open so
+    ``_infer_header_map`` sees the same row indexes it sees after a full
+    openpyxl load. ``stats`` receives ``max_row``/``max_column`` (including
+    the cells a merged range materialises, exactly as openpyxl's merge
+    cleaning does) and the first 200 merged ranges.
+    """
+    value_helpers = _openpyxl_value_helpers()
+    row_counter = 0
+    emitted = 0
+    shared_formulae: Dict[str, Any] = {}
+    with _ooxml_open_part(
+        archive, part, worksheet_cap, budget,
+    ) as handle:
+        row_element = None
+        sheet_data = None
+        in_sheet_data = False
+        cells: Dict[int, _StreamedCell] = {}
+        current_row = 0
+        for event, element in _ooxml_iterparse(handle):
+            tag = _ooxml_local_tag(element.tag)
+            if event == "start":
+                if tag == "sheetData":
+                    sheet_data = element
+                    in_sheet_data = True
+                elif tag == "row" and in_sheet_data:
+                    raw = (element.get("r") or "").strip()
+                    if raw:
+                        try:
+                            row_counter = int(raw)
+                        except ValueError:
+                            try:
+                                numeric = float(raw)
+                            except ValueError:
+                                raise _OoxmlStreamDeclined(
+                                    f"invalid row number {raw!r}; OOXML scan "
+                                    "declined")
+                            if not numeric.is_integer():
+                                raise _OoxmlStreamDeclined(
+                                    f"invalid row number {raw!r}; OOXML scan "
+                                    "declined")
+                            row_counter = int(numeric)
+                    else:
+                        row_counter += 1
+                    while (
+                        emitted < _OOXML_HEADER_SCAN_ROWS
+                        and emitted + 1 < row_counter
+                    ):
+                        emitted += 1
+                        yield []
+                    current_row = row_counter
+                    cells = {}
+                    row_element = element
+                continue
+
+            if tag == "mergeCell":
+                ref = (element.get("ref") or "").strip().upper()
+                if ref:
+                    if not _MERGED_RANGE_RE.match(ref):
+                        raise _OoxmlStreamDeclined(
+                            f"unsupported merged range {ref!r}; OOXML scan "
+                            "declined")
+                    if len(stats["merged_ranges"]) < _OOXML_MAX_MERGED_RANGES:
+                        stats["merged_ranges"].append(ref)
+                continue
+
+            if tag == "c" and in_sheet_data and row_element is not None:
+                raw_ref = element.get("r")
+                if raw_ref:
+                    cell_row, column = _ooxml_cell_ref(raw_ref)
+                    if cell_row != current_row:
+                        raise _OoxmlStreamDeclined(
+                            f"cell {raw_ref!r} outside its row {current_row}; "
+                            "OOXML scan declined")
+                    coordinate = str(raw_ref).strip().upper()
+                else:
+                    column = len(cells) + 1
+                    coordinate = f"{_column_letter(column)}{current_row}"
+                style_id = _ooxml_style_id(element)
+                if style_id >= len(number_formats):
+                    raise _OoxmlStreamDeclined(
+                        f"cell {coordinate} references undefined style "
+                        f"{style_id}; OOXML scan declined")
+                value = _ooxml_cell_value(
+                    element,
+                    coordinate=coordinate,
+                    style_id=style_id,
+                    shared_strings=shared_strings,
+                    number_formats=number_formats,
+                    date_formats=date_formats,
+                    timedelta_formats=timedelta_formats,
+                    epoch=epoch,
+                    shared_formulae=shared_formulae,
+                    value_helpers=value_helpers,
+                )
+                cells[column] = _StreamedCell(
+                    current_row, column, coordinate, value,
+                    number_formats[style_id])
+                stats["max_row"] = max(stats["max_row"], current_row)
+                stats["max_column"] = max(stats["max_column"], column)
+                _ooxml_detach(row_element, element)
+                element.clear()
+                continue
+
+            if tag == "row":
+                if row_element is element:
+                    ordered = [cells[column] for column in sorted(cells)]
+                    row_element = None
+                    cells = {}
+                    emitted += 1
+                    yield ordered
+                    _ooxml_detach(sheet_data, element)
+                    element.clear()
+                continue
+
+            if tag == "sheetData":
+                in_sheet_data = False
+                sheet_data = None
+                element.clear()
 
 
 def _decode_ooxml_cached_value(
@@ -2351,278 +2852,389 @@ def _decode_ooxml_cached_value(
         return "#VALUE!"
 
 
-def inspect_workbook_bytes(
-    content: bytes,
-    file_name: str,
-    *,
-    query: str = "",
-    context_texts: Optional[Sequence[str]] = None,
-    targets: Optional[Sequence[str]] = None,
-    attributes: Optional[Sequence[str]] = None,
-    requested_fields: Optional[Sequence[str]] = None,
-    provider: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    source_metadata: Optional[Dict[str, Any]] = None,
-    ingested_at: Optional[str] = None,
-    disambiguation: Optional[Dict[str, Any]] = None,
-    attribute_texts: Optional[Sequence[str]] = None,
-) -> Dict[str, Any]:
-    """Read every worksheet once and return one outcome per requested target."""
-    requested = extract_targets(query, context_texts, targets)
-    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
-    alias_map = _left_drop_aliases(requested)
-    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
-    # constraints may be mined from ANY text — user asks, assistant
-    # answers quoting the catalog/thread, the canvas body — because only
-    # line-initial brand runs are collected (never entities). Entity
-    # extraction still sees context_texts alone (assistant renders stay
-    # out of the contamination-sensitive path).
-    target_attributes = _target_attribute_context(
-        list(attribute_texts or []) or [query or "", *(context_texts or [])],
-        requested,
+def _buffered_rows(rows, limit: int = _OOXML_HEADER_SCAN_ROWS) -> list:
+    """The first ``limit`` rows, enough for ``_infer_header_map``."""
+    head: List[Any] = []
+    for row in rows:
+        head.append(row)
+        if len(head) >= limit:
+            break
+    return head
+
+
+def _sheet_field_context(
+    header_map: Dict[int, str],
+    attributes: Sequence[str],
+    requested_fields: Sequence[str],
+) -> tuple:
+    """Header-derived selection shared by the openpyxl and streamed lanes."""
+    header_columns = sorted(header_map)
+    first_header_column = header_columns[0] if header_columns else None
+    header_descriptors = _column_descriptors(
+        [header_map[column] for column in header_columns],
+        positions=[column - 1 for column in header_columns],
     )
-    try:
-        import openpyxl
-    except Exception as exc:
-        return _fallback_artifact(
-            content, file_name, requested, provider, resource_id,
-            source_metadata, f"openpyxl unavailable: {exc}",
-            ingested_at=ingested_at,
-        )
+    field_selection = _select_value_columns(
+        header_descriptors,
+        attributes or (),
+        requested_fields or (),
+    )
+    selected_columns = field_selection["selected"]
+    # STRUCTURED field ambiguity (2026-09-24 review): the gross/net
+    # distinction lives in the outcome DATA, not only the render.
+    field_ambiguity_map: Dict[str, List[str]] = {}
+    for _amb in field_selection.get("ambiguous_fields") or []:
+        _cols = [
+            str(d.get("label") or "")
+            for d in selected_columns
+            if _stem(str(_amb)) in _stem(str(d.get("label") or ""))
+            or _stem(str(d.get("label") or "")) in _stem(str(_amb))
+        ]
+        if len(_cols) >= 2:
+            field_ambiguity_map[str(_amb)] = _cols
+    _ambiguous_labels = {
+        label
+        for _cols in field_ambiguity_map.values()
+        for label in _cols
+    }
+    return (
+        first_header_column,
+        field_selection,
+        field_ambiguity_map,
+        _ambiguous_labels,
+    )
 
-    def _load_formulas(package: bytes):
-        return openpyxl.load_workbook(
-            io.BytesIO(package), data_only=False, read_only=False,
-            keep_links=False,
-        )
 
-    package = content
-    try:
-        workbook = _load_formulas(content)
-    except Exception as exc:
-        # COMPATIBILITY RETRY (live WorkDrive workbook, 2026-11-12): openpyxl
-        # 3.1 validates font family ids as 0..14 in two independent readers.
-        # The shared-string reader rejects a well-formed producer
-        # `<rPr><family val="34">` even with rich_text=False; after that is
-        # normalised the stylesheet reader rejects the same out-of-range id in
-        # a direct `<styleSheet><fonts><font><family>` element. Both kill the
-        # read before the first row. Retry from a private in-memory package
-        # copy with only those font ids clamped. The artifact's hash / byte
-        # length below still describe `content`.
-        compatible = None
-        try:
-            from core.xlsx_openpyxl_compat import openpyxl_compatible_bytes
+def _evaluate_sheet_rows(
+    *,
+    sheet_title: str,
+    rows: Any,
+    header_map: Dict[int, str],
+    header_rows: List[int],
+    field_selection: Dict[str, Any],
+    selected_columns: Sequence[Dict[str, Any]],
+    field_ambiguity_map: Dict[str, List[str]],
+    ambiguous_labels: set,
+    first_header_column: Optional[int],
+    requested: Sequence[str],
+    target_matchers: Sequence[tuple],
+    alias_matchers: Sequence[tuple],
+    cached_value_fn: Any,
+    evidence: Dict[str, List[Dict[str, Any]]],
+    formula_states: List[str],
+) -> None:
+    """Evaluate one sheet's rows, identically for every read lane.
 
-            compatible = openpyxl_compatible_bytes(content)
-        except Exception as compat_err:  # noqa: BLE001 — keep the read failure
-            logger.debug(
-                f"workbook compat copy unavailable for {file_name}: {compat_err}")
-        try:
-            if compatible is None:
-                return _fallback_artifact(
-                    content, file_name, requested, provider, resource_id,
-                    source_metadata, f"workbook parse failed: {exc}",
-                    ingested_at=ingested_at,
-                )
-            package = compatible
-            workbook = _load_formulas(compatible)
-            logger.info(
-                f"workbook read for {file_name} used the font compatibility "
-                f"copy ({str(exc).splitlines()[0]})")
-        except Exception as retry_exc:
-            logger.debug(
-                f"workbook compatibility retry failed for {file_name}: "
-                f"{retry_exc}")
-            return _fallback_artifact(
-                content, file_name, requested, provider, resource_id,
-                source_metadata, f"workbook parse failed: {exc}",
-                ingested_at=ingested_at,
-            )
+    ``rows`` is an iterable of rows of cell-like objects exposing ``value``,
+    ``column``, ``coordinate``, ``row`` and ``number_format`` — an openpyxl
+    ``Worksheet.iter_rows()`` row in the legacy lane, a streamed row in the
+    bounded lane. Collects evidence (capped) and formula states; the caller
+    owns memory of anything else.
+    """
+    for row in rows:
+        row_number = row[0].row if row else 0
+        by_column = {cell.column: cell for cell in row}
+        row_values = [
+            {
+                "cell": cell.coordinate,
+                "value": _cell_text(cell.value),
+                "field": header_map.get(cell.column, ""),
+            }
+            for cell in row if _cell_text(cell.value)
+        ]
+        for cell in row:
+            value = cell.value
+            text = _cell_text(value)
+            if not text:
+                continue
+            is_formula = isinstance(value, str) and value.startswith("=")
+            if is_formula:
+                cached = cached_value_fn(
+                    sheet_title, cell.coordinate, cell.number_format)
+                formula_state = "cached" if cached is not None else "unavailable"
+                formula_states.append(formula_state)
+            else:
+                formula_state = "literal"
+            _target_hits: List[tuple] = [
+                (target, None)
+                for target, patterns in target_matchers
+                if _patterns_match(text, patterns)
+            ]
+            for alias, alias_targets, patterns in alias_matchers:
+                if not _patterns_match(text, patterns):
+                    continue
+                for target in alias_targets:
+                    if any(
+                        _canonical(target) == _canonical(direct)
+                        for direct, _ in _target_hits
+                    ):
+                        continue
+                    if _alias_head_corroborated(
+                        target, alias, text, sheet_title, *row_values
+                    ):
+                        _target_hits.append((target, alias))
+            for target, matched_alias in _target_hits:
+                values: List[Dict[str, Any]] = []
+                for descriptor in selected_columns:
+                    column = int(descriptor["position"]) + 1
+                    label = str(descriptor.get("label") or "")
+                    source_cell = by_column.get(column)
+                    if source_cell is None:
+                        # openpyxl materialises the gap as an empty cell; the
+                        # streamed lane does the same on demand.
+                        source_cell = _ooxml_blank_cell(row_number, column)
+                    source_value = source_cell.value
+                    source_is_formula = (
+                        isinstance(source_value, str)
+                        and source_value.startswith("="))
+                    cached_value = (
+                        cached_value_fn(
+                            sheet_title, source_cell.coordinate,
+                            source_cell.number_format)
+                        if source_is_formula else None)
+                    display_value = (
+                        cached_value if source_is_formula else source_value)
+                    values.append({
+                        "cell": source_cell.coordinate,
+                        "value": _cell_text(display_value),
+                        "column": label,
+                        "field": label,
+                        "unit": descriptor.get("unit"),
+                        "price_basis": _cell_text(label),
+                        **_currency_for(
+                            display_value, source_cell.number_format, label
+                        ),
+                        "formula_state": (
+                            "cached" if source_is_formula
+                            and cached_value is not None else "literal"
+                        ),
+                    })
+                if len(evidence[target]) < _TARGET_EVIDENCE_CAP:
+                    for _v in values:
+                        _v["field_ambiguous"] = (
+                            str(_v.get("column") or "") in ambiguous_labels
+                        )
+                    evidence[target].append({
+                        "field_ambiguities": dict(field_ambiguity_map),
+                        "sheet": sheet_title,
+                        "row": row_number,
+                        "cell": cell.coordinate,
+                        "value": text,
+                        "column": header_map.get(cell.column, ""),
+                        "matched_alias": matched_alias,
+                        "designation": _is_designation_match(
+                            text, header_map.get(cell.column, ""),
+                            first_data_column=(
+                                cell.column == first_header_column)),
+                        "formula": value if is_formula else None,
+                        "formula_state": formula_state,
+                        "row_context": row_values[:40],
+                        "field_selection": field_selection,
+                        "values": values,
+                        "prices": values,
+                    })
 
-    # ONE WORKBOOK LOAD (issue #620): the formula workbook above is the only
-    # full openpyxl parse. Cached formula results are read from the OOXML
-    # package instead of a second `data_only=True` load. The fallback keeps
-    # the legacy behavior when the package cannot be scanned, so a workbook
-    # is never reported with silently missing cached values.
-    cached_values: Optional[Dict[str, Dict[str, tuple]]] = None
-    values_workbook = None
-    try:
-        cached_values = _ooxml_cached_value_map(content)
-        logger.debug(
-            f"workbook read for {file_name} decoded cached formula values "
-            f"from the OOXML package ({sum(len(v) for v in cached_values.values())} "
-            "cells)")
-    except Exception as cached_exc:  # noqa: BLE001 — fall back to openpyxl
-        logger.warning(
-            f"workbook cached-value scan failed for {file_name}; falling "
-            f"back to a second openpyxl load: {cached_exc}")
-        cached_values = None
-        try:
-            values_workbook = openpyxl.load_workbook(
-                io.BytesIO(package), data_only=True, read_only=False,
-                keep_links=False,
-            )
-        except Exception as values_exc:
-            logger.debug(
-                f"workbook cached-value fallback failed for {file_name}: "
-                f"{values_exc}")
 
-    def _cached_value(
-        sheet_title: str, coordinate: str, number_format: Optional[str] = None,
+def _streamed_cached_value(
+    cached_values: Dict[str, Dict[str, tuple]],
+    sheet_title: str,
+    epoch: Any,
+):
+    """``_cached_value`` over the streamed OOXML map for one sheet."""
+    values = cached_values.get(sheet_title) or {}
+
+    def cached_value(
+        _sheet_title: str, coordinate: str,
+        number_format: Optional[str] = None,
     ) -> Any:
-        if values_workbook is not None:
-            return values_workbook[sheet_title][coordinate].value
-        entry = (cached_values or {}).get(sheet_title, {}).get(
-            str(coordinate or "").upper())
+        entry = values.get(str(coordinate or "").upper())
         if entry is None:
             return None
-        return _decode_ooxml_cached_value(
-            entry, number_format, workbook.epoch)
+        return _decode_ooxml_cached_value(entry, number_format, epoch)
+
+    return cached_value
+
+
+def _extend_stream_stats_with_merges(stats: Dict[str, Any]) -> None:
+    """Merged ranges materialise cells in openpyxl, extending its bounds."""
+    for raw in stats.get("merged_ranges") or []:
+        match = _MERGED_RANGE_RE.match(str(raw or "").strip().upper())
+        if not match:
+            continue
+        stats["max_row"] = max(
+            stats["max_row"], int(match.group(2)), int(match.group(4)))
+        stats["max_column"] = max(
+            stats["max_column"],
+            _col_index(match.group(1)), _col_index(match.group(3)))
+
+
+def _inspect_targeted_streaming(
+    content: bytes,
+    *,
+    file_name: str,
+    query: str,
+    requested: Sequence[str],
+    criteria: Dict[str, Any],
+    alias_map: Dict[str, List[str]],
+    target_attributes: Dict[str, Any],
+    attributes: Sequence[str],
+    requested_fields: Sequence[str],
+    provider: Optional[str],
+    resource_id: Optional[str],
+    source_metadata: Optional[Dict[str, Any]],
+    ingested_at: Optional[str],
+    disambiguation: Optional[Dict[str, Any]],
+    content_hash: str,
+) -> Dict[str, Any]:
+    """Targeted workbook inspection without a full in-memory workbook load.
+
+    Nothing here is materialised per workbook: the cached formula values are
+    the hardened OOXML scan's small map, shared strings are bounded by
+    ``MAX_OOXML_SHARED_STRINGS_BYTES``, styles are a format-code list, and
+    each worksheet is consumed one row at a time. Rows are evaluated by
+    ``_evaluate_sheet_rows`` — the same function the openpyxl lane uses — so
+    matches, ambiguity, designation anchoring, field selection/ambiguity,
+    cell lineage, cached formula values and merged-range metadata keep their
+    existing meaning.
+
+    Raises ``_OoxmlStreamDeclined`` (or any parser error) when the package
+    cannot be read faithfully; the caller then uses the openpyxl lane.
+    """
+    from openpyxl.utils.datetime import MAC_EPOCH, WINDOWS_EPOCH
+
+    # The hardened cached-value scan is the SAME entry point the openpyxl
+    # lane uses, so every bound and decline contract (defusedxml-only,
+    # per-part caps, external relationships, shared-string indices) applies
+    # to a targeted read too.
+    cached_values = _ooxml_cached_value_map(content)
 
     evidence: Dict[str, List[Dict[str, Any]]] = {
         target: [] for target in requested
     }
     sheets: List[Dict[str, Any]] = []
     formula_states: List[str] = []
+    target_matchers = _target_match_matchers(requested)
+    alias_matchers = _alias_match_matchers(alias_map)
+    budget = {
+        "remaining": MAX_OOXML_SCAN_TOTAL_BYTES,
+        "limit": MAX_OOXML_SCAN_TOTAL_BYTES,
+    }
 
-    for worksheet in workbook.worksheets:
-        rows = list(worksheet.iter_rows())
-        header_map, header_rows = _infer_header_map(rows)
-        header_columns = sorted(header_map)
-        first_header_column = header_columns[0] if header_columns else None
-        header_descriptors = _column_descriptors(
-            [header_map[column] for column in header_columns],
-            positions=[column - 1 for column in header_columns],
-        )
-        field_selection = _select_value_columns(
-            header_descriptors,
-            attributes or (),
-            requested_fields or (),
-        )
-        selected_columns = field_selection["selected"]
-        # STRUCTURED field ambiguity (2026-09-24 review): the gross/net
-        # distinction lives in the outcome DATA, not only the render.
-        field_ambiguity_map: Dict[str, List[str]] = {}
-        for _amb in field_selection.get("ambiguous_fields") or []:
-            _cols = [
-                str(d.get("label") or "")
-                for d in selected_columns
-                if _stem(str(_amb)) in _stem(str(d.get("label") or ""))
-                or _stem(str(d.get("label") or "")) in _stem(str(_amb))
-            ]
-            if len(_cols) >= 2:
-                field_ambiguity_map[str(_amb)] = _cols
-        _ambiguous_labels = {
-            label
-            for _cols in field_ambiguity_map.values()
-            for label in _cols
-        }
-        for row in rows:
-            row_number = row[0].row if row else 0
-            row_values = [
-                {
-                    "cell": cell.coordinate,
-                    "value": _cell_text(cell.value),
-                    "field": header_map.get(cell.column, ""),
-                }
-                for cell in row if _cell_text(cell.value)
-            ]
-            for cell in row:
-                value = cell.value
-                text = _cell_text(value)
-                if not text:
-                    continue
-                is_formula = isinstance(value, str) and value.startswith("=")
-                if is_formula:
-                    cached = _cached_value(
-                        worksheet.title, cell.coordinate,
-                        cell.number_format)
-                    formula_state = "cached" if cached is not None else "unavailable"
-                    formula_states.append(formula_state)
-                else:
-                    formula_state = "literal"
-                _target_hits: List[tuple] = [
-                    (target, None)
-                    for target in requested
-                    if _matches_target(target, text)
-                ]
-                _target_hits.extend(
-                    (target, alias)
-                    for alias, alias_targets in alias_map.items()
-                    if _matches_target(alias, text)
-                    for target in alias_targets
-                    if not any(
-                        _canonical(target) == _canonical(direct)
-                        for direct, _ in _target_hits
-                    )
-                    and _alias_head_corroborated(
-                        target, alias, text, worksheet.title, *row_values)
-                )
-                for target, matched_alias in _target_hits:
-                    values: List[Dict[str, Any]] = []
-                    for descriptor in selected_columns:
-                        column = int(descriptor["position"]) + 1
-                        label = str(descriptor.get("label") or "")
-                        source_cell = worksheet.cell(row=row_number, column=column)
-                        source_value = source_cell.value
-                        cached_value = _cached_value(
-                            worksheet.title, source_cell.coordinate,
-                            source_cell.number_format)
-                        display_value = (
-                            cached_value if isinstance(source_value, str)
-                            and source_value.startswith("=") else source_value
-                        )
-                        values.append({
-                            "cell": source_cell.coordinate,
-                            "value": _cell_text(display_value),
-                            "column": label,
-                            "field": label,
-                            "unit": descriptor.get("unit"),
-                            "price_basis": _cell_text(label),
-                            **_currency_for(
-                                display_value, source_cell.number_format, label
-                            ),
-                            "formula_state": (
-                                "cached" if isinstance(source_value, str)
-                                and source_value.startswith("=")
-                                and cached_value is not None else "literal"
-                            ),
-                        })
-                    if len(evidence[target]) < _TARGET_EVIDENCE_CAP:
-                        for _v in values:
-                            _v["field_ambiguous"] = (
-                                str(_v.get("column") or "") in _ambiguous_labels
-                            )
-                        evidence[target].append({
-                            "field_ambiguities": dict(field_ambiguity_map),
-                            "sheet": worksheet.title,
-                            "row": row_number,
-                            "cell": cell.coordinate,
-                            "value": text,
-                            "column": header_map.get(cell.column, ""),
-                            "matched_alias": matched_alias,
-                            "designation": _is_designation_match(
-                                text, header_map.get(cell.column, ""),
-                                first_data_column=(
-                                    cell.column == first_header_column)),
-                            "formula": value if is_formula else None,
-                            "formula_state": formula_state,
-                            "row_context": row_values[:40],
-                            "field_selection": field_selection,
-                            "values": values,
-                            "prices": values,
-                        })
-        sheets.append({
-            "name": worksheet.title,
-            "max_row": int(worksheet.max_row or 0),
-            "max_column": int(worksheet.max_column or 0),
-            "header_rows": header_rows,
-            "headers": {str(column): name for column, name in header_map.items()},
-            "field_selection": field_selection,
-            "merged_ranges": [str(item) for item in list(worksheet.merged_cells.ranges)[:200]],
-            "searched": True,
-        })
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        names = set(archive.namelist())
+        shared_strings = _ooxml_shared_strings(
+            archive, budget, MAX_OOXML_SHARED_STRINGS_BYTES)
+        rel_targets = _ooxml_relationship_targets(
+            archive, budget, MAX_OOXML_WORKBOOK_BYTES)
+        sheet_parts, date1904 = _ooxml_workbook_index(
+            archive, names, rel_targets, budget, MAX_OOXML_WORKBOOK_BYTES,
+            openpyxl_paths=True)
+        number_formats, date_formats, timedelta_formats = (
+            _ooxml_number_formats(
+                archive, budget, MAX_OOXML_STYLES_BYTES))
+        epoch = MAC_EPOCH if date1904 else WINDOWS_EPOCH
 
+        for title, part in sheet_parts:
+            stats: Dict[str, Any] = {
+                "max_row": 0, "max_column": 0, "merged_ranges": [],
+            }
+            rows = _ooxml_worksheet_rows(
+                archive, part,
+                shared_strings=shared_strings,
+                number_formats=number_formats,
+                date_formats=date_formats,
+                timedelta_formats=timedelta_formats,
+                epoch=epoch,
+                budget=budget,
+                worksheet_cap=MAX_OOXML_WORKSHEET_BYTES,
+                stats=stats,
+            )
+            head = _buffered_rows(rows)
+            header_map, header_rows = _infer_header_map(head)
+            (
+                first_header_column,
+                field_selection,
+                field_ambiguity_map,
+                ambiguous_labels,
+            ) = _sheet_field_context(
+                header_map, attributes, requested_fields)
+            _evaluate_sheet_rows(
+                sheet_title=title,
+                rows=chain(head, rows),
+                header_map=header_map,
+                header_rows=header_rows,
+                field_selection=field_selection,
+                selected_columns=field_selection["selected"],
+                field_ambiguity_map=field_ambiguity_map,
+                ambiguous_labels=ambiguous_labels,
+                first_header_column=first_header_column,
+                requested=requested,
+                target_matchers=target_matchers,
+                alias_matchers=alias_matchers,
+                cached_value_fn=_streamed_cached_value(
+                    cached_values, title, epoch),
+                evidence=evidence,
+                formula_states=formula_states,
+            )
+            _extend_stream_stats_with_merges(stats)
+            sheets.append({
+                "name": title,
+                "max_row": int(max(stats["max_row"], 1)),
+                "max_column": int(max(stats["max_column"], 1)),
+                "header_rows": header_rows,
+                "headers": {
+                    str(column): name
+                    for column, name in header_map.items()
+                },
+                "field_selection": field_selection,
+                "merged_ranges": list(stats["merged_ranges"]),
+                "searched": True,
+            })
+
+    return _artifact_from_evidence(
+        content_hash=content_hash,
+        byte_length=len(content),
+        file_name=file_name,
+        query=query,
+        provider=provider,
+        resource_id=resource_id,
+        source_metadata=source_metadata,
+        ingested_at=ingested_at,
+        requested=requested,
+        criteria=criteria,
+        target_attributes=target_attributes,
+        attributes=attributes,
+        disambiguation=disambiguation,
+        evidence=evidence,
+        sheets=sheets,
+        formula_states=formula_states,
+    )
+
+
+def _artifact_from_evidence(
+    *,
+    content_hash: str,
+    byte_length: int,
+    file_name: str,
+    query: str,
+    provider: Optional[str],
+    resource_id: Optional[str],
+    source_metadata: Optional[Dict[str, Any]],
+    ingested_at: Optional[str],
+    requested: Sequence[str],
+    criteria: Dict[str, Any],
+    target_attributes: Dict[str, Any],
+    attributes: Sequence[str],
+    disambiguation: Optional[Dict[str, Any]],
+    evidence: Dict[str, List[Dict[str, Any]]],
+    sheets: List[Dict[str, Any]],
+    formula_states: List[str],
+) -> Dict[str, Any]:
+    """Derive the artifact (statuses, ambiguity, notes) from collected rows.
+
+    Shared by every read lane so a streamed read and an openpyxl read answer
+    from identical evidence in identical ways.
+    """
     outcomes: List[Dict[str, Any]] = []
     # RESOLVED-ROW BINDINGS (2026-09-29 completion pass): a user-asserted,
     # read-verified binding on the task's disambiguation pins this item to
@@ -2947,11 +3559,11 @@ def inspect_workbook_bytes(
         "provider": provider,
         "resource_id": resource_id,
         "file_name": file_name,
-        "content_hash": hashlib.sha256(content).hexdigest(),
+        "content_hash": content_hash,
         "content_hash_algorithm": "sha256",
         "ingested_at": ingested_at,
-        "sha256": hashlib.sha256(content).hexdigest(),
-        "byte_length": len(content),
+        "sha256": content_hash,
+        "byte_length": byte_length,
         "sheets": sheets,
         "sheet_count": len(sheets),
         "all_sheets_searched": True,
@@ -2975,6 +3587,261 @@ def inspect_workbook_bytes(
             "target_evidence_cap": _TARGET_EVIDENCE_CAP,
         },
     }
+
+
+
+def inspect_workbook_bytes(
+    content: bytes,
+    file_name: str,
+    *,
+    query: str = "",
+    context_texts: Optional[Sequence[str]] = None,
+    targets: Optional[Sequence[str]] = None,
+    attributes: Optional[Sequence[str]] = None,
+    requested_fields: Optional[Sequence[str]] = None,
+    provider: Optional[str] = None,
+    resource_id: Optional[str] = None,
+    source_metadata: Optional[Dict[str, Any]] = None,
+    ingested_at: Optional[str] = None,
+    disambiguation: Optional[Dict[str, Any]] = None,
+    attribute_texts: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
+    """Read every worksheet once and return one outcome per requested target.
+
+    TARGETED READS ARE MEMORY-BOUNDED (issue #620 follow-up, 2026-11-12): a
+    single 46-sheet, eight-target price lookup exceeded 3 GiB because a full
+    openpyxl workbook — plus the row tuples derived from it — lived in memory
+    at once. When the request names targets, the read now streams the OOXML
+    package instead (``_ooxml_cached_value_map`` for cached formula results,
+    ``_ooxml_worksheet_rows`` for the rows) and evaluates rows with the SAME
+    ``_evaluate_sheet_rows`` logic the openpyxl lane uses. Matches,
+    ambiguity, designation anchoring, field selection/ambiguity,
+    merged-range metadata, cached formula values, cell lineage and the
+    original-byte digest keep their existing meaning while peak memory
+    tracks one row plus the bounded shared-string table.
+
+    Anything the streamed lane cannot read faithfully (missing defusedxml, a
+    part over its cap, a hostile part, an array/dataTable formula, a package
+    shape it does not model) declines to the openpyxl lane below, which
+    preserves the previous behavior — including the two-load cached-value
+    fallback, the font-compatibility copy, and the unsupported-format
+    artifact.
+    """
+    requested = extract_targets(query, context_texts, targets)
+    criteria = _disambiguation_criteria(query, context_texts, disambiguation)
+    alias_map = _left_drop_aliases(requested)
+    # BRAND-CONTEXT CHANNEL (2026-09-25 review round 4): identity
+    # constraints may be mined from ANY text — user asks, assistant
+    # answers quoting the catalog/thread, the canvas body — because only
+    # line-initial brand runs are collected (never entities). Entity
+    # extraction still sees context_texts alone (assistant renders stay
+    # out of the contamination-sensitive path).
+    target_attributes = _target_attribute_context(
+        list(attribute_texts or []) or [query or "", *(context_texts or [])],
+        requested,
+    )
+    try:
+        import openpyxl
+    except Exception as exc:
+        return _fallback_artifact(
+            content, file_name, requested, provider, resource_id,
+            source_metadata, f"openpyxl unavailable: {exc}",
+            ingested_at=ingested_at,
+        )
+
+    content_hash = hashlib.sha256(content).hexdigest()
+    if requested:
+        # TARGETED LANE (issue #620 follow-up): no full workbook load for the
+        # exact-file lookup shape. A decline here is not an error path — the
+        # openpyxl lane below answers from the same bytes.
+        try:
+            return _inspect_targeted_streaming(
+                content,
+                file_name=file_name,
+                query=query,
+                requested=requested,
+                criteria=criteria,
+                alias_map=alias_map,
+                target_attributes=target_attributes,
+                attributes=attributes or (),
+                requested_fields=requested_fields or (),
+                provider=provider,
+                resource_id=resource_id,
+                source_metadata=source_metadata,
+                ingested_at=ingested_at,
+                disambiguation=disambiguation,
+                content_hash=content_hash,
+            )
+        except Exception as exc:  # noqa: BLE001 — the legacy lane remains
+            logger.info(
+                "workbook targeted stream declined for %s; using the "
+                "openpyxl read: %s", file_name, exc)
+
+    def _load_formulas(package: bytes):
+        return openpyxl.load_workbook(
+            io.BytesIO(package), data_only=False, read_only=False,
+            keep_links=False,
+        )
+
+    package = content
+    try:
+        workbook = _load_formulas(content)
+    except Exception as exc:
+        # COMPATIBILITY RETRY (live WorkDrive workbook, 2026-11-12): openpyxl
+        # 3.1 validates font family ids as 0..14 in two independent readers.
+        # The shared-string reader rejects a well-formed producer
+        # `<rPr><family val="34">` even with rich_text=False; after that is
+        # normalised the stylesheet reader rejects the same out-of-range id in
+        # a direct `<styleSheet><fonts><font><family>` element. Both kill the
+        # read before the first row. Retry from a private in-memory package
+        # copy with only those font ids clamped. The artifact's hash / byte
+        # length below still describe `content`.
+        compatible = None
+        try:
+            from core.xlsx_openpyxl_compat import openpyxl_compatible_bytes
+
+            compatible = openpyxl_compatible_bytes(content)
+        except Exception as compat_err:  # noqa: BLE001 — keep the read failure
+            logger.debug(
+                f"workbook compat copy unavailable for {file_name}: {compat_err}")
+        try:
+            if compatible is None:
+                return _fallback_artifact(
+                    content, file_name, requested, provider, resource_id,
+                    source_metadata, f"workbook parse failed: {exc}",
+                    ingested_at=ingested_at,
+                )
+            package = compatible
+            workbook = _load_formulas(compatible)
+            logger.info(
+                f"workbook read for {file_name} used the font compatibility "
+                f"copy ({str(exc).splitlines()[0]})")
+        except Exception as retry_exc:
+            logger.debug(
+                f"workbook compatibility retry failed for {file_name}: "
+                f"{retry_exc}")
+            return _fallback_artifact(
+                content, file_name, requested, provider, resource_id,
+                source_metadata, f"workbook parse failed: {exc}",
+                ingested_at=ingested_at,
+            )
+
+    # ONE WORKBOOK LOAD (issue #620): the formula workbook above is the only
+    # full openpyxl parse. Cached formula results are read from the OOXML
+    # package instead of a second `data_only=True` load. The fallback keeps
+    # the legacy behavior when the package cannot be scanned, so a workbook
+    # is never reported with silently missing cached values.
+    cached_values: Optional[Dict[str, Dict[str, tuple]]] = None
+    values_workbook = None
+    try:
+        cached_values = _ooxml_cached_value_map(content)
+        logger.debug(
+            f"workbook read for {file_name} decoded cached formula values "
+            f"from the OOXML package ({sum(len(v) for v in cached_values.values())} "
+            "cells)")
+    except Exception as cached_exc:  # noqa: BLE001 — fall back to openpyxl
+        logger.warning(
+            f"workbook cached-value scan failed for {file_name}; falling "
+            f"back to a second openpyxl load: {cached_exc}")
+        cached_values = None
+        try:
+            values_workbook = openpyxl.load_workbook(
+                io.BytesIO(package), data_only=True, read_only=False,
+                keep_links=False,
+            )
+        except Exception as values_exc:
+            logger.debug(
+                f"workbook cached-value fallback failed for {file_name}: "
+                f"{values_exc}")
+
+    def _cached_value(
+        sheet_title: str, coordinate: str, number_format: Optional[str] = None,
+    ) -> Any:
+        if values_workbook is not None:
+            return values_workbook[sheet_title][coordinate].value
+        entry = (cached_values or {}).get(sheet_title, {}).get(
+            str(coordinate or "").upper())
+        if entry is None:
+            return None
+        return _decode_ooxml_cached_value(
+            entry, number_format, workbook.epoch)
+
+    evidence: Dict[str, List[Dict[str, Any]]] = {
+        target: [] for target in requested
+    }
+    sheets: List[Dict[str, Any]] = []
+    formula_states: List[str] = []
+    target_matchers = _target_match_matchers(requested)
+    alias_matchers = _alias_match_matchers(alias_map)
+
+    for worksheet in workbook.worksheets:
+        max_row = int(worksheet.max_row or 0)
+        max_column = int(worksheet.max_column or 0)
+        # Rows are consumed lazily (never `list(iter_rows())`): the previous
+        # materialisation was a second full copy of every cell on top of the
+        # loaded workbook. The header is decided from the first bounded
+        # window, exactly as `_infer_header_map` did over the whole list.
+        rows_iter = worksheet.iter_rows()
+        head = _buffered_rows(rows_iter)
+        header_map, header_rows = _infer_header_map(head)
+        (
+            first_header_column,
+            field_selection,
+            field_ambiguity_map,
+            ambiguous_labels,
+        ) = _sheet_field_context(
+            header_map, attributes or (), requested_fields or ())
+        _evaluate_sheet_rows(
+            sheet_title=worksheet.title,
+            rows=chain(head, rows_iter),
+            header_map=header_map,
+            header_rows=header_rows,
+            field_selection=field_selection,
+            selected_columns=field_selection["selected"],
+            field_ambiguity_map=field_ambiguity_map,
+            ambiguous_labels=ambiguous_labels,
+            first_header_column=first_header_column,
+            requested=requested,
+            target_matchers=target_matchers,
+            alias_matchers=alias_matchers,
+            cached_value_fn=_cached_value,
+            evidence=evidence,
+            formula_states=formula_states,
+        )
+        sheets.append({
+            "name": worksheet.title,
+            "max_row": max_row,
+            "max_column": max_column,
+            "header_rows": header_rows,
+            "headers": {
+                str(column): name for column, name in header_map.items()
+            },
+            "field_selection": field_selection,
+            "merged_ranges": [
+                str(item)
+                for item in list(worksheet.merged_cells.ranges)[:200]
+            ],
+            "searched": True,
+        })
+
+    return _artifact_from_evidence(
+        content_hash=content_hash,
+        byte_length=len(content),
+        file_name=file_name,
+        query=query,
+        provider=provider,
+        resource_id=resource_id,
+        source_metadata=source_metadata,
+        ingested_at=ingested_at,
+        requested=requested,
+        criteria=criteria,
+        target_attributes=target_attributes,
+        attributes=attributes or (),
+        disambiguation=disambiguation,
+        evidence=evidence,
+        sheets=sheets,
+        formula_states=formula_states,
+    )
 
 
 def _dominant_read_category(counts: Dict[str, int]) -> str:
