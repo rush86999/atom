@@ -21,6 +21,11 @@ from unittest.mock import patch, Mock, MagicMock
 import sys
 
 # Mock docker module before importing (same pattern as test_package_security.py)
+# Save the originals so they can be restored after the import — leaving the
+# MagicMocks in sys.modules permanently would poison later test modules that
+# import the real docker package (the #918 combined-suite ordering failure).
+_DOCKER_ORIGINAL = sys.modules.get('docker')
+_DOCKER_ERRORS_ORIGINAL = sys.modules.get('docker.errors')
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
 
@@ -42,6 +47,19 @@ sys.modules['docker.errors'].ContainerError = ContainerError
 sys.modules['docker.errors'].APIError = APIError
 
 from core.skill_sandbox import HazardSandbox
+from tests.sandbox_lifecycle_mocks import install_container
+
+# Restore sys.modules now that core.skill_sandbox is imported (it captured the
+# module at import time; tests patch core.skill_sandbox.docker.from_env at
+# runtime).  Mock state must not outlive this module's import.
+if _DOCKER_ORIGINAL is not None:
+    sys.modules['docker'] = _DOCKER_ORIGINAL
+else:
+    sys.modules.pop('docker', None)
+if _DOCKER_ERRORS_ORIGINAL is not None:
+    sys.modules['docker.errors'] = _DOCKER_ERRORS_ORIGINAL
+else:
+    sys.modules.pop('docker.errors', None)
 
 
 @pytest.fixture
@@ -49,7 +67,7 @@ def mock_docker_client():
     """Create mock Docker client for testing."""
     mock_client = Mock()
     mock_client.ping.return_value = True
-    mock_client.containers.run.return_value = b"output\n"
+    install_container(mock_client, stdout=b"output\n")
     return mock_client
 
 
@@ -99,10 +117,10 @@ try {
         )
 
         # Verify container was run
-        assert mock_docker_client.containers.run.called
+        assert mock_docker_client.containers.create.called
 
         # Verify volumes doesn't include docker.sock
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         volumes = call_kwargs.get('volumes', {})
         assert '/var/run/docker.sock' not in volumes, \
             "Docker socket must NOT be mounted"
@@ -142,7 +160,7 @@ try {
         )
 
         # Verify volumes doesn't include host mount
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         volumes = call_kwargs.get('volumes', {})
         assert '/host' not in volumes and '/mnt/host' not in volumes, \
             "Host filesystem must NOT be mounted"
@@ -170,11 +188,11 @@ try {
             timeout_seconds=5
         )
 
-        # Verify containers.run was called
-        assert mock_docker_client.containers.run.called
+        # Verify containers.create was called
+        assert mock_docker_client.containers.create.called
 
         # Verify privileged=False (or not set, default is False)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('privileged', False) == False, \
             "Container must NOT run in privileged mode"
 
@@ -206,7 +224,7 @@ fetch('https://example.com')
         )
 
         # Verify network_disabled=True
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('network_disabled') == True, \
             "Network must be disabled"
 
@@ -242,7 +260,7 @@ try {
         )
 
         # Verify read_only=True
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('read_only') == True, \
             "Filesystem must be read-only"
 
@@ -285,7 +303,7 @@ try {
         )
 
         # Verify tmpfs mounted
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         tmpfs = call_kwargs.get('tmpfs', {})
         assert '/tmp' in tmpfs, \
             "tmpfs must be mounted on /tmp"
@@ -326,7 +344,7 @@ if (uid === 0) {
         )
 
         # Verify user is set (nodejs user in node:20-alpine)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         # Default node:20-alpine runs as nodejs user (UID 1001)
         # We can't easily test this in mocked environment, but we verify
         # the container doesn't explicitly run as root
@@ -374,7 +392,7 @@ try {
 
         # In read-only filesystem, /sys and /proc should be blocked
         # This is enforced by read_only=True flag
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('read_only') == True, \
             "Read-only filesystem blocks /sys and /proc access"
 
@@ -399,7 +417,7 @@ try {
         )
 
         # Verify cap_drop is set (or default security mode applies)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         # Docker default security mode drops most capabilities
         # We can't easily verify this in mocked environment
         # but read_only=True and network_disabled=True provide strong isolation

@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Run reviewed executable acceptance (unit + real Docker restart)",
+    "env": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:///test_ci_executable.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development",
+      "ATOM_REQUIRE_DOCKER_SANDBOX": "1",
+      "ATOM_ACCEPTANCE_OUTPUT": "${{ runner.temp }}/reviewed-executable-acceptance.json"
+    },
+    "run": "docker info > /dev/null\n# HazardSandbox does not auto-pull; a missing base image would fail\n# the replay for an infrastructure reason, so pull it explicitly.\ndocker pull python:3.11-slim\ndocker image inspect python:3.11-slim > /dev/null\npython -m pytest \\\n  tests/test_reviewed_executable_skill.py \\\n  tests/test_reviewed_executable_service_restart.py \\\n  -q --tb=short --timeout=900 --timeout-method=thread\n# Truthful cleanup gate: the sandbox creates one skill_* container\n# per execution and must remove it.  A passing receipt is not enough\n# if a stopped container leaked, so assert the daemon has none left.\nleftover=$(docker ps -a --filter \"name=skill_\" --format '{{.Names}}')\nif [ -n \"$leftover\" ]; then\n  echo \"sandbox containers leaked after the acceptance run:\" >&2\n  echo \"$leftover\" >&2\n  exit 1\nfi\n# Fail closed if the real-Docker record was not emitted or does not\n# actually prove a container ran, was removed, and the receipt\n# survived the service restart (no host fallback is acceptable).\npython - <<'PY'\nimport json\nimport os\nfrom pathlib import Path\n\nrecord_path = Path(os.environ[\"ATOM_ACCEPTANCE_OUTPUT\"])\nif not record_path.is_file():\n    raise SystemExit(\n        f\"real-Docker acceptance receipt missing: {record_path}\")\nrecord = json.loads(record_path.read_text(encoding=\"utf-8\"))\nif record.get(\"docker_sandbox_real\") is not True:\n    raise SystemExit(\n        f\"acceptance receipt does not prove real Docker: {record}\")\nif record.get(\"sandbox_backend\") != \"docker\":\n    raise SystemExit(\n        f\"acceptance receipt backend is not docker: {record}\")\nif not str(record.get(\"container_id\") or \"\").startswith(\"skill_\"):\n    raise SystemExit(\n        f\"acceptance receipt has no skill container id: {record}\")\nif not record.get(\"docker_container_id\"):\n    raise SystemExit(\n        \"acceptance receipt has no Docker container id: \"\n        f\"{record}\")\nif record.get(\"sandbox_container_removed\") is not True:\n    raise SystemExit(\n        \"acceptance receipt does not prove the sandbox container was \"\n        f\"removed: {record}\")\nif record.get(\"sandbox_cleanup_error\"):\n    raise SystemExit(\n        \"acceptance receipt recorded a cleanup failure: \"\n        f\"{record}\")\nif record.get(\"sandbox_timed_out\") is not False:\n    raise SystemExit(\n        \"acceptance receipt recorded a timed-out sandbox run: \"\n        f\"{record}\")\nif record.get(\"nonce_echo_verified\") is not True:\n    raise SystemExit(\n        \"acceptance receipt did not verify the container nonce: \"\n        f\"{record}\")\nif record.get(\"durable_receipt_verified\") is not True:\n    raise SystemExit(\n        \"acceptance receipt did not re-read the durable receipt \"\n        f\"after restart: {record}\")\nprint(f\"real-Docker acceptance receipt verified: {record_path}\")\nPY\n"
+  },
+  {
+    "name": "Upload reviewed executable acceptance record",
+    "if": "always()",
+    "uses": "actions/upload-artifact@v4",
+    "with": {
+      "name": "reviewed-executable-acceptance",
+      "path": "${{ runner.temp }}/reviewed-executable-acceptance.json",
+      "if-no-files-found": "error"
+    }
+  }
+]

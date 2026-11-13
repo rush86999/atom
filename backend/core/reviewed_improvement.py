@@ -6,8 +6,13 @@ Review and application are deliberately separate and content-bound:
 - ``validated`` means a reviewer approved an exact candidate snapshot;
 - ``apply`` reloads the candidate, revalidates the reviewed digest/scope and
   claims the validated revision with a conditional update;
-- only a prompt-only skill package is written. Generated executable code is
-  never written, imported or run.
+- the default apply writes a prompt-only skill package. Generated executable
+  code is never written, imported or run by that path;
+- the explicit ``executable=True`` apply is the narrow exception: it requires
+  the reviewed code to pass ``core.reviewed_executable``'s benign policy,
+  embeds only that exact code in the registry package, and binds the registry
+  rows to the review revision/digest and reviewed tenant/workspace/employee.
+  Execution stays on the existing registry -> Docker sandbox path.
 
 The package, registry execution, Skill row, workspace assignment and candidate
 promotion commit in one caller-owned transaction. Filesystem packages use a
@@ -29,6 +34,13 @@ from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 
 from core.auto_dev.models import SkillCandidate
+from core.reviewed_executable import (
+    EXECUTABLE_ENTRYPOINT,
+    assess_benign_code,
+    executable_binding,
+    executable_skill_markdown,
+    registered_executable_code,
+)
 
 SKILL_APPLY_SCHEMA = "atom-reviewed-skill-apply-1"
 REVIEW_SCHEMA = "atom-reviewed-skill-review-1"
@@ -282,8 +294,14 @@ def _applied_result(candidate: Any) -> Dict[str, Any]:
         "already_applied": True,
         "skill_id": applied.get("skill_id"),
         "package_path": applied.get("package_path"),
+        "registry_execution_id": applied.get("registry_execution_id"),
         "review_revision": applied.get("review_revision"),
         "review_digest": applied.get("review_digest"),
+        "generated_code_applied": bool(
+            applied.get("generated_code_applied") is True),
+        "execution_kind": applied.get("execution_kind"),
+        "candidate_code_sha256": applied.get("candidate_code_sha256"),
+        "executable_code_sha256": applied.get("executable_code_sha256"),
         "candidate_id": str(candidate.id),
     }
 
@@ -297,8 +315,17 @@ async def apply_reviewed_skill(
     builder: Optional[Any] = None,
     registry: Optional[Any] = None,
     reviewer_id: Optional[str] = None,
+    executable: bool = False,
 ) -> Dict[str, Any]:
-    """Apply one validated candidate atomically. Raises ValueError otherwise."""
+    """Apply one validated candidate atomically. Raises ValueError otherwise.
+
+    ``executable=False`` keeps the reviewed *prompt* behaviour (generated code
+    is never applied).  ``executable=True`` additionally requires the reviewed
+    code to pass the benign deterministic policy, embeds the exact reviewed
+    code in the registry package and binds every row to the review revision,
+    candidate digest and reviewed tenant/workspace/employee.  Execution still
+    goes through the ordinary registry -> Docker sandbox path.
+    """
     if candidate is None:
         raise ValueError("candidate_not_found")
     candidate_id = str(candidate.id)
@@ -335,7 +362,14 @@ async def apply_reviewed_skill(
         raise ValueError(
             "stale_review: reviewed material changed")
     if current.validation_status == "promoted":
-        return _applied_result(current)
+        applied_result = _applied_result(current)
+        if (executable
+                and applied_result.get("execution_kind")
+                != "reviewed_executable"):
+            raise ValueError(
+                "candidate_state_conflict: candidate was already applied as a "
+                "prompt skill; apply a fresh reviewed revision for execution")
+        return applied_result
     if current.validation_status != "validated":
         raise ValueError(
             f"candidate_not_reviewed: status is {current.validation_status!r}")
@@ -357,6 +391,22 @@ async def apply_reviewed_skill(
             "the reviewed workspace")
 
     reviewed_revision = review_revision(current)
+
+    executable_code: Optional[str] = None
+    executable_binding_payload: Optional[Dict[str, Any]] = None
+    if executable:
+        assessment = assess_benign_code(current.generated_code)
+        if not assessment["eligible"]:
+            raise ValueError(
+                "executable_policy_rejected: "
+                + "; ".join(assessment["reasons"][:5]))
+        executable_code = registered_executable_code(current.generated_code)
+        executable_binding_payload = executable_binding(
+            current, review=review, tenant_id=str(tenant_id),
+            workspace_id=str(workspace_id),
+            agent_id=str(current.agent_id or ""),
+            registered_code=executable_code)
+
     claimed = (
         db.query(type(current))
         .filter(
@@ -399,7 +449,11 @@ async def apply_reviewed_skill(
     registry = registry or SkillRegistryService(db)
     claimed_revision = reviewed_revision
     safe_name = f"{_safe_name(current.skill_name)}_r{claimed_revision}"
-    markdown = _skill_markdown(current)
+    if executable and executable_code is not None:
+        markdown = executable_skill_markdown(
+            current, review=review, registered_code=executable_code)
+    else:
+        markdown = _skill_markdown(current)
     final_dir = _package_dir(builder, tenant_id, safe_name)
     created = False
     package_path = final_dir
@@ -418,8 +472,11 @@ async def apply_reviewed_skill(
 
         imported = await registry.import_skill(
             "raw_content", markdown,
-            metadata={"author": "Memento-Skills",
-                      "tags": ["memento", "reviewed"]},
+            metadata={
+                "author": "Memento-Skills",
+                "tags": (["memento", "reviewed", "executable"]
+                         if executable else ["memento", "reviewed"]),
+            },
             commit=False)
         registry_status = str(imported.get("status") or "")
         registry_id = str(imported.get("skill_id") or "")
@@ -431,6 +488,17 @@ async def apply_reviewed_skill(
         )
 
         skill_id = str(uuid.uuid4())
+        instructions = str(
+            (current.failure_pattern or {}).get("failure_summary")
+            or current.skill_description or "")[:2000]
+        skill_config: Dict[str, Any] = {"instructions": instructions}
+        if executable and executable_binding_payload is not None:
+            skill_config.update({
+                "entrypoint": EXECUTABLE_ENTRYPOINT,
+                "runtime": "python",
+                "sandbox": "docker",
+                "reviewed_executable": executable_binding_payload,
+            })
         db.add(Skill(
             id=skill_id,
             tenant_id=tenant_id,
@@ -439,17 +507,17 @@ async def apply_reviewed_skill(
             description=str(current.skill_description or "")[:2000],
             long_description=markdown,
             version="1.0.0",
-            type="prompt",
+            type="script" if executable else "prompt",
             input_schema={},
             output_schema=None,
-            config={"instructions": str(
-                (current.failure_pattern or {}).get("failure_summary")
-                or current.skill_description or "")[:2000]},
+            config=skill_config,
+            code=executable_code if executable else None,
             is_public=False,
             is_approved=True,
             is_featured=False,
             category="auto_dev",
-            tags=["memento", "reviewed"],
+            tags=(["memento", "reviewed", "executable"]
+                  if executable else ["memento", "reviewed"]),
         ))
         db.execute(workspace_skills.insert().values(
             workspace_id=workspace_id, skill_id=skill_id))
@@ -460,6 +528,12 @@ async def apply_reviewed_skill(
         )
         if execution is None:
             raise ValueError("skill_registry_row_missing")
+        if executable and executable_binding_payload is not None:
+            execution.input_params = {
+                **(execution.input_params or {}),
+                "reviewed_executable": executable_binding_payload,
+            }
+            execution.sandbox_enabled = True
         execution.skill_id = skill_id
         if current.agent_id:
             execution.agent_id = str(current.agent_id)
@@ -468,14 +542,26 @@ async def apply_reviewed_skill(
 
         applied = {
             "schema": SKILL_APPLY_SCHEMA,
+            "candidate_id": candidate_id,
             "skill_id": skill_id,
             "registry_execution_id": registry_id,
             "package_path": str(package_path),
             "applied_at": datetime.now(timezone.utc).isoformat(),
-            "generated_code_applied": False,
+            "generated_code_applied": bool(executable),
+            "execution_kind": (
+                "reviewed_executable" if executable else "prompt"),
             "review_revision": claimed_revision,
             "review_digest": review.get("digest"),
         }
+        if executable and executable_binding_payload is not None:
+            applied.update({
+                "candidate_code_sha256":
+                    executable_binding_payload["candidate_code_sha256"],
+                "executable_code_sha256":
+                    executable_binding_payload["executable_code_sha256"],
+                "executable_binding": executable_binding_payload,
+                "sandbox_backend": "docker",
+            })
         authoritative = (
             db.query(type(candidate))
             .filter(type(candidate).id == candidate_id)
