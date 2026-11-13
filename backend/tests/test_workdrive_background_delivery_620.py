@@ -327,6 +327,100 @@ def test_execute_downloads_once_and_emits_receipt_from_its_own_execution(
     assert storage.downloads == 1
 
 
+def _legacy_raw_block(sha: str) -> str:
+    """The pre-fix durable text: internal envelope + grounding contract."""
+    return "\n".join([
+        "LIVE TOOL RESULTS (zoho_workdrive.read_storage_file, file='"
+        f"{FILE_NAME}') — the answer below was derived from the DOWNLOADED "
+        "WorkDrive bytes in this execution:",
+        "Source: DOWNLOADED COPY — resource=" + RID
+        + f", sha256={sha}, bytes=4920, execution=legacy-job",
+        "Coverage — sheets searched=1; coverage_complete=True",
+        "",
+        f"From the downloaded copy of {FILE_NAME}:",
+        "",
+        "- **U-22** — 4,321 'List Price' (LINMAC sheet, row 2, "
+        "cell C2, matched at A2)",
+        "- **622** — 5,000 'List Price' (LINMAC sheet, row 3, "
+        "cell C3, matched at A3)",
+        "",
+        f"From the downloaded copy of {FILE_NAME} — searched all 1 "
+        "sheets of this copy. A newer version of the file may differ; "
+        "no-match lines are about this copy, not the live file.",
+        "",
+        "GROUNDING RULE: specific facts must come from the evidence above.",
+    ])
+
+
+def test_durable_delivery_sanitizes_before_pinning(
+    durable_db, active_grant, fake_storage,
+):
+    storage, expected_sha = fake_storage
+    scheduled = _schedule()
+    result = asyncio.run(
+        background.execute_background_read(scheduled["job_id"]))
+    assert result["ok"] is True
+
+    row = result["result"]
+    rendered = row["rendered"]
+    # The internal evidence carrier never becomes the persisted answer...
+    assert "LIVE TOOL RESULTS" not in rendered
+    assert "GROUNDING RULE" not in rendered
+    # ...while the user-facing source footer names the workbook and keeps
+    # the verified downloaded provenance.
+    assert f"From the downloaded copy of {FILE_NAME}" in rendered
+    assert "Source: DOWNLOADED COPY — resource=" + RID in rendered
+    assert f"sha256={expected_sha}" in rendered
+    # The pin records exactly what the user received.
+    assert row["delivery_pin"]["delivered_text"] == rendered
+    assert row["identity"]["content_sha256"] == expected_sha
+    assert row["direct_source_proof"]["downloaded_sha256"] == expected_sha
+
+    # The durable carrier is sanitized too (a retry reads this, not the
+    # in-process result).
+    loaded = json.loads(_assistant_rows()[0].metadata_json)[
+        "pending_file_result"]
+    assert "LIVE TOOL RESULTS" not in loaded["rendered"]
+    assert loaded["delivery_pin"]["delivered_text"] == rendered
+
+
+def test_retry_boundary_sanitizes_a_legacy_raw_row():
+    import integrations.chat_orchestrator as chat
+
+    raw = _legacy_raw_block("a" * 64)
+    legacy = {
+        "status": "delivered",
+        "rendered": raw,
+        "identity": {
+            "resource_id": RID,
+            "file_name": FILE_NAME,
+            "content_sha256": "a" * 64,
+            "evidence_kind": DOWNLOADED_KIND,
+        },
+        "direct_source_proof": {
+            "status": "verified",
+            "execution_id": "legacy-job",
+            "downloaded_sha256": "a" * 64,
+        },
+        "background_delivery": {
+            "job_id": "legacy-job",
+            "content_sha256": "a" * 64,
+        },
+    }
+
+    response = chat.ChatOrchestrator._persisted_background_delivery_response(
+        legacy)
+
+    assert "LIVE TOOL RESULTS" not in response["block"]
+    assert "GROUNDING RULE" not in response["rendered_answer"]
+    assert f"From the downloaded copy of {FILE_NAME}" in response["block"]
+    assert "Source: DOWNLOADED COPY — resource=" + RID in response["block"]
+    # Sanitizing presentation does not touch the evidence binding.
+    assert response["identity"]["content_sha256"] == "a" * 64
+    assert response["meta"]["direct_source_proof"][
+        "downloaded_sha256"] == "a" * 64
+
+
 def test_revoked_authorization_blocks_download(
     durable_db, active_grant, fake_storage,
 ):

@@ -662,6 +662,64 @@ async def test_transport_retry_serves_pin_verbatim():
 
 
 @pytest.mark.asyncio
+async def test_transport_retry_sanitizes_a_legacy_raw_pin():
+    """A row pinned before durable delivery sanitized the strict block
+    still carries LIVE TOOL RESULTS. The retry boundary must serve the
+    user-facing form and re-pin what was actually delivered, without
+    touching the evidence or upgrading the renderer."""
+    orch = _orch()
+    rec = _record()
+    raw = "\n".join([
+        "LIVE TOOL RESULTS (zoho_workdrive.read_storage_file, file="
+        "'w.xlsx') — the answer below was derived from the DOWNLOADED "
+        "WorkDrive bytes in this execution:",
+        "Source: DOWNLOADED COPY — resource=r1, sha256=" + "a" * 64
+        + ", execution=legacy-job",
+        "Coverage — sheets searched=2; coverage_complete=True",
+        "",
+        "From the downloaded copy of w.xlsx:",
+        "",
+        "- **M-1** — 10 'price' (Sheet1 sheet, row 2, cell B2)",
+        "- **M-2** — 20 'price' (Sheet1 sheet, row 3, cell B3)",
+        "",
+        "GROUNDING RULE: specific facts must come from the evidence above.",
+    ])
+    legacy_row = ap.mark_delivered({
+        "status": "delivered", "target_extraction_version": 3,
+        "rendered": raw, "rendered_core": raw,
+        "identity": {"resource_id": "r1", "content_sha256": "a" * 64},
+        "structured_result": rec,
+        "attempt_id": rec["attempt_id"],
+        "evidence_revision": rec["evidence_revision"],
+        "evidence_action": "new_read",
+    }, raw)
+    session = {"id": "s-tr-legacy", "history": [],
+               "_pending_file_result": dict(legacy_row)}
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "go", session_id="s-tr-legacy", context={})
+    message = response["message"]
+    assert "LIVE TOOL RESULTS" not in message
+    assert "GROUNDING RULE" not in message
+    assert "From the downloaded copy of w.xlsx" in message
+    assert "Source: DOWNLOADED COPY — resource=r1" in message
+    # Re-pinned to the text actually served; evidence is untouched.
+    row = session["_pending_file_result"]
+    assert row["delivery_pin"]["delivered_text"] == message[:24000]
+    assert row["structured_result"] == rec
+    assert row["identity"]["content_sha256"] == "a" * 64
+
+
+@pytest.mark.asyncio
 async def test_formatting_supersedes_stale_pin():
     """Formatting is a new delivery: an old pin plus a deliberately
     different fresh render yields the NEW finalized render, while the

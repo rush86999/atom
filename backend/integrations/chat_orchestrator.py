@@ -11537,7 +11537,25 @@ class ChatOrchestrator:
                         except Exception:  # noqa: BLE001 — pin optional
                             _pinned = None
                         if _pinned and not _comparison_retry:
-                            _deliver_content = _pinned
+                            # RETRY BOUNDARY: serve the pinned answer, but
+                            # through the user-facing sanitizer. New durable
+                            # deliveries are already clean; a row persisted
+                            # before that fix still pins the internal
+                            # envelope, and serving it verbatim leaks the
+                            # heading. Re-pin only when sanitization
+                            # changed the text, so the pin always records
+                            # what the user actually received.
+                            _deliver_content = (
+                                self._user_facing_delivered_text(_pinned))
+                            if _deliver_content != _pinned:
+                                try:
+                                    _pfr = mark_delivered(
+                                        _pfr, _deliver_content[:24000])
+                                except Exception:  # noqa: BLE001
+                                    _pfr["delivery_pin"] = {
+                                        "delivered_text":
+                                            _deliver_content[:24000]}
+                                _pfr["rendered"] = _deliver_content[:24000]
                         else:
                             try:
                                 from core.chat_tool_planner import (
@@ -20400,6 +20418,26 @@ class ChatOrchestrator:
         )
 
     @staticmethod
+    def _user_facing_delivered_text(text: Any) -> str:
+        """The existing user-facing sanitization, at a delivery boundary.
+
+        A strict WorkDrive read block is an internal evidence carrier
+        (``LIVE TOOL RESULTS`` plus the grounding contract). Rows written
+        before durable delivery sanitized the block still hold it, so a
+        saved-answer retry must clean the text it serves, not only newly
+        persisted rows.
+        """
+        raw = str(text or "")
+        if not raw:
+            return raw
+        try:
+            from core.chat_tool_planner import _user_facing_workbook_answer
+
+            return str(_user_facing_workbook_answer(raw))
+        except Exception:  # noqa: BLE001 — never lose the answer
+            return raw
+
+    @staticmethod
     def _persisted_background_delivery_response(
         persisted: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -20408,6 +20446,8 @@ class ChatOrchestrator:
         The row is the exact answer job #1 already produced: serving it
         re-executes no read, and its identity/proof ride along unchanged.
         """
+        rendered = ChatOrchestrator._user_facing_delivered_text(
+            persisted.get("rendered"))
         meta = {
             "service": "zoho_workdrive",
             "file_id": (
@@ -20432,7 +20472,7 @@ class ChatOrchestrator:
                     "coverage_limits") or {}),
             "workbook_read": persisted.get("workbook_read"),
             "structured_result": persisted.get("structured_result"),
-            "rendered_answer": persisted.get("rendered"),
+            "rendered_answer": rendered,
             "direct_source_proof": persisted.get("direct_source_proof"),
             "strict_read_receipt": persisted.get("strict_read_receipt"),
             "execution_id": persisted.get("execution_id"),
@@ -20445,13 +20485,13 @@ class ChatOrchestrator:
                  .get("job_id")) or "")[:12] or "-")
         return {
             "ok": True,
-            "block": str(persisted.get("rendered") or ""),
+            "block": rendered,
             "meta": meta,
             "identity": dict(persisted.get("identity") or {}),
             "identity_verified": True,
             "coverage_complete": bool(persisted.get("coverage_complete")),
             "retrieval_complete": True,
-            "rendered_answer": str(persisted.get("rendered") or ""),
+            "rendered_answer": rendered,
             "structured_result": persisted.get("structured_result"),
             "read_executed": False,
             "served_from_persisted_delivery": True,

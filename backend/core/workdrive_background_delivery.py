@@ -1674,6 +1674,27 @@ def _validate_read_result(
     }
 
 
+def _user_facing_delivery_text(text: str) -> str:
+    """Return a persisted answer in the existing user-facing presentation.
+
+    The strict read's ``block`` is an internal evidence carrier: it opens
+    with ``LIVE TOOL RESULTS`` and appends the GROUNDING RULE prompt. The
+    durable row is what a later retry pins and serves verbatim, so the
+    envelope must be cleaned BEFORE the pin or every saved-answer retry
+    leaks it. Reuse the planner's existing sanitizer rather than growing a
+    second presentation transform here.
+    """
+    raw = _text(text)
+    if not raw:
+        return raw
+    try:
+        from core.chat_tool_planner import _user_facing_workbook_answer
+
+        return _text(_user_facing_workbook_answer(raw))
+    except Exception:  # noqa: BLE001 — never lose the answer
+        return raw
+
+
 def _persisted_row(
     job: Dict[str, Any],
     validated: Dict[str, Any],
@@ -1682,6 +1703,10 @@ def _persisted_row(
     from core.answer_presentation import mark_delivered
     from core.workbook_read_artifact import TARGET_EXTRACTION_VERSION
 
+    # DURABLE DELIVERY BOUNDARY: sanitize before storing/pinning. A retry
+    # serves this text verbatim from the pin, so this is the last point at
+    # which the internal envelope can be kept out of user-facing history.
+    rendered = _user_facing_delivery_text(rendered)
     meta = validated["meta"]
     storage = meta.get("storage_read") if isinstance(
         meta.get("storage_read"), dict) else {}
@@ -1953,6 +1978,22 @@ def deliver_persisted_result(
     event_id = job_event_id(job_id, _TERMINAL_REVISION, _TERMINAL_EVENT_TYPE)
     text = _text(row.get("rendered")) or (
         "The strict Workbook read finished in the background.")
+    # DURABLE WRITE BOUNDARY: recovery may replay a row stored before the
+    # sanitizing delivery path existed. Clean what is actually written and
+    # re-pin it when it changed, so the durable row and the message the
+    # user receives stay byte-identical.
+    _clean_text = _user_facing_delivery_text(text)
+    if _clean_text != text:
+        text = _clean_text
+        row = dict(row)
+        row["rendered"] = text[:24000]
+        row["rendered_core"] = text[:24000]
+        try:
+            from core.answer_presentation import mark_delivered
+
+            row = dict(mark_delivered(row, text[:24000]))
+        except Exception:  # noqa: BLE001 — pin is optional
+            pass
     metadata = _delivery_metadata(job, row)
     try:
         with get_db_session() as db:
