@@ -18,6 +18,8 @@ from pathlib import Path
 
 MARKER = ".atom-integrated-world.json"
 SECRET_FILE = ".atom-secret"
+#: Same relocation contract as ``core.world_storage_guard``.
+STORAGE_PATHS_ENV = "ATOM_WORLD_STORAGE_PATHS"
 
 
 def fail(message: str) -> "None":
@@ -38,6 +40,25 @@ def port_open(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
+def _storage_config(repo: Path) -> dict:
+    """Read the config the storage guard will read (env relocation included)."""
+    import core.world_storage_guard as guard  # sys.path inserted below
+
+    relocated = (os.environ.get(STORAGE_PATHS_ENV) or "").strip()
+    config_dir = (Path(relocated).expanduser() if relocated
+                  else repo / "backend" / "config")
+    try:
+        config = guard.load_config(config_dir / "world_storage.json")
+    except guard.WorldStorageError as exc:
+        fail(str(exc))
+    return {
+        "config_path": str(config_dir / "world_storage.json"),
+        "relocated_by_env": bool(relocated),
+        "layout": config.layout,
+        "root": str(real(Path(config.root))),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--world", required=True)
@@ -52,22 +73,14 @@ def main() -> int:
     home = real(Path.home())
 
     # The world must live under the SAME configured worlds root the storage
-    # guard protects. This is stricter than an arbitrary directory: it makes
-    # the guard's volume/layout check meaningful and prevents the launcher
-    # from creating a parallel world tree.
-    config_path = repo / "backend" / "config" / "world_storage.json"
-    configured_root = repo / "backend" / "data" / "acceptance_worlds"
-    if config_path.is_file():
-        try:
-            config = json.loads(config_path.read_text())
-            raw_root = ((config.get("worlds") or {}).get("root")
-                        or "data/acceptance_worlds")
-            configured_root = Path(raw_root)
-            if not configured_root.is_absolute():
-                configured_root = repo / "backend" / configured_root
-        except (OSError, ValueError) as exc:
-            fail(f"cannot read {config_path}: {exc}")
-    configured_root = real(configured_root)
+    # guard protects, resolved through the SAME relocation contract. Reading
+    # only the checkout config here would let the guard validate a relocated
+    # root while the launcher validated (and refused) another.
+    backend_dir = repo / "backend"
+    if str(backend_dir) not in sys.path:
+        sys.path.insert(0, str(backend_dir))
+    storage = _storage_config(repo)
+    configured_root = Path(storage["root"])
 
     protected = {
         Path("/"),
@@ -174,6 +187,7 @@ def main() -> int:
         "repo": str(repo),
         "database": str(world / "atom.db"),
         "configured_worlds_root": str(configured_root),
+        "storage_config": storage,
         "fresh": fresh,
         "marker": str(marker_path),
         "secret_file": str(world / SECRET_FILE),
