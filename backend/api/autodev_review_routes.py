@@ -11,6 +11,10 @@ auto-deploy" risk the capability gate exists to prevent.
 Lifecycle honored:
   - SkillCandidate: pending → validated (approve) / rejected → promoted via
     the existing skill promote flow (api/skill_routes /promote).
+    ``POST /skills/{id}/apply`` applies the reviewed prompt skill; the
+    separate ``POST /skills/{id}/apply-executable`` applies a benign reviewed
+    deterministic computation whose registry rows stay bound to the exact
+    review revision + workspace and execute only through the Docker sandbox.
   - Machine validation writes ``validated`` too (sandbox pass), so that status
     is NOT proof of human review. GET /candidates reports ``apply_eligible``
     from the recorded review binding (scope + material); the explicit
@@ -48,6 +52,7 @@ from core.reviewed_improvement import (
     review_revision,
     review_revision_predicate,
 )
+from core.reviewed_executable import assess_benign_code
 from core.security.rbac import require_role, role_level
 
 logger = logging.getLogger(__name__)
@@ -155,6 +160,25 @@ def _candidate_agent(
                     "cross-workspace review is not permitted"))
     return agent
 
+
+def _apply_error_status(exc: ValueError) -> int:
+    """Map reviewed-apply refusals to HTTP statuses."""
+    message = str(exc)
+    if message.startswith(
+            ("workspace_mismatch", "reviewed_executable_workspace_mismatch")):
+        return status.HTTP_403_FORBIDDEN
+    if message.startswith("executable_policy_rejected"):
+        return 422
+    if message.startswith(
+            ("candidate_not_reviewed", "stale_review",
+             "candidate_state_conflict", "package_conflict",
+             "reviewed_executable_not_approved",
+             "reviewed_executable_artifact_changed",
+             "reviewed_executable_scope_required")):
+        return status.HTTP_409_CONFLICT
+    return status.HTTP_400_BAD_REQUEST
+
+
 @router.get("/candidates")
 async def list_candidates(
     agent_id: Optional[str] = None,
@@ -212,6 +236,7 @@ async def list_candidates(
         eligibility = review_eligibility(
             c, tenant_id=tenant_id,
             workspace_id=agent_workspaces.get(str(c.agent_id or ""), ""))
+        executable = assess_benign_code(c.generated_code)
         items.append({
             "kind": "skill",
             "id": str(c.id),
@@ -222,6 +247,11 @@ async def list_candidates(
             "code": (c.generated_code or "")[:2000],
             "status": c.validation_status,
             "created_at": _iso(c.created_at),
+            "executable_eligibility": {
+                "eligible": executable["eligible"],
+                "reasons": executable["reasons"],
+                "entrypoint": executable["entrypoint"],
+            },
             **eligibility,
         })
 
@@ -344,22 +374,56 @@ async def apply_skill_candidate(
             db, candidate, tenant_id=str(tenant.id),
             workspace_id=workspace_id)
     except ValueError as exc:
-        message = str(exc)
-        if message.startswith("workspace_mismatch"):
-            code = status.HTTP_403_FORBIDDEN
-        elif message.startswith(
-                ("candidate_not_reviewed", "stale_review",
-                 "candidate_state_conflict", "package_conflict")):
-            code = status.HTTP_409_CONFLICT
-        else:
-            code = status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=code, detail=message) from exc
+        raise HTTPException(
+            status_code=_apply_error_status(exc), detail=str(exc)) from exc
     return router.success_response(
         data=result,
         message=(
             "Reviewed skill applied as a typed prompt skill"
             if not result.get("already_applied")
             else "Reviewed skill was already applied"),
+    )
+
+
+@router.post("/skills/{candidate_id}/apply-executable")
+async def apply_executable_skill_candidate(
+    candidate_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    current_user: User = Depends(require_role(UserRole.TEAM_LEAD)),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Explicitly apply a REVIEWED candidate as a benign executable skill.
+
+    Separate from ``/apply`` so the prompt-only flow stays the default and the
+    regression control.  This route refuses pending/unreviewed candidates,
+    refuses code outside the benign deterministic policy, and binds the exact
+    reviewed revision/digests and reviewed tenant/workspace/employee into the
+    registry package.  Execution is still the ordinary ``POST /api/skills/
+    execute`` path backed by the Docker sandbox.
+    """
+    candidate = db.query(SkillCandidate).filter(
+        SkillCandidate.id == candidate_id,
+        SkillCandidate.tenant_id == str(tenant.id),
+    ).first()
+    agent = _candidate_agent(db, tenant, current_user, candidate)
+    workspace_id = str(agent.workspace_id or "")
+    if not workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="target employee has no workspace")
+    try:
+        result = await apply_reviewed_skill(
+            db, candidate, tenant_id=str(tenant.id),
+            workspace_id=workspace_id, executable=True)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=_apply_error_status(exc), detail=str(exc)) from exc
+    return router.success_response(
+        data=result,
+        message=(
+            "Reviewed candidate applied as a bound executable skill"
+            if not result.get("already_applied")
+            else "Reviewed executable skill was already applied"),
     )
 
 

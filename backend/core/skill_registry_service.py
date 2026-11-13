@@ -306,6 +306,9 @@ class SkillRegistryService:
             "packages": skill.input_params.get("packages", []),
             "node_packages": skill.input_params.get("node_packages", []),
             "package_manager": skill.input_params.get("package_manager"),
+            "reviewed_executable": skill.input_params.get(
+                "reviewed_executable"),
+            "linked_skill_id": skill.skill_id,
             "status": skill.status,
             "security_scan_result": skill.security_scan_result,
             "sandbox_enabled": skill.sandbox_enabled,
@@ -316,7 +319,11 @@ class SkillRegistryService:
         self,
         skill_id: str,
         inputs: Dict[str, Any],
-        agent_id: str = "system"
+        agent_id: str = "system",
+        *,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Execute a community skill with governance checks.
@@ -327,16 +334,26 @@ class SkillRegistryService:
         - Installs packages in dedicated Docker images using PackageInstaller
         - Executes skills with custom images containing pre-installed packages
 
+        Reviewed executable skills (``input_params.reviewed_executable``) are
+        additionally authorized before any execution record exists: the
+        caller's tenant/workspace, the supplied employee, the current candidate
+        row and the registered SKILL.md must all match the exact review
+        revision and digests captured at apply time.
+
         Args:
             skill_id: Skill ID from import
             inputs: Input parameters for skill execution
             agent_id: Agent ID executing the skill
+            tenant_id: Authenticated caller's tenant (reviewed skills only)
+            workspace_id: Authenticated caller's workspace (reviewed skills only)
+            user_id: Authenticated caller id, for receipts
 
         Returns:
             Dict with execution result (includes image_tag and packages if applicable)
 
         Raises:
-            ValueError: If skill not found or governance check fails
+            ValueError: If skill not found, scope/binding changed, or governance
+                check fails
         """
         # Retrieve skill
         skill = self.get_skill(skill_id)
@@ -346,6 +363,23 @@ class SkillRegistryService:
         skill_name = skill["skill_name"]
         skill_type = skill["skill_type"]
         status = skill["status"]
+
+        # Reviewed executable skills are authorized against the exact review
+        # binding BEFORE a SkillExecution row is created.  A refusal here is
+        # therefore a hard request error, not an execution failure receipt.
+        reviewed_binding = skill.get("reviewed_executable")
+        reviewed_verified: Optional[Dict[str, Any]] = None
+        if reviewed_binding:
+            reviewed_verified = self._authorize_reviewed_executable(
+                skill, reviewed_binding,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+            )
+            if str(status) != "Active":
+                raise ValueError(
+                    "reviewed_executable_not_approved: registry record is not "
+                    f"Active (status {status!r})")
 
         # Extract packages from skill metadata (Phase 35)
         packages = skill["skill_metadata"].get("packages", [])
@@ -452,9 +486,17 @@ class SkillRegistryService:
                         )
 
         # Create execution record
+        execution_skill_id = f"{skill_name}_{skill_id[:8]}"
+        if reviewed_binding:
+            linked = str(skill.get("linked_skill_id") or "")
+            if not linked:
+                raise ValueError(
+                    "reviewed_executable_artifact_changed: registry record has "
+                    "no linked Skill row")
+            execution_skill_id = linked
         execution = SkillExecution(
             agent_id=agent_id,
-            skill_id=f"{skill_name}_{skill_id[:8]}",
+            skill_id=execution_skill_id,
             tenant_id="system",  # Community skills belong to the system tenant
             workspace_id="default",
             status="running",
@@ -462,6 +504,9 @@ class SkillRegistryService:
             skill_source="community",
             sandbox_enabled=skill["sandbox_enabled"]
         )
+        if reviewed_binding:
+            execution.tenant_id = str(tenant_id or "")
+            execution.workspace_id = str(workspace_id or "")
 
         self.db.add(execution)
         self.db.commit()
@@ -469,10 +514,45 @@ class SkillRegistryService:
         start_time = datetime.datetime.now(datetime.timezone.utc)
         error = None
         result = None
+        reviewed_receipt: Optional[Dict[str, Any]] = None
+        sandbox_receipt: Optional[Dict[str, Any]] = None
 
         try:
             # Execute based on skill type and package presence
-            if skill_type == "prompt_only":
+            if reviewed_binding:
+                from core.reviewed_executable import (
+                    ReviewedExecutableExecutionError,
+                )
+
+                try:
+                    result, sandbox_receipt = (
+                        self._execute_reviewed_executable_skill(
+                            skill, inputs, reviewed_binding))
+                except ReviewedExecutableExecutionError as exc:
+                    sandbox_receipt = exc.receipt or {}
+                    reviewed_receipt = self._reviewed_execution_receipt(
+                        reviewed_verified or {},
+                        inputs=inputs,
+                        result=None,
+                        sandbox_receipt=sandbox_receipt,
+                        user_id=user_id,
+                        registry_execution_id=skill_id,
+                        error=str(exc),
+                    )
+                    self._apply_sandbox_receipt(
+                        execution, reviewed_receipt, sandbox_receipt)
+                    raise
+                reviewed_receipt = self._reviewed_execution_receipt(
+                    reviewed_verified or {},
+                    inputs=inputs,
+                    result=result,
+                    sandbox_receipt=sandbox_receipt,
+                    user_id=user_id,
+                    registry_execution_id=skill_id,
+                )
+                self._apply_sandbox_receipt(
+                    execution, reviewed_receipt, sandbox_receipt)
+            elif skill_type == "prompt_only":
                 result = self._execute_prompt_skill(skill, inputs)
             elif skill_type == "python_code":
                 if node_packages:
@@ -494,6 +574,11 @@ class SkillRegistryService:
             # Update execution record
             execution.status = "success"
             execution.output_result = {"result": result}
+            if reviewed_receipt is not None:
+                execution.audit_metadata = {
+                    **(execution.audit_metadata or {}),
+                    "reviewed_executable": reviewed_receipt,
+                }
             execution.completed_at = datetime.datetime.now(datetime.timezone.utc)
             self.db.commit()
 
@@ -508,18 +593,30 @@ class SkillRegistryService:
                 execution_time=execution_time
             )
 
-            return {
+            response = {
                 "success": True,
                 "result": result,
                 "execution_id": execution.id,
                 "episode_id": episode_id
             }
+            if reviewed_receipt is not None:
+                response["reviewed_executable"] = reviewed_receipt
+            return response
 
         except Exception as e:
             error = e
             # Update execution record with error
             execution.status = "failed"
             execution.error_message = str(e)
+            if reviewed_receipt is not None:
+                execution.audit_metadata = {
+                    **(execution.audit_metadata or {}),
+                    "reviewed_executable": {
+                        **reviewed_receipt,
+                        "status": "failed",
+                        "error": str(e),
+                    },
+                }
             execution.completed_at = datetime.datetime.now(datetime.timezone.utc)
             self.db.commit()
 
@@ -536,12 +633,276 @@ class SkillRegistryService:
                 execution_time=execution_time
             )
 
-            return {
+            response = {
                 "success": False,
                 "error": str(e),
                 "execution_id": execution.id,
                 "episode_id": episode_id
             }
+            if reviewed_receipt is not None:
+                response["reviewed_executable"] = {
+                    **reviewed_receipt, "status": "failed", "error": str(e)}
+            return response
+
+    def _authorize_reviewed_executable(
+        self,
+        skill: Dict[str, Any],
+        binding: Any,
+        *,
+        tenant_id: Optional[str],
+        workspace_id: Optional[str],
+        agent_id: str,
+    ) -> Dict[str, Any]:
+        """Verify the exact reviewed artifact and current caller scope.
+
+        This is authorization, not a best-effort check: any mismatch raises a
+        ``ValueError`` before a SkillExecution row is written.  The candidate
+        digest is recomputed from the CURRENT row so post-approval edits to
+        either the candidate or the registered SKILL.md are refused.
+        """
+        from core.auto_dev.models import SkillCandidate
+        from core.models import AgentRegistry
+        from core.reviewed_executable import verify_executable_artifact
+        from core.reviewed_improvement import _binding_digest
+
+        if not tenant_id or not workspace_id:
+            raise ValueError(
+                "reviewed_executable_scope_required: authenticated tenant and "
+                "workspace are required for a reviewed executable skill")
+        if not agent_id or agent_id == "system":
+            raise ValueError(
+                "reviewed_executable_workspace_mismatch: a reviewed executable "
+                "skill must run as the reviewed employee")
+        if not isinstance(binding, dict) or not binding:
+            raise ValueError(
+                "reviewed_executable_not_approved: executable binding missing")
+
+        candidate_id = str(binding.get("candidate_id") or "")
+        candidate = (
+            self.db.query(SkillCandidate)
+            .filter(
+                SkillCandidate.id == candidate_id,
+                SkillCandidate.tenant_id == str(tenant_id),
+            )
+            .populate_existing()
+            .first()
+        )
+        agent = (
+            self.db.query(AgentRegistry)
+            .filter(
+                AgentRegistry.id == str(agent_id),
+                AgentRegistry.tenant_id == str(tenant_id),
+            )
+            .populate_existing()
+            .first()
+        )
+        if (agent is None
+                or str(agent.workspace_id or "") != str(workspace_id)):
+            raise ValueError(
+                "reviewed_executable_workspace_mismatch: employee is not in "
+                "the authenticated workspace")
+
+        expected_digest = ""
+        if candidate is not None:
+            expected_digest = _binding_digest(
+                candidate,
+                tenant_id=str(tenant_id),
+                workspace_id=str(workspace_id),
+                agent_id=str(candidate.agent_id or ""),
+            )
+
+        code_blocks = self._parser.extract_python_code(
+            skill.get("skill_body") or "")
+        if len(code_blocks) != 1:
+            raise ValueError(
+                "reviewed_executable_artifact_changed: registry package must "
+                "contain exactly one python block")
+
+        from core.models import Skill
+
+        linked_skill_id = str(skill.get("linked_skill_id") or "")
+        linked_skill = (
+            self.db.query(Skill)
+            .filter(Skill.id == linked_skill_id)
+            .first()
+        )
+        if (linked_skill is None
+                or str(linked_skill.type or "") != "script"
+                or str(linked_skill.code or "").rstrip("\n")
+                != code_blocks[0].rstrip("\n")):
+            raise ValueError(
+                "reviewed_executable_artifact_changed: linked Skill code/type "
+                "differs from the registered artifact")
+
+        return verify_executable_artifact(
+            binding=binding,
+            candidate=candidate,
+            registered_code=code_blocks[0],
+            tenant_id=str(tenant_id),
+            workspace_id=str(workspace_id),
+            agent_id=str(agent_id),
+            registry_execution_id=str(skill.get("skill_id") or ""),
+            review_digest=expected_digest,
+        )
+
+    def _execute_reviewed_executable_skill(
+        self,
+        skill: Dict[str, Any],
+        inputs: Dict[str, Any],
+        binding: Dict[str, Any],
+    ):
+        """Run the reviewed code in the Docker sandbox and prove it ran.
+
+        There is deliberately no subprocess fallback: ``HazardSandbox`` raises
+        when Docker is unavailable, and the nonce echo proves the returned
+        output came from the container started for this execution.
+        """
+        from core.reviewed_executable import ReviewedExecutableExecutionError
+
+        if (str(skill.get("skill_type") or "") != "python_code"
+                or not skill.get("sandbox_enabled")):
+            raise ValueError(
+                "reviewed_executable_not_approved: artifact is not a "
+                "sandboxed python skill")
+        code_blocks = self._parser.extract_python_code(
+            skill.get("skill_body") or "")
+        if len(code_blocks) != 1:
+            raise ValueError(
+                "reviewed_executable_artifact_changed: registry package must "
+                "contain exactly one python block")
+        code = code_blocks[0]
+        nonce = uuid.uuid4().hex
+        try:
+            # Docker initialization is part of the fail-closed boundary: an
+            # unreachable daemon must produce an unverified receipt, never a
+            # host execution and never a missing receipt.
+            sandbox = self._get_sandbox()
+            receipt = sandbox.execute_python_receipt(
+                code=code,
+                inputs=inputs,
+                timeout_seconds=30,
+                memory_limit="256m",
+                cpu_limit=0.5,
+                nonce=nonce,
+            )
+        except TypeError as exc:
+            raise ReviewedExecutableExecutionError(
+                "reviewed_executable_sandbox_unverified: sandbox cannot "
+                f"produce a container receipt ({exc})",
+                receipt={
+                    "backend": "docker",
+                    "ok": False,
+                    "error": str(exc),
+                    "nonce": nonce,
+                },
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 - surfaces as a failed receipt
+            raise ReviewedExecutableExecutionError(
+                "reviewed_executable_sandbox_unverified: "
+                f"{exc}",
+                receipt={
+                    "backend": "docker",
+                    "ok": False,
+                    "error": str(exc),
+                    "nonce": nonce,
+                },
+            ) from exc
+
+        if not isinstance(receipt, dict):
+            raise ReviewedExecutableExecutionError(
+                "reviewed_executable_sandbox_unverified: malformed receipt",
+                receipt={"backend": "docker", "ok": False, "nonce": nonce},
+            )
+        if not receipt.get("ok"):
+            raise ReviewedExecutableExecutionError(
+                "reviewed_executable_sandbox_failed: "
+                + str(receipt.get("error") or receipt.get("stderr")
+                      or "container execution failed"),
+                receipt={**receipt, "nonce": nonce},
+            )
+
+        stdout = str(receipt.get("stdout") or "")
+        lines = stdout.rstrip("\n").split("\n") if stdout else []
+        echo = None
+        if lines and lines[-1].startswith("__atom_sandbox_nonce__="):
+            echo = lines.pop().split("=", 1)[1]
+        result = "\n".join(lines)
+        if echo != nonce:
+            raise ReviewedExecutableExecutionError(
+                "reviewed_executable_sandbox_unverified: the container did "
+                "not echo this execution's nonce",
+                receipt={**receipt, "nonce": nonce},
+            )
+        receipt["nonce_echo"] = echo
+        return result, receipt
+
+    @staticmethod
+    def _reviewed_execution_receipt(
+        verified: Dict[str, Any],
+        *,
+        inputs: Dict[str, Any],
+        result: Optional[str],
+        sandbox_receipt: Optional[Dict[str, Any]],
+        user_id: Optional[str],
+        registry_execution_id: str,
+        error: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        from core.reviewed_executable import (
+            EXECUTABLE_RECEIPT_SCHEMA,
+            canonical_json,
+            sha256_text,
+        )
+
+        sandbox = sandbox_receipt or {}
+        receipt: Dict[str, Any] = {
+            "schema": EXECUTABLE_RECEIPT_SCHEMA,
+            "status": "failed" if error else "success",
+            "binding": verified,
+            "registry_execution_id": str(registry_execution_id or ""),
+            "executed_by": str(user_id or ""),
+            "inputs_sha256": sha256_text(canonical_json(inputs or {})),
+            "result_sha256": sha256_text(result or ""),
+            "sandbox": {
+                "backend": sandbox.get("backend") or "docker",
+                "ran": bool(sandbox.get("ok")),
+                "container_id": sandbox.get("container_id"),
+                "docker_container_id": sandbox.get("docker_container_id"),
+                "image": sandbox.get("image"),
+                "exit_code": sandbox.get("exit_code"),
+                "network_disabled": bool(
+                    sandbox.get("network_disabled", False)),
+                "read_only": bool(sandbox.get("read_only", False)),
+                # ``ephemeral``/``removed``/``cleanup_error`` are the observed
+                # cleanup outcome, not an assumption: a leaked container must
+                # be visible in the durable receipt.
+                "ephemeral": bool(sandbox.get("ephemeral", False)),
+                "removed": bool(sandbox.get("removed", False)),
+                "timed_out": bool(sandbox.get("timed_out", False)),
+                "terminated": bool(sandbox.get("terminated", False)),
+                "cleanup_error": sandbox.get("cleanup_error"),
+                "nonce": sandbox.get("nonce"),
+                "nonce_echo": sandbox.get("nonce_echo"),
+            },
+        }
+        if error:
+            receipt["error"] = str(error)
+        return receipt
+
+    @staticmethod
+    def _apply_sandbox_receipt(
+        execution: SkillExecution,
+        reviewed_receipt: Dict[str, Any],
+        sandbox_receipt: Optional[Dict[str, Any]],
+    ) -> None:
+        sandbox = sandbox_receipt or {}
+        execution.container_id = sandbox.get("container_id")
+        execution.stdout = str(sandbox.get("stdout") or "")[:65535]
+        execution.stderr = str(sandbox.get("stderr") or "")[:65535]
+        execution.exit_code = sandbox.get("exit_code")
+        execution.audit_metadata = {
+            **(execution.audit_metadata or {}),
+            "reviewed_executable": reviewed_receipt,
+        }
 
     def _execute_prompt_skill(self, skill: Dict[str, Any], inputs: Dict[str, Any]) -> str:
         """
