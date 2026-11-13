@@ -20,6 +20,12 @@ world, with the existing ``run_isolated`` launcher, the existing loopback
   same panel and select it -> exactly one verified ``invoice.reconcile`` result
   of 140.25 and a completed assignment.
 
+Each upload is observed against the identity the mounted browser action
+actually returned (document id, filename, extraction revision and the canonical
+``office/uploads`` path), never against the fixture path handed to the file
+input. Both uploads must match their own identity; a missing field or a fixture
+path fails closed.
+
 Only provider responses are authored (SIMULATED MODEL DECISIONS / CONTROLLED
 TRANSPORT). Routing, source reads, the structured consumer, wait settlement,
 the compiler/executor, reconciliation and durable persistence all run in
@@ -358,10 +364,188 @@ def _wait_for(predicate, timeout_s: float, label: str):
     raise DriverError(f"timed out waiting for {label}; last={last!r}")
 
 
-def _upload_and_select(page: Any, path: Path, file_name: str) -> None:
+UPLOAD_ENDPOINT = "/api/documents/upload"
+
+
+def _uploaded_source_identity(
+        body: Any, *, expected_file_name: str = "") -> Dict[str, Any]:
+    """The exact document identity the mounted upload action created.
+
+    The fixture path only names the bytes handed to the file input; it is not
+    the identity the product accepted. This reads the browser's real upload
+    response and fails closed when any field the observer later compares is
+    missing or internally inconsistent.
+    """
+    if not isinstance(body, dict):
+        raise DriverError("upload response is not a JSON object")
+    metadata = body.get("metadata")
+    if not isinstance(metadata, dict):
+        raise DriverError("upload response has no document metadata")
+    doc_id = str(body.get("id") or "").strip()
+    metadata_id = str(metadata.get("doc_id") or "").strip()
+    file_name = str(metadata.get("filename") or "").strip()
+    file_type = str(metadata.get("file_type") or "").strip().lower()
+    integration = str(metadata.get("integration_id") or "").strip()
+    version = str(metadata.get("source_content_hash") or "").strip()
+    size = metadata.get("size")
+    title = str(body.get("title") or "").strip()
+    if (not doc_id or doc_id in (".", "..") or "/" in doc_id
+            or "\\" in doc_id or metadata_id != doc_id):
+        raise DriverError(
+            "upload response document identity is incomplete: "
+            f"id={doc_id!r} metadata.doc_id={metadata_id!r}")
+    if not file_name or (
+            expected_file_name and file_name != expected_file_name):
+        raise DriverError(
+            f"upload response names {file_name!r}, not "
+            f"{expected_file_name!r}")
+    if (not file_type or "/" in file_type or "\\" in file_type):
+        raise DriverError(
+            f"upload response file type is incomplete: {file_type!r}")
+    if title and title != file_name:
+        raise DriverError(
+            f"upload response title {title!r} differs from {file_name!r}")
+    if integration != "manual_upload":
+        raise DriverError(
+            "upload response is not a manual upload: "
+            f"integration_id={integration!r}")
+    if not version:
+        raise DriverError("upload response has no source revision")
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise DriverError(
+            f"upload response size is incomplete: {size!r}")
+    return {
+        "document_id": doc_id,
+        "file_name": file_name,
+        "file_type": file_type,
+        "source": integration,
+        "external_id": f"upload_{doc_id}",
+        "source_version": version,
+        "file_size_bytes": size,
+    }
+
+
+def _source_identity_mismatches(
+        step: Any, identity: Dict[str, Any], *,
+        upload_root: Path, user_id: str) -> List[str]:
+    """Every way a persisted source step differs from the upload.
+
+    Empty means the step is the exact uploaded source. Missing shape is a
+    mismatch, never a pass.
+    """
+    doc_id = str(identity.get("document_id") or "")
+    file_type = str(identity.get("file_type") or "")
+    version = str(identity.get("source_version") or "")
+    if (not doc_id or "/" in doc_id or "\\" in doc_id
+            or not file_type or "/" in file_type or "\\" in file_type
+            or not version):
+        return ["identity"]
+    if not isinstance(step, dict):
+        return ["step"]
+    if str(step.get("adapter") or "") != "document.text":
+        return ["adapter"]
+    inputs = step.get("inputs")
+    if not isinstance(inputs, dict):
+        return ["inputs"]
+    binding = inputs.get("resource_binding")
+    if not isinstance(binding, dict):
+        return ["resource_binding"]
+    coverage = binding.get("coverage")
+    coverage = coverage if isinstance(coverage, dict) else {}
+    scope = binding.get("access_scope")
+    scope = scope if isinstance(scope, dict) else {}
+    result = step.get("result")
+    result = result if isinstance(result, dict) else {}
+    verification = result.get("verification")
+    verification = verification if isinstance(verification, dict) else {}
+    expected_path = (
+        Path(upload_root) / f"{doc_id}.{file_type}").resolve()
+    raw_path = str(inputs.get("path") or "")
+    actual_path = Path(raw_path).resolve() if raw_path else None
+    binding_workspace = str(binding.get("workspace_id") or "")
+    scope_workspace = str(scope.get("workspace_id") or "")
+    checks = [
+        ("binding.resource_id", binding.get("resource_id") == doc_id),
+        ("binding.external_id",
+         binding.get("external_id") == identity.get("external_id")),
+        ("binding.original_file_name",
+         binding.get("original_file_name") == identity.get("file_name")),
+        ("binding.source", binding.get("source") == identity.get("source")),
+        ("binding.representation",
+         binding.get("representation") == "document_text"),
+        ("binding.source_version",
+         binding.get("source_version") == version),
+        ("binding.internal_fixture",
+         binding.get("internal_fixture") is False),
+        ("binding.dataset_name", binding.get("dataset_name") is None),
+        ("binding.file_size_bytes",
+         coverage.get("file_size_bytes")
+         == identity.get("file_size_bytes")),
+        ("binding.access_scope_user",
+         bool(user_id) and scope.get("user_id") == user_id),
+        ("binding.workspace_scope",
+         bool(binding_workspace) and binding_workspace == scope_workspace),
+        ("inputs.path_canonical",
+         bool(raw_path) and actual_path == expected_path),
+        ("uploaded_file_present", expected_path.is_file()),
+        ("result.resource_id", result.get("resource_id") == doc_id),
+        ("result.source_version",
+         result.get("source_version") == version),
+        ("result.verification_status",
+         verification.get("status") == "verified"),
+        ("result.verification_resource_id",
+         verification.get("resource_id") == doc_id),
+        ("result.verification_version",
+         verification.get("version") == version),
+    ]
+    return [name for name, ok in checks if not ok]
+
+
+def _accepted_source_step(
+        assignment: Dict[str, Any], identity: Dict[str, Any], *,
+        upload_root: Path, user_id: str) -> Optional[Dict[str, Any]]:
+    """The first persisted step carrying exactly this uploaded identity."""
+    for step in assignment.get("steps") or []:
+        if not _source_identity_mismatches(
+                step, identity, upload_root=upload_root, user_id=user_id):
+            return step
+    return None
+
+
+def _upload_and_select(
+        page: Any, path: Path, file_name: str) -> Dict[str, Any]:
+    """Upload through the mounted input, then attach that exact document.
+
+    Returns the identity the product created and the identities the mounted
+    source picker/attach action carried, so the durable observer can compare
+    against those instead of the fixture path.
+    """
     upload = page.get_by_test_id("assignment-source-upload")
     upload.wait_for(state="visible", timeout=60000)
-    upload.set_input_files(str(path))
+    try:
+        with page.expect_response(
+                lambda response: (
+                    response.request.method == "POST"
+                    and UPLOAD_ENDPOINT in response.url),
+                timeout=120000) as upload_info:
+            upload.set_input_files(str(path))
+    except Exception as exc:  # noqa: BLE001 - report the transport failure
+        raise DriverError(
+            f"upload of {file_name} produced no response: "
+            f"{type(exc).__name__}: {exc}") from exc
+    response = upload_info.value
+    if response.status != 200:
+        raise DriverError(
+            f"upload of {file_name} returned {response.status}: "
+            f"{response.text()[:500]}")
+    try:
+        body = response.json()
+    except Exception as exc:  # noqa: BLE001 - non-JSON is a failed upload
+        raise DriverError(
+            f"upload of {file_name} returned non-JSON: "
+            f"{type(exc).__name__}: {exc}") from exc
+    identity = _uploaded_source_identity(
+        body, expected_file_name=file_name)
     page.wait_for_function(
         "name => (document.body.innerText || '').includes(`Uploaded ${name}`)",
         arg=file_name, timeout=120000)
@@ -369,9 +553,59 @@ def _upload_and_select(page: Any, path: Path, file_name: str) -> None:
     selector.wait_for(state="visible", timeout=120000)
     option = selector.locator("option").filter(has_text=file_name).first
     option.wait_for(state="attached", timeout=120000)
-    selector.select_option(value=option.get_attribute("value") or "")
-    page.get_by_test_id("assignment-use-source").click()
+    selected_key = option.get_attribute("value") or ""
+    expected_key = f"document:{identity['document_id']}"
+    if selected_key != expected_key:
+        raise DriverError(
+            f"source picker offered {selected_key!r} for {file_name}, "
+            f"not the uploaded document {expected_key!r}")
+    selector.select_option(value=selected_key)
+    try:
+        with page.expect_response(
+                lambda response: (
+                    response.request.method == "POST"
+                    and "/api/assignments/" in response.url
+                    and response.url.split("?")[0].endswith("/sources")),
+                timeout=300000) as attach_info:
+            page.get_by_test_id("assignment-use-source").click()
+    except Exception as exc:  # noqa: BLE001 - report the transport failure
+        raise DriverError(
+            f"source attach for {file_name} produced no response: "
+            f"{type(exc).__name__}: {exc}") from exc
+    attach = attach_info.value
+    if attach.status != 200:
+        raise DriverError(
+            f"source attach for {file_name} returned {attach.status}: "
+            f"{attach.text()[:500]}")
+    try:
+        attach_body = json.loads(attach.request.post_data or "{}")
+    except (TypeError, ValueError) as exc:
+        raise DriverError(
+            f"source attach for {file_name} sent no JSON source") from exc
+    attached = (
+        attach_body.get("source")
+        if isinstance(attach_body, dict) else None)
+    if not isinstance(attached, dict):
+        raise DriverError(
+            f"source attach for {file_name} carried no source object")
+    if str(attached.get("document_id") or "") != identity["document_id"]:
+        raise DriverError(
+            "source attach did not carry the uploaded document id: "
+            f"{attached.get('document_id')!r}")
+    if str(attached.get("source_version") or "") != identity["source_version"]:
+        raise DriverError(
+            "source attach did not carry the uploaded source revision: "
+            f"{attached.get('source_version')!r}")
     page.wait_for_timeout(1500)
+    return {
+        **identity,
+        "selected_source_key": selected_key,
+        "upload_status": response.status,
+        "attach_status": attach.status,
+        "attached_document_id": str(attached.get("document_id") or ""),
+        "attached_source_version": str(
+            attached.get("source_version") or ""),
+    }
 
 
 def _run_scenario(args: argparse.Namespace) -> int:
@@ -640,42 +874,81 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 question.wait_for(timeout=120000)
                 D3._screenshot(page, out, "01_missing_invoice_question.png")
 
+                actor_id = str(auth_probe.get("me_id") or "")
+                upload_root = db_path.parent / "office" / "uploads"
                 partial_path = fixture_root / PARTIAL_NAME
-                _upload_and_select(page, partial_path, PARTIAL_NAME)
+                partial_upload = _upload_and_select(
+                    page, partial_path, PARTIAL_NAME)
+                scenario["partial_upload"] = partial_upload
+
                 def _partial_accepted():
                     current = _durable_assignment(db_path, run_id)
-                    if any((step.get("inputs") or {}).get("path") == str(
-                            partial_path)
-                            for step in current.get("steps") or []):
+                    if _accepted_source_step(
+                            current, partial_upload,
+                            upload_root=upload_root, user_id=actor_id):
                         return current
                     return None
 
                 partial_assignment = _wait_for(
                     _partial_accepted, 180,
                     "partial invoice source acceptance")
+                partial_step = _accepted_source_step(
+                    partial_assignment, partial_upload,
+                    upload_root=upload_root, user_id=actor_id)
+                partial_mismatches = _source_identity_mismatches(
+                    partial_step, partial_upload,
+                    upload_root=upload_root, user_id=actor_id)
                 partial_questions = _open_questions(partial_assignment)
                 partial_reconciliations = _reconciliations(partial_assignment)
                 scenario["partial_evidence"] = {
                     "open_questions": partial_questions,
                     "reconciliations": len(partial_reconciliations),
                     "status": partial_assignment.get("status"),
+                    "upload": partial_upload,
+                    "source_step_id": (partial_step or {}).get("step_id"),
+                    "source_identity_mismatches": partial_mismatches,
                 }
                 step("partial_invoice_stays_unresolved", {
                     "question_still_open": bool(partial_questions),
                     "no_reconciliation": not partial_reconciliations,
                     "not_completed": (
                         partial_assignment.get("status") != "completed"),
+                    "upload_identity_exact": not partial_mismatches,
+                    "upload_response_200": (
+                        partial_upload["upload_status"] == 200),
+                    "attach_response_200": (
+                        partial_upload["attach_status"] == 200),
                 }, details=scenario["partial_evidence"])
                 D3._screenshot(page, out, "02_partial_invoice_unresolved.png")
 
                 complete_path = fixture_root / COMPLETE_NAME
-                _upload_and_select(page, complete_path, COMPLETE_NAME)
+                complete_upload = _upload_and_select(
+                    page, complete_path, COMPLETE_NAME)
+                scenario["complete_upload"] = complete_upload
+
+                def _complete_accepted():
+                    current = _durable_assignment(db_path, run_id)
+                    if _accepted_source_step(
+                            current, complete_upload,
+                            upload_root=upload_root, user_id=actor_id):
+                        return current
+                    return None
+
+                _wait_for(
+                    _complete_accepted, 180,
+                    "complete invoice source acceptance")
                 final = _wait_for(
                     lambda: (_durable_assignment(db_path, run_id)
                              if _reconciliations(
                                  _durable_assignment(db_path, run_id))
                              else None),
                     240, "complete invoice reconciliation")
+                complete_step = _accepted_source_step(
+                    final, complete_upload,
+                    upload_root=upload_root, user_id=actor_id)
+                complete_mismatches = _source_identity_mismatches(
+                    complete_step, complete_upload,
+                    upload_root=upload_root, user_id=actor_id)
                 reconciliations = _reconciliations(final)
                 value = (
                     (reconciliations[0].get("result") or {}).get("value")
@@ -685,12 +958,29 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "reconciliations": len(reconciliations),
                     "value": value,
                     "open_questions": _open_questions(final),
+                    "upload": complete_upload,
+                    "source_step_id": (complete_step or {}).get("step_id"),
+                    "source_identity_mismatches": complete_mismatches,
                 }
                 step("complete_invoice_one_verified_result", {
                     "exactly_one_reconciliation": len(reconciliations) == 1,
                     "value_is_expected": value == EXPECTED_TOTAL,
                     "assignment_completed": final.get("status") == "completed",
                     "no_remaining_question": not _open_questions(final),
+                    "upload_identity_exact": not complete_mismatches,
+                    "both_upload_identities_exact": not (
+                        partial_mismatches or complete_mismatches),
+                    "distinct_source_identity": (
+                        partial_upload["document_id"]
+                        != complete_upload["document_id"]
+                        and partial_upload["source_version"]
+                        != complete_upload["source_version"]),
+                    "both_upload_responses_200": (
+                        partial_upload["upload_status"] == 200
+                        and complete_upload["upload_status"] == 200),
+                    "both_attach_responses_200": (
+                        partial_upload["attach_status"] == 200
+                        and complete_upload["attach_status"] == 200),
                 }, details=scenario["complete_evidence"])
                 D3._screenshot(page, out, "03_complete_invoice_result.png")
 
