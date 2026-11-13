@@ -10952,13 +10952,33 @@ class ChatOrchestrator:
                 pass
             _pfr = session.get("_pending_file_result")
             _delivery_review = False
-            if not isinstance(_pfr, dict) or not _pfr.get("rendered"):
+            # A STALE INCOMPLETE CARRIER MUST NOT SHADOW A SAVED DELIVERY
+            # (2026-11-12 replay): the timeout turn stores an honest
+            # "nothing was read" acknowledgement on the session, and a later
+            # bare "go" then sees that rendered-but-unservable record first.
+            # The durable row is authoritative when it exists, so consult it
+            # whenever the session copy is not a servable result — not only
+            # when it is absent/empty.
+            _pfr_servable = bool(
+                isinstance(_pfr, dict)
+                and _pfr.get("status") in ("retrieved", "delivered")
+                and _pfr.get("rendered"))
+            if not _pfr_servable:
                 try:
-                    _pfr = self._load_pending_file_result(
+                    _durable_pfr = self._load_pending_file_result(
                         session_id, message=message,
-                        workspace_id=_turn_scope.get("workspace_id"),
+                        # The durable row was written under the REQUEST's
+                        # workspace (the one the job was scheduled with);
+                        # LLM dispatch scope is not the retrieval scope.
+                        workspace_id=(
+                            (context or {}).get("workspace_id")
+                            or _turn_scope.get("workspace_id")),
                         tenant_id=_turn_scope.get("tenant_id"))
                 except Exception:  # noqa: BLE001 — best-effort
+                    _durable_pfr = None
+                if isinstance(_durable_pfr, dict):
+                    _pfr = _durable_pfr
+                elif not isinstance(_pfr, dict):
                     _pfr = None
             if isinstance(_pfr, dict):
                 # Restart/worker switch: narration and the task outcome must

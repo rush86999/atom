@@ -305,6 +305,7 @@ def _write_synthetic_delivery(job_id: str, digest: str) -> dict:
     job = _job_metadata(job_id)
     row = {
         "status": "delivered",
+        "target_extraction_version": 3,
         "rendered": "synthetic background answer",
         "identity": {
             "service": background.PROVIDER,
@@ -660,3 +661,228 @@ async def test_normal_entry_timeout_and_filename_confirmation_share_one_job(
     assert job["requested_targets"] == targets
     assert job["requested_fields"] == ["price"]
     assert job["original_digest"] == digest
+
+
+EIGHT_ITEM_ASK = (
+    "find the prices of these 8 machines in Synthetic Confirmation "
+    "Price List.xlsx: 381, U-22, 622, SLE24-16, GSL48-16, GSL24-16, "
+    "SLE16-8 and U-38"
+)
+EIGHT_ITEM_TARGETS = [
+    "381", "U-22", "622", "SLE24-16", "GSL48-16", "GSL24-16",
+    "SLE16-8", "U-38",
+]
+EIGHT_ITEM_CONFIRMATION = (
+    "yes, Synthetic Confirmation Price List.xlsx is correct"
+)
+
+
+@pytest.mark.asyncio
+async def test_normal_entry_comma_list_keeps_bare_numeric_ids(
+    durable_db, active_grant, monkeypatch,
+):
+    """The signed-in ask's exact shape: eight comma-separated identifiers,
+    two of them bare numerics.
+
+    The count ('8') and the filename year ('2019') are not identifiers; '381'
+    and '622' are.  The background job and the later filename confirmation
+    must both retain all eight, in order, with no widened/narrowed scope.
+    """
+    import integrations.chat_orchestrator as chat
+    from core.pending_file_task import FILE_TASK_SESSION_KEY
+
+    session = {"id": SESSION, "messages": []}
+
+    orch = chat.ChatOrchestrator()
+    orch.ai_engines = {}
+    llm = MagicMock()
+    llm.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "reply", "model": "m",
+        "provider": "p"})
+    orch.llm_service = llm
+
+    async def _interactive_deadline(*args, **kwargs):
+        raise asyncio.TimeoutError()
+
+    monkeypatch.setenv("ATOM_620_STRICT_WORKDRIVE_PROOF", "1")
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(
+            orch, "_get_or_create_session", return_value=session))
+        stack.enter_context(patch.object(
+            orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_start_chat_execution", return_value="exec-entry-620"))
+        stack.enter_context(patch.object(
+            orch, "_record_chat_step", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_emit_agent_status", new=AsyncMock()))
+        stack.enter_context(patch.object(orch, "_finish_chat_execution"))
+        stack.enter_context(patch.object(orch, "_update_session"))
+        stack.enter_context(patch(
+            "core.chat_mini_app_authoring.try_handle",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_try_zoho_crm_write", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_route_to_features", new=AsyncMock(return_value={})))
+        stack.enter_context(patch.object(
+            orch, "_get_qwen_response", new=AsyncMock(return_value={
+                "success": True, "message": "qwen",
+                "session_id": session["id"]})))
+        stack.enter_context(patch(
+            "core.turn_decision.interpret_turn_request",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch(
+            "core.chat_tool_planner._datasets_named_file_block",
+            new=_interactive_deadline))
+        stack.enter_context(patch.object(
+            background, "spawn_background_read", return_value=False))
+
+        first = await orch.process_chat_message(
+            "u1", EIGHT_ITEM_ASK, session["id"],
+            context={"workspace_id": WORKSPACE})
+        rows = _job_rows()
+        assert len(rows) == 1, (
+            "the timed-out eight-item ask must schedule exactly one job; "
+            f"response was {first!r}")
+        job_id = str(rows[0].id)
+        job = _job_metadata(job_id)
+        digest = job["original_digest"]
+        assert job["requested_targets"] == EIGHT_ITEM_TARGETS
+        assert job["request_scope"]["requested_targets"] == EIGHT_ITEM_TARGETS
+        assert job["requested_fields"] == ["price"]
+        assert "8" not in job["requested_targets"]
+        assert "2019" not in job["requested_targets"]
+        task = session[FILE_TASK_SESSION_KEY]
+        assert task["background_job_id"] == job_id
+        assert task["requested_targets"] == EIGHT_ITEM_TARGETS
+
+        second = await orch.process_chat_message(
+            "u1", EIGHT_ITEM_CONFIRMATION, session["id"],
+            context={"workspace_id": WORKSPACE})
+
+    assert second["success"] is True
+    assert second["data"]["background_pending"] is True
+    attached = second["data"]["background_read"]
+    assert attached["reused"] is True
+    assert attached["attached"] is True
+    assert attached["job_id"] == job_id
+    assert attached["original_digest"] == digest
+    assert len(_job_rows()) == 1
+
+    job = _job_metadata(job_id)
+    assert job["requested_targets"] == EIGHT_ITEM_TARGETS
+    assert job["request_scope"]["requested_targets"] == EIGHT_ITEM_TARGETS
+    assert job["original_digest"] == digest
+    task = session[FILE_TASK_SESSION_KEY]
+    assert task["background_job_id"] == job_id
+    assert task["requested_targets"] == EIGHT_ITEM_TARGETS
+
+
+@pytest.mark.asyncio
+async def test_normal_entry_go_after_saved_delivery_is_served(
+    durable_db, active_grant, monkeypatch,
+):
+    """The third turn is exactly 'go' after the job's result was persisted.
+
+    The timeout turn leaves an honest 'nothing was read' acknowledgement on
+    the session.  That carrier must not shadow the saved delivery: 'go'
+    serves the persisted result deterministically — same job identity, no
+    live read, no model/feature routing.
+    """
+    import integrations.chat_orchestrator as chat
+    from core.pending_file_task import FILE_TASK_SESSION_KEY
+
+    session = {"id": SESSION, "messages": []}
+
+    orch = chat.ChatOrchestrator()
+    orch.ai_engines = {}
+    llm = MagicMock()
+    llm.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "reply", "model": "m",
+        "provider": "p"})
+    orch.llm_service = llm
+    qwen = AsyncMock(return_value={
+        "success": True, "message": "automatic model routing",
+        "session_id": session["id"]})
+    feature_routes = AsyncMock(return_value={})
+
+    async def _interactive_deadline(*args, **kwargs):
+        raise asyncio.TimeoutError()
+
+    monkeypatch.setenv("ATOM_620_STRICT_WORKDRIVE_PROOF", "1")
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(
+            orch, "_get_or_create_session", return_value=session))
+        stack.enter_context(patch.object(
+            orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_start_chat_execution", return_value="exec-entry-620"))
+        stack.enter_context(patch.object(
+            orch, "_record_chat_step", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_emit_agent_status", new=AsyncMock()))
+        stack.enter_context(patch.object(orch, "_finish_chat_execution"))
+        stack.enter_context(patch.object(orch, "_update_session"))
+        stack.enter_context(patch(
+            "core.chat_mini_app_authoring.try_handle",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_try_zoho_crm_write", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_route_to_features", new=feature_routes))
+        stack.enter_context(patch.object(
+            orch, "_get_qwen_response", new=qwen))
+        stack.enter_context(patch(
+            "core.turn_decision.interpret_turn_request",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch(
+            "core.chat_tool_planner._datasets_named_file_block",
+            new=_interactive_deadline))
+        stack.enter_context(patch.object(
+            background, "spawn_background_read", return_value=False))
+
+        await orch.process_chat_message(
+            "u1", EIGHT_ITEM_ASK, session["id"],
+            context={"workspace_id": WORKSPACE})
+        rows = _job_rows()
+        assert len(rows) == 1
+        job_id = str(rows[0].id)
+        digest = _job_metadata(job_id)["original_digest"]
+
+        attached = await orch.process_chat_message(
+            "u1", EIGHT_ITEM_CONFIRMATION, session["id"],
+            context={"workspace_id": WORKSPACE})
+        assert attached["data"]["background_pending"] is True
+
+        # The result arrives after the confirmation.  The session still
+        # carries the timeout turn's rendered-but-unservable ack.
+        background._finish_job(
+            job_id, background._JOB_STATUS_COMPLETED, summary="done")
+        _write_synthetic_delivery(job_id, digest)
+        task = session[FILE_TASK_SESSION_KEY]
+        task["status"] = "retrieved"
+        assert (session.get("_pending_file_result") or {}).get(
+            "status") == "incomplete"
+
+        qwen.reset_mock()
+        feature_routes.reset_mock()
+        third = await orch.process_chat_message(
+            "u1", "go", session["id"],
+            context={"workspace_id": WORKSPACE})
+
+    assert third["success"] is True
+    assert third["model"] == "deterministic"
+    assert third["data"]["deterministic_delivery"] is True
+    assert "synthetic background answer" in third["message"]
+    qwen.assert_not_awaited()
+    feature_routes.assert_not_awaited()
+    assert len(_job_rows()) == 1, "'go' must not queue another read"
+
+    job = _job_metadata(job_id)
+    assert job["original_digest"] == digest
+    assert job["requested_targets"] == EIGHT_ITEM_TARGETS
+    task = session[FILE_TASK_SESSION_KEY]
+    assert task["background_job_id"] == job_id
+    assert task["requested_targets"] == EIGHT_ITEM_TARGETS
+    assert task["status"] == "delivered"

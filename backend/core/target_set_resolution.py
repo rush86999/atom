@@ -95,6 +95,44 @@ def detect_contrastive_reference(text: str) -> Optional[Dict[str, str]]:
     }
 
 
+_ITEM_RUN_BOUNDARY_RE = re.compile(r"[.;!?\n:]")
+
+
+def _item_run(text: str, start: int) -> str:
+    """The comma/and/or enumeration around ``start``.
+
+    A colon introduces a list, semicolon/sentence punctuation ends it.  This
+    is what separates an IDENTIFIER LIST from a quantity phrase in the same
+    sentence: 'prices: 381, U-22, 622' is a list, 'packs of 10, 12 and 20'
+    is a count run whose first numeric is not a list member.
+    """
+    left = 0
+    for match in _ITEM_RUN_BOUNDARY_RE.finditer(text, 0, start):
+        left = match.end()
+    right_match = _ITEM_RUN_BOUNDARY_RE.search(text, start)
+    right = right_match.start() if right_match else len(text)
+    return text[left:right].strip()
+
+
+def _run_separator_before(run: str, token_start: int) -> bool:
+    before = run[:token_start]
+    return bool(
+        not before.strip()
+        or re.search(r"[,;]\s*$|\b(?:and|or)\s*$", before, re.IGNORECASE)
+    )
+
+
+def _run_separator_after(run: str, token_end: int) -> bool:
+    after = run[token_end:]
+    return bool(
+        not after.strip()
+        or re.match(
+            r"\s*[,;]|\s+\b(?:and|or)\b|"
+            r"\s+\b(?:in|on|from|for|at|within|inside|per)\b",
+            after, re.IGNORECASE)
+    )
+
+
 def extract_items_from_text(text: str) -> List[str]:
     """Model/item codes in a text, via the workbook extractor.
 
@@ -128,14 +166,63 @@ def extract_items_from_text(text: str) -> List[str]:
     #      (No. 381, SKU 12, Model 7 — cross-domain conventions).
     #   2. ALPHANUMERIC-MIXED tokens are items (U-22, SLE24-16, R-102).
     #   3. Bare numerics are items only when >= 4 digits (real numeric
-    #      SKUs) — short bare numbers are dimensions/quantities/row
-    #      indices unless rule 1 claimed them.
+    #      SKUs) OR when they are members of an explicit identifier list
+    #      that also carries an identity-shaped item ('381, U-22, 622').
+    #      A count phrase is not a list: 'packs of 10, 12 and 20' has no
+    #      identity anchor and stays out.
     # (Unit-marked specs are already gone: '36"' style tokens do not
     # survive markup cleanup as bare item candidates.)
     identifier_prefix = re.compile(
         r"(?:\bno\.?|\bmodel\b|\bsku\b|\bpart(?:\s+no)?|"
         r"\bitem\b|\bcode\b|\bm/n\b|\bp/n\b|\bref\.?)\s*$",
         re.IGNORECASE)
+
+    def _prefixed(token: str) -> bool:
+        pos = cleaned.find(token)
+        window = cleaned[max(0, pos - 12):pos] if pos >= 0 else ""
+        return bool(identifier_prefix.search(window))
+
+    def _identity_anchor(token: str) -> bool:
+        m = re.search(r"\d+", token)
+        if not m:
+            return False
+        return bool(
+            re.search(r"[A-Za-z]", token)
+            or len(m.group(0)) >= 4
+            or _prefixed(token)
+        )
+
+    anchors = [
+        str(item).strip() for item in raw_items
+        if str(item).strip() and _identity_anchor(str(item).strip())
+    ]
+
+    def _listed_numeric(token: str) -> bool:
+        if not anchors:
+            return False
+        for match in re.finditer(
+                rf"(?<![A-Za-z0-9]){re.escape(token)}(?![A-Za-z0-9])",
+                cleaned):
+            run = _item_run(cleaned, match.start())
+            run_start = cleaned.find(run)
+            if run_start < 0:
+                continue
+            token_start = match.start() - run_start
+            token_end = token_start + len(token)
+            if not (_run_separator_before(run, token_start)
+                    and _run_separator_after(run, token_end)):
+                continue
+            # The list must carry an identity-shaped companion; a run of
+            # bare numbers is a count/quantity domain, not an item list.
+            if any(
+                anchor != token and re.search(
+                    rf"(?<![A-Za-z0-9]){re.escape(anchor)}"
+                    rf"(?![A-Za-z0-9])", run, re.IGNORECASE)
+                for anchor in anchors
+            ):
+                return True
+        return False
+
     out: List[str] = []
     seen = set()
     for item in raw_items:
@@ -147,11 +234,10 @@ def extract_items_from_text(text: str) -> List[str]:
         if not m:
             continue  # item codes carry a digit
         core = m.group(0)
-        pos = cleaned.find(token)
-        window = cleaned[max(0, pos - 12):pos] if pos >= 0 else ""
-        prefixed = bool(identifier_prefix.search(window))
+        prefixed = _prefixed(token)
         mixed_alnum = bool(re.search(r"[A-Za-z]", token))
-        if (not mixed_alnum and len(core) < 4 and not prefixed):
+        if (not mixed_alnum and len(core) < 4 and not prefixed
+                and not _listed_numeric(token)):
             continue
         key = token.lower()
         if key and key not in seen:
