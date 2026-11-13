@@ -914,7 +914,13 @@ class UserSession(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    # WA-075: inventory key, never the raw bearer. New rows hold
+    # "sha256:<hex>"; rows written before WA-075 may still hold the raw JWT and
+    # are upgraded lazily by core.session_registry.
     session_token = Column(String, nullable=False, unique=True)
+    # WA-075: JWT id, used for is_current matching and per-session revocation
+    # through the existing RevokedToken ledger.
+    token_jti = Column(String, nullable=True, unique=True, index=True)
     user_agent = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     device_type = Column(String, nullable=True)

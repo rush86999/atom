@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { signOut } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Laptop, Smartphone, Globe, Clock, ShieldAlert } from 'lucide-react';
-import UAParser from 'ua-parser-js';
 
 interface Session {
     id: string;
@@ -17,6 +17,20 @@ interface Session {
     created_at: string;
     is_active: boolean;
     is_current: boolean;
+    /** WA-075: false when the backend cannot tie this entry to a revocable token. */
+    revocable?: boolean;
+}
+
+async function failureMessage(response: Response, fallback: string): Promise<string> {
+    try {
+        const body = await response.json();
+        if (body && typeof body.message === 'string' && body.message) return body.message;
+        if (body && typeof body.error === 'string' && body.error) return body.error;
+        if (body && typeof body.detail === 'string' && body.detail) return body.detail;
+    } catch {
+        // Non-JSON failure body; use the caller's fallback.
+    }
+    return fallback;
 }
 
 export default function SessionSettings() {
@@ -24,25 +38,32 @@ export default function SessionSettings() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
     const [revoking, setRevoking] = useState<string | null>(null);
 
+    /**
+     * WA-075: this is a no-body heartbeat. The backend identifies the session
+     * from the credential the browser already presents; the page must never
+     * send a token in the body (the old proxy stored it verbatim, and a client
+     * supplied token is not proof of session ownership).
+     */
     const recordCurrentSession = useCallback(async () => {
         try {
-            // R82: send the real backend JWT — the previous placeholder
-            // constant ('current-session-token') was shared by every user,
-            // so the ON CONFLICT(session_token) upsert collided all users
-            // onto one row and is_current detection never worked.
-            const token = localStorage.getItem('auth_token');
-            if (!token) {
+            const response = await fetch('/api/auth/sessions', { method: 'POST' });
+            if (!response.ok) {
                 return;
             }
-            await fetch('/api/auth/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token }),
-            });
+            const data = await response.json();
+            if (data?.tracked === false) {
+                setNotice(
+                    typeof data.message === 'string' && data.message
+                        ? data.message
+                        : 'This session is not in the device inventory, so it cannot be revoked from this page.'
+                );
+            }
         } catch (e) {
-            console.error('Failed to record session', e);
+            // A heartbeat is advisory; never block the list on it.
+            console.error('Failed to record session activity', e);
         }
     }, []);
 
@@ -50,7 +71,7 @@ export default function SessionSettings() {
         try {
             const response = await fetch('/api/auth/sessions');
             if (!response.ok) {
-                throw new Error('Failed to fetch sessions');
+                throw new Error(await failureMessage(response, 'Failed to fetch sessions'));
             }
             const data = await response.json();
             setSessions(data.sessions || []);
@@ -78,6 +99,7 @@ export default function SessionSettings() {
 
         setRevoking(sessionId);
         setError('');
+        setNotice('');
 
         try {
             const response = await fetch('/api/auth/sessions', {
@@ -87,7 +109,7 @@ export default function SessionSettings() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to revoke session');
+                throw new Error(await failureMessage(response, 'Failed to revoke session'));
             }
 
             await fetchSessions();
@@ -99,12 +121,16 @@ export default function SessionSettings() {
     };
 
     const handleRevokeAll = async () => {
-        if (!confirm('Are you sure you want to sign out of all devices? You will need to sign in again.')) {
+        if (!confirm(
+            'Are you sure you want to sign out of all devices? Recorded devices will be signed out; ' +
+            'sessions created by other sign-in paths may remain valid until they expire.'
+        )) {
             return;
         }
 
         setRevoking('all');
         setError('');
+        setNotice('');
 
         try {
             const response = await fetch('/api/auth/sessions', {
@@ -114,11 +140,13 @@ export default function SessionSettings() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to revoke all sessions');
+                throw new Error(await failureMessage(response, 'Failed to revoke all sessions'));
             }
 
-            // Sign out current user too
-            router.push('/api/auth/signout');
+            // Signing out through NextAuth runs the signOut event, which calls
+            // the backend /api/auth/logout and revokes this browser's token.
+            // Navigating to the GET /api/auth/signout page never did that.
+            await signOut({ callbackUrl: '/auth/signin' });
         } catch (err: any) {
             setError(err.message || 'Failed to revoke sessions');
             setRevoking(null);
@@ -158,6 +186,12 @@ export default function SessionSettings() {
                     </Alert>
                 )}
 
+                {notice && (
+                    <Alert>
+                        <AlertDescription>{notice}</AlertDescription>
+                    </Alert>
+                )}
+
                 <Card>
                     <CardHeader>
                         <div className="flex justify-between items-center">
@@ -187,54 +221,63 @@ export default function SessionSettings() {
                                     No active sessions found.
                                 </p>
                             ) : (
-                                sessions.map((session) => (
-                                    <div
-                                        key={session.id}
-                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:bg-gray-800 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            {getDeviceIcon(session.device_type)}
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-medium">
-                                                        {session.browser || 'Unknown Browser'} on {session.os || 'Unknown OS'}
-                                                    </p>
-                                                    {session.is_current && (
-                                                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                                                            Current Device
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                    <span className="flex items-center gap-1">
-                                                        <Globe className="h-3 w-3" />
-                                                        {session.ip_address}
-                                                    </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        Active {new Date(session.last_active_at).toLocaleDateString()}
-                                                    </span>
+                                sessions.map((session) => {
+                                    const revocable = session.revocable !== false;
+                                    return (
+                                        <div
+                                            key={session.id}
+                                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:bg-gray-800 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                {getDeviceIcon(session.device_type)}
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-medium">
+                                                            {session.browser || 'Unknown Browser'} on {session.os || 'Unknown OS'}
+                                                        </p>
+                                                        {session.is_current && (
+                                                            <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                                                                Current Device
+                                                            </Badge>
+                                                        )}
+                                                        {!revocable && (
+                                                            <Badge variant="secondary">
+                                                                Cannot be revoked
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                        <span className="flex items-center gap-1">
+                                                            <Globe className="h-3 w-3" />
+                                                            {session.ip_address}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" />
+                                                            Active {new Date(session.last_active_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {!session.is_current && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleRevokeSession(session.id)}
-                                                disabled={revoking === session.id}
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            >
-                                                {revoking === session.id ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    'Revoke'
-                                                )}
-                                            </Button>
-                                        )}
-                                    </div>
-                                ))
+                                            {!session.is_current && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRevokeSession(session.id)}
+                                                    disabled={!!revoking || !revocable}
+                                                    title={revocable ? undefined : 'This entry has no token the server can revoke.'}
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    {revoking === session.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        'Revoke'
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
                     </CardContent>

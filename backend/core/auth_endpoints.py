@@ -255,6 +255,13 @@ async def login_for_access_token(
         user.last_login = datetime.now(timezone.utc)
         db.commit()
 
+        # WA-075: inventory is written at issuance by the server, never by the
+        # browser. Best-effort — a failed inventory write must not fail login;
+        # the session is still enforceable through the credential binding and
+        # the logout ledger.
+        from core.session_registry import register_session
+        register_session(db, user, access_token, request=request)
+
         audit_service.log_event(
             db,
             event_type=AuditEventType.LOGIN.value,
@@ -278,7 +285,7 @@ async def login_for_access_token(
         )
 
 @router.post("/register", response_model=Token)
-async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _rl=Depends(register_rate_limit)):
+async def register_user(request: Request, user_data: UserCreate, db: Session = Depends(get_db), _rl=Depends(register_rate_limit)):
     from core.deployment_audience import is_single_user
     if is_single_user():
         raise HTTPException(status_code=403, detail="Self-registration is disabled for this single-user pilot.")
@@ -356,7 +363,10 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _r
     access_token = create_access_token(
         data={"sub": new_user.id}, expires_delta=access_token_expires, user=new_user
     )
-    
+
+    from core.session_registry import register_session
+    register_session(db, new_user, access_token, request=request)
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me")
@@ -548,6 +558,11 @@ async def reset_password(
                 and verify_password(request.password, current.hashed_password))
         if not verified:
             raise ValueError("credential readback mismatch")
+        # WA-075: every inventory row for this user is now unusable (credential
+        # binding changed). Best-effort listing upkeep; authorization already
+        # fails through credential_session_matches.
+        from core.session_registry import deactivate_user_sessions
+        deactivate_user_sessions(db, user_id)
         return {"success": True, "message": "Password reset successfully. Sign in with your new password.",
                 "operation_id": operation_id, "verification": {"status": "verified", "effect": "committed"}}
     except HTTPException:
@@ -569,12 +584,20 @@ async def reset_password(
         })
 
 @router.post("/refresh")
-async def refresh_token(current_user: User = Depends(get_current_user)):
+async def refresh_token(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Refresh the access token"""
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": current_user.id}, expires_delta=access_token_expires, user=current_user
     )
+    # WA-075: a refreshed token is a new session identity (new jti), so it is
+    # recorded at issuance like a login.
+    from core.session_registry import register_session
+    register_session(db, current_user, access_token, request=request)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
@@ -647,6 +670,11 @@ async def logout(
                 missing = missing or (isinstance(metadata, dict) and not required.issubset(metadata))
                 readback_status = "unavailable" if missing else "refuted"
             raise ValueError("Logout evidence is unavailable")
+        # WA-075: an inventory entry for a token the ledger just revoked must
+        # not keep appearing in Active Sessions. Best-effort: the ledger above
+        # is the authority, this only keeps the listing truthful.
+        from core.session_registry import deactivate_session_by_jti
+        deactivate_session_by_jti(db, actor_id, jti)
         return {"success": True, "message": "Logged out successfully", "operation_id": operation_id,
             "audit_id": audit_id, "already_applied": not inserted,
             "verification": {"status": "verified", "effect": "committed" if inserted else "none"}}
@@ -712,6 +740,11 @@ async def change_password(
         db=db,
         revocation_reason="password_change",
     )
+
+    # WA-075: the inventory must not keep listing sessions whose credential
+    # binding changed (they already fail authorization). Best-effort.
+    from core.session_registry import deactivate_user_sessions
+    inventory_deactivated = deactivate_user_sessions(db, current_user.id)
 
     audit_service.log_event(
         db,

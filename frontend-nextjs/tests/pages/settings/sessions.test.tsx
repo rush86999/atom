@@ -1,11 +1,12 @@
 /**
- * Round 82 / F8 — settings/sessions page records the real backend token.
+ * WA-075 — settings/sessions must never ship bearer material to the proxy.
  *
- * The page used to POST the literal placeholder 'current-session-token' as
- * the session token. The proxy upserts on session_token
- * (ON CONFLICT (session_token) DO UPDATE), so every user's "record current
- * session" ping collided onto ONE shared row, and the is_current check
- * (session_token = backendToken) could never match.
+ * Before this contract the page POSTed `localStorage.auth_token` so the proxy
+ * could upsert a `user_sessions` row keyed on the raw token. That made the
+ * browser the inventory writer, stored a raw bearer, and (once revocation was
+ * made real) would have let a user record a token they did not own. The
+ * heartbeat is now bodyless and identity comes from the session credential the
+ * server already verified.
  */
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
@@ -14,20 +15,13 @@ jest.mock('next/router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
-jest.mock('ua-parser-js', () => {
-  return jest.fn().mockImplementation(() => ({
-    getResult: () => ({
-      device: { type: 'desktop' },
-      browser: { name: 'jest' },
-      os: { name: 'ci' },
-    }),
-  }));
-});
+jest.mock('next-auth/react', () => ({
+  signOut: jest.fn(),
+}));
 
-const SessionSettings =
-  require('@/pages/settings/sessions').default;
+const SessionSettings = require('@/pages/settings/sessions').default;
 
-describe('settings/sessions — current-session recording', () => {
+describe('settings/sessions — no client-supplied session material', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -53,28 +47,24 @@ describe('settings/sessions — current-session recording', () => {
     global.fetch = originalFetch;
   });
 
-  it('sends the stored auth_token, not a placeholder constant', async () => {
+  it('sends a bodyless heartbeat', async () => {
     render(<SessionSettings />);
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/auth/sessions',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ token: 'jwt-real-token-123' }),
-        })
-      );
+      expect(global.fetch).toHaveBeenCalledWith('/api/auth/sessions', { method: 'POST' });
     });
   });
 
-  it('never sends the legacy placeholder value', async () => {
+  it('never sends the stored bearer or the legacy placeholder in any request body', async () => {
     render(<SessionSettings />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     const calls = (global.fetch as jest.Mock).mock.calls.filter(
-      ([url]: any[]) => String(url).includes('/api/auth/sessions')
+      ([url]: any[]) => String(url).includes('/api/auth/sessions'),
     );
     expect(calls.length).toBeGreaterThan(0);
     for (const [, init] of calls) {
-      expect(String(init?.body)).not.toContain('current-session-token');
+      expect(init?.body).toBeUndefined();
+      expect(JSON.stringify(init ?? {})).not.toContain('jwt-real-token-123');
+      expect(JSON.stringify(init ?? {})).not.toContain('current-session-token');
     }
   });
 });
