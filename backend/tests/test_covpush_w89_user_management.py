@@ -66,12 +66,14 @@ def _make_user(db, user_id="user-1"):
 
 
 def _make_session(db, session_id, user_id="user-1", *, session_token=None,
+                  token_jti=None,
                   is_active=True, expires_days=7, last_active_days=1,
                   device_type="mobile", browser="Safari", os="iOS"):
     session = UserSession(
         id=session_id,
         user_id=user_id,
         session_token=session_token or f"tok-{session_id}",
+        token_jti=token_jti,
         is_active=is_active,
         device_type=device_type,
         browser=browser,
@@ -84,6 +86,22 @@ def _make_session(db, session_id, user_id="user-1", *, session_token=None,
     db.add(session)
     db.commit()
     return session
+
+
+def _signed_session(db, user, session_id, **kwargs):
+    """Inventory row + the real bearer that owns it (jti/fingerprint match)."""
+    from core.auth import create_access_token, decode_token
+    from core.session_registry import token_fingerprint
+
+    token = create_access_token({"sub": user.id}, user=user)
+    payload = decode_token(token)
+    row = _make_session(
+        db, session_id,
+        session_token=token_fingerprint(token),
+        token_jti=payload["jti"],
+        **kwargs,
+    )
+    return token, payload, row
 
 
 @pytest.fixture()
@@ -219,12 +237,56 @@ class TestListSessions:
 
 class TestRevokeSession:
     def test_revoke_session_success(self, client, db):
-        _make_session(db, "s-1")
-        resp = client.delete("/api/users/sessions/s-1", headers=AUTH_HEADERS)
+        from core.models import RevokedToken
+
+        user = _make_user(db)
+        token, payload, _row = _signed_session(db, user, "s-1")
+        headers = {"Authorization": "Bearer " + token}
+        resp = client.delete("/api/users/sessions/s-1", headers=headers)
         assert resp.status_code == 200
         assert resp.json()["message"] == "Session revoked successfully"
+        assert resp.json()["verification"]["status"] == "verified"
         session = db.query(UserSession).filter(UserSession.id == "s-1").first()
         assert session.is_active is False
+        # WA-075: the durable ledger — not the display flag — is the effect.
+        receipt = db.query(RevokedToken).filter_by(jti=payload["jti"]).one()
+        assert receipt.user_id == user.id
+
+    def test_revoke_unverifiable_row_is_not_reported_as_revoked(self, client, db):
+        """A legacy/opaque inventory entry has no provable token identity.
+
+        It is removed from the list, but the response must not claim a
+        revocation that could not happen.
+        """
+        from core.models import RevokedToken
+
+        _make_session(db, "s-1", session_token="opaque-not-a-jwt")
+        resp = client.delete("/api/users/sessions/s-1", headers=AUTH_HEADERS)
+        assert resp.status_code == 409
+        body = resp.json()
+        assert body["revoked"] == 0
+        assert body["skipped"] == 1
+        assert body["verification"]["effect"] == "committed"
+        assert db.query(RevokedToken).count() == 0
+        session = db.query(UserSession).filter(UserSession.id == "s-1").first()
+        assert session.is_active is False
+
+    def test_forged_row_cannot_revoke_another_users_token(self, client, db):
+        """A row owned by user-1 that carries user-2's token resolves to no
+        jti, so user-2's credential is never added to the ledger."""
+        from core.auth import create_access_token
+        from core.models import RevokedToken, User
+
+        victim = User(id="victim", email="victim@example.com", first_name="Vic",
+                      last_name="Tim", role="member", status="active", tenant_id="t1")
+        db.add(victim)
+        db.commit()
+        victim_token = create_access_token({"sub": victim.id}, user=victim)
+        _make_session(db, "s-forged", user_id="user-1", session_token=victim_token)
+
+        resp = client.delete("/api/users/sessions/s-forged", headers=AUTH_HEADERS)
+        assert resp.status_code == 409
+        assert db.query(RevokedToken).count() == 0
 
     def test_revoke_session_missing_404(self, client):
         resp = client.delete("/api/users/sessions/nope", headers=AUTH_HEADERS)
@@ -243,10 +305,13 @@ class TestRevokeSession:
 
 class TestRevokeAllSessions:
     def test_revoke_all_except_current(self, client, db):
-        _make_session(db, "s-current", session_token="test-token")
-        _make_session(db, "s-1", session_token="tok-1")
-        _make_session(db, "s-2", session_token="tok-2")
-        resp = client.delete("/api/users/sessions", headers=AUTH_HEADERS)
+        from core.models import RevokedToken
+
+        user = _make_user(db)
+        token, payload, _row = _signed_session(db, user, "s-current")
+        _make_session(db, "s-1", session_token="tok-1", token_jti="jti-1")
+        _make_session(db, "s-2", session_token="tok-2", token_jti="jti-2")
+        resp = client.delete("/api/users/sessions", headers={"Authorization": "Bearer " + token})
         assert resp.status_code == 200
         assert resp.json()["message"] == "All sessions revoked successfully"
         sessions = db.query(UserSession).filter(UserSession.user_id == "user-1").all()
@@ -254,6 +319,7 @@ class TestRevokeAllSessions:
         assert by_id["s-current"] is True
         assert by_id["s-1"] is False
         assert by_id["s-2"] is False
+        assert {row.jti for row in db.query(RevokedToken).all()} == {"jti-1", "jti-2"}
 
     def test_revoke_all_without_token_revokes_everything(self, client, db):
         _make_session(db, "s-1", session_token="tok-1")
