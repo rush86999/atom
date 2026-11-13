@@ -1,0 +1,352 @@
+{
+  "schema": "atom-wa045-canvas-blank-lifecycle-1",
+  "wa_id": "WA-045",
+  "status": "passed",
+  "generated_at": "2026-11-13T13:53:32.134467+00:00",
+  "commit": "f201216b6d9ce9711ab6d9a8d27e43191f5844cf",
+  "environment": {
+    "world": "backend/data/acceptance_worlds/wa045_canvas_offline_20261113",
+    "world_root": "backend/data/acceptance_worlds",
+    "database": "atom.db",
+    "fresh_scratch_database": true,
+    "live_database": false,
+    "backend": "http://127.0.0.1:8182",
+    "frontend": "http://127.0.0.1:3182",
+    "backend_pid": 51299,
+    "frontend_pid": 51366,
+    "backend_identity": {
+      "revision": "f201216b6d9ce9711ab6d9a8d27e43191f5844cf",
+      "cwd": "/Volumes/Seagate Portable Drive/atom-wa045.S0mBqJ/tree/backend",
+      "database": "/Volumes/Seagate Portable Drive/atom-wa045.S0mBqJ/tree/backend/data/acceptance_worlds/wa045_canvas_offline_20261113/atom.db",
+      "port": 8182,
+      "source_id": "f201216b6d9c"
+    },
+    "workers": {
+      "ENABLE_SCHEDULER": false,
+      "ENABLE_INGESTION_SYNC": false
+    },
+    "provider_isolation": "all provider keys blanked for both processes; no provider call made",
+    "external_asset_policy": "deny",
+    "monaco_assets": "bundled same-origin /monaco/vs build served by the frontend; the harness refused every non-loopback request"
+  },
+  "journey": {
+    "create": {
+      "status": 200,
+      "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+      "url": "/canvas/30d1b84b-e5aa-41b3-8085-f7ed76553369",
+      "audit_id": "de0d0b2e-cb04-4cd1-8e37-d71fe2c3eeb5"
+    },
+    "save": {
+      "status": 200,
+      "save_path": "save_changes_button",
+      "request_body": {
+        "content": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END"
+      },
+      "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+      "audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f",
+      "operation_id": "http-canvas-update:963d5bc93e354a6683920cd4e202254c",
+      "verification": {
+        "status": "verified",
+        "effect": "committed",
+        "no_change": false,
+        "evidence": "canvas_audit 2f3f5525-f6b action_type=update content=8fcd968019da canvas_id=30d1b84b-e5aa-41b3-8085-f7ed76553369"
+      },
+      "expected_prior_audit_id": "de0d0b2e-cb04-4cd1-8e37-d71fe2c3eeb5"
+    },
+    "reload": {
+      "editor_value_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+      "get_content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+      "revision_audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f",
+      "version_badge": "v2",
+      "action_types": [
+        "update",
+        "create"
+      ],
+      "history_count": 2
+    },
+    "exact_text_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+    "exact_text": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END",
+    "history_count": 2,
+    "version_badge": "v2",
+    "origins": [
+      "http://127.0.0.1:3182",
+      "http://127.0.0.1:8182"
+    ],
+    "non_loopback": [],
+    "external_traffic": {
+      "policy": "deny",
+      "blocked": [],
+      "blocked_count": 0,
+      "attempted_count": 0,
+      "local_monaco_asset_requests": 26
+    }
+  },
+  "browser_checks": [
+    {
+      "name": "signed in through the login form",
+      "ok": true,
+      "detail": {
+        "origin": "http://127.0.0.1:3182"
+      }
+    },
+    {
+      "name": "blank canvas created by the UI button",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "url": "/canvas/30d1b84b-e5aa-41b3-8085-f7ed76553369"
+      }
+    },
+    {
+      "name": "created artifact id is the URL identity",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3182/canvas/30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369"
+      }
+    },
+    {
+      "name": "native document editor rendered for the blank canvas",
+      "ok": true,
+      "detail": {
+        "selector": ".monaco-editor"
+      }
+    },
+    {
+      "name": "signed-in browser token present",
+      "ok": true,
+      "detail": {
+        "length": 339
+      }
+    },
+    {
+      "name": "initial durable content is the empty document envelope",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "content": {
+          "content": ""
+        },
+        "audit_id": "de0d0b2e-cb04-4cd1-8e37-d71fe2c3eeb5"
+      }
+    },
+    {
+      "name": "initial audit row is the create event",
+      "ok": true,
+      "detail": "create"
+    },
+    {
+      "name": "editor opens with the exact empty body",
+      "ok": true,
+      "detail": {
+        "value": ""
+      }
+    },
+    {
+      "name": "edited text reached the durable save endpoint",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "save_path": "save_changes_button"
+      }
+    },
+    {
+      "name": "save body is the exact native document envelope, byte-for-byte",
+      "ok": true,
+      "detail": {
+        "body_keys": [
+          "content"
+        ],
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "expected_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "save receipt is verified for this exact canvas",
+      "ok": true,
+      "detail": {
+        "verification": "verified",
+        "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f",
+        "operation_id": "http-canvas-update:963d5bc93e354a6683920cd4e202254c"
+      }
+    },
+    {
+      "name": "save bound the prior create revision (optimistic concurrency)",
+      "ok": true,
+      "detail": {
+        "expected_prior_audit_id": "de0d0b2e-cb04-4cd1-8e37-d71fe2c3eeb5"
+      }
+    },
+    {
+      "name": "panel reports the edit saved",
+      "ok": true,
+      "detail": "Saved"
+    },
+    {
+      "name": "editor value after reload is the exact saved text",
+      "ok": true,
+      "detail": {
+        "value_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "expected_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "length": 109
+      }
+    },
+    {
+      "name": "GET read-back after reload returns the exact saved envelope",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f"
+      }
+    },
+    {
+      "name": "read-back is the update revision the save returned",
+      "ok": true,
+      "detail": {
+        "revision_audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f",
+        "saved_audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f"
+      }
+    },
+    {
+      "name": "audit history belongs to the created artifact",
+      "ok": true,
+      "detail": {
+        "canvas_id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "count": 2
+      }
+    },
+    {
+      "name": "history has exactly the create and update revisions",
+      "ok": true,
+      "detail": [
+        "update",
+        "create"
+      ]
+    },
+    {
+      "name": "latest revision carries the exact saved text",
+      "ok": true,
+      "detail": {
+        "audit_id": "2f3f5525-f6bd-4d7d-8976-db54e1b0929f",
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "canvas title is the created artifact title",
+      "ok": true,
+      "detail": "Untitled canvas"
+    },
+    {
+      "name": "reloaded version badge reflects both revisions",
+      "ok": true,
+      "detail": {
+        "expected": "v2",
+        "matches": 1
+      }
+    },
+    {
+      "name": "no non-loopback request other than pinned Monaco editor assets",
+      "ok": true,
+      "detail": {
+        "external": [],
+        "monaco_asset_requests": 0,
+        "monaco_asset_policy": "deny"
+      }
+    },
+    {
+      "name": "Monaco asset CDN was not contacted (deny policy)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "external traffic was refused end-to-end (zero non-loopback attempts)",
+      "ok": true,
+      "detail": {
+        "attempted": [],
+        "blocked": []
+      }
+    },
+    {
+      "name": "editor rendered from the bundled same-origin build",
+      "ok": true,
+      "detail": {
+        "expected_asset_root": "/monaco/vs",
+        "local_asset_requests": 26,
+        "non_loopback_requests": 0
+      }
+    },
+    {
+      "name": "no browser page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "database_checks": [
+    {
+      "name": "scratch database holds the created artifact row",
+      "ok": true,
+      "detail": {
+        "found": true,
+        "id": "30d1b84b-e5aa-41b3-8085-f7ed76553369",
+        "name": "Untitled canvas",
+        "canvas_type": "document"
+      }
+    },
+    {
+      "name": "scratch database content is the exact saved envelope",
+      "ok": true,
+      "detail": {
+        "content": {
+          "content": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END"
+        }
+      }
+    },
+    {
+      "name": "scratch database has only this artifact's create+update audits",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "actions": [
+          "create",
+          "update"
+        ]
+      }
+    },
+    {
+      "name": "scratch database update audit stores the exact text",
+      "ok": true,
+      "detail": {
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "scratch database create audit is the empty document",
+      "ok": true,
+      "detail": {
+        "content": {
+          "content": ""
+        }
+      }
+    },
+    {
+      "name": "every audit row belongs to the created artifact id",
+      "ok": true,
+      "detail": {
+        "audit_ids": [
+          "de0d0b2e-cb04-4cd1-8e37-d71fe2c3eeb5",
+          "2f3f5525-f6bd-4d7d-8976-db54e1b0929f"
+        ]
+      }
+    }
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "run": {
+    "harness_exit_code": 0,
+    "private_logs": "retained outside the repository; not committed"
+  }
+}

@@ -10,7 +10,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T20:12:42Z
+Generated: 2026-11-13T13:55:59Z
 
 Machine-readable source: `docs/acceptance/WHOLE_APP_READINESS_LEDGER_2026-10-27.json`.
 
@@ -18,10 +18,10 @@ Machine-readable source: `docs/acceptance/WHOLE_APP_READINESS_LEDGER_2026-10-27.
 
 | Status | Count |
 |---|---|
-| verified | 60 |
+| verified | 61 |
 | failed | 1 |
 | partial | 13 |
-| unproven | 11 |
+| unproven | 10 |
 | environment_limited | 4 |
 | blocked_external | 1 |
 | not_authorized | 1 |
@@ -84,7 +84,7 @@ The dirty worktree contains an uncommitted product-profile gate that is **not in
 | WA-042 | documents | Upload PDF and Markdown files | **partial** | Not executed in this world. | Upload one PDF and one MD and assert extracted text and search hits. |
 | WA-043 | documents | Reload the Documents page and list the uploaded files | **verified** | — | — |
 | WA-044 | chat | Send a text turn and reload history | **verified** | — | — |
-| WA-045 | canvas | Create a canvas artifact, edit it, reload | **unproven** | Render only. | Run the existing canvas journey against this world or reuse the packaged J5 evidence. |
+| WA-045 | canvas | Create a canvas artifact, edit it, reload | **verified** | — | — |
 | WA-046 | search | Search memory/documents and inspect results | **partial** | The unified Search page's own query was not executed. | Run one unified search query with a known document hit. |
 | WA-047 | agents | Open the Agents page and read the maturity ladder | **partial** | No agent run/training transition executed (LLM). | Use the existing trained-review evidence for the AI slice; add one non-LLM agent-list assertion. |
 | WA-048 | automations | Use the Automations tabs and workflow surface | **verified** | — | — |

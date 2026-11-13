@@ -847,3 +847,9 @@ docs/architecture/orchestration_migration/acceptance/preview/preview_verificatio
 
 # Worktree convenience: node_modules may be a symlink to the primary checkout
 frontend-nextjs/node_modules
+
+# Monaco editor's static build, copied out of node_modules by
+# scripts/sync-monaco-assets.js so the canvas editor loads offline from
+# /monaco/vs. ~15MB of generated vendor files, version-stamped and rebuilt on
+# every next dev/build; never commit it.
+frontend-nextjs/public/monaco/
