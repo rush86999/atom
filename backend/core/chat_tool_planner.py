@@ -7006,6 +7006,10 @@ def _user_facing_workbook_answer(text: str) -> str:
                 "Workbook read: " + parts[1]
                 if len(parts) == 2 else "Workbook read completed"
             )
+        elif line.startswith("GROUNDING RULE:"):
+            # The grounding contract is model guidance appended to the
+            # evidence block; it is not part of the user's answer.
+            continue
         elif line.startswith("MATERIALIZED COPY —"):
             line = line.replace("MATERIALIZED COPY —", "Source: MATERIALIZED COPY —", 1)
         elif line.startswith("COVERAGE LIMITS —"):
@@ -7410,7 +7414,11 @@ async def _strict_named_workdrive_block(
         order_hint=" ".join(v for v in (query, msg_text) if v),
         source_service="zoho_workdrive",
         evidence_kind=DOWNLOADED_KIND,
-        live_vs_saved="downloaded bytes",
+        # The footer names the provenance the user can check: this answer
+        # came from the downloaded copy of THIS workbook. "downloaded
+        # bytes" named the transport, not the source, so an attribution
+        # review could not join the footer to the workbook.
+        live_vs_saved="downloaded copy",
     )
     record = join_proof_to_record(record, proof)
     answer = str(present_from_record(record).get("answer") or "")

@@ -717,6 +717,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 — lifespan must not fail
         logger.error(f"Failed to start accepted-information wait recovery: {e}")
 
+    # 5f. ISSUE 620 — DURABLE BACKGROUND WORKDRIVE READS.  A strict workbook
+    # read that outlived its interactive deadline is a durable AgentExecution
+    # job.  On boot: re-deliver any result that was persisted before a crash
+    # (ZERO provider reads), or resume a job whose owner is verifiably gone.
+    # Its own integrity pass, outside the scheduler gate and independent of
+    # the continuation import above, for the same reason as 5/5b.
+    try:
+        from core.workdrive_background_delivery import (
+            schedule_recovery_at_startup,
+        )
+
+        if schedule_recovery_at_startup():
+            logger.info(
+                "WorkDrive background-read recovery started (outside "
+                "the scheduler gate)")
+    except Exception as e:  # noqa: BLE001 — lifespan must not fail
+        logger.error(f"Failed to start WorkDrive background recovery: {e}")
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False

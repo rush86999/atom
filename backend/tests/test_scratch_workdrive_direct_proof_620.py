@@ -291,6 +291,88 @@ def test_strict_read_derives_answer_and_proof_from_downloaded_bytes(
     assert "GSL48-16" in answer and "14,166" in answer
 
 
+def test_saved_answer_footer_names_the_downloaded_workbook_and_closes(
+    cached_workbook,
+):
+    """The durable saved answer is the sanitized block.
+
+    Its footer must name the workbook and its provenance wording must join
+    to the verified direct proof: the harness's attribution check accepts
+    ``From the downloaded copy of <workbook>`` while the strict proof gate
+    still requires THIS execution/resource/SHA. Synthetic fixtures only.
+    """
+    from core.chat_tool_planner import _user_facing_workbook_answer
+
+    storage = _FakeWorkDriveStorage(DOWNLOADED)
+    result = _run_confirmed_read(cached_workbook, strict=True, storage=storage)
+    assert result["ok"] is True
+
+    # This is exactly what durable delivery stores/pins (the internal block
+    # passed through the existing user-facing sanitizer).
+    reply = _user_facing_workbook_answer(result["block"])
+    assert "LIVE TOOL RESULTS" not in reply
+    assert "GROUNDING RULE" not in reply
+    assert f"From the downloaded copy of {FILE_NAME}" in reply
+    assert "searched all 2 sheets of this copy" in reply
+    assert "Source: DOWNLOADED COPY — resource=" + RID in reply
+
+    proof = result["direct_source_proof"]
+    structured = result["structured_result"]
+    result_row = {
+        "status": "retrieved",
+        "identity": result["identity"],
+        "structured_result": structured,
+        "direct_source_proof": proof,
+        "execution_id": "exec-strict",
+        "retrieved_at": 123.0,
+        "attempt_id": structured.get("attempt_id"),
+        "evidence_revision": structured.get("evidence_revision"),
+    }
+    delivered_row = dict(result_row)
+    delivered_row["status"] = "delivered"
+    delivered_row["delivery_pin"] = {"delivered_text": reply[:24000]}
+    state_after_2 = {
+        "status": "pending", "result_status": "retrieved",
+        "result": result_row, "read_error": "",
+    }
+    state_after_3 = {
+        "status": "delivered", "result_status": "delivered",
+        "result": delivered_row, "read_error": "",
+    }
+    serving = {
+        "instance_id": "i1", "source_id": "s1", "revision": "r1",
+        "started_at": "t1", "pid": 1,
+    }
+    report = evaluate(
+        serving,
+        serving,
+        {"success": True},
+        {"success": True, "message": "Reading it now."},
+        [{"step_type": "observation",
+          "observation": f"{FILE_NAME} 381 datasets"}],
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+        strict_workdrive_proof=True,
+        expected_resource_id=RID,
+        expected_sha256=DOWNLOADED_SHA256,
+        r3={
+            "success": True,
+            "model": "deterministic",
+            "message": reply,
+            "data": {"deterministic_delivery": True},
+        },
+        state_after_3=state_after_3,
+    )
+    assert report["all_pass"], {
+        key: value for key, value in report["checks"].items() if not value
+    }
+    assert report["checks"]["provenance_present"] is True
+    assert report["checks"]["no_protocol_leakage"] is True
+    assert report["checks"]["strict_workdrive_all_pass"] is True
+    assert report["checks"]["strict_answer_not_materialized"] is True
+
+
 def test_default_behavior_still_uses_cached_copy_and_never_downloads(
     cached_workbook,
 ):

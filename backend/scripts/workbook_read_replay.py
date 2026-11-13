@@ -7,6 +7,19 @@ pending-file state and trace, and evaluates the final reply against the
 workbook evidence contract. It exits nonzero unless every closure condition
 passes on one unchanged serving revision.
 
+Turn 2 may acknowledge that the WorkDrive read is still pending; turn 3 then
+returns the saved answer. That saved answer is accepted in the delivered
+markdown-bullet form, one exact status per requested item:
+
+* ``- **U-22** — 1,777 'List Price' (LINMAC sheet, row 26, cell C26)``
+* ``- **622** — 10 possible rows (...)``
+* ``- **U-38** — no match in this copy``
+
+The synchronous table contract is still enforced when turn 2 delivers, and
+the opt-in strict WorkDrive proof still binds the result to this execution,
+the exact resource id, and the downloaded bytes' SHA-256. Real runs can
+extend the bounded saved-answer wait with ``--delivery-wait-seconds``.
+
 Two authentication modes are supported:
 
 * ``--token-file PATH`` reads a server-issued bearer token from an explicit
@@ -23,6 +36,7 @@ the replay sends. An unverified session fails closed.
 import argparse
 import asyncio
 import json
+import math
 import os
 import re
 import stat
@@ -52,6 +66,27 @@ RETRY_CONFIRMATION = "go"
 
 IDENTITY_ENDPOINT = "/api/auth/me"
 TOKEN_FILE_MAX_BYTES = 8192
+
+#: The async saved answer can land a moment after turn 2. Real runs may need a
+#: longer bound than the unit-test default, but a replay must never hang on a
+#: missing delivery.
+DEFAULT_DELIVERY_WAIT_SECONDS = 5.0
+MAX_DELIVERY_WAIT_SECONDS = 120.0
+
+#: A saved answer is delivered as markdown bullets, one per requested item:
+#: ``- **U-22** — 1,777 'List Price' (LINMAC sheet, row 26, cell C26)``,
+#: ``- **622** — 10 possible rows (...)`` or
+#: ``- **U-38** — no match in this copy``.
+BULLET_OUTCOME_RE = re.compile(
+    r"^\s*[-*]\s+\*\*(?P<item>[^*]+?)\*\*\s*[—–-]\s*(?P<text>.+?)\s*$"
+)
+POSSIBLE_ROWS_RE = re.compile(r"\b(\d+)\s+possible\s+rows?\b", re.IGNORECASE)
+SAVED_COPY_PROVENANCE_RE = re.compile(
+    r"from the (?:saved|downloaded) copy of\s+", re.IGNORECASE
+)
+COVERAGE_OF_COPY_RE = re.compile(
+    r"searched all \d+ sheets? of this copy", re.IGNORECASE
+)
 
 
 class TokenFileError(RuntimeError):
@@ -240,6 +275,17 @@ def auth_report(
     }
 
 
+def bounded_delivery_wait(value: Any) -> float:
+    """Clamp an operator-supplied saved-answer wait to a finite safe bound."""
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_DELIVERY_WAIT_SECONDS
+    if not math.isfinite(seconds):
+        return DEFAULT_DELIVERY_WAIT_SECONDS
+    return min(max(0.0, seconds), MAX_DELIVERY_WAIT_SECONDS)
+
+
 def mint_token() -> Tuple[Optional[str], Optional[str]]:
     try:
         from dotenv import load_dotenv
@@ -418,6 +464,24 @@ def wait_for_delivery(session_id: str, timeout: float = 3.0) -> Dict[str, Any]:
     return state
 
 
+def wait_for_saved_result(session_id: str, timeout: float = 5.0) -> Dict[str, Any]:
+    """Wait until the asynchronous read has persisted a saved result.
+
+    Turn 2 may only acknowledge; the durable result it started can land a
+    moment later. Waiting here gives the no-reread proof a baseline to
+    compare against before turn 3 delivers it.
+    """
+    deadline = time.monotonic() + max(0.0, timeout)
+    state = pending_state(session_id)
+    while time.monotonic() < deadline:
+        result = state.get("result")
+        if isinstance(result, dict) and result.get("identity"):
+            break
+        time.sleep(0.1)
+        state = pending_state(session_id)
+    return state
+
+
 def identity_from_health(payload: Dict[str, Any]) -> Dict[str, Any]:
     identity = payload.get("identity") if isinstance(payload, dict) else {}
     return identity if isinstance(identity, dict) else {}
@@ -432,9 +496,21 @@ def clean_cell(value: str) -> str:
     return re.sub(r"[`*_]", "", str(value or "")).strip()
 
 
-def parse_outcomes(reply: str) -> List[Dict[str, str]]:
+def outcome_kind(status: str, evidence: str = "") -> str:
+    """Collapse a rendered outcome into found / ambiguous / absent."""
+    text = f"{status} {evidence}".upper()
+    if "AMBIGUOUS" in text or POSSIBLE_ROWS_RE.search(evidence or ""):
+        return "ambiguous"
+    if any(token in text for token in (
+            "ABSENT", "NOT FOUND", "INCOMPLETE", "NO MATCH")):
+        return "absent"
+    return "found"
+
+
+def parse_table_outcomes(reply: str) -> List[Dict[str, Any]]:
+    """The synchronous table contract (``| item | outcome | evidence |``)."""
     target_map = {target.lower(): target for target in TARGETS}
-    outcomes: List[Dict[str, str]] = []
+    outcomes: List[Dict[str, Any]] = []
     for line in str(reply or "").splitlines():
         if "|" not in line:
             continue
@@ -448,17 +524,92 @@ def parse_outcomes(reply: str) -> List[Dict[str, str]]:
             "target": target,
             "status": cells[1],
             "evidence": cells[2],
+            "kind": outcome_kind(cells[1], cells[2]),
+            "format": "table",
         })
     return outcomes
 
 
+def parse_bullet_outcomes(reply: str) -> List[Dict[str, Any]]:
+    """The saved-answer contract: one markdown bullet per requested item."""
+    target_map = {target.lower(): target for target in TARGETS}
+    outcomes: List[Dict[str, Any]] = []
+    for line in str(reply or "").splitlines():
+        match = BULLET_OUTCOME_RE.match(line)
+        if match is None:
+            continue
+        target = target_map.get(clean_cell(match.group("item")).lower())
+        if target is None:
+            continue
+        evidence = clean_cell(match.group("text"))
+        kind = outcome_kind("", evidence)
+        status = {
+            "absent": "NOT FOUND IN INDEXED CONTENT",
+            "ambiguous": "AMBIGUOUS",
+            "found": "FOUND",
+        }[kind]
+        outcomes.append({
+            "target": target,
+            "status": status,
+            "evidence": evidence,
+            "kind": kind,
+            "format": "bullet",
+        })
+    return outcomes
+
+
+def parse_outcomes(reply: str) -> List[Dict[str, Any]]:
+    """Parse either delivery shape, preserving exact requested targets.
+
+    Tables remain the synchronous contract; bullets are the saved-answer
+    contract. When both appear the table row wins (it is the explicit,
+    machine-facing form), but a target is never counted twice.
+    """
+    outcomes = parse_table_outcomes(reply)
+    seen = {row["target"] for row in outcomes}
+    for row in parse_bullet_outcomes(reply):
+        if row["target"] not in seen:
+            outcomes.append(row)
+            seen.add(row["target"])
+    return outcomes
+
+
+def _lineage_ok(row: Dict[str, Any]) -> bool:
+    """Exact sheet/cell lineage, in either delivery shape."""
+    evidence = str(row.get("evidence") or "")
+    if re.search(r"(?:!\$?[A-Z]{1,3}\$?\d+|\bR\d{1,6}\b)", evidence,
+                 re.IGNORECASE):
+        return True
+    if row.get("format") != "bullet":
+        return False
+    return bool(
+        re.search(r"\bcell\s+[A-Z]{1,3}\d{1,7}\b", evidence, re.IGNORECASE)
+        or re.search(r"\b[A-Za-z0-9_ -]+ sheet,\s*row\s+\d+", evidence,
+                     re.IGNORECASE)
+        or re.search(r"\bmatched at\s+[A-Z]{1,3}\d{1,7}\b", evidence,
+                     re.IGNORECASE)
+    )
+
+
+def pending_acknowledgement(
+    reply: str,
+    state: Dict[str, Any],
+) -> bool:
+    """Turn 2 acknowledged pending work instead of delivering a result.
+
+    The durable task is still ``pending`` and the reply carries no rendered
+    per-item outcome. This is only accepted when a later turn (turn 3) is
+    supplied to the evaluator and that turn delivers the saved answer.
+    """
+    if not str(reply or "").strip():
+        return False
+    if not isinstance(state, dict) or state.get("status") != "pending":
+        return False
+    return not parse_outcomes(reply)
+
+
 def trace_text(steps: Iterable[Dict[str, Any]]) -> str:
     return json.dumps(list(steps), ensure_ascii=False, default=str).lower()
-
-
-def _is_missing_status(status: str) -> bool:
-    upper = str(status or "").upper()
-    return any(token in upper for token in ("ABSENT", "NOT FOUND", "INCOMPLETE"))
 
 
 def evaluate(
@@ -475,8 +626,21 @@ def evaluate(
     strict_workdrive_proof: bool = False,
     expected_resource_id: str = "",
     expected_sha256: str = "",
+    r3: Optional[Dict[str, Any]] = None,
+    state_after_3: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    reply = str(r2.get("message") or "")
+    state_after_3 = state_after_3 if isinstance(state_after_3, dict) else {}
+    # ASYNC WORKDRIVE DELIVERY (issue 620): turn 2 may only acknowledge that
+    # the saved read is still pending; turn 3 then returns the persisted
+    # answer. The synchronous path is unchanged: with no turn-3 payload the
+    # turn-2 reply must still carry the complete table itself.
+    async_ack = (
+        isinstance(r3, dict)
+        and pending_acknowledgement(str(r2.get("message") or ""),
+                                    state_after_2)
+    )
+    delivered = r3 if async_ack and isinstance(r3, dict) else r2
+    reply = str(delivered.get("message") or "")
     lower = reply.lower()
     rows = parse_outcomes(reply)
     by_target = {row["target"]: row for row in rows}
@@ -491,8 +655,15 @@ def evaluate(
         name for name in re.findall(r"[^\n|]*\.xlsx", reply, re.IGNORECASE)
         if workbook_name not in name.lower()
     ]
-    found_rows = [row for row in rows if not _is_missing_status(row["status"])]
-    missing_rows = [row for row in rows if _is_missing_status(row["status"])]
+    found_rows = [row for row in rows if row.get("kind") == "found"]
+    missing_rows = [row for row in rows if row.get("kind") == "absent"]
+    bullet_rows = parse_bullet_outcomes(reply)
+    table_rows = parse_table_outcomes(reply)
+    saved_copy_provenance = bool(
+        SAVED_COPY_PROVENANCE_RE.search(reply)
+        and workbook_name in lower
+    )
+    coverage_of_copy = bool(COVERAGE_OF_COPY_RE.search(reply))
     protocol_tokens = (
         "live tool results", "file_search", "pending file task",
         "workbook read artifact", "sql result", "reproduce verbatim",
@@ -503,9 +674,10 @@ def evaluate(
         "re-derive", "multiply by", "divided by", "×", "÷",
     )
     direct_delivery = bool(
-        (r2.get("data") or {}).get("deterministic_delivery")
-        or r2.get("model") in ("deterministic", "structured")
+        (delivered.get("data") or {}).get("deterministic_delivery")
+        or delivered.get("model") in ("deterministic", "structured")
     )
+    delivered_state = state_after_3 if async_ack else state_after_2
     checks = {
         "revision_stable": same_revision(identity_before, identity_after),
         "expected_revision": not expected_revision or identity_after.get("revision") == expected_revision,
@@ -516,14 +688,28 @@ def evaluate(
             outage_mode and direct_delivery
         ),
         "pending_after_turn1": state_after_1.get("status") == "pending",
-        "pending_served_after_turn2": state_after_2.get("status") in (
-            "retrieved", "served", "delivered",
+        "pending_served_after_turn2": (
+            state_after_2.get("status") in (
+                "retrieved", "served", "delivered",
+            )
+            or async_ack
         ),
         "delivery_state_accounted_for": (
-            state_after_2.get("result_status") in ("retrieved", "delivered")
-            or state_after_2.get("status") in ("retrieved", "served", "delivered")
+            (
+                state_after_3.get("status") == "delivered"
+                and state_after_3.get("result_status") == "delivered"
+            )
+            if async_ack else (
+                state_after_2.get("result_status") in ("retrieved", "delivered")
+                or state_after_2.get("status") in (
+                    "retrieved", "served", "delivered",
+                )
+            )
         ),
-        "pending_state_readable": not state_after_1.get("read_error") and not state_after_2.get("read_error"),
+        "pending_state_readable": (
+            not state_after_1.get("read_error")
+            and not state_after_2.get("read_error")
+        ),
         "trace_original_ask": direct_delivery or (
             workbook_name in trace_blob and any(
                 target.lower() in trace_blob for target in TARGETS
@@ -537,18 +723,33 @@ def evaluate(
         "eight_structured_outcomes": len(rows) == len(TARGETS) and set(by_target) == set(TARGETS),
         "found_outcomes": len(found_rows) >= 1,
         "missing_outcomes": len(missing_rows) == 3,
-        "sheet_cell_lineage": all(
-            re.search(r"(?:!\$?[A-Z]{1,3}\$?\d+|\bR\d{1,6}\b)", row["evidence"], re.IGNORECASE)
+        "delivered_statuses": all(
+            row.get("kind") in ("found", "ambiguous", "absent")
+            for row in rows
+        ),
+        "price_and_sheet_cell_lineage": all(
+            _lineage_ok(row) and bool(re.search(r"\d", row["evidence"]))
             for row in found_rows
         ),
-        "coverage_present": "coverage" in lower and "indexed content" in lower,
+        "coverage_present": (
+            ("coverage" in lower and "indexed content" in lower)
+            or (async_ack and coverage_of_copy)
+        ),
         "misses_are_scoped": all(
-            "indexed content" in row["evidence"].lower() or "indexed content" in lower
+            "indexed content" in row["evidence"].lower()
+            or "indexed content" in lower
+            or (async_ack and (
+                "no match in this copy" in row["evidence"].lower()
+                or "about this copy" in lower
+            ))
             for row in missing_rows
         ),
-        "provenance_present": source_refs and (
-            "materialized copy" in lower
-            or (strict_workdrive_proof and "downloaded" in lower)
+        "provenance_present": (
+            (source_refs and (
+                "materialized copy" in lower
+                or (strict_workdrive_proof and "downloaded" in lower)
+            ))
+            or (async_ack and saved_copy_provenance)
         ),
         "named_file_only": not foreign_files and workbook_name in lower,
         "no_protocol_leakage": not any(token in lower for token in protocol_tokens),
@@ -560,6 +761,28 @@ def evaluate(
             )
         ),
     }
+    if async_ack:
+        # The saved answer is the turn-3 delivery, in markdown bullets, one
+        # exact status per requested item. A table is the synchronous shape,
+        # not this one.
+        checks.update({
+            "turn2_acknowledgement": True,
+            "turn3_success": bool(delivered.get("success")),
+            "turn3_delivered": (
+                state_after_3.get("status") == "delivered"
+                and state_after_3.get("result_status") == "delivered"
+            ),
+            "markdown_bullets": (
+                len(bullet_rows) == len(TARGETS) and not table_rows
+            ),
+            "delivered_answer_is_saved_result": bool(
+                (state_after_3.get("result") or {}).get("delivery_pin")
+            ),
+        })
+        if strict_workdrive_proof:
+            checks["strict_answer_not_materialized"] = (
+                "materialized copy" not in lower
+            )
     if strict_workdrive_proof:
         # OPT-IN STRICT DIRECT WORKDRIVE PROOF (issue 620): the persisted
         # workbook result must carry a direct download from THIS execution,
@@ -571,8 +794,8 @@ def evaluate(
         )
 
         persisted = (
-            state_after_2.get("result")
-            if isinstance(state_after_2, dict) else None
+            delivered_state.get("result")
+            if isinstance(delivered_state, dict) else None
         )
         persisted = persisted if isinstance(persisted, dict) else {}
         persisted_identity = persisted.get("identity")
@@ -601,6 +824,7 @@ def evaluate(
     return {
         "checks": checks,
         "all_pass": all(checks.values()),
+        "async_delivery": bool(async_ack),
         "outcomes": rows,
         "foreign_files": foreign_files,
         "reply_length": len(reply),
@@ -608,6 +832,7 @@ def evaluate(
         "trace_meta": trace_meta,
         "pending_after_turn1": state_after_1,
         "pending_after_turn2": state_after_2,
+        "pending_after_turn3": state_after_3,
         "strict_workdrive_proof": bool(strict_workdrive_proof),
     }
 
@@ -616,6 +841,7 @@ def evaluate_retry(
     state_after_2: Dict[str, Any],
     state_after_3: Dict[str, Any],
     r3: Dict[str, Any],
+    async_delivery: bool = False,
 ) -> Dict[str, Any]:
     before = state_after_2.get("result") or {}
     after = state_after_3.get("result") or {}
@@ -627,32 +853,55 @@ def evaluate_retry(
     after_workbook = after.get("workbook_read") or after_identity.get(
         "workbook_read"
     )
+    before_proof = before.get("direct_source_proof") or before_identity.get(
+        "direct_source_proof"
+    )
+    after_proof = after.get("direct_source_proof") or after_identity.get(
+        "direct_source_proof"
+    )
+    before_structured = before.get("structured_result")
+    after_structured = after.get("structured_result")
     data = r3.get("data") or {}
     deterministic = bool(
         data.get("deterministic_delivery")
         or r3.get("model") in ("deterministic", "structured")
     )
+    message = str(r3.get("message") or "")
+    pin = after.get("delivery_pin") or {}
+    pinned = str(pin.get("delivered_text") or "")
+    reread_fields = (
+        "execution_id", "retrieved_at", "attempt_id", "evidence_revision",
+    )
+    same_identity = bool(before_identity) and before_identity == after_identity
+    same_read = all(
+        before.get(key) == after.get(key) for key in reread_fields
+    )
+    if before_workbook:
+        same_read = same_read and before_workbook == after_workbook
+    if before_proof:
+        same_read = same_read and before_proof == after_proof
+    if isinstance(before_structured, dict):
+        same_read = same_read and before_structured == after_structured
     checks = {
         "successful": bool(r3.get("success")),
         "deterministic_delivery": deterministic,
         "eight_structured_outcomes": (
-            len(parse_outcomes(str(r3.get("message") or ""))) == len(TARGETS)
+            len(parse_outcomes(message)) == len(TARGETS)
         ),
         "state_delivered": (
             state_after_3.get("status") == "delivered"
             and state_after_3.get("result_status") == "delivered"
         ),
-        "no_reread": bool(
-            before_identity
-            and before_identity == after_identity
-            and before.get("execution_id") == after.get("execution_id")
-            and before.get("retrieved_at") == after.get("retrieved_at")
-            and (
-                not before_workbook
-                or before_workbook == after_workbook
-            )
-        ),
+        "no_reread": bool(same_identity and same_read),
     }
+    if async_delivery:
+        # The saved answer must be served verbatim from the pinned result:
+        # a turn-3 re-read would produce a new retrieved_at/execution or a
+        # different pin, and the user would see a freshly read answer.
+        checks["async_saved_result_available"] = bool(after.get("identity"))
+        checks["delivered_answer_pinned"] = bool(
+            pinned and pinned == message[:24000]
+        )
     return {"checks": checks, "all_pass": all(checks.values())}
 
 
@@ -670,11 +919,14 @@ def build_report(
     strict_workdrive_proof: bool = False,
     expected_resource_id: str = "",
     expected_sha256: str = "",
+    r3: Optional[Dict[str, Any]] = None,
+    state_after_3: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     report = evaluate(
         identity_before, identity_after, r1, r2, steps, trace_meta,
         state_after_1, state_after_2, expected_revision, outage_mode,
         strict_workdrive_proof, expected_resource_id, expected_sha256,
+        r3, state_after_3,
     )
     report["outage_mode"] = outage_mode
     report["strict_workdrive_proof"] = bool(strict_workdrive_proof)
@@ -692,6 +944,13 @@ def build_report(
         "provider": r2.get("provider"),
         "message": str(r2.get("message") or "")[:4000],
     }
+    if isinstance(r3, dict):
+        report["turn3"] = {
+            "success": r3.get("success"),
+            "model": r3.get("model"),
+            "provider": r3.get("provider"),
+            "message": str(r3.get("message") or "")[:4000],
+        }
     report["trace_summary"] = [summarize_step(step) for step in steps[-30:]]
     return report
 
@@ -699,6 +958,9 @@ def build_report(
 async def main_async(args: argparse.Namespace) -> int:
     base = args.base.rstrip("/")
     session_id = f"wb-replay-{int(time.time())}"
+    delivery_wait = bounded_delivery_wait(
+        getattr(args, "delivery_wait_seconds", DEFAULT_DELIVERY_WAIT_SECONDS)
+    )
     report: Dict[str, Any]
     auth_meta: Dict[str, Any] = {}
     session_identity: Dict[str, str] = {}
@@ -745,8 +1007,17 @@ async def main_async(args: argparse.Namespace) -> int:
                 f"model={r2.get('model')}/{r2.get('provider')}"
             )
             state_after_2 = pending_state(sid)
+            polled_state_after_2: Optional[Dict[str, Any]] = None
+            if pending_acknowledgement(
+                    str(r2.get("message") or ""), state_after_2):
+                # Keep the turn-2 snapshot (still pending) for async-ack
+                # recognition. Poll the saved result separately: it is the
+                # retrieval baseline turn 3's no-reread proof compares to.
+                polled_state_after_2 = wait_for_saved_result(
+                    sid, timeout=delivery_wait
+                )
 
-            print("\n=== TURN 3 — persisted delivery retry ===")
+            print("\n=== TURN 3 — saved-answer delivery ===")
             started = time.monotonic()
             r3 = await turn(
                 client, base, token, user_id, sid, RETRY_CONFIRMATION
@@ -756,7 +1027,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 f"success={r3.get('success')} "
                 f"model={r3.get('model')}/{r3.get('provider')}"
             )
-            state_after_3 = wait_for_delivery(sid)
+            state_after_3 = wait_for_delivery(sid, timeout=delivery_wait)
 
             steps, trace_meta = await trace(client, base, token, sid)
             health_after = (await client.get(f"{base}/api/health", timeout=10)).json()
@@ -775,9 +1046,17 @@ async def main_async(args: argparse.Namespace) -> int:
                 args.strict_workdrive_proof,
                 args.expected_resource_id,
                 args.expected_sha256,
+                r3,
+                state_after_3,
             )
             report["auth"] = auth_report(auth_meta, session_identity)
-            retry_report = evaluate_retry(state_after_2, state_after_3, r3)
+            report["polled_state_after_turn2"] = polled_state_after_2
+            retry_report = evaluate_retry(
+                polled_state_after_2 or state_after_2,
+                state_after_3,
+                r3,
+                async_delivery=bool(report.get("async_delivery")),
+            )
             report["retry"] = {
                 "success": r3.get("success"),
                 "model": r3.get("model"),
@@ -819,6 +1098,17 @@ def main(argv: Optional[List[str]] = None) -> int:
             "explicit private file (chmod 600) holding a server-issued bearer "
             "token; skips local scratch minting and verifies the caller with "
             "GET /api/auth/me. The token is never printed."
+        ),
+    )
+    parser.add_argument(
+        "--delivery-wait-seconds",
+        type=float,
+        default=DEFAULT_DELIVERY_WAIT_SECONDS,
+        metavar="SECONDS",
+        help=(
+            "bounded wait for the turn-2 saved result and the turn-3 "
+            f"delivery (0-{MAX_DELIVERY_WAIT_SECONDS:g}; default "
+            f"{DEFAULT_DELIVERY_WAIT_SECONDS:g})"
         ),
     )
     parser.add_argument("--expected-revision", default="")
