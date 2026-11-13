@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
+import uuid
 
 # Optional PIL import for image processing
 try:
@@ -808,6 +809,10 @@ class PDFOCRService:
         try:
             images_found = 0
             image_descriptions = []
+            # ONE job identity for the document: every extracted image is a
+            # separate paid physical vision attempt (unique attempt id from
+            # the handler), but they belong to the same PDF processing job.
+            _vision_request_id = f"pdf-vision-{uuid.uuid4().hex}"
 
             # Try using PyMuPDF (fitz) which has excellent image extraction
             try:
@@ -878,7 +883,8 @@ class PDFOCRService:
                                         vision_description = await byok_handler._get_coordinated_vision_description(
                                             image_payload=img_base64,
                                             tenant_plan="free",
-                                            is_managed=True
+                                            is_managed=True,
+                                            request_id=_vision_request_id,
                                         )
 
                                         if vision_description:
