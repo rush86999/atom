@@ -17,6 +17,11 @@
 import { chromium } from "../../frontend-nextjs/node_modules/playwright/index.mjs";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  collectErrors,
+  loginToken as coreLoginToken,
+  waitForFrontend as coreWaitForFrontend,
+} from "./lib/core_surface_session.mjs";
 
 const FRONTEND = process.env.ATOM_FRONTEND_URL || "http://127.0.0.1:3001";
 const BACKEND = process.env.ATOM_BACKEND_URL || "http://127.0.0.1:8105";
@@ -71,45 +76,14 @@ const outIdx = args.indexOf("--out");
 const outPath = outIdx >= 0 ? args[outIdx + 1] : null;
 
 async function loginToken() {
-  if (!PASSWORD) throw new Error("set ATOM_SCOPE_PASSWORD for the isolated world");
-  const res = await fetch(`${BACKEND}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: EMAIL, password: PASSWORD }),
-  });
-  if (!res.ok) throw new Error(`login failed: ${res.status} ${await res.text()}`);
-  const data = await res.json();
-  const token = data.access_token || data.token;
-  if (!token) throw new Error("login returned no token");
-  return token;
+  return coreLoginToken({ backend: BACKEND, email: EMAIL, password: PASSWORD });
 }
 
-function collect(page) {
-  const pageErrors = [];
-  const consoleErrors = [];
-  const badResponses = [];
-  page.on("pageerror", (err) => pageErrors.push(String(err).slice(0, 300)));
-  page.on("console", (msg) => {
-    if (msg.type() === "error") consoleErrors.push(msg.text().slice(0, 300));
-  });
-  page.on("response", (res) => {
-    const url = res.url();
-    if (url.includes("/_next/") || url.includes("hot-update")) return;
-    if (res.status() >= 500) badResponses.push(`${res.status()} ${url}`);
-  });
-  return { pageErrors, consoleErrors, badResponses };
+function waitForFrontend() {
+  return coreWaitForFrontend(FRONTEND);
 }
 
-async function waitForFrontend() {
-  for (let i = 0; i < 40; i++) {
-    try {
-      const res = await fetch(`${FRONTEND}/login`);
-      if (res.ok) return true;
-    } catch { /* dev server restarting */ }
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  return false;
-}
+const collect = collectErrors;
 
 async function visit(page, route, timeout = 45000) {
   const started = Date.now();
