@@ -39,11 +39,16 @@ jest.mock("sonner", () => ({
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
+const mockDelete = jest.fn();
 jest.mock("../../lib/api", () => ({
   __esModule: true,
   default: {
     get: (...args: any[]) => mockGet(...args),
     post: (...args: any[]) => mockPost(...args),
+    delete: (...args: any[]) => mockDelete(...args),
+  },
+  apiClient: {
+    delete: (...args: any[]) => mockDelete(...args),
   },
 }));
 
@@ -475,5 +480,175 @@ describe("DocumentsPage pagination", () => {
     render(<DocumentsPage />);
     await screen.findByText("No documents uploaded yet.");
     expect(screen.queryByTestId("documents-pagination")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Document deletion (verified receipt / truthful partial state)
+// ---------------------------------------------------------------------------
+
+const verifiedDelete = (id: string) => ({
+  status: 200,
+  data: {
+    success: true,
+    data: {
+      doc_id: id,
+      deleted: true,
+      complete: true,
+      verification: { status: "verified", effect: "committed" },
+    },
+    metadata: {
+      target_id: id,
+      operation_id: `document:delete:${id}`,
+      audit_id: `document:delete:${id}`,
+      verification: { status: "verified", effect: "committed" },
+    },
+  },
+});
+
+const deleteFailure = (status: number, detail: any) => ({
+  response: { status, data: { detail } },
+});
+
+describe("DocumentsPage deletion", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockImplementation(async () => ({
+      status: 200,
+      data: { success: true, data: DOCS, metadata: { total: DOCS.length } },
+    }));
+  });
+
+  test("a delete asks for confirmation and a cancelled confirmation does nothing", async () => {
+    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
+    render(<DocumentsPage />);
+    await screen.findByText("Onboarding Guide");
+
+    fireEvent.click(screen.getByTestId("delete-document-d1"));
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Delete "Onboarding Guide"'),
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(screen.getByText("Onboarding Guide")).toBeInTheDocument();
+    expect(screen.queryByTestId("documents-delete-notice")).not.toBeInTheDocument();
+    // The card's own click (open the document) must not fire.
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  test("a verified delete removes the row, confirms success, and refreshes the page", async () => {
+    let list = DOCS;
+    mockGet.mockImplementation(async () => ({
+      status: 200,
+      data: { success: true, data: list, metadata: { total: list.length } },
+    }));
+    mockDelete.mockImplementation(async () => {
+      list = [DOCS[1]];
+      return verifiedDelete("d1");
+    });
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DocumentsPage />);
+    await screen.findByText("Onboarding Guide");
+    const beforeGet = mockGet.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("delete-document-d1"));
+
+    await waitFor(() =>
+      expect(screen.queryByText("Onboarding Guide")).not.toBeInTheDocument(),
+    );
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockDelete.mock.calls[0][0]).toBe("/api/documents/d1");
+    expect(mockToastSuccess).toHaveBeenCalledWith("Document deleted.");
+    expect(screen.getByTestId("documents-delete-notice")).toHaveTextContent(
+      "Document deleted.",
+    );
+    expect(screen.getByText("Pricing Deck")).toBeInTheDocument();
+    // The current page is re-read so shifted rows appear.
+    await waitFor(() =>
+      expect(mockGet.mock.calls.length).toBeGreaterThan(beforeGet),
+    );
+  });
+
+  test("a partially verified delete keeps the row, discloses it, and does not retry", async () => {
+    mockDelete.mockRejectedValue(
+      deleteFailure(503, {
+        error: {
+          code: "DOCUMENT_DELETE_UNVERIFIED",
+          message: "sensitive server detail",
+        },
+        verification: {
+          status: "committed_unverified",
+          effect: "partial",
+          replay: "do_not_repeat",
+        },
+        operation_id: "document:delete:partial",
+      }),
+    );
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DocumentsPage />);
+    await screen.findByText("Onboarding Guide");
+    const beforeGet = mockGet.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("delete-document-d1"));
+
+    const notice = await screen.findByTestId("documents-delete-notice");
+    expect(notice).toHaveTextContent(/only partly verified/i);
+    expect(notice).toHaveTextContent(/do not repeat/i);
+    expect(notice).not.toHaveTextContent(/sensitive server detail/i);
+
+    // Nothing is removed, the delete is not repeated, and the list is not
+    // silently re-fetched as if the outcome were known.
+    expect(screen.getByText("Onboarding Guide")).toBeInTheDocument();
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockGet.mock.calls.length).toBe(beforeGet);
+    expect(screen.getByTestId("delete-document-d1")).toBeDisabled();
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith("Deletion not confirmed");
+  });
+
+  test("an unknown delete outcome keeps the row and tells the user to refresh", async () => {
+    mockDelete.mockRejectedValue(
+      deleteFailure(503, {
+        error: { code: "DOCUMENT_EFFECT_UNKNOWN", message: "sensitive" },
+        verification: {
+          status: "unavailable",
+          effect: "unknown",
+          replay: "do_not_repeat",
+        },
+      }),
+    );
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DocumentsPage />);
+    await screen.findByText("Onboarding Guide");
+    fireEvent.click(screen.getByTestId("delete-document-d1"));
+
+    const notice = await screen.findByTestId("documents-delete-notice");
+    expect(notice).toHaveTextContent(/outcome is unknown/i);
+    expect(notice).not.toHaveTextContent(/sensitive/i);
+    expect(screen.getByText("Onboarding Guide")).toBeInTheDocument();
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+  });
+
+  test("a stale row reported not found is dropped without claiming a deletion", async () => {
+    mockDelete.mockRejectedValue(
+      deleteFailure(404, { error: { code: "NOT_FOUND", message: "missing" } }),
+    );
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DocumentsPage />);
+    await screen.findByText("Onboarding Guide");
+    fireEvent.click(screen.getByTestId("delete-document-d1"));
+
+    const notice = await screen.findByTestId("documents-delete-notice");
+    expect(notice).toHaveTextContent(/not found/i);
+    await waitFor(() =>
+      expect(screen.queryByText("Onboarding Guide")).not.toBeInTheDocument(),
+    );
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+    expect(mockDelete).toHaveBeenCalledTimes(1);
   });
 });

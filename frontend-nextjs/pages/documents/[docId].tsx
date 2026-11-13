@@ -5,9 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Spinner } from '../../components/ui/spinner';
-import { ArrowLeft, Calendar, Download, FileText, User, Tag } from 'lucide-react';
+import { ArrowLeft, Calendar, Download, FileText, User, Tag, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import api from '../../lib/api';
+import {
+    deleteDocument,
+    deleteFailureMessage,
+    deleteSuccessMessage,
+    DocumentDeleteError,
+} from '../../lib/document-delete';
 
 interface DocumentDetails {
     id: string;
@@ -27,6 +34,8 @@ export default function DocumentDetailsPage() {
     const [exportFormat, setExportFormat] = useState<'text' | 'markdown' | 'json'>('text');
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 
     useEffect(() => {
         if (!docId) return;
@@ -95,6 +104,33 @@ export default function DocumentDetailsPage() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!document || deleting) return;
+        if (!window.confirm(`Delete "${document.title}"? This removes its searchable text and cannot be undone.`)) {
+            return;
+        }
+
+        setDeleting(true);
+        setDeleteNotice(null);
+        try {
+            const receipt = await deleteDocument(document.id);
+            toast.success(deleteSuccessMessage(receipt.outcome));
+            // The document is gone; return to the library instead of leaving
+            // a page that can no longer be re-read.
+            router.push('/documents');
+        } catch (error) {
+            const failure = error instanceof DocumentDeleteError
+                ? error
+                : new DocumentDeleteError({ outcome: 'unknown' });
+            // Disclose the truth and stay put. Partial/unknown deletions are
+            // do_not_repeat, so no automatic retry is attempted here.
+            setDeleteNotice(deleteFailureMessage(failure.outcome));
+            toast.error(failure.outcome === 'failed' ? 'Delete failed' : 'Deletion not confirmed');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-[50vh]">
@@ -159,7 +195,29 @@ export default function DocumentDetailsPage() {
                             )}
                         </div>
                     </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="ml-auto shrink-0 text-destructive"
+                        data-testid="document-delete"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {deleting ? 'Deleting…' : 'Delete'}
+                    </Button>
                 </div>
+
+                {deleteNotice && (
+                    <div
+                        role="alert"
+                        data-testid="document-delete-notice"
+                        className="flex items-start gap-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+                    >
+                        <AlertCircle className="h-5 w-5 shrink-0" />
+                        <p className="font-medium">{deleteNotice}</p>
+                    </div>
+                )}
 
                 <div
                     className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/20 p-3"
