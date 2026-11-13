@@ -6,12 +6,26 @@ The replay sends the original two-turn conversation, reads the persisted
 pending-file state and trace, and evaluates the final reply against the
 workbook evidence contract. It exits nonzero unless every closure condition
 passes on one unchanged serving revision.
+
+Two authentication modes are supported:
+
+* ``--token-file PATH`` reads a server-issued bearer token from an explicit
+  private file (``chmod 600``). No ambient token paths are consulted, the
+  local database/.env is never opened to mint a token, and the value is never
+  printed.
+* With no ``--token-file`` the existing scratch invocation mints an admin
+  token locally, exactly as before.
+
+In both modes the caller identity is resolved with the existing authenticated
+``GET /api/auth/me`` endpoint, and the server-returned user id is the identity
+the replay sends. An unverified session fails closed.
 """
 import argparse
 import asyncio
 import json
 import os
 import re
+import stat
 import sys
 import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
@@ -35,6 +49,195 @@ ORIGINAL_ASK = (
 )
 CONFIRMATION = "That filename is correct"
 RETRY_CONFIRMATION = "go"
+
+IDENTITY_ENDPOINT = "/api/auth/me"
+TOKEN_FILE_MAX_BYTES = 8192
+
+
+class TokenFileError(RuntimeError):
+    """The explicit token file is missing, unreadable, or not private."""
+
+
+def read_token_file(path: str) -> str:
+    """Read a server-issued bearer token from an explicit private file.
+
+    The path must be supplied by the operator; there is no ambient default.
+    On POSIX the file must not be accessible by group/other, so a token
+    cannot be picked up from a shared location. Errors name the path but
+    never include the token value.
+    """
+    if not path:
+        raise TokenFileError("no token file path was provided")
+    resolved = os.path.realpath(path)
+    if not os.path.isfile(resolved):
+        raise TokenFileError(f"token file is not a regular file: {path}")
+    if os.name == "posix":
+        mode = stat.S_IMODE(os.stat(resolved).st_mode)
+        if mode & 0o077:
+            raise TokenFileError(
+                "token file must be private (chmod 600): "
+                f"{path} has mode {mode:04o}"
+            )
+    size = os.path.getsize(resolved)
+    if size <= 0:
+        raise TokenFileError(f"token file is empty: {path}")
+    if size > TOKEN_FILE_MAX_BYTES:
+        raise TokenFileError(
+            f"token file is larger than {TOKEN_FILE_MAX_BYTES} bytes: {path}"
+        )
+    try:
+        with open(resolved, "r", encoding="utf-8") as handle:
+            raw = handle.read()
+    except UnicodeDecodeError as exc:
+        raise TokenFileError(f"token file is not UTF-8 text: {path}") from exc
+    except OSError as exc:
+        raise TokenFileError(
+            f"could not read token file {path}: {type(exc).__name__}"
+        ) from exc
+    token = raw.strip()
+    if not token:
+        raise TokenFileError(f"token file is empty: {path}")
+    if any(character.isspace() for character in token):
+        raise TokenFileError(
+            f"token file must contain exactly one token line: {path}"
+        )
+    return token
+
+
+def identity_payload(payload: Any) -> Dict[str, Any]:
+    """Unwrap the shapes returned by the existing ``/api/auth/me`` route."""
+    if not isinstance(payload, dict):
+        return {}
+    for key in ("user", "data"):
+        nested = payload.get(key)
+        if isinstance(nested, dict):
+            merged = dict(nested)
+            for name in ("user_id", "id", "role", "workspace_id", "tenant_id"):
+                if name not in merged and name in payload:
+                    merged[name] = payload[name]
+            return merged
+    return dict(payload)
+
+
+def identity_user_id(payload: Any) -> str:
+    identity = identity_payload(payload)
+    for key in ("user_id", "id", "sub"):
+        value = identity.get(key)
+        if value not in (None, ""):
+            return str(value)
+    return ""
+
+
+def identity_summary(payload: Any) -> Dict[str, str]:
+    """Return only non-secret identity fields (never email or the token)."""
+    identity = identity_payload(payload)
+    summary: Dict[str, str] = {}
+    for key in ("user_id", "role", "workspace_id", "tenant_id"):
+        value = identity.get(key)
+        if value not in (None, ""):
+            summary[key] = str(value)
+    if "user_id" not in summary:
+        user_id = identity_user_id(payload)
+        if user_id:
+            summary["user_id"] = user_id
+    return summary
+
+
+async def verify_session(
+    client: httpx.AsyncClient,
+    base: str,
+    token: str,
+) -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """Verify the bearer token through the server's authenticated identity API.
+
+    The token travels only in the Authorization header. Neither returned
+    mapping contains it, so callers can safely print or persist the metadata.
+    """
+    meta: Dict[str, Any] = {
+        "verified": False,
+        "status_code": None,
+        "error": "",
+    }
+    try:
+        response = await client.get(
+            f"{base}{IDENTITY_ENDPOINT}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+    except Exception as exc:
+        # Never format the request/headers into the error: they hold the token.
+        meta["error"] = f"identity request failed: {type(exc).__name__}"
+        return {}, meta
+    meta["status_code"] = response.status_code
+    if response.status_code != 200:
+        meta["error"] = (
+            "identity endpoint rejected the session "
+            f"(HTTP {response.status_code})"
+        )
+        return {}, meta
+    try:
+        payload = response.json()
+    except Exception:
+        meta["error"] = "identity endpoint returned invalid JSON"
+        return {}, meta
+    identity = identity_summary(payload)
+    if not identity.get("user_id"):
+        meta["error"] = "identity response did not include a user id"
+        return {}, meta
+    meta["verified"] = True
+    return identity, meta
+
+
+async def resolve_session(
+    client: httpx.AsyncClient,
+    base: str,
+    token_file: Optional[str],
+) -> Tuple[Optional[str], Dict[str, str], Dict[str, Any]]:
+    """Resolve a bearer token and the server-confirmed identity behind it.
+
+    With ``token_file`` the token comes from that explicit private file and
+    the scratch mint/DB/.env path is not touched. Without it the existing
+    scratch invocation mints locally. In both cases the server's identity
+    endpoint must confirm the caller before the replay runs.
+    """
+    mode = "token-file" if token_file else "scratch-mint"
+    if token_file:
+        try:
+            token = read_token_file(token_file)
+        except TokenFileError as exc:
+            return None, {}, {
+                "mode": mode,
+                "verified": False,
+                "status_code": None,
+                "error": str(exc),
+            }
+    else:
+        token, _minted_user_id = mint_token()
+        if not token:
+            return None, {}, {
+                "mode": mode,
+                "verified": False,
+                "status_code": None,
+                "error": "could not mint token (admin@example.com missing)",
+            }
+    identity, meta = await verify_session(client, base, token)
+    meta["mode"] = mode
+    if not identity:
+        return None, {}, meta
+    return token, identity, meta
+
+
+def auth_report(
+    auth_meta: Dict[str, Any],
+    identity: Dict[str, str],
+) -> Dict[str, Any]:
+    """Auth provenance for the closure report (no bearer token, no email)."""
+    return {
+        "mode": str(auth_meta.get("mode") or ""),
+        "identity_verified": bool(auth_meta.get("verified")),
+        "identity_status_code": auth_meta.get("status_code"),
+        "user_id": str(identity.get("user_id") or ""),
+    }
 
 
 def mint_token() -> Tuple[Optional[str], Optional[str]]:
@@ -494,21 +697,33 @@ def build_report(
 
 
 async def main_async(args: argparse.Namespace) -> int:
-    token, user_id = mint_token()
-    if not token or not user_id:
-        print("FATAL: could not mint token (admin@example.com missing)", file=sys.stderr)
-        return 2
-
     base = args.base.rstrip("/")
     session_id = f"wb-replay-{int(time.time())}"
     report: Dict[str, Any]
+    auth_meta: Dict[str, Any] = {}
+    session_identity: Dict[str, str] = {}
     async with httpx.AsyncClient() as client:
         try:
+            token, session_identity, auth_meta = await resolve_session(
+                client, base, getattr(args, "token_file", None)
+            )
+            if not token:
+                print(
+                    f"FATAL: {auth_meta.get('error') or 'session not verified'}",
+                    file=sys.stderr,
+                )
+                return 2
+            user_id = session_identity["user_id"]
+
             health_before = (await client.get(f"{base}/api/health", timeout=10)).json()
             identity_before = identity_from_health(health_before)
             print(f"serving instance: {identity_before.get('instance_id') or identity_before.get('source_id')}")
             print(f"revision: {identity_before.get('revision') or 'unknown'}")
-            print(f"scratch session: {session_id}\n")
+            print(
+                f"auth mode: {auth_meta.get('mode')} "
+                f"(verified user {user_id})"
+            )
+            print(f"replay session: {session_id}\n")
 
             print("=== TURN 1 — the original ask ===")
             started = time.monotonic()
@@ -561,6 +776,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 args.expected_resource_id,
                 args.expected_sha256,
             )
+            report["auth"] = auth_report(auth_meta, session_identity)
             retry_report = evaluate_retry(state_after_2, state_after_3, r3)
             report["retry"] = {
                 "success": r3.get("success"),
@@ -581,6 +797,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 "error": f"{type(exc).__name__}: {exc}",
                 "identity_before": {},
                 "identity_after": {},
+                "auth": auth_report(auth_meta, session_identity),
             }
 
     if args.output:
@@ -594,6 +811,16 @@ async def main_async(args: argparse.Namespace) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default=BASE_DEFAULT)
+    parser.add_argument(
+        "--token-file",
+        default=None,
+        metavar="PATH",
+        help=(
+            "explicit private file (chmod 600) holding a server-issued bearer "
+            "token; skips local scratch minting and verifies the caller with "
+            "GET /api/auth/me. The token is never printed."
+        ),
+    )
     parser.add_argument("--expected-revision", default="")
     parser.add_argument(
         "--outage-mode",

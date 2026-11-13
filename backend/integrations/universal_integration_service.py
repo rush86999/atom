@@ -2829,51 +2829,44 @@ class UniversalIntegrationService:
                 except Exception as ds_err:  # noqa: BLE001 — never block the read
                     logger.warning(f"sheet datasets: scheduling failed for {file_name}: {ds_err}")
 
-            # --- extract --------------------------------------------------
-            from core.auto_document_ingestion import (
-                READ_EXTRACTION_MAX_CHARS,
-                parse_document_cached,
-            )
-            # Explicit open of a NAMED file: extract with a far larger
-            # ceiling than the ingestion budget. The user asked for THIS
-            # file's contents — a row in its last sheet must be reachable
-            # (live 2026-09-03: the ingestion-budget cut landed before the
-            # LINMAC sheet, so a read limited to that budget could not see
-            # WG350DSAV row 17 either). Cached on the content hash: the
-            # same file is re-opened on every follow-up question about it,
-            # and a 13MB workbook costs ~10s per parse.
-            text = await parse_document_cached(
-                content, file_ext, file_name, max_chars=READ_EXTRACTION_MAX_CHARS
-            )
-            if not text or not text.strip():
-                return {"status": "success", "data": {
-                    "found": False,
-                    "served": False,
-                    "identity_verified": identity_verified,
-                    "resource_id": str(file_id),
-                    "provider": service,
-                    "file_id": file_id,
-                    "file_name": file_name,
-                    "read_completed": False,
-                    "message": f"Opened {file_name} but no text could be extracted from it.",
-                }}
+            # Hash the EXACT downloaded bytes once; the receipt, the strict
+            # artifact comparison, and the response must all name this value.
+            content_sha256 = hashlib.sha256(content).hexdigest()
 
+            # STRICT WORKBOOK READ (issue 620, opt-in): on the strict
+            # WorkDrive path the structured workbook inspection IS the read
+            # evidence. Generic extraction (`parse_document_cached`) parses
+            # the same workbook a second time and measured 19.93s alone
+            # against the read's 25s limit, so it is skipped when the
+            # artifact contract holds. Ordinary (non-strict) reads keep the
+            # existing order and behavior unchanged.
+            _strict_workbook = bool(
+                strict_direct
+                and service == "zoho_workdrive"
+                and file_ext in ("xlsx", "xlsm")
+            )
             workbook_read = None
-            _context_texts = []
-            if file_ext in ("xlsx", "xlsm"):
+            _workbook_inspected = False
+
+            def _workbook_context_texts() -> List[str]:
+                texts: List[str] = []
+                for _entry in (context.get("history") or []):
+                    if isinstance(_entry, dict):
+                        texts.append(str(_entry.get("message") or ""))
+                        _response = _entry.get("response")
+                        if isinstance(_response, dict):
+                            texts.append(str(_response.get("message") or ""))
+                _canvas_value = context.get("canvas")
+                if _canvas_value:
+                    texts.append(str(_canvas_value))
+                return texts
+
+            async def _inspect_downloaded_workbook() -> Optional[Dict[str, Any]]:
+                """Structured inspection of the exact bytes downloaded above."""
                 try:
                     from core.workbook_read_artifact import inspect_workbook_bytes
 
-                    for _entry in (context.get("history") or []):
-                        if isinstance(_entry, dict):
-                            _context_texts.append(str(_entry.get("message") or ""))
-                            _response = _entry.get("response")
-                            if isinstance(_response, dict):
-                                _context_texts.append(str(_response.get("message") or ""))
-                    _canvas_value = context.get("canvas")
-                    if _canvas_value:
-                        _context_texts.append(str(_canvas_value))
-                    workbook_read = await asyncio.to_thread(
+                    return await asyncio.to_thread(
                         inspect_workbook_bytes,
                         content,
                         file_name,
@@ -2889,6 +2882,77 @@ class UniversalIntegrationService:
                         f"workbook read artifact unavailable for {file_name}: "
                         f"{artifact_err}"
                     )
+                    return None
+
+            _context_texts: List[str] = []
+            if file_ext in ("xlsx", "xlsm"):
+                _context_texts = _workbook_context_texts()
+
+            # Strict path: inspect FIRST so a complete artifact can carry the
+            # read without paying for the redundant generic parse.
+            if _strict_workbook:
+                _workbook_inspected = True
+                workbook_read = await _inspect_downloaded_workbook()
+
+            _strict_artifact_sha256 = str(
+                (workbook_read or {}).get("sha256")
+                or (workbook_read or {}).get("content_hash") or ""
+            )
+            # Mirrors the receipt gate below exactly: the artifact must have
+            # searched every sheet and hash the bytes downloaded in THIS call.
+            _strict_artifact_ready = bool(
+                _strict_workbook
+                and workbook_read
+                and workbook_read.get("all_sheets_searched")
+                and _strict_artifact_sha256 == content_sha256
+            )
+
+            text = ""
+            _artifact_rendered = False
+            if _strict_workbook:
+                # No generic extraction on the strict path. When the artifact
+                # is complete, its structured render is the read's text; when
+                # it is not, the receipt gate below fails closed (served
+                # False) rather than spending the budget on a second parse.
+                if _strict_artifact_ready:
+                    try:
+                        from core.workbook_read_artifact import (
+                            render_workbook_artifact,
+                        )
+
+                        text = render_workbook_artifact(workbook_read)
+                        _artifact_rendered = bool(text.strip())
+                    except Exception:
+                        text = ""
+            else:
+                # Explicit open of a NAMED file: extract with a far larger
+                # ceiling than the ingestion budget. The user asked for THIS
+                # file's contents — a row in its last sheet must be reachable
+                # (live 2026-09-03: the ingestion-budget cut landed before the
+                # LINMAC sheet, so a read limited to that budget could not see
+                # WG350DSAV row 17 either). Cached on the content hash: the
+                # same file is re-opened on every follow-up question about it,
+                # and a 13MB workbook costs ~10s per parse.
+                text = await parse_document_cached(
+                    content, file_ext, file_name,
+                    max_chars=READ_EXTRACTION_MAX_CHARS,
+                )
+                if not text or not text.strip():
+                    return {"status": "success", "data": {
+                        "found": False,
+                        "served": False,
+                        "identity_verified": identity_verified,
+                        "resource_id": str(file_id),
+                        "provider": service,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "read_completed": False,
+                        "message": f"Opened {file_name} but no text could be extracted from it.",
+                    }}
+
+            if file_ext in ("xlsx", "xlsm") and not _workbook_inspected:
+                _workbook_inspected = True
+                workbook_read = await _inspect_downloaded_workbook()
                 if not strict_direct and (
                     not workbook_read
                     or not workbook_read.get("all_sheets_searched")
@@ -2929,7 +2993,7 @@ class UniversalIntegrationService:
                                     provider=service,
                                     resource_id=str(file_id),
                                     source_metadata=identity.get("source_metadata") or {},
-                                    sha256=hashlib.sha256(content).hexdigest(),
+                                    sha256=content_sha256,
                                 )
                     except Exception as dataset_artifact_err:
                         logger.warning(
@@ -2938,35 +3002,47 @@ class UniversalIntegrationService:
                         )
 
             # --- ingest (warming the hybrid index) — best-effort ----------
+            # The strict contract answers from the downloaded workbook
+            # artifact and its receipt; the awaited hybrid-index ingest is
+            # not part of it, so the strict path skips the second unbounded
+            # parse. This never converts an artifact failure into success:
+            # the receipt gate below still fails closed.
             ingested = False
-            try:
-                from core.auto_document_ingestion import AutoDocumentIngestionService
+            if not _strict_workbook:
+                try:
+                    from core.auto_document_ingestion import AutoDocumentIngestionService
 
-                ingest_result = await AutoDocumentIngestionService().process_file_bytes(
-                    content,
-                    file_name=file_name,
-                    source=service,
-                    user_id=user_id or "system",
-                    external_id=file_id,
-                    explicit=True,
-                )
-                ingested = ingest_result.get("status") == "ingested"
-            except Exception as ingest_err:  # noqa: BLE001 — read still returns
-                # The read's hybrid-index warming failed — visible at WARNING
-                # (was DEBUG): silent skips left memory frozen for days.
-                # The read itself still returns.
-                logger.warning(f"read-path ingest skipped for {file_name}: {ingest_err}")
+                    ingest_result = await AutoDocumentIngestionService().process_file_bytes(
+                        content,
+                        file_name=file_name,
+                        source=service,
+                        user_id=user_id or "system",
+                        external_id=file_id,
+                        explicit=True,
+                    )
+                    ingested = ingest_result.get("status") == "ingested"
+                except Exception as ingest_err:  # noqa: BLE001 — read still returns
+                    # The read's hybrid-index warming failed — visible at WARNING
+                    # (was DEBUG): silent skips left memory frozen for days.
+                    # The read itself still returns.
+                    logger.warning(f"read-path ingest skipped for {file_name}: {ingest_err}")
 
-            excerpt = _query_anchored_excerpt(text, query)
+            # The strict path's excerpt IS the structured artifact evidence;
+            # keep it complete rather than truncating it to a query window.
+            excerpt = (
+                text if _artifact_rendered
+                else _query_anchored_excerpt(text, query)
+            )
             coverage_complete = file_ext not in ("xlsx", "xls", "xlsm", "csv", "tsv")
             if workbook_read:
                 try:
                     from core.workbook_read_artifact import render_workbook_artifact
 
-                    excerpt = (
-                        f"{excerpt}\n\n"
-                        f"{render_workbook_artifact(workbook_read)}"
-                    )
+                    if not _artifact_rendered:
+                        excerpt = (
+                            f"{excerpt}\n\n"
+                            f"{render_workbook_artifact(workbook_read)}"
+                        )
                 except Exception:
                     pass
                 coverage = (workbook_read.get("coverage") or {})
@@ -2992,7 +3068,6 @@ class UniversalIntegrationService:
                     )
             except Exception:  # noqa: BLE001 — metadata only
                 dataset_note = ""
-            content_sha256 = hashlib.sha256(content).hexdigest()
             strict_receipt = None
             if strict_direct:
                 # STRICT DIRECT PROOF (issue 620, opt-in): the receipt is
@@ -3074,9 +3149,16 @@ class UniversalIntegrationService:
                 "excerpt": excerpt,
                 "ingested_into_workspace": ingested,
                 "note": (
-                    "Contents above are EXCERPTS around the query. Cite only "
-                    "values visible in them; the file is now ingested for "
-                    "full-text search." + dataset_note
+                    (
+                        "Contents above are the structured workbook evidence "
+                        "parsed from the bytes downloaded in this read; generic "
+                        "extraction and workspace ingestion were skipped on the "
+                        "strict path."
+                        if _strict_workbook else
+                        "Contents above are EXCERPTS around the query. Cite only "
+                        "values visible in them; the file is now ingested for "
+                        "full-text search."
+                    ) + dataset_note
                 ),
             }}
         except Exception as e:

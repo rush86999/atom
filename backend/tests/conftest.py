@@ -12,16 +12,42 @@ and configuration for the entire test suite.
 # the tripwire so a bare `pytest` can never touch the real DB again.
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
+import tempfile
 
 os.environ["TESTING"] = "1"
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_integration.db")
+
+# BYOK path isolation at IMPORT time — not just for test bodies.
+#
+# The plugin import below (tests.e2e.fixtures.workflow_fixtures) reaches:
+#   core.skill_registry_service -> core.episode_segmentation_service
+#   -> core.lancedb_handler (module-level get_lancedb_handler())
+#   -> LanceDBHandler -> EmbeddingService -> LLMService -> BYOKHandler
+#   -> get_byok_manager() -> BYOKManager()
+# and BYOKManager.__init__ PERSISTS its default provider list and key store.
+# Its constants are __file__-anchored to backend/data, so a bare collection
+# used to rewrite the developer's real byok_config.json / byok_keys.json
+# before the session-scoped setup_byok_test_env fixture could redirect them
+# (verified 2026-11-12: --collect-only renamed .tmp_*.json over both live
+# files). Point the persisted paths at a throwaway dir NOW; the session
+# fixture below re-points them (and the already-imported module constants)
+# at its own temp store.
+_IMPORT_BYOK_TMP = tempfile.TemporaryDirectory(prefix="atom-pytest-import-")
+_IMPORT_BYOK_DIR = _IMPORT_BYOK_TMP.name
+os.environ["BYOK_CONFIG_FILE"] = os.path.join(
+    _IMPORT_BYOK_DIR, "byok_config.json")
+os.environ["BYOK_KEYS_FILE"] = os.path.join(
+    _IMPORT_BYOK_DIR, "byok_keys.json")
+os.environ["BYOK_ENC_KEY_FILE"] = os.path.join(
+    _IMPORT_BYOK_DIR, "byok_encryption_key")
+os.environ["ATOM_PROVIDER_MODEL_CATALOG_PATH"] = os.path.join(
+    _IMPORT_BYOK_DIR, "provider_model_catalog.json")
 
 import sys
 import uuid
 import pytest
 import ast
 import json
-import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import AsyncIterator
