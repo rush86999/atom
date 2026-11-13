@@ -14,10 +14,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import scripts.workbook_read_replay as replay
 from core.chat_tool_planner import _user_facing_workbook_answer
 from scripts.workbook_read_replay import (
+    DEFAULT_DELIVERY_WAIT_SECONDS,
     FILE_NAME,
+    MAX_DELIVERY_WAIT_SECONDS,
     TARGETS,
     TokenFileError,
     auth_report,
+    bounded_delivery_wait,
     evaluate,
     evaluate_retry,
     flatten_trace,
@@ -740,6 +743,140 @@ def test_resolve_session_preserves_the_scratch_mint_path(monkeypatch):
     assert identity["user_id"] == "u1"
     assert meta["mode"] == "scratch-mint"
     assert meta["verified"] is True
+
+
+def test_bounded_delivery_wait_clamps_operator_values():
+    assert bounded_delivery_wait(12.5) == 12.5
+    assert bounded_delivery_wait(0) == 0.0
+    assert bounded_delivery_wait(-3) == 0.0
+    assert bounded_delivery_wait(MAX_DELIVERY_WAIT_SECONDS + 60) == (
+        MAX_DELIVERY_WAIT_SECONDS
+    )
+    assert bounded_delivery_wait(None) == DEFAULT_DELIVERY_WAIT_SECONDS
+    assert bounded_delivery_wait(float("nan")) == DEFAULT_DELIVERY_WAIT_SECONDS
+    assert bounded_delivery_wait(float("inf")) == DEFAULT_DELIVERY_WAIT_SECONDS
+
+
+def test_main_async_preserves_turn2_pending_and_polls_retrieved_state(
+    tmp_path, monkeypatch, capsys
+):
+    """Regression: polling must not overwrite the turn-2 pending snapshot.
+
+    The evaluator recognizes an asynchronous acknowledgement from that
+    snapshot, while the retrieved/polled state is carried separately as the
+    no-reread baseline for the turn-3 saved-answer proof.
+    """
+    identity = _serving_identity()
+    reply = _bullet_reply()
+    saved = _saved_result()
+    delivered_result = dict(saved)
+    delivered_result["status"] = "delivered"
+    delivered_result["delivered_at"] = 124.0
+    delivered_result["delivery_pin"] = {"delivered_text": reply[:24000]}
+    pending_after_turn1 = {
+        "status": "pending", "result_status": None,
+        "result": None, "read_error": "",
+    }
+    pending_snapshot = {
+        "status": "pending", "result_status": None,
+        "result": None, "read_error": "",
+    }
+    polled_retrieved = {
+        "status": "retrieved", "result_status": "retrieved",
+        "result": saved, "read_error": "",
+    }
+    delivered = {
+        "status": "delivered", "result_status": "delivered",
+        "result": delivered_result, "read_error": "",
+    }
+    states = iter([
+        pending_after_turn1, pending_snapshot, polled_retrieved, delivered,
+    ])
+    monkeypatch.setattr(
+        replay, "pending_state", lambda _session_id: next(states)
+    )
+
+    r1 = {"success": True, "session_id": "synthetic-session"}
+    r2 = {
+        "success": True,
+        "message": "I'm reading the saved copy now — I'll return the item "
+                   "statuses when it lands.",
+    }
+    r3 = {
+        "success": True,
+        "model": "deterministic",
+        "message": reply,
+        "data": {"deterministic_delivery": True},
+    }
+    replies = iter([r1, r2, r3])
+
+    async def _fake_turn(*_args, **_kwargs):
+        return next(replies)
+
+    async def _fake_trace(*_args, **_kwargs):
+        return _async_trace(), {"status_code": 200, "error": ""}
+
+    async def _fake_resolve(*_args, **_kwargs):
+        return "synthetic-token", {"user_id": "u1"}, {
+            "mode": "scratch-mint",
+            "verified": True,
+            "status_code": 200,
+            "error": "",
+        }
+
+    monkeypatch.setattr(replay, "turn", _fake_turn)
+    monkeypatch.setattr(replay, "trace", _fake_trace)
+    monkeypatch.setattr(replay, "resolve_session", _fake_resolve)
+    monkeypatch.setattr(
+        replay.httpx,
+        "AsyncClient",
+        lambda *_args, **_kwargs: _FakeAsyncClient(
+            _FakeResponse(200, {"identity": identity})
+        ),
+    )
+
+    observed_waits = []
+    real_wait_for_saved_result = replay.wait_for_saved_result
+    real_wait_for_delivery = replay.wait_for_delivery
+
+    def _wait_for_saved_result(session_id, timeout=5.0):
+        observed_waits.append(("saved", timeout))
+        return real_wait_for_saved_result(session_id, timeout=timeout)
+
+    def _wait_for_delivery(session_id, timeout=3.0):
+        observed_waits.append(("delivery", timeout))
+        return real_wait_for_delivery(session_id, timeout=timeout)
+
+    monkeypatch.setattr(replay, "wait_for_saved_result", _wait_for_saved_result)
+    monkeypatch.setattr(replay, "wait_for_delivery", _wait_for_delivery)
+
+    output = tmp_path / "replay-report.json"
+    args = types.SimpleNamespace(
+        base="http://127.0.0.1:8001",
+        token_file=None,
+        expected_revision="",
+        outage_mode=False,
+        strict_workdrive_proof=False,
+        expected_resource_id="",
+        expected_sha256="",
+        output=str(output),
+        delivery_wait_seconds=0.75,
+    )
+
+    exit_code = asyncio.run(replay.main_async(args))
+
+    capsys.readouterr()
+    assert exit_code == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["all_pass"], {
+        key: value for key, value in report["checks"].items() if not value
+    }
+    assert report["async_delivery"] is True
+    assert report["pending_after_turn2"]["status"] == "pending"
+    assert report["polled_state_after_turn2"]["status"] == "retrieved"
+    assert report["retry"]["all_pass"], report["retry"]["checks"]
+    assert report["retry"]["checks"]["no_reread"] is True
+    assert observed_waits == [("saved", 0.75), ("delivery", 0.75)]
 
 
 def test_main_rejects_unverified_token_without_printing_it(

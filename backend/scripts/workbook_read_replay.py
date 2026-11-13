@@ -17,7 +17,8 @@ markdown-bullet form, one exact status per requested item:
 
 The synchronous table contract is still enforced when turn 2 delivers, and
 the opt-in strict WorkDrive proof still binds the result to this execution,
-the exact resource id, and the downloaded bytes' SHA-256.
+the exact resource id, and the downloaded bytes' SHA-256. Real runs can
+extend the bounded saved-answer wait with ``--delivery-wait-seconds``.
 
 Two authentication modes are supported:
 
@@ -35,6 +36,7 @@ the replay sends. An unverified session fails closed.
 import argparse
 import asyncio
 import json
+import math
 import os
 import re
 import stat
@@ -64,6 +66,12 @@ RETRY_CONFIRMATION = "go"
 
 IDENTITY_ENDPOINT = "/api/auth/me"
 TOKEN_FILE_MAX_BYTES = 8192
+
+#: The async saved answer can land a moment after turn 2. Real runs may need a
+#: longer bound than the unit-test default, but a replay must never hang on a
+#: missing delivery.
+DEFAULT_DELIVERY_WAIT_SECONDS = 5.0
+MAX_DELIVERY_WAIT_SECONDS = 120.0
 
 #: A saved answer is delivered as markdown bullets, one per requested item:
 #: ``- **U-22** — 1,777 'List Price' (LINMAC sheet, row 26, cell C26)``,
@@ -265,6 +273,17 @@ def auth_report(
         "identity_status_code": auth_meta.get("status_code"),
         "user_id": str(identity.get("user_id") or ""),
     }
+
+
+def bounded_delivery_wait(value: Any) -> float:
+    """Clamp an operator-supplied saved-answer wait to a finite safe bound."""
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_DELIVERY_WAIT_SECONDS
+    if not math.isfinite(seconds):
+        return DEFAULT_DELIVERY_WAIT_SECONDS
+    return min(max(0.0, seconds), MAX_DELIVERY_WAIT_SECONDS)
 
 
 def mint_token() -> Tuple[Optional[str], Optional[str]]:
@@ -939,6 +958,9 @@ def build_report(
 async def main_async(args: argparse.Namespace) -> int:
     base = args.base.rstrip("/")
     session_id = f"wb-replay-{int(time.time())}"
+    delivery_wait = bounded_delivery_wait(
+        getattr(args, "delivery_wait_seconds", DEFAULT_DELIVERY_WAIT_SECONDS)
+    )
     report: Dict[str, Any]
     auth_meta: Dict[str, Any] = {}
     session_identity: Dict[str, str] = {}
@@ -985,12 +1007,15 @@ async def main_async(args: argparse.Namespace) -> int:
                 f"model={r2.get('model')}/{r2.get('provider')}"
             )
             state_after_2 = pending_state(sid)
+            polled_state_after_2: Optional[Dict[str, Any]] = None
             if pending_acknowledgement(
                     str(r2.get("message") or ""), state_after_2):
-                # Turn 2 acknowledged pending WorkDrive work. Wait briefly for
-                # the saved result it started so turn 3's no-reread proof has
-                # a baseline; turn 3 must still deliver that saved answer.
-                state_after_2 = wait_for_saved_result(sid)
+                # Keep the turn-2 snapshot (still pending) for async-ack
+                # recognition. Poll the saved result separately: it is the
+                # retrieval baseline turn 3's no-reread proof compares to.
+                polled_state_after_2 = wait_for_saved_result(
+                    sid, timeout=delivery_wait
+                )
 
             print("\n=== TURN 3 — saved-answer delivery ===")
             started = time.monotonic()
@@ -1002,7 +1027,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 f"success={r3.get('success')} "
                 f"model={r3.get('model')}/{r3.get('provider')}"
             )
-            state_after_3 = wait_for_delivery(sid)
+            state_after_3 = wait_for_delivery(sid, timeout=delivery_wait)
 
             steps, trace_meta = await trace(client, base, token, sid)
             health_after = (await client.get(f"{base}/api/health", timeout=10)).json()
@@ -1025,8 +1050,11 @@ async def main_async(args: argparse.Namespace) -> int:
                 state_after_3,
             )
             report["auth"] = auth_report(auth_meta, session_identity)
+            report["polled_state_after_turn2"] = polled_state_after_2
             retry_report = evaluate_retry(
-                state_after_2, state_after_3, r3,
+                polled_state_after_2 or state_after_2,
+                state_after_3,
+                r3,
                 async_delivery=bool(report.get("async_delivery")),
             )
             report["retry"] = {
@@ -1070,6 +1098,17 @@ def main(argv: Optional[List[str]] = None) -> int:
             "explicit private file (chmod 600) holding a server-issued bearer "
             "token; skips local scratch minting and verifies the caller with "
             "GET /api/auth/me. The token is never printed."
+        ),
+    )
+    parser.add_argument(
+        "--delivery-wait-seconds",
+        type=float,
+        default=DEFAULT_DELIVERY_WAIT_SECONDS,
+        metavar="SECONDS",
+        help=(
+            "bounded wait for the turn-2 saved result and the turn-3 "
+            f"delivery (0-{MAX_DELIVERY_WAIT_SECONDS:g}; default "
+            f"{DEFAULT_DELIVERY_WAIT_SECONDS:g})"
         ),
     )
     parser.add_argument("--expected-revision", default="")
