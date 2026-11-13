@@ -793,18 +793,42 @@ def _collect_evidence(
                 "required": True,
             })
         elif result.get("operation") and result.get("subtotals"):
-            for currency, item in (result.get("subtotals") or {}).items():
-                unit = "" if currency == "(unstated)" else str(currency)
+            operation = str(result.get("operation") or "")
+            if operation == "count":
+                # A count is a row tally, not a money amount. The per-currency
+                # subtotal buckets only group the counted rows, so using the
+                # bucket key as the unit rendered "count of rows: 3.00 USD"
+                # for three plain rows. Keep the aggregate's own (row) unit
+                # and leave monetary sums on the per-currency path below.
+                subtotals = result.get("subtotals") or {}
+                value = result.get("value")
+                if value is None:
+                    value = str(sum(
+                        int(item.get("rows") or 0)
+                        for item in subtotals.values()
+                        if isinstance(item, dict)))
                 facts.append({
                     "step_id": step_id,
                     "label": (
-                        f"{result.get('operation')} of "
-                        f"{result.get('measure') or 'rows'}: "
-                        f"{item.get('value')} {unit}".strip()),
-                    "value": item.get("value"),
-                    "unit": unit,
+                        f"{operation} of "
+                        f"{result.get('measure') or 'rows'}: {value}"),
+                    "value": value,
+                    "unit": "rows",
                     "required": True,
                 })
+            else:
+                for currency, item in (result.get("subtotals") or {}).items():
+                    unit = "" if currency == "(unstated)" else str(currency)
+                    facts.append({
+                        "step_id": step_id,
+                        "label": (
+                            f"{result.get('operation')} of "
+                            f"{result.get('measure') or 'rows'}: "
+                            f"{item.get('value')} {unit}".strip()),
+                        "value": item.get("value"),
+                        "unit": unit,
+                        "required": True,
+                    })
         elif result.get("operation") and result.get("value") is not None:
             facts.append({
                 "step_id": step_id,

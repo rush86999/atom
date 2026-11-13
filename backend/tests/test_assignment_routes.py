@@ -669,7 +669,10 @@ def test_guided_connected_count_presentation(route_env, tmp_path, monkeypatch):
         shape.text for slide in presentation.slides
         for shape in slide.shapes if getattr(shape, "text", "")
     )
-    assert "3" in text, text
+    # The count is measured in rows: the currency column only groups the
+    # counted rows, so it must not turn "3 rows" into "3.00 USD".
+    assert "count of rows: 3" in text, text
+    assert "3.00 USD" not in text, text
     assert "scotch-parts.xlsx" in text
 
 
