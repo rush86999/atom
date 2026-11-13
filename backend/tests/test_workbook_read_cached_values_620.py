@@ -273,7 +273,15 @@ def test_cached_value_decoding_matches_openpyxl_data_only():
         values.close()
 
 
-def test_inspection_uses_one_full_openpyxl_load(monkeypatch):
+def test_targeted_inspection_uses_no_full_openpyxl_load(monkeypatch):
+    """A targeted read answers from the OOXML stream: zero full parses.
+
+    Issue #620's follow-up: the one-load reader still materialised the whole
+    workbook — and then a row list per sheet on top of it — so a 46-sheet,
+    eight-target lookup exceeded 3 GiB. The targeted lane streams instead;
+    the legacy fallback is the only path that reaches openpyxl, and only when
+    the stream declines (see the decline tests below).
+    """
     calls: list = []
     real_loader = openpyxl.load_workbook
 
@@ -285,8 +293,10 @@ def test_inspection_uses_one_full_openpyxl_load(monkeypatch):
     artifact = _inspect(GOLDEN)
 
     assert artifact["coverage"]["complete"] is True
-    # Exactly one full parse, and it is the formula-preserving one.
-    assert calls == [False]
+    # No full parse at all on the targeted lane.
+    assert calls == []
+    assert artifact["sha256"] == hashlib.sha256(GOLDEN).hexdigest()
+    assert artifact["sheet_count"] == 3
 
 
 def test_legacy_fallback_still_restores_the_second_load(
