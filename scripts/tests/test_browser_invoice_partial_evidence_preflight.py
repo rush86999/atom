@@ -44,15 +44,17 @@ def test_partial_and_complete_invoice_fixture(driver, tmp_path):
 
 def test_authored_shim_is_real_schema_and_indexed(driver):
     result = driver._validate_shim()
-    assert len(result["responses"]) == 3
+    assert len(result["responses"]) == 4
     assert result["responses"][0]["model"] == "WorkAdaptationProposal"
     assert result["responses"][0]["payload"]["decision"] == "replan"
-    assert result["responses"][1]["model"] == "EmployeeWorkProposal"
-    assert result["responses"][2]["payload"]["decision"] == "clarify"
+    assert result["responses"][1]["model"] == "CompactWaitChoiceProposal"
+    assert result["responses"][1]["payload"]["decision"] == "clarify"
+    assert result["responses"][2]["model"] == "EmployeeWorkProposal"
+    assert result["responses"][3]["payload"]["decision"] == "clarify"
     assert (
-        result["responses"][1]["payload"]["evidence_reads"][0]["source_id"]
+        result["responses"][2]["payload"]["evidence_reads"][0]["source_id"]
         == "fixture:po.json")
-    assert len(result["provider_shim_keys"]) == 3
+    assert len(result["provider_shim_keys"]) == 4
 
 
 def test_unlabelled_default_is_rejected(driver, tmp_path):

@@ -171,8 +171,8 @@ def _validate_shim() -> Dict[str, Any]:
     if SHIM_DEFAULT_LABEL not in str(doc.get("default") or ""):
         raise PreflightError("shim default is not labelled as simulated")
     responses = doc.get("responses")
-    if not isinstance(responses, list) or len(responses) != 3:
-        raise PreflightError("shim must author exactly three state responses")
+    if not isinstance(responses, list) or len(responses) != 4:
+        raise PreflightError("shim must author exactly four state responses")
     parsed: List[Dict[str, Any]] = []
     for index, entry in enumerate(responses):
         raw = entry.get("response")
@@ -182,12 +182,26 @@ def _validate_shim() -> Dict[str, Any]:
         match = str(entry.get("match") or "")
         if "allowed_step_ids" in match:
             model = WorkAdaptationProposal.model_validate(payload)
+            model_name = type(model).__name__
             if model.decision != "replan" or not model.work_request:
                 raise PreflightError("complete-evidence response is not a replan")
             if model.work_request.operation != "invoice_reconciliation":
                 raise PreflightError("complete-evidence response wrong operation")
+        elif "You choose one bounded next response" in match:
+            model = None
+            model_name = "CompactWaitChoiceProposal"
+            if payload.get("decision") != "clarify":
+                raise PreflightError(
+                    "compact incomplete-evidence response must clarify")
+            if INVOICE not in str(payload.get("clarification_question") or ""):
+                raise PreflightError(
+                    "compact incomplete-evidence question does not name invoice")
+            if payload.get("clarification_missing_roles") != ["invoice"]:
+                raise PreflightError(
+                    "compact incomplete-evidence question is not scoped")
         elif "missing_prerequisites" in match:
             model = WorkAdaptationProposal.model_validate(payload)
+            model_name = type(model).__name__
             if model.decision != "clarify" or not model.clarification:
                 raise PreflightError(
                     "incomplete-evidence response must ask for the invoice")
@@ -199,6 +213,7 @@ def _validate_shim() -> Dict[str, Any]:
                     "incomplete-evidence question is not scoped to invoice")
         elif "planning reasoner" in match:
             model = EmployeeWorkProposal.model_validate(payload)
+            model_name = type(model).__name__
             if model.proposal_kind != "evidence_read":
                 raise PreflightError("discovery response must read evidence")
             handles = [read.source_id for read in model.evidence_reads]
@@ -206,7 +221,7 @@ def _validate_shim() -> Dict[str, Any]:
                 raise PreflightError(f"unexpected discovery handles: {handles}")
         else:
             raise PreflightError(f"unrecognised match on response[{index}]")
-        parsed.append({"match": match, "model": type(model).__name__,
+        parsed.append({"match": match, "model": model_name,
                        "payload": payload})
     with tempfile.TemporaryDirectory(prefix="invoice-shim-") as tmp:
         path = Path(tmp) / "shim.json"
@@ -221,8 +236,8 @@ def _validate_shim() -> Dict[str, Any]:
         "provider_shim_keys": [str(key) for key in index],
         "state_selection": (
             "prompt discriminators: 'planning reasoner' -> initial evidence "
-            "reads; 'missing_prerequisites' -> one targeted invoice question "
-            "while incomplete; 'allowed_step_ids' -> typed invoice "
+            "reads; compact wait-choice prompt + 'missing_prerequisites' -> one "
+            "targeted invoice question; 'allowed_step_ids' -> typed invoice "
             "reconciliation once complete"),
     }
 
