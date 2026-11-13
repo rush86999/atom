@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import sys
@@ -21,7 +22,10 @@ from scripts.workbook_read_replay import (
     evaluate_retry,
     flatten_trace,
     identity_summary,
+    parse_bullet_outcomes,
     parse_outcomes,
+    parse_table_outcomes,
+    pending_acknowledgement,
     read_token_file,
     resolve_session,
     verify_session,
@@ -48,6 +52,97 @@ def _reply() -> str:
         "Per-item results:",
         *rows,
     ])
+
+
+def _bullet_reply() -> str:
+    """Synthetic saved-answer delivery: one markdown bullet per item.
+
+    The three shapes the async contract must prove are all present: a price
+    with exact sheet/cell lineage, a 10-row ambiguity, and a scoped miss.
+    """
+    return "\n".join([
+        f"From the saved copy of {FILE_NAME} (saved 2026-09-07):",
+        "Checked 8 items — 4 with values, 1 need your pick, 3 no match.",
+        "",
+        "- **381** — 2,450 'PRICE' (RoperWhitney sheet, row 88, "
+        "cell E88, matched at A88)",
+        "- **U-22** — 1,777 'List Price' (LINMAC sheet, row 26, "
+        "cell C26, matched at A26)",
+        "- **622** — 10 possible rows (RoperWhitney 4, Tennsmith 3, "
+        "LINMAC 3) — which sheet or exact code do you mean?",
+        "- **SLE24-16** — 8,880 'PRICE' (Tennsmith sheet, row 101, "
+        "cell E101, matched at A101)",
+        "- **GSL48-16** — 14,166 'PRICE' (Tennsmith sheet, row 106, "
+        "cell E106, matched at A106)",
+        "- **GSL24-16** — no match in this copy",
+        "- **SLE16-8** — no match in this copy",
+        "- **U-38** — no match in this copy",
+        "",
+        f"From the saved copy of {FILE_NAME} (saved 2026-09-07) — searched "
+        "all 3 sheets of this copy. A newer version of the file may differ; "
+        "no-match lines are about this copy, not the live file.",
+    ])
+
+
+def _serving_identity():
+    return {
+        "instance_id": "i1", "source_id": "s1", "revision": "r1",
+        "started_at": "t1", "pid": 1,
+    }
+
+
+def _saved_result() -> dict:
+    return {
+        "status": "retrieved",
+        "identity": {
+            "resource_id": "synthetic-resource-1",
+            "content_hash": "a" * 40,
+            "evidence_kind": "materialized_copy",
+            "workbook_read": {"file_name": FILE_NAME, "content_hash": "a" * 40},
+        },
+        "execution_id": "exec-async-1",
+        "retrieved_at": 123.0,
+        "attempt_id": "attempt-async-1",
+        "evidence_revision": "rev-async-1",
+        "structured_result": {
+            "attempt_id": "attempt-async-1",
+            "evidence_revision": "rev-async-1",
+            "source_identity": {
+                "file_name": FILE_NAME,
+                "resource_id": "synthetic-resource-1",
+                "content_hash": "a" * 40,
+                "evidence_kind": "materialized_copy",
+            },
+        },
+    }
+
+
+def _async_states(reply: str):
+    before = _saved_result()
+    after = dict(before)
+    after["status"] = "delivered"
+    after["delivered_at"] = 124.0
+    after["delivery_pin"] = {"delivered_text": reply[:24000]}
+    state_after_2 = {
+        "status": "pending",
+        "result_status": "retrieved",
+        "result": before,
+        "read_error": "",
+    }
+    state_after_3 = {
+        "status": "delivered",
+        "result_status": "delivered",
+        "result": after,
+        "read_error": "",
+    }
+    return state_after_2, state_after_3
+
+
+def _async_trace():
+    return [{
+        "step_type": "observation",
+        "observation": f"{FILE_NAME} 381 datasets",
+    }]
 
 
 def test_user_facing_workbook_answer_removes_protocol_but_keeps_table():
@@ -160,6 +255,339 @@ def test_evaluate_retry_requires_persisted_result_unchanged():
         },
     )
     assert report["all_pass"], report["checks"]
+
+
+# --- async WorkDrive delivery (turn 2 ack, turn 3 saved bullets) -----------
+
+def test_bullet_parser_reads_all_three_saved_answer_shapes():
+    rows = parse_bullet_outcomes(_bullet_reply())
+    assert [row["target"] for row in rows] == list(TARGETS)
+    by_target = {row["target"]: row for row in rows}
+    assert by_target["U-22"]["kind"] == "found"
+    assert "cell C26" in by_target["U-22"]["evidence"]
+    assert by_target["622"]["kind"] == "ambiguous"
+    assert "10 possible rows" in by_target["622"]["evidence"]
+    assert by_target["U-38"]["kind"] == "absent"
+    assert "no match in this copy" in by_target["U-38"]["evidence"]
+    # The saved answer is bullets only: the synchronous table parser finds
+    # nothing to count twice.
+    assert parse_table_outcomes(_bullet_reply()) == []
+    assert len(parse_outcomes(_bullet_reply())) == len(TARGETS)
+
+
+def test_pending_acknowledgement_only_accepts_a_pending_non_delivery():
+    pending = {"status": "pending", "result_status": None}
+    assert pending_acknowledgement(
+        "I'm reading the saved copy now — I'll return the item statuses "
+        "when it lands.", pending)
+    assert not pending_acknowledgement(_bullet_reply(), pending)
+    assert not pending_acknowledgement(_reply(), pending)
+    assert not pending_acknowledgement(
+        "still pending", {"status": "retrieved", "result_status": "retrieved"})
+    assert not pending_acknowledgement("", pending)
+
+
+def test_evaluate_accepts_async_ack_then_turn3_bullet_delivery():
+    identity = _serving_identity()
+    state_after_2, state_after_3 = _async_states(_bullet_reply())
+    report = evaluate(
+        identity,
+        identity,
+        {"success": True},
+        {
+            "success": True,
+            "message": "I'm reading the saved copy now — I'll return the "
+                       "item statuses when it lands.",
+        },
+        _async_trace(),
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+        r3={
+            "success": True,
+            "model": "deterministic",
+            "message": _bullet_reply(),
+            "data": {"deterministic_delivery": True},
+        },
+        state_after_3=state_after_3,
+    )
+    assert report["async_delivery"] is True
+    assert report["all_pass"], {
+        key: value for key, value in report["checks"].items() if not value
+    }
+    assert report["checks"]["turn2_acknowledgement"] is True
+    assert report["checks"]["turn3_delivered"] is True
+    assert report["checks"]["markdown_bullets"] is True
+    assert report["checks"]["delivered_statuses"] is True
+    assert report["checks"]["coverage_present"] is True
+    assert report["checks"]["provenance_present"] is True
+    assert report["checks"]["named_file_only"] is True
+
+
+def test_evaluate_async_requires_the_saved_answer_not_a_second_read():
+    identity = _serving_identity()
+    state_after_2, state_after_3 = _async_states(_bullet_reply())
+    report = evaluate(
+        identity,
+        identity,
+        {"success": True},
+        {"success": True, "message": "Reading it now."},
+        _async_trace(),
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+        r3={
+            "success": True,
+            "model": "deterministic",
+            "message": _bullet_reply(),
+            "data": {"deterministic_delivery": True},
+        },
+        state_after_3=state_after_3,
+    )
+    assert report["all_pass"]
+    retry = evaluate_retry(
+        state_after_2, state_after_3,
+        {
+            "success": True,
+            "model": "deterministic",
+            "message": _bullet_reply(),
+            "data": {"deterministic_delivery": True},
+        },
+        async_delivery=True,
+    )
+    assert retry["all_pass"], retry["checks"]
+
+    # A turn-3 re-read would change the retrieval timestamp and identity.
+    reread_result = dict(state_after_3["result"])
+    reread_result["retrieved_at"] = 999.0
+    reread = evaluate_retry(
+        state_after_2,
+        {**state_after_3, "result": reread_result},
+        {
+            "success": True,
+            "model": "deterministic",
+            "message": _bullet_reply(),
+            "data": {"deterministic_delivery": True},
+        },
+        async_delivery=True,
+    )
+    assert reread["checks"]["no_reread"] is False
+    assert reread["all_pass"] is False
+
+    # No pinned delivery means the turn cannot prove it served the saved
+    # answer instead of re-rendering a fresh read.
+    unpinned = dict(state_after_3["result"])
+    unpinned.pop("delivery_pin", None)
+    report = evaluate_retry(
+        state_after_2,
+        {**state_after_3, "result": unpinned},
+        {
+            "success": True,
+            "model": "deterministic",
+            "message": _bullet_reply(),
+            "data": {"deterministic_delivery": True},
+        },
+        async_delivery=True,
+    )
+    assert report["checks"]["delivered_answer_pinned"] is False
+    assert report["all_pass"] is False
+
+
+@pytest.mark.parametrize(
+    "mutate, failing_check",
+    [
+        (lambda text: text.replace("searched all 3 sheets of this copy", ""),
+         "coverage_present"),
+        (lambda text: text.replace(
+            "From the saved copy of", "From an unnamed file; original:"),
+         "provenance_present"),
+        (lambda text: text + "\nAlso Sept 2026 Email Prices.xlsx",
+         "named_file_only"),
+        (lambda text: "\n".join(
+            line for line in text.splitlines()
+            if "**SLE16-8**" not in line), "eight_structured_outcomes"),
+        (lambda text: text.replace(
+            "- **GSL24-16** — no match in this copy",
+            "- **GSL24-16** — 2 possible rows (Tennsmith 2)"),
+         "missing_outcomes"),
+    ],
+)
+def test_evaluate_async_rejects_incomplete_saved_answers(mutate, failing_check):
+    identity = _serving_identity()
+    reply = mutate(_bullet_reply())
+    state_after_2, state_after_3 = _async_states(reply)
+    report = evaluate(
+        identity,
+        identity,
+        {"success": True},
+        {"success": True, "message": "Reading it now."},
+        _async_trace(),
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+        r3={
+            "success": True,
+            "model": "deterministic",
+            "message": reply,
+            "data": {"deterministic_delivery": True},
+        },
+        state_after_3=state_after_3,
+    )
+    assert report["checks"][failing_check] is False, report["checks"]
+    assert report["all_pass"] is False
+
+
+def test_evaluate_async_ack_without_turn3_cannot_close():
+    identity = _serving_identity()
+    state_after_2, _ = _async_states(_bullet_reply())
+    report = evaluate(
+        identity,
+        identity,
+        {"success": True},
+        {"success": True, "message": "Reading it now."},
+        _async_trace(),
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+    )
+    assert report["async_delivery"] is False
+    assert report["all_pass"] is False
+
+
+# --- strict direct WorkDrive proof survives the async delivery --------------
+
+def _strict_async_fixture(reply: str):
+    from core.workdrive_direct_proof import (
+        DOWNLOADED_KIND,
+        RECEIPT_SCHEMA,
+        build_workdrive_proof,
+    )
+
+    resource_id = "synthetic-resource-1"
+    sha256 = hashlib.sha256(b"synthetic-workbook-bytes").hexdigest()
+    proof = build_workdrive_proof(
+        resource_id=resource_id,
+        downloaded_sha256=sha256,
+        downloaded_bytes=1234,
+        execution_id="exec-async-1",
+        file_name=FILE_NAME,
+        receipt={
+            "schema": RECEIPT_SCHEMA,
+            "sha256": sha256,
+            "resource_id": resource_id,
+            "execution_id": "exec-async-1",
+        },
+    )
+    identity = {
+        "resource_id": resource_id,
+        "content_hash": sha256,
+        "content_sha256": sha256,
+        "evidence_kind": DOWNLOADED_KIND,
+        "execution_id": "exec-async-1",
+        "direct_source_proof": proof,
+        "workbook_read": {"file_name": FILE_NAME},
+    }
+    structured = {
+        "attempt_id": "attempt-async-1",
+        "evidence_revision": "rev-async-1",
+        "source_identity": {
+            "file_name": FILE_NAME,
+            "resource_id": resource_id,
+            "content_hash": sha256,
+            "evidence_kind": DOWNLOADED_KIND,
+            "direct_source_proof": proof,
+        },
+        "direct_source_proof": proof,
+    }
+    result = {
+        "status": "retrieved",
+        "identity": identity,
+        "structured_result": structured,
+        "direct_source_proof": proof,
+        "execution_id": "exec-async-1",
+        "retrieved_at": 123.0,
+        "attempt_id": "attempt-async-1",
+        "evidence_revision": "rev-async-1",
+    }
+    after = dict(result)
+    after["status"] = "delivered"
+    after["delivery_pin"] = {"delivered_text": reply[:24000]}
+    state_after_2 = {
+        "status": "pending", "result_status": "retrieved",
+        "result": result, "read_error": "",
+    }
+    state_after_3 = {
+        "status": "delivered", "result_status": "delivered",
+        "result": after, "read_error": "",
+    }
+    return state_after_2, state_after_3, resource_id, sha256
+
+
+def _strict_async_report(reply: str, *, drop_proof: bool = False):
+    state_after_2, state_after_3, resource_id, sha256 = (
+        _strict_async_fixture(reply))
+    if drop_proof:
+        result = state_after_3["result"]
+        result.pop("direct_source_proof", None)
+        result["identity"] = {
+            key: value for key, value in result["identity"].items()
+            if key not in ("direct_source_proof", "content_sha256")
+        }
+        result["structured_result"] = {
+            "source_identity": {
+                key: value
+                for key, value in result["structured_result"][
+                    "source_identity"].items()
+                if key not in ("direct_source_proof", "content_sha256")
+            }
+        }
+    identity = _serving_identity()
+    return evaluate(
+        identity,
+        identity,
+        {"success": True},
+        {"success": True, "message": "Reading it now."},
+        _async_trace(),
+        {"status_code": 200, "error": ""},
+        {"status": "pending", "read_error": ""},
+        state_after_2,
+        strict_workdrive_proof=True,
+        expected_resource_id=resource_id,
+        expected_sha256=sha256,
+        r3={
+            "success": True,
+            "model": "deterministic",
+            "message": reply,
+            "data": {"deterministic_delivery": True},
+        },
+        state_after_3=state_after_3,
+    )
+
+
+def test_evaluate_async_preserves_strict_exact_source_proof():
+    report = _strict_async_report(_bullet_reply())
+    assert report["all_pass"], {
+        key: value for key, value in report["checks"].items() if not value
+    }
+    assert report["checks"]["strict_workdrive_all_pass"] is True
+    assert report["checks"]["strict_workdrive_proof_same_execution"] is True
+    assert report["checks"]["strict_answer_not_materialized"] is True
+
+
+def test_evaluate_async_strict_proof_fails_closed_without_joined_proof():
+    report = _strict_async_report(_bullet_reply(), drop_proof=True)
+    assert report["checks"]["strict_workdrive_proof_present"] is False
+    assert report["checks"]["strict_workdrive_no_materialized_fallback"] is False
+    assert report["all_pass"] is False
+
+
+def test_evaluate_async_strict_rejects_materialized_answer_language():
+    reply = _bullet_reply().replace(
+        "From the saved copy of", "Source: MATERIALIZED COPY. From the copy of"
+    )
+    report = _strict_async_report(reply)
+    assert report["checks"]["strict_answer_not_materialized"] is False
+    assert report["all_pass"] is False
 
 
 # --- server-issued session from an explicit private token file -------------
