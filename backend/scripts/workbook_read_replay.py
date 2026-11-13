@@ -20,6 +20,18 @@ the opt-in strict WorkDrive proof still binds the result to this execution,
 the exact resource id, and the downloaded bytes' SHA-256. Real runs can
 extend the bounded saved-answer wait with ``--delivery-wait-seconds``.
 
+A DIRECT DELIVERY run (the issue-620 acceptance shape) may instead answer on
+turn 1: the first turn's task is ``delivered`` with a ``retrieved`` result,
+and the confirmation and retry turns both re-deliver the SAME saved answer
+(``delivered``/``delivered``). ``--direct-delivery`` (or a strict run whose
+first turn already delivered) additionally requires byte-identical
+structured replies on all three turns, the formatter's quantitative
+"searched all N sheets of this copy" claim to match the persisted record's
+``coverage.indexed_sheets``, the "downloaded copy of <workbook>" source claim
+to name that record's file, and the strict proof to match the exact resource
+id and SHA-256. A saved-copy-only answer, a re-rendered retry, or an
+unverifiable coverage/source claim fails closed.
+
 Two authentication modes are supported:
 
 * ``--token-file PATH`` reads a server-issued bearer token from an explicit
@@ -84,9 +96,13 @@ POSSIBLE_ROWS_RE = re.compile(r"\b(\d+)\s+possible\s+rows?\b", re.IGNORECASE)
 SAVED_COPY_PROVENANCE_RE = re.compile(
     r"from the (?:saved|downloaded) copy of\s+", re.IGNORECASE
 )
-COVERAGE_OF_COPY_RE = re.compile(
-    r"searched all \d+ sheets? of this copy", re.IGNORECASE
+DOWNLOADED_COPY_RE = re.compile(
+    r"from the downloaded copy of\s*", re.IGNORECASE
 )
+COVERAGE_OF_COPY_RE = re.compile(
+    r"searched all (?P<count>\d+) sheets? of this copy", re.IGNORECASE
+)
+COPY_SCOPE_RE = re.compile(r"about this copy", re.IGNORECASE)
 
 
 class TokenFileError(RuntimeError):
@@ -591,6 +607,160 @@ def _lineage_ok(row: Dict[str, Any]) -> bool:
     )
 
 
+def quantified_coverage(reply: str) -> Optional[int]:
+    """The ``N`` in the formatter's "searched all N sheets of this copy"."""
+    match = COVERAGE_OF_COPY_RE.search(str(reply or ""))
+    if match is None:
+        return None
+    try:
+        count = int(match.group("count"))
+    except (TypeError, ValueError):
+        return None
+    return count if count > 0 else None
+
+
+def _coverage_counts(
+    structured_result: Any,
+) -> Tuple[Optional[int], Optional[int]]:
+    """``(indexed_sheets, scanned_sheets)`` from the persisted record."""
+    if not isinstance(structured_result, dict):
+        return None, None
+    coverage = structured_result.get("coverage")
+    if not isinstance(coverage, dict):
+        return None, None
+
+    def _as_int(value: Any) -> Optional[int]:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    return (
+        _as_int(coverage.get("indexed_sheets")),
+        _as_int(coverage.get("scanned_sheets")),
+    )
+
+
+def coverage_claim_is_truthful(
+    reply: str,
+    structured_result: Any,
+) -> bool:
+    """Does the formatter's sheet count match the persisted evidence?
+
+    The saved answer says "searched all N sheets of this copy". That is a
+    quantitative claim about the record, so N must equal the record's
+    ``coverage.indexed_sheets`` (and ``scanned_sheets`` when present). A
+    plausible-looking number is not coverage proof.
+    """
+    claimed = quantified_coverage(reply)
+    indexed, scanned = _coverage_counts(structured_result)
+    if claimed is None or indexed is None or claimed != indexed:
+        return False
+    if scanned is not None and scanned != claimed:
+        return False
+    return True
+
+
+def source_claim_is_truthful(
+    reply: str,
+    structured_result: Any,
+) -> bool:
+    """Does every "downloaded copy of ..." claim name THIS record's file?
+
+    The formatter emits the claim twice (opening and footer). Each occurrence
+    must be followed by the persisted ``source_identity.file_name``. A
+    different workbook name, or a claim that only says "saved copy", is not
+    evidence that the delivered answer came from the verified download.
+    """
+    if not isinstance(structured_result, dict):
+        return False
+    source_identity = structured_result.get("source_identity")
+    if not isinstance(source_identity, dict):
+        return False
+    expected = str(source_identity.get("file_name") or "").strip()
+    if not expected:
+        return False
+    text = str(reply or "")
+    matches = list(DOWNLOADED_COPY_RE.finditer(text))
+    if not matches:
+        return False
+    expected_lower = expected.lower()
+    for match in matches:
+        remainder = text[match.end():].lstrip()
+        if not remainder.lower().startswith(expected_lower):
+            return False
+        tail = remainder[len(expected):]
+        # The formatter continues with ":" or " —"; a saved-date parenthetical
+        # is allowed. A different file name is not.
+        if tail and tail[0] not in " :—–(\n,":
+            return False
+    return True
+
+
+def deterministic_delivery(payload: Any) -> bool:
+    """The turn was served from structured evidence, not model narration."""
+    if not isinstance(payload, dict):
+        return False
+    data = payload.get("data") or {}
+    return bool(
+        (isinstance(data, dict) and data.get("deterministic_delivery"))
+        or payload.get("model") in ("deterministic", "structured")
+    )
+
+
+def _state_is_delivered(state: Any) -> bool:
+    return bool(
+        isinstance(state, dict)
+        and state.get("status") == "delivered"
+        and state.get("result_status") == "delivered"
+    )
+
+
+def resolve_direct_source_proof(result: Any) -> Optional[Dict[str, Any]]:
+    """The strict direct-download proof carried by a persisted read result.
+
+    Live reads have carried the proof at the top level, nested inside
+    ``identity``, and nested inside ``structured_result``. They are the same
+    proof, so resolve them the same way everywhere instead of requiring one
+    particular placement.
+    """
+    if not isinstance(result, dict):
+        return None
+    proof = result.get("direct_source_proof")
+    if isinstance(proof, dict):
+        return proof
+    identity = result.get("identity")
+    if isinstance(identity, dict):
+        proof = identity.get("direct_source_proof")
+        if isinstance(proof, dict):
+            return proof
+    structured = result.get("structured_result")
+    if isinstance(structured, dict):
+        proof = structured.get("direct_source_proof")
+        if isinstance(proof, dict):
+            return proof
+    return None
+
+
+def _persisted_read_evidence(result: Any) -> Dict[str, Any]:
+    """The read fields that must not change across a re-delivery retry.
+
+    The proof is resolved with :func:`resolve_direct_source_proof` so a live
+    read that only carries it nested (identity or structured result) compares
+    on equal terms with one that also has a top-level copy.
+    """
+    result = result if isinstance(result, dict) else {}
+    return {
+        "identity": result.get("identity"),
+        "structured_result": result.get("structured_result"),
+        "direct_source_proof": resolve_direct_source_proof(result),
+        "execution_id": result.get("execution_id"),
+        "retrieved_at": result.get("retrieved_at"),
+        "attempt_id": result.get("attempt_id"),
+        "evidence_revision": result.get("evidence_revision"),
+    }
+
+
 def pending_acknowledgement(
     reply: str,
     state: Dict[str, Any],
@@ -628,8 +798,25 @@ def evaluate(
     expected_sha256: str = "",
     r3: Optional[Dict[str, Any]] = None,
     state_after_3: Optional[Dict[str, Any]] = None,
+    direct_delivery: bool = False,
 ) -> Dict[str, Any]:
+    state_after_1 = state_after_1 if isinstance(state_after_1, dict) else {}
+    state_after_2 = state_after_2 if isinstance(state_after_2, dict) else {}
     state_after_3 = state_after_3 if isinstance(state_after_3, dict) else {}
+    # DIRECT DELIVERY (issue 620 acceptance): turn 1 already answered and the
+    # confirmation/retry turns re-delivered the SAME saved answer. This is
+    # auto-detected from the observed state for strict runs, and can be forced
+    # with ``--direct-delivery``. A direct run is always held to the strict
+    # proof contract; there is no direct delivery without it.
+    direct_delivery_mode = bool(
+        direct_delivery
+        or (
+            strict_workdrive_proof
+            and state_after_1.get("status") == "delivered"
+        )
+    )
+    if direct_delivery_mode:
+        strict_workdrive_proof = True
     # ASYNC WORKDRIVE DELIVERY (issue 620): turn 2 may only acknowledge that
     # the saved read is still pending; turn 3 then returns the persisted
     # answer. The synchronous path is unchanged: with no turn-3 payload the
@@ -663,7 +850,13 @@ def evaluate(
         SAVED_COPY_PROVENANCE_RE.search(reply)
         and workbook_name in lower
     )
+    downloaded_copy_provenance = bool(
+        DOWNLOADED_COPY_RE.search(reply)
+        and workbook_name in lower
+    )
     coverage_of_copy = bool(COVERAGE_OF_COPY_RE.search(reply))
+    quantified_sheets = quantified_coverage(reply)
+    copy_scope_stated = bool(COPY_SCOPE_RE.search(reply))
     protocol_tokens = (
         "live tool results", "file_search", "pending file task",
         "workbook read artifact", "sql result", "reproduce verbatim",
@@ -673,10 +866,7 @@ def evaluate(
         "i calculated", "i computed", "interpolat", "recalculate",
         "re-derive", "multiply by", "divided by", "×", "÷",
     )
-    direct_delivery = bool(
-        (delivered.get("data") or {}).get("deterministic_delivery")
-        or delivered.get("model") in ("deterministic", "structured")
-    )
+    deterministic_delivery_turn = deterministic_delivery(delivered)
     delivered_state = state_after_3 if async_ack else state_after_2
     checks = {
         "revision_stable": same_revision(identity_before, identity_after),
@@ -685,7 +875,7 @@ def evaluate(
             outage_mode and state_after_1.get("status") == "pending"
         ),
         "turn2_success": bool(r2.get("success")) or (
-            outage_mode and direct_delivery
+            outage_mode and deterministic_delivery_turn
         ),
         "pending_after_turn1": state_after_1.get("status") == "pending",
         "pending_served_after_turn2": (
@@ -710,16 +900,16 @@ def evaluate(
             not state_after_1.get("read_error")
             and not state_after_2.get("read_error")
         ),
-        "trace_original_ask": direct_delivery or (
+        "trace_original_ask": deterministic_delivery_turn or (
             workbook_name in trace_blob and any(
                 target.lower() in trace_blob for target in TARGETS
             )
         ),
-        "trace_storage_or_datasets": direct_delivery or any(
+        "trace_storage_or_datasets": deterministic_delivery_turn or any(
             token in trace_blob for token in ("datasets", "storage", "workdrive")
         ),
         "trace_readable": trace_meta.get("status_code") == 200,
-        "direct_structured_delivery": direct_delivery,
+        "direct_structured_delivery": deterministic_delivery_turn,
         "eight_structured_outcomes": len(rows) == len(TARGETS) and set(by_target) == set(TARGETS),
         "found_outcomes": len(found_rows) >= 1,
         "missing_outcomes": len(missing_rows) == 3,
@@ -734,6 +924,7 @@ def evaluate(
         "coverage_present": (
             ("coverage" in lower and "indexed content" in lower)
             or (async_ack and coverage_of_copy)
+            or (direct_delivery_mode and quantified_sheets is not None)
         ),
         "misses_are_scoped": all(
             "indexed content" in row["evidence"].lower()
@@ -741,6 +932,10 @@ def evaluate(
             or (async_ack and (
                 "no match in this copy" in row["evidence"].lower()
                 or "about this copy" in lower
+            ))
+            or (direct_delivery_mode and (
+                "no match in this copy" in row["evidence"].lower()
+                and copy_scope_stated
             ))
             for row in missing_rows
         ),
@@ -750,6 +945,7 @@ def evaluate(
                 or (strict_workdrive_proof and "downloaded" in lower)
             ))
             or (async_ack and saved_copy_provenance)
+            or (direct_delivery_mode and downloaded_copy_provenance)
         ),
         "named_file_only": not foreign_files and workbook_name in lower,
         "no_protocol_leakage": not any(token in lower for token in protocol_tokens),
@@ -783,6 +979,82 @@ def evaluate(
             checks["strict_answer_not_materialized"] = (
                 "materialized copy" not in lower
             )
+    if direct_delivery_mode:
+        # DIRECT DELIVERY ACCEPTANCE (issue 620): the live Canadian run
+        # answered on turn 1 (delivered/retrieved), then turns 2 and 3 both
+        # re-delivered the same structured answer (delivered/delivered). The
+        # saved answer is the formatter's downloaded-copy output, so the
+        # coverage count and source name are quantitative claims that must
+        # join to the persisted record, not merely look plausible.
+        direct_result = (
+            delivered_state.get("result")
+            if isinstance(delivered_state, dict) else None
+        )
+        direct_structured = (
+            direct_result.get("structured_result")
+            if isinstance(direct_result, dict) else None
+        )
+        direct_evidence = [
+            _persisted_read_evidence(
+                state.get("result") if isinstance(state, dict) else None)
+            for state in (state_after_1, state_after_2, state_after_3)
+        ]
+        direct_same_read = bool(
+            direct_evidence[0].get("identity")
+            and direct_evidence[0].get("structured_result")
+            and direct_evidence[0].get("direct_source_proof")
+            and direct_evidence[0] == direct_evidence[1] == direct_evidence[2]
+        )
+        direct_messages = [
+            str(turn.get("message") or "")
+            for turn in (r1, r2, r3 if isinstance(r3, dict) else {})
+        ]
+        checks.pop("pending_after_turn1", None)
+        checks.update({
+            "direct_turn1_delivered": (
+                state_after_1.get("status") == "delivered"
+            ),
+            "direct_turn1_result_retrieved": (
+                state_after_1.get("result_status") == "retrieved"
+            ),
+            "direct_turns_2_3_delivered": (
+                _state_is_delivered(state_after_2)
+                and _state_is_delivered(state_after_3)
+            ),
+            "direct_identical_reply": bool(
+                direct_messages[0]
+                and direct_messages[0] == direct_messages[1]
+                == direct_messages[2]
+            ),
+            "direct_deterministic_each_turn": all(
+                deterministic_delivery(turn)
+                for turn in (r1, r2, r3)
+            ),
+            "direct_same_persisted_read": direct_same_read,
+            "direct_coverage_quantitative_truthful": (
+                coverage_claim_is_truthful(reply, direct_structured)
+            ),
+            "direct_source_claim_truthful": (
+                source_claim_is_truthful(reply, direct_structured)
+            ),
+            "direct_copy_scope_stated": copy_scope_stated,
+            "direct_misses_scoped_to_copy": bool(
+                missing_rows
+                and copy_scope_stated
+                and all(
+                    "no match in this copy" in row["evidence"].lower()
+                    for row in missing_rows
+                )
+            ),
+            "direct_no_saved_copy_claim": (
+                "from the saved copy of" not in lower
+            ),
+            # The acceptance is only meaningful when the exact resource and
+            # digest were supplied; otherwise the strict checks cannot bind
+            # the proof to the live download.
+            "direct_expected_resource_id": bool(expected_resource_id),
+            "direct_expected_sha256": bool(expected_sha256),
+        })
     if strict_workdrive_proof:
         # OPT-IN STRICT DIRECT WORKDRIVE PROOF (issue 620): the persisted
         # workbook result must carry a direct download from THIS execution,
@@ -807,12 +1079,7 @@ def evaluate(
             persisted_structured
             if isinstance(persisted_structured, dict) else None
         )
-        proof = persisted.get("direct_source_proof")
-        if not isinstance(proof, dict):
-            proof = persisted_identity.get("direct_source_proof")
-        if not isinstance(proof, dict) and isinstance(
-                persisted_structured, dict):
-            proof = persisted_structured.get("direct_source_proof")
+        proof = resolve_direct_source_proof(persisted)
         checks.update(strict_workdrive_proof_checks(
             proof=proof,
             identity=persisted_identity,
@@ -825,6 +1092,7 @@ def evaluate(
         "checks": checks,
         "all_pass": all(checks.values()),
         "async_delivery": bool(async_ack),
+        "direct_delivery": bool(direct_delivery_mode),
         "outcomes": rows,
         "foreign_files": foreign_files,
         "reply_length": len(reply),
@@ -921,12 +1189,13 @@ def build_report(
     expected_sha256: str = "",
     r3: Optional[Dict[str, Any]] = None,
     state_after_3: Optional[Dict[str, Any]] = None,
+    direct_delivery: bool = False,
 ) -> Dict[str, Any]:
     report = evaluate(
         identity_before, identity_after, r1, r2, steps, trace_meta,
         state_after_1, state_after_2, expected_revision, outage_mode,
         strict_workdrive_proof, expected_resource_id, expected_sha256,
-        r3, state_after_3,
+        r3, state_after_3, direct_delivery,
     )
     report["outage_mode"] = outage_mode
     report["strict_workdrive_proof"] = bool(strict_workdrive_proof)
@@ -1048,6 +1317,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 args.expected_sha256,
                 r3,
                 state_after_3,
+                getattr(args, "direct_delivery", False),
             )
             report["auth"] = auth_report(auth_meta, session_identity)
             report["polled_state_after_turn2"] = polled_state_after_2
@@ -1135,8 +1405,28 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--expected-sha256", default="",
         help="exact SHA-256 of the downloaded bytes the proof must carry",
     )
+    parser.add_argument(
+        "--direct-delivery",
+        action="store_true",
+        help=(
+            "accept the issue-620 direct-delivery shape: turn 1 already "
+            "delivered the retrieved result, turns 2 and 3 re-deliver the "
+            "byte-identical saved answer, and the formatter's coverage/source "
+            "claims must match the persisted record. Implies "
+            "--strict-workdrive-proof and requires --expected-resource-id "
+            "and --expected-sha256"
+        ),
+    )
     parser.add_argument("--output", default="")
-    return asyncio.run(main_async(parser.parse_args(argv)))
+    args = parser.parse_args(argv)
+    if args.direct_delivery:
+        if not args.expected_resource_id or not args.expected_sha256:
+            parser.error(
+                "--direct-delivery requires --expected-resource-id and "
+                "--expected-sha256"
+            )
+        args.strict_workdrive_proof = True
+    return asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":
