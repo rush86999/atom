@@ -114,7 +114,7 @@ def _uploaded_step(
     return {
         "step_id": step_id,
         "adapter": "document.text",
-        "status": "waiting",
+        "status": "applied",
         "inputs": {
             "resource_binding": _binding(identity),
             "path": path or str(canonical),
@@ -198,6 +198,9 @@ def test_missing_or_wrong_identity_fails_closed(driver, tmp_path):
     def empty_path(step):
         step["inputs"]["path"] = ""
 
+    def parked_source(step):
+        step["status"] = "waiting"
+
     cases = [
         (drop_binding, "resource_binding"),
         (wrong_resource, "binding.resource_id"),
@@ -208,6 +211,7 @@ def test_missing_or_wrong_identity_fails_closed(driver, tmp_path):
         (wrong_user, "binding.access_scope_user"),
         (missing_verification, "result.verification_status"),
         (empty_path, "inputs.path_canonical"),
+        (parked_source, "step_status"),
     ]
     for mutate, expected in cases:
         step = _uploaded_step(identity, upload_root)

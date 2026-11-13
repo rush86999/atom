@@ -250,6 +250,7 @@ class MessageEvidence(BaseModel):
 
 class ResourceBinding(BaseModel):
     resource_id: str
+    document_id: str = ""
     dataset_name: str = ""
     source: str = ""
     source_kind: str = ""

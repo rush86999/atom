@@ -2506,6 +2506,8 @@ class AssignmentExecutor:
         the source step. This method never silently substitutes a replacement
         version.
         """
+        from core.assignment_resources import uploaded_document_id
+
         provenance = assignment.get("provenance") or {}
         context = {
             "workspace_id": (
@@ -2539,11 +2541,7 @@ class AssignmentExecutor:
                     binding, step, code="resource_binding_missing",
                     detail="the applied source step has no typed binding",
                     access=True)
-            document_id = str(
-                binding.get("document_id")
-                or (binding.get("resource_id")
-                    if str(binding.get("source") or "").lower() == "upload"
-                    else "") or "")
+            document_id = uploaded_document_id(binding)
             expected = str(
                 binding.get("source_version")
                 or result.get("source_version") or "")
@@ -10032,7 +10030,8 @@ async def _document_text_read(
     binding = inputs.get("resource_binding") if isinstance(
         inputs.get("resource_binding"), dict) else {}
     document_id = str(
-        binding.get("resource_id") or inputs.get("document_id") or "").strip()
+        binding.get("document_id") or binding.get("resource_id")
+        or inputs.get("document_id") or "").strip()
     path = str(inputs.get("path") or binding.get("path") or "").strip()
     if path and os.path.isfile(path):
         result = await _document_read(inputs, context)

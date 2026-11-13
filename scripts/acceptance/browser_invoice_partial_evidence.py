@@ -430,8 +430,9 @@ def _source_identity_mismatches(
         upload_root: Path, user_id: str) -> List[str]:
     """Every way a persisted source step differs from the upload.
 
-    Empty means the step is the exact uploaded source. Missing shape is a
-    mismatch, never a pass.
+    Empty means the step is the exact uploaded source AND the read applied;
+    a parked/waiting step is not acceptance. Missing shape is a mismatch,
+    never a pass.
     """
     doc_id = str(identity.get("document_id") or "")
     file_type = str(identity.get("file_type") or "")
@@ -444,6 +445,8 @@ def _source_identity_mismatches(
         return ["step"]
     if str(step.get("adapter") or "") != "document.text":
         return ["adapter"]
+    if step.get("status") != "applied":
+        return ["step_status"]
     inputs = step.get("inputs")
     if not isinstance(inputs, dict):
         return ["inputs"]
