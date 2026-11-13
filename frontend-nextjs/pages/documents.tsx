@@ -4,9 +4,15 @@ import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Upload, FileText, CheckCircle, AlertCircle, Search, RefreshCw, File } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Search, RefreshCw, File, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
+import {
+    deleteDocument,
+    deleteFailureMessage,
+    deleteSuccessMessage,
+    DocumentDeleteError,
+} from '../lib/document-delete';
 import { useProductProfile } from '../lib/product-profile';
 
 const PAGE_SIZE = 100;
@@ -35,6 +41,12 @@ export default function DocumentsPage() {
     const [offset, setOffset] = useState(0);
     const [total, setTotal] = useState(0);
     const [hasMore, setHasMore] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    // `unreconciledIds` are documents whose deletion came back partial or
+    // unknown. The mutation must not be repeated blindly, so their delete
+    // control stays disabled until the user refreshes the list.
+    const [unreconciledIds, setUnreconciledIds] = useState<string[]>([]);
+    const [deleteNotice, setDeleteNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
     const requestSeq = useRef(0);
 
     const fetchDocuments = useCallback(async (nextOffset: number) => {
@@ -120,6 +132,56 @@ export default function DocumentsPage() {
             setIsUploading(false);
         }
     }, [fetchDocuments]);
+
+    const dropDocumentLocally = useCallback((docId: string) => {
+        setDocuments((current) => current.filter((item) => item.id !== docId));
+        setTotal((current) => Math.max(0, current - 1));
+        setUnreconciledIds((current) => current.filter((id) => id !== docId));
+    }, []);
+
+    const handleDelete = useCallback(async (event: React.MouseEvent, doc: any) => {
+        // The card itself opens the document; a delete must not navigate.
+        event.stopPropagation();
+        if (deletingId) return;
+        if (!window.confirm(`Delete "${doc.title}"? This removes its searchable text and cannot be undone.`)) {
+            return;
+        }
+
+        setDeletingId(doc.id);
+        setDeleteNotice(null);
+        try {
+            const receipt = await deleteDocument(doc.id);
+            dropDocumentLocally(doc.id);
+            const message = deleteSuccessMessage(receipt.outcome);
+            setDeleteNotice({ tone: 'success', message });
+            toast.success(message);
+            // Re-fetch the current page so rows shifted in from the next page
+            // are shown. The existing offset-fallback effect handles the case
+            // where this was the last row on a later page.
+            void fetchDocuments(offset);
+        } catch (error) {
+            const failure = error instanceof DocumentDeleteError
+                ? error
+                : new DocumentDeleteError({ outcome: 'unknown' });
+            if (failure.outcome === 'not_found') {
+                // Definitively absent: the row is stale, so drop it. This is
+                // not a claim that this request deleted it.
+                dropDocumentLocally(doc.id);
+            } else if (failure.outcome === 'partial' || failure.outcome === 'unknown') {
+                // Unknown effect: keep the row and disable its delete control.
+                setUnreconciledIds((current) =>
+                    current.includes(doc.id) ? current : [...current, doc.id],
+                );
+            }
+            // No automatic retry and no refetch for partial/unknown — the
+            // backend marks the operation do_not_repeat. Refreshing is the
+            // user's explicit reconciliation step.
+            setDeleteNotice({ tone: 'error', message: deleteFailureMessage(failure.outcome) });
+            toast.error(failure.outcome === 'failed' ? 'Delete failed' : 'Deletion not confirmed');
+        } finally {
+            setDeletingId(null);
+        }
+    }, [deletingId, dropDocumentLocally, fetchDocuments, offset]);
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -320,6 +382,24 @@ export default function DocumentsPage() {
                         </Button>
                     </div>
 
+                    {deleteNotice && (
+                        <div
+                            data-testid="documents-delete-notice"
+                            role={deleteNotice.tone === 'error' ? 'alert' : 'status'}
+                            className={`flex items-start gap-3 rounded-md p-3 text-sm ${deleteNotice.tone === 'success'
+                                ? 'bg-green-500/10 text-green-600'
+                                : 'bg-destructive/10 text-destructive'
+                                }`}
+                        >
+                            {deleteNotice.tone === 'success' ? (
+                                <CheckCircle className="h-5 w-5 shrink-0" />
+                            ) : (
+                                <AlertCircle className="h-5 w-5 shrink-0" />
+                            )}
+                            <p className="font-medium">{deleteNotice.message}</p>
+                        </div>
+                    )}
+
                     {docsError ? (
                         <Card data-testid="documents-error">
                             <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
@@ -376,7 +456,28 @@ export default function DocumentsPage() {
                                             <CardTitle className="text-sm font-medium leading-none truncate pr-4">
                                                 {doc.title}
                                             </CardTitle>
-                                            <File className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                                            <div className="flex items-center gap-1">
+                                                <File className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                                    aria-label={`Delete ${doc.title}`}
+                                                    title={unreconciledIds.includes(doc.id)
+                                                        ? 'Deletion not verified — refresh the list before trying again'
+                                                        : 'Delete document'}
+                                                    data-testid={`delete-document-${doc.id}`}
+                                                    disabled={deletingId !== null || unreconciledIds.includes(doc.id)}
+                                                    onClick={(event) => void handleDelete(event, doc)}
+                                                >
+                                                    {deletingId === doc.id ? (
+                                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </div>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="text-xs text-muted-foreground line-clamp-3 mb-4">
