@@ -359,6 +359,22 @@ const nextConfig = {
         source: "/api/auth/change-password",
         destination: "http://127.0.0.1:8000/api/auth/change-password",
       },
+      // WA-075: 2FA endpoints are Python-only, but pages/api/auth/[...nextauth].ts
+      // is a dynamic catchall that would swallow /api/auth/2fa/* before the
+      // fallback rewrite could reach it. Enumerate them exactly in afterFiles
+      // (which runs BEFORE dynamic routes); never broaden to /api/auth/:path*.
+      {
+        source: "/api/auth/2fa/setup",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/setup",
+      },
+      {
+        source: "/api/auth/2fa/enable",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/enable",
+      },
+      {
+        source: "/api/auth/2fa/disable",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/disable",
+      },
       {
         source: "/api/atom/:path*",
         destination: "http://127.0.0.1:8000/api/atom/:path*",
