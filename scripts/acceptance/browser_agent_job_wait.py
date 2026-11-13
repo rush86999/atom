@@ -34,9 +34,11 @@ model quality or general judgment.
 Scenario (one job, no second job):
   login -> enabled agent Run objective -> durable question 1 -> real backend
   and frontend restart while waiting -> same job answer -> question 2 ->
+  partial-reply and stale-answer refusals (the second wait stays pending) ->
   page reload -> same job answer -> real registered ``tasks.create`` /
-  default oracle -> one durable BoardTask. Duplicate-answer and stale-answer
-  negatives run on the same job; no separate cancelled-job is created.
+  default oracle -> one durable BoardTask. Duplicate-answer, partial-reply
+  (blank material) and stale-answer negatives run on the same job; no
+  separate cancelled-job is created.
 
 Usage
 -----
@@ -1705,6 +1707,38 @@ def _post_answer(api: Any, agent_id: str, job_id: str, answer: str,
     }
 
 
+def _post_partial_answer(api: Any, agent_id: str, job_id: str,
+                         answer: str, correlation_id: str) -> Dict[str, Any]:
+    """Submit an incomplete reply aimed at the current wait.
+
+    The reply names the current wait but carries no usable answer material
+    (blank after trimming). It is a partial reply, not a fact: the route must
+    refuse it before acceptance and leave the same wait pending.
+    """
+    response = api.post(
+        f"/api/agents/{agent_id}/jobs/{job_id}/answer",
+        json={"answer": answer, "correlation_id": correlation_id})
+    try:
+        body = response.json()
+    except Exception:
+        body = {}
+    detail = body.get("detail")
+    code = body.get("code")
+    if isinstance(detail, dict):
+        code = code or detail.get("code")
+        detail = {str(key): _cap(value, 300)
+                  for key, value in detail.items()}
+    elif isinstance(detail, list):
+        detail = [_cap(item, 300) for item in detail]
+    return {
+        "status": response.status_code,
+        "success": body.get("success"),
+        "code": code if isinstance(code, str) else None,
+        "detail": detail if isinstance(detail, (str, dict, list)) else None,
+        "data": body.get("data") or {},
+    }
+
+
 def _wait_for_text(page: Any, selector: str, predicate: Any,
                    timeout_s: float = 180.0, label: str = "text") -> str:
     end = time.time() + timeout_s
@@ -2411,6 +2445,65 @@ def _run_scenario(args: argparse.Namespace) -> int:
                             "waits": waits_after_first,
                             "shim_calls": shim3["calls"]})
                 _screenshot(page, out, "03_second_question.png")
+
+                # ---- partial-reply negative (same second wait) ----
+                # A reply that names the current wait but carries only a blank
+                # answer is incomplete, not a fact. It must be refused before
+                # acceptance so the second wait stays pending with no
+                # continuation or effect.
+                calls_before_partial = shim3["calls"]
+                partial = _post_partial_answer(
+                    api, fixture["agent_id"], job_id, "   ",
+                    str(wait3.get("correlation_id") or ""))
+                job_after_partial = _read_job(api, fixture["agent_id"], job_id)
+                wait_after_partial = (
+                    job_after_partial["data"].get("wait") or {})
+                shim_after_partial = _shim_snapshot(args.shim_port)
+                state_after_partial = _durable_state(
+                    db_path, fixture["agent_id"], job_id, execution_id,
+                    fixture["board_id"])
+                step("partial_reply_refused", {
+                    "http_422": partial["status"] == 422,
+                    "answer_material_required": (
+                        partial.get("code") == "answer_or_source_required"),
+                    "job_still_waiting": (
+                        job_after_partial["data"].get("job_status")
+                        == "waiting"),
+                    "same_second_wait": (
+                        wait_after_partial.get("id") == wait3.get("id")),
+                    "same_correlation": (
+                        wait_after_partial.get("correlation_id")
+                        == wait3.get("correlation_id")),
+                    "question_unchanged": (
+                        wait_after_partial.get("question") == Q2),
+                    "ui_question_unchanged": (
+                        page.locator('[data-testid="agent-job-question"]')
+                        .inner_text().strip() == Q2),
+                    "two_wait_rows": len(state_after_partial["waits"]) == 2,
+                    "second_wait_pending": (
+                        len(state_after_partial["waits"]) == 2
+                        and state_after_partial["waits"][1].get("status")
+                        == "pending"),
+                    "no_provider_call": (
+                        shim_after_partial["calls"] == calls_before_partial),
+                    "no_task_created": (
+                        state_after_partial["counts"][
+                            "tasks_on_scratch_board"] == 0),
+                    "no_second_job": (
+                        state_after_partial["counts"]["jobs_for_agent"] == 1),
+                    "no_completion": page.locator(
+                        '[data-testid="agent-job-completed"]').count() == 0,
+                }, details={
+                    "response_status": partial["status"],
+                    "response_detail": partial["detail"],
+                    "partial_material": (
+                        "blank answer material aimed at the current second "
+                        "wait; refused before acceptance"),
+                    "ui_note": (
+                        "The panel disables Send for blank material; the "
+                        "API-level 422 is the authoritative partial-reply "
+                        "control."),
+                })
 
                 # ---- stale-answer negative (same job, no second job) ----
                 calls_before_stale = shim3["calls"]
