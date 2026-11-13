@@ -85,8 +85,8 @@
           "arguments": {
             "thought": "No authorized fact or verified action result is present yet. Ask for the exact title before creating anything.",
             "information_wait": {
-              "question": "What title should the closing task have?",
-              "missing_fact": "task title",
+              "question": "What title and priority should the closing task have?",
+              "missing_fact": "task title and priority",
               "subject": "closing task"
             }
           }

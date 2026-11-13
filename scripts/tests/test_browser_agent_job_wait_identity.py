@@ -301,3 +301,40 @@ def test_source_binding_returns_real_consumer_checks(driver, tmp_path):
     assert all(isinstance(value, bool) for value in binding["checks"].values())
     assert binding["ok"] == all(binding["checks"].values())
     assert binding["checks"]["git_blob_bytes_match_export"] is True
+
+
+def test_genuine_partial_reply_fixture_asks_both_then_remaining(driver):
+    """The authored first wait must request BOTH facts, while the UI reply
+    supplies only the title so the same durable job must ask for priority.
+
+    This is the fixture half of the genuine-partial-reply acceptance; the
+    browser driver proves the durable effect. No provider or DB is touched.
+    """
+    doc = driver._fill_fixture({
+        "__BOARD_ID__": "board-unit",
+        "__COLUMN_ID__": "column-unit",
+        "__TITLE_ANSWER__": driver.TITLE_ANSWER,
+        "__PRIORITY_ANSWER__": driver.PRIORITY_ANSWER,
+    })
+    parsed = [
+        driver.ReActStep.model_validate(entry["response"]["tool_call"]["arguments"])
+        for entry in doc["responses"]
+    ]
+    waits = [step.information_wait for step in parsed
+             if step.information_wait is not None]
+    first = next(wait for wait in waits
+                 if wait.missing_fact == driver.Q1_MISSING_FACT)
+    remaining = next(wait for wait in waits
+                     if wait.missing_fact == driver.Q2_MISSING_FACT)
+    assert "title" in first.question.lower()
+    assert "priority" in first.question.lower()
+    assert first.missing_fact == driver.Q1_MISSING_FACT
+    assert remaining.question == driver.Q2
+    assert remaining.missing_fact == driver.Q2_MISSING_FACT
+
+    # The reply the signed-in UI submits is a real partial reply: it supplies
+    # the title and omits the remaining priority fact.
+    assert driver.PARTIAL_ANSWER == driver.TITLE_ANSWER
+    assert driver.TITLE_ANSWER in driver.PARTIAL_ANSWER
+    assert driver.PRIORITY_ANSWER.lower() not in driver.PARTIAL_ANSWER.lower()
+    assert driver.Q1_MISSING_FACT != driver.Q2_MISSING_FACT
