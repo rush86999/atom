@@ -17,6 +17,63 @@ from pathlib import Path
 from typing import Dict, List
 
 
+#: Authored completions may need values that only exist in the request --
+#: notably the opaque lifecycle observation ids a replan must cite. Author
+#: ``"observation_ids": {OBSERVATION_IDS}`` inside the completion text and
+#: this shim substitutes the JSON array parsed from the prompt's OBSERVATIONS
+#: block. The substitution is a raw JSON fragment (not a quoted string), so
+#: the script can compose a valid completion without guessing per-run ids.
+OBSERVATION_IDS_PLACEHOLDER = "{OBSERVATION_IDS}"
+
+
+def prompt_observation_ids(prompt: str) -> List[str]:
+    """The observation ids named by a request's trailing OBSERVATIONS block.
+
+    Adaptation and compact prompts end with ``OBSERVATIONS:\\n<json list>``;
+    a repair prompt appends validation text after it. ``raw_decode`` reads the
+    first JSON value and ignores that appended text, so a repair call binds the
+    same handles as the call it repairs. An empty result means the caller must
+    fail closed instead of serving a proposal that cites no observation.
+    """
+    marker = "OBSERVATIONS:"
+    text = str(prompt or "")
+    index = text.rfind(marker)
+    if index < 0:
+        return []
+    try:
+        observations, _end = json.JSONDecoder().raw_decode(
+            text[index + len(marker):].lstrip())
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(observations, list):
+        return []
+    ids: List[str] = []
+    for item in observations:
+        if not isinstance(item, dict):
+            continue
+        observation_id = str(item.get("observation_id") or "").strip()
+        if observation_id and observation_id not in ids:
+            ids.append(observation_id)
+    return ids
+
+
+def bind_prompt_observation_ids(content: str, prompt: str) -> str:
+    """Bind ``{OBSERVATION_IDS}`` to the request's own opaque handles.
+
+    Raises when a script uses the placeholder but the prompt carries no
+    observations: serving the literal token (or an empty list) would look
+    like a valid completion and only fail later at adoption.
+    """
+    if OBSERVATION_IDS_PLACEHOLDER not in content:
+        return content
+    ids = prompt_observation_ids(prompt)
+    if not ids:
+        raise ValueError(
+            f"scripted response uses {OBSERVATION_IDS_PLACEHOLDER} but the "
+            "request names no observation ids")
+    return content.replace(OBSERVATION_IDS_PLACEHOLDER, json.dumps(ids))
+
+
 def load_script(path: Path) -> Dict[Any, Any]:
     """Index the authored responses for selection.
 
@@ -247,6 +304,18 @@ class Handler(BaseHTTPRequestHandler):
         # like "the shim was never reached".
         if isinstance(content, str):
             content = content.replace("{NONCE}", nonce)
+            try:
+                content = bind_prompt_observation_ids(content, last_user)
+            except ValueError as exc:
+                # The script asked for prompt-bound observation ids and this
+                # request has none. Serving the unbound completion would look
+                # valid and fail only at adoption, so refuse at the wire.
+                self.send_response(502)
+                self._cors()
+                self.wfile.write(json.dumps({"error": {"message":
+                    f"shim: {exc}", "type": "invalid_request_error"}}
+                ).encode())
+                return
         completion_id = nonce
         served_head = (json.dumps(content)[:200] if not isinstance(content, str)
                        else content[:200])

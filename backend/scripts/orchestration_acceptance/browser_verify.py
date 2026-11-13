@@ -51,6 +51,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlsplit
 
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
@@ -202,6 +203,24 @@ def seed_session(page: Any, base: str, token: str, email: str = "admin@example.c
     )
 
 
+def login_landed(url: str, token_present: bool) -> bool:
+    """Whether the real login form produced an authenticated app session.
+
+    "Not /login" alone is not proof: NextAuth's failure redirect
+    (/api/auth/error) has exactly that shape. Observed live in invoice run4 —
+    the step recorded landed_off_login=True while the browser had no
+    auth_token, so the run continued without a session. The app's own client
+    writes localStorage auth_token only after establishWebSession succeeds,
+    so require both the persisted bearer and an ordinary app page.
+    """
+    if not token_present:
+        return False
+    path = urlsplit(str(url)).path.rstrip("/") or "/"
+    if path == "/login":
+        return False
+    return not path.startswith("/api/auth")
+
+
 def ui_login(page: Any, base: str, email: str, password: str) -> Dict[str, Any]:
     """Drive the real login form. Used when a password is supplied."""
     out: Dict[str, Any] = {"attempted": True, "ok": False}
@@ -212,11 +231,22 @@ def ui_login(page: Any, base: str, email: str, password: str) -> Dict[str, Any]:
                   email, timeout=15000)
         page.fill('input[type="password"]', password, timeout=15000)
         page.click('button[type="submit"]', timeout=15000)
-        page.wait_for_timeout(6000)
+        # persistBackendToken runs only after the SDK's credential round-trip
+        # succeeds; poll for that instead of sampling once at a fixed delay.
+        try:
+            page.wait_for_function(
+                "() => Boolean(localStorage.getItem('auth_token')) && "
+                "location.pathname !== '/login'",
+                timeout=20000)
+        except Exception:
+            pass
         out["landed_url"] = page.url
-        out["ok"] = "/login" not in page.url
         tok = page.evaluate("() => localStorage.getItem('auth_token')")
         out["token_present_after_login"] = bool(tok)
+        out["ok"] = login_landed(out["landed_url"], bool(tok))
+        error = page.locator('[data-testid="login-error-message"]')
+        if error.count():
+            out["error_message"] = error.first.inner_text(timeout=2000)[:300]
     except Exception as exc:
         out["error"] = f"{type(exc).__name__}: {exc}"[:300]
     return out

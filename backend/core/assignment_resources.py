@@ -38,6 +38,38 @@ class AssignmentResourceError(ValueError):
         super().__init__(message)
 
 
+#: Integration labels the product uses for user-supplied document bytes.
+#: ``manual_upload`` is the current upload route; ``upload`` is retained for
+#: older/generic source answers.
+UPLOAD_SOURCE_NAMES = frozenset({"upload", "manual_upload"})
+
+
+def is_upload_source(value: Any) -> bool:
+    return str(value or "").strip().lower() in UPLOAD_SOURCE_NAMES
+
+
+def uploaded_document_id(binding: Dict[str, Any]) -> str:
+    """The IngestedDocument identity an uploaded-source binding names.
+
+    New bindings carry ``document_id`` explicitly. Bindings persisted before
+    that field existed carry the same id in ``resource_id`` with a
+    document-text representation; only upload-family sources use that
+    fallback, so a materialized workbook/dataset entry is never mistaken for
+    an uploaded document.
+    """
+    if not isinstance(binding, dict):
+        return ""
+    explicit = str(
+        binding.get("document_id")
+        or binding.get("ingested_document_id") or "").strip()
+    if explicit:
+        return explicit
+    if (is_upload_source(binding.get("source"))
+            and str(binding.get("representation") or "") == "document_text"):
+        return str(binding.get("resource_id") or "").strip()
+    return ""
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -372,6 +404,9 @@ def resource_binding(source: Dict[str, Any]) -> Dict[str, Any]:
     """The typed, path-free binding persisted with the plan."""
     return {
         "resource_id": source.get("resource_id"),
+        "document_id": (
+            source.get("document_id")
+            or source.get("ingested_document_id")),
         "dataset_name": source.get("dataset_name"),
         "source": source.get("source"),
         "source_kind": source.get("source_kind"),
@@ -428,11 +463,13 @@ def recheck_resource_access(
                 "The controlled fixture path is no longer enabled.", status=403)
         return dict(binding)
     reference = {
+        "document_id": uploaded_document_id(binding),
         "dataset_name": binding.get("dataset_name"),
         "source": binding.get("source"),
         "external_id": binding.get("external_id"),
         "sheet": binding.get("sheet"),
         "source_version": binding.get("source_version"),
+        "representation": binding.get("representation"),
         "kind": "workbook",
     }
     resolved = resolve_assignment_source(

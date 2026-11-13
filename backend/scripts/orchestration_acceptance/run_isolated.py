@@ -369,6 +369,14 @@ SERVER_ENV_WHITELIST = {
     # frontend is rejected before any case logic runs. Harness-only names —
     # the product reads them exactly as main_api_app always has.
     "ADDITIONAL_ALLOWED_ORIGINS", "ALLOWED_HOSTS",
+    # Assignment evidence acceptance: the ordinary browser driver creates an
+    # objective from controlled files under ITS scratch world and pins the
+    # employee consumer to the loopback shim. These are explicit harness
+    # settings (no credential), forwarded only when the caller sets them.
+    "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS",
+    "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT",
+    "ATOM_EMPLOYEE_PROVIDER_MODEL",
+    "ATOM_EMPLOYEE_ADVANCE_DEADLINE_SECONDS",
 }
 
 # Value-free .env / .env.local shadows installed inside every world before
