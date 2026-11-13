@@ -128,11 +128,20 @@ class TestGeminiProviderInitialization:
             mock_response.choices = [MagicMock()]
             mock_response.choices[0].message.content = "Test vision description"
             mock_client.chat.completions.create.return_value = mock_response
+            # The dispatch clones the client with max_retries=0; keep the
+            # configured transport on the clone for this unit test.
+            mock_client.with_options.return_value = mock_client
 
             os.environ["GOOGLE_API_KEY"] = "test-key"
 
             try:
                 handler = BYOKHandler(workspace_id="test", tenant_id="test")
+                # This test isolates vision coordination from tenant billing
+                # policy: the auxiliary dispatch now fails closed when a
+                # tenant has no readable billing policy (covered explicitly by
+                # tests/test_goal9_vision_attempts.py). Keep workspace
+                # attribution, drop the unseeded tenant scope.
+                handler.tenant_id = None
                 handler.clients["gemini"] = mock_client
 
                 # Test that the method doesn't crash with undefined variable
