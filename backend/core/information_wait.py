@@ -28,9 +28,78 @@ _QUESTION_LIMIT = 400
 _FACT_LIMIT = 200
 _SUBJECT_LIMIT = 200
 
+# Owner-set, absolute job deadline. Stored as an ISO string in the existing
+# ``AgentJob.result_summary`` JSON (additive key, no schema migration). It is
+# absolute: waiting time and restarts never extend it. A job without this key
+# keeps the legacy behavior exactly (no sweep, no deadline projection).
+DEADLINE_FIELD = "deadline"
+WAITING_SINCE_FIELD = "waiting_since"
+DEADLINE_EXCEEDED_OUTCOME = "expired"
+DEADLINE_EXCEEDED_REASON = "wait_deadline_exceeded"
+DEADLINE_EXCEEDED_NEXT_ACTION = "review_deadline"
+
 
 def _bounded(value: Any, limit: int) -> str:
     return str(value or "").strip()[:limit]
+
+
+def parse_deadline(value: Any) -> Optional[datetime]:
+    """Parse an ISO deadline using the shared GoalRun wait parser.
+
+    Returns ``None`` for an absent/unparseable value. Callers that accept a
+    deadline as input reject ``None``; read projections fail open (an old or
+    malformed row is not bricked).
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        from core.goals.goal_run_events import _parse_deadline
+
+        return _parse_deadline(value)
+    except Exception:  # noqa: BLE001 - malformed read must not crash a job
+        return None
+
+
+def canonical_deadline(value: Any) -> Optional[str]:
+    """Return a canonical UTC ISO deadline string, or ``None`` if invalid."""
+    parsed = parse_deadline(value)
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
+def deadline_passed(payload: Any, *, now: Optional[datetime] = None) -> bool:
+    """True only when a valid absolute deadline has been reached.
+
+    No/malformed deadline means "no deadline" (fail open on read), preserving
+    legacy waits. Callers that write a deadline validate it at admission.
+    """
+    if not isinstance(payload, dict):
+        return False
+    parsed = parse_deadline(payload.get(DEADLINE_FIELD))
+    if parsed is None:
+        return False
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return current >= parsed
+
+
+def waiting_age_seconds(
+    payload: Any, *, now: Optional[datetime] = None,
+) -> Optional[int]:
+    """Elapsed seconds since this job entered its current wait."""
+    if not isinstance(payload, dict):
+        return None
+    since = parse_deadline(payload.get(WAITING_SINCE_FIELD))
+    if since is None:
+        return None
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return max(0, int((current - since).total_seconds()))
 
 
 def is_information_wait_action(action_type: Any) -> bool:
@@ -616,6 +685,7 @@ async def _recover_one_accepted_wait(action_id: str) -> Dict[str, Any]:
     from core.database import SessionLocal
 
     session = SessionLocal()
+    due = False
     try:
         action = session.get(HITLAction, str(action_id))
         if action is None:
@@ -633,6 +703,11 @@ async def _recover_one_accepted_wait(action_id: str) -> Dict[str, Any]:
             return {"status": "refused", "reason": reason}
         job_status = str(job.status or "")
         payload = _json_object(job.result_summary)
+        # Accepted input is not a deadline extension. A fact accepted before
+        # downtime must not revive a job whose absolute deadline elapsed while
+        # the service was offline (the boot sweep runs first, and this guard
+        # keeps a direct recovery caller from bypassing that rule).
+        due = deadline_passed(payload)
         claim = payload.get("resume_claim")
         claim = dict(claim) if isinstance(claim, dict) else {}
         claimed_here = (
@@ -643,6 +718,16 @@ async def _recover_one_accepted_wait(action_id: str) -> Dict[str, Any]:
         session.close()
 
     binding["action_id"] = str(action_id)
+    if due:
+        expired = expire_waiting_job(
+            binding["job_id"], action_id=str(action_id))
+        return {
+            "status": "skipped",
+            "reason": DEADLINE_EXCEEDED_REASON,
+            "job_id": binding["job_id"],
+            "execution_id": binding["execution_id"],
+            "expired": bool(expired.get("expired")),
+        }
     if job_status in _WAITING_JOB_STATUSES:
         from api.agent_routes import resume_information_wait_action
         from core.database import engine
@@ -686,6 +771,326 @@ def _current_wait_action_id(payload: Dict[str, Any]) -> str:
     if isinstance(claim, dict):
         return str(claim.get("action_id") or "")
     return ""
+
+
+_WAIT_TERMINAL_STATUSES = frozenset({
+    HITLActionStatus.EXPIRED.value,
+    HITLActionStatus.REJECTED.value,
+})
+_EXECUTION_LIVE_STATUSES = frozenset({"running", "paused"})
+
+
+def expire_waiting_job(
+    job_id: str, *, bind=None, now: Optional[datetime] = None,
+    action_id: Optional[str] = None, db_session=None,
+) -> Dict[str, Any]:
+    """Atomically expire one waiting job whose absolute deadline has passed.
+
+    The job, the current wait row and the waiting execution are CAS-settled in
+    one transaction. A live/unknown running execution is never failed by the
+    sweep. Returns a truthful detail dict; a missing/undue/concurrently changed
+    row reports ``expired: False`` and changes nothing.
+
+    ``db_session`` may supply the caller's already-open Session (the approval
+    routes use it to keep the decision and the expiry in one transaction);
+    otherwise the function owns and closes its session.
+    """
+    from sqlalchemy import update
+    from sqlalchemy.orm import Session
+
+    from core.models import AgentExecution, AgentJob, HITLAction
+
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    expired_at = current.isoformat()
+    owns_session = db_session is None
+    session = db_session
+    if session is None:
+        session = Session(bind=bind) if bind is not None else None
+    if session is None:
+        from core.database import SessionLocal
+
+        session = SessionLocal()
+    try:
+        job = session.get(AgentJob, str(job_id))
+        if job is None:
+            return {"expired": False, "reason": "job_not_found",
+                    "job_id": str(job_id)}
+        if str(job.status or "") not in _WAITING_JOB_STATUSES:
+            return {"expired": False, "reason": "job_not_waiting",
+                    "job_id": str(job_id)}
+        payload = _json_object(job.result_summary)
+        if not deadline_passed(payload, now=current):
+            return {"expired": False, "reason": "deadline_not_passed",
+                    "job_id": str(job_id)}
+
+        resolved_action = str(
+            action_id or _current_wait_action_id(payload) or "")
+        execution_id = str(
+            payload.get("execution_id")
+            or payload.get("dispatch_execution_id") or "")
+        current_summary = job.result_summary
+
+        execution = (
+            session.get(AgentExecution, execution_id)
+            if execution_id else None)
+        execution_status = (
+            str(execution.status or "") if execution is not None else "")
+        if execution_status in _EXECUTION_LIVE_STATUSES:
+            return {
+                "expired": False,
+                "reason": "execution_live",
+                "job_id": str(job_id),
+                "execution_id": execution_id,
+            }
+
+        wait = (
+            session.get(HITLAction, resolved_action)
+            if resolved_action else None)
+        wait_status = (
+            str(wait.status or "") if wait is not None else "")
+        if wait is not None and wait_status not in (
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.APPROVED.value,
+            *_WAIT_TERMINAL_STATUSES,
+        ):
+            return {
+                "expired": False,
+                "reason": "wait_changed",
+                "job_id": str(job_id),
+                "action_id": resolved_action,
+            }
+
+        if execution is not None and execution_status == "waiting":
+            metadata = (
+                dict(execution.metadata_json)
+                if isinstance(execution.metadata_json, dict) else {})
+            metadata["expiry"] = {
+                "expired": True,
+                "expired_at": expired_at,
+                "reason": DEADLINE_EXCEEDED_REASON,
+                "deadline": payload.get(DEADLINE_FIELD),
+            }
+            settled = session.execute(
+                update(AgentExecution)
+                .where(
+                    AgentExecution.id == execution_id,
+                    AgentExecution.status == "waiting",
+                )
+                .values(
+                    status="failed",
+                    error_message=(
+                        "The owner-set absolute deadline for this job passed "
+                        "while it was waiting for information. No further "
+                        "work was started; review the deadline or start a new "
+                        "authorized run."),
+                    completed_at=current,
+                    metadata_json=metadata,
+                ))
+            if settled.rowcount != 1:
+                session.rollback()
+                return {
+                    "expired": False,
+                    "reason": "execution_changed_concurrently",
+                    "job_id": str(job_id),
+                    "execution_id": execution_id,
+                }
+
+        if wait is not None and wait_status in (
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.APPROVED.value,
+        ):
+            expired_wait = session.execute(
+                update(HITLAction)
+                .where(
+                    HITLAction.id == resolved_action,
+                    HITLAction.status.in_((
+                        HITLActionStatus.PENDING.value,
+                        HITLActionStatus.APPROVED.value,
+                    )),
+                )
+                .values(status=HITLActionStatus.EXPIRED.value))
+            if expired_wait.rowcount != 1:
+                session.rollback()
+                return {
+                    "expired": False,
+                    "reason": "wait_changed_concurrently",
+                    "job_id": str(job_id),
+                    "action_id": resolved_action,
+                }
+
+        payload.update({
+            "finished": True,
+            "waiting": False,
+            "status": "failed",
+            "outcome": DEADLINE_EXCEEDED_OUTCOME,
+            "reason": DEADLINE_EXCEEDED_REASON,
+            "next_action": DEADLINE_EXCEEDED_NEXT_ACTION,
+            "requires_reconciliation": False,
+            "expired_at": expired_at,
+            "deadline_passed": True,
+        })
+        settled_job = session.execute(
+            update(AgentJob)
+            .where(
+                AgentJob.id == str(job_id),
+                AgentJob.status.in_(tuple(_WAITING_JOB_STATUSES)),
+                AgentJob.result_summary == current_summary,
+            )
+            .values(
+                status="failed",
+                result_summary=json.dumps(payload, sort_keys=True),
+                end_time=current,
+            ))
+        if settled_job.rowcount != 1:
+            session.rollback()
+            return {
+                "expired": False,
+                "reason": "job_changed_concurrently",
+                "job_id": str(job_id),
+            }
+        session.commit()
+        return {
+            "expired": True,
+            "job_id": str(job_id),
+            "action_id": resolved_action or None,
+            "execution_id": execution_id or None,
+            "deadline": payload.get(DEADLINE_FIELD),
+            "expired_at": expired_at,
+        }
+    finally:
+        if owns_session:
+            session.close()
+
+
+def expire_information_wait_if_due(
+    action, *, bind=None, now: Optional[datetime] = None,
+    db_session=None,
+) -> Dict[str, Any]:
+    """Expire the job behind one information-wait row, if its deadline passed."""
+    if not is_information_wait_action(getattr(action, "action_type", None)):
+        return {"expired": False, "reason": "not_information_wait"}
+    snapshot = _json_object(getattr(action, "context_snapshot", None))
+    job_id = str(snapshot.get("job_id") or "")
+    if not job_id:
+        return {"expired": False, "reason": "wait_binding_missing"}
+    return expire_waiting_job(
+        job_id, bind=bind, now=now, action_id=str(action.id),
+        db_session=db_session)
+
+
+def expire_due_information_waits(
+    *, batch_size: int = 20, max_pages: int = 0, bind=None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Bounded, keyset-paged boot/maintenance pass over due waiting jobs.
+
+    Selection is ``AgentJob.status == waiting`` only; a job without a deadline
+    is scanned but never changed, so legacy waits keep their old behavior. The
+    page is committed/closed before each per-job CAS, avoiding a reader lock
+    across the writer transaction. Idempotent: a second pass finds nothing.
+    """
+    from sqlalchemy import func
+    from sqlalchemy.orm import sessionmaker
+
+    from core.models import AgentJob
+
+    batch_size = max(1, min(int(batch_size), 100))
+    max_pages = max(0, int(max_pages))
+    make_session = (
+        sessionmaker(bind=bind) if bind is not None
+        else None)
+
+    def _session():
+        if make_session is not None:
+            return make_session()
+        from core.database import SessionLocal
+
+        return SessionLocal()
+
+    summary: Dict[str, Any] = {
+        "pages": 0,
+        "scanned_jobs": 0,
+        "expired": 0,
+        "skipped": 0,
+        "errors": 0,
+        "complete": True,
+        "details": [],
+    }
+    session = _session()
+    try:
+        through_id = session.query(func.max(AgentJob.id)).filter(
+            AgentJob.status.in_(tuple(sorted(_WAITING_JOB_STATUSES)))
+        ).scalar()
+    finally:
+        session.close()
+    if through_id is None:
+        return summary
+
+    after_id = ""
+    complete = False
+    while max_pages == 0 or summary["pages"] < max_pages:
+        session = _session()
+        try:
+            jobs = (
+                session.query(AgentJob)
+                .filter(
+                    AgentJob.status.in_(tuple(sorted(_WAITING_JOB_STATUSES))),
+                    AgentJob.id > after_id,
+                    AgentJob.id <= str(through_id),
+                )
+                .order_by(AgentJob.id.asc())
+                .limit(batch_size)
+                .all()
+            )
+            page = [
+                (str(job.id), _json_object(job.result_summary))
+                for job in jobs
+            ]
+        finally:
+            session.close()
+        summary["pages"] += 1
+        summary["scanned_jobs"] += len(page)
+        for job_id, payload in page:
+            if not deadline_passed(payload, now=now):
+                continue
+            try:
+                detail = expire_waiting_job(
+                    job_id, bind=bind, now=now)
+            except Exception as exc:  # noqa: BLE001 - one row must not stop boot
+                logger.error(
+                    "Information wait deadline expiry failed for %s: %s",
+                    job_id, type(exc).__name__)
+                detail = {
+                    "expired": False,
+                    "reason": "expiry_error",
+                    "job_id": job_id,
+                }
+                summary["errors"] += 1
+            detail["job_id"] = job_id
+            summary["details"].append(detail)
+            if detail.get("expired"):
+                summary["expired"] += 1
+            else:
+                summary["skipped"] += 1
+        if len(page) < batch_size:
+            after_id = page[-1][0] if page else after_id
+            complete = True
+            break
+        after_id = page[-1][0]
+    summary["complete"] = complete
+    if not complete:
+        logger.warning(
+            "Information wait deadline expiry stopped at the page safety "
+            "limit: pages=%s scanned=%s", summary["pages"],
+            summary["scanned_jobs"])
+    if summary["expired"]:
+        logger.warning(
+            "Information wait deadline expiry: expired=%s skipped=%s "
+            "pages=%s complete=%s", summary["expired"], summary["skipped"],
+            summary["pages"], summary["complete"])
+    return summary
 
 
 def _eligible_accepted_page(

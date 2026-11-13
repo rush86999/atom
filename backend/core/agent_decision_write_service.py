@@ -1762,13 +1762,15 @@ def admit_agent_run(
     db: Session, *, actor: Any, agent_id: str,
     parameters: Optional[Dict[str, Any]] = None,
     operation_id: Optional[str] = None,
+    deadline: Any = None,
 ) -> Dict[str, Any]:
     """Admit one agent run before dispatch.
 
     The admission binds the current actor, exact agent material, a durable
     ``AgentJob`` row and one audit receipt. It does not execute the agent;
     the route dispatches the existing task only after this transaction
-    commits.
+    commits. An optional owner-set absolute ``deadline`` is validated here and
+    persisted in the existing job JSON so it survives a crash before dispatch.
     """
     authority = _resolve_actor(
         db, actor, minimum_role=UserRole.MEMBER,
@@ -1788,11 +1790,30 @@ def admit_agent_run(
             str(exc), http_status=422, error_code="VALIDATION_ERROR",
             field="operation_id")
 
+    from core.information_wait import canonical_deadline, parse_deadline
+
+    canonical = None
+    if deadline is not None and str(deadline).strip():
+        canonical = canonical_deadline(deadline)
+        if canonical is None:
+            return _refused(
+                "deadline must be a valid ISO-8601 timestamp",
+                http_status=422, error_code="VALIDATION_ERROR",
+                field="deadline")
+
     parameters = dict(parameters or {})
     parameters_digest = _fingerprint(
         "agent-run-parameters", _canonical(parameters))
-    request_digest = _fingerprint(
-        "agent-run-request", agent_id, parameters_digest)
+    # Legacy no-deadline admissions keep their exact historical digest (old
+    # replay receipts stay valid). A configured deadline is part of the
+    # request identity so a replay cannot silently reuse a different deadline.
+    if canonical is None:
+        request_digest = _fingerprint(
+            "agent-run-request", agent_id, parameters_digest)
+    else:
+        request_digest = _fingerprint(
+            "agent-run-request", agent_id, parameters_digest,
+            "deadline", canonical)
     expected_base = {
         "operation_id": operation_id,
         "schema": REVIEW_SCHEMA,
@@ -1808,6 +1829,23 @@ def admit_agent_run(
         success_data=_run_success_data(db))
     if replay is not None:
         return replay
+
+    # "Must be in the future" applies only to a NEW admission. An exact replay
+    # of a valid deadline that has since passed is still the same admitted
+    # job; refusing it would lose idempotency exactly when a client retries.
+    if canonical is not None:
+        parsed_deadline = parse_deadline(canonical)
+        now = datetime.now(timezone.utc)
+        if (
+            parsed_deadline is not None
+            and parsed_deadline.tzinfo is None
+        ):
+            parsed_deadline = parsed_deadline.replace(tzinfo=timezone.utc)
+        if parsed_deadline is not None and parsed_deadline <= now:
+            return _refused(
+                "deadline must be in the future",
+                http_status=422, error_code="VALIDATION_ERROR",
+                field="deadline")
 
     agent = _load_agent(db, agent_id)
     if agent is None or not _agent_visible(authority, agent):
@@ -1875,6 +1913,21 @@ def admit_agent_run(
             "The agent run could not be admitted; no effect was committed")
 
     job_id = str(uuid.uuid4())
+    job_material = {
+        "operation_id": operation_id,
+        "parameters_digest": parameters_digest,
+        # Server-owned maturity captured before the status CAS above.
+        # Dispatch re-reads this durable material; it is never inferred
+        # from the transient ``running`` row. ``None`` means only the
+        # restricted legacy ceiling was available, not a wider tier.
+        "governance_tier": governance_tier,
+        "governance_tier_source": governance_tier_source,
+        "prior_status": prior_status,
+    }
+    if canonical is not None:
+        # Owner-set absolute deadline. Additive key in the existing JSON; all
+        # later summary writers are read-modify-write and preserve it.
+        job_material["deadline"] = canonical
     job = AgentJob(
         id=job_id,
         tenant_id=(
@@ -1883,17 +1936,7 @@ def admit_agent_run(
             else authority["raw_tenant_id"]),
         agent_id=agent_id,
         status=AgentJobStatus.RUNNING.value,
-        result_summary=json.dumps({
-            "operation_id": operation_id,
-            "parameters_digest": parameters_digest,
-            # Server-owned maturity captured before the status CAS above.
-            # Dispatch re-reads this durable material; it is never inferred
-            # from the transient ``running`` row. ``None`` means only the
-            # restricted legacy ceiling was available, not a wider tier.
-            "governance_tier": governance_tier,
-            "governance_tier_source": governance_tier_source,
-            "prior_status": prior_status,
-        }, sort_keys=True),
+        result_summary=json.dumps(job_material, sort_keys=True),
     )
     db.add(job)
 
@@ -1916,6 +1959,7 @@ def admit_agent_run(
             "governance_tier": governance_tier,
             "governance_tier_source": governance_tier_source,
             "prior_status": prior_status,
+            **({"deadline": canonical} if canonical is not None else {}),
         })
     audit_row = _audit_row(expected=expected, actor=authority)
     return _commit_and_verify(

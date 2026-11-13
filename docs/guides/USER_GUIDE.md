@@ -68,6 +68,17 @@ Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed a
 
 Agents **graduate** automatically based on clean execution history (10/25/50 episodes for Bronze/Silver/Gold).
 
+#### Optional Information-Wait Deadlines
+
+When an agent run is missing information, it pauses and asks — the Agents page shows the question and lets you answer it. When starting a run, you can set an optional **deadline**: the latest time that run may still be waiting for missing information.
+
+- **Optional** — leave the deadline field blank and nothing is sent to the server; the run keeps its current behavior with no deadline.
+- **Time zone** — the deadline is always interpreted in your own local time zone (shown next to the field, e.g. *America/New_York*) and stored as one absolute UTC instant, so every viewer — including after a reload or restart — sees the same deadline. Past or invalid times are rejected before the run starts.
+- **It gates waiting, not execution** — a deadline does not cap how long the agent may work; it only closes the window for waiting on missing information. If the run reaches a wait after the deadline has passed, the job is recorded as expired instead of publishing a new question.
+- **Waiting timer** — while the job waits, the panel shows how long it has been waiting, measured on the server from the moment the job asked its question — refreshing shows the true age, not the time you have had the page open. A second question restarts the wait timer; your deadline, if you set one, does not move.
+- **Deadlines survive restarts** — a deadline is absolute and survives restarts. If the service is offline when a deadline passes, the job is expired at the next startup — before any answer saved just before shutdown can revive it — and a restart never extends a deadline.
+- **Late replies are refused** — once the deadline passes, the wait closes and can no longer be answered: a late answer or a late approval is refused and no decision is applied; the only way forward is to start a new run, with a later deadline if the information is still needed.
+
 ### 🎯 AI-Generated Workflow Automation
 
 **Describe the outcome. Atom builds and runs the workflow.**

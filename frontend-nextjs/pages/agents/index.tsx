@@ -71,6 +71,70 @@ const extractErrorMessage = (json: any, fallback: string): string => {
 // Cap the live-log buffer so a chatty agent can't grow page state unbounded.
 const MAX_LOG_LINES = 200;
 
+// A datetime-local input has no timezone: its value is wall-clock time in the
+// operator's own zone. The run API takes an absolute instant, so convert it
+// here, once, and reject impossible/past values before a run is admitted.
+// Returning no `deadline` key for a blank input is what keeps the field off
+// the request entirely (the legacy no-deadline run is unchanged).
+const LOCAL_DATETIME_RE =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+export const deadlineInputToUtc = (
+    raw: string,
+    nowMs: number = Date.now(),
+): { deadline?: string; error?: string } => {
+    const value = (raw || "").trim();
+    if (!value) return {};
+
+    const match = LOCAL_DATETIME_RE.exec(value);
+    if (!match) return { error: "Enter a valid date and time." };
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4]);
+    const minute = Number(match[5]);
+    const second = match[6] ? Number(match[6]) : 0;
+    // Construct in local time, then round-trip the components. Date parsing
+    // normalizes some impossible values (Feb 31 -> Mar 3), so a successful
+    // parse alone is not proof the operator typed a real instant.
+    const parsed = new Date(year, month - 1, day, hour, minute, second, 0);
+    if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day ||
+        parsed.getHours() !== hour ||
+        parsed.getMinutes() !== minute ||
+        parsed.getSeconds() !== second
+    ) {
+        return { error: "Enter a valid date and time." };
+    }
+
+    if (parsed.getTime() <= nowMs) {
+        return { error: "Choose a deadline in the future." };
+    }
+
+    return { deadline: parsed.toISOString() };
+};
+
+// Name the operator's zone next to the input so "17:00" is unambiguous.
+export const formatLocalTimeZone = (date: Date = new Date()): string => {
+    const offsetMinutes = -date.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const abs = Math.abs(offsetMinutes);
+    const offset =
+        `UTC${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:` +
+        `${String(abs % 60).padStart(2, "0")}`;
+    try {
+        const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!zone) return offset;
+        if (zone === "UTC" || zone === "Etc/UTC") return "UTC";
+        return `${zone} (${offset})`;
+    } catch {
+        return offset;
+    }
+};
+
 const AgentsDashboard = () => {
     const routerPush = useRouter().push;
     const providerStatus = useProviderStatus();
@@ -119,6 +183,10 @@ const AgentsDashboard = () => {
     const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
     const [runInstructions, setRunInstructions] = useState("");
+    // Optional absolute deadline. Held as the datetime-local string the
+    // operator sees (their wall clock); converted to UTC only at submit.
+    const [runDeadline, setRunDeadline] = useState("");
+    const [runDeadlineError, setRunDeadlineError] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
 
     // The last admitted job for this signed-in user/agent. Only an opaque
@@ -309,11 +377,23 @@ const AgentsDashboard = () => {
     const handleRunAgent = (id: string) => {
         setSelectedAgentId(id);
         setRunInstructions("");
+        setRunDeadline("");
+        setRunDeadlineError(null);
         setIsRunDialogOpen(true);
     };
 
     const executeAgentRun = async () => {
         if (!selectedAgentId) return;
+
+        // Validate before any state flips or network call: an invalid or
+        // already-passed deadline must not start a run.
+        const parsedDeadline = deadlineInputToUtc(runDeadline);
+        if (parsedDeadline.error) {
+            setRunDeadlineError(parsedDeadline.error);
+            return;
+        }
+        const deadline = parsedDeadline.deadline;
+        setRunDeadlineError(null);
 
         setIsRunning(true);
         setActiveAgentId(selectedAgentId);
@@ -321,19 +401,25 @@ const AgentsDashboard = () => {
         appendLog(`Initializing agent: ${selectedAgentId}...`);
         appendLog("Connecting to real-time stream...");
         appendLog(`Instructions: ${runInstructions || "Default behavior"}`);
+        if (deadline) appendLog(`Deadline: ${deadline}`);
 
         try {
+            // `deadline` is top-level and optional: it is omitted entirely for
+            // a blank input so the request stays byte-identical to a legacy run.
+            const body: { parameters: { task_input: string }; deadline?: string } = {
+                parameters: {
+                    task_input: runInstructions // Pass user instructions to backend
+                }
+            };
+            if (deadline) body.deadline = deadline;
+
             const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}/run`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
                 method: 'POST',
-                body: JSON.stringify({
-                    parameters: {
-                        task_input: runInstructions // Pass user instructions to backend
-                    }
-                })
+                body: JSON.stringify(body)
             });
 
             if (res.ok) {
@@ -816,6 +902,50 @@ const AgentsDashboard = () => {
                                 Student/Intern employees will ask for approval before acting —
                                 watch <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.
                             </p>
+                        </div>
+                        {/* Optional absolute deadline. Entered in the operator's
+                            local clock and submitted as an ISO UTC instant; the
+                            helper text names the zone so the time is unambiguous. */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="run-deadline">Deadline (optional)</Label>
+                            <Input
+                                id="run-deadline"
+                                type="datetime-local"
+                                value={runDeadline}
+                                onChange={(e) => {
+                                    setRunDeadline(e.target.value);
+                                    if (runDeadlineError) setRunDeadlineError(null);
+                                }}
+                                aria-invalid={runDeadlineError ? true : undefined}
+                                aria-describedby={
+                                    runDeadlineError
+                                        ? "run-deadline-help run-deadline-error"
+                                        : "run-deadline-help"
+                                }
+                                data-testid="run-deadline-input"
+                            />
+                            <p
+                                id="run-deadline-help"
+                                data-testid="run-deadline-help"
+                                className="text-xs text-gray-500 dark:text-gray-400"
+                            >
+                                Your local timezone —{" "}
+                                <span data-testid="run-deadline-timezone">
+                                    {formatLocalTimeZone()}
+                                </span>{" "}
+                                — sent to the server as an absolute UTC deadline.
+                                Leave blank for no deadline.
+                            </p>
+                            {runDeadlineError && (
+                                <p
+                                    id="run-deadline-error"
+                                    role="alert"
+                                    data-testid="run-deadline-error"
+                                    className="text-xs text-red-600 dark:text-red-400"
+                                >
+                                    {runDeadlineError}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

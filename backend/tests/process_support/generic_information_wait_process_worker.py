@@ -275,6 +275,20 @@ report.write_text(json.dumps(recovery, indent=2, sort_keys=True, default=str))
 print("WORKER_PID=" + str(os.getpid()), flush=True)
 print("RECOVERY=" + json.dumps(recovery, default=str), flush=True)
 
+# Owner-set absolute deadlines are enforced before any accepted-answer
+# recovery, exactly as the production lifespan orders them. Jobs without a
+# deadline are untouched, so this is inert for the legacy scenarios.
+try:
+    from core.information_wait import expire_due_information_waits
+
+    expiry = {"ran": True, "result": expire_due_information_waits()}
+except Exception as exc:  # noqa: BLE001
+    expiry = {"ran": False, "error": f"{type(exc).__name__}:{exc}"}
+expiry_report = SCRATCH / f"wait-expiry-{os.getpid()}.json"
+expiry_report.write_text(
+    json.dumps(expiry, indent=2, sort_keys=True, default=str))
+print("WAIT_EXPIRY=" + json.dumps(expiry, default=str), flush=True)
+
 # Optional actual startup-join behaviour: call the same recovery function the
 # production lifespan wires in, before serving requests.
 if os.environ.get("GENERIC_WAIT_RECOVER_ACCEPTED") == "1":
