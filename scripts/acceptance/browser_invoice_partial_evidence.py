@@ -73,6 +73,19 @@ COMPLETE_NAME = "invoice-complete.json"
 SHIM_DEFAULT_LABEL = (
     "SIMULATED CONTROL TRANSPORT: no authored completion matched this request."
 )
+#: Complete-evidence continuations have two wire shapes: the compact
+#: single-ready prompt carries ``allowed_step_ids``; the full follow-up prompt
+#: carries the ready operation itself. The invoice_patch_MqoAP4 capture used
+#: the full shape (2 follow-up requests, neither naming allowed_step_ids), so
+#: a readiness discriminator is required in addition to the compact one.
+COMPLETE_EVIDENCE_MATCHES = (
+    "allowed_step_ids",
+    '"ready_operations": ["invoice_reconciliation"]',
+)
+
+
+def _is_complete_evidence_match(match: str) -> bool:
+    return any(token in match for token in COMPLETE_EVIDENCE_MATCHES)
 
 LABELS = {
     "model_decisions": (
@@ -192,8 +205,8 @@ def _validate_shim() -> Dict[str, Any]:
     if SHIM_DEFAULT_LABEL not in str(doc.get("default") or ""):
         raise PreflightError("shim default is not labelled as simulated")
     responses = doc.get("responses")
-    if not isinstance(responses, list) or len(responses) != 4:
-        raise PreflightError("shim must author exactly four state responses")
+    if not isinstance(responses, list) or len(responses) != 5:
+        raise PreflightError("shim must author exactly five state responses")
     parsed: List[Dict[str, Any]] = []
     for index, entry in enumerate(responses):
         raw = entry.get("response")
@@ -201,7 +214,7 @@ def _validate_shim() -> Dict[str, Any]:
             raise PreflightError(f"response[{index}] must be JSON text")
         payload = json.loads(raw)
         match = str(entry.get("match") or "")
-        if "allowed_step_ids" in match:
+        if _is_complete_evidence_match(match):
             model = WorkAdaptationProposal.model_validate(payload)
             model_name = type(model).__name__
             if model.decision != "replan" or not model.work_request:
@@ -258,8 +271,10 @@ def _validate_shim() -> Dict[str, Any]:
         "state_selection": (
             "prompt discriminators: 'planning reasoner' -> initial evidence "
             "reads; compact wait-choice prompt + 'missing_prerequisites' -> one "
-            "targeted invoice question; 'allowed_step_ids' -> typed invoice "
-            "reconciliation once complete"),
+            "targeted invoice question; complete evidence -> typed invoice "
+            "reconciliation, matched by 'allowed_step_ids' on the compact "
+            "continuation or by a ready invoice_reconciliation operation on "
+            "the full follow-up prompt"),
     }
 
 

@@ -44,17 +44,19 @@ def test_partial_and_complete_invoice_fixture(driver, tmp_path):
 
 def test_authored_shim_is_real_schema_and_indexed(driver):
     result = driver._validate_shim()
-    assert len(result["responses"]) == 4
+    assert len(result["responses"]) == 5
     assert result["responses"][0]["model"] == "WorkAdaptationProposal"
     assert result["responses"][0]["payload"]["decision"] == "replan"
-    assert result["responses"][1]["model"] == "CompactWaitChoiceProposal"
-    assert result["responses"][1]["payload"]["decision"] == "clarify"
-    assert result["responses"][2]["model"] == "EmployeeWorkProposal"
-    assert result["responses"][3]["payload"]["decision"] == "clarify"
+    assert result["responses"][1]["model"] == "WorkAdaptationProposal"
+    assert result["responses"][1]["payload"]["decision"] == "replan"
+    assert result["responses"][2]["model"] == "CompactWaitChoiceProposal"
+    assert result["responses"][2]["payload"]["decision"] == "clarify"
+    assert result["responses"][3]["model"] == "EmployeeWorkProposal"
+    assert result["responses"][4]["payload"]["decision"] == "clarify"
     assert (
-        result["responses"][2]["payload"]["evidence_reads"][0]["source_id"]
+        result["responses"][3]["payload"]["evidence_reads"][0]["source_id"]
         == "fixture:po.json")
-    assert len(result["provider_shim_keys"]) == 4
+    assert len(result["provider_shim_keys"]) == 5
 
 
 def test_unlabelled_default_is_rejected(driver, tmp_path):
@@ -142,3 +144,172 @@ def test_missing_run_reads_as_empty(driver, tmp_path):
     _scratch_run_db(db, {"assignment": {}, "task_revision": {"unresolved": []}})
     assert driver._durable_assignment(db, "absent") == {}
     assert driver._open_questions(driver._durable_assignment(db, "absent")) == []
+
+
+def _shim_index(driver, tmp_path):
+    from scripts.orchestration_acceptance import provider_shim
+
+    path = tmp_path / "invoice_shim.json"
+    path.write_text(driver.FIXTURE.read_text(encoding="utf-8"),
+                    encoding="utf-8")
+    return provider_shim.load_script(path)
+
+
+def _select(index, prompt):
+    """Apply provider_shim's bare-substring selection to an authored index."""
+    blob = prompt.lower()
+    return next(
+        ((key, response) for key, response in index.items()
+         if isinstance(key, str) and key in blob),
+        (None, None))
+
+
+def _complete_follow_up_prompt():
+    from core.employee_adaptation import (
+        WorkAdaptationProposal,
+        _adaptation_prompt,
+    )
+
+    # The MqoAP4 capture's post-upload request: both uploads applied, the
+    # invoice question resolved, no missing prerequisite, and the full
+    # follow-up prompt rather than the compact allowed_step_ids shape.
+    return _adaptation_prompt({
+        "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+        "existing_step_ids": [
+            "source-1", "source-2", "source-3", "source-4"],
+        "missing_prerequisites": [],
+        "ready_operations": ["invoice_reconciliation"],
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "ready",
+            "missing": [],
+            "roles": {
+                "invoice": ["source-4"],
+                "purchase_order": ["source-1"],
+                "receiving": ["source-2"],
+            },
+            "known_identities": {
+                "invoice.invoice_id": "INV-TRIGGER-91",
+                "invoice.po_id": "PO-TRIGGER-63",
+            },
+            "evidence": [
+                {"step_id": "source-1"},
+                {"step_id": "source-2"},
+                {"step_id": "source-3"},
+                {"step_id": "source-4"},
+            ],
+        }],
+        "resolved_obligations": [{
+            "question_id": "a4100684-07fc-48c5-8c48-74c3ff982de6",
+            "concept": "invoice_reconciliation",
+            "item": "invoice reconciliation",
+            "resolution": (
+                "authorized source doc_f0dd39d633cd0bda6569d2d7 supplied "
+                "the requested evidence role(s)"),
+            "resolved_at": "2026-11-13T04:40:35.265852+00:00",
+        }],
+        "rules": {
+            "allowed_proposal_kinds": ["replan"],
+            "allowed_work_requests": ["invoice_reconciliation"],
+        },
+    }, [{"observation_id": "evidence-209dfab9b6ecd2f491bf",
+         "kind": "evidence_result", "step_id": "source-4"}],
+        WorkAdaptationProposal)
+
+
+def _partial_follow_up_prompt():
+    from core.employee_adaptation import (
+        WorkAdaptationProposal,
+        _adaptation_prompt,
+    )
+
+    # The partial-upload state must keep asking for the invoice; it must never
+    # be routed to the complete-evidence reconciliation response.
+    return _adaptation_prompt({
+        "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+        "existing_step_ids": ["source-1", "source-2", "source-3"],
+        "missing_prerequisites": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "missing",
+            "missing": ["invoice"],
+            "known_identities": {
+                "purchase_order.po_id": "PO-TRIGGER-63",
+                "receiving.po_id": "PO-TRIGGER-63",
+            },
+        }],
+        "ready_operations": [],
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "missing",
+            "missing": ["invoice"],
+            "roles": {
+                "invoice": [],
+                "purchase_order": ["source-1"],
+                "receiving": ["source-2"],
+            },
+            "evidence": [{"step_id": "source-1"}, {"step_id": "source-2"}],
+        }],
+        "rules": {
+            "allowed_proposal_kinds": ["clarify", "retain"],
+            "allowed_work_requests": [],
+        },
+    }, [{"observation_id": "evidence-partial", "kind": "evidence_result",
+         "step_id": "source-3"}], WorkAdaptationProposal)
+
+
+def test_complete_follow_up_routes_to_reconciliation(driver, tmp_path):
+    index = _shim_index(driver, tmp_path)
+    prompt = _complete_follow_up_prompt()
+
+    # This is exactly why the old fixture never served its replan: the full
+    # follow-up prompt has no compact allowed_step_ids payload.
+    assert "allowed_step_ids" not in prompt.lower()
+    assert '"ready_operations": ["invoice_reconciliation"]' in prompt.lower()
+
+    key, response = _select(index, prompt)
+    assert key == '"ready_operations": ["invoice_reconciliation"]'
+    payload = json.loads(response)
+    assert payload["decision"] == "replan"
+    assert payload["work_request"]["operation"] == "invoice_reconciliation"
+
+
+def test_partial_follow_up_still_asks_for_the_invoice(driver, tmp_path):
+    index = _shim_index(driver, tmp_path)
+
+    key, response = _select(index, _partial_follow_up_prompt())
+    assert key == "missing_prerequisites"
+    payload = json.loads(response)
+    assert payload["decision"] == "clarify"
+    assert payload["clarification"]["missing_roles"] == ["invoice"]
+    assert driver.INVOICE in payload["clarification"]["question"]
+    assert payload.get("work_request") is None
+
+
+def test_compact_complete_continuation_keeps_its_own_replan(driver, tmp_path):
+    from core.employee_adaptation import _compact_single_request_prompt
+
+    index = _shim_index(driver, tmp_path)
+    prompt = _compact_single_request_prompt({
+        "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+        "existing_step_ids": ["source-1", "source-2", "source-3", "source-4"],
+        "teaching": {"terms": {}},
+        "available_business_operations": [{
+            "operation": "invoice_reconciliation",
+            "status": "ready",
+            "evidence": [{"step_id": "source-1"}, {"step_id": "source-2"},
+                         {"step_id": "source-4"}],
+            "roles": {"invoice": ["source-4"],
+                      "purchase_order": ["source-1"],
+                      "receiving": ["source-2"]},
+            "known_identities": {"invoice.po_id": "PO-TRIGGER-63"},
+        }],
+        "rules": {"allowed_work_requests": ["invoice_reconciliation"]},
+    })
+    assert "allowed_step_ids" in prompt.lower()
+    key, response = _select(index, prompt)
+    assert key == "allowed_step_ids"
+    assert json.loads(response)["work_request"]["operation"] == (
+        "invoice_reconciliation")
