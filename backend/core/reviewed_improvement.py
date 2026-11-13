@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import uuid
@@ -219,11 +218,10 @@ def review_revision_predicate(db: Session, revision: int):
 def _default_builder():
     from core.skill_builder_service import SkillBuilderService
 
-    root = os.getenv("ATOM_WORKSPACE_SKILLS_ROOT")
-    if not root:
-        data_root = os.getenv("ATOM_DATA_DIR")
-        root = str(Path(data_root) / "workspaces") if data_root else None
-    return SkillBuilderService(workspace_root=root) if root else SkillBuilderService()
+    # Root precedence (ATOM_WORKSPACE_SKILLS_ROOT → ATOM_DATA_DIR/workspaces →
+    # backend-anchored default) lives in the service so the admin Skill Builder
+    # and this reviewed-apply path cannot diverge.
+    return SkillBuilderService()
 
 
 def _yaml_frontmatter(frontmatter: Dict[str, Any]) -> str:
