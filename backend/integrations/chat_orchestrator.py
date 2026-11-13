@@ -13573,6 +13573,18 @@ class ChatOrchestrator:
                         workspace_id=(context or {}).get("workspace_id"),
                         existing_task=_ask_stored,
                     )
+                    # DURABLE CONFIRMATION JOIN ON THE ORIGINAL ASK: the
+                    # interactive timeout's job id rides the stored task, so
+                    # a later filename confirmation attaches to THIS job by
+                    # id instead of relying on an identity scan (the resume
+                    # lane does the same for its own deadline path).
+                    _ask_background_job = str(
+                        (((_ask_result or {}).get("background_read") or {})
+                         .get("job_id")) or "")
+                    if _ask_background_job:
+                        _ask_stored = dict(
+                            _ask_stored,
+                            background_job_id=_ask_background_job)
                     _ask_stored = settle_retrieval_task(
                         _ask_stored,
                         _ask_identity,
@@ -20237,6 +20249,64 @@ class ChatOrchestrator:
                 return True
         return bool((pending_task or {}).get("strict_workdrive_proof"))
 
+    @staticmethod
+    def _canonical_workdrive_request_scope(
+        pending_task: Dict[str, Any],
+        message: str = "",
+    ) -> Dict[str, Any]:
+        """The accepted scope a background job and its confirmations share.
+
+        A filename confirmation only restates the file; it must never mint a
+        different scope for the same authorization.  The first schedule and
+        every confirmation therefore derive the request from the STORED ask:
+        the pinned identity, every requested target, and explicit fields
+        (task-carried first, then the original ask's own wording).  Confirm
+        wording is deliberately not an input — a new field or target there is
+        new work, not a wider view of the accepted read.
+        """
+        task = pending_task if isinstance(pending_task, dict) else {}
+        resolved = dict(task.get("resolved_file") or {})
+        mention = str(task.get("mention") or "").strip()
+        original = str(task.get("original_message") or message or "").strip()
+        targets = [
+            str(item).strip()
+            for item in (task.get("requested_targets") or [])
+            if str(item).strip()
+        ]
+        fields = [
+            str(item).strip()
+            for item in (task.get("requested_fields") or [])
+            if str(item).strip()
+        ]
+        if not fields:
+            # Same derivation the accepted task uses (``_accepted_file_task``):
+            # a job started before the task row was written still carries the
+            # fields the later confirmation will compare against.
+            try:
+                from core.workbook_read_artifact import (
+                    extract_field_requests,
+                )
+
+                fields = [
+                    str(item).strip()
+                    for item in (extract_field_requests([original]) or [])
+                    if str(item).strip()
+                ][:6]
+            except Exception:  # noqa: BLE001 — floor: keep the empty contract
+                fields = []
+        return {
+            "mention": mention,
+            "original_message": original,
+            "resource_id": str(
+                resolved.get("resource_id") or resolved.get("file_id") or ""
+            ).strip(),
+            "file_name": str(
+                resolved.get("file_name") or mention or ""
+            ).strip(),
+            "requested_targets": targets,
+            "requested_fields": fields,
+        }
+
     def _schedule_strict_workdrive_background_read(
         self,
         pending_task: Dict[str, Any],
@@ -20270,32 +20340,29 @@ class ChatOrchestrator:
         from core import workdrive_background_delivery as _background
 
         task = dict(pending_task or {})
-        resolved = dict(task.get("resolved_file") or {})
-        mention = str(task.get("mention") or "").strip()
-        resource_id = str(
-            resolved.get("resource_id") or resolved.get("file_id") or ""
-        ).strip()
-        file_name = str(
-            resolved.get("file_name") or mention or ""
-        ).strip()
-        original = str(task.get("original_message") or message or "").strip()
         # SCOPE IS THE ACCEPTED REQUEST.  ``confirmed_mention`` is retry
         # bookkeeping (which name the user confirmed) and is deliberately NOT
         # a source of resource/file_name here: substituting it would change
-        # the digest for the same authorization.  The stored task's pinned
-        # identity and original ask are the only inputs.
+        # the digest for the same authorization.  The canonical values are
+        # stamped onto the task carrier so the durable scope, the job's
+        # pending_task, and every later confirmation use the SAME values.
+        scope = self._canonical_workdrive_request_scope(task, message)
+        task["original_message"] = scope["original_message"]
+        task["requested_targets"] = list(scope["requested_targets"])
+        task["requested_fields"] = list(scope["requested_fields"])
+        resolved = dict(task.get("resolved_file") or {})
         return _background.schedule_strict_workdrive_read(
             session_id=session_id,
             user_id=user_id,
             workspace_id=workspace_id,
             execution_id=execution_id,
-            original_message=original,
-            query=original,
-            mention=mention,
-            resource_id=resource_id,
-            file_name=file_name,
-            requested_targets=task.get("requested_targets") or [],
-            requested_fields=task.get("requested_fields") or [],
+            original_message=scope["original_message"],
+            query=scope["original_message"],
+            mention=scope["mention"],
+            resource_id=scope["resource_id"],
+            file_name=scope["file_name"],
+            requested_targets=scope["requested_targets"],
+            requested_fields=scope["requested_fields"],
             identity=resolved,
             pending_task=task,
             history=history or [],
@@ -20413,22 +20480,21 @@ class ChatOrchestrator:
                     request_scope_from_task,
                 )
 
+                _persisted_scope = (
+                    self._canonical_workdrive_request_scope(
+                        pending_task or {}, original))
                 _persisted_identity = dict(
                     (pending_task or {}).get("resolved_file") or {})
                 _scope = request_scope_from_task(
                     session_id=session_id,
                     user_id=user_id,
                     workspace_id=workspace_id,
-                    resource_id=(
-                        _persisted_identity.get("resource_id")
-                        or _persisted_identity.get("file_id")),
-                    file_name=(
-                        _persisted_identity.get("file_name") or mention),
-                    original_message=original,
+                    resource_id=_persisted_scope["resource_id"],
+                    file_name=_persisted_scope["file_name"],
+                    original_message=_persisted_scope["original_message"],
                     requested_targets=(
-                        (pending_task or {}).get("requested_targets") or []),
-                    requested_fields=(
-                        (pending_task or {}).get("requested_fields") or []),
+                        _persisted_scope["requested_targets"]),
+                    requested_fields=_persisted_scope["requested_fields"],
                 )
                 _persisted = load_persisted_workdrive_delivery(
                     session_id,
@@ -20436,6 +20502,37 @@ class ChatOrchestrator:
                     expected_original_digest=canonical_request_digest(_scope),
                     workspace_id=workspace_id,
                 )
+                if _persisted is None:
+                    # LEGACY JOB COMPATIBILITY: rows scheduled before the
+                    # accepted-field canonicalization carry the task's raw
+                    # (often empty) field contract.  The durable row is the
+                    # authority, so try that exact carrier too before
+                    # declaring the result unavailable.
+                    _raw_scope = request_scope_from_task(
+                        session_id=session_id,
+                        user_id=user_id,
+                        workspace_id=workspace_id,
+                        resource_id=(
+                            _persisted_identity.get("resource_id")
+                            or _persisted_identity.get("file_id")),
+                        file_name=(
+                            _persisted_identity.get("file_name") or mention),
+                        original_message=original,
+                        requested_targets=(
+                            (pending_task or {}).get(
+                                "requested_targets") or []),
+                        requested_fields=(
+                            (pending_task or {}).get(
+                                "requested_fields") or []),
+                    )
+                    _raw_digest = canonical_request_digest(_raw_scope)
+                    if _raw_digest != canonical_request_digest(_scope):
+                        _persisted = load_persisted_workdrive_delivery(
+                            session_id,
+                            user_id=user_id,
+                            expected_original_digest=_raw_digest,
+                            workspace_id=workspace_id,
+                        )
             except Exception as _persisted_err:  # noqa: BLE001
                 logger.debug(
                     "[workdrive-background] persisted delivery load "
@@ -20456,8 +20553,8 @@ class ChatOrchestrator:
         if ((pending_task or {}).get("confirmation_turn")
                 and ((pending_task or {}).get("background_job_id")
                      or self._strict_workdrive_proof_enabled(pending_task))):
-            _confirmation_identity = dict(
-                (pending_task or {}).get("resolved_file") or {})
+            _confirmation_scope = self._canonical_workdrive_request_scope(
+                pending_task or {}, original)
             _confirmation_job_id = str(
                 (pending_task or {}).get("background_job_id") or "")
             if _confirmation_job_id:
@@ -20493,15 +20590,12 @@ class ChatOrchestrator:
                     session_id=session_id,
                     user_id=user_id,
                     workspace_id=workspace_id,
-                    resource_id=(
-                        _confirmation_identity.get("resource_id")
-                        or _confirmation_identity.get("file_id")),
-                    file_name=(
-                        _confirmation_identity.get("file_name") or mention),
+                    resource_id=_confirmation_scope["resource_id"],
+                    file_name=_confirmation_scope["file_name"],
                     requested_targets=(
-                        (pending_task or {}).get("requested_targets") or []),
+                        _confirmation_scope["requested_targets"]),
                     requested_fields=(
-                        (pending_task or {}).get("requested_fields") or []),
+                        _confirmation_scope["requested_fields"]),
                     attach_job_id=(
                         (pending_task or {}).get("background_job_id")),
                     confirmation_message=(
@@ -20509,7 +20603,7 @@ class ChatOrchestrator:
                         or original),
                     confirmed_mention=(
                         (pending_task or {}).get("confirmed_mention")
-                        or mention),
+                        or _confirmation_scope["mention"]),
                 )
             except Exception as _attach_err:  # noqa: BLE001
                 logger.debug(
@@ -20532,7 +20626,8 @@ class ChatOrchestrator:
                     "reason": (
                         "the confirmation continues the same background "
                         "read"),
-                    "identity": _confirmation_identity,
+                    "identity": dict(
+                        (pending_task or {}).get("resolved_file") or {}),
                     "identity_verified": False,
                     "coverage_complete": False,
                     "retrieval_complete": False,
@@ -20541,14 +20636,9 @@ class ChatOrchestrator:
                         "background_read": _attached_read,
                         "storage_read": {
                             "service": "zoho_workdrive",
-                            "resource_id": (
-                                _confirmation_identity.get("resource_id")
-                                or _confirmation_identity.get("file_id")),
-                            "file_id": (
-                                _confirmation_identity.get("file_id")
-                                or _confirmation_identity.get("resource_id")),
-                            "file_name": _confirmation_identity.get(
-                                "file_name"),
+                            "resource_id": _confirmation_scope["resource_id"],
+                            "file_id": _confirmation_scope["resource_id"],
+                            "file_name": _confirmation_scope["file_name"],
                             "identity_verified": False,
                             "completed": False,
                             "coverage_complete": False,

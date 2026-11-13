@@ -18,9 +18,9 @@ import asyncio
 import json
 import os
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -539,3 +539,124 @@ def test_direct_task_words_never_replace_a_confirmation_ask():
     assert chat._direct_task_uses_turn_words(
         {**ordinary, "revised_targets": ["U-38"]},
         "anything at all") is True
+
+
+@pytest.mark.asyncio
+async def test_normal_entry_timeout_and_filename_confirmation_share_one_job(
+    durable_db, active_grant, monkeypatch,
+):
+    """The NORMAL chat entry, not a helper-only path.
+
+    The first ask's interactive read times out and becomes job #1.  Its scope
+    must carry the canonical ask, all six requested targets, and the accepted
+    ``price`` field even though the live ask task was built before the task
+    row existed.  A later plain filename confirmation must attach to that same
+    job and digest without widening its targets/fields or queuing job #2.
+    """
+    import integrations.chat_orchestrator as chat
+    from core.pending_file_task import FILE_TASK_SESSION_KEY
+
+    ask = (
+        "find the prices of No. 381, No. 622, No. 700, No. 710, "
+        "No. 720 and No. 730 in Synthetic Confirmation Price List.xlsx"
+    )
+    confirmation = (
+        "yes, Synthetic Confirmation Price List.xlsx is correct"
+    )
+    targets = ["381", "622", "700", "710", "720", "730"]
+    session = {"id": "session-normal-entry-620", "messages": []}
+
+    orch = chat.ChatOrchestrator()
+    orch.ai_engines = {}
+    llm = MagicMock()
+    llm.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "reply", "model": "m",
+        "provider": "p"})
+    orch.llm_service = llm
+
+    async def _interactive_deadline(*args, **kwargs):
+        raise asyncio.TimeoutError()
+
+    monkeypatch.setenv("ATOM_620_STRICT_WORKDRIVE_PROOF", "1")
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(
+            orch, "_get_or_create_session", return_value=session))
+        stack.enter_context(patch.object(
+            orch, "_resolve_canvas_ctx", new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_start_chat_execution", return_value="exec-entry-620"))
+        stack.enter_context(patch.object(
+            orch, "_record_chat_step", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_emit_agent_status", new=AsyncMock()))
+        stack.enter_context(patch.object(orch, "_finish_chat_execution"))
+        stack.enter_context(patch.object(orch, "_update_session"))
+        stack.enter_context(patch(
+            "core.chat_mini_app_authoring.try_handle",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch.object(
+            orch, "_try_zoho_crm_write", new=AsyncMock()))
+        stack.enter_context(patch.object(
+            orch, "_route_to_features", new=AsyncMock(return_value={})))
+        stack.enter_context(patch.object(
+            orch, "_get_qwen_response", new=AsyncMock(return_value={
+                "success": True, "message": "qwen",
+                "session_id": session["id"]})))
+        stack.enter_context(patch(
+            "core.turn_decision.interpret_turn_request",
+            new=AsyncMock(return_value=None)))
+        stack.enter_context(patch(
+            "core.chat_tool_planner._datasets_named_file_block",
+            new=_interactive_deadline))
+        # The durable job row is what this test proves; do not execute a
+        # provider read in the test process.
+        stack.enter_context(patch.object(
+            background, "spawn_background_read", return_value=False))
+
+        first = await orch.process_chat_message(
+            "u1", ask, session["id"],
+            context={"workspace_id": WORKSPACE})
+        rows = _job_rows()
+        assert len(rows) == 1, (
+            "the timed-out original ask must schedule exactly one job; "
+            f"response was {first!r}")
+        job_id = str(rows[0].id)
+        job = _job_metadata(job_id)
+        digest = job["original_digest"]
+
+        # The FIRST job carries the canonical accepted scope, including the
+        # field the later confirmation derives from the same original ask.
+        assert job["original_message"] == ask
+        assert job["request_scope"]["original_message"] == ask
+        assert job["requested_targets"] == targets
+        assert job["request_scope"]["requested_targets"] == targets
+        assert job["requested_fields"] == ["price"]
+        assert job["request_scope"]["requested_fields"] == ["price"]
+        assert job["resource_id"] == ""
+        task = session[FILE_TASK_SESSION_KEY]
+        assert task["background_job_id"] == job_id
+        assert task["requested_targets"] == targets
+        assert task["requested_fields"] == ["price"]
+
+        second = await orch.process_chat_message(
+            "u1", confirmation, session["id"],
+            context={"workspace_id": WORKSPACE})
+
+    assert second["success"] is True
+    assert second["data"]["background_pending"] is True
+    attached = second["data"]["background_read"]
+    assert attached["reused"] is True
+    assert attached["attached"] is True
+    assert attached["attach_mode"] == "job_id"
+    assert attached["job_id"] == job_id
+    assert attached["original_digest"] == digest
+    assert len(_job_rows()) == 1, "the confirmation must not queue job #2"
+
+    # Attaching does not widen what job #1 was authorized to read.
+    job = _job_metadata(job_id)
+    assert job["request_scope"]["original_message"] == ask
+    assert job["request_scope"]["requested_targets"] == targets
+    assert job["request_scope"]["requested_fields"] == ["price"]
+    assert job["requested_targets"] == targets
+    assert job["requested_fields"] == ["price"]
+    assert job["original_digest"] == digest
