@@ -23,7 +23,15 @@ world, with the existing ``run_isolated`` launcher, the existing loopback
 Only provider responses are authored (SIMULATED MODEL DECISIONS / CONTROLLED
 TRANSPORT). Routing, source reads, the structured consumer, wait settlement,
 the compiler/executor, reconciliation and durable persistence all run in
-production code. No real credential, provider, account, send or spend is used.
+production code. No external provider credential, account, send or spend is
+used.
+
+The signed-in leg drives the real login form with the run-scoped admin
+credential. The isolated frontend copy receives its own per-launch
+``NEXTAUTH_SECRET`` so the installed NextAuth credentials provider can
+establish the web session, and the driver proves both ``/api/auth/session``
+and the backend ``/api/auth/me`` before continuing. No token or cookie is
+seeded by the harness.
 
 The default ``--preflight`` path validates the partial/complete fixture and the
 authored loopback completions without creating a world or launching anything.
@@ -69,6 +77,13 @@ LABELS = {
         "source upload/read, the structured consumer, wait settlement, "
         "invoice reconciliation, verification and persistence run in "
         "production code."),
+    "web_auth": (
+        "REAL CREDENTIAL SIGN-IN: the login form posts the run-scoped admin "
+        "password to the backend; the isolated frontend copy mints its own "
+        "per-run NEXTAUTH_SECRET so the installed NextAuth provider can "
+        "establish the web session. The harness never seeds a token or "
+        "cookie, and proves both /api/auth/session and the backend "
+        "/api/auth/me after sign-in."),
     "not_claimed": [
         "served model or provider quality",
         "general model judgment or prompt quality",
@@ -526,6 +541,27 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 page = context.new_page()
                 page.add_init_script(
                     "sessionStorage.setItem('atom.onboarding.dismissed','1')")
+                # Prove the browser starts with no app session: the only
+                # credential in this context must be the one the real form
+                # obtains below.
+                page.goto(f"{fe_base}/login",
+                          wait_until="domcontentloaded", timeout=300000)
+                pre_auth = page.evaluate(
+                    """() => ({
+                        token: localStorage.getItem('auth_token'),
+                        cookies: document.cookie
+                            .split(';').map((c) => c.trim().split('=')[0])
+                            .filter(Boolean),
+                    })""")
+                step("browser_starts_signed_out", {
+                    "no_local_bearer": not pre_auth.get("token"),
+                    "no_auth_cookie": "auth_token" not in pre_auth["cookies"],
+                    "no_session_cookie": not any(
+                        name.replace("__Secure-", "", 1).startswith(
+                            "next-auth.session-token")
+                        for name in pre_auth["cookies"]),
+                }, details={"cookie_names": pre_auth["cookies"]})
+
                 login = BV.ui_login(page, fe_base, ADMIN_EMAIL, password)
                 step("ordinary_signed_in_browser", {
                     "attempted": login.get("attempted") is True,
@@ -534,6 +570,63 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         login.get("token_present_after_login")),
                 }, details=login)
                 D3._screenshot(page, out, "00_login.png")
+
+                # Prove both halves of the mounted auth: the SDK session the
+                # middleware decodes and a backend endpoint that authorizes
+                # only the login-issued bearer. Nothing here seeds a token or
+                # cookie; the bearer is read from what the form persisted.
+                auth_probe = page.evaluate(
+                    """async (backendBase) => {
+                        const token = localStorage.getItem('auth_token') || '';
+                        const sessionResponse = await fetch(
+                            '/api/auth/session',
+                            {headers: {Accept: 'application/json'},
+                             cache: 'no-store'});
+                        let session = null;
+                        try { session = await sessionResponse.json(); }
+                        catch (e) {}
+                        const meResponse = await fetch(
+                            `${backendBase}/api/auth/me`,
+                            {headers: {Accept: 'application/json',
+                                       Authorization: `Bearer ${token}`},
+                             cache: 'no-store'});
+                        let me = null;
+                        try { me = await meResponse.json(); }
+                        catch (e) {}
+                        return {
+                            token_present: Boolean(token),
+                            session_status: sessionResponse.status,
+                            session_email: (session && session.user &&
+                                            session.user.email) || null,
+                            session_user_id: (session && session.user &&
+                                              session.user.id) || null,
+                            me_status: meResponse.status,
+                            me_email: (me && me.email) || null,
+                            me_id: (me && me.id) || null,
+                            me_status_field: (me && me.status) || null,
+                        };
+                    }""",
+                    arg=f"http://localhost:{args.backend_port}")
+                scenario["authenticated_endpoint"] = auth_probe
+                step("authenticated_endpoint", {
+                    "bearer_came_from_login": (
+                        auth_probe.get("token_present") is True),
+                    "web_session_decoded": (
+                        auth_probe.get("session_status") == 200
+                        and auth_probe.get("session_email") == ADMIN_EMAIL),
+                    "backend_me_authorized": (
+                        auth_probe.get("me_status") == 200
+                        and auth_probe.get("me_email") == ADMIN_EMAIL
+                        and bool(auth_probe.get("me_id"))),
+                    "backend_identity_active": (
+                        auth_probe.get("me_status_field") == "active"),
+                }, details={
+                    "credential_source": (
+                        "localStorage auth_token persisted by the real login "
+                        "form; no token or cookie injected by the harness"),
+                    "session_status": auth_probe.get("session_status"),
+                    "me_status": auth_probe.get("me_status"),
+                })
 
                 page.goto(f"{fe_base}/assignments",
                           wait_until="domcontentloaded", timeout=300000)

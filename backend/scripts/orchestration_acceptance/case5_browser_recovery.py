@@ -37,6 +37,7 @@ import argparse
 import hashlib
 import json
 import os
+import secrets
 import signal
 import subprocess
 import sys
@@ -400,6 +401,45 @@ def terminate_proc(proc: Any) -> None:
             pass
 
 
+def _web_auth_secret() -> str:
+    """Session-signing material minted for ONE mounted frontend launch.
+
+    The copy runs the app's actual NextAuth handlers, which refuse to issue or
+    verify a web session without NEXTAUTH_SECRET (lib/web-auth-config.ts).
+    Mint it here, never inherit the developer's or the operator's signing key:
+    the isolated frontend is a per-run disposable world, and this matches the
+    repo's other isolated web harnesses. This is configuration, not a
+    credential: sign-in still posts the real password to the backend and the
+    backend remains the identity authority.
+    """
+    return secrets.token_urlsafe(48)
+
+
+def _frontend_process_env(backend_port: int, fe_port: int,
+                          base_env: Optional[Dict[str, str]] = None
+                          ) -> Dict[str, str]:
+    """Environment for the isolated ``next dev`` copy.
+
+    ``base_env`` is copied, never mutated: the caller's operator environment
+    is not changed by starting a frontend instance. A stale inherited
+    ``NEXTAUTH_SECRET`` is overwritten, like the dev stack's API URL.
+    """
+    env = dict(os.environ if base_env is None else base_env)
+    env.update({
+        "NEXT_PUBLIC_API_URL": f"http://localhost:{backend_port}",
+        "PYTHON_API_SERVICE_BASE_URL": f"http://localhost:{backend_port}",
+        "NEXTAUTH_URL": f"http://localhost:{fe_port}",
+        # NextAuth's Credentials provider validates the backend-issued bearer
+        # at /api/auth/me and the SDK signs the session cookie with this key.
+        # Without it the real login form redirects to /api/auth/error and the
+        # browser has no auth_token (observed live: invoice run4).
+        "NEXTAUTH_SECRET": _web_auth_secret(),
+        "NEXT_PUBLIC_ALLOW_LOOPBACK": "1",
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+    })
+    return env
+
+
 def start_frontend_copy(backend_port: int, fe_port: int,
                         world_dir: Path) -> Any:
     """Run the real frontend from a REAL DIRECTORY COPY, not the symlink
@@ -431,14 +471,7 @@ def start_frontend_copy(backend_port: int, fe_port: int,
          str(fe_src) + "/", str(dst) + "/"],
         check=True)
     os.symlink(str(fe_src / "node_modules"), str(dst / "node_modules"))
-    env = dict(os.environ)
-    env.update({
-        "NEXT_PUBLIC_API_URL": f"http://localhost:{backend_port}",
-        "PYTHON_API_SERVICE_BASE_URL": f"http://localhost:{backend_port}",
-        "NEXTAUTH_URL": f"http://localhost:{fe_port}",
-        "NEXT_PUBLIC_ALLOW_LOOPBACK": "1",
-        "NODE_OPTIONS": "--max-old-space-size=4096",
-    })
+    env = _frontend_process_env(backend_port, fe_port)
     log = (world_dir / "preview_frontend.log").open("ab")
     proc = subprocess.Popen(
         ["node", "node_modules/next/dist/bin/next", "dev", "--webpack",
