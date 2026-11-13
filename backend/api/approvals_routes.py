@@ -160,6 +160,35 @@ async def decide_approval(
             },
         )
 
+    # The owner-set absolute deadline is terminal and is enforced BEFORE the
+    # status write/resume. A late approval cannot revive an expired wait.
+    from core.information_wait import (
+        expire_information_wait_if_due,
+        is_information_wait_action,
+    )
+
+    if is_information_wait_action(action.action_type):
+        expiry = expire_information_wait_if_due(action, db_session=db)
+        if (
+            expiry.get("expired")
+            or str(action.status or "") == "expired"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "INFORMATION_WAIT_EXPIRED",
+                        "message": (
+                            "The owner-set deadline for this job passed. No "
+                            "decision was applied; review the deadline or "
+                            "start a new authorized run."),
+                    },
+                    "deadline": expiry.get("deadline"),
+                    "approval_id": approval_id,
+                },
+            )
+
     if decision == "approved":
         result = await intervention_service.approve_intervention(
             approval_id, user.id, modified_params=body.modified_params

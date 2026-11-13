@@ -708,8 +708,22 @@ async def lifespan(app: FastAPI):
     # It is a one-shot integrity pass outside the scheduler gate, not a
     # polling daemon, and it never replays ordinary governed effects.
     try:
-        from core.information_wait import drain_accepted_information_waits
+        from core.information_wait import (
+            drain_accepted_information_waits,
+            expire_due_information_waits,
+        )
 
+        # Absolute deadlines are enforced BEFORE accepted-answer recovery. A
+        # fact accepted just before the process died must not revive a job
+        # whose deadline elapsed while the service was offline. The expiry pass
+        # is bounded and idempotent; a second boot finds nothing.
+        expiry = expire_due_information_waits()
+        if expiry.get("expired"):
+            logger.warning(
+                "Information wait deadline expiry at boot: expired=%s "
+                "scanned=%s pages=%s",
+                expiry["expired"], expiry.get("scanned_jobs"),
+                expiry.get("pages"))
         _spawn_background_task(drain_accepted_information_waits())
         logger.info(
             "Accepted-information wait recovery started (outside the "

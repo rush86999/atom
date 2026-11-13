@@ -841,6 +841,7 @@ jobs:
             tests/test_boot_recovery_not_gated_by_scheduler.py \
             tests/test_generic_information_resume_namespace_contract.py \
             tests/test_generic_information_exact_event_contract.py \
+            tests/test_generic_information_deadline_contract.py \
             tests/test_agent_run_outcome_join_contract.py \
             tests/test_agent_run_admission_contract.py \
             tests/test_agent_read_scope_contract.py \
