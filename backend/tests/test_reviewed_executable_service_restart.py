@@ -422,10 +422,22 @@ def _login(base_url: str, email: str, password: str) -> str:
 
 
 def _docker_unavailable_reason():
+    """Why a REAL Docker daemon is unavailable, or None when it is usable.
+
+    A test double left in ``sys.modules`` must never be mistaken for a daemon:
+    that would let this real-Docker acceptance run against nothing (the failure
+    then looks like a product bug instead of test pollution).  In hosted CI
+    ``ATOM_REQUIRE_DOCKER_SANDBOX=1`` turns a polluted/missing probe into a
+    failure, never a skip.
+    """
     try:
         import docker
 
         client = docker.from_env()
+        if not type(client).__module__.startswith("docker"):
+            return (
+                "Docker SDK is mocked in this process "
+                f"({type(client).__module__}); no real daemon was probed")
         client.ping()
         return None
     except Exception as exc:  # noqa: BLE001 - reported verbatim
@@ -452,6 +464,39 @@ def _json_column(value):
     if isinstance(value, (dict, list)):
         return value
     return json.loads(value)
+
+
+def _execution_failure_diagnostics(db_path: Path, execute_data: dict,
+                                   log_path: Path) -> dict:
+    """Collect the whole failure, not the 240-char repr pytest shows.
+
+    The #918 CI log only carried ``SANDBOX_ERROR: Sa...`` because pytest
+    truncates a long assertion dict in the middle.  The durable row and the
+    server child log both hold the complete cause, so put them in one payload
+    that the failure message and a per-test JSON file can carry verbatim.
+    """
+    row = None
+    execution_id = execute_data.get("execution_id")
+    if execution_id:
+        try:
+            with sqlite3.connect(db_path) as conn:
+                row = conn.execute(
+                    "SELECT status, error_message, container_id, exit_code, "
+                    "stdout, stderr, audit_metadata FROM skill_executions "
+                    "WHERE id = ?", (execution_id,)).fetchone()
+        except sqlite3.Error as exc:  # diagnostics must never mask the failure
+            row = (f"<sqlite error: {exc}>",)
+    columns = ("status", "error_message", "container_id", "exit_code",
+               "stdout", "stderr", "audit_metadata")
+    try:
+        log_tail = log_path.read_text(errors="replace")[-8000:]
+    except OSError as exc:
+        log_tail = f"<log unreadable: {exc}>"
+    return {
+        "execute_response": execute_data,
+        "durable_execution": dict(zip(columns, row)) if row else None,
+        "server_log_tail": log_tail,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -589,6 +634,19 @@ def test_reviewed_executable_skill_survives_service_restart(tmp_path):
             })
         assert execute_status == 200, execute_body
         execute_data = execute_body["data"]
+        if execute_data.get("success") is not True:
+            diagnostics = _execution_failure_diagnostics(
+                db_path, execute_data, server_b["log_path"])
+            (tmp_path / "execute-failure.json").write_text(
+                json.dumps(diagnostics, indent=2, sort_keys=True, default=str),
+                encoding="utf-8")
+            # Fail with plain text: pytest's assertion rewriting truncates a
+            # long dict mid-value, which is why #918 only showed the cause as
+            # "SANDBOX_ERROR: Sa...".
+            pytest.fail(
+                "reviewed executable execution failed:\n"
+                + json.dumps(diagnostics, indent=2, sort_keys=True,
+                             default=str))
         assert execute_data["success"] is True, execute_data
         assert json.loads(execute_data["result"]) == EXPECTED_RESULT
         execution_id = execute_data["execution_id"]
@@ -613,13 +671,20 @@ def test_reviewed_executable_skill_survives_service_restart(tmp_path):
         assert sandbox["backend"] == "docker"
         assert sandbox["ran"] is True
         assert sandbox["container_id"].startswith("skill_")
+        assert sandbox["docker_container_id"], (
+            "the sandbox must report the Docker container id it created")
         assert sandbox["image"] == "python:3.11-slim"
         assert sandbox["network_disabled"] is True
         assert sandbox["read_only"] is True
+        # The sandbox owns removal; these are observed results, not claims.
         assert sandbox["ephemeral"] is True
+        assert sandbox["removed"] is True
+        assert sandbox["cleanup_error"] is None
+        assert sandbox["timed_out"] is False
         assert sandbox["exit_code"] == 0
         assert sandbox["nonce"] and sandbox["nonce"] == sandbox["nonce_echo"]
         container_id = sandbox["container_id"]
+        docker_container_id = sandbox["docker_container_id"]
     finally:
         rc_b = _stop_server(server_b)
     assert rc_b is not None, "server B did not report a real OS exit"
@@ -658,12 +723,32 @@ def test_reviewed_executable_skill_survives_service_restart(tmp_path):
     assert persisted["sandbox"]["backend"] == "docker"
     assert persisted["sandbox"]["ran"] is True
     assert persisted["sandbox"]["container_id"] == container_id
+    assert persisted["sandbox"]["docker_container_id"] == docker_container_id
     assert persisted["sandbox"]["network_disabled"] is True
     assert persisted["sandbox"]["read_only"] is True
     assert persisted["sandbox"]["ephemeral"] is True
+    assert persisted["sandbox"]["removed"] is True
+    assert persisted["sandbox"]["cleanup_error"] is None
+    assert persisted["sandbox"]["timed_out"] is False
     assert persisted["sandbox"]["exit_code"] == 0
     assert persisted["sandbox"]["nonce"] == persisted["sandbox"]["nonce_echo"]
     assert persisted["inputs_sha256"] and persisted["result_sha256"]
+
+    # The container must really be gone: a truthful receipt is not enough if a
+    # stopped-but-present container leaked.  (Docker is reachable here; the
+    # unavailable case skipped above.)
+    import docker as docker_sdk
+
+    live_client = docker_sdk.from_env()
+    try:
+        leftover = live_client.containers.get(container_id)
+    except docker_sdk.errors.NotFound:
+        leftover = None
+    finally:
+        live_client.close()
+    assert leftover is None, (
+        f"sandbox container {container_id} still exists after the durable "
+        "receipt claimed removal")
 
     # Every durable receipt assertion above has passed.  Emit a portable
     # acceptance record (no tokens, passwords, or secret material) for CI.
@@ -686,9 +771,13 @@ def test_reviewed_executable_skill_survives_service_restart(tmp_path):
         "review_digest": applied_data["review_digest"],
         "executable_code_sha256": executable_sha,
         "container_id": container_id,
+        "docker_container_id": docker_container_id,
         "sandbox_backend": sandbox["backend"],
         "image": sandbox["image"],
         "nonce_echo_verified": True,
+        "sandbox_container_removed": persisted["sandbox"]["removed"],
+        "sandbox_cleanup_error": persisted["sandbox"]["cleanup_error"],
+        "sandbox_timed_out": persisted["sandbox"]["timed_out"],
         "result": EXPECTED_RESULT,
         "durable_receipt_verified": True,
         "binding": {

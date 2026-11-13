@@ -866,12 +866,20 @@ class SkillRegistryService:
                 "backend": sandbox.get("backend") or "docker",
                 "ran": bool(sandbox.get("ok")),
                 "container_id": sandbox.get("container_id"),
+                "docker_container_id": sandbox.get("docker_container_id"),
                 "image": sandbox.get("image"),
                 "exit_code": sandbox.get("exit_code"),
                 "network_disabled": bool(
                     sandbox.get("network_disabled", False)),
                 "read_only": bool(sandbox.get("read_only", False)),
+                # ``ephemeral``/``removed``/``cleanup_error`` are the observed
+                # cleanup outcome, not an assumption: a leaked container must
+                # be visible in the durable receipt.
                 "ephemeral": bool(sandbox.get("ephemeral", False)),
+                "removed": bool(sandbox.get("removed", False)),
+                "timed_out": bool(sandbox.get("timed_out", False)),
+                "terminated": bool(sandbox.get("terminated", False)),
+                "cleanup_error": sandbox.get("cleanup_error"),
                 "nonce": sandbox.get("nonce"),
                 "nonce_echo": sandbox.get("nonce_echo"),
             },

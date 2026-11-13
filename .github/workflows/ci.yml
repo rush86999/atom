@@ -910,9 +910,18 @@ jobs:
             tests/test_reviewed_executable_skill.py \
             tests/test_reviewed_executable_service_restart.py \
             -q --tb=short --timeout=900 --timeout-method=thread
+          # Truthful cleanup gate: the sandbox creates one skill_* container
+          # per execution and must remove it.  A passing receipt is not enough
+          # if a stopped container leaked, so assert the daemon has none left.
+          leftover=$(docker ps -a --filter "name=skill_" --format '{{.Names}}')
+          if [ -n "$leftover" ]; then
+            echo "sandbox containers leaked after the acceptance run:" >&2
+            echo "$leftover" >&2
+            exit 1
+          fi
           # Fail closed if the real-Docker record was not emitted or does not
-          # actually prove a container ran and the receipt survived the service
-          # restart (no host fallback is acceptable).
+          # actually prove a container ran, was removed, and the receipt
+          # survived the service restart (no host fallback is acceptable).
           python - <<'PY'
           import json
           import os
@@ -932,6 +941,22 @@ jobs:
           if not str(record.get("container_id") or "").startswith("skill_"):
               raise SystemExit(
                   f"acceptance receipt has no skill container id: {record}")
+          if not record.get("docker_container_id"):
+              raise SystemExit(
+                  "acceptance receipt has no Docker container id: "
+                  f"{record}")
+          if record.get("sandbox_container_removed") is not True:
+              raise SystemExit(
+                  "acceptance receipt does not prove the sandbox container was "
+                  f"removed: {record}")
+          if record.get("sandbox_cleanup_error"):
+              raise SystemExit(
+                  "acceptance receipt recorded a cleanup failure: "
+                  f"{record}")
+          if record.get("sandbox_timed_out") is not False:
+              raise SystemExit(
+                  "acceptance receipt recorded a timed-out sandbox run: "
+                  f"{record}")
           if record.get("nonce_echo_verified") is not True:
               raise SystemExit(
                   "acceptance receipt did not verify the container nonce: "
