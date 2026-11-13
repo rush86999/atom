@@ -3807,19 +3807,72 @@ def _refuse_if_port_held(port: int, label: str) -> None:
         probe.close()
 
 
+#: Credential-shaped environment names that must not be inherited by the
+#: relay process. The relay does not read the environment at all; scrubbing is
+#: defense in depth so an operator's provider key cannot be discovered by a
+#: later change or a crash dump. The live credential travels on stdin only.
+RELAY_CREDENTIAL_ENV_NAMES = (
+    "OPENCODE_API_KEY", "OPENCODE_GO_API_KEY",
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY",
+    "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY",
+    "AZURE_OPENAI_API_KEY", "MISTRAL_API_KEY", "COHERE_API_KEY",
+)
+
+
+def _relay_subprocess_env() -> Dict[str, str]:
+    """The parent environment minus every known provider credential."""
+    return {
+        key: value for key, value in os.environ.items()
+        if key not in RELAY_CREDENTIAL_ENV_NAMES
+    }
+
+
+def _relay_command(
+        port: int, *, upstream_base_url: str, run_token: str,
+        ledger_path: Path, model: str, provider: str,
+        limits: Dict[str, Any], api_key_stdin: bool) -> List[str]:
+    """Build the relay argv. A credential is NEVER an argument."""
+    cmd = [
+        str(VENV_PY),
+        str(BACKEND / "scripts" / "orchestration_acceptance" / "live_model_relay.py"),
+        "--port", str(port),
+        "--run-token", str(run_token),
+        "--upstream-base-url", upstream_base_url,
+        "--model", model,
+        "--provider", provider,
+        "--ledger", str(ledger_path),
+        "--max-model-calls", str(int(limits["max_model_calls"])),
+        "--max-spend-usd", str(float(limits["max_spend_usd"])),
+        "--max-output-tokens", str(int(limits["max_output_tokens"])),
+        "--input-usd-per-1m", str(float(limits["input_usd_per_1m"])),
+        "--output-usd-per-1m", str(float(limits["output_usd_per_1m"])),
+        "--call-timeout-s", str(float(limits.get("call_timeout_s", 60.0))),
+        "--max-wall-clock-s", str(float(limits.get("max_wall_clock_s", 1800.0))),
+    ]
+    if api_key_stdin:
+        cmd.append("--upstream-api-key-stdin")
+    return cmd
+
+
 def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
                       ledger_path: Path, model: Optional[str] = None,
                       provider: Optional[str] = None,
                       limits: Optional[Dict[str, Any]] = None,
-                      log_path: Optional[Path] = None) -> subprocess.Popen:
+                      log_path: Optional[Path] = None,
+                      upstream_api_key: Optional[str] = None,
+                      ) -> subprocess.Popen:
     """Start the loopback model relay for the OPT-IN live-replay lane.
 
     Mirrors :func:`launch_shim`: pre-bind refusal, readiness probe, ``atexit``
     reaper. The difference is the transport -- the relay forwards
     ``chat/completions`` to an OpenAI-compatible upstream, so the ONLY call
-    path is observable and bounded. In this build the upstream must be a
-    loopback synthetic endpoint; :mod:`live_model_relay` owns that gate and
-    holds no credential seam.
+    path is observable and bounded.
+
+    ``upstream_api_key`` is the caller-supplied credential seam. It is REQUIRED
+    for the fixed trusted live destination and REFUSED for a loopback synthetic
+    endpoint. The key is written to the relay's stdin and nothing else: not
+    argv, not the environment (which is scrubbed of provider keys), not a file,
+    never the ledger.
     """
     from scripts.orchestration_acceptance import live_model_relay as relay_mod
 
@@ -3829,7 +3882,22 @@ def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
         raise RuntimeError(
             f"this lane is pinned to {relay_mod.PIN_MODEL!r}; refusing "
             f"{pinned_model!r}")
-    upstream = relay_mod.validate_upstream_base_url(upstream_base_url)
+    upstream = relay_mod.validate_upstream_base_url(
+        upstream_base_url, allow_live=True)
+    kind = relay_mod.upstream_kind(upstream)
+    live = kind == relay_mod.UPSTREAM_KIND_LIVE
+    if live and not str(upstream_api_key or "").strip():
+        raise RuntimeError(
+            "the trusted live destination requires a caller-supplied "
+            "credential (upstream_api_key)")
+    if live:
+        try:
+            relay_mod.validate_credential(str(upstream_api_key))
+        except ValueError as exc:
+            raise RuntimeError(f"invalid live credential: {exc}") from exc
+    if not live and upstream_api_key is not None:
+        raise RuntimeError(
+            "refusing to send a credential to a loopback synthetic upstream")
     caps = dict(limits or {})
     for required in ("max_model_calls", "max_spend_usd", "max_output_tokens",
                      "input_usd_per_1m", "output_usd_per_1m"):
@@ -3842,31 +3910,32 @@ def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
 
     ledger = Path(ledger_path)
     ledger.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        str(VENV_PY),
-        str(BACKEND / "scripts" / "orchestration_acceptance" / "live_model_relay.py"),
-        "--port", str(port),
-        "--run-token", str(run_token),
-        "--upstream-base-url", upstream,
-        "--model", pinned_model,
-        "--provider", pinned_provider,
-        "--ledger", str(ledger),
-        "--max-model-calls", str(int(caps["max_model_calls"])),
-        "--max-spend-usd", str(float(caps["max_spend_usd"])),
-        "--max-output-tokens", str(int(caps["max_output_tokens"])),
-        "--input-usd-per-1m", str(float(caps["input_usd_per_1m"])),
-        "--output-usd-per-1m", str(float(caps["output_usd_per_1m"])),
-        "--call-timeout-s", str(float(caps.get("call_timeout_s", 60.0))),
-        "--max-wall-clock-s", str(float(caps.get("max_wall_clock_s", 1800.0))),
-    ]
+    cmd = _relay_command(
+        port, upstream_base_url=upstream, run_token=str(run_token),
+        ledger_path=ledger, model=pinned_model, provider=pinned_provider,
+        limits=caps, api_key_stdin=live)
     launcher_log = None
     if log_path is not None:
         Path(log_path).parent.mkdir(parents=True, exist_ok=True)
         launcher_log = open(log_path, "ab")
     try:
         proc = subprocess.Popen(
-            cmd, stdout=launcher_log or subprocess.DEVNULL,
-            stderr=subprocess.STDOUT)
+            cmd, stdin=subprocess.PIPE if live else subprocess.DEVNULL,
+            stdout=launcher_log or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            env=_relay_subprocess_env())
+        if live:
+            # The only place the credential exists in the child: one line on
+            # stdin, then the pipe closes.
+            try:
+                proc.stdin.write((str(upstream_api_key) + "\n").encode())
+                proc.stdin.flush()
+                proc.stdin.close()
+            except (BrokenPipeError, OSError) as exc:
+                proc.kill()
+                raise RuntimeError(
+                    "live relay closed its credential pipe before accepting "
+                    "the caller-supplied key") from exc
     finally:
         if launcher_log is not None:
             launcher_log.close()
@@ -3907,6 +3976,11 @@ def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
                     raise RuntimeError(
                         "live relay on :%s forwards to %r, not %r"
                         % (port, state.get("upstream_base_url"), upstream))
+                if str(state.get("upstream_kind") or "") != kind:
+                    proc.kill()
+                    raise RuntimeError(
+                        "live relay on :%s is kind %r, not %r"
+                        % (port, state.get("upstream_kind"), kind))
                 launch_live_relay.last_state = state
                 print(f"[relay] serving on :{port} "
                       f"({pinned_provider}/{pinned_model} -> {upstream})")

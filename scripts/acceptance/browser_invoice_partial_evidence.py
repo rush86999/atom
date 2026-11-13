@@ -54,11 +54,15 @@ Flash route (``opencode-go:deepseek-v4.1-flash``), takes prices from the
 existing catalog table (never a guess), and the relay reserves each physical
 call's slot and worst-case spend BEFORE dispatch.
 
-In THIS revision the relay has no credential seam and refuses any non-loopback
-upstream, so the lane cannot contact a live provider: it runs against the
-existing authored ``provider_shim`` as the synthetic upstream. See
-``scripts/acceptance/README_LIVE_INVOICE_REPLAY.md`` for the operator command
-and for what the lane does and does not claim.
+The upstream is either the loopback synthetic shim (default evidence) or the
+ONE fixed trusted live destination ``https://opencode.ai/zen/v1``. The live
+destination is selected by supplying that URL plus ``--live-credential-stdin``:
+the operator pipes the key on stdin, the driver forwards it to the relay on the
+relay's stdin, and the key is never put in argv, the environment, evidence or a
+ledger. The relay reads no environment variable and no auth file. Redirects and
+retries are disabled; a 3xx/5xx is one bounded physical call, not a retry
+loop. See ``scripts/acceptance/README_LIVE_INVOICE_REPLAY.md`` for the operator
+command and for what each mode claims.
 """
 from __future__ import annotations
 
@@ -132,7 +136,7 @@ LABELS = {
 
 
 # ---------------------------------------------------------------------------
-# OPT-IN live-replay lane (relay transport, synthetic upstream in this build)
+# OPT-IN live-replay lane (relay transport; synthetic or trusted live upstream)
 # ---------------------------------------------------------------------------
 # The default episode above is unchanged: authored shim responses, the same
 # assertions, the same report kind. This lane only exists behind --live-flash
@@ -171,10 +175,10 @@ LIVE_FORBIDDEN_ADAPTER_TOKENS = (
     "send", "email", "outlook", "smtp", "webhook", "gmail", "slack")
 LIVE_LABELS = {
     "model_decisions": (
-        "RELAYED TRANSPORT (SYNTHETIC UPSTREAM IN THIS BUILD): the sandboxed "
-        "server's only provider endpoint is the loopback live_model_relay, and "
-        "the relay forwards chat/completions to a loopback synthetic upstream. "
-        "No live provider dispatch, credential, account, send or spend is used."),
+        "RELAYED TRANSPORT (SYNTHETIC UPSTREAM): the sandboxed server's only "
+        "provider endpoint is the loopback live_model_relay, and the relay "
+        "forwards chat/completions to a loopback synthetic upstream. No live "
+        "provider dispatch, credential, account, send or spend is used."),
     "transport": (
         "Only the provider response is relayed; source upload/read, the "
         "structured consumer, wait settlement, invoice reconciliation, "
@@ -186,6 +190,31 @@ LIVE_LABELS = {
         "a synthetic completed row or a hand-authored reconciliation result",
     ],
 }
+LIVE_TRUSTED_LABELS = {
+    "model_decisions": (
+        "LIVE PROVIDER TRANSPORT (SYNTHETIC INVOICE): the sandboxed server's "
+        "only provider endpoint is the loopback live_model_relay, which "
+        "forwards bounded chat/completions calls to the fixed opencode-go "
+        "destination https://opencode.ai/zen/v1 using the caller-supplied key. "
+        "The key is read from operator stdin only and is never recorded."),
+    "transport": (
+        "Only the provider call is live; the invoice fixture, source "
+        "upload/read, the structured consumer, wait settlement, invoice "
+        "reconciliation, verification and persistence remain the same "
+        "deterministic production path as the synthetic lane."),
+    "not_claimed": [
+        "model/provider quality beyond this one pinned Flash route",
+        "a live provider account, send, download or any external side effect",
+        "general model judgment or prompt quality",
+        "a synthetic completed row or a hand-authored reconciliation result",
+    ],
+}
+
+
+def _live_labels(live: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if live is not None and live.get("upstream_kind") == "trusted_live":
+        return LIVE_TRUSTED_LABELS
+    return LIVE_LABELS
 
 
 def _live_requested(args: argparse.Namespace) -> bool:
@@ -194,17 +223,44 @@ def _live_requested(args: argparse.Namespace) -> bool:
         bool(getattr(args, "live_flash", False)),
         bool(str(getattr(args, "live_upstream_url", "") or "").strip()),
         getattr(args, "relay_port", None) is not None,
+        bool(getattr(args, "live_credential_stdin", False)),
         *[getattr(args, attribute, None) is not None
           for attribute in LIVE_LIMIT_ARGS.values()],
     ))
+
+
+def _read_live_credential() -> str:
+    """Read the caller-supplied live key from operator stdin (never echoed).
+
+    This is the ONLY credential read in the harness. It never opens an auth
+    file, ``.env`` or the environment. A TTY uses ``getpass`` so the key is not
+    echoed; a pipe is read as one line. The value lives in memory just long
+    enough to hand it to the relay process's stdin.
+    """
+    import getpass
+
+    if sys.stdin.isatty():
+        value = getpass.getpass("OpenCode Go API key (stdin, not echoed): ")
+    else:
+        value = sys.stdin.readline()
+    key = str(value or "").rstrip("\r\n")
+    if not key.strip():
+        raise PreflightError(
+            "--live-credential-stdin was set but no key arrived on stdin")
+    if any(character.isspace() for character in key):
+        raise PreflightError(
+            "the live credential contains whitespace; refusing it")
+    if len(key) > 4096:
+        raise PreflightError("the live credential is unreasonably long")
+    return key
 
 
 def _live_config(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
     """Validate the live refusal matrix; return a redacted config or ``None``.
 
     Raises :class:`PreflightError` for every incomplete or unsafe combination.
-    Never reads a provider credential: this build's relay has no credential
-    seam, and the only environment read here is the spend acknowledgement.
+    No credential is read here: the config records only the seam name. The
+    operator's key is read once, later, from stdin by ``_run_scenario``.
     """
     if not getattr(args, "live_flash", False):
         if _live_requested(args):
@@ -233,9 +289,22 @@ def _live_config(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
     from scripts.orchestration_acceptance import live_model_relay
 
     try:
-        upstream = live_model_relay.validate_upstream_base_url(upstream_raw)
+        upstream = live_model_relay.validate_upstream_base_url(
+            upstream_raw, allow_live=True)
     except ValueError as exc:
         raise PreflightError(str(exc)) from exc
+    kind = live_model_relay.upstream_kind(upstream)
+    credential_stdin = bool(getattr(args, "live_credential_stdin", False))
+    if kind == live_model_relay.UPSTREAM_KIND_LIVE and not credential_stdin:
+        raise PreflightError(
+            "--live-upstream-url selects the trusted live destination; it "
+            "requires --live-credential-stdin so the key is supplied by the "
+            "caller and never discovered from an environment or auth file")
+    if kind != live_model_relay.UPSTREAM_KIND_LIVE and credential_stdin:
+        raise PreflightError(
+            "--live-credential-stdin is only valid with the fixed trusted live "
+            "destination; refusing to send a credential to a synthetic "
+            "loopback upstream")
 
     from core.llm.opencode_catalog import OPCODE_KNOWN_PRICES
 
@@ -276,14 +345,16 @@ def _live_config(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
     import secrets as _secrets
 
     run_token = _secrets.token_urlsafe(18)
+    live_transport = kind == live_model_relay.UPSTREAM_KIND_LIVE
     return {
         "mode": "live_flash",
         "provider": LIVE_PROVIDER,
         "model": LIVE_MODEL,
         "pin": LIVE_PIN,
         "upstream_base_url": upstream,
-        "upstream_kind": "synthetic_loopback",
-        "live_upstream_enabled": bool(live_model_relay.LIVE_UPSTREAM_ENABLED),
+        "upstream_kind": kind,
+        "live_upstream_enabled": live_transport,
+        "credential_seam": "operator_stdin" if live_transport else None,
         "relay_port": relay_port,
         "relay_run_token": run_token,
         "relay_url": f"http://127.0.0.1:{relay_port}/v1/{run_token}",
@@ -298,6 +369,10 @@ def _live_config(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
             "output_usd_per_1m": output_price,
         },
         "credential_source": (
+            "operator-supplied on stdin to the relay process only; the relay "
+            "reads no environment variable or auth file and the key is never "
+            "recorded"
+            if live_transport else
             "none: the relay holds no credential and the sandboxed server gets "
             "only a run-scoped relay placeholder"),
     }
@@ -399,6 +474,30 @@ def _live_budget_exhausted(ledger: Dict[str, Any]) -> bool:
                for reason in ("call_cap", "spend_cap", "wall_clock"))
 
 
+#: Ledger keys that would mean a prompt/completion body was persisted. The
+#: relay records metadata only; these names fail closed if a future change
+#: starts writing content.
+LEDGER_CONTENT_KEYS = frozenset({
+    "response_head", "response_body", "content", "message", "messages",
+    "prompt", "completion", "text", "choices", "prompt_text",
+})
+#: Ledger keys that would mean a credential/header was persisted.
+LEDGER_CREDENTIAL_KEYS = frozenset({
+    "api_key", "authorization", "credential", "bearer", "token",
+    "credential_fingerprint",
+})
+
+
+def _ledger_keys_present(entries: List[Dict[str, Any]],
+                         forbidden: frozenset) -> List[str]:
+    found: set = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        found.update(key for key in entry if str(key).lower() in forbidden)
+    return sorted(found)
+
+
 def _assert_live_episode(scenario: Dict[str, Any], live: Dict[str, Any],
                          step: Any, assignment: Dict[str, Any],
                          *, db_path: Path) -> None:
@@ -408,7 +507,8 @@ def _assert_live_episode(scenario: Dict[str, Any], live: Dict[str, Any],
     ``invoice.reconcile`` of 140.25, reload visibility) are asserted by the same
     steps in both modes. This adds what ONLY the relay can prove: the pin that
     was requested is the pin that served every call, the caps held, every call
-    was one chat completion, and nothing secret or outbound entered the record.
+    was one chat completion, the transport class matches the configured
+    upstream, and neither model content nor a credential entered the ledger.
     """
     ledger = D3.R.fetch_relay_ledger(live["relay_port"])
     _record_live_ledger(scenario, live, ledger)
@@ -421,8 +521,13 @@ def _assert_live_episode(scenario: Dict[str, Any], live: Dict[str, Any],
     outbound = _forbidden_adapters(assignment)
     credential_rows = _credential_row_violations(db_path)
     secret_in_ledger = _contains_secret(json.dumps(entries, default=str))
+    content_keys = _ledger_keys_present(entries, LEDGER_CONTENT_KEYS)
+    credential_keys = _ledger_keys_present(entries, LEDGER_CREDENTIAL_KEYS)
     scenario["live"]["secrets_recorded"] = bool(secret_in_ledger)
+    scenario["live"]["model_content_recorded"] = bool(content_keys)
+    scenario["live"]["credential_fields_recorded"] = bool(credential_keys)
     scenario["live"]["external_accounts"] = False
+    fixtures = scenario.get("fixtures") or {}
     checks = {
         "relay_available": ledger.get("available") is True,
         "at_least_one_model_call": len(entries) >= 1,
@@ -449,21 +554,31 @@ def _assert_live_episode(scenario: Dict[str, Any], live: Dict[str, Any],
         "no_foreign_model_attempt": (
             int((budget.get("refusals") or {}).get(
                 "model_not_pinned") or 0) == 0),
-        "live_dispatch_disabled": budget.get("live_upstream_enabled") is False,
+        "transport_state_matches": (
+            budget.get("upstream_kind") == live["upstream_kind"]
+            and budget.get("live_upstream_enabled")
+            is live["live_upstream_enabled"]),
         "ledger_file_present": Path(live["relay_ledger_path"]).is_file(),
         "no_secret_in_ledger": not secret_in_ledger,
+        "no_model_content_in_ledger": not content_keys,
+        "no_credential_fields_in_ledger": not credential_keys,
         "no_outbound_or_send_adapter": not outbound,
         "no_connector_credential_rows": not credential_rows,
         "synthetic_fixture_only": (
-            (scenario.get("fixtures") or {}).get("expected_total")
-            == EXPECTED_TOTAL),
+            fixtures.get("expected_total") == EXPECTED_TOTAL
+            and str((fixtures.get("po") or {}).get("po_id") or "") == PO
+            and str((fixtures.get("complete") or {}).get("invoice_id") or "")
+            == INVOICE),
     }
     step("live_relay_bounded_and_pinned", checks, details={
         "served_pin": scenario["live"].get("served_pin"),
+        "upstream_kind": live["upstream_kind"],
         "totals": scenario["live"].get("totals"),
         "refusals": budget.get("refusals"),
         "forbidden_adapters": outbound,
         "credential_row_violations": credential_rows,
+        "ledger_content_keys": content_keys,
+        "ledger_credential_keys": credential_keys,
         "episodes": 1,
     })
 
@@ -1028,7 +1143,7 @@ def _run_scenario(args: argparse.Namespace,
         "kind": "browser_invoice_partial_evidence_scenario",
         "status": "running",
         "started_at": _now(),
-        "labels": LIVE_LABELS if live is not None else LABELS,
+        "labels": _live_labels(live) if live is not None else LABELS,
         "steps": [],
     }
     if live is not None:
@@ -1040,11 +1155,14 @@ def _run_scenario(args: argparse.Namespace,
             "upstream_kind": live["upstream_kind"],
             "live_upstream_enabled": live["live_upstream_enabled"],
             "credential_source": live["credential_source"],
+            "credential_seam": live.get("credential_seam"),
             "pricing": live["pricing"],
             "limits": live["limits"],
             "totals": {"calls": 0, "input_tokens": 0, "output_tokens": 0,
                        "cost_usd": 0.0},
             "secrets_recorded": False,
+            "model_content_recorded": False,
+            "credential_fields_recorded": False,
             "synthetic_data": True,
             "external_accounts": False,
         }
@@ -1134,9 +1252,14 @@ def _run_scenario(args: argparse.Namespace,
                 shim_port=args.shim_port)
         else:
             # OPT-IN live replay: the ONLY provider endpoint is the loopback
-            # relay, which forwards to the synthetic upstream and bounds every
+            # relay, which forwards to the configured upstream and bounds every
             # physical call before dispatch. The server gets the existing
             # env-addressable adapter seam plus a run-scoped placeholder key.
+            # The real key, when the trusted live destination is used, travels
+            # operator stdin -> this process -> relay stdin and nowhere else.
+            relay_api_key = (
+                _read_live_credential()
+                if live.get("credential_seam") == "operator_stdin" else None)
             relay = D3.R.launch_live_relay(
                 live["relay_port"],
                 upstream_base_url=live["upstream_base_url"],
@@ -1146,7 +1269,10 @@ def _run_scenario(args: argparse.Namespace,
                 provider=live["provider"],
                 limits=live["limits"],
                 log_path=Path(live["relay_log_path"]),
+                upstream_api_key=relay_api_key,
             )
+            scenario["live"]["credential_present"] = bool(relay_api_key)
+            relay_api_key = None
             cleanups.append(relay)
             relay_state = dict(
                 getattr(D3.R.launch_live_relay, "last_state", {}) or {})
@@ -1216,6 +1342,12 @@ def _run_scenario(args: argparse.Namespace,
                 "server_key_is_a_placeholder": (
                     "placeholder" in str(
                         provider_endpoint.get("key_kind") or "")),
+                "credential_seam_is_caller_stdin": (
+                    live["upstream_kind"] != "trusted_live"
+                    or (live.get("credential_seam") == "operator_stdin"
+                        and scenario["live"].get("credential_present") is True
+                        and live["upstream_base_url"]
+                        == "https://opencode.ai/zen/v1")),
                 "no_secondary_provider_route": (
                     list(provider_endpoint.get("injected_into_server_env") or [])
                     == ["OPENCODE_BASE_URL", "OPENCODE_API_KEY",
@@ -1590,8 +1722,14 @@ def main(argv: Optional[List[str]] = None) -> int:
              "--out, %s=spend and --live-upstream-url)" % LIVE_ACK_ENV)
     ap.add_argument(
         "--live-upstream-url", default="",
-        help="OpenAI-compatible upstream base url for the relay "
-             "(loopback synthetic endpoint in this build)")
+        help="OpenAI-compatible upstream base url for the relay: a loopback "
+             "synthetic endpoint, or the fixed trusted live destination "
+             "https://opencode.ai/zen/v1 (which also requires "
+             "--live-credential-stdin)")
+    ap.add_argument(
+        "--live-credential-stdin", action="store_true",
+        help="read the live provider key from operator stdin and pass it to "
+             "the relay on its stdin; never read from env, .env or auth files")
     ap.add_argument("--relay-port", type=int, default=None)
     ap.add_argument("--max-model-calls", type=int, default=None)
     ap.add_argument("--max-output-tokens", type=int, default=None)

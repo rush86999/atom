@@ -18,18 +18,31 @@ provider call can be observed and bounded in ONE place:
   and every other path are answered locally;
 * every physical call is RESERVED before it is dispatched -- call slot and
   worst-case spend -- so a cap cannot be exceeded by an in-flight request;
-* no credential is read, held or forwarded by this process.
+* the upstream is either a loopback synthetic endpoint or exactly ONE trusted
+  live destination, ``https://opencode.ai/zen/v1``.
 
-What this build deliberately does NOT do
-========================================
+The credential seam
+===================
 
-There is no credential seam here and no live provider dispatch. The upstream
-must be a loopback synthetic upstream (the tests run one). A non-loopback URL
-is refused with an explicit message instead of silently becoming a live call:
-``validate_upstream_base_url`` is the single gate, and enabling a real upstream
-later means adding the credential seam THERE and nowhere else. ``--upstream``
-never inherits a developer credential because this module does not look at the
-environment at all.
+A live upstream needs a credential, and this relay accepts it ONLY from its
+own stdin (``--upstream-api-key-stdin``), supplied by the caller
+(``run_isolated.launch_live_relay(upstream_api_key=...)``). The key is held in
+memory for the lifetime of the process, is sent only as the upstream
+``Authorization`` header, and is never written to the ledger, the log or a
+child process argv. This module does not read the environment, ``.env`` or any
+auth file; there is deliberately no fallback path that could discover one.
+
+Guarantees for the live route
+=============================
+
+* fixed destination: any other https host, path, query or port is refused
+  before dispatch; a loopback endpoint never receives the credential;
+* one attempt per call -- no retries and no redirect following (a 3xx is
+  returned as a 3xx and counted as one physical call);
+* the existing call / spend caps are reserved before the socket is opened;
+* the ledger records metadata only: model ids, usage counters, status,
+  durations, byte counts and a response hash. Neither the prompt/completion
+  content nor any credential/header is stored.
 
 Endpoints
 =========
@@ -57,10 +70,10 @@ Bounds (all enforced before dispatch)
   are clamped.
 * ``--call-timeout-s`` / ``--max-wall-clock-s``: one attempt, no retries.
 
-Every request is recorded in a bounded ledger keyed by sequence number, and
-the response head is redacted with the product's secrets redactor before it is
-written. Request headers (including any inbound authorization) are never read
-into evidence and never forwarded.
+Every request is recorded in a bounded ledger keyed by sequence number. The
+entry carries metadata only; request headers (including any inbound
+authorization) and the prompt/completion content are never read into evidence
+or written to the ledger.
 """
 from __future__ import annotations
 
@@ -91,10 +104,13 @@ PIN_MODEL = "deepseek-v4.1-flash"
 #: Loopback hosts a synthetic upstream may use.
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
 
-#: Flipped to True ONLY together with a credential seam in
-#: :func:`validate_upstream_base_url` / :class:`HttpUpstream`. Kept as a named
-#: fact so evidence can state "live dispatch disabled" instead of implying it.
-LIVE_UPSTREAM_ENABLED = False
+#: The ONE fixed live destination. This is the product's existing opencode-go
+#: adapter endpoint; no other external host is addressable by this relay.
+TRUSTED_LIVE_UPSTREAM_BASE_URL = "https://opencode.ai/zen/v1"
+TRUSTED_LIVE_HOST = "opencode.ai"
+
+UPSTREAM_KIND_LOOPBACK = "synthetic_loopback"
+UPSTREAM_KIND_LIVE = "trusted_live"
 
 #: The sandboxed server receives THIS run-scoped placeholder as its provider
 #: key, never an operator credential. ``launch_server`` refuses any injected
@@ -137,47 +153,80 @@ class RelayRefusal(Exception):
         super().__init__(f"{reason}: {detail}" if detail else reason)
 
 
-def validate_upstream_base_url(url: str) -> str:
+def validate_upstream_base_url(url: str, *, allow_live: bool = False) -> str:
     """The single gate on where this relay will forward to.
 
-    A non-loopback upstream is refused, not rewritten. In this build the relay
-    holds no credential seam, so a "live" URL would either fail confusingly or
-    (worse) be attempted without authentication; refusing keeps the claim
-    honest. When live dispatch is enabled, the credential seam belongs here.
+    Two destinations exist, and neither is configurable by accident:
+    a loopback ``http`` endpoint for synthetic evidence, and exactly
+    ``https://opencode.ai/zen/v1`` for the opt-in live transport. ``allow_live``
+    is the caller's explicit acknowledgement that a live destination is
+    intended; without it the trusted URL is refused. Any other scheme, host,
+    port, path, userinfo, query or fragment is refused, never rewritten.
     """
     text = str(url or "").strip()
     if not text:
         raise ValueError("upstream base url is required")
     parts = urlsplit(text)
-    if parts.scheme != "http":
-        raise ValueError(
-            "live provider dispatch is not enabled in this build (no "
-            f"credential seam); upstream must be a loopback synthetic "
-            f"endpoint (http://127.0.0.1:<port>/v1), got scheme "
-            f"{parts.scheme or '(none)'}")
     if parts.username or parts.password:
         raise ValueError("upstream base url must not carry userinfo")
     if parts.query or parts.fragment:
         raise ValueError(
             "upstream base url must not carry a query or fragment")
     host = (parts.hostname or "").lower()
-    if host not in LOOPBACK_HOSTS:
-        raise ValueError(
-            "live provider dispatch is not enabled in this build (no "
-            f"credential seam); upstream host {host!r} is not loopback. "
-            "Only a loopback synthetic upstream is accepted.")
     try:
         port = parts.port
     except ValueError as exc:
         raise ValueError(f"upstream base url has an invalid port: {exc}") from exc
+    path = parts.path.rstrip("/")
+
+    if parts.scheme == "https" and host == TRUSTED_LIVE_HOST:
+        if port not in (None, 443):
+            raise ValueError(
+                "the trusted live destination must not name a port")
+        if path != "/zen/v1":
+            raise ValueError(
+                "the live destination is fixed to "
+                f"{TRUSTED_LIVE_UPSTREAM_BASE_URL}; got path {parts.path!r}")
+        if not allow_live:
+            raise ValueError(
+                "the trusted live upstream requires an explicit caller-supplied "
+                "credential seam (allow_live=True)")
+        return TRUSTED_LIVE_UPSTREAM_BASE_URL
+
+    if parts.scheme != "http":
+        raise ValueError(
+            "upstream must be a loopback synthetic endpoint "
+            "(http://127.0.0.1:<port>/v1) or the fixed trusted live "
+            f"destination {TRUSTED_LIVE_UPSTREAM_BASE_URL}; got scheme "
+            f"{parts.scheme or '(none)'}")
+    if host not in LOOPBACK_HOSTS:
+        raise ValueError(
+            f"upstream host {host!r} is not loopback. Only a loopback "
+            f"synthetic endpoint or the fixed trusted live destination "
+            f"{TRUSTED_LIVE_UPSTREAM_BASE_URL} is accepted.")
     if port is None:
         raise ValueError("upstream base url must name an explicit port")
-    path = parts.path.rstrip("/")
     if not path:
         raise ValueError(
             "upstream base url must carry the API prefix, e.g. "
             "http://127.0.0.1:8123/v1")
     return text.rstrip("/")
+
+
+def upstream_kind(url: str) -> str:
+    """Return the relay's transport class for an already-validated URL."""
+    validated = validate_upstream_base_url(url, allow_live=True)
+    return (UPSTREAM_KIND_LIVE
+            if validated == TRUSTED_LIVE_UPSTREAM_BASE_URL
+            else UPSTREAM_KIND_LOOPBACK)
+
+
+def is_trusted_live_upstream(url: str) -> bool:
+    """True only for the exact fixed live destination (no parsing surprises)."""
+    try:
+        return upstream_kind(url) == UPSTREAM_KIND_LIVE
+    except ValueError:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +263,7 @@ class RelayState:
         self.model = model
         self.run_token = run_token
         self.upstream_base_url = upstream_base_url
+        self.upstream_kind = upstream_kind(upstream_base_url)
         self.limits = limits
         self.ledger_path = Path(ledger_path) if ledger_path else None
         self._lock = threading.RLock()
@@ -320,7 +370,9 @@ class RelayState:
                 "provider": self.provider,
                 "model": self.model,
                 "upstream_base_url": self.upstream_base_url,
-                "live_upstream_enabled": LIVE_UPSTREAM_ENABLED,
+                "upstream_kind": self.upstream_kind,
+                "live_upstream_enabled": (
+                    self.upstream_kind == UPSTREAM_KIND_LIVE),
                 "limits": self.limits.as_dict(),
                 "calls_started": self.calls_started,
                 "calls_completed": self.calls_completed,
@@ -353,7 +405,7 @@ class RelayState:
 
 
 # ---------------------------------------------------------------------------
-# Upstream client (loopback synthetic only in this build)
+# Upstream client (loopback synthetic or the one fixed trusted live route)
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -368,14 +420,38 @@ class HttpUpstream:
 
     Deliberately minimal: no retries (an SDK retry is a new physical call and
     must be counted as one), no redirects, no proxy inheritance from the
-    developer environment, and no authorization header. There is no credential
-    read anywhere in this class.
+    developer environment, and no credential discovery. A live destination
+    receives ONLY the caller-supplied key, as the ``Authorization`` header;
+    a loopback synthetic endpoint refuses a key outright.
     """
 
-    def __init__(self, base_url: str, *, call_timeout_s: float = 60.0) -> None:
-        self.base_url = validate_upstream_base_url(base_url)
+    def __init__(self, base_url: str, *, call_timeout_s: float = 60.0,
+                 api_key: Optional[str] = None) -> None:
+        self.base_url = validate_upstream_base_url(base_url, allow_live=True)
+        self.upstream_kind = upstream_kind(self.base_url)
+        if self.upstream_kind == UPSTREAM_KIND_LIVE:
+            if not str(api_key or "").strip():
+                raise ValueError(
+                    "the trusted live destination requires a caller-supplied "
+                    "credential")
+            try:
+                self._api_key = validate_credential(str(api_key))
+            except ValueError as exc:
+                raise ValueError(f"invalid caller-supplied credential: {exc}") from exc
+        else:
+            if api_key is not None:
+                raise ValueError(
+                    "refusing to send a credential to a loopback synthetic "
+                    "upstream")
+            self._api_key = None
         self.call_timeout_s = float(call_timeout_s)
         self._client = None
+
+    def _headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self._api_key is not None:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
 
     def _http(self):
         if self._client is None:
@@ -394,8 +470,7 @@ class HttpUpstream:
         url = f"{self.base_url}/chat/completions"
         try:
             response = self._http().post(
-                url, content=payload,
-                headers={"Content-Type": "application/json"})
+                url, content=payload, headers=self._headers())
         except httpx.TimeoutException as exc:
             return UpstreamResult(504, b"", f"timeout: {exc}")
         except Exception as exc:  # noqa: BLE001 - transport failure is evidence
@@ -412,15 +487,15 @@ class HttpUpstream:
 
 
 # ---------------------------------------------------------------------------
-# Redaction (response heads only; request headers are never recorded)
+# Redaction (transport errors only; content and headers are never recorded)
 # ---------------------------------------------------------------------------
 
 _FALLBACK_SECRET = re.compile(
     r"(sk-[A-Za-z0-9_\-]{8,}|Bearer\s+[A-Za-z0-9._\-]{8,})")
 
 
-def redact_head(text: str) -> Tuple[str, bool]:
-    """Bound-and-redact a response head. Returns ``(text, redacted)``."""
+def _redact_text(text: str) -> Tuple[str, bool]:
+    """Bound-and-redact a transport error. Returns ``(text, redacted)``."""
     head = str(text or "")[:MAX_RESPONSE_HEAD_CHARS]
     redacted = False
     try:
@@ -580,7 +655,7 @@ class Handler(BaseHTTPRequestHandler):
         choices = document.get("choices")
         if isinstance(choices, list) and choices and isinstance(choices[0], dict):
             finish_reason = choices[0].get("finish_reason")
-        head, redacted = redact_head(result.body.decode("utf-8", "replace"))
+        upstream_error, _ = _redact_text(result.error) if result.error else ("", False)
 
         self.relay.record({
             "seq": reservation.seq,
@@ -608,9 +683,7 @@ class Handler(BaseHTTPRequestHandler):
             "response_bytes": len(result.body),
             "response_sha256": (
                 hashlib.sha256(result.body).hexdigest() if result.body else None),
-            "response_head": head,
-            "response_head_redacted": redacted,
-            "upstream_error": result.error or None,
+            "upstream_error": upstream_error or None,
         })
 
         if result.error:
@@ -636,6 +709,7 @@ class Handler(BaseHTTPRequestHandler):
                 "provider": snapshot["provider"],
                 "model": snapshot["model"],
                 "upstream_base_url": snapshot["upstream_base_url"],
+                "upstream_kind": snapshot["upstream_kind"],
                 "live_upstream_enabled": snapshot["live_upstream_enabled"],
                 "limits": snapshot["limits"],
                 "budget": snapshot,
@@ -670,6 +744,24 @@ def build_server(*, port: int, relay: RelayState,
     return server
 
 
+def _credential_from_stdin() -> str:
+    """Read the caller-supplied key from stdin. Never log or echo it."""
+    raw = sys.stdin.readline()
+    return validate_credential(str(raw or "").rstrip("\r\n"))
+
+
+def validate_credential(value: str) -> str:
+    """Validate the key's shape without recording or transforming its value."""
+    key = str(value or "")
+    if not key.strip():
+        raise ValueError("no credential was supplied on stdin")
+    if any(character.isspace() for character in key):
+        raise ValueError("the supplied credential contains whitespace")
+    if len(key) > 4096:
+        raise ValueError("the supplied credential is unreasonably long")
+    return key
+
+
 def _limits_from_args(args: argparse.Namespace) -> RelayLimits:
     return RelayLimits(
         max_calls=args.max_model_calls,
@@ -687,6 +779,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--port", type=int, required=True)
     ap.add_argument("--run-token", required=True)
     ap.add_argument("--upstream-base-url", required=True)
+    ap.add_argument(
+        "--upstream-api-key-stdin", action="store_true",
+        help="read the caller-supplied upstream credential from stdin; "
+             "required for the trusted live destination and refused for a "
+             "loopback synthetic endpoint")
     ap.add_argument("--model", default=PIN_MODEL)
     ap.add_argument("--provider", default=PIN_PROVIDER)
     ap.add_argument("--ledger", default="")
@@ -708,9 +805,27 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"pinned to {PIN_PROVIDER!r}", file=sys.stderr)
         return 2
     try:
-        upstream_url = validate_upstream_base_url(args.upstream_base_url)
+        upstream_url = validate_upstream_base_url(
+            args.upstream_base_url, allow_live=True)
     except ValueError as exc:
         print(f"[relay] refusing upstream: {exc}", file=sys.stderr)
+        return 2
+
+    kind = upstream_kind(upstream_url)
+    api_key: Optional[str] = None
+    if args.upstream_api_key_stdin:
+        try:
+            api_key = _credential_from_stdin()
+        except ValueError as exc:
+            print(f"[relay] refusing credential: {exc}", file=sys.stderr)
+            return 2
+    if kind == UPSTREAM_KIND_LIVE and api_key is None:
+        print("[relay] refusing the trusted live destination without a "
+              "caller-supplied credential on stdin", file=sys.stderr)
+        return 2
+    if kind != UPSTREAM_KIND_LIVE and api_key is not None:
+        print("[relay] refusing to send a credential to a loopback synthetic "
+              "upstream", file=sys.stderr)
         return 2
 
     limits = _limits_from_args(args)
@@ -722,11 +837,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         limits=limits,
         ledger_path=Path(args.ledger) if args.ledger else None,
     )
-    upstream = HttpUpstream(upstream_url, call_timeout_s=limits.call_timeout_s)
+    upstream = HttpUpstream(
+        upstream_url, call_timeout_s=limits.call_timeout_s, api_key=api_key)
     server = build_server(port=args.port, relay=relay, upstream=upstream)
     print(f"[relay] {args.provider}/{args.model} on :{args.port} -> "
-          f"{upstream_url} (live_upstream_enabled={LIVE_UPSTREAM_ENABLED}, "
-          f"calls<={limits.max_calls}, spend<=${limits.max_spend_usd})")
+          f"{upstream_url} (kind={kind}, "
+          f"calls<={limits.max_calls}, spend<=${limits.max_spend_usd}, "
+          f"credential={'caller_stdin' if api_key else 'none'})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:  # pragma: no cover - operator stop
