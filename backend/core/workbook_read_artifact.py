@@ -2017,6 +2017,340 @@ def _row_contains_type(
     return all(_stem(t) in _stem(haystack.lower()) for t in tokens if t)
 
 
+_RELATIONSHIP_NS = (
+    "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+)
+
+# Bounds for the streamed OOXML cached-value scan — the same spirit as
+# ``core.xlsx_openpyxl_compat``: bounded memory, explicit caps, and NO silent
+# truncation. A cap violation raises, and the caller then restores the legacy
+# second openpyxl load, so a bound can only cost time, never correctness.
+MAX_OOXML_SHARED_STRINGS_BYTES = 64 * 1024 * 1024
+MAX_OOXML_WORKBOOK_BYTES = 16 * 1024 * 1024
+MAX_OOXML_WORKSHEET_BYTES = 256 * 1024 * 1024
+MAX_OOXML_SCAN_TOTAL_BYTES = 512 * 1024 * 1024
+
+
+def _ooxml_cached_value_map(content: bytes) -> Dict[str, Dict[str, tuple]]:
+    """Cached FORMULA results read straight from the OOXML package.
+
+    The structured reader needs each formula cell's last computed value — the
+    value ``openpyxl.load_workbook(..., data_only=True)`` returns — but a
+    second full workbook load doubles the parse cost of an exact-file
+    inspection (issue #620: 157.52s for 46 sheets). The package already
+    carries those values as ``<c><f>…</f><v>…</v></c>``, so this helper reads
+    them straight from the package, in the same spirit as
+    ``core.formula_engine._raw_xml_grid`` and the raw scanners in
+    ``core.sheet_dataset_service`` — but preserving the ``<v>`` cell TYPE,
+    which the string-only scanners drop.
+
+    Decoding mirrors ``openpyxl.worksheet._reader.WorkSheetParser.parse_cell``
+    with ``data_only=True``: shared-string indices, booleans, literal strings,
+    error literals, ISO dates and numeric casting. Date-formatted serials are
+    returned as ``("n", number)``; the caller converts them with the formula
+    workbook's own epoch/number format, exactly as openpyxl does when it
+    resolves the style's date format.
+
+    Returns ``{sheet_title: {coordinate: (kind, value)}}``. Only cells that
+    carry BOTH an ``<f>`` element and a non-empty ``<v>`` are included — this
+    map answers the formula-cache question and nothing else, so it stays
+    small even for large workbooks.
+
+    Security and resource bounds (2026-11-12 hardening of issue #620):
+
+    * PARSING IS DEFUSEDXML-ONLY. Every part is parsed through
+      ``defusedxml.ElementTree`` with ``forbid_dtd``, ``forbid_entities`` and
+      ``forbid_external`` all set — a DTD, an entity definition or an
+      external reference is rejected outright. If defusedxml cannot be
+      imported the scan DECLINES (raises); it never falls back to the stdlib
+      parser, which would reopen the DTD/entity path (same contract as
+      ``core.xlsx_openpyxl_compat``).
+    * WORKSHEET PARTS ARE STREAMED. No part is materialised as a tree:
+      cells are read from their own end event (so ``<f>``/``<v>`` text is
+      still intact), then each cell is pruned from its row and cleared, and
+      each completed row is pruned from ``sheetData``. Peak memory stays
+      proportional to one row plus the worksheet's small framing elements,
+      never to the part size.
+    * EVERY PART IS BOUNDED. Per-part byte caps and a total scan budget are
+      checked BEFORE a part is opened (from the zip's declared uncompressed
+      size, which ``zipfile`` enforces on read). A cap violation raises; the
+      scan never returns truncated results.
+    * EXTERNAL RELATIONSHIPS ARE FORBIDDEN. A sheet whose workbook
+      relationship carries ``TargetMode="External"`` declines the scan;
+      relationships no sheet references (for example an external hyperlink
+      entry) are ignored and cannot change the map.
+    * A shared-string index outside the table declines the scan rather than
+      returning a wrong or silently wrapped value.
+
+    Raises whenever the package cannot be scanned safely and completely; the
+    caller then falls back to the legacy second openpyxl load rather than
+    silently dropping cached values.
+    """
+    import posixpath
+    import zipfile
+
+    try:
+        from defusedxml import ElementTree as SafeET
+    except Exception as exc:  # noqa: BLE001 — DECLINE; never a stdlib parse
+        raise RuntimeError(
+            "defusedxml unavailable; OOXML cached-value scan declined "
+            f"({exc})") from exc
+
+    def _local(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1]
+
+    def _cast_number(text: str) -> Any:
+        # Same rule as openpyxl's _cast_number.
+        if "." in text or "E" in text or "e" in text:
+            return float(text)
+        return int(text)
+
+    def _streamed(handle):
+        """defusedxml iterparse over one part, all dangerous features
+        forbidden: DTDs, entity expansion and external references are
+        rejected outright rather than resolved."""
+        return SafeET.iterparse(
+            handle, events=("start", "end"),
+            forbid_dtd=True, forbid_entities=True, forbid_external=True,
+        )
+
+    def _detach(parent, element) -> None:
+        """Drop ``element`` from ``parent`` so its subtree can be freed."""
+        if parent is None:
+            return
+        try:
+            parent.remove(element)
+        except ValueError:
+            pass  # not a direct child of the tracked parent
+
+    def _shared_text(si) -> str:
+        parts: List[str] = []
+        for child in si:
+            tag = _local(child.tag)
+            if tag == "t":
+                parts.append(child.text or "")
+            elif tag == "r":
+                parts.extend(
+                    sub.text or "" for sub in child
+                    if _local(sub.tag) == "t")
+        return "".join(parts)
+
+    budget = {"remaining": MAX_OOXML_SCAN_TOTAL_BYTES}
+
+    def _open_part(archive: "zipfile.ZipFile", name: str, limit: int):
+        """Open one zip member under its per-part cap and the scan budget.
+
+        The declared uncompressed size is checked before the stream starts,
+        so an oversized part costs nothing to reject; ``zipfile`` enforces
+        the declared size while reading.
+        """
+        info = archive.getinfo(name)  # KeyError -> scan declines
+        size = int(info.file_size or 0)
+        if size > limit:
+            raise RuntimeError(
+                f"{name} expands to {size} bytes (cap {limit}); "
+                "cached-value scan declined")
+        if size > budget["remaining"]:
+            raise RuntimeError(
+                f"OOXML scan budget exhausted at {name} "
+                f"({budget['remaining']} of {MAX_OOXML_SCAN_TOTAL_BYTES} "
+                "bytes remaining); cached-value scan declined")
+        budget["remaining"] -= size
+        return archive.open(info, "r")
+
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        names = set(archive.namelist())
+        shared_strings: List[str] = []
+        if "xl/sharedStrings.xml" in names:
+            with _open_part(
+                archive, "xl/sharedStrings.xml",
+                MAX_OOXML_SHARED_STRINGS_BYTES,
+            ) as handle:
+                sst = None
+                for event, element in _streamed(handle):
+                    tag = _local(element.tag)
+                    if event == "start":
+                        if tag == "sst":
+                            sst = element
+                        continue
+                    if tag == "si":
+                        # The element's own children are intact here; the
+                        # removal below releases the whole subtree.
+                        shared_strings.append(_shared_text(element))
+                        _detach(sst, element)
+
+        # Relationships: keep (Target, TargetMode) per Id. External-mode
+        # relationships no sheet references are IGNORED (they cannot name a
+        # part in this package); a sheet's own relationship must be internal.
+        rel_targets: Dict[str, tuple] = {}
+        with _open_part(
+            archive, "xl/_rels/workbook.xml.rels", MAX_OOXML_WORKBOOK_BYTES,
+        ) as handle:
+            for event, rel in _streamed(handle):
+                if event == "start" or _local(rel.tag) != "Relationship":
+                    continue
+                rel_id = rel.get("Id")
+                if rel_id:
+                    rel_targets[rel_id] = (
+                        rel.get("Target", ""),
+                        (rel.get("TargetMode") or "Internal").strip().lower(),
+                    )
+
+        sheet_parts: Dict[str, str] = {}
+        with _open_part(
+            archive, "xl/workbook.xml", MAX_OOXML_WORKBOOK_BYTES,
+        ) as handle:
+            for event, sheet in _streamed(handle):
+                if event == "start" or _local(sheet.tag) != "sheet":
+                    continue
+                title = sheet.get("name")
+                rid = sheet.get(f"{_RELATIONSHIP_NS}id")
+                target, mode = rel_targets.get(rid) or ("", "")
+                if not (title and target):
+                    continue
+                if mode != "internal":
+                    # EXTERNAL REFERENCES ARE FORBIDDEN (2026-11-12
+                    # hardening): silently skipping the sheet would report
+                    # its formula cache as "unavailable" — a silent parity
+                    # break. The scan declines instead and the caller
+                    # restores the legacy behavior for the whole workbook.
+                    raise RuntimeError(
+                        f"sheet {title!r} uses a "
+                        f"TargetMode={mode!r} relationship; external "
+                        "references are forbidden — cached-value scan "
+                        "declined")
+                if target.startswith("/"):
+                    # Package-absolute part name.
+                    normalized = posixpath.normpath(target.lstrip("/"))
+                elif not target.startswith("xl/"):
+                    # Workbook-level relationships resolve against xl/;
+                    # normpath also resolves legitimate "../" targets that
+                    # the legacy prefixing left unmapped.
+                    normalized = posixpath.normpath(f"xl/{target}")
+                else:
+                    normalized = posixpath.normpath(target)
+                if ".." in normalized.split("/") or normalized not in names:
+                    continue  # inert: never a member of this package
+                sheet_parts[title] = normalized
+
+        cached: Dict[str, Dict[str, tuple]] = {}
+        for title, part in sheet_parts.items():
+            values: Dict[str, tuple] = {}
+            with _open_part(archive, part, MAX_OOXML_WORKSHEET_BYTES) as handle:
+                row = None
+                sheet_data = None
+                for event, element in _streamed(handle):
+                    tag = _local(element.tag)
+                    if event == "start":
+                        if tag == "row":
+                            row = element
+                        elif tag == "sheetData":
+                            sheet_data = element
+                        continue
+                    if tag == "c":
+                        # The cell's <f>/<v> children are complete and
+                        # intact at its end event.
+                        ref = (element.get("r") or "").upper()
+                        if ref:
+                            has_formula = False
+                            raw = None
+                            for child in element:
+                                child_tag = _local(child.tag)
+                                if child_tag == "f":
+                                    has_formula = True
+                                elif child_tag == "v":
+                                    raw = child.text
+                            if has_formula and raw not in (None, ""):
+                                cell_type = element.get("t") or "n"
+                                if cell_type == "s":
+                                    try:
+                                        index = int(raw)
+                                    except ValueError:
+                                        values[ref] = ("s", raw)
+                                    else:
+                                        if not 0 <= index < len(shared_strings):
+                                            # A negative index would
+                                            # silently wrap and an
+                                            # out-of-range one is a
+                                            # fabricated value; openpyxl's
+                                            # own loader errors on this,
+                                            # so decline and let the
+                                            # legacy load decide.
+                                            raise RuntimeError(
+                                                f"shared string index "
+                                                f"{index} out of range; "
+                                                "cached-value scan declined")
+                                        values[ref] = (
+                                            "s", shared_strings[index])
+                                elif cell_type == "b":
+                                    try:
+                                        values[ref] = ("b", bool(int(raw)))
+                                    except ValueError:
+                                        values[ref] = ("s", raw)
+                                elif cell_type == "e":
+                                    values[ref] = ("e", raw)
+                                elif cell_type == "str":
+                                    values[ref] = ("s", raw)
+                                elif cell_type == "d":
+                                    try:
+                                        from openpyxl.utils.datetime \
+                                            import from_ISO8601
+
+                                        values[ref] = (
+                                            "d", from_ISO8601(raw))
+                                    except Exception:  # noqa: BLE001
+                                        values[ref] = ("s", raw)
+                                else:
+                                    try:
+                                        values[ref] = (
+                                            "n", _cast_number(raw))
+                                    except (TypeError, ValueError):
+                                        values[ref] = ("s", raw)
+                    if tag == "c":
+                        # Release the consumed cell regardless of whether
+                        # it contributed a cached value.
+                        _detach(row, element)
+                        element.clear()
+                    elif tag == "row":
+                        if row is element:
+                            row = None
+                        _detach(sheet_data, element)
+                    elif tag == "sheetData":
+                        element.clear()
+            cached[title] = values
+        return cached
+
+
+def _decode_ooxml_cached_value(
+    entry: tuple, number_format: Optional[str], epoch: Any,
+) -> Any:
+    """Typed cached value for a formula cell (``data_only=True`` equivalent).
+
+    Openpyxl resolves a numeric cached value through the CELL's number
+    format: a date format turns the serial into a date/datetime, a timedelta
+    format into a duration, and anything else stays a number. The formula
+    workbook already carries that format (the second load did not add
+    information here), so only the serial conversion is applied.
+    """
+    kind, value = entry
+    if kind != "n":
+        return value
+    from openpyxl.styles.numbers import is_date_format, is_timedelta_format
+
+    if not is_date_format(number_format):
+        return value
+    from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
+
+    try:
+        return from_excel(
+            value,
+            epoch if epoch is not None else WINDOWS_EPOCH,
+            timedelta=is_timedelta_format(number_format),
+        )
+    except (OverflowError, ValueError):
+        return "#VALUE!"
+
+
 def inspect_workbook_bytes(
     content: bytes,
     file_name: str,
@@ -2056,20 +2390,15 @@ def inspect_workbook_bytes(
             ingested_at=ingested_at,
         )
 
-    def _load_pair(package: bytes):
-        return (
-            openpyxl.load_workbook(
-                io.BytesIO(package), data_only=False, read_only=False,
-                keep_links=False,
-            ),
-            openpyxl.load_workbook(
-                io.BytesIO(package), data_only=True, read_only=False,
-                keep_links=False,
-            ),
+    def _load_formulas(package: bytes):
+        return openpyxl.load_workbook(
+            io.BytesIO(package), data_only=False, read_only=False,
+            keep_links=False,
         )
 
+    package = content
     try:
-        workbook, values_workbook = _load_pair(content)
+        workbook = _load_formulas(content)
     except Exception as exc:
         # COMPATIBILITY RETRY (live WorkDrive workbook, 2026-11-12): openpyxl
         # 3.1 validates font family ids as 0..14 in two independent readers.
@@ -2095,7 +2424,8 @@ def inspect_workbook_bytes(
                     source_metadata, f"workbook parse failed: {exc}",
                     ingested_at=ingested_at,
                 )
-            workbook, values_workbook = _load_pair(compatible)
+            package = compatible
+            workbook = _load_formulas(compatible)
             logger.info(
                 f"workbook read for {file_name} used the font compatibility "
                 f"copy ({str(exc).splitlines()[0]})")
@@ -2109,6 +2439,46 @@ def inspect_workbook_bytes(
                 ingested_at=ingested_at,
             )
 
+    # ONE WORKBOOK LOAD (issue #620): the formula workbook above is the only
+    # full openpyxl parse. Cached formula results are read from the OOXML
+    # package instead of a second `data_only=True` load. The fallback keeps
+    # the legacy behavior when the package cannot be scanned, so a workbook
+    # is never reported with silently missing cached values.
+    cached_values: Optional[Dict[str, Dict[str, tuple]]] = None
+    values_workbook = None
+    try:
+        cached_values = _ooxml_cached_value_map(content)
+        logger.debug(
+            f"workbook read for {file_name} decoded cached formula values "
+            f"from the OOXML package ({sum(len(v) for v in cached_values.values())} "
+            "cells)")
+    except Exception as cached_exc:  # noqa: BLE001 — fall back to openpyxl
+        logger.warning(
+            f"workbook cached-value scan failed for {file_name}; falling "
+            f"back to a second openpyxl load: {cached_exc}")
+        cached_values = None
+        try:
+            values_workbook = openpyxl.load_workbook(
+                io.BytesIO(package), data_only=True, read_only=False,
+                keep_links=False,
+            )
+        except Exception as values_exc:
+            logger.debug(
+                f"workbook cached-value fallback failed for {file_name}: "
+                f"{values_exc}")
+
+    def _cached_value(
+        sheet_title: str, coordinate: str, number_format: Optional[str] = None,
+    ) -> Any:
+        if values_workbook is not None:
+            return values_workbook[sheet_title][coordinate].value
+        entry = (cached_values or {}).get(sheet_title, {}).get(
+            str(coordinate or "").upper())
+        if entry is None:
+            return None
+        return _decode_ooxml_cached_value(
+            entry, number_format, workbook.epoch)
+
     evidence: Dict[str, List[Dict[str, Any]]] = {
         target: [] for target in requested
     }
@@ -2116,7 +2486,6 @@ def inspect_workbook_bytes(
     formula_states: List[str] = []
 
     for worksheet in workbook.worksheets:
-        value_sheet = values_workbook[worksheet.title]
         rows = list(worksheet.iter_rows())
         header_map, header_rows = _infer_header_map(rows)
         header_columns = sorted(header_map)
@@ -2165,7 +2534,9 @@ def inspect_workbook_bytes(
                     continue
                 is_formula = isinstance(value, str) and value.startswith("=")
                 if is_formula:
-                    cached = value_sheet[cell.coordinate].value
+                    cached = _cached_value(
+                        worksheet.title, cell.coordinate,
+                        cell.number_format)
                     formula_state = "cached" if cached is not None else "unavailable"
                     formula_states.append(formula_state)
                 else:
@@ -2194,9 +2565,9 @@ def inspect_workbook_bytes(
                         label = str(descriptor.get("label") or "")
                         source_cell = worksheet.cell(row=row_number, column=column)
                         source_value = source_cell.value
-                        cached_value = value_sheet.cell(
-                            row=row_number, column=column
-                        ).value
+                        cached_value = _cached_value(
+                            worksheet.title, source_cell.coordinate,
+                            source_cell.number_format)
                         display_value = (
                             cached_value if isinstance(source_value, str)
                             and source_value.startswith("=") else source_value
