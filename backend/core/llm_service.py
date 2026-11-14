@@ -1798,7 +1798,8 @@ class LLMService:
         prompt: Optional[str] = None,
         response_format: str = "json",
         workspace_id: Optional[str] = None,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
+        duration_seconds: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Transcribe audio to text.
@@ -1810,6 +1811,7 @@ class LLMService:
             prompt: Optional guiding prompt for transcription
             response_format: "json", "text", "srt", "verbose_json", "vtt"
             tenant_id: Optional tenant override
+            duration_seconds: Optional already-probed media duration (seconds)
             
         Returns:
             Dict containing 'text' and metadata.
@@ -1819,13 +1821,18 @@ class LLMService:
             raise LLMScopeUnresolvedError(
                 tenant_id or self._tenant_id,
                 self._unresolved_scope_reason_for(tenant_id))
-        return await handler.generate_transcription(
-            file=file,
-            model=model,
-            language=language,
-            prompt=prompt,
-            response_format=response_format
-        )
+        kwargs: Dict[str, Any] = {
+            "file": file,
+            "model": model,
+            "language": language,
+            "prompt": prompt,
+            "response_format": response_format,
+        }
+        # Only forward an explicitly supplied duration so existing callers
+        # keep the exact delegation contract.
+        if duration_seconds is not None:
+            kwargs["duration_seconds"] = duration_seconds
+        return await handler.generate_transcription(**kwargs)
 
     async def generate_embeddings_batch(
         self,
