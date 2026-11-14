@@ -191,6 +191,7 @@ async def execute_agent_chat(
     user_id: str,
     session_id: Optional[str] = None,
     workspace_id: str = "default",
+    tenant_id: Optional[str] = None,
     conversation_history: List[Dict[str, str]] = None,
     stream: bool = False
 ) -> Dict[str, Any]:
@@ -206,6 +207,9 @@ async def execute_agent_chat(
         user_id: User ID making the request
         session_id: Optional session ID for conversation continuity
         workspace_id: Workspace ID (default for single-tenant)
+        tenant_id: Authenticated tenant ID. Kept separate from workspace_id:
+            a tenant id is never used as a workspace id when the LLM handler
+            resolves provider scope.
         conversation_history: Optional conversation history for context
         stream: Whether to stream response via WebSocket
 
@@ -258,7 +262,12 @@ async def execute_agent_chat(
         if governance_enabled and not emergency_bypass:
             db_session = SessionLocal()
             resolver = AgentContextResolver(db_session)
-            governance = AgentGovernanceService(db_session)
+            # Authenticated scope, not the shared default: a real workspace's
+            # agent must pass ITS OWN governance check. The default-scoped
+            # service reported "Agent not found" for every non-default
+            # workspace after the route had already authorized the agent.
+            governance = AgentGovernanceService(
+                db_session, workspace_id=workspace_id, tenant_id=tenant_id)
 
             # Resolve agent for this request
             agent, resolution_context = await resolver.resolve_agent_for_request(
@@ -362,7 +371,13 @@ async def execute_agent_chat(
         # and exhausts the pool (~20 connections) under modest load. The handler
         # opens its own sessions as needed. The governance session is closed
         # below before streaming begins.
-        llm_service = LLMService(tenant_id=workspace_id, db=None)
+        #
+        # Scope is the AUTHENTICATED pair, passed as two identifiers. The
+        # previous tenant_id=workspace_id collapsed them: a real workspace id
+        # was treated as a tenant and could not resolve its own workspace, so
+        # the provider scope was refused (or silently defaulted).
+        llm_service = LLMService(
+            workspace_id=workspace_id, tenant_id=tenant_id, db=None)
 
         # Prepare messages for LLM
         messages = []
@@ -433,7 +448,16 @@ Provide helpful, concise responses. Be direct and practical."""
             "model": "auto",
             "temperature": 0.7,
             "max_tokens": 2000,
-            "agent_id": agent.id if agent else None
+            "agent_id": agent.id if agent else None,
+            # Exact turn attribution: the durable usage ledger row for every
+            # physical provider attempt carries this AgentExecution id. Only
+            # pass it when a row was actually created (governance+agent), never
+            # a dangling id when the audit insert was skipped.
+            "execution_id": agent_execution.id if agent_execution else None,
+            # Authenticated scope, kept as two identifiers. The handler uses
+            # these to select the caller's own provider/key configuration.
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
         }
 
         # Close the governance DB session BEFORE streaming. The session was
@@ -732,6 +756,7 @@ def execute_agent_chat_sync(
     user_id: str,
     session_id: Optional[str] = None,
     workspace_id: str = "default",
+    tenant_id: Optional[str] = None,
     conversation_history: List[Dict[str, str]] = None
 ) -> Dict[str, Any]:
     """
@@ -761,6 +786,7 @@ def execute_agent_chat_sync(
             user_id=user_id,
             session_id=session_id,
             workspace_id=workspace_id,
+            tenant_id=tenant_id,
             conversation_history=conversation_history,
             stream=False  # Disable streaming in sync mode
         )
