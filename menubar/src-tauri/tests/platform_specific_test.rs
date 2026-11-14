@@ -6,10 +6,17 @@
 //! - Linux-specific utilities (config path, data path, desktop environment)
 //! - Cross-platform compatibility (cache, logs, open URL, show in folder)
 
+// `atom-menubar` is a binary-only Tauri crate, so an integration test cannot
+// import `platform_specific` from it. Compile the production module into this
+// test crate so the assertions below exercise the real implementations.
+#[path = "../src/platform_specific.rs"]
+mod platform_specific;
+
 #[cfg(test)]
 mod tests {
     // Note: These tests are written to be run with: cargo test --test platform_specific_test
     // The platform-specific functions are in src/platform_specific.rs
+    use crate::platform_specific;
 
     #[cfg(target_os = "macos")]
     #[test]

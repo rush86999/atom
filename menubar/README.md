@@ -59,14 +59,28 @@ No developer certificate or updater key is supplied by this repository checkpoin
 
 ## Configuration and implementation boundaries
 
-- Native HTTP commands currently use `API_BASE_URL` in
-  `src-tauri/src/commands.rs` (`http://localhost:8000`).
-- The WebSocket client has its own URL in `src-tauri/src/websocket.rs`.
-- Some frontend requests use `localStorage.atom_server_url`. Changing that value
-  does **not** change every native request. A unified server configuration remains
-  work to complete; do not assume Settings redirects all traffic.
-- The Tauri content-security policy is a separate network boundary. Check it when
-  changing destinations; do not remove it to make a connection succeed.
+- Default endpoints are unchanged: HTTP `http://localhost:8000` and WebSocket
+  `ws://localhost:8000/ws/menubar`.
+- Native HTTP commands resolve the base through `src-tauri/src/config.rs`.
+  `ATOM_MENUBAR_BACKEND_URL` (preferred) or the repository-wide
+  `ATOM_BACKEND_URL` convention overrides it. `ATOM_MENUBAR_WS_URL` overrides the
+  WebSocket endpoint; when absent it is derived from the HTTP base.
+- The frontend consumes the native `get_backend_config` result. An environment
+  override wins over a stale stored value, so an isolated loopback verification
+  launch cannot silently reach the default backend. Without an override,
+  `localStorage.atom_server_url` (Settings > Server URL) applies.
+- Isolated verification example, using a scratch backend on a separate loopback
+  port: `ATOM_BACKEND_URL=http://127.0.0.1:8123 npm run tauri:dev`. This changes
+  only the endpoint the companion targets; it does not start a backend, create
+  data, or authorize a live account. Point it at a scratch backend, never the
+  live development database.
+- The Tauri content-security policy is a separate network boundary. It allows
+  loopback HTTP/WebSocket origins on any port so an isolated scratch backend can
+  be verified; the remote API origin is unchanged. Check it when changing
+  destinations; do not remove it to make a connection succeed.
+- Focused endpoint checks (no backend launch, no live data):
+  `npm test -- --runInBand --watch=false src/__tests__/config.test.ts src/__tests__/backendPaths.test.tsx`
+  and, from `src-tauri`, `cargo test --locked --bin atom-menubar config::`.
 - Native code includes Keychain-backed session handling. Persistence and account
   behavior need a real, authorized runtime test; compilation is insufficient.
 - `src-tauri/src/hotkeys.rs::register_hotkeys` is currently a placeholder.
@@ -76,10 +90,15 @@ No developer certificate or updater key is supplied by this repository checkpoin
 ## Architecture reference
 
 - `src/MenuBar.tsx`: current-tab UI and command/event consumers.
+- `src/config.ts`: frontend endpoint resolution (native override, stored
+  Settings value, default).
 - `src/types.ts` and `src/hooks`: shared frontend types and hooks.
+- `src/__tests__/config.test.ts`: focused endpoint-resolution tests; no network.
 - `src/components/__tests__/WindowManager.test.tsx`: controlled tab, event and
   command tests; no real OS integration.
 - `src-tauri/src/main.rs`: application, tray and command registration.
+- `src-tauri/src/config.rs`: native HTTP/WebSocket endpoint resolution and
+  validation.
 - `src-tauri/src/commands.rs`: native HTTP and session operations.
 - `src-tauri/src/hotkeys.rs`: shortcut configuration and unfinished registration.
 - `src-tauri/src/websocket.rs`: native WebSocket client.

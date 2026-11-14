@@ -2,13 +2,25 @@
 //!
 //! Uses tokio-tungstenite for WebSocket connections
 
+use crate::config;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 
-const WEBSOCKET_URL: &str = "ws://localhost:8000/ws/menubar"; // Configure as needed
+/// Default endpoint, retained for callers that need a compile-time value.
+/// Runtime resolution (including `ATOM_MENUBAR_WS_URL`) lives in `config`.
+#[allow(dead_code)] // Retained for callers that need a compile-time default.
+pub const WEBSOCKET_URL: &str = config::DEFAULT_WEBSOCKET_URL;
+
+/// Resolve the WebSocket endpoint, reading environment overrides at call time.
+/// Defaults to `ws://localhost:8000/ws/menubar`, and propagates an invalid
+/// explicit `ATOM_MENUBAR_WS_URL` (or invalid HTTP base) as an error.
+#[allow(dead_code)] // The client is not yet wired into main.rs.
+pub fn default_websocket_url() -> Result<String, String> {
+    config::websocket_url()
+}
 
 // ============================================================================
 // Event Types
@@ -64,6 +76,15 @@ pub struct WebSocketClient {
 impl WebSocketClient {
     pub fn new(url: String, token: String) -> Self {
         Self { url, token }
+    }
+
+    /// Build a client using the configured backend (defaults to
+    /// `ws://localhost:8000/ws/menubar`).
+    ///
+    /// Returns an error instead of silently using the default when an explicit
+    /// environment override is invalid.
+    pub fn for_default_backend(token: String) -> Result<Self, String> {
+        Ok(Self::new(default_websocket_url()?, token))
     }
 
     /// Connect to WebSocket server and listen for events

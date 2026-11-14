@@ -12,6 +12,8 @@
  */
 
 // Self-contained test - no imports from main crate needed
+#[cfg(test)]
+mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::io::Write;

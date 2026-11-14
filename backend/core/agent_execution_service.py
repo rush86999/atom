@@ -34,6 +34,150 @@ from core.websockets import manager as ws_manager
 logger = logging.getLogger(__name__)
 
 
+#: The streaming provider ladder reports a terminal failure on the token
+#: stream as one final text frame: ``stream_completion`` yields this error
+#: envelope instead of raising once every provider/route has failed
+#: (core/llm/byok_handler.py — "All LLM providers failed" and the budget
+#: authorization refusal). The OpenAI gateway already treats the same lead-in
+#: as a 502 rather than assistant text (api/openai_gateway_routes.py). There
+#: is no richer structured channel on the token stream, so this envelope IS
+#: the terminal result: it must never be accumulated as a reply, persisted as
+#: assistant content, or reported as ``success``.
+_PROVIDER_TERMINAL_ERROR_PREFIX = "\n\n[Error:"
+
+
+def _is_provider_terminal_error_frame(frame: str) -> bool:
+    """True when ``frame`` is the provider ladder's terminal failure envelope.
+
+    Deliberately narrow — only the exact lead-in the producer documents. A
+    broad "mentions providers / API keys" heuristic would reject genuine
+    answers that quote logs or configuration advice.
+    """
+    return bool(frame) and frame.startswith(_PROVIDER_TERMINAL_ERROR_PREFIX)
+
+
+async def _notify_stream_failure(
+    *,
+    user_id: str,
+    message_id: str,
+    execution_id: Optional[str],
+    partial_content: str,
+    tokens_count: int,
+) -> None:
+    """Emit the structured terminal failure to streaming clients.
+
+    ``streaming:error`` is the existing structured failure status (the frame
+    ``core/atom_agent_endpoints.py`` already sends). ``streaming:complete``
+    follows because legacy panels — including the web app's ``useTurnStream``
+    hook — clear their in-flight bubble on completion only. Its content is the
+    PARTIAL answer that was really delivered (empty when the provider failed
+    before producing any), never the error envelope.
+    """
+    channel = f"user:{user_id}"
+
+    async def _send(frame: Dict[str, Any]) -> None:
+        try:
+            await ws_manager.broadcast(channel, frame)
+        except Exception as notify_error:  # noqa: BLE001 — never mask the failure
+            logger.warning(f"Failed to notify stream failure: {notify_error}")
+
+    await _send({
+        "type": ws_manager.STREAMING_ERROR,
+        "id": message_id,
+        "error": "Agent chat execution failed",
+        "execution_id": execution_id,
+        "partial": bool(partial_content),
+    })
+    await _send({
+        "type": ws_manager.STREAMING_COMPLETE,
+        "id": message_id,
+        "content": partial_content or "",
+        "complete": True,
+        "metadata": {
+            "execution_id": execution_id,
+            "tokens_total": tokens_count,
+            "error": True,
+        },
+    })
+
+
+def _record_failed_execution(
+    *,
+    db_session: Optional[Session],
+    agent_execution: Optional[AgentExecution],
+    execution_id: Optional[str],
+    agent: Any,
+    governance_enabled: bool,
+    start_time: Optional[datetime],
+) -> None:
+    """Finalize an AgentExecution row (and marketplace usage) as failed.
+
+    Uses the still-open governance session when one exists; otherwise opens a
+    short-lived session and re-fetches the row by id — the pre-stream session
+    is intentionally closed before streaming starts, so both windows occur.
+    The persisted error message is GENERIC: raw exception/sentinel text never
+    reaches the audit trail.
+    """
+    if not (execution_id and governance_enabled):
+        return
+
+    session = db_session
+    owned_session = False
+    if session is None:
+        try:
+            session = SessionLocal()
+            owned_session = True
+        except Exception:
+            session = None
+    if session is None:
+        return
+
+    try:
+        execution = agent_execution
+        if execution is None:
+            execution = session.query(AgentExecution).filter(
+                AgentExecution.id == execution_id
+            ).first()
+        if execution:
+            execution.status = "failed"
+            execution.error_message = "Agent chat execution failed"
+            execution.completed_at = datetime.now()
+            session.commit()
+
+        # Marketplace Tracking (Failure)
+        if agent is not None and getattr(agent, "type", None) == "marketplace":
+            try:
+                installation = session.query(AgentInstallation).filter(
+                    AgentInstallation.instantiated_agent_id == agent.id
+                ).first()
+                if installation:
+                    _start = start_time or datetime.now()
+                    duration_ms = (
+                        datetime.now() - _start
+                    ).total_seconds() * 1000
+                    MarketplaceUsageTracker.track_usage(
+                        item_type="agent",
+                        item_id=installation.template_id,
+                        success=False,
+                        duration_ms=duration_ms,
+                    )
+            except Exception as mt_error:
+                logger.error(f"Marketplace failure tracking failed: {mt_error}")
+
+    except Exception as update_error:
+        logger.error(f"Failed to update failed execution record: {update_error}")
+        try:
+            session.rollback()
+        except Exception:
+            pass
+    finally:
+        if owned_session:
+            try:
+                session.close()
+            except Exception:
+                pass
+
+
 class ChatMessage:
     """Simple chat message model"""
     def __init__(self, role: str, content: str):
@@ -75,6 +219,11 @@ async def execute_agent_chat(
         - message_id: str (for WebSocket tracking)
         - error: str (if failed)
 
+        A terminal provider failure delivered on the token stream is a
+        failure: ``success`` is False, ``response`` is None, and the error
+        envelope is never persisted as assistant content (genuine partial
+        output that arrived before the terminal frame is still delivered).
+
     Example:
         result = await execute_agent_chat(
             agent_id="agent_123",
@@ -95,6 +244,12 @@ async def execute_agent_chat(
     # Carries the execution id forward after the governance session is closed
     # pre-stream, so the post-stream/failure finalizers can re-fetch the row.
     _execution_id_for_finalize = None
+    # Initialized before the try so the failure handler and streamed-terminal
+    # branch can always report/notify on the same turn identity.
+    message_id: Optional[str] = None
+    accumulated_content = ""
+    tokens_count = 0
+    start_time: Optional[datetime] = None
 
     try:
         # ============================================
@@ -296,16 +451,16 @@ Provide helpful, concise responses. Be direct and practical."""
             # Detach so the post-stream block knows to re-fetch; keep the id.
             agent_execution = None
 
-        # Stream response
-        # Stream response via LLMService
-        async for token in llm_service.stream_completion(**stream_kwargs):
-            accumulated_content += token
+        async def _emit_visible(part: str) -> None:
+            """Accumulate + stream one VISIBLE answer fragment."""
+            nonlocal accumulated_content, tokens_count
+            accumulated_content += part
             # Count TOKENS, not stream chunks. stream_completion yields
             # arbitrary text fragments (often whole words/sentences), so the old
             # `tokens_count += 1` undercounted real tokens by ~3-10x and
             # corrupted the spend recorded against the personal budget. Use the
             # codebase's standard ~4-chars/token estimate.
-            tokens_count += max(1, len(token) // 4)
+            tokens_count += max(1, len(part) // 4)
 
             # Broadcast token via WebSocket if streaming enabled
             if stream:
@@ -313,7 +468,7 @@ Provide helpful, concise responses. Be direct and practical."""
                 await ws_manager.broadcast(user_channel, {
                     "type": ws_manager.STREAMING_UPDATE,
                     "id": message_id,
-                    "delta": token,
+                    "delta": part,
                     "complete": False,
                     "metadata": {
                         # Report the token ESTIMATE (tokens_count), not the raw
@@ -322,6 +477,75 @@ Provide helpful, concise responses. Be direct and practical."""
                         "execution_id": execution_id
                     }
                 })
+
+        # The provider ladder signals a terminal failure by YIELDING its error
+        # envelope as the last frame (it never raises once routing is done).
+        # Hold the first frame(s) only while they are still a prefix of that
+        # envelope: a real answer streams immediately, an exhausted-provider
+        # turn never becomes visible/persisted content, and a real answer that
+        # merely QUOTES the envelope later in the turn is left untouched.
+        pending_frame = ""
+        envelope_candidate = True
+        provider_terminal_failure = False
+
+        async for token in llm_service.stream_completion(**stream_kwargs):
+            if envelope_candidate:
+                candidate = pending_frame + token
+                if _is_provider_terminal_error_frame(candidate):
+                    provider_terminal_failure = True
+                    break
+                if _PROVIDER_TERMINAL_ERROR_PREFIX.startswith(candidate):
+                    # Still a possible envelope lead-in ("\n", "\n\n[E"...):
+                    # hold it rather than stream error text as a reply.
+                    pending_frame = candidate
+                    continue
+                # Diverged from the envelope: real output. Flush it and stop
+                # buffering for the rest of the turn.
+                token = candidate
+                pending_frame = ""
+                envelope_candidate = False
+
+            await _emit_visible(token)
+
+        if pending_frame and not provider_terminal_failure:
+            # The stream ended on an incomplete envelope lead-in (e.g. the
+            # answer really was "\n"): deliver it instead of dropping it.
+            await _emit_visible(pending_frame)
+            pending_frame = ""
+
+        if provider_terminal_failure:
+            # A streamed terminal provider error is a FAILED turn. It must not
+            # be accumulated, persisted to chat history, or reported as a
+            # successful reply — the error text is not assistant output.
+            logger.error(
+                "Provider stream reported a terminal failure for "
+                "agent_id=%s (execution_id=%s); not persisting it as "
+                "assistant content", agent_id, execution_id)
+            if stream:
+                await _notify_stream_failure(
+                    user_id=user_id,
+                    message_id=message_id,
+                    execution_id=_execution_id_for_finalize or execution_id,
+                    partial_content=accumulated_content,
+                    tokens_count=tokens_count,
+                )
+            _record_failed_execution(
+                db_session=db_session,
+                agent_execution=agent_execution,
+                execution_id=_execution_id_for_finalize,
+                agent=agent,
+                governance_enabled=governance_enabled,
+                start_time=start_time,
+            )
+            return {
+                "success": False,
+                "error": "Agent chat execution failed",
+                "response": None,
+                "agent_id": agent.id if agent else agent_id,
+                "execution_id": execution_id,
+                "message_id": message_id,
+                "session_id": session_id,
+            }
 
         # Send completion message if streaming
         if stream:
@@ -463,62 +687,25 @@ Provide helpful, concise responses. Be direct and practical."""
         # Update execution record as failed. Two windows: before the pre-stream
         # session close (db_session + agent_execution still valid) and after
         # (both None — re-fetch by id in a fresh session).
-        _fail_session = db_session  # reuse if still open
-        _fail_session_owned = False
-        if _fail_session is None and _execution_id_for_finalize and governance_enabled:
-            try:
-                _fail_session = SessionLocal()
-                _fail_session_owned = True
-            except Exception:
-                _fail_session = None
-        if _execution_id_for_finalize and governance_enabled and _fail_session is not None:
-            try:
-                # Re-fetch if the original object is detached/None.
-                execution = agent_execution
-                if execution is None:
-                    execution = _fail_session.query(AgentExecution).filter(
-                        AgentExecution.id == _execution_id_for_finalize
-                    ).first()
-                if execution:
-                    execution.status = "failed"
-                    # Store a GENERIC failure marker, not raw str(e) — internal
-                    # exception text (paths, SQL, token details) must not be
-                    # persisted to the audit trail or returned to clients.
-                    # Detail is already logged server-side (line ~460).
-                    execution.error_message = "Agent chat execution failed"
-                    execution.completed_at = datetime.now()
-                    _fail_session.commit()
+        _record_failed_execution(
+            db_session=db_session,
+            agent_execution=agent_execution,
+            execution_id=_execution_id_for_finalize,
+            agent=agent,
+            governance_enabled=governance_enabled,
+            start_time=start_time,
+        )
 
-                # Marketplace Tracking (Failure)
-                if agent and agent.type == "marketplace":
-                    try:
-                        installation = _fail_session.query(AgentInstallation).filter(
-                            AgentInstallation.instantiated_agent_id == agent.id
-                        ).first()
-                        if installation:
-                            _start = start_time if "start_time" in locals() else datetime.now()
-                            duration_ms = (datetime.now() - _start).total_seconds() * 1000
-                            MarketplaceUsageTracker.track_usage(
-                                item_type="agent",
-                                item_id=installation.template_id,
-                                success=False,
-                                duration_ms=duration_ms
-                            )
-                    except Exception as mt_error:
-                        logger.error(f"Marketplace failure tracking failed: {mt_error}")
-
-            except Exception as update_error:
-                logger.error(f"Failed to update failed execution record: {update_error}")
-                try:
-                    _fail_session.rollback()
-                except Exception:
-                    pass
-            finally:
-                if _fail_session_owned:
-                    try:
-                        _fail_session.close()
-                    except Exception:
-                        pass
+        # A streamed turn must terminate its client-side view too — otherwise
+        # the browser keeps a spinner forever and only sees a dropped socket.
+        if stream and message_id:
+            await _notify_stream_failure(
+                user_id=user_id,
+                message_id=message_id,
+                execution_id=_execution_id_for_finalize,
+                partial_content=accumulated_content,
+                tokens_count=tokens_count,
+            )
 
         return {
             "success": False,

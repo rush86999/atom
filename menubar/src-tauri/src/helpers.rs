@@ -78,10 +78,13 @@ pub fn create_directory<P: AsRef<Path>>(path: P) -> Result<(), std::io::Error> {
 ///
 /// # Returns
 /// * `Some(String)` - File extension (without dot)
-/// * `None` - No extension
+/// * `None` - No extension (including a trailing dot, e.g. `"test."`)
 pub fn get_file_extension<P: AsRef<Path>>(path: P) -> Option<String> {
     path.as_ref()
         .extension()
+        // `Path::extension` yields `Some("")` for a name that ends in a dot;
+        // an empty extension is not an extension.
+        .filter(|ext| !ext.is_empty())
         .map(|ext| ext.to_string_lossy().to_string())
 }
 
@@ -126,10 +129,15 @@ pub fn get_parent_directory<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
 ///
 /// # Returns
 /// * `Some(String)` - File name
-/// * `None` - No file name
+/// * `None` - No file name (empty path, root, or a path with a trailing
+///   separator such as `"/path/to/"`, which names a directory)
 pub fn get_file_name<P: AsRef<Path>>(path: P) -> Option<String> {
-    path.as_ref()
-        .file_name()
+    let path = path.as_ref();
+    let raw = path.as_os_str().to_string_lossy();
+    if raw.is_empty() || raw.chars().last().map(std::path::is_separator).unwrap_or(false) {
+        return None;
+    }
+    path.file_name()
         .map(|name| name.to_string_lossy().to_string())
 }
 
@@ -182,18 +190,30 @@ pub fn get_home_directory() -> Option<PathBuf> {
 
 /// Truncate string with ellipsis.
 ///
+/// Lengths are measured in bytes (UTF-8), matching `str::len`. Truncation
+/// never splits a multi-byte character; the cut is moved back to the nearest
+/// character boundary.
+///
 /// # Arguments
 /// * `text` - Text to truncate
 /// * `max_length` - Maximum length (including ellipsis)
 ///
 /// # Returns
-/// Truncated string with ellipsis if needed
+/// Truncated string with ellipsis if needed. When `max_length` is smaller
+/// than the ellipsis, the result is just `.` repeated `max_length` times so
+/// the documented maximum is never exceeded.
 pub fn truncate_string(text: &str, max_length: usize) -> String {
     if text.len() <= max_length {
-        text.to_string()
-    } else {
-        format!("{}...", &text[..max_length.saturating_sub(3)])
+        return text.to_string();
     }
+    if max_length <= 3 {
+        return ".".repeat(max_length);
+    }
+    let mut end = max_length - 3;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}...", &text[..end])
 }
 
 /// Sanitize filename by removing invalid characters.
@@ -215,15 +235,27 @@ pub fn sanitize_filename(filename: &str) -> String {
 
 /// Generate unique ID (simple UUID v4-like).
 ///
+/// Uniqueness is guaranteed within a process by a monotonic counter and
+/// widened across processes by the process id; the wall-clock timestamp keeps
+/// the values spread over time. The result is a lowercase hex string, so it is
+/// safe for filenames, DOM ids, and IPC payload keys.
+///
 /// # Returns
-/// Unique ID string
+/// Unique hex ID string
 pub fn generate_unique_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    format!("{:x}", timestamp)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let pid = u64::from(std::process::id());
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+
+    format!("{:032x}{:08x}{:016x}", timestamp, pid, counter)
 }
 
 #[cfg(test)]
@@ -240,7 +272,9 @@ mod tests {
     fn test_get_file_extension() {
         assert_eq!(get_file_extension("test.txt"), Some("txt".to_string()));
         assert_eq!(get_file_extension("test"), None);
+        assert_eq!(get_file_extension("test."), None);
         assert_eq!(get_file_extension(".hidden"), None);
+        assert_eq!(get_file_extension("archive.tar.gz"), Some("gz".to_string()));
     }
 
     #[test]
@@ -253,7 +287,10 @@ mod tests {
     #[test]
     fn test_get_file_name() {
         assert_eq!(get_file_name("/path/to/file.txt"), Some("file.txt".to_string()));
+        assert_eq!(get_file_name("file.txt"), Some("file.txt".to_string()));
         assert_eq!(get_file_name("/path/to/"), None);
+        assert_eq!(get_file_name("/"), None);
+        assert_eq!(get_file_name(""), None);
     }
 
     #[test]
@@ -265,19 +302,35 @@ mod tests {
     #[test]
     fn test_truncate_string() {
         assert_eq!(truncate_string("short", 10), "short");
+        assert_eq!(truncate_string("exact", 5), "exact");
         assert_eq!(truncate_string("very long text", 10), "very lo...");
+        assert_eq!(truncate_string("text", 2), "..");
+        // Multi-byte characters must not be split (this used to panic).
+        // 10-byte budget leaves 7 for text; 7 falls inside '世' (bytes 6..9),
+        // so the cut moves back to the previous boundary at byte 6.
+        let unicode = truncate_string("Hello 世界 🌍", 10);
+        assert_eq!(unicode, "Hello ...");
+        assert!(unicode.len() <= 13);
+        assert!(unicode.is_char_boundary(unicode.len()));
     }
 
     #[test]
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("file<name>.txt"), "file_name_.txt");
         assert_eq!(sanitize_filename("normal.txt"), "normal.txt");
+        assert_eq!(sanitize_filename("文件.txt"), "文件.txt");
     }
 
     #[test]
     fn test_generate_unique_id() {
-        let id1 = generate_unique_id();
-        let id2 = generate_unique_id();
-        assert_ne!(id1, id2);
+        let ids: Vec<String> = (0..1_000).map(|_| generate_unique_id()).collect();
+        for id in &ids {
+            assert!(!id.is_empty());
+            assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+        }
+        let mut unique = ids.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), ids.len());
     }
 }

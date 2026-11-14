@@ -40,7 +40,7 @@ mod tests {
         let custom_message = "Custom panic message for testing";
 
         let result = panic::catch_unwind(|| {
-            panic!(custom_message);
+            panic!("{}", custom_message);
         });
 
         assert!(result.is_err());
@@ -356,19 +356,22 @@ mod tests {
 
         let mut attempts = 0;
         let max_attempts = 3;
+        let mut simulated_errors = 0;
 
-        let result = loop {
+        let result: Result<String, ()> = loop {
             attempts += 1;
             if attempts < max_attempts {
-                // Simulate error
-                break Err(());
+                // Simulate a transient error and retry
+                simulated_errors += 1;
+                continue;
             } else {
-                // Simulate success
+                // Simulate success on the final attempt
                 break Ok("Success after retries".to_string());
             }
         };
 
         assert_eq!(attempts, max_attempts);
+        assert_eq!(simulated_errors, max_attempts - 1);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Success after retries");
     }
