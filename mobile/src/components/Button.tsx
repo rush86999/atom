@@ -98,14 +98,14 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  const getSizeStyles = (): ViewStyle => {
+  const getSizeStyles = (): { button: ViewStyle; text: TextStyle } => {
     switch (size) {
       case 'small':
-        return styles.buttonSmall;
+        return { button: styles.buttonSmall, text: styles.textSmall };
       case 'large':
-        return styles.buttonLarge;
+        return { button: styles.buttonLarge, text: styles.textLarge };
       default:
-        return styles.buttonMedium;
+        return { button: styles.buttonMedium, text: styles.textMedium };
     }
   };
 
@@ -132,7 +132,7 @@ export const Button: React.FC<ButtonProps> = ({
       style={[
         styles.button,
         variantStyles.button,
-        sizeStyles,
+        sizeStyles.button,
         isDisabled && styles.buttonDisabled,
         buttonStyle,
       ]}

@@ -83,7 +83,7 @@ describe('agentSyncService', () => {
 
     // Default mock implementations
     mockStorageService.getObject.mockResolvedValue(null);
-    mockStorageService.setObject.mockResolvedValue(undefined);
+    mockStorageService.setObject.mockResolvedValue(true);
     mockOfflineSyncService.getSyncState.mockResolvedValue(onlineState);
     mockOfflineSyncService.queueAction.mockResolvedValue('action-1');
 
@@ -537,10 +537,11 @@ describe('agentSyncService', () => {
         favorites: [],
       });
 
-      let fresh: typeof agentSyncService;
+      let fresh: typeof agentSyncService | undefined;
       jest.isolateModules(() => {
         fresh = require('../../services/agentSyncService').agentSyncService;
       });
+      if (!fresh) throw new Error('agentSyncService module was not loaded');
       await fresh.initialize();
 
       expect(fresh.getAllAgents()).toHaveLength(1);

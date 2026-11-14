@@ -118,7 +118,26 @@ class SkillRetrievalService:
         lines = ["The following skills may be relevant to the current task:"]
         for _score, skill in top:
             name = skill.get("skill_name") or "unnamed"
-            description = skill.get("description") or ""
+            description = skill.get("description") or "No description"
+            if skill.get("reviewed_executable"):
+                # Approved executable artifact: advertise metadata only and
+                # point at the authorized dispatch action. The registered
+                # body contains generated code (plus the trusted harness);
+                # it must never be spliced into the prompt.
+                lines.append(
+                    f"- `{name}` (approved executable skill, Docker sandbox): "
+                    f"{description}"
+                )
+                lines.append(
+                    "  Invoke it with the `skills.execute` tool: "
+                    f'{{"skill": "{name}", "inputs": <object>}}.'
+                )
+                continue
+            if str(skill.get("skill_type") or "") not in ("", "prompt_only"):
+                # Same rule for any code-bearing community skill: the model
+                # gets the name/description, never source bytes.
+                lines.append(f"- `{name}`: {description}")
+                continue
             usage = (skill.get("skill_body") or "")[:120].replace("\n", " ")
             lines.append(
                 f"- `{name}`: {description or 'No description'}"

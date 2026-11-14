@@ -57,6 +57,9 @@ def _agent(
         last_request_date=datetime.now(timezone.utc) - timedelta(days=days_ago),
         module_path="core.generic_agent",
         class_name="GenericAgent",
+        # The matcher now enforces the same user eligibility as the
+        # recruitment catalog; these fixtures represent user "u1" agents.
+        user_id="u1",
     )
     db.add(ag)
     db.commit()

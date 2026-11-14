@@ -128,6 +128,64 @@ def is_tool_allowed(allowed: Tuple[str, ...], tool_name: str) -> bool:
     return False
 
 
+def build_dispatch_tool_predicate(agent: Any, tier: Optional[str] = None):
+    """Return a predicate for tools BOTH dispatch gates will actually admit.
+
+    ``integrations/mcp_service.call_tool`` applies two blanket tool gates in
+    order:
+
+    1. P2 capability gate — ``resolve_allowed_tools`` + ``is_tool_allowed``
+       (registered dotted action-registry names are admitted here even when
+       the resolved capability set is empty).
+    2. P9 sandbox whitelist — ``PolicyIssuer.check`` against the tier floor
+       (default-on), which has no dotted-action exemption.
+
+    The agent loop advertises a tool catalog to the model, so it must not
+    offer a tool either gate will refuse. Goal 13 (2026-11-13) showed the
+    cost: intern fleet specialists were shown ``mcp_tool_search`` (never in
+    any tier floor) and the registered ``documents.*`` actions (admitted by
+    P2's dotted-action rule, then blocked by the P9 tier whitelist), and
+    burned every ReAct step re-planning around refusals — a specialist never
+    produced a final answer (status ``max_steps_exceeded``).
+
+    This helper is ADVERTISEMENT-ONLY. The gates themselves stay exactly
+    where they are (``mcp_service.call_tool``); filtering here can only
+    narrow what the model is told, never widen what dispatch permits.
+
+    Returns ``None`` only when no agent identity is available (caller keeps
+    the legacy unfiltered surface). Sandbox switches are honored exactly as
+    dispatch honors them — disabling the sandbox removes that leg; it can
+    never widen the capability leg.
+    """
+    allowed = resolve_allowed_tools(agent, tier=tier)
+
+    enforce_sandbox_floor = False
+    floor: Tuple[str, ...] = UNRESTRICTED
+    try:
+        from core import sandbox_config
+
+        enforce_sandbox_floor = (
+            sandbox_config.is_sandbox_enabled()
+            and sandbox_config.is_sandbox_whitelist_enabled()
+        )
+        if enforce_sandbox_floor:
+            resolved_tier = (
+                tier if tier is not None else getattr(agent, "status", None))
+            floor = _tier_floor(resolved_tier)
+    except Exception:  # pragma: no cover - defensive; fail open like dispatch
+        enforce_sandbox_floor = False
+        floor = UNRESTRICTED
+
+    def _dispatchable(tool_name: str) -> bool:
+        if not is_tool_allowed(allowed, tool_name):
+            return False
+        if enforce_sandbox_floor and floor != UNRESTRICTED:
+            return tool_name in floor
+        return True
+
+    return _dispatchable
+
+
 def get_agent_for_context(context: Optional[Dict[str, Any]]) -> Optional[Any]:
     """Look up the AgentRegistry row referenced by a dispatch context.
 

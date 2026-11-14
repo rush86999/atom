@@ -169,9 +169,10 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 
 describe('M3 — ForgotPasswordScreen reset endpoint', () => {
   it('POSTs to /api/auth/reset-password (the backend route)', async () => {
-    const fetchMock = jest.fn(
-      async () => ({ ok: true, status: 200, json: async () => ({}) }) as any
-    );
+    const fetchMock = jest.fn<
+      Promise<Response>,
+      [RequestInfo | URL, RequestInit?]
+    >(async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response);
     global.fetch = fetchMock as any;
 
     const { ForgotPasswordScreen } =

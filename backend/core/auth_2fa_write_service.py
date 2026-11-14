@@ -761,6 +761,106 @@ def _verify_backup_consumed(
 
 
 # ---------------------------------------------------------------------------
+# Login-time TOTP verification (shared replay fence)
+# ---------------------------------------------------------------------------
+
+def verify_login_totp_verified(
+    *, user: User, code: Optional[str], db: Any,
+) -> Dict[str, Any]:
+    """Verify a sign-in TOTP and durably consume its time-step.
+
+    This is the login-side use of the same replay fence as the other factor
+    mutations: the ``two_factor_last_totp_step`` conditional write guarantees a
+    code/time-step accepted once cannot authorize a second sign-in, even when
+    two requests race.
+
+    The caller owns password and account checks and must fail closed for any
+    result other than ``{"status": "verified"}``. On success the helper commits
+    the caller's session; callers should not hold unrelated pending writes.
+    """
+    actor = _actor_snapshot(user)
+    if not actor["factor_enabled"]:
+        return {
+            "status": "verified",
+            "data": None,
+            "message": "Two-factor authentication is not enabled",
+        }
+    if not _actor_authorized(actor):
+        return _refused(
+            "Account is not active", http_status=403,
+            error_code="PERMISSION_DENIED")
+    if not code:
+        return _refused(
+            "Two-factor authentication required", field="totp_code",
+            http_status=401, error_code="TWO_FACTOR_REQUIRED")
+    if not actor["factor_secret"]:
+        return _refused(
+            "Two-factor authentication is not configured", field="totp_code",
+            http_status=401, error_code="TWO_FACTOR_UNAVAILABLE")
+
+    try:
+        valid = bool(pyotp.TOTP(actor["factor_secret"]).verify(
+            str(code).strip()))
+    except Exception:  # noqa: BLE001 — malformed secret/code never authorizes
+        valid = False
+    if not valid:
+        return _refused(
+            "Invalid two-factor code", field="totp_code",
+            http_status=401, error_code="INVALID_2FA_CODE")
+
+    step = _current_step()
+    try:
+        with db.no_autoflush:
+            result = db.execute(
+                update(User)
+                .where(
+                    User.id == actor["user_id"],
+                    User.two_factor_enabled.is_(True),
+                    User.two_factor_revision == actor["factor_revision"],
+                    or_(
+                        User.two_factor_last_totp_step.is_(None),
+                        User.two_factor_last_totp_step < step,
+                    ),
+                    *_user_authority_predicates(actor),
+                )
+                .values(two_factor_last_totp_step=step)
+            )
+        if result.rowcount != 1:
+            db.rollback()
+            return _refused(
+                "This code/time-step was already used or the factor changed",
+                field="totp_code", http_status=409, error_code="CONFLICT")
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — commit outcome unknown
+        logger.error(
+            "Login 2FA write outcome unknown stage=login_totp_commit "
+            "error_class=%s", type(exc).__name__)
+        try:
+            db.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        return {
+            "status": "effect_unknown",
+            "data": None,
+            "message": "Two-factor verification could not be confirmed",
+            "verification": {
+                "status": "unavailable",
+                "effect": "unknown",
+                "replay": "do_not_repeat",
+                "error": "COMMIT_OUTCOME_UNKNOWN",
+                "stage": "login_totp_commit",
+            },
+        }
+
+    return {
+        "status": "verified",
+        "data": None,
+        "message": "Two-factor verification succeeded",
+        "verification": {"status": "verified", "effect": "committed"},
+    }
+
+
+# ---------------------------------------------------------------------------
 # Reconcile the original operation for a retry
 # ---------------------------------------------------------------------------
 

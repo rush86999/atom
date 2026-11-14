@@ -1,0 +1,405 @@
+{
+  "schema": "atom-wa045-canvas-blank-lifecycle-1",
+  "wa_id": "WA-045",
+  "status": "passed",
+  "generated_at": "2026-11-13T12:07:33.943104+00:00",
+  "commit": "ec7166676187577705dc15accfff6fbfd3e447c5",
+  "environment": {
+    "world": "backend/data/acceptance_worlds/wa045_canvas_blank_20261113",
+    "world_root": "backend/data/acceptance_worlds",
+    "database": "atom.db",
+    "fresh_scratch_database": true,
+    "live_database": false,
+    "backend": "http://127.0.0.1:8181",
+    "frontend": "http://127.0.0.1:3181",
+    "backend_pid": 56147,
+    "frontend_pid": 56171,
+    "backend_identity": {
+      "revision": "ec7166676187577705dc15accfff6fbfd3e447c5",
+      "cwd": "/Volumes/Seagate Portable Drive/atom-wa045.S0mBqJ/tree/backend",
+      "database": "/Volumes/Seagate Portable Drive/atom-wa045.S0mBqJ/tree/backend/data/acceptance_worlds/wa045_canvas_blank_20261113/atom.db",
+      "port": 8181,
+      "source_id": "ec7166676187"
+    },
+    "workers": {
+      "ENABLE_SCHEDULER": false,
+      "ENABLE_INGESTION_SYNC": false
+    },
+    "provider_isolation": "all provider keys blanked for both processes; no provider call made",
+    "monaco_assets": "pinned static editor assets are fetched from cdn.jsdelivr.net by @monaco-editor/react; GET-only, no workspace data"
+  },
+  "journey": {
+    "create": {
+      "status": 200,
+      "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+      "url": "/canvas/f61ca638-241d-479a-b99a-adf28897fe66",
+      "audit_id": "bb36b06a-d4a5-45d1-9c86-f0660a7693e2"
+    },
+    "save": {
+      "status": 200,
+      "save_path": "save_changes_button",
+      "request_body": {
+        "content": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END"
+      },
+      "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+      "audit_id": "b069e935-49a4-4381-88d5-d8b62c377076",
+      "operation_id": "http-canvas-update:ff70966f20694e9d953ac825ba2248d2",
+      "verification": {
+        "status": "verified",
+        "effect": "committed",
+        "no_change": false,
+        "evidence": "canvas_audit b069e935-49a action_type=update content=8fcd968019da canvas_id=f61ca638-241d-479a-b99a-adf28897fe66"
+      },
+      "expected_prior_audit_id": "bb36b06a-d4a5-45d1-9c86-f0660a7693e2"
+    },
+    "reload": {
+      "editor_value_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+      "get_content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+      "revision_audit_id": "b069e935-49a4-4381-88d5-d8b62c377076",
+      "version_badge": "v2",
+      "action_types": [
+        "update",
+        "create"
+      ],
+      "history_count": 2
+    },
+    "exact_text_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+    "exact_text": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END",
+    "history_count": 2,
+    "version_badge": "v2",
+    "origins": [
+      "blob:",
+      "http://127.0.0.1:3181",
+      "http://127.0.0.1:8181",
+      "https://cdn.jsdelivr.net"
+    ],
+    "non_loopback": [
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/nls.messages-loader.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-DO3azKX8.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-qLAYrEOP.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-EcChJV6a.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-D2OdxNBt.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/basic-languages/monaco.contribution.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor.api-CalNCsUg.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/workers-DcJshg-q.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/markdown-C_rD0bIw.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/assets/editor.worker-Be8ye1pW.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/nls.messages-loader.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-DO3azKX8.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-qLAYrEOP.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-EcChJV6a.js"
+      },
+      {
+        "method": "GET",
+        "url": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-D2OdxNBt.js"
+      }
+    ]
+  },
+  "browser_checks": [
+    {
+      "name": "signed in through the login form",
+      "ok": true,
+      "detail": {
+        "origin": "http://127.0.0.1:3181"
+      }
+    },
+    {
+      "name": "blank canvas created by the UI button",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+        "url": "/canvas/f61ca638-241d-479a-b99a-adf28897fe66"
+      }
+    },
+    {
+      "name": "created artifact id is the URL identity",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3181/canvas/f61ca638-241d-479a-b99a-adf28897fe66",
+        "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66"
+      }
+    },
+    {
+      "name": "native document editor rendered for the blank canvas",
+      "ok": true,
+      "detail": {
+        "selector": ".monaco-editor"
+      }
+    },
+    {
+      "name": "signed-in browser token present",
+      "ok": true,
+      "detail": {
+        "length": 339
+      }
+    },
+    {
+      "name": "initial durable content is the empty document envelope",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "content": {
+          "content": ""
+        },
+        "audit_id": "bb36b06a-d4a5-45d1-9c86-f0660a7693e2"
+      }
+    },
+    {
+      "name": "initial audit row is the create event",
+      "ok": true,
+      "detail": "create"
+    },
+    {
+      "name": "editor opens with the exact empty body",
+      "ok": true,
+      "detail": {
+        "value": ""
+      }
+    },
+    {
+      "name": "edited text reached the durable save endpoint",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "save_path": "save_changes_button"
+      }
+    },
+    {
+      "name": "save body is the exact native document envelope, byte-for-byte",
+      "ok": true,
+      "detail": {
+        "body_keys": [
+          "content"
+        ],
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "expected_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "save receipt is verified for this exact canvas",
+      "ok": true,
+      "detail": {
+        "verification": "verified",
+        "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+        "audit_id": "b069e935-49a4-4381-88d5-d8b62c377076",
+        "operation_id": "http-canvas-update:ff70966f20694e9d953ac825ba2248d2"
+      }
+    },
+    {
+      "name": "save bound the prior create revision (optimistic concurrency)",
+      "ok": true,
+      "detail": {
+        "expected_prior_audit_id": "bb36b06a-d4a5-45d1-9c86-f0660a7693e2"
+      }
+    },
+    {
+      "name": "panel reports the edit saved",
+      "ok": true,
+      "detail": "Saved"
+    },
+    {
+      "name": "editor value after reload is the exact saved text",
+      "ok": true,
+      "detail": {
+        "value_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "expected_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "length": 109
+      }
+    },
+    {
+      "name": "GET read-back after reload returns the exact saved envelope",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487",
+        "audit_id": "b069e935-49a4-4381-88d5-d8b62c377076"
+      }
+    },
+    {
+      "name": "read-back is the update revision the save returned",
+      "ok": true,
+      "detail": {
+        "revision_audit_id": "b069e935-49a4-4381-88d5-d8b62c377076",
+        "saved_audit_id": "b069e935-49a4-4381-88d5-d8b62c377076"
+      }
+    },
+    {
+      "name": "audit history belongs to the created artifact",
+      "ok": true,
+      "detail": {
+        "canvas_id": "f61ca638-241d-479a-b99a-adf28897fe66",
+        "count": 2
+      }
+    },
+    {
+      "name": "history has exactly the create and update revisions",
+      "ok": true,
+      "detail": [
+        "update",
+        "create"
+      ]
+    },
+    {
+      "name": "latest revision carries the exact saved text",
+      "ok": true,
+      "detail": {
+        "audit_id": "b069e935-49a4-4381-88d5-d8b62c377076",
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "canvas title is the created artifact title",
+      "ok": true,
+      "detail": "Untitled canvas"
+    },
+    {
+      "name": "reloaded version badge reflects both revisions",
+      "ok": true,
+      "detail": {
+        "expected": "v2",
+        "matches": 1
+      }
+    },
+    {
+      "name": "no non-loopback request other than pinned Monaco editor assets",
+      "ok": true,
+      "detail": {
+        "external": [],
+        "monaco_asset_requests": 25,
+        "monaco_asset_policy": "allow"
+      }
+    },
+    {
+      "name": "no browser page errors",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "database_checks": [
+    {
+      "name": "scratch database holds the created artifact row",
+      "ok": true,
+      "detail": {
+        "found": true,
+        "id": "f61ca638-241d-479a-b99a-adf28897fe66",
+        "name": "Untitled canvas",
+        "canvas_type": "document"
+      }
+    },
+    {
+      "name": "scratch database content is the exact saved envelope",
+      "ok": true,
+      "detail": {
+        "content": {
+          "content": "WA-045 canvas durability check\n\nLine 1 exact: ORD-WA045-ALPHA\nLine 2 exact: 17 * 3 = 51\nEnd marker: WA045-END"
+        }
+      }
+    },
+    {
+      "name": "scratch database has only this artifact's create+update audits",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "actions": [
+          "create",
+          "update"
+        ]
+      }
+    },
+    {
+      "name": "scratch database update audit stores the exact text",
+      "ok": true,
+      "detail": {
+        "content_sha256": "9c0ef0310e6be5040c18c7339892f93a6343f117fb1c09821dbbbc68a04f1487"
+      }
+    },
+    {
+      "name": "scratch database create audit is the empty document",
+      "ok": true,
+      "detail": {
+        "content": {
+          "content": ""
+        }
+      }
+    },
+    {
+      "name": "every audit row belongs to the created artifact id",
+      "ok": true,
+      "detail": {
+        "audit_ids": [
+          "bb36b06a-d4a5-45d1-9c86-f0660a7693e2",
+          "b069e935-49a4-4381-88d5-d8b62c377076"
+        ]
+      }
+    }
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "run": {
+    "harness_exit_code": 0,
+    "private_logs": "retained outside the repository; not committed"
+  }
+}

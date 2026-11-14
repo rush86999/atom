@@ -83,18 +83,31 @@ class VoiceService:
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = f"audio.{audio_format}"
 
+        # A byte length is not a media duration (compressed audio varies by
+        # bitrate). Probe the real container and carry that quantity into the
+        # spend reservation so billing uses seconds, not raw bytes.
+        from core.media_duration import media_duration_seconds
+
+        duration_seconds = media_duration_seconds(
+            audio_bytes, audio_file.name)
+
         # Call LLMService (which handles BYOK and provider selection)
         result = await self.llm_service.transcribe_audio(
             file=audio_file,
             model="whisper-1",
-            language=language
+            language=language,
+            duration_seconds=duration_seconds,
         )
 
         return VoiceTranscription(
             text=result.get("text", ""),
             confidence=0.95,
             language=language,
-            duration_seconds=len(audio_bytes) / 16000,
+            # 0.0 is this response shape's "not measured" sentinel (the
+            # fallback path uses the same value). It is never derived from the
+            # byte length, and the spend bound carries `None` (unknown)
+            # separately, so it cannot price the call as free.
+            duration_seconds=duration_seconds or 0.0,
             timestamp=datetime.now(timezone.utc)
         )
     

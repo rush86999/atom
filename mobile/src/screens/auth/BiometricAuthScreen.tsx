@@ -26,21 +26,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../../contexts/AuthContext';
-import { AuthScreenNavigationProp } from '../../navigation/types';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AuthStackParamList } from '../../navigation/types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Constants
 const MAX_ATTEMPTS = 3;
 
-interface BiometricAuthScreenProps {
-  navigation: AuthScreenNavigationProp;
-  route: {
-    params?: {
-      onSuccessNavigate?: string;
-    };
-  };
-}
+type BiometricAuthScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'BiometricAuth'
+>;
 
 export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ navigation, route }) => {
   const { authenticateWithBiometric, login } = useAuth();
@@ -92,20 +89,6 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
 
     initialize();
   }, []);
-
-  // Auto-trigger biometric once availability is known (a plain setTimeout
-  // inside initialize would close over the initial isAvailable=false)
-  const didAutoTriggerRef = useRef(false);
-  useEffect(() => {
-    if (!isAvailable || didAutoTriggerRef.current) return;
-    didAutoTriggerRef.current = true;
-
-    const timer = setTimeout(() => {
-      triggerBiometric();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [isAvailable, triggerBiometric]);
 
   /**
    * Animate screen elements in
@@ -222,6 +205,23 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
       setIsLoading(false);
     }
   };
+
+  // Auto-trigger biometric once availability is known (a plain setTimeout
+  // inside initialize would close over the initial isAvailable=false).
+  // Keep the callback in a ref so unrelated re-renders do not reset the timer.
+  const triggerBiometricRef = useRef(triggerBiometric);
+  triggerBiometricRef.current = triggerBiometric;
+  const didAutoTriggerRef = useRef(false);
+  useEffect(() => {
+    if (!isAvailable || didAutoTriggerRef.current) return;
+    didAutoTriggerRef.current = true;
+
+    const timer = setTimeout(() => {
+      triggerBiometricRef.current();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isAvailable]);
 
   /**
    * Retry biometric authentication

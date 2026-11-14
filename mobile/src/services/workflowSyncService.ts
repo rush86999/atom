@@ -102,6 +102,22 @@ class WorkflowSyncService {
   private monitoringTimer: NodeJS.Timeout | null = null;
   private metrics: WorkflowMetrics;
 
+  constructor() {
+    this.cache = {
+      workflows: {},
+      executions: {},
+      lastSyncAt: null,
+      pendingTriggers: [],
+    };
+    this.metrics = {
+      totalExecutions: 0,
+      successfulExecutions: 0,
+      failedExecutions: 0,
+      avgDuration: 0,
+      lastExecutionAt: null,
+    };
+  }
+
   /**
    * Initialize the workflow sync service
    */
@@ -138,7 +154,7 @@ class WorkflowSyncService {
       console.log('WorkflowSync: Syncing workflows');
 
       // Fetch workflows from server
-      const response = await apiService.get('/api/workflows');
+      const response = await apiService.get<{ workflows: Workflow[] }>('/api/workflows');
 
       if (!response.success || !response.data) {
         console.error('WorkflowSync: Failed to fetch workflows:', response.error);
@@ -151,7 +167,7 @@ class WorkflowSyncService {
         };
       }
 
-      const workflows: Workflow[] = response.data.workflows || [];
+      const workflows = response.data.workflows || [];
 
       // Process each workflow
       for (const workflow of workflows) {
@@ -218,9 +234,9 @@ class WorkflowSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/workflows/${workflowId}`);
+      const response = await apiService.get<Workflow>(`/api/workflows/${workflowId}`);
       if (response.success && response.data) {
-        const workflow: Workflow = response.data;
+        const workflow = response.data;
         this.cache.workflows[workflowId] = workflow;
         await this.saveCache();
         return workflow;
@@ -310,9 +326,9 @@ class WorkflowSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/workflows/executions/${executionId}`);
+      const response = await apiService.get<WorkflowExecution>(`/api/workflows/executions/${executionId}`);
       if (response.success && response.data) {
-        const execution: WorkflowExecution = response.data;
+        const execution = response.data;
         this.cache.executions[executionId] = execution;
         await this.saveCache();
         return execution;

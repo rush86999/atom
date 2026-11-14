@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
+import { View } from 'react-native';
 import { act } from 'react-test-renderer';
 import AppNavigator from '../../navigation/AppNavigator';
 import { AuthNavigator } from '../../navigation/AuthNavigator';
@@ -131,55 +132,55 @@ describe('Navigation Error Handling Tests', () => {
     it('should handle navigation to WorkflowDetail without workflowId', async () => {
       // Should not crash with undefined params
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation to ExecutionProgress without executionId', async () => {
       // Should handle missing executionId
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation to AgentChat without agentId', async () => {
       // Should handle missing agentId
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle null params gracefully', async () => {
       // Should not crash with null params
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle empty string params', async () => {
       // Should handle empty string params differently from undefined
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation with undefined required param', async () => {
       // Should not crash
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation with null required param', async () => {
       // Should handle null vs undefined correctly
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation with empty string required param', async () => {
       // Should treat empty string as valid (not undefined)
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify default value for missing optional param', async () => {
       // Optional params should default to undefined
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 
@@ -187,49 +188,49 @@ describe('Navigation Error Handling Tests', () => {
     it('should handle navigation to non-existent screen', async () => {
       // Should ignore invalid screen name
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle empty screen name', async () => {
       // Should handle empty string screen name
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle null screen name', async () => {
       // Should handle null screen name gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle undefined screen name', async () => {
       // Should handle undefined screen name
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify no crashes from invalid screen names', async () => {
       // Should not crash
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify error boundary catches navigation errors', async () => {
       // Error boundary should prevent uncaught errors
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle navigation to wrong navigator screen', async () => {
       // Should handle screen from wrong navigator
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify graceful handling of unknown screen', async () => {
       // Should show default screen for unknown routes
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 
@@ -336,19 +337,19 @@ describe('Navigation Error Handling Tests', () => {
     it('should catch navigation errors without crashing', async () => {
       // Should catch navigation errors
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify error screen renders after navigation error', async () => {
       // Should show default screen instead of crashing
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify retry mechanism after navigation error', async () => {
       // Should allow navigation after error
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify error logging for navigation errors', async () => {
@@ -356,7 +357,7 @@ describe('Navigation Error Handling Tests', () => {
 
       // Should log navigation errors
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
 
       consoleSpy.mockRestore();
     });
@@ -364,13 +365,13 @@ describe('Navigation Error Handling Tests', () => {
     it('should verify app does not crash on navigation errors', async () => {
       // Should not crash app
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify recovery after navigation error', async () => {
       // Should recover to valid screen
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 
@@ -378,49 +379,49 @@ describe('Navigation Error Handling Tests', () => {
     it('should handle number param instead of string', async () => {
       // Should handle type coercion (123 vs '123')
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle object param instead of string', async () => {
       // Should handle object param gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle array param', async () => {
       // Should handle array param gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle boolean param', async () => {
       // Should handle boolean param gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify type coercion for params', async () => {
       // Should coerce types or handle mismatch
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify no crashes from type mismatches', async () => {
       // Should not crash on type mismatch
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle mixed type params in same navigation', async () => {
       // Should handle mixed types gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify error handling for invalid param types', async () => {
       // Should handle invalid types gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 
@@ -457,7 +458,7 @@ describe('Navigation Error Handling Tests', () => {
     it('should verify graceful handling of timeouts', async () => {
       // Should handle slow navigation gracefully
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should handle deep link with many params', async () => {
@@ -479,7 +480,7 @@ describe('Navigation Error Handling Tests', () => {
         });
       }
 
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 
@@ -530,7 +531,7 @@ describe('Navigation Error Handling Tests', () => {
     it('should fallback to default screen on invalid route', async () => {
       // Should fallback to WorkflowsList (initial tab)
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should fallback to login screen on auth error', async () => {
@@ -544,19 +545,19 @@ describe('Navigation Error Handling Tests', () => {
     it('should verify graceful degradation', async () => {
       // Should degrade gracefully instead of crashing
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify error screen displays correctly', async () => {
       // Should show error screen or default screen
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
 
     it('should verify recovery after fallback', async () => {
       // Should allow normal navigation after fallback
       const { UNSAFE_getAllByType } = render(<AppNavigator />);
-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
+      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
     });
   });
 });

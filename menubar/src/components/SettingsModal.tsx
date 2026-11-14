@@ -4,11 +4,27 @@ import IntegrationsPanel from "./IntegrationsPanel";
 import WorkflowsPanel from "./WorkflowsPanel";
 import AnalyticsPanel from "./AnalyticsPanel";
 import ApprovalsPanel from "./ApprovalsPanel";
+import {
+  DEFAULT_BACKEND_HTTP_URL,
+  normalizeServerUrl,
+  readStoredServerUrl,
+  validateServerUrl,
+  writeStoredServerUrl,
+} from "../config";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogout: () => void;
+  /** Resolved endpoint currently used by the app (may come from native env). */
+  serverUrl?: string;
+  /** True when a native environment override owns the endpoint. */
+  serverUrlLocked?: boolean;
+  /** False until the endpoint has been resolved (or when native IPC rejected it). */
+  endpointAvailable?: boolean;
+  /** Sanitized native configuration error; disables endpoint panels. */
+  endpointConfigError?: string | null;
+  onServerUrlChange?: (serverUrl: string) => void;
 }
 
 interface Settings {
@@ -23,9 +39,18 @@ interface Settings {
   defaultAgent: string;
 }
 
-export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
+export default function SettingsModal({
+  isOpen,
+  onClose,
+  onLogout,
+  serverUrl,
+  serverUrlLocked = false,
+  endpointAvailable = true,
+  endpointConfigError = null,
+  onServerUrlChange,
+}: SettingsModalProps) {
   const [settings, setSettings] = useState<Settings>({
-    serverUrl: typeof window !== "undefined" ? (localStorage.getItem("atom_server_url") || "") : "",
+    serverUrl: serverUrl || readStoredServerUrl() || DEFAULT_BACKEND_HTTP_URL,
     autoLaunch: false,
     startMinimized: false,
     notificationsEnabled: true,
@@ -38,19 +63,38 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
 
   const [hasChanges, setHasChanges] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [serverUrlError, setServerUrlError] = useState<string | null>(null);
+
+  // The panels only ever receive the active, validated endpoint. A draft value
+  // being typed into the input must not trigger requests (or a localhost
+  // fallback) before it is saved.
+  const activeServerUrl = (() => {
+    const candidate = validateServerUrl(
+      serverUrl || readStoredServerUrl() || DEFAULT_BACKEND_HTTP_URL
+    );
+    return candidate.ok ? candidate.url : undefined;
+  })();
 
   useEffect(() => {
     if (isOpen) {
+      setServerUrlError(null);
       loadSettings();
     }
   }, [isOpen]);
 
   const loadSettings = async () => {
     try {
-      // Load settings from Tauri backend or localStorage
+      // Load settings from Tauri backend or localStorage. The resolved
+      // endpoint wins so a native environment override is visible here.
       const savedSettings = localStorage.getItem("atom_settings");
+      const resolvedUrl = normalizeServerUrl(
+        serverUrl || readStoredServerUrl() || DEFAULT_BACKEND_HTTP_URL
+      );
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsed = JSON.parse(savedSettings) as Partial<Settings>;
+        setSettings((prev) => ({ ...prev, ...parsed, serverUrl: resolvedUrl }));
+      } else {
+        setSettings((prev) => ({ ...prev, serverUrl: resolvedUrl }));
       }
     } catch (error) {
       console.error("Failed to load settings:", error);
@@ -59,11 +103,45 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
 
   const saveSettings = async () => {
     try {
-      // Save to localStorage and Tauri backend
-      localStorage.setItem("atom_settings", JSON.stringify(settings));
+      let resolvedUrl = settings.serverUrl;
+      if (endpointConfigError) {
+        // Keep the active endpoint untouched; a rejected native override must
+        // not be replaced with the localhost default in local storage.
+        resolvedUrl = normalizeServerUrl(serverUrl);
+      } else if (serverUrlLocked) {
+        const locked = validateServerUrl(serverUrl);
+        if (!locked.ok) {
+          setServerUrlError(locked.error);
+          return;
+        }
+        resolvedUrl = locked.url;
+      } else {
+        const saved = writeStoredServerUrl(settings.serverUrl);
+        if (!saved.ok) {
+          setServerUrlError(saved.error);
+          return;
+        }
+        resolvedUrl = saved.url;
+      }
+      setServerUrlError(null);
 
-      // Invoke Tauri command to update settings
-      await invoke("update_settings", { settings });
+      const nextSettings = { ...settings, serverUrl: resolvedUrl };
+
+      // Save to localStorage and Tauri backend
+      localStorage.setItem("atom_settings", JSON.stringify(nextSettings));
+      setSettings(nextSettings);
+      if (!serverUrlLocked && !endpointConfigError) {
+        onServerUrlChange?.(resolvedUrl);
+      }
+
+      // Invoke Tauri command to update settings. The menu bar does not yet
+      // expose a native settings writer; a missing command must not discard
+      // the value saved above.
+      try {
+        await invoke("update_settings", { settings: nextSettings });
+      } catch (error) {
+        console.warn("Native settings persistence unavailable:", error);
+      }
       setHasChanges(false);
       onClose();
     } catch (error) {
@@ -168,7 +246,12 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
               <input
                 type="text"
                 value={settings.serverUrl}
-                onChange={(e) => handleSettingChange("serverUrl", e.target.value)}
+                onChange={(e) => {
+                  setServerUrlError(null);
+                  handleSettingChange("serverUrl", e.target.value);
+                }}
+                disabled={serverUrlLocked || !endpointAvailable || Boolean(endpointConfigError)}
+                aria-invalid={serverUrlError ? true : undefined}
                 style={{
                   width: "100%",
                   padding: "8px 12px",
@@ -180,6 +263,29 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
                   boxSizing: "border-box",
                 }}
               />
+              {serverUrlLocked && (
+                <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>
+                  Set by ATOM_MENUBAR_BACKEND_URL / ATOM_BACKEND_URL for this launch.
+                </div>
+              )}
+              {serverUrlError && (
+                <div
+                  role="alert"
+                  data-testid="server-url-error"
+                  style={{ fontSize: "11px", color: "#ff8a80", marginTop: "4px" }}
+                >
+                  {serverUrlError}
+                </div>
+              )}
+              {endpointConfigError && (
+                <div
+                  role="alert"
+                  data-testid="endpoint-config-error"
+                  style={{ fontSize: "11px", color: "#ff8a80", marginTop: "4px" }}
+                >
+                  {endpointConfigError}
+                </div>
+              )}
             </div>
           </div>
 
@@ -253,37 +359,44 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
             </div>
           </div>
 
-          {/* Integrations (round 80r: desktop parity with web/mobile) */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
-              INTEGRATIONS
-            </div>
-            <IntegrationsPanel serverUrl={settings.serverUrl || undefined} />
-          </div>
+          {/* Embedded endpoint panels are request surfaces. Do not mount them
+              until the endpoint is resolved, and never while native IPC has
+              rejected the configuration. */}
+          {endpointAvailable && !endpointConfigError && activeServerUrl && (
+            <>
+              {/* Integrations (round 80r: desktop parity with web/mobile) */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+                  INTEGRATIONS
+                </div>
+                <IntegrationsPanel serverUrl={activeServerUrl} />
+              </div>
 
-          {/* Workflows (round 80u: desktop parity) */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
-              WORKFLOWS
-            </div>
-            <WorkflowsPanel serverUrl={settings.serverUrl || undefined} />
-          </div>
+              {/* Workflows (round 80u: desktop parity) */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+                  WORKFLOWS
+                </div>
+                <WorkflowsPanel serverUrl={activeServerUrl} />
+              </div>
 
-          {/* Analytics (round 80v: desktop parity — last matrix gap) */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
-              ANALYTICS
-            </div>
-            <AnalyticsPanel serverUrl={settings.serverUrl || undefined} />
-          </div>
+              {/* Analytics (round 80v: desktop parity — last matrix gap) */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+                  ANALYTICS
+                </div>
+                <AnalyticsPanel serverUrl={activeServerUrl} />
+              </div>
 
-          {/* Approvals (round 80t2: HITL parity — last surface) */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
-              APPROVALS
-            </div>
-            <ApprovalsPanel serverUrl={settings.serverUrl || undefined} />
-          </div>
+              {/* Approvals (round 80t2: HITL parity — last surface) */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+                  APPROVALS
+                </div>
+                <ApprovalsPanel serverUrl={activeServerUrl} />
+              </div>
+            </>
+          )}
 
           {/* Appearance */}
           <div style={{ marginBottom: "24px" }}>

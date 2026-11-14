@@ -302,10 +302,15 @@ def _line_source_versions(line: Dict[str, Any]) -> List[Dict[str, str]]:
 def _candidate_summary(rule: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "lesson_id": rule.get("lesson_id"),
+        "rule_id": rule.get("rule_id"),
         "revision": rule.get("revision"),
         "name": rule.get("name"),
         "when": dict(rule.get("when") or {}),
         "rate": str(rule.get("rate")),
+        "authority": rule.get("authority"),
+        "source": rule.get("source"),
+        "source_version": rule.get("source_version"),
+        "source_ref": dict(rule.get("source_ref") or {}),
         "effective_from": rule.get("effective_from"),
         "effective_to": rule.get("effective_to"),
         "specificity": _rule_specificity(rule),
@@ -729,10 +734,16 @@ def calculate_line_items(
             "source_evidence": list(source_evidence or []),
             "discount_rules": [
                 {
+                    "rule_id": rule.get("rule_id"),
                     "lesson_id": rule.get("lesson_id"),
                     "revision": rule.get("revision"),
+                    "name": rule.get("name"),
                     "when": dict(rule.get("when") or {}),
                     "rate": str(rule.get("rate")),
+                    "authority": rule.get("authority"),
+                    "source": rule.get("source"),
+                    "source_version": rule.get("source_version"),
+                    "source_ref": dict(rule.get("source_ref") or {}),
                 }
                 for rule in (discount_rules or [])
                 if isinstance(rule, dict)

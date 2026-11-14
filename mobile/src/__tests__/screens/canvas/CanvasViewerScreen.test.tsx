@@ -85,7 +85,10 @@ jest.mock('../../../components/canvas/CanvasTerminal', () => {
 });
 
 // Mock apiService
-const mockApiGet = jest.fn(() =>
+const mockApiGet = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string, Record<string, unknown>?]
+>(() =>
   Promise.resolve({
     success: true,
     data: {
@@ -121,7 +124,10 @@ const mockApiGet = jest.fn(() =>
   })
 );
 
-const mockApiPost = jest.fn(() =>
+const mockApiPost = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string, Record<string, unknown>?]
+>(() =>
   Promise.resolve({
     success: true,
     data: {},

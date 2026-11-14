@@ -25,6 +25,7 @@ import pytest
 import core.generic_agent as ga
 from core.generic_agent import GenericAgent
 from core.models import AgentRegistry, HITLActionStatus
+from core.react_models import ReActStep
 
 
 def _agent_model(config=None, agent_id="agent-123", name="Test Agent"):
@@ -197,12 +198,16 @@ class TestExecuteLoop:
         assert env["mcp"].call_tool.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_no_action_last_step_uses_thought(self, env):
-        env["llm"].generate_structured.side_effect = [_step(thought="last thought")]
+    async def test_no_action_last_step_does_not_use_thought(self, env):
+        # Private reasoning is never promoted to the user-facing answer when
+        # the step budget runs out without a control field.
         agent = _agent(env, config={"max_steps": 1})
+        agent._react_step = AsyncMock(
+            return_value=ReActStep(thought="last thought"))
         result = await agent.execute("task")
         assert result["status"] == "max_steps_exceeded"
-        assert result["output"] == "last thought"
+        assert result["output"] == "Maximum steps reached without final answer."
+        assert result["output"] != "last thought"
 
     @pytest.mark.asyncio
     async def test_optimization_max_steps_override(self, env):

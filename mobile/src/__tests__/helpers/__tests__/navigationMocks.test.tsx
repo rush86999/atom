@@ -254,7 +254,7 @@ describe('createMockAuthContext', () => {
     const ctx = createMockAuthContext(true, false);
     expect(ctx.isAuthenticated).toBe(true);
     expect(ctx.isLoading).toBe(false);
-    expect(ctx.user.id).toBe('test-user-123');
+    expect(ctx.user?.id).toBe('test-user-123');
     expect(ctx.token).toBe('test-token-abc123');
     expect(typeof ctx.login).toBe('function');
     expect(typeof ctx.logout).toBe('function');

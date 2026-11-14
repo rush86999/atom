@@ -16,6 +16,11 @@ Reference: RESEARCH.md Pitfall 3 for security constraints
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import sys
+import time
+
+import requests
+
+from tests.sandbox_lifecycle_mocks import install_container, make_container
 
 # Mock docker module before importing skill_sandbox.
 # Save the originals so they can be restored after the import — leaving the
@@ -110,7 +115,7 @@ class TestPythonExecution:
         """Verify successful Python code execution."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Hello from sandbox\n"
+        install_container(mock_client, stdout=b"Hello from sandbox\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -120,20 +125,24 @@ class TestPythonExecution:
         )
 
         assert result == "Hello from sandbox\n"
-        mock_client.containers.run.assert_called_once()
+        mock_client.containers.create.assert_called_once()
 
         # Verify security constraints are applied
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['network_disabled'] is True
         assert call_args.kwargs['read_only'] is True
-        assert call_args.kwargs['auto_remove'] is True
+        # Removal is owned by the sandbox (not the daemon) so the observed
+        # outcome can be reported; the container is still ephemeral.
+        assert call_args.kwargs['auto_remove'] is False
+        created = mock_client.containers.create.return_value
+        created.remove.assert_called_once_with(force=True)
 
     @patch('core.skill_sandbox.docker')
     def test_execute_python_with_inputs(self, mock_docker_module):
         """Verify inputs are injected into execution context."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"42\n"
+        install_container(mock_client, stdout=b"42\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -145,46 +154,243 @@ class TestPythonExecution:
         assert result == "42\n"
 
         # Verify wrapper script includes inputs
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         wrapper_script = call_args.kwargs['command'][2]  # python -c <script>
         assert "inputs = " in wrapper_script
         assert '"x": 42' in wrapper_script
 
 
 class TestTimeoutHandling:
-    """Test timeout enforcement for container execution."""
+    """Test timeout enforcement and deterministic container ownership."""
+
+    # docker-py's model-level wrapper rejects undocumented kwargs before a
+    # container exists.  A Mock silently accepts them, which is how an invalid
+    # ``timeout=`` argument broke every real Docker execution while the mocked
+    # suite stayed green (#918).
+    _CREATE_KWARGS = frozenset({
+        "image", "command", "name", "mem_limit", "cpu_quota", "cpu_period",
+        "network_disabled", "read_only", "tmpfs", "auto_remove",
+    })
 
     @patch('core.skill_sandbox.docker')
-    def test_execute_python_timeout_enforced(self, mock_docker_module):
-        """Verify timeout is applied to container execution."""
+    def test_execute_python_only_passes_documented_create_kwargs(
+            self, mock_docker_module):
+        """Regression for #918: no ``timeout``/``stdout``/``stderr`` kwargs."""
+        seen = {}
+
+        def strict_create(**kwargs):
+            unexpected = set(kwargs) - self._CREATE_KWARGS
+            assert not unexpected, (
+                f"containers.create() got unexpected keyword arguments "
+                f"{sorted(unexpected)}")
+            seen.update(kwargs)
+            return make_container(stdout=b"Done\n")
+
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        mock_client.containers.create.side_effect = strict_create
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
-        sandbox.execute_python(
-            code="print('Done')",
-            inputs={},
-            timeout_seconds=60
-        )
+        result = sandbox.execute_python(
+            code="print('Done')", inputs={}, timeout_seconds=60)
 
-        call_args = mock_client.containers.run.call_args
-        assert call_args.kwargs['timeout'] == 60
+        assert result == "Done\n"
+        mock_client.containers.create.assert_called_once()
+        assert "timeout" not in seen
+        assert seen["auto_remove"] is False, (
+            "removal is owned by the sandbox so it can be reported truthfully")
 
     @patch('core.skill_sandbox.docker')
-    def test_execute_python_timeout_default(self, mock_docker_module):
-        """Verify default timeout is 30 seconds."""
+    def test_timeout_kills_and_removes_the_owned_container(
+            self, mock_docker_module):
+        """The deadline acts on the created container, never a name lookup."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        created = install_container(
+            mock_client, name="skill_deadline1",
+            wait_side_effect=requests.exceptions.ReadTimeout("budget"))
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
-        sandbox.execute_python(code="print('Done')", inputs={})
+        started = time.monotonic()
+        receipt = sandbox.execute_python_receipt(
+            code="while True: pass", inputs={}, timeout_seconds=1)
+        elapsed = time.monotonic() - started
 
-        call_args = mock_client.containers.run.call_args
-        assert call_args.kwargs['timeout'] == 30
+        assert receipt["ok"] is False
+        assert receipt["timed_out"] is True
+        assert receipt["killed"] is True
+        assert receipt["terminated"] is True
+        assert receipt["removed"] is True
+        assert receipt["ephemeral"] is True
+        assert receipt["exit_code"] == 124
+        assert "was killed and removed" in receipt["error"]
+        assert elapsed < 5, "the deadline must not wait for the container"
+        created.start.assert_called_once()
+        created.kill.assert_called_once()
+        created.remove.assert_called_once_with(force=True)
+        # Deterministic ownership: cleanup never re-resolves the container by
+        # name, so a container that starts late cannot escape the deadline.
+        mock_client.containers.get.assert_not_called()
+
+    @patch('core.skill_sandbox.docker')
+    def test_delayed_start_cannot_outlive_the_deadline(
+            self, mock_docker_module):
+        """Regression: a START slower than the budget is killed immediately.
+
+        The old daemon-thread/``containers.run`` design joined the worker and
+        then looked the container up by name; a container that started after
+        that lookup kept running.  Starting the known container under the same
+        deadline removes that window.
+        """
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        created = install_container(mock_client, name="skill_delayed1")
+
+        def slow_start():
+            time.sleep(0.6)
+
+        created.start.side_effect = slow_start
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        receipt = sandbox.execute_python_receipt(
+            code="print('never')", inputs={}, timeout_seconds=0.2)
+
+        assert receipt["timed_out"] is True
+        assert receipt["killed"] is True
+        assert receipt["removed"] is True
+        assert "was killed and removed" in receipt["error"]
+        created.wait.assert_not_called()
+        created.kill.assert_called_once()
+        created.remove.assert_called_once_with(force=True)
+        mock_client.containers.get.assert_not_called()
+
+    @patch('core.skill_sandbox.docker')
+    def test_timeout_receipt_never_claims_a_failed_kill(
+            self, mock_docker_module):
+        """Regression: termination failure must be explicit, not "was killed"."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        created = install_container(
+            mock_client, name="skill_stuck1",
+            wait_side_effect=requests.exceptions.ReadTimeout("budget"))
+        created.kill.side_effect = APIError("daemon refused kill")
+        created.remove.side_effect = APIError("daemon refused remove")
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        receipt = sandbox.execute_python_receipt(
+            code="while True: pass", inputs={}, timeout_seconds=1)
+
+        assert receipt["timed_out"] is True
+        assert receipt["killed"] is False
+        assert receipt["terminated"] is False
+        assert receipt["removed"] is False
+        assert receipt["ephemeral"] is False
+        assert "could NOT be terminated" in receipt["error"]
+        assert "was killed" not in receipt["error"]
+        assert "kill failed" in receipt["error"]
+        assert "remove failed" in receipt["error"]
+        assert receipt["cleanup_error"]
+        created.kill.assert_called_once()
+        created.remove.assert_called_once_with(force=True)
+
+    @patch('core.skill_sandbox.docker')
+    def test_timeout_reports_force_removal_when_kill_failed(
+            self, mock_docker_module):
+        """The message distinguishes a kill from a force-removal."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        created = install_container(
+            mock_client, name="skill_exited1",
+            wait_side_effect=requests.exceptions.ReadTimeout("budget"))
+        created.kill.side_effect = APIError("container is not running")
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        receipt = sandbox.execute_python_receipt(
+            code="while True: pass", inputs={}, timeout_seconds=1)
+
+        assert receipt["timed_out"] is True
+        assert receipt["killed"] is False
+        assert receipt["terminated"] is True
+        assert receipt["removed"] is True
+        assert "was force-removed" in receipt["error"]
+        assert "was killed" not in receipt["error"]
+        assert "container is not running" in receipt["cleanup_error"]
+
+    @patch('core.skill_sandbox.docker')
+    def test_successful_run_reports_leaked_container_truthfully(
+            self, mock_docker_module):
+        """A successful run whose removal fails must not claim ephemerality."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        created = install_container(mock_client, stdout=b"Done\n")
+        created.remove.side_effect = APIError("device or resource busy")
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        receipt = sandbox.execute_python_receipt(
+            code="print('Done')", inputs={})
+
+        assert receipt["ok"] is True
+        assert receipt["stdout"] == "Done\n"
+        assert receipt["removed"] is False
+        assert receipt["ephemeral"] is False
+        assert "device or resource busy" in receipt["cleanup_error"]
+        created.remove.assert_called_once_with(force=True)
+
+    @patch('core.skill_sandbox.docker')
+    def test_create_kwargs_are_accepted_by_the_real_docker_sdk(
+            self, mock_docker_module):
+        """The mocked suite must not hide an invalid SDK kwarg (#918).
+
+        Feed the exact kwargs the sandbox passes into docker-py's own
+        ``_create_container_args`` -- the function that raised the production
+        ``TypeError`` for ``timeout=`` -- so this regression needs no daemon.
+        """
+        from docker.models.containers import _create_container_args
+
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        install_container(mock_client, stdout=b"Done\n")
+        mock_docker_module.from_env.return_value = mock_client
+
+        HazardSandbox().execute_python(code="print('Done')", inputs={})
+        kwargs = dict(mock_client.containers.create.call_args.kwargs)
+        assert "timeout" not in kwargs
+        kwargs["version"] = "1.45"  # what ContainerCollection.create adds
+
+        normalised = _create_container_args(kwargs)
+
+        assert normalised["network_disabled"] is True
+        host_config = normalised["host_config"]
+        assert host_config["ReadonlyRootfs"] is True
+        assert host_config["Tmpfs"] == {"/tmp": "size=10m"}
+        assert host_config["Memory"] == 256 * 1024 * 1024
+        assert host_config["CpuQuota"] == 50000
+        assert host_config["CpuPeriod"] == 100000
+
+    @patch('core.skill_sandbox.docker')
+    def test_execute_python_default_timeout_is_30_seconds(
+            self, mock_docker_module):
+        """Verify default timeout is 30 seconds and reported in the receipt."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        install_container(mock_client, stdout=b"Done\n")
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        receipt = sandbox.execute_python_receipt(
+            code="print('Done')", inputs={})
+
+        assert receipt["ok"] is True
+        assert receipt["timeout_seconds"] == 30
+        assert receipt["timed_out"] is False
+        assert "timeout" not in mock_client.containers.create.call_args.kwargs
+
 
 
 class TestResourceLimits:
@@ -195,7 +401,7 @@ class TestResourceLimits:
         """Verify memory constraint is applied."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -205,7 +411,7 @@ class TestResourceLimits:
             memory_limit="512m"
         )
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['mem_limit'] == "512m"
 
     @patch('core.skill_sandbox.docker')
@@ -213,7 +419,7 @@ class TestResourceLimits:
         """Verify CPU quota is applied."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -223,7 +429,7 @@ class TestResourceLimits:
             cpu_limit=0.75
         )
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['cpu_quota'] == 75000  # 0.75 * 100000
         assert call_args.kwargs['cpu_period'] == 100000
 
@@ -232,13 +438,13 @@ class TestResourceLimits:
         """Verify network is disabled (CRITICAL security constraint)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['network_disabled'] is True
 
     @patch('core.skill_sandbox.docker')
@@ -246,13 +452,13 @@ class TestResourceLimits:
         """Verify filesystem is read-only (CRITICAL security constraint)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['read_only'] is True
 
     @patch('core.skill_sandbox.docker')
@@ -260,28 +466,32 @@ class TestResourceLimits:
         """Verify tmpfs is mounted for temporary storage."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['tmpfs'] == {"/tmp": "size=10m"}
 
     @patch('core.skill_sandbox.docker')
-    def test_execute_python_auto_remove(self, mock_docker_module):
-        """Verify container is auto-removed after execution."""
+    def test_execute_python_removed_after_execution(self, mock_docker_module):
+        """Verify the sandbox (not the daemon) removes the container."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        created = install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
-        sandbox.execute_python(code="print('Done')", inputs={})
+        receipt = sandbox.execute_python_receipt(
+            code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
-        assert call_args.kwargs['auto_remove'] is True
+        call_args = mock_client.containers.create.call_args
+        assert call_args.kwargs['auto_remove'] is False
+        created.remove.assert_called_once_with(force=True)
+        assert receipt["removed"] is True
+        assert receipt["ephemeral"] is True
 
 
 class TestErrorHandling:
@@ -292,7 +502,7 @@ class TestErrorHandling:
         """Verify ContainerError is caught and logged."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.side_effect = ContainerError(
+        mock_client.containers.create.side_effect = ContainerError(
             "Execution failed",
             exit_status=1,
             stderr=b"ERROR: Something went wrong\n"
@@ -310,7 +520,8 @@ class TestErrorHandling:
         """Verify Docker APIError is caught and logged."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.side_effect = APIError("Docker daemon error")
+        mock_client.containers.create.side_effect = APIError(
+            "Docker daemon error")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -324,7 +535,8 @@ class TestErrorHandling:
         """Verify generic exceptions are caught and logged."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.side_effect = Exception("Unexpected error")
+        mock_client.containers.create.side_effect = Exception(
+            "Unexpected error")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -388,13 +600,13 @@ class TestSecurityConstraints:
         """Verify Docker socket is NEVER mounted (CRITICAL security)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         # Verify no volumes parameter (would mount Docker socket)
         assert 'volumes' not in call_args.kwargs
 
@@ -403,13 +615,13 @@ class TestSecurityConstraints:
         """Verify privileged mode is NEVER used (CRITICAL security)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         # Verify no privileged=True in kwargs
         assert call_args.kwargs.get('privileged') is not True
 
@@ -418,14 +630,14 @@ class TestSecurityConstraints:
         """Verify network is ALWAYS disabled (CRITICAL security)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         # Try with different parameters
         sandbox.execute_python(code="print('Done')", inputs={}, memory_limit="1g")
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['network_disabled'] is True
 
     @patch('core.skill_sandbox.docker')
@@ -433,14 +645,14 @@ class TestSecurityConstraints:
         """Verify filesystem is ALWAYS read-only (CRITICAL security)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         # Try with different parameters
         sandbox.execute_python(code="print('Done')", inputs={}, cpu_limit=1.0)
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['read_only'] is True
 
     @patch('core.skill_sandbox.docker')
@@ -448,13 +660,13 @@ class TestSecurityConstraints:
         """Verify resources are ALWAYS limited (CRITICAL security)."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         # Verify memory and CPU limits are set
         assert 'mem_limit' in call_args.kwargs
         assert 'cpu_quota' in call_args.kwargs
@@ -469,13 +681,13 @@ class TestContainerNaming:
         """Verify container names follow skill_<uuid8> format."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         container_name = call_args.kwargs['name']
         assert container_name.startswith('skill_')
         assert len(container_name) == len('skill_') + 8  # skill_ + 8 char hex
@@ -489,13 +701,13 @@ class TestCustomImageSupport:
         """Verify default image is python:3.11-slim when no image specified."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
         sandbox.execute_python(code="print('Done')", inputs={})
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['image'] == "python:3.11-slim"
 
     @patch('core.skill_sandbox.docker')
@@ -503,7 +715,7 @@ class TestCustomImageSupport:
         """Verify custom Docker image is used when provided."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -513,7 +725,7 @@ class TestCustomImageSupport:
             image="atom-skill:custom-skill-v1"
         )
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         assert call_args.kwargs['image'] == "atom-skill:custom-skill-v1"
 
     @patch('core.skill_sandbox.docker')
@@ -521,7 +733,7 @@ class TestCustomImageSupport:
         """Verify custom images still enforce all security constraints."""
         mock_client = Mock()
         mock_client.ping.return_value = True
-        mock_client.containers.run.return_value = b"Done\n"
+        install_container(mock_client, stdout=b"Done\n")
         mock_docker_module.from_env.return_value = mock_client
 
         sandbox = HazardSandbox()
@@ -531,10 +743,10 @@ class TestCustomImageSupport:
             image="atom-skill:custom-v1"
         )
 
-        call_args = mock_client.containers.run.call_args
+        call_args = mock_client.containers.create.call_args
         # Verify all security constraints still apply
         assert call_args.kwargs['network_disabled'] is True
         assert call_args.kwargs['read_only'] is True
-        assert call_args.kwargs['auto_remove'] is True
+        assert call_args.kwargs['auto_remove'] is False
         assert 'mem_limit' in call_args.kwargs
         assert 'cpu_quota' in call_args.kwargs

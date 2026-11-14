@@ -510,7 +510,7 @@ await act(async () => {
     });
 
     it('should show loading indicator during registration', async () => {
-      let resolveRegister: (value: unknown) => void = () => {};
+      let resolveRegister: (value: Response | PromiseLike<Response>) => void = () => {};
       global.fetch = jest.fn(() =>
         new Promise((resolve) => { resolveRegister = resolve; })
       );

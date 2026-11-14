@@ -68,6 +68,8 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 MIGRATION_FILE = "20261107_task_operation_result_json.py"
 MIGRATION_REVISION = "20261107_task_operation_result"
 MIGRATION_PARENT_REVISION = "a2f0c1d4e5b6"
+MIGRATION_SUCCESSOR_FILE = "20261113_user_session_token_jti.py"
+MIGRATION_SUCCESSOR_REVISION = "20261113_user_session_token_jti"
 
 
 # ---------------------------------------------------------------------------
@@ -820,6 +822,11 @@ def test_migration_revision_fits_alembic_version_column_and_parent_resolves():
     SQLite does not enforce the declared length, so a longer revision only
     fails on PostgreSQL.  Keep the identifier within the column and make sure
     it is unique and attached to an existing parent revision.
+
+    The task-operation revision is no longer a head: the WA-075 device-session
+    revision is its one expected successor.  Pin that exact edge so a
+    re-parented, duplicated, or silently dropped successor fails here instead
+    of only surfacing during a production upgrade.
     """
     import ast
 
@@ -836,10 +843,16 @@ def test_migration_revision_fits_alembic_version_column_and_parent_resolves():
     assert values["down_revision"] == MIGRATION_PARENT_REVISION
     assert len(MIGRATION_REVISION) <= 32
 
+    successor_path = (
+        BACKEND_DIR / "alembic" / "versions" / MIGRATION_SUCCESSOR_FILE)
+
     revs, duplicates = _version_graph()
     assert duplicates == []
     assert revs[MIGRATION_REVISION][0] == path
     assert MIGRATION_PARENT_REVISION in revs
+    assert revs[MIGRATION_SUCCESSOR_REVISION][0] == successor_path
+    assert revs[MIGRATION_SUCCESSOR_REVISION][1] == MIGRATION_REVISION
+    assert len(MIGRATION_SUCCESSOR_REVISION) <= 32
 
     children = {}
     for revision, (_path, down) in revs.items():
@@ -847,9 +860,12 @@ def test_migration_revision_fits_alembic_version_column_and_parent_resolves():
         for parent in parents:
             if parent is not None:
                 children.setdefault(parent, []).append(revision)
-    # This revision is a head (nothing descends from it), matching the repo's
-    # one-revision-per-line convention.
-    assert MIGRATION_REVISION not in children
+    # Exactly one expected successor: no branch, no competing child revision,
+    # and no accidental second head under this migration.
+    assert children[MIGRATION_REVISION] == [MIGRATION_SUCCESSOR_REVISION]
+    # The expected successor is the head (nothing descends from it), matching
+    # the repo's one-revision-per-line convention.
+    assert MIGRATION_SUCCESSOR_REVISION not in children
 
 
 def _run_alembic_upgrade(db_path, revision, *, cwd):

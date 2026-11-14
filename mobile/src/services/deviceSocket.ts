@@ -20,6 +20,7 @@ import * as Camera from 'expo-camera';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import FileSystem from 'expo-file-system';
+import { getActiveCameraCapture } from './cameraCaptureRegistry';
 
 // Types
 export interface DeviceInfo {
@@ -358,8 +359,22 @@ class DeviceSocketService {
         };
       }
 
-      // Take a picture
-      const result = await Camera.takePictureAsync({
+      // expo-camera 14 captures through a mounted CameraView ref. The camera
+      // screen registers that ref while its preview is active; without one a
+      // headless service must report a clear failure instead of throwing or
+      // pretending the capture happened.
+      const capture = getActiveCameraCapture();
+      if (!capture) {
+        return {
+          type: 'result',
+          command_id: command.command_id,
+          success: false,
+          error: 'Camera capture requires an active camera preview',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const result = await capture({
         quality: command.params.quality || 0.8,
         base64: true,
         exif: true,

@@ -28,6 +28,8 @@ module.exports = {
   moduleNameMapper: {
     '^@atom/test-utils(.*)$': '<rootDir>/../frontend-nextjs/shared/test-utils$1',
     '^@atom/property-tests(.*)$': '<rootDir>/src/shared/property-tests$1',
+    '^@babel/runtime/(.*)$': '<rootDir>/node_modules/@babel/runtime/$1',
+    '^fast-check$': '<rootDir>/node_modules/fast-check',
   },
 
   // Test file patterns

@@ -1251,17 +1251,30 @@ class TestVoiceService:
         assert svc._whisper_available is False
 
     def test_transcribe_audio_success(self):
+        import io
+        import math
+        import wave
+
         svc, inst = self._make()
-        result = asyncio.run(svc.transcribe_audio(b"x" * 32000, "wav", "fr"))
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as writer:
+            writer.setnchannels(1)
+            writer.setsampwidth(2)
+            writer.setframerate(8000)
+            writer.writeframes(b"\x00\x00" * 16000)
+        audio = buffer.getvalue()
+        result = asyncio.run(svc.transcribe_audio(audio, "wav", "fr"))
         assert result.text == "hello world"
         assert result.confidence == 0.95
         assert result.language == "fr"
-        assert result.duration_seconds == 2.0
+        # Duration comes from the container, not len(bytes)/16000.
+        assert math.isclose(result.duration_seconds, 2.0, abs_tol=1e-6)
         assert isinstance(result.timestamp, datetime)
         call = inst.transcribe_audio.await_args
         assert call.kwargs["model"] == "whisper-1"
         assert call.kwargs["language"] == "fr"
         assert call.kwargs["file"].name == "audio.wav"
+        assert math.isclose(call.kwargs["duration_seconds"], 2.0, abs_tol=1e-6)
 
     def test_transcribe_audio_fallback_on_error(self):
         svc, inst = self._make()

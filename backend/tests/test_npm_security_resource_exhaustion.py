@@ -21,6 +21,11 @@ from unittest.mock import patch, Mock, MagicMock, call
 import sys
 
 # Mock docker module before importing
+# Save the originals so they can be restored after the import — leaving the
+# MagicMocks in sys.modules permanently would poison later test modules that
+# import the real docker package (the #918 combined-suite ordering failure).
+_DOCKER_ORIGINAL = sys.modules.get('docker')
+_DOCKER_ERRORS_ORIGINAL = sys.modules.get('docker.errors')
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
 
@@ -42,6 +47,19 @@ sys.modules['docker.errors'].ContainerError = ContainerError
 sys.modules['docker.errors'].APIError = APIError
 
 from core.skill_sandbox import HazardSandbox
+from tests.sandbox_lifecycle_mocks import install_container
+
+# Restore sys.modules now that core.skill_sandbox is imported (it captured the
+# module at import time; tests patch core.skill_sandbox.docker.from_env at
+# runtime).  Mock state must not outlive this module's import.
+if _DOCKER_ORIGINAL is not None:
+    sys.modules['docker'] = _DOCKER_ORIGINAL
+else:
+    sys.modules.pop('docker', None)
+if _DOCKER_ERRORS_ORIGINAL is not None:
+    sys.modules['docker.errors'] = _DOCKER_ERRORS_ORIGINAL
+else:
+    sys.modules.pop('docker.errors', None)
 
 
 @pytest.fixture
@@ -49,7 +67,7 @@ def mock_docker_client():
     """Create mock Docker client for testing."""
     mock_client = Mock()
     mock_client.ping.return_value = True
-    mock_client.containers.run.return_value = b"output\n"
+    install_container(mock_client, stdout=b"output\n")
     return mock_client
 
 
@@ -92,7 +110,7 @@ console.log('Memory allocated');
 """
 
         # Simulate OOM kill (ContainerError with exit_status 137)
-        mock_docker_client.containers.run.side_effect = ContainerError(
+        mock_docker_client.containers.create.side_effect = ContainerError(
             "Container killed (OOMKilled)",
             exit_status=137,
             stderr=b"OOMKilled"
@@ -106,7 +124,7 @@ console.log('Memory allocated');
         )
 
         # Verify mem_limit set
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('mem_limit') == "256m", \
             "Memory limit must be set"
 
@@ -143,7 +161,7 @@ while (true) {
         )
 
         # Verify cpu_quota set (0.5 cores = 50000/100000)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('cpu_quota') == 50000, \
             "CPU quota must be set to 0.5 cores"
         assert call_kwargs.get('cpu_period') == 100000, \
@@ -172,7 +190,7 @@ while (true) {
 """
 
         # Simulate timeout
-        mock_docker_client.containers.run.side_effect = Exception(
+        mock_docker_client.containers.create.side_effect = Exception(
             "Command timed out after 5 seconds"
         )
 
@@ -182,10 +200,11 @@ while (true) {
             timeout_seconds=5
         )
 
-        # Verify timeout set
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
-        assert call_kwargs.get('timeout') == 5, \
-            "Timeout must be enforced"
+        # Verify the deadline is not smuggled into containers.create() as an
+        # unsupported keyword (that TypeError is what broke real Docker, #918).
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
+        assert 'timeout' not in call_kwargs, \
+            "containers.create has no timeout kwarg; enforce it around start/wait"
 
         # Verify error returned
         assert "SANDBOX_ERROR" in result or "timeout" in result.lower()
@@ -225,7 +244,7 @@ console.log('Fork bomb spawned');
         # Note: We can't easily verify this in mocked environment
         # but the network_disabled and read_only constraints prevent
         # most fork bomb damage
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('read_only') == True, \
             "Read-only filesystem helps prevent fork bombs"
 
@@ -301,7 +320,7 @@ while (true) {
 
         # Verify mem_limit set (Docker defaults swap to same as mem_limit)
         # This prevents swap usage
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('mem_limit') == "256m", \
             "Memory limit must be set (swap defaults to same value)"
 
@@ -339,7 +358,7 @@ try {
         )
 
         # Verify tmpfs size limit set
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         tmpfs = call_kwargs.get('tmpfs', {})
         assert '/tmp' in tmpfs, \
             "tmpfs must be mounted"
@@ -374,10 +393,10 @@ try {
             )
 
         # Verify all containers had resource limits
-        assert mock_docker_client.containers.run.call_count == 5
+        assert mock_docker_client.containers.create.call_count == 5
 
         # Verify each call had limits
-        for call_item in mock_docker_client.containers.run.call_args_list:
+        for call_item in mock_docker_client.containers.create.call_args_list:
             call_kwargs = call_item[1]
             assert call_kwargs.get('mem_limit') == "256m", \
                 "Each container must have memory limit"
@@ -408,13 +427,14 @@ try {
         )
 
         # Verify custom limits applied
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('mem_limit') == "512m", \
             "Custom memory limit must be applied"
         assert call_kwargs.get('cpu_quota') == 100000, \
             "Custom CPU limit must be applied (1.0 cores)"
-        assert call_kwargs.get('timeout') == 10, \
-            "Custom timeout must be applied"
+        # The deadline is enforced around start()/wait(), never passed to create().
+        assert 'timeout' not in call_kwargs, \
+            "containers.create has no timeout kwarg; enforce it around start/wait"
 
 
 # ============================================================================

@@ -40,6 +40,12 @@ from core.employee_work_requests import (
     InvoiceReconciliationRequest,
     QuoteCalculationRequest,
 )
+from core.quote_discount import (
+    discount_rules_from_text,
+    discount_source_ref,
+)
+
+_DOCUMENT_READ_ADAPTERS = frozenset({"document.read", "document.text"})
 
 
 class WorkRequestCompileError(ValueError):
@@ -389,6 +395,125 @@ def _resolve_quote_columns(
     }
 
 
+def _discount_signature(
+    rules: Sequence[Mapping[str, Any]],
+) -> List[tuple[str, str]]:
+    return sorted(
+        (
+            str(rule.get("rate") or ""),
+            json.dumps(
+                rule.get("when") or {}, sort_keys=True, default=str),
+        )
+        for rule in rules or []
+        if isinstance(rule, Mapping)
+    )
+
+
+def _evidence_source_ref(result: Mapping[str, Any]) -> Dict[str, Any]:
+    """Path-free source identity carried into the calculation receipt."""
+    verification = (
+        result.get("verification")
+        if isinstance(result.get("verification"), Mapping) else {})
+    source = result.get("source") if isinstance(
+        result.get("source"), Mapping) else {}
+    return {
+        "resource_id": str(
+            result.get("resource_id") or source.get("resource_id") or ""),
+        "dataset_name": str(
+            result.get("dataset_name") or source.get("dataset_name") or ""),
+        "source_version": str(
+            result.get("source_version") or result.get("version")
+            or verification.get("version") or ""),
+        "sha256": str(
+            result.get("sha256") or result.get("content_sha256")
+            or source.get("sha256") or source.get("content_sha256")
+            or result.get("content_hash")
+            or result.get("source_version") or ""),
+        "sheet": str(result.get("sheet") or source.get("sheet") or ""),
+    }
+
+
+def _document_discount_evidence(
+    assignment: Mapping[str, Any],
+    request: QuoteCalculationRequest,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Extract explicit discount terms from accepted document evidence.
+
+    The model names no rate.  When it names document steps, only those steps
+    are consulted; otherwise every accepted, verified document-text read in
+    this job is considered.  The extracted rules carry the exact read receipt
+    identity (resource id, version/hash, step and paragraph) so a clarification
+    or a later revision can be traced to the governing source.
+    """
+    requested = [
+        str(item) for item in (request.discount_evidence_steps or [])
+        if str(item or "").strip()
+    ]
+    steps = {
+        str(step.get("step_id") or ""): step
+        for step in assignment.get("steps") or []
+        if isinstance(step, Mapping)
+    }
+    candidates: List[tuple[str, Dict[str, Any]]] = []
+    if requested:
+        for step_id in dict.fromkeys(requested):
+            step = steps.get(step_id)
+            if step is None:
+                raise WorkRequestCompileError(
+                    f"unknown discount evidence step {step_id!r}")
+            if str(step.get("adapter") or "") not in _DOCUMENT_READ_ADAPTERS:
+                raise WorkRequestCompileError(
+                    f"discount evidence step {step_id!r} is not a document "
+                    "text read")
+            _require_verified(assignment, step_id)
+            result = _step_result(assignment, step_id)
+            if not str(result.get("text") or "").strip():
+                raise WorkRequestCompileError(
+                    f"discount evidence step {step_id!r} has no document text")
+            candidates.append((step_id, result))
+    else:
+        for step in assignment.get("steps") or []:
+            if not isinstance(step, Mapping):
+                continue
+            if str(step.get("adapter") or "") not in _DOCUMENT_READ_ADAPTERS:
+                continue
+            if str(step.get("status") or "") != "applied":
+                continue
+            result = step.get("result")
+            if not isinstance(result, Mapping):
+                continue
+            if not str(result.get("text") or "").strip():
+                continue
+            verification = result.get("verification")
+            if isinstance(verification, Mapping) and str(
+                    verification.get("status") or "").lower() not in (
+                        "", "verified"):
+                continue
+            step_id = str(step.get("step_id") or "")
+            try:
+                _require_verified(assignment, step_id)
+            except WorkRequestCompileError:
+                # An unverified read is not authority for a commercial term.
+                continue
+            candidates.append((step_id, dict(result)))
+
+    rules: List[Dict[str, Any]] = []
+    sources: List[Dict[str, Any]] = []
+    for step_id, result in candidates:
+        identity = discount_source_ref(result, step_id=step_id)
+        extracted = discount_rules_from_text(
+            str(result.get("text") or ""), source=identity)
+        if not extracted:
+            continue
+        rules.extend(extracted)
+        sources.append({
+            **identity,
+            "source": "document",
+            "coverage": dict(result.get("coverage") or {}),
+        })
+    return rules, sources
+
+
 def _quote_patch(
 
     request: QuoteCalculationRequest,
@@ -399,6 +524,27 @@ def _quote_patch(
     # Governed business operations always require verified evidence; this is
     # a server policy, not a model-selectable option.
     _require_verified(assignment, request.source_step_id)
+    discount_rules, discount_sources = _document_discount_evidence(
+        assignment, request)
+    source_evidence: List[Dict[str, Any]] = []
+    for raw in [_evidence_source_ref(result), *[
+            {key: source.get(key) for key in (
+                "resource_id", "dataset_name", "source_version", "sha256",
+                "sheet")}
+            for source in discount_sources]]:
+        cleaned = {
+            key: value for key, value in raw.items()
+            if str(value or "").strip()
+        }
+        identity = (
+            cleaned.get("resource_id"), cleaned.get("source_version"),
+            cleaned.get("sha256"))
+        if identity in {
+                (item.get("resource_id"), item.get("source_version"),
+                 item.get("sha256")) for item in source_evidence}:
+            continue
+        if cleaned:
+            source_evidence.append(cleaned)
     available = set(_columns(result))
     columns = (
         request.columns.model_dump(exclude_none=True)
@@ -434,7 +580,10 @@ def _quote_patch(
             continue
         inputs = step.get("inputs") or {}
         if (str(inputs.get("rows") or "") == rows_ref
-                and dict(inputs.get("columns") or {}) == dict(columns)):
+                and dict(inputs.get("columns") or {}) == dict(columns)
+                and _discount_signature(
+                    inputs.get("discount_rules") or [])
+                == _discount_signature(discount_rules)):
             raise WorkRequestCompileError(
                 "an equivalent quote calculation from this evidence is "
                 "already present; resolve the durable wait or continue "
@@ -579,6 +728,25 @@ def _quote_patch(
         "columns": columns,
         "defaults": {"currency": request.currency},
     }
+    if discount_rules:
+        patch["observations"].append({
+            "kind": "document_discount_evidence",
+            "rules": [
+                {
+                    "rule_id": rule.get("rule_id"),
+                    "rate": rule.get("rate"),
+                    "when": dict(rule.get("when") or {}),
+                    "authority": rule.get("authority"),
+                    "source_ref": dict(rule.get("source_ref") or {}),
+                }
+                for rule in discount_rules
+            ],
+            "sources": source_evidence,
+        })
+    discount_step_ids = sorted({
+        str(source.get("step_id") or "")
+        for source in discount_sources if source.get("step_id")
+    })
     patch["add_steps"] = [
         {
             "step_id": map_id,
@@ -604,13 +772,22 @@ def _quote_patch(
                 "currency": currency_term["value"],
                 "freight": freight["value"],
                 "tax": tax_input,
+                "discount_rules": discount_rules,
+                "source_evidence": source_evidence,
                 "term_receipt": term_receipt,
                 # Marks this as a compiled typed request so removing the
                 # receipt cannot silently downgrade it to a legacy caller.
                 "term_binding_required": True,
             },
             "effect": "local",
-            "requires": [],
+            # A document discount is authority for the arithmetic. Requiring
+            # its verified receipt keeps a source replacement from silently
+            # changing (or dropping) the rate.
+            "requires": [
+                {"kind": "receipt", "step_id": step_id,
+                 "require": "verified"}
+                for step_id in discount_step_ids
+            ],
             "required": True,
         },
     ]

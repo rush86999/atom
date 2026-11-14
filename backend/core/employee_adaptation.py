@@ -573,6 +573,7 @@ _COMPACT_QUOTE_REQUEST = create_model(
     quantity=(str, Field(min_length=1, max_length=120)),
     unit_price=(str, Field(min_length=1, max_length=120)),
     currency=(Optional[str], None),
+    category=(Optional[str], None),
     freight_ref=(str, "freight"),
     tax_basis=(Literal["none", "rate", "amount"], "none"),
     tax_ref=(str, "tax_basis"),
@@ -717,11 +718,13 @@ def _compact_single_request_context(
         operation_rule = (
             "Set item_id, quantity and unit_price to exact column NAMES from "
             "the accepted tabular evidence, using DIFFERENT columns with "
-            "matching meaning. Bind the taught terms by name with "
+            "matching meaning. If the accepted evidence has a category "
+            "column, set category to its exact name so scoped commercial "
+            "rules can be resolved. Bind the taught terms by name with "
             "freight_ref='freight' and tax_ref='tax_basis'; do not copy "
             "numeric term values. The compiler resolves the taught freight, "
             "tax and currency and computes the total. Do not invent rows, "
-            "prices or totals.\n"
+            "prices, totals, discount rates or discount conditions.\n"
         )
     request_fields = ", ".join(
         str(name) for name in (getattr(request_model, "model_fields", {}) or {})
@@ -1119,6 +1122,14 @@ def _adaptation_prompt(
             "units/qty column, unit_price is a numeric price/cost column. "
             "Inspect the evidence schema and sample rows; never reuse one "
             "column for two fields or map a text column to quantity/price.\n"
+            "- If the accepted evidence includes a category/segment column, "
+            "map it to quote_calculation.columns.category when the objective "
+            "names scoped pricing. Never supply a discount rate: the compiler "
+            "extracts an explicit rate and scope from accepted document "
+            "evidence and the calculator resolves applicability. Optionally "
+            "set discount_evidence_steps to the exact accepted document "
+            "step ids that govern the discount; omit it to let the compiler "
+            "consider every accepted document read.\n"
             "- freight/tax/currency authority_ref is the taught TERM KEY "
             "(for example 'freight', 'tax_basis'), never the term value or a "
             "free-form label; the compiler resolves and compares it.\n"
@@ -1450,6 +1461,8 @@ async def propose_adaptation(
                 "item_id": work_request.get("item_id"),
                 "quantity": work_request.get("quantity"),
                 "unit_price": work_request.get("unit_price"),
+                **({"category": work_request.get("category")}
+                   if work_request.get("category") else {}),
             },
             "currency": (
                 work_request.get("currency")

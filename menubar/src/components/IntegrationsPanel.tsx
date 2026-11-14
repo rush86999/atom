@@ -12,6 +12,10 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  DEFAULT_BACKEND_HTTP_URL,
+  normalizeServerUrl,
+} from "../config";
 import { panelStyles as ps } from "../styles/panelStyles";
 
 interface IntegrationHealthRow {
@@ -35,17 +39,13 @@ const DISCONNECTABLE_PROVIDERS = new Set([
   "asana", "notion", "trello", "dropbox", "whatsapp", "zoho",
 ]);
 
-export const DEFAULT_SERVER_URL = "http://localhost:8000";
+/** @deprecated Use DEFAULT_BACKEND_HTTP_URL from ../config. */
+export const DEFAULT_SERVER_URL = DEFAULT_BACKEND_HTTP_URL;
 
 interface IntegrationsPanelProps {
   serverUrl?: string;
   /** JWT for auth-gated calls (connect/disconnect). */
   token?: string | null;
-}
-
-function normalizeServer(serverUrl?: string): string {
-  const base = (serverUrl || DEFAULT_SERVER_URL).replace(/\/$/, "");
-  return base.startsWith("http") ? base : `http://${base}`;
 }
 
 export default function IntegrationsPanel({
@@ -57,7 +57,7 @@ export default function IntegrationsPanel({
   const [error, setError] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
 
-  const base = normalizeServer(serverUrl);
+  const base = normalizeServerUrl(serverUrl);
 
   const load = useCallback(async () => {
     setLoading(true);

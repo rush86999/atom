@@ -163,7 +163,12 @@ class DynamicPricingFetcher:
                     # max_input_tokens/max_tokens from this row.
                     _rates = {}
                     for _rk in ("input_cost_per_token",
-                                "output_cost_per_token"):
+                                "output_cost_per_token",
+                                # Audio/transcription rows are priced by TIME.
+                                # Preserve those units instead of dropping the
+                                # only material rate an audio model has.
+                                "input_cost_per_second",
+                                "output_cost_per_second"):
                         _rv = model_data.get(_rk)
                         if _rv is None:
                             continue
@@ -722,6 +727,62 @@ class DynamicPricingFetcher:
                 # A positive charge needs this dimension's price.
                 return None
             # qty == 0 and absent: unused basis, contributes exactly 0.
+        if not math.isfinite(total) or total < 0:
+            return None
+        return total
+
+    @classmethod
+    def audio_rate_per_second(cls, pricing: Any) -> Optional[float]:
+        """Configured USD/second for an audio model, or ``None``.
+
+        Accepts the LiteLLM audio field (``input_cost_per_second``) and a
+        per-minute spelling when a catalog publishes that instead. A provided
+        rate must be explicit, finite, non-negative and non-bool; an explicit
+        zero stays authoritative free, while absence remains unknown.
+        """
+        if not isinstance(pricing, dict):
+            return None
+        for key in ("input_cost_per_second", "audio_cost_per_second"):
+            value = pricing.get(key)
+            if value is None:
+                continue
+            if not cls.rate_is_valid(value):
+                return None
+            return float(value)
+        for key in ("input_cost_per_minute", "audio_cost_per_minute"):
+            value = pricing.get(key)
+            if value is None:
+                continue
+            if not cls.rate_is_valid(value):
+                return None
+            return float(value) / 60.0
+        return None
+
+    def estimate_audio_cost(
+        self, model_name: str, audio_seconds: Any,
+    ) -> Optional[float]:
+        """Quantity-aware configured cost for TIME-billed audio.
+
+        ``audio_seconds`` is the real media duration (not bytes and not a
+        token count). Missing duration/price is explicit unknown; an explicit
+        zero rate is authoritative free. This is the audio analogue of
+        :meth:`estimate_cost`, living on the same model-price catalog.
+        """
+        if isinstance(audio_seconds, bool):
+            return None
+        try:
+            seconds = float(audio_seconds)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(seconds) or seconds < 0:
+            return None
+        pricing = self.get_model_price(model_name)
+        if not isinstance(pricing, dict):
+            return None
+        rate = self.audio_rate_per_second(pricing)
+        if rate is None:
+            return None
+        total = rate * seconds
         if not math.isfinite(total) or total < 0:
             return None
         return total

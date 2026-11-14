@@ -16,7 +16,7 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ScrollView, RefreshControl } from 'react-native';
 import { Checkbox } from 'react-native-paper';
 import { CanvasSheet } from '../CanvasSheet';
-import { SheetData } from '../../types/canvas';
+import { SheetData } from '../../../types/canvas';
 
 // Mock dependencies
 jest.mock('expo-haptics', () => ({

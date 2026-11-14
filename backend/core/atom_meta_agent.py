@@ -848,6 +848,7 @@ class AtomMetaAgent:
         # execution state); an unverifiable row fails closed to ``student``.
         from core.governance_tier import canonical_governance_tier
 
+        _tier_row = None
         try:
             _tier_row = self._get_atom_registry()
             _tier = canonical_governance_tier(
@@ -856,6 +857,21 @@ class AtomMetaAgent:
                 _tier = "student"
         except Exception:  # noqa: BLE001 — a registry hiccup must not widen
             _tier = "student"
+        # Goal 13 parity with GenericAgent: never advertise a tool the P2
+        # capability / P9 sandbox gates would refuse for this tier. atom_main
+        # is AUTONOMOUS (both sides unrestricted) so this is a no-op today;
+        # it matters if the row is ever demoted or re-scoped.
+        _dispatch_tool_allowed = None
+        if _tier_row is not None:
+            try:
+                from core.capability_resolver import (
+                    build_dispatch_tool_predicate,
+                )
+
+                _dispatch_tool_allowed = build_dispatch_tool_predicate(
+                    _tier_row, tier=_tier)
+            except Exception:  # noqa: BLE001 — legacy catalog, gates still run
+                _dispatch_tool_allowed = None
         context["run_id"] = execution_id
         context["execution_id"] = execution_id
         context["governance_tier"] = _tier
@@ -1013,11 +1029,21 @@ class AtomMetaAgent:
                     unique_active_tools.append(t)
                     seen_tools.add(t["name"])
 
+            # Goal 13: keep the advertised catalog inside the dispatch gates.
+            def _dispatchable(tool_name: str) -> bool:
+                return (
+                    _dispatch_tool_allowed is None
+                    or bool(_dispatch_tool_allowed(tool_name)))
+
+            unique_active_tools = [
+                t for t in unique_active_tools if _dispatchable(t["name"])
+            ]
+
             # Inject special "mcp_tool_search" if not present (although it should be in core)
             TOOL_SEARCH_ALIASES = ["mcp_tool_search", "tool_search", "search_tools"]
             has_tool_search = any(t["name"] in TOOL_SEARCH_ALIASES for t in unique_active_tools)
 
-            if not has_tool_search:
+            if not has_tool_search and _dispatchable("mcp_tool_search"):
                  unique_active_tools.append({
                      "name": "mcp_tool_search",
                      "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
@@ -1031,7 +1057,7 @@ class AtomMetaAgent:
                 from core.agent_tool_budget import render_tool_catalog
                 tool_descriptions, hidden_tool_count = render_tool_catalog(
                     unique_active_tools)
-                if hidden_tool_count:
+                if hidden_tool_count and _dispatchable("mcp_tool_search"):
                     tool_descriptions += (
                         f"\n(+{hidden_tool_count} more tools exist but are not "
                         "listed — call mcp_tool_search with what you need to "
@@ -1040,6 +1066,16 @@ class AtomMetaAgent:
             except (TypeError, ValueError) as e:
                 logger.error(f"Failed to serialize tool descriptions: {e}")
                 tool_descriptions = json.dumps([])  # Fallback to empty list
+
+            if not unique_active_tools:
+                # Truthful surface contract (Goal 13 parity): an empty
+                # authorized catalog must not read as "[] + POWERS".
+                tool_descriptions = (
+                    "none. No tool is authorized for this agent at its "
+                    "current governance tier, so every tool call will be "
+                    "refused. Do NOT emit action or actions; put the complete "
+                    "answer in final_answer and name missing evidence as a "
+                    "blocker.")
 
 
             # Initialize execution history before planning phase
@@ -1130,7 +1166,9 @@ class AtomMetaAgent:
                         or "default"
                     )
                     _fleet_result = await self.route_with_governance(
-                        request, _fleet_intent, _fleet_user_id, agent_id="atom_main"
+                        request, _fleet_intent, _fleet_user_id,
+                        agent_id="atom_main",
+                        execution_id=execution_id,
                     )
                 except Exception as fleet_err:
                     logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
@@ -3708,7 +3746,8 @@ Provide your Mentorship Guidance:"""
         request: str,
         intent: IntentClassification,
         user_id: str,  # Changed from tenant_id
-        agent_id: str = "atom_main"
+        agent_id: str = "atom_main",
+        execution_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Route request with governance checks.
@@ -3721,6 +3760,10 @@ Provide your Mentorship Guidance:"""
             intent: Classified intent from IntentClassifier
             user_id: User UUID (single-tenant deployment)
             agent_id: Agent UUID (default: atom_main)
+            execution_id: Exact persisted ``AgentExecution.id`` bound to this
+                run. Forwarded to the TASK fleet so the chain carries the
+                durable parent link crash recovery needs. ``None`` keeps
+                callers without a durable execution working unchanged.
 
         Returns:
             Routing result with handler and status
@@ -3764,7 +3807,10 @@ Provide your Mentorship Guidance:"""
                 "governance_allowed": True
             }
         else:  # TASK
-            result = await self._route_to_task(request, user_id, agent_id)
+            result = await self._route_to_task(
+                request, user_id, agent_id,
+                execution_id=execution_id,
+            )
             return {
                 **result,
                 "decision_id": str(uuid.uuid4()),
@@ -3844,7 +3890,8 @@ Provide your Mentorship Guidance:"""
         self,
         request: str,
         user_id: str,  # Changed from tenant_id
-        agent_id: str = "atom_main"
+        agent_id: str = "atom_main",
+        execution_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Route TASK intent to FleetAdmiral for dynamic agent recruitment.
@@ -3853,6 +3900,8 @@ Provide your Mentorship Guidance:"""
             request: User's natural language request
             user_id: User UUID (single-tenant deployment)
             agent_id: Agent UUID
+            execution_id: Exact persisted ``AgentExecution.id`` for this run;
+                persisted on the fleet chain as its durable root link.
 
         Returns:
             Fleet recruitment result
@@ -3871,6 +3920,7 @@ Provide your Mentorship Guidance:"""
                 root_agent_id=agent_id,
                 tenant_id=getattr(self, "tenant_id", None),
                 workspace_id=getattr(self, "workspace_id", None),
+                root_execution_id=execution_id,
             )
 
             return {

@@ -1,0 +1,87 @@
+name: Mobile CI
+
+# Root-level candidate for the mobile app checks. The existing
+# mobile/.github/workflows/mobile-coverage.yml is nested below the repository
+# root, so GitHub Actions does not load it. This workflow keeps the same
+# Node 20 + actions/checkout@v4 + actions/setup-node@v4 conventions as the
+# root ci.yml and docker.yml, with read-only repository permissions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      # mobile/src/shared is a symlink to frontend-nextjs/shared, so changes
+      # there are mobile changes even though the files live in the frontend.
+      - 'frontend-nextjs/shared/**'
+      # Generated API types are imported by the mobile typecheck.
+      - 'frontend-nextjs/src/types/api-generated.ts'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'frontend-nextjs/shared/**'
+      - 'frontend-nextjs/src/types/api-generated.ts'
+      - '.github/workflows/mobile-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-ci:
+    name: Mobile install, typecheck and Jest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      # npm ci is the locked install: it requires package-lock.json, installs
+      # exactly the locked graph, and fails if package.json and the lockfile
+      # are out of sync.
+      - name: Install locked dependencies
+        id: install
+        run: npm ci --no-audit --no-fund
+
+      # tsconfig.json already sets "strict": true; the explicit flag keeps the
+      # gate strict even if that setting is weakened later.
+      - name: Strict TypeScript check
+        run: npm run typecheck -- --strict
+
+      # Shared property-test files live outside mobile/ via
+      # mobile/src/shared -> frontend-nextjs/shared. Their bare imports
+      # (for example @babel/runtime and fast-check) must resolve from the
+      # mobile install, hence mobile/node_modules on NODE_PATH. The mobile
+      # root is also included so bare imports under src/ keep resolving.
+      #
+      # Tests run whenever the install succeeded, even if the typecheck step
+      # failed, so both signals are reported in one run. The condition drops
+      # the implicit success() check; failures are not masked because a failed
+      # install or typecheck step still fails the job. !cancelled() keeps the
+      # tests from starting after a run is cancelled.
+      - name: Run all Jest tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          CI: 'true'
+          NODE_PATH: '${{ github.workspace }}/mobile/node_modules:${{ github.workspace }}/mobile'
+        run: npm test -- --ci --runInBand --no-coverage --watchman=false --json --outputFile=jest-results.json
+
+      - name: Upload Jest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-jest-results
+          path: mobile/jest-results.json
+          if-no-files-found: warn
+          retention-days: 14

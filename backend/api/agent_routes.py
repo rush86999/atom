@@ -64,6 +64,9 @@ router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 class AgentRunRequest(BaseModel):
     agent_id: Optional[str] = None
     parameters: Dict[str, Any] = Field(default_factory=dict)
+    # Owner-set absolute deadline (ISO-8601). Optional and additive: a run
+    # without it keeps the exact legacy no-deadline behavior.
+    deadline: Optional[str] = None
 
 class AgentUpdateRequest(BaseModel):
     agent_id: Optional[str] = None
@@ -711,6 +714,7 @@ async def run_agent(
         agent_id=agent_id,
         parameters=run_req.parameters,
         operation_id=operation_id,
+        deadline=run_req.deadline,
     )
     _raise_agent_decision(result)
     data = result.get("data") or {}
@@ -1018,6 +1022,7 @@ async def decide_hitl_action(
     already_resolved = action.status in (
         HITLActionStatus.APPROVED.value,
         HITLActionStatus.REJECTED.value,
+        HITLActionStatus.EXPIRED.value,
     )
     if already_resolved:
         _is_info_wait = str(action.action_type or "") in (
@@ -1097,6 +1102,32 @@ async def decide_hitl_action(
             },
             status_code=409,
         )
+
+    # An owner-set absolute deadline is terminal. Expire before writing any
+    # approval/rejection so a late decision cannot resurrect the wait, and an
+    # already-EXPIRED row is never overwritten as approved.
+    from core.information_wait import (
+        expire_information_wait_if_due,
+        is_information_wait_action,
+    )
+
+    if is_information_wait_action(action.action_type):
+        expiry = expire_information_wait_if_due(action, db_session=db)
+        if (
+            expiry.get("expired")
+            or str(action.status or "") == HITLActionStatus.EXPIRED.value
+        ):
+            raise router.error_response(
+                "INFORMATION_WAIT_EXPIRED",
+                "The owner-set deadline for this job passed. No decision "
+                "was applied; review the deadline or start a new authorized "
+                "run.",
+                details={
+                    "deadline": expiry.get("deadline"),
+                    "action_id": action_id,
+                },
+                status_code=409,
+            )
 
     if req.decision.lower() == "approved":
         action.status = HITLActionStatus.APPROVED.value
@@ -1446,6 +1477,9 @@ _JOB_WAITING_STATUSES = frozenset({
 _RESULT_RECONCILIATION_STATUSES = frozenset({"uncertain"})
 from core.information_wait import (  # noqa: E402 — shared wait vocabulary
     INFORMATION_WAIT_ACTION_TYPES as _INFORMATION_WAIT_ACTIONS,
+    WAITING_SINCE_FIELD as _WAITING_SINCE_FIELD,
+    deadline_passed as _deadline_passed,
+    waiting_age_seconds as _waiting_age_seconds,
 )
 
 # Namespace keys the admission owns. Business parameters keep every other
@@ -2330,6 +2364,14 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
                 or payload.get("dispatch_execution_id"))
             projection["execution_id"] = (
                 None if not execution_id else str(execution_id))
+            if payload.get("deadline") is not None:
+                projection["deadline"] = str(payload.get("deadline"))
+                projection["deadline_passed"] = _deadline_passed(payload)
+            if payload.get(_WAITING_SINCE_FIELD) is not None:
+                projection["waiting_since"] = str(
+                    payload.get(_WAITING_SINCE_FIELD))
+                projection["waiting_age_seconds"] = _waiting_age_seconds(
+                    payload)
             return projection
         if status in _JOB_ACTIVE_STATUSES:
             # A continued/cold read must preserve the live state, not invent
@@ -2346,6 +2388,14 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
                 or payload.get("dispatch_execution_id"))
             projection["execution_id"] = (
                 None if not execution_id else str(execution_id))
+            if payload.get("deadline") is not None:
+                projection["deadline"] = str(payload.get("deadline"))
+                projection["deadline_passed"] = _deadline_passed(payload)
+            if payload.get(_WAITING_SINCE_FIELD) is not None:
+                projection["waiting_since"] = str(
+                    payload.get(_WAITING_SINCE_FIELD))
+                projection["waiting_age_seconds"] = _waiting_age_seconds(
+                    payload)
             return projection
         projection = _execution_outcome({"status": status})
         projection["job_status"] = status or projection["job_status"]
@@ -2392,6 +2442,13 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
             or payload.get("dispatch_execution_id"))
         projection["execution_id"] = (
             None if not execution_id else str(execution_id))
+        if payload.get("deadline") is not None:
+            projection["deadline"] = str(payload.get("deadline"))
+            projection["deadline_passed"] = _deadline_passed(payload)
+        if payload.get(_WAITING_SINCE_FIELD) is not None:
+            projection["waiting_since"] = str(
+                payload.get(_WAITING_SINCE_FIELD))
+            projection["waiting_age_seconds"] = _waiting_age_seconds(payload)
         return projection
     finally:
         session.close()
@@ -2506,6 +2563,9 @@ def _public_information_wait(
     subject_label = subject_label[:200] or None
     status = str(getattr(action, "status", "") or "")
     missing_fact = str(params.get("missing_fact") or "").strip()[:200] or None
+    deadline_value = payload.get("deadline")
+    waiting_since = payload.get(_WAITING_SINCE_FIELD)
+    deadline_due = _deadline_passed(payload)
     return {
         "id": str(action.id),
         "kind": "information_request",
@@ -2514,7 +2574,17 @@ def _public_information_wait(
         "missing_fact": missing_fact,
         "subject": {"label": subject_label} if subject_label else None,
         "correlation_id": correlation_id[:120],
-        "can_answer": status == HITLActionStatus.PENDING.value,
+        # A read is pure: it never expires or mutates. It does expose the
+        # owner-set absolute deadline, the current wait age and whether the
+        # deadline has already passed so the UI can stop offering an answer.
+        "deadline": (
+            str(deadline_value) if deadline_value is not None else None),
+        "waiting_since": (
+            str(waiting_since) if waiting_since is not None else None),
+        "waiting_age_seconds": _waiting_age_seconds(payload),
+        "deadline_passed": deadline_due,
+        "can_answer": (
+            status == HITLActionStatus.PENDING.value and not deadline_due),
     }
 
 
@@ -2673,6 +2743,28 @@ def _finish_job(
                 # Another dispatcher owns this run slot (or the claim was
                 # replaced). Do not certify its work as this execution.
                 return str(job.status or "") or None
+        now = datetime.datetime.now(timezone.utc)
+        outcome = dict(outcome)
+        expired_wait_action = ""
+        # An absolute deadline is never extended by a wait/restart. If the run
+        # reaches a wait after the deadline, record the expired terminal truth
+        # instead of publishing a fresh live question.
+        if (
+            outcome["job_status"] in _JOB_WAITING_STATUSES
+            and _deadline_passed(payload)
+        ):
+            receipt = outcome.get("wait_receipt")
+            receipt = receipt if isinstance(receipt, dict) else {}
+            expired_wait_action = str(
+                receipt.get("hitl_action_id") or receipt.get("id")
+                or _wait_receipt_action_id(payload) or "")
+            outcome.update({
+                "job_status": AgentJobStatus.FAILED.value,
+                "outcome": "expired",
+                "reason": "wait_deadline_exceeded",
+                "next_action": "review_deadline",
+                "requires_reconciliation": False,
+            })
         waiting = outcome["job_status"] in _JOB_WAITING_STATUSES
         payload["finished"] = not waiting
         payload["waiting"] = waiting
@@ -2682,6 +2774,12 @@ def _finish_job(
         payload["next_action"] = outcome["next_action"]
         payload["requires_reconciliation"] = bool(
             outcome.get("requires_reconciliation"))
+        if waiting:
+            # Age is displayed from this server-written ISO value (the wait
+            # row's DB CURRENT_TIMESTAMP is not controlled-clock friendly).
+            payload[_WAITING_SINCE_FIELD] = now.isoformat()
+        elif outcome.get("reason") != "wait_deadline_exceeded":
+            payload.pop(_WAITING_SINCE_FIELD, None)
         if outcome.get("wait_receipt"):
             payload["wait_receipt"] = outcome["wait_receipt"]
         if execution_id:
@@ -2703,11 +2801,39 @@ def _finish_job(
             "result_summary": new_summary,
         }
         if not waiting:
-            values["end_time"] = datetime.datetime.now(timezone.utc)
+            values["end_time"] = now
         finished = session.execute(
             update(AgentJob)
             .where(*conditions)
             .values(**values))
+        if finished.rowcount == 1 and expired_wait_action:
+            # Same transaction: a wait that became due while the run was
+            # finishing must not leave a live pending question or a durable
+            # "waiting" execution behind the failed job.
+            session.execute(
+                update(HITLAction)
+                .where(
+                    HITLAction.id == expired_wait_action,
+                    HITLAction.status.in_((
+                        HITLActionStatus.PENDING.value,
+                        HITLActionStatus.APPROVED.value,
+                    )),
+                )
+                .values(status=HITLActionStatus.EXPIRED.value))
+            if execution_id:
+                session.execute(
+                    update(AgentExecution)
+                    .where(
+                        AgentExecution.id == str(execution_id),
+                        AgentExecution.status == "waiting",
+                    )
+                    .values(
+                        status="failed",
+                        error_message=(
+                            "The owner-set absolute deadline for this job "
+                            "passed while it was finishing a wait."),
+                        completed_at=now,
+                    ))
         session.commit()
         if finished.rowcount == 1:
             return outcome["job_status"]
@@ -2747,6 +2873,37 @@ async def _dispatch_admitted_run(
     A second dispatcher is refused by the conditional run-slot claim.
     """
     execution_id = str(uuid.uuid4())
+    # An absolute deadline is enforced before the first model/effect pass. A
+    # queued dispatch that starts after expiry records the terminal truth and
+    # never runs the agent.
+    admitted_job = _safe_get(bind, AgentJob, job_id)
+    if admitted_job is not None:
+        try:
+            admitted_payload = json.loads(
+                admitted_job.result_summary or "{}")
+        except (TypeError, ValueError):
+            admitted_payload = {}
+        if (
+            isinstance(admitted_payload, dict)
+            and _deadline_passed(admitted_payload)
+        ):
+            expired = _execution_outcome({"status": "failed"})
+            expired.update({
+                "outcome": "expired",
+                "reason": "wait_deadline_exceeded",
+                "next_action": "review_deadline",
+                "requires_reconciliation": False,
+            })
+            _finish_job(
+                job_id, expired, bind, agent_id=agent_id)
+            await _broadcast_agent_outcome(
+                agent_id, expired,
+                _execution_namespace(
+                    _safe_get(bind, AgentRegistry, agent_id),
+                    {"job_id": job_id, "execution_id": execution_id,
+                     "actor_id": actor_id, "user_id": actor_id}))
+            _restore_agent_status(agent_id, prior_status, bind)
+            return None
     if not _begin_job(
         job_id, bind, agent_id=agent_id, execution_id=execution_id,
         parameters=parameters,
@@ -2973,6 +3130,17 @@ def _claim_waiting_job_for_resume(
 
         from core.information_wait import actor_authority_conditions
 
+        # The wait row and the job claim are one decision: a wait expired by
+        # the deadline sweep (or otherwise settled) between the caller's read
+        # and this UPDATE must leave the job untouched.
+        conditions.append(exists(
+            select(HITLAction.id).where(
+                HITLAction.id == str(action_id),
+                HITLAction.status.in_((
+                    HITLActionStatus.PENDING.value,
+                    HITLActionStatus.APPROVED.value,
+                )),
+            )))
         authority_conditions = actor_authority_conditions(
             actor_id=actor_id,
             workspace_id=workspace_id,
@@ -3122,6 +3290,20 @@ async def resume_information_wait_action(
         snapshot = dict(snapshot) if isinstance(snapshot, dict) else {}
         params = getattr(action, "params", None)
         params = dict(params) if isinstance(params, dict) else {}
+        action_status = str(getattr(action, "status", "") or "")
+        if approved and action_status not in (
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.APPROVED.value,
+        ):
+            expired = action_status == HITLActionStatus.EXPIRED.value
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": (
+                    "information_wait_expired" if expired
+                    else "wait_not_current"),
+                "status": "refused",
+            }
         job_id = str(snapshot.get("job_id") or "")
         execution_id = str(
             snapshot.get("execution_id") or snapshot.get("run_id") or "")
@@ -3148,6 +3330,32 @@ async def resume_information_wait_action(
                 "resumed": False,
                 "reason": "wait_binding_incomplete",
                 "status": "refused",
+            }
+        _job_row = (
+            session.query(AgentJob)
+            .filter(AgentJob.id == job_id)
+            .populate_existing()
+            .first())
+        try:
+            _job_payload = json.loads(
+                (_job_row.result_summary if _job_row is not None else "")
+                or "{}")
+        except (TypeError, ValueError):
+            _job_payload = {}
+        if not isinstance(_job_payload, dict):
+            _job_payload = {}
+        if approved and _deadline_passed(_job_payload):
+            # Deadlines are absolute and are revalidated before any source
+            # read, model call or effect. The caller's atomic expiry pass owns
+            # the durable transition; this consumer refuses to spend work.
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": "information_wait_expired",
+                "status": "refused",
+                "job_id": job_id,
+                "execution_id": execution_id,
+                "deadline": _job_payload.get("deadline"),
             }
         effective_answer = str(
             answer
@@ -3273,6 +3481,56 @@ async def resume_information_wait_action(
                     "job_id": job_id,
                     "execution_id": execution_id,
                 }
+
+        # A source read is an await: the wait row or the absolute deadline may
+        # have changed while it ran. Re-read both immediately before the claim;
+        # the claim UPDATE repeats the wait-status predicate atomically.
+        session.expire_all()
+        current_action = (
+            session.query(HITLAction)
+            .filter(HITLAction.id == str(action_id))
+            .populate_existing()
+            .first())
+        current_action_status = str(
+            getattr(current_action, "status", "") or "")
+        if approved and current_action_status not in (
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.APPROVED.value,
+        ):
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": (
+                    "information_wait_expired"
+                    if current_action_status == HITLActionStatus.EXPIRED.value
+                    else "wait_not_current"),
+                "status": "refused",
+                "job_id": job_id,
+                "execution_id": execution_id,
+            }
+        current_job = (
+            session.query(AgentJob)
+            .filter(AgentJob.id == job_id)
+            .populate_existing()
+            .first())
+        try:
+            current_payload = json.loads(
+                (current_job.result_summary if current_job is not None else "")
+                or "{}")
+        except (TypeError, ValueError):
+            current_payload = {}
+        if not isinstance(current_payload, dict):
+            current_payload = {}
+        if approved and _deadline_passed(current_payload):
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": "information_wait_expired",
+                "status": "refused",
+                "job_id": job_id,
+                "execution_id": execution_id,
+                "deadline": current_payload.get("deadline"),
+            }
 
         if not _claim_waiting_job_for_resume(
             job_id, bind,
@@ -4196,6 +4454,7 @@ async def answer_agent_job_information_wait(
     """
     from core.information_wait import (
         current_reviewer_authority,
+        expire_information_wait_if_due,
         is_information_wait_action,
         reviewer_authority_conditions,
     )
@@ -4304,6 +4563,26 @@ async def answer_agent_job_information_wait(
             status_code=409,
             detail="The answer correlation does not match this wait")
 
+    # The absolute deadline is enforced BEFORE any source read, wait-row
+    # approval or model dispatch. A late reply is a truthful 409 expiry, not
+    # "changed concurrently", and an already-expired row is never resurrected.
+    deadline_due = _deadline_passed(payload)
+    action_expired = (
+        str(action.status or "") == HITLActionStatus.EXPIRED.value)
+    if deadline_due or action_expired:
+        expire_information_wait_if_due(action, db_session=db)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "information_wait_expired",
+                "message": (
+                    "The owner-set deadline for this job passed before the "
+                    "information arrived. No further work was started; "
+                    "review the deadline or start a new authorized run."),
+                "deadline": payload.get("deadline"),
+            },
+        )
+
     if str(action.status or "") == HITLActionStatus.REJECTED.value:
         raise HTTPException(status_code=409, detail="This information wait was rejected")
 
@@ -4325,6 +4604,23 @@ async def answer_agent_job_information_wait(
             detail={"code": "answer_or_source_required",
                     "message": "Provide a text answer or select an authorized "
                                "source."})
+
+    # The source read above is an await. Revalidate the absolute deadline
+    # before recording consent so an answer accepted across the boundary is
+    # never stored as accepted.
+    if _deadline_passed(payload):
+        expire_information_wait_if_due(action, db_session=db)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "information_wait_expired",
+                "message": (
+                    "The owner-set deadline for this job passed while the "
+                    "answer was being prepared. No consent was recorded and "
+                    "no further work was started."),
+                "deadline": payload.get("deadline"),
+            },
+        )
 
     incoming_digest = _answer_material_digest(
         effective_answer, accepted_source)
@@ -4455,6 +4751,18 @@ async def answer_agent_job_information_wait(
             )
             if str(current.status or "") != (
                     HITLActionStatus.APPROVED.value):
+                if str(current.status or "") == (
+                        HITLActionStatus.EXPIRED.value):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "code": "information_wait_expired",
+                            "message": (
+                                "The owner-set deadline for this job passed "
+                                "before the answer could be accepted."),
+                            "deadline": payload.get("deadline"),
+                        },
+                    )
                 raise HTTPException(
                     status_code=409,
                     detail="This information wait changed concurrently; "
@@ -4476,11 +4784,29 @@ async def answer_agent_job_information_wait(
         correlation_id=body.correlation_id,
     )
     if not resume.get("resumed"):
+        current = _job_outcome_projection(job_id, db.get_bind())
+        if (
+            resume.get("reason") == "information_wait_expired"
+            or (
+                current is not None
+                and current.get("reason") == "wait_deadline_exceeded"
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "information_wait_expired",
+                    "message": (
+                        "The owner-set deadline for this job passed before "
+                        "the answer could be accepted. No further work was "
+                        "started."),
+                    "deadline": payload.get("deadline"),
+                },
+            )
         if resume.get("reason") == "wrong_correlation":
             raise HTTPException(
                 status_code=409,
                 detail="The answer correlation does not match this wait")
-        current = _job_outcome_projection(job_id, db.get_bind())
         if (
             current is not None
             and current["job_status"] == AgentJobStatus.SUCCESS.value
@@ -4636,6 +4962,13 @@ async def read_agent_job(
         "requires_reconciliation": bool(
             projection.get("requires_reconciliation")),
     }
+    if payload.get("deadline") is not None:
+        data["deadline"] = str(payload.get("deadline"))
+    if payload.get(_WAITING_SINCE_FIELD) is not None:
+        data["waiting_since"] = str(payload.get(_WAITING_SINCE_FIELD))
+        data["waiting_age_seconds"] = _waiting_age_seconds(payload)
+    if payload.get("deadline") is not None:
+        data["deadline_passed"] = _deadline_passed(payload)
     if job_status in _JOB_WAITING_STATUSES:
         wait = _public_information_wait(
             payload,

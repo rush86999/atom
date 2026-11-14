@@ -1,5 +1,15 @@
 const path = require('path');
 const fs = require('fs');
+const { syncMonacoAssets } = require('./scripts/sync-monaco-assets');
+
+// The canvas editor must load offline: bundle monaco-editor's static build
+// into public/monaco/vs instead of the loader's jsDelivr default. Run it here
+// (not an npm lifecycle hook) so `next dev`, `next build`, the acceptance
+// harness, Docker and Tauri all serve the same local assets. Unit tests load
+// this config too; they must not copy 15 MB or depend on the generated tree.
+if (process.env.NODE_ENV !== 'test') {
+  syncMonacoAssets({ log: (message) => console.log(`[next.config] ${message}`) });
+}
 
 // API base resolution (fail-fast): NEXT_PUBLIC_API_URL from the real env
 // wins; .env.local is a dev convenience fallback; a localhost default is
@@ -358,6 +368,22 @@ const nextConfig = {
       {
         source: "/api/auth/change-password",
         destination: "http://127.0.0.1:8000/api/auth/change-password",
+      },
+      // WA-075: 2FA endpoints are Python-only, but pages/api/auth/[...nextauth].ts
+      // is a dynamic catchall that would swallow /api/auth/2fa/* before the
+      // fallback rewrite could reach it. Enumerate them exactly in afterFiles
+      // (which runs BEFORE dynamic routes); never broaden to /api/auth/:path*.
+      {
+        source: "/api/auth/2fa/setup",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/setup",
+      },
+      {
+        source: "/api/auth/2fa/enable",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/enable",
+      },
+      {
+        source: "/api/auth/2fa/disable",
+        destination: "http://127.0.0.1:8000/api/auth/2fa/disable",
       },
       {
         source: "/api/atom/:path*",

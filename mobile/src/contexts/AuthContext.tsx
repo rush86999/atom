@@ -16,7 +16,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { secureGet, secureSet } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
-import * as Constants from 'expo-constants';
+import Constants from 'expo-constants';
 
 // Types
 interface AuthTokens {

@@ -9,7 +9,11 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  LinkingOptions,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet, StatusBar } from 'react-native';
 import * as Linking from 'expo-linking';
@@ -21,7 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen, BiometricAuthScreen } from '../screens/auth';
 import { AppNavigator } from './AppNavigator';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 /**
  * Navigation Types
@@ -40,6 +44,40 @@ export type MainTabParamList = {
   AgentsTab: undefined;
   ChatTab: undefined;
   SettingsTab: undefined;
+};
+
+type WorkflowTabLinkingParamList = {
+  WorkflowsList: undefined;
+  WorkflowDetail: { workflowId: string };
+  WorkflowTrigger: { workflowId: string; workflowName?: string };
+  ExecutionProgress: { executionId: string };
+  WorkflowLogs: { executionId: string };
+};
+
+type AgentTabLinkingParamList = {
+  AgentList: undefined;
+  AgentChat: { agentId: string };
+};
+
+type ChatTabLinkingParamList = {
+  ChatTab: undefined;
+  AgentChat: { conversationId: string };
+};
+
+type MainLinkingParamList = {
+  WorkflowsTab: NavigatorScreenParams<WorkflowTabLinkingParamList>;
+  AnalyticsTab: undefined;
+  AgentsTab: NavigatorScreenParams<AgentTabLinkingParamList>;
+  ChatTab: NavigatorScreenParams<ChatTabLinkingParamList>;
+  SettingsTab: undefined;
+};
+
+type AuthLinkingParamList = Omit<AuthStackParamList, 'Main'> & {
+  Main: NavigatorScreenParams<MainLinkingParamList>;
+  Agent: { agentId: string };
+  Workflow: { workflowId: string };
+  Canvas: { canvasId: string };
+  Execution: { executionId: string };
 };
 
 /**
@@ -64,7 +102,7 @@ const LoadingScreen: React.FC = () => (
  *
  * Also supports HTTPS links: https://atom.ai/...
  */
-const linking = {
+const linking: LinkingOptions<AuthLinkingParamList> = {
   prefixes: ['atom://', 'https://atom.ai'],
   config: {
     screens: {

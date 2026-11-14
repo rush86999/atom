@@ -609,12 +609,17 @@ async def lifespan(app: FastAPI):
         from core.execution_recovery import reconcile_orphaned_executions
 
         recovery = reconcile_orphaned_executions()
-        if recovery.get("workflow_recovered") or recovery.get("agent_recovered"):
+        if (recovery.get("workflow_recovered")
+                or recovery.get("agent_recovered")
+                or recovery.get("fleet_chains_recovered")):
             logger.info(
-                "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s)",
+                "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s), "
+                "%(ch)s fleet chain(s), %(lk)s chain link(s)",
                 {
                     "wf": recovery.get("workflow_recovered", 0),
                     "ag": recovery.get("agent_recovered", 0),
+                    "ch": recovery.get("fleet_chains_recovered", 0),
+                    "lk": recovery.get("fleet_links_reconciled", 0),
                 },
             )
     except Exception as e:
@@ -708,8 +713,22 @@ async def lifespan(app: FastAPI):
     # It is a one-shot integrity pass outside the scheduler gate, not a
     # polling daemon, and it never replays ordinary governed effects.
     try:
-        from core.information_wait import drain_accepted_information_waits
+        from core.information_wait import (
+            drain_accepted_information_waits,
+            expire_due_information_waits,
+        )
 
+        # Absolute deadlines are enforced BEFORE accepted-answer recovery. A
+        # fact accepted just before the process died must not revive a job
+        # whose deadline elapsed while the service was offline. The expiry pass
+        # is bounded and idempotent; a second boot finds nothing.
+        expiry = expire_due_information_waits()
+        if expiry.get("expired"):
+            logger.warning(
+                "Information wait deadline expiry at boot: expired=%s "
+                "scanned=%s pages=%s",
+                expiry["expired"], expiry.get("scanned_jobs"),
+                expiry.get("pages"))
         _spawn_background_task(drain_accepted_information_waits())
         logger.info(
             "Accepted-information wait recovery started (outside the "
@@ -2158,6 +2177,18 @@ try:
     logger.info("✓ Agent audit trail mounted at /api/audit")
 except Exception as e:  # pragma: no cover - boot resilience
     logger.error(f"Failed to mount audit trail router: {e}")
+
+# Menu bar companion HTTP surface — required by menubar/src-tauri/src/commands.rs
+# (login, connection status, recent agents/canvases, quick chat). The router
+# was deleted in 8bf4e3237 because it had never been mounted; its replacement
+# reuses the shared auth/governance/execution services. The router declares its
+# own /api/menubar prefix, so include it BARE. WebSocket stays separate.
+try:
+    from api.menubar_routes import router as menubar_router
+    app.include_router(menubar_router, tags=["menubar"])
+    logger.info("✓ Menu bar companion API mounted at /api/menubar")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount menu bar companion router: {e}")
 
 # Nav stub routes — endpoints for sidebar nav items that had no backend
 # endpoint (tasks, support tickets, communication analytics, integration health).

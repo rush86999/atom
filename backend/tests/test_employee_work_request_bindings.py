@@ -25,6 +25,10 @@ from core.employee_work_requests import (
     QuoteCalculationRequest,
     TaxTerm,
 )
+from tests.source_authority_fixtures import (
+    bind_applied_read,
+    install_source_authority,
+)
 from tests.test_employee_work_requests import (
     _invoice_request,
     _quote_evidence,
@@ -32,6 +36,15 @@ from tests.test_employee_work_requests import (
     _verified_quote_evidence,
 )
 from tests.test_assignment_executor import env  # noqa: F401
+
+
+@pytest.fixture()
+def source_authority(tmp_path, monkeypatch):
+    """A real controlled source plus the active reader the runtime checks."""
+    return install_source_authority(
+        monkeypatch, tmp_path,
+        user_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign")
 
 
 def _teaching(**terms):
@@ -135,14 +148,16 @@ def test_executor_negative_preserves_independent_progress(env):
     assert not env["lifecycle"].get_task(run_id).get("operations")
 
 
-def test_valid_twin_still_compiles_and_completes(env):
+def test_valid_twin_still_compiles_and_completes(env, source_authority):
     import asyncio
 
     assignment = new_assignment(
         objective="verified twin", workspace_id="ws_assign",
         tenant_id="tenant_assign", teaching_snapshot=_teaching(
             currency="USD", freight="20.00", tax_basis="none"),
-        steps=[_verified_quote_evidence()],
+        steps=[bind_applied_read(
+            _verified_quote_evidence(), source_authority,
+            "heldout-prices.json")],
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[{"kind": "required_work_complete"}])
     record = env["executor"].create_assignment(
@@ -269,13 +284,45 @@ def test_role_comparison_is_normalized_and_cross_field_is_refused():
                 "tax_rate": "0.07"}), context={})
 
 
-@pytest.mark.parametrize("mutation", [
-    "expired",
-    "stale",
-    "wrong_scope",
-    "value_changed",
+def _open_questions(run_record):
+    from core.task_lifecycle import open_unresolved_questions
+
+    return open_unresolved_questions(run_record or {})
+
+
+def _assert_term_revalidation_blocked(
+    env, run_id, final, calc_id, reason,
+):
+    """The block is the term contract, not the source-consumption gate.
+
+    An unbound/retired source would mark ``read`` waiting and raise a
+    ``source_access`` question, which would make every later assertion pass
+    without ever reaching term revalidation. Assert instead that the accepted
+    source stayed consumable and that the open gap names the current term.
+    """
+    assert step_by_id(final, "read")["status"] == "applied", (
+        "the controlled source was retired, so this case would pass without "
+        "exercising term revalidation")
+    questions = _open_questions(env["lifecycle"].get_task(run_id))
+    assert not [
+        q for q in questions if q.get("concept") == "source_access"], questions
+    term_gaps = [
+        q for q in questions
+        if q.get("step_id") == calc_id and q.get("concept") == "quote_input"
+    ]
+    assert term_gaps, questions
+    assert reason in str(term_gaps[0].get("reason") or ""), term_gaps[0]
+
+
+@pytest.mark.parametrize("mutation,reason", [
+    ("expired", "expired"),
+    ("stale", "not an accepted"),
+    ("wrong_scope", "workspace_id scope"),
+    ("value_changed", "value changed"),
 ])
-def test_executor_rechecks_the_term_after_restart(env, mutation):
+def test_executor_rechecks_the_term_after_restart(
+    env, source_authority, mutation, reason,
+):
     import asyncio
 
     from core.assignment_executor import AssignmentExecutor
@@ -291,7 +338,9 @@ def test_executor_rechecks_the_term_after_restart(env, mutation):
         },
     }
     assignment = _assignment(
-        _verified_quote_evidence(),
+        bind_applied_read(
+            _verified_quote_evidence(), source_authority,
+            "heldout-prices.json"),
         terms={"currency": "USD", "tax_basis": "none"},
         facts=[fact])
     record = env["executor"].create_assignment(
@@ -333,6 +382,7 @@ def test_executor_rechecks_the_term_after_restart(env, mutation):
     assert step_by_id(final, calc_id)["status"] != "applied"
     assert result["assignment"]["status"] != "completed"
     assert result["assignment"]["status"] in ("blocked", "waiting"), result
+    _assert_term_revalidation_blocked(env, run_id, final, calc_id, reason)
 
 
 @pytest.mark.parametrize("terms,tax,expected", [
@@ -344,11 +394,15 @@ def test_executor_rechecks_the_term_after_restart(env, mutation):
      "375.00"),
 ])
 def test_rate_and_amount_twins_complete_with_authority(
-    env, terms, tax, expected,
+    env, source_authority, terms, tax, expected,
 ):
     import asyncio
 
-    assignment = _assignment(_verified_quote_evidence(), terms=terms)
+    assignment = _assignment(
+        bind_applied_read(
+            _verified_quote_evidence(), source_authority,
+            "heldout-prices.json"),
+        terms=terms)
     record = env["executor"].create_assignment(
         f"conv-tax-{tax.basis}", assignment["objective"],
         assignment=assignment)
@@ -712,7 +766,9 @@ def test_binding_survives_a_restart_context_round_trip():
     assert result["value"] == "220.00"
 
 
-def test_executor_blocks_expired_term_between_compile_and_dispatch(env):
+def test_executor_blocks_expired_term_between_compile_and_dispatch(
+    env, source_authority,
+):
     import asyncio
 
     fact = {
@@ -723,7 +779,9 @@ def test_executor_blocks_expired_term_between_compile_and_dispatch(env):
         "validity": {"currency": "USD", "expires_at": "2999-01-01T00:00:00+00:00"},
     }
     assignment = _assignment(
-        _verified_quote_evidence(),
+        bind_applied_read(
+            _verified_quote_evidence(), source_authority,
+            "heldout-prices.json"),
         terms={"currency": "USD", "tax_basis": "none"}, facts=[fact])
     record = env["executor"].create_assignment(
         "conv-term-expiry", assignment["objective"], assignment=assignment)
@@ -753,3 +811,5 @@ def test_executor_blocks_expired_term_between_compile_and_dispatch(env):
     assert calc["status"] != "applied"
     assert not (calc.get("result") or {}).get("value")
     assert result["assignment"]["status"] != "completed"
+    _assert_term_revalidation_blocked(
+        env, run_id, final, adopted["compiled"]["step_ids"][1], "expired")

@@ -48,6 +48,13 @@ The backend streams LLM output token-by-token over the workspace WS channel
   (BUG-004 fix). The `complete: true` field is redundant and emitted for
   backward compatibility; consumers MUST NOT rely on it as the sole signal.
 - `content` carries the full assembled text (replaces the accumulated buffer).
+- `metadata.execution_id` is the `AgentExecution` id for the turn. It is also
+  stamped on every durable `TokenUsage` row settled by the shared streaming
+  path, so usage joins back to the exact run that caused it.
+- `metadata.tokens_total` is a UI progress estimate (characters/4) while the
+  stream is in flight. It is NOT billing truth: settled `TokenUsage` rows use
+  the provider's authoritative usage when supplied, and explicit unknown
+  liability when it is not. Never replace ledger tokens with this estimate.
 
 ### Frontend contract (`useWebSocket.ts`)
 

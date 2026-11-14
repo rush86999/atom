@@ -36,6 +36,12 @@ export type AgentJobWait = {
   correlation_id: string;
   subject?: { label?: string | null } | null;
   can_answer?: boolean;
+  // Server-projected owner-set absolute deadline and wait age. A read is pure:
+  // these fields never cause the client to expire or dispatch anything.
+  deadline?: string | null;
+  waiting_since?: string | null;
+  waiting_age_seconds?: number | null;
+  deadline_passed?: boolean;
 };
 
 export type AuthorizedAnswerSource = {
@@ -60,6 +66,10 @@ export type AgentJobReadback = {
   requires_reconciliation?: boolean;
   wait?: AgentJobWait | null;
   wait_unavailable?: boolean;
+  deadline?: string | null;
+  waiting_since?: string | null;
+  waiting_age_seconds?: number | null;
+  deadline_passed?: boolean;
   result?: { status?: string; output?: string | null } | null;
 };
 
@@ -101,6 +111,13 @@ const failureMessage = (job: AgentJobReadback): string => {
   if (job.job_status === "cancelled" || job.job_status === "canceled") {
     return "This job was cancelled. No further work was started.";
   }
+  if (
+    job.reason === "wait_deadline_exceeded" ||
+    job.outcome === "expired" ||
+    job.deadline_passed
+  ) {
+    return "The owner-set deadline passed before the information arrived. No further work was started; review the deadline or start a new authorized run.";
+  }
   if (job.requires_reconciliation || job.reason === "execution_uncertain") {
     return "The outcome is uncertain. Reconcile the original operation before retrying; the answer was not re-sent.";
   }
@@ -124,6 +141,26 @@ function errorMessage(body: any, fallback: string): string {
   }
   return fallback;
 }
+
+const formatWaitAge = (seconds?: number | null): string | null => {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) {
+    return null;
+  }
+  const total = Math.max(0, Math.floor(seconds));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+};
+
+const formatDeadline = (value?: string | null): string | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString();
+};
 
 /**
  * Shows the current state of one admitted agent job: the exact open question
@@ -521,6 +558,9 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
     job?.job_status === "waiting" && job.wait ? job.wait : null;
   const waitUnavailable =
     job?.job_status === "waiting" && !job.wait && Boolean(job.wait_unavailable);
+  const deadlinePassed = Boolean(
+    job?.deadline_passed || openWait?.deadline_passed,
+  );
   const completed = job?.job_status === "success";
   const active = job?.job_status === "pending" || job?.job_status === "running";
   const failed =
@@ -532,7 +572,15 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
     !["waiting", "pending", "running"].includes(job?.job_status || "");
   const statusText = waitUnavailable
     ? "Waiting · question unavailable"
-    : statusLabel(job?.job_status);
+    : deadlinePassed && job?.job_status === "waiting"
+      ? "Deadline passed"
+      : statusLabel(job?.job_status);
+  const waitAge = formatWaitAge(
+    openWait?.waiting_age_seconds ?? job?.waiting_age_seconds,
+  );
+  const deadlineLabel = formatDeadline(
+    openWait?.deadline ?? job?.deadline,
+  );
 
   return (
     <section
@@ -620,7 +668,26 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
           >
             {openWait.question}
           </p>
-          {openWait.can_answer ? (
+          {(waitAge || deadlineLabel) && (
+            <p
+              data-testid="agent-job-wait-timing"
+              className="text-xs text-gray-600 dark:text-gray-400"
+            >
+              {waitAge ? `Waiting for ${waitAge}` : "Waiting"}
+              {deadlineLabel ? ` · Deadline: ${deadlineLabel}` : ""}
+            </p>
+          )}
+          {deadlinePassed && (
+            <p
+              data-testid="agent-job-wait-expired"
+              className="text-sm text-amber-700 bg-amber-50 p-3 rounded border border-amber-200"
+            >
+              The owner-set deadline passed before the information arrived.
+              This wait can no longer be answered; review the deadline or start
+              a new authorized run.
+            </p>
+          )}
+          {openWait.can_answer && !deadlinePassed ? (
             <div className="space-y-2">
               <Button
                 variant="outline"
@@ -684,7 +751,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
                 {submitting ? "Sending…" : "Send answer"}
               </Button>
             </div>
-          ) : (
+          ) : deadlinePassed ? null : (
             <p
               data-testid="agent-job-wait-closed"
               className="text-sm text-amber-700"

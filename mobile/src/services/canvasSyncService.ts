@@ -75,6 +75,17 @@ class CanvasSyncService {
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
 
+  constructor() {
+    this.cache = {
+      canvases: {},
+      htmlCache: {},
+      cssCache: {},
+      lastSyncAt: null,
+      pendingFormSubmissions: [],
+      favorites: new Set(),
+    };
+  }
+
   /**
    * Initialize the canvas sync service
    */
@@ -108,7 +119,7 @@ class CanvasSyncService {
       console.log('CanvasSync: Syncing canvases');
 
       // Fetch canvases from server
-      const response = await apiService.get('/api/canvas');
+      const response = await apiService.get<{ canvases: Canvas[] }>('/api/canvas');
 
       if (!response.success || !response.data) {
         console.error('CanvasSync: Failed to fetch canvases:', response.error);
@@ -121,7 +132,7 @@ class CanvasSyncService {
         };
       }
 
-      const canvases: Canvas[] = response.data.canvases || [];
+      const canvases = response.data.canvases || [];
 
       // Process each canvas
       for (const canvas of canvases) {
@@ -197,9 +208,9 @@ class CanvasSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/canvas/${canvasId}`);
+      const response = await apiService.get<Canvas>(`/api/canvas/${canvasId}`);
       if (response.success && response.data) {
-        const canvas: Canvas = response.data;
+        const canvas = response.data;
         this.cache.canvases[canvasId] = canvas;
 
         // Cache HTML/CSS

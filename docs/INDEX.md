@@ -29,6 +29,15 @@ blanket qualification of every feature or connector.
 
 ---
 
+## Current readiness and evidence
+
+- [Current readiness evidence index — 2026-11-14](engineering/CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md) — all 18 canonical goals and all 143 original claims, exact source identities and open user-boundary gates. It preserves the historical 111/123 result and does not claim app completion.
+- [Canonical 18-goal catalogue](engineering/APP_GOALS_INDEX.json) — the numbering authority; this index does not renumber goals.
+- [143-claim requirement audit](engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json) — machine-readable historical claim records and the later evidence overlay.
+- [Frozen claim inventory](acceptance/readme_feature_readiness_2026-11-01/CLAIM_INVENTORY.json) — the historical denominator and 111/123 score.
+
+---
+
 ## 📚 Documentation by Category
 
 ### 🚀 Getting Started & Operations

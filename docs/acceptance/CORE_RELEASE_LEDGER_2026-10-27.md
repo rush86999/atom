@@ -2,7 +2,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T23:50:44.149807+00:00
+Generated: 2026-11-13T13:55:59.577353+00:00
 
 Supersedes `WHOLE_APP_READINESS_LEDGER_2026-10-27` for launch scope. The whole-app ledger remains history. Product decision: `docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`.
 
@@ -17,8 +17,8 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | failed | 2 |
 | not_authorized | 1 |
 | partial | 11 |
-| unproven | 2 |
-| verified | 45 |
+| unproven | 1 |
+| verified | 46 |
 
 **Core release ready: no.** The core surface is configured and browser-enforced, and the domain-independent calculation/decision contracts pass. The trained-employee loop, deliverable formats and the production build remain open; deferred surfaces are an explicit product decision, not failures.
 
@@ -70,7 +70,7 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | WA-042 | documents | Upload PDF and Markdown files | **partial** | Not executed in this world. | Upload one PDF and one MD and assert extracted text and search hits. |
 | WA-043 | documents | Reload the Documents page and list the uploaded files | **verified** | — | — |
 | WA-044 | chat | Send a text turn and reload history | **verified** | — | — |
-| WA-045 | canvas | Create a canvas artifact, edit it, reload | **unproven** | Render only. | Run the existing canvas journey against this world or reuse the packaged J5 evidence. |
+| WA-045 | canvas | Create a canvas artifact, edit it, reload | **verified** | — | — |
 | WA-046 | search | Search memory/documents and inspect results | **deferred_scope** | — | Unified search is deferred; document search remains in Data. |
 | WA-047 | agents | Open the Agents page and read the maturity ladder | **partial** | No agent run/training transition executed (LLM). | Use the existing trained-review evidence for the AI slice; add one non-LLM agent-list assertion. |
 | WA-048 | automations | Use the Automations tabs and workflow surface | **verified** | — | — |

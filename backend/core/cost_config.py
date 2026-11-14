@@ -106,6 +106,69 @@ MODEL_COSTS: Dict[str, Dict[str, float]] = {
 }
 
 
+# Static TIME-billed audio rates (USD per audio second), used only when the
+# dynamic catalog has no row for the model. OpenAI Whisper is $0.006/minute:
+# https://developers.openai.com/api/docs/models/whisper-1
+MODEL_AUDIO_COSTS: Dict[str, Dict[str, float]] = {
+    "whisper-1": {"per_second": 0.006 / 60.0},
+}
+
+
+# Providers that name the same audio model identity with a qualified prefix
+# (LiteLLM writes ``openai/whisper-1``). Only the official qualifier is
+# accepted; an arbitrary prefix is a different identity.
+_AUDIO_MODEL_QUALIFIERS = {"openai"}
+
+
+def audio_cost_model_key(model: str) -> Optional[str]:
+    """Exact static-audio-table key for ``model``, or ``None``.
+
+    Fallback pricing must be bound to the exact model identity it was
+    documented for. A substring scan (the old behavior) priced unrelated
+    models such as ``whisper-1-preview``, ``not-whisper-1`` or a tenant's
+    ``custom-whisper-1-clone`` at OpenAI's rate, silently mis-billing an
+    unpriced model. Matching is exact (case-insensitive) and the single
+    accepted alternate spelling is the same identity provider-qualified by
+    its documented provider (``openai/whisper-1``).
+    """
+    if not isinstance(model, str):
+        return None
+    identity = model.strip().lower()
+    if not identity:
+        return None
+    if identity in MODEL_AUDIO_COSTS:
+        return identity
+    qualifier, sep, bare = identity.partition("/")
+    if (sep and qualifier in _AUDIO_MODEL_QUALIFIERS
+            and bare in MODEL_AUDIO_COSTS):
+        return bare
+    return None
+
+
+def get_llm_audio_cost(model: str, audio_seconds: float) -> Optional[float]:
+    """Calculate TIME-billed audio cost from the static fallback table.
+
+    ``audio_seconds`` is real media duration, never a byte length or token
+    count. Absence from this table is unknown (``None``), not free — and the
+    match is by exact model identity, never a substring of some other name.
+    """
+    model_key = audio_cost_model_key(model)
+    if model_key is None:
+        return None
+    if isinstance(audio_seconds, bool):
+        return None
+    try:
+        seconds = float(audio_seconds)
+    except (TypeError, ValueError):
+        return None
+    if seconds != seconds or seconds in (float("inf"), float("-inf")):
+        return None
+    if seconds < 0:
+        return None
+    cost = seconds * MODEL_AUDIO_COSTS[model_key]["per_second"]
+    return cost if cost >= 0 and cost == cost and cost != float("inf") else None
+
+
 def get_llm_cost(model: str, input_tokens: int, output_tokens: int) -> Optional[float]:
     """
     Calculate LLM cost using static pricing table.

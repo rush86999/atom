@@ -228,42 +228,53 @@ class BiometricService {
   /**
    * Map error code to message
    */
-  private mapErrorCode(error: LocalAuthentication.LocalAuthenticationError | undefined): string {
+  private mapErrorCode(error: string | undefined): string {
     if (!error) {
       return 'Authentication failed';
     }
 
-    switch (error.code) {
+    switch (error) {
       case 'not_enrolled':
         return 'No biometric enrolled. Please set up biometric authentication in your device settings.';
       case 'locked_out':
+      case 'lockout':
         return 'Too many attempts. Biometric authentication is temporarily locked.';
       case 'user_cancel':
       case 'system_cancel':
+      case 'app_cancel':
         return 'Authentication was cancelled.';
       case 'passcode_not_set':
         return 'Device passcode is not set. Please set a passcode in your device settings.';
       case 'not_available':
         return 'Biometric authentication is not available on this device.';
       default:
-        return error.message || 'Authentication failed';
+        return 'Authentication failed';
     }
   }
 
   /**
    * Map error to BiometricError type
    */
-  private mapErrorToType(error: any): BiometricError {
-    if (!error || !error.code) {
+  private mapErrorToType(error: unknown): BiometricError {
+    const code =
+      typeof error === 'string'
+        ? error
+        : error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+          ? error.code
+          : undefined;
+
+    if (!code) {
       return 'unknown';
     }
 
-    switch (error.code) {
+    switch (code) {
       case 'not_enrolled':
         return 'not_enrolled';
       case 'locked_out':
+      case 'lockout':
         return 'locked_out';
       case 'user_cancel':
+      case 'app_cancel':
         return 'user_cancelled';
       case 'system_cancel':
         return 'system_cancelled';

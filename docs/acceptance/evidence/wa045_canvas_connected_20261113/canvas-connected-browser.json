@@ -1,0 +1,193 @@
+{
+  "schema": "atom-wa045-connected-browser-1",
+  "wa_id": "WA-045",
+  "status": "passed",
+  "scope": "Signed-in browser edit -> save -> reopen for one existing canvas artifact in the WA-045 scratch world. Artifact creation is proven separately by the 29/29 isolated-harness package; this package proves the exact save and reload read-back of the recorded artifact.",
+  "source": {
+    "revision": "8bb0c66f5fd30988c16585214707bf784fa39d41",
+    "revision_short": "8bb0c66f5",
+    "verified_by": "backend /health identity reported git_commit=8bb0c66f5fd3, revision=8bb0c66f5fd30988c16585214707bf784fa39d41, identity_kind=git, dirty=false"
+  },
+  "observed_local_time": "2026-11-13 05:35:47",
+  "environment": {
+    "world": "backend/data/acceptance_worlds/wa045_canvas_blank_20261113",
+    "database": "fresh scratch atom.db inside that world, created by the product startup path",
+    "live_database": false,
+    "frontend_origin": "http://127.0.0.1:3177",
+    "backend_origin": "http://127.0.0.1:8177",
+    "backend_port": 8177,
+    "workers": {
+      "ENABLE_SCHEDULER": false,
+      "ENABLE_INGESTION_SYNC": false
+    },
+    "provider_keys": "blanked for the backend process; no provider or model endpoint was contacted"
+  },
+  "artifact": {
+    "canvas_id": "cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9",
+    "canvas_type": "document",
+    "title": "Untitled canvas",
+    "url": "http://127.0.0.1:3177/canvas/cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9",
+    "prior_revision_audit_id": "413b4219-2aed-4060-8ca4-c573bdf6c70c"
+  },
+  "exact_text": "WA-045 exact body line one: ORD-WA045-ALPHA\nExact body line two: 17 * 3 = 51\nTrailing marker: WA045-END",
+  "exact_text_lines": 3,
+  "exact_text_length": 103,
+  "exact_text_sha256": "22171224cd4b9d7e87b4cdeb64a04b14415e1afd10e11fb0ffa277042507b265",
+  "exact_text_sha256_basis": "sha256 over the UTF-8 bytes of exact_text; the run's canvas:update broadcast independently reports the same 103-character content length",
+  "save": {
+    "method": "PUT",
+    "path": "/api/canvas/cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9",
+    "query": {
+      "canvas_type": "document",
+      "title": "Untitled canvas",
+      "expected_prior_audit_id": "413b4219-2aed-4060-8ca4-c573bdf6c70c"
+    },
+    "status": 200,
+    "path_taken": "idle autosave after the edit (3 s debounce)",
+    "note": "The panel had already autosaved, so a second explicit save wait timed out and no Save Changes control was rendered; the durable save recorded here is the autosave request.",
+    "content_length": 103,
+    "content_sha256": "22171224cd4b9d7e87b4cdeb64a04b14415e1afd10e11fb0ffa277042507b265"
+  },
+  "reload": {
+    "page_reloaded": true,
+    "url": "http://127.0.0.1:3177/canvas/cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9",
+    "editor_value_length": 103,
+    "editor_value_sha256": "22171224cd4b9d7e87b4cdeb64a04b14415e1afd10e11fb0ffa277042507b265",
+    "editor_value_equals_saved_text": true,
+    "read_back_after_reload": {
+      "GET /api/canvas/{canvas_id}": 200,
+      "GET /api/canvas/{canvas_id}/history": 200
+    }
+  },
+  "checks": [
+    {
+      "name": "signed-in browser session opened a blank document canvas",
+      "ok": true,
+      "detail": {
+        "editor": ".monaco-editor",
+        "initial_model_value": "",
+        "canvas_type": "document"
+      }
+    },
+    {
+      "name": "exact three-line body was typed into the native editor",
+      "ok": true,
+      "detail": {
+        "length": 103,
+        "lines": 3
+      }
+    },
+    {
+      "name": "the edit reached the durable canvas save endpoint with HTTP 200",
+      "ok": true,
+      "detail": {
+        "method": "PUT",
+        "status": 200,
+        "content_length": 103
+      }
+    },
+    {
+      "name": "the save was bound to the prior content revision",
+      "ok": true,
+      "detail": {
+        "expected_prior_audit_id": "413b4219-2aed-4060-8ca4-c573bdf6c70c"
+      }
+    },
+    {
+      "name": "the panel reported the edit saved before reload",
+      "ok": true,
+      "detail": "Saved"
+    },
+    {
+      "name": "the browser reloaded the same artifact URL",
+      "ok": true,
+      "detail": {
+        "url": "http://127.0.0.1:3177/canvas/cbf43d3b-47d5-40a7-aabf-db3e7c3a42a9"
+      }
+    },
+    {
+      "name": "the editor value after reload is the exact saved text",
+      "ok": true,
+      "detail": {
+        "editor_value_sha256": "22171224cd4b9d7e87b4cdeb64a04b14415e1afd10e11fb0ffa277042507b265",
+        "expected_sha256": "22171224cd4b9d7e87b4cdeb64a04b14415e1afd10e11fb0ffa277042507b265",
+        "length": 103
+      }
+    },
+    {
+      "name": "the reloaded page read the artifact and its history back from the backend",
+      "ok": true,
+      "detail": {
+        "canvas_get": 200,
+        "history_get": 200
+      }
+    },
+    {
+      "name": "no browser page errors",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no non-loopback request other than pinned Monaco editor static assets",
+      "ok": true,
+      "detail": {
+        "other_non_loopback_requests": []
+      }
+    }
+  ],
+  "external_origins": {
+    "policy": "loopback frontend/backend only, plus the pinned Monaco editor static-asset CDN; no provider, model, or workspace-data call is permitted or observed",
+    "observed_origins": [
+      "http://127.0.0.1:3177",
+      "http://127.0.0.1:8177",
+      "https://cdn.jsdelivr.net"
+    ],
+    "cdn": {
+      "origin": "https://cdn.jsdelivr.net",
+      "package": "monaco-editor@0.55.1",
+      "path_prefix": "/npm/monaco-editor@0.55.1/min/vs/",
+      "methods": [
+        "GET"
+      ],
+      "purpose": "static editor code, language contributions and workers loaded by @monaco-editor/react's default loader",
+      "data_plane": false,
+      "workspace_data_sent": false,
+      "request_bodies": "none; every observed request is a static-asset GET",
+      "provider_or_model_calls": false,
+      "unique_assets": [
+        "/npm/monaco-editor@0.55.1/min/vs/loader.js",
+        "/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.js",
+        "/npm/monaco-editor@0.55.1/min/vs/editor/editor.main.css",
+        "/npm/monaco-editor@0.55.1/min/vs/nls.messages-loader.js",
+        "/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-DO3azKX8.js",
+        "/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-qLAYrEOP.js",
+        "/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-EcChJV6a.js",
+        "/npm/monaco-editor@0.55.1/min/vs/monaco.contribution-D2OdxNBt.js",
+        "/npm/monaco-editor@0.55.1/min/vs/basic-languages/monaco.contribution.js",
+        "/npm/monaco-editor@0.55.1/min/vs/editor.api-CalNCsUg.js",
+        "/npm/monaco-editor@0.55.1/min/vs/workers-DcJshg-q.js",
+        "/npm/monaco-editor@0.55.1/min/vs/markdown-C_rD0bIw.js",
+        "/npm/monaco-editor@0.55.1/min/vs/assets/editor.worker-Be8ye1pW.js"
+      ]
+    }
+  },
+  "sanitization": {
+    "allowlisted_fields_only": true,
+    "secrets_present": false,
+    "raw_logs_committed": false,
+    "excluded": [
+      "cookies and bearer tokens",
+      "request headers and bodies other than the recorded exact canvas text",
+      "absolute filesystem paths and process ids",
+      "account identifiers",
+      "full log lines",
+      "generated frontend build output"
+    ]
+  },
+  "provenance": {
+    "run": "adjacent WA-045 worker run on a signed-in browser against the connected frontend/backend pair, 2026-11-13 05:26-05:35 run-local",
+    "worker_transcript": "read from the adjacent worker log outside the repository; the raw transcript is not committed",
+    "backend_access_log": "read from the run's backend access log outside the repository; only the request facts above are retained",
+    "product_regeneration": "scripts/acceptance/canvas_blank_lifecycle.py reproduces the same transition (create -> save -> reload) with its own fresh world and 29/29 checks"
+  }
+}

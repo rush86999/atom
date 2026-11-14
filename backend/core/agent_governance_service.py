@@ -251,6 +251,13 @@ class AgentGovernanceService:
         # and the run's own supervision_mode gates everything it executes.
         "goal_runs.list": 1,            # read run status (STUDENT+)
         "goal_runs.start": 3,           # start a long-running goal run (SUPERVISED+)
+        # Agent-facing reviewed executable skills (core/skill_actions.py).
+        # Exact keys: the substring resolver would otherwise match "execute"
+        # (level 4 / AUTONOMOUS) for skills.execute, while the reviewed code
+        # is benign deterministic computation bound to one reviewed employee
+        # in one workspace. skills.list is a metadata read.
+        "skills.list": 1,
+        "skills.execute": 2,
         # On-demand integration ingestion (any connected service → memory):
         # a memory write, reversible by design (idempotent, source-scoped),
         # same weight as email_attachment_write.

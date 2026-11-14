@@ -48,12 +48,28 @@ docker_errors_mock.ImageNotFound = ImageNotFound
 docker_errors_mock.BuildError = BuildError
 docker_errors_mock.ContainerError = ContainerError
 
-# Mock the docker module
+# Mock the docker module.  The originals are restored after the import:
+# leaving the MagicMock in sys.modules permanently would make later modules
+# (and the real-Docker acceptance probe) believe a daemon is reachable.
+_DOCKER_ORIGINAL = sys.modules.get('docker')
+_DOCKER_ERRORS_ORIGINAL = sys.modules.get('docker.errors')
 sys.modules['docker'] = MagicMock()
 sys.modules['docker'].errors = docker_errors_mock
 sys.modules['docker.errors'] = docker_errors_mock
 
 from core.package_installer import PackageInstaller
+from tests.sandbox_lifecycle_mocks import install_container
+
+# Restore sys.modules now that core.package_installer is imported; its tests
+# patch core.package_installer.docker.from_env at runtime.
+if _DOCKER_ORIGINAL is not None:
+    sys.modules['docker'] = _DOCKER_ORIGINAL
+else:
+    sys.modules.pop('docker', None)
+if _DOCKER_ERRORS_ORIGINAL is not None:
+    sys.modules['docker.errors'] = _DOCKER_ERRORS_ORIGINAL
+else:
+    sys.modules.pop('docker.errors', None)
 
 
 @pytest.fixture
@@ -71,7 +87,7 @@ def mock_docker_client():
         {"stream": "Step 2/5 : RUN python -m venv /opt/atom_skill_env\n"},
         {"stream": "Successfully built abc123\n"}
     ]))
-    client.containers.run.return_value = "Output"
+    install_container(client, stdout=b"Output")
     client.images.get.return_value = mock_image
     client.images.remove.return_value = True
     client.images.list.return_value = [mock_image]

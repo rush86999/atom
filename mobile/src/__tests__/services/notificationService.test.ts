@@ -758,11 +758,11 @@ describe('NotificationService', () => {
 
   describe('Foreground Notifications', () => {
     test('should present notification', async () => {
-      await Notifications.presentNotificationAsync('id', { title: 'Test', body: 'Test' } as any);
-      expect(Notifications.presentNotificationAsync).toHaveBeenCalledWith('id', {
-        title: 'Test',
-        body: 'Test',
-      });
+      await Notifications.presentNotificationAsync({ title: 'Test', body: 'Test' }, 'id');
+      expect(Notifications.presentNotificationAsync).toHaveBeenCalledWith(
+        { title: 'Test', body: 'Test' },
+        'id'
+      );
     });
 
     test('should dismiss notification', async () => {

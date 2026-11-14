@@ -16,8 +16,10 @@
  * ```
  */
 
-import type { CameraType, CameraPermissionStatus, FlashMode } from 'expo-camera';
+import type { CameraType, FlashMode } from 'expo-camera';
 import type { LocationSubscription } from 'expo-location';
+
+type CameraPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
 // ============================================================================
 // MockCamera

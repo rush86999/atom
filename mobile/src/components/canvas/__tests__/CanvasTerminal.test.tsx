@@ -16,7 +16,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ScrollView } from 'react-native';
 import { Provider } from 'react-native-paper';
-import { CanvasTerminal } from '../CanvasTerminal';
+import { CanvasTerminal, TerminalOutput } from '../CanvasTerminal';
 
 // Mock dependencies
 jest.mock('expo-haptics', () => ({
@@ -42,7 +42,7 @@ const renderTerminal = (el: React.ReactElement) =>
     <Provider>{el}</Provider>
   );
 
-const output = [
+const output: TerminalOutput[] = [
   { type: 'stdout', content: 'hello world' },
   { type: 'stderr', content: 'oops' },
   { type: 'command', content: 'npm test' },

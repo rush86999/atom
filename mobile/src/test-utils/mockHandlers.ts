@@ -12,7 +12,7 @@
  * - Error response handlers
  */
 
-import { rest } from 'msw';
+import { rest, RequestHandler } from 'msw';
 import { setupServer } from 'msw/node';
 
 // Import mock data
@@ -509,7 +509,7 @@ export function resetMockHandlers() {
 /**
  * Override specific handlers for testing error scenarios
  */
-export function overrideHandlers(...handlers: rest.RequestHandler[]) {
+export function overrideHandlers(...handlers: RequestHandler[]) {
   mockServer.resetHandlers(...allHandlers, ...handlers);
 }
 

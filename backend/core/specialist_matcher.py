@@ -23,9 +23,11 @@ Scorable fields (verified on AgentRegistry, models.py:1417-1507):
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,100 @@ DOMAIN_ALIASES: Dict[str, List[str]] = {
     "communications": ["pr", "press", "email", "messaging", "notification"],
     "intelligence": ["analytics", "reporting", "forecast", "insight", "dashboard"],
 }
+
+# Display/registry labels → canonical domain. AgentRegistry.category and LLM
+# output are human labels ("Finance", "Data_Analysis", "Financial Analysis"),
+# while recruitment's vocabulary (DOMAIN_ALIASES keys / AVAILABLE_DOMAINS) is
+# lowercase canonical. Normalizing through ONE table keeps the catalog, domain
+# validation and matching answering the same question; without it an agent
+# whose category is "Data_Analysis" was listed as available and then its own
+# domain label was rejected before matching (Goal 13 live replay).
+DOMAIN_SYNONYMS: Dict[str, tuple[str, ...]] = {
+    "finance": (
+        "finance", "financial", "financial_analysis", "financial_analyst",
+        "accounting", "bookkeeping", "ledger", "ledger_analysis",
+    ),
+    "sales": (
+        "sales", "crm", "pipeline", "revenue", "revenue_operations",
+        "sales_operations", "account_management",
+    ),
+    "marketing": ("marketing", "growth", "brand", "demand_generation"),
+    "operations": (
+        "operations", "ops", "logistics", "fulfillment", "supply_chain",
+    ),
+    "legal": ("legal", "compliance", "regulatory", "contracts"),
+    "engineering": (
+        "engineering", "software_engineering", "software", "development",
+        "devops", "platform", "coding",
+    ),
+    "hr": ("hr", "human_resources", "people", "people_operations", "recruiting"),
+    "procurement": ("procurement", "purchasing", "sourcing", "vendor_management"),
+    "communications": ("communications", "communication", "public_relations", "pr"),
+    "intelligence": (
+        "intelligence", "analytics", "analysis", "analyst", "data_analysis",
+        "data_analytics", "data_science", "business_intelligence", "reporting",
+        "insights", "dashboard", "forecast",
+    ),
+}
+
+_DOMAIN_SEPARATORS = re.compile(r"[^a-z0-9]+")
+
+
+def normalize_domain_label(value: Any) -> str:
+    """Lowercase and collapse separators ("Data Analysis" → "data_analysis")."""
+    if value is None:
+        return ""
+    return _DOMAIN_SEPARATORS.sub("_", str(value).strip().lower()).strip("_")
+
+
+# Built once so label resolution is a dict lookup, not a scan per agent.
+_DOMAIN_LOOKUP: Dict[str, str] = {}
+for _canonical, _variants in DOMAIN_SYNONYMS.items():
+    for _variant in _variants:
+        _DOMAIN_LOOKUP[normalize_domain_label(_variant)] = _canonical
+for _canonical in DOMAIN_ALIASES:
+    _DOMAIN_LOOKUP.setdefault(normalize_domain_label(_canonical), _canonical)
+
+
+def canonical_domain(value: Any, allowed: Optional[List[str]] = None) -> Optional[str]:
+    """Resolve a registry/LLM domain label to the canonical vocabulary key.
+
+    Returns ``None`` for unmapped labels (e.g. the ``system`` category) and for
+    labels outside ``allowed`` — callers must not invent a domain.
+    """
+    label = normalize_domain_label(value)
+    if not label:
+        return None
+    canonical = _DOMAIN_LOOKUP.get(label)
+    if canonical is None and label.endswith("s"):
+        canonical = _DOMAIN_LOOKUP.get(label[:-1])
+    if canonical is None:
+        return None
+    if allowed is not None and canonical not in allowed:
+        return None
+    return canonical
+
+
+def domain_category_condition(domain: Any):
+    """SQL condition matching any registry category that maps to ``domain``.
+
+    Uses the same synonym table as :func:`canonical_domain` so a scoped roster
+    seeded with "Data_Analysis" is eligible for the canonical "intelligence"
+    domain (and "Finance" for "finance").
+    """
+    from core.models import AgentRegistry
+
+    canonical = canonical_domain(domain) or normalize_domain_label(domain)
+    variants = {
+        normalize_domain_label(v)
+        for v in DOMAIN_SYNONYMS.get(canonical, ())
+    }
+    variants.add(canonical)
+    normalized_column = func.replace(
+        func.replace(func.lower(AgentRegistry.category), " ", "_"), "-", "_"
+    )
+    return normalized_column.in_(sorted(variants))
+
 
 # Tier floor weights (0.25 term). AUTONOMOUS agents are the most eligible;
 # STUDENT the least. Matches AgentStatus (models.py) progression.
@@ -159,11 +255,16 @@ class SpecialistMatcher:
         user_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
     ) -> List[str]:
-        """Return the distinct agent categories present in the registry.
+        """Return the canonical domains present in the scoped registry.
+
+        Registry categories are display labels ("Finance", "Data_Analysis");
+        they are normalized through :func:`canonical_domain` so the catalog the
+        LLM sees uses the SAME vocabulary recruitment validates against.
 
         ``workspace_id`` applies the same visibility rule governance uses
-        (default scope = NULL/"default"; any other workspace = exact). Omitting
-        it keeps the legacy unscoped behavior for direct/back-compat callers.
+        (default scope = NULL/"default"; any other workspace = exact) and
+        ``user_id`` restricts results to that user's eligible agents. Omitting
+        either keeps the legacy unscoped behavior for back-compat callers.
         """
         try:
             from core.models import AgentRegistry
@@ -180,8 +281,16 @@ class SpecialistMatcher:
 
                 query = query.filter(
                     agent_workspace_scope_condition(workspace_id))
+            if user_id is not None:
+                query = query.filter(AgentRegistry.user_id == user_id)
             rows = query.distinct().all()
-            return [r[0] for r in rows if r[0]]
+            present = set()
+            for row in rows:
+                canonical = canonical_domain(row[0] if row else None)
+                if canonical:
+                    present.add(canonical)
+            # Stable vocabulary order keeps the prompt/catalog deterministic.
+            return [d for d in DOMAIN_ALIASES if d in present]
         except Exception:
             return list(DOMAIN_ALIASES.keys())
 
@@ -198,9 +307,15 @@ class SpecialistMatcher:
         RecruitmentIntelligenceService reads (agent_id, name, capability_score).
 
         When ``workspace_id`` is supplied, candidates are restricted to agents
-        visible in that scope (the same rule governance enforces). Without it,
-        a foreign-workspace agent could rank first, be denied by governance,
-        and abort recruitment even though an in-scope specialist exists.
+        visible in that scope (the same rule governance enforces). ``user_id``
+        likewise restricts candidates to that user's eligible agents. Without
+        them, a foreign-workspace/user agent could rank first, be denied by
+        governance, and abort recruitment even though an eligible specialist
+        exists.
+
+        Domains are resolved through :func:`canonical_domain`, so the LLM's
+        display label ("Finance", "Data_Analysis") matches the registry
+        category it actually came from.
         """
         try:
             from core.models import AgentRegistry
@@ -208,13 +323,15 @@ class SpecialistMatcher:
             return {d: [] for d in domains}
 
         results: Dict[str, List[Dict[str, Any]]] = {}
-        for domain in domains:
-            keywords = [domain] + DOMAIN_ALIASES.get(domain.lower(), [])
+        for requested_domain in domains:
+            domain = canonical_domain(requested_domain) or normalize_domain_label(
+                requested_domain)
+            keywords = [domain] + DOMAIN_ALIASES.get(domain, [])
             try:
                 query = (
                     self.db.query(AgentRegistry)
                     .filter(AgentRegistry.enabled.is_(True))
-                    .filter(AgentRegistry.category.ilike(f"%{domain}%"))
+                    .filter(domain_category_condition(domain))
                 )
                 if workspace_id is not None:
                     from core.agent_governance_service import (
@@ -223,6 +340,8 @@ class SpecialistMatcher:
 
                     query = query.filter(
                         agent_workspace_scope_condition(workspace_id))
+                if user_id is not None:
+                    query = query.filter(AgentRegistry.user_id == user_id)
                 agents = query.all()
             except Exception:
                 agents = []
@@ -273,7 +392,7 @@ class SpecialistMatcher:
                 scored.append(entry)
             # Rank highest score first.
             scored.sort(key=lambda m: m["capability_score"], reverse=True)
-            results[domain] = scored[:limit_per_domain]
+            results[requested_domain] = scored[:limit_per_domain]
         return results
 
     # ------------------------------------------------------------------

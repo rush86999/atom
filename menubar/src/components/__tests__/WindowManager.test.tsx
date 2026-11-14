@@ -101,6 +101,11 @@ type TauriFixture = () => unknown;
 
 function mockTauriCommands(fixtures: Record<string, TauriFixture> = {}) {
   const handlers: Record<string, TauriFixture> = {
+    get_backend_config: () => ({
+      http_base_url: 'http://localhost:8000',
+      websocket_url: 'ws://localhost:8000/ws/menubar',
+      http_base_url_source: 'default',
+    }),
     get_recent_items: () => ({ agents: [], canvases: [] }),
     get_unread_notifications: () => [],
     get_session: () => null,
@@ -137,6 +142,14 @@ describe('Window Manager (MenuBar)', () => {
     jest.clearAllMocks();
     mockListen.mockImplementation(() => Promise.resolve(jest.fn()));
     mockTauriCommands();
+    // Simulate the Tauri v2 IPC bridge injected in the webview. Tests that
+    // exercise browser-only fallback live in src/__tests__/config.test.ts.
+    (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown })
+      .__TAURI_INTERNALS__;
   });
 
   /**
@@ -420,7 +433,10 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component handles API errors gracefully
    */
   test('test_error_handling_api_failures', async () => {
-    mockInvoke.mockImplementation(() => Promise.reject(new Error('API Error')));
+    mockTauriCommands({
+      get_recent_items: () => Promise.reject(new Error('API Error')),
+      get_unread_notifications: () => Promise.reject(new Error('API Error')),
+    });
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -484,6 +500,83 @@ describe('Window Manager (MenuBar)', () => {
 
     // Verify connection status is displayed
     expect(getByTestId('status-indicator')).toBeTruthy();
+  });
+
+  /**
+   * Test: Native environment override reaches direct frontend fetches
+   * Expected: Isolated loopback backend on a separate port is used
+   */
+  test('test_backend_environment_override_applies_to_frontend_fetches', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ count: 0, pending_approvals: [] }),
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    mockTauriCommands({
+      get_session: () => ({ token: mockToken }),
+      get_backend_config: () => ({
+        http_base_url: 'http://127.0.0.1:8123',
+        websocket_url: 'ws://127.0.0.1:8123/ws/menubar',
+        http_base_url_source: 'environment',
+      }),
+    });
+
+    render(
+      <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
+    );
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map((call: unknown[]) => String(call[0]));
+      expect(urls).toContain(
+        'http://127.0.0.1:8123/api/agent-governance/pending-approvals'
+      );
+    });
+    expect(
+      fetchMock.mock.calls.every(
+        (call: unknown[]) => !String(call[0]).includes('localhost:8000')
+      )
+    ).toBe(true);
+  });
+
+  /**
+   * Test: Native IPC rejects the endpoint configuration
+   * Expected: No request is issued and the raw configured URL is not echoed
+   */
+  test('test_invalid_native_endpoint_blocks_requests', async () => {
+    const fetchMock = globalThis.fetch as jest.Mock;
+
+    mockTauriCommands({
+      get_backend_config: () =>
+        Promise.reject(
+          new Error(
+            'backend URL "http://user:secret@127.0.0.1:8123" must not contain credentials'
+          )
+        ),
+      get_session: () => ({ token: mockToken }),
+    });
+
+    const { getByTestId } = render(
+      <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('endpoint-config-error')).toBeTruthy();
+    });
+
+    const errorText = getByTestId('endpoint-config-error').textContent || '';
+    expect(errorText).not.toContain('secret');
+    expect(errorText).not.toContain('127.0.0.1');
+    expect(errorText).toContain('disabled');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith('get_recent_items', {
+      token: mockToken,
+    });
+    expect(invoke).not.toHaveBeenCalledWith('get_connection_status', {
+      token: mockToken,
+    });
   });
 
   /**

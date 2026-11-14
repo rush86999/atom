@@ -38,6 +38,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -439,17 +440,28 @@ def test_actual_process_wait_restart_answers_same_job_with_verified_effect(
     assert first_log_path.exists() and second_log_path.exists()
 
 
-def _begin_wait(scratch: Path, log_name: str):
+def _begin_wait(
+    scratch: Path, log_name: str, *, deadline=None, deadline_seconds=None,
+):
     """Run one admitted job to a durable wait, then hard-kill its process."""
     proc, port, log, log_path = _start(scratch, log_name)
     try:
+        if deadline_seconds is not None:
+            deadline = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=deadline_seconds)).isoformat()
+        body = {
+            "parameters": {
+                "sync": True,
+                "task_input": "Create the closing task",
+            },
+        }
+        if deadline is not None:
+            body["deadline"] = deadline
         status, started = _call(
             port,
             "/api/agents/a1/run?operation_id=generic-process-recovery",
-            {"parameters": {
-                "sync": True,
-                "task_input": "Create the closing task",
-            }},
+            body,
         )
         assert status == 202, (status, started)
         data = started["data"]
@@ -457,10 +469,70 @@ def _begin_wait(scratch: Path, log_name: str):
         assert data["wait_receipt"]["correlation_id"], data
         payload = (
             data["job_id"], data["execution_id"], data["wait_receipt"],
-            proc.pid, log_path)
+            proc.pid, log_path, deadline)
     finally:
         _stop(proc, log, kill=True)
     return payload
+
+
+def test_actual_process_deadline_expiry_during_downtime_is_terminal(tmp_path):
+    """A wait whose absolute deadline elapses while the process is dead expires.
+
+    The successor runs the production boot order (expiry before accepted-answer
+    recovery). No model step, task or second job may be produced, and a late
+    public answer is a truthful 409 expiry.
+    """
+    _require_python()
+    scratch = tmp_path / "generic-deadline-world"
+    job_id, execution_id, receipt, first_pid, _, deadline = _begin_wait(
+        scratch, "deadline-first.log", deadline_seconds=8)
+    assert deadline
+
+    # Stay dead past the absolute deadline. The wait/row/execution survive.
+    deadline_at = datetime.fromisoformat(deadline)
+    time.sleep(max(9.0, (deadline_at - datetime.now(timezone.utc)).total_seconds() + 1.0))
+
+    successor, successor_port, successor_log, _ = _start(
+        scratch, "deadline-successor.log")
+    try:
+        expiry = json.loads(
+            (scratch / f"wait-expiry-{successor.pid}.json").read_text())
+        assert expiry["ran"] is True, expiry
+        assert expiry["result"]["expired"] == 1, expiry
+        detail = expiry["result"]["details"][0]
+        assert detail["job_id"] == job_id, detail
+        assert detail["expired"] is True, detail
+
+        after = _state(scratch)
+        assert after["jobs"][0]["id"] == job_id, after
+        assert after["jobs"][0]["status"] == "failed", after
+        summary = after["jobs"][0]["result_summary"]
+        assert summary["outcome"] == "expired", summary
+        assert summary["reason"] == "wait_deadline_exceeded", summary
+        assert summary["deadline"] == deadline, summary
+        assert after["executions"][0]["id"] == execution_id, after
+        assert after["executions"][0]["status"] == "failed", after
+        assert after["waits"][0]["status"] == "expired", after
+        assert after["waits"][0]["user_feedback"] is None, after
+        assert after["tasks"] == [], after
+        # Only the original wait step ran; expiry never called the model.
+        assert json.loads((scratch / "phase.json").read_text())["step"] == 1
+
+        late_status, late = _call(
+            successor_port,
+            f"/api/agents/a1/jobs/{job_id}/answer",
+            {"answer": ANSWER,
+             "correlation_id": receipt["correlation_id"]},
+        )
+        assert late_status == 409, (late_status, late)
+        assert late["detail"]["code"] == "information_wait_expired", late
+        final = _state(scratch)
+        assert final["jobs"][0]["status"] == "failed", final
+        assert final["tasks"] == [], final
+        assert json.loads(
+            (scratch / "phase.json").read_text())["step"] == 1
+    finally:
+        _stop(successor, successor_log, kill=False)
 
 
 def test_actual_process_startup_resumes_accepted_answer_after_crash_before_claim(
@@ -474,7 +546,7 @@ def test_actual_process_startup_resumes_accepted_answer_after_crash_before_claim
     """
     _require_python()
     scratch = tmp_path / "generic-accepted-answer-world"
-    job_id, execution_id, receipt, first_pid, _ = _begin_wait(
+    job_id, execution_id, receipt, first_pid, _, _deadline = _begin_wait(
         scratch, "accepted-first.log")
 
     crashing, crashing_port, crashing_log, _ = _start(
@@ -554,7 +626,7 @@ def test_actual_process_concurrent_startup_wakes_accepted_answer_once(
     """Two real startup processes race one accepted answer: exactly one wakes."""
     _require_python()
     scratch = tmp_path / "generic-concurrent-recovery-world"
-    job_id, execution_id, receipt, first_pid, _ = _begin_wait(
+    job_id, execution_id, receipt, first_pid, _, _deadline = _begin_wait(
         scratch, "concurrent-first.log")
 
     crashing, crashing_port, crashing_log, _ = _start(
@@ -629,7 +701,7 @@ def test_actual_process_recovery_selects_new_wait_behind_completed_history(
     """20 completed approved waits must not hide the 21st live accepted wait."""
     _require_python()
     scratch = tmp_path / "generic-history-world"
-    job_id, execution_id, receipt, first_pid, _ = _begin_wait(
+    job_id, execution_id, receipt, first_pid, _, _deadline = _begin_wait(
         scratch, "history-first.log")
 
     crashing, crashing_port, crashing_log, _ = _start(
@@ -690,7 +762,7 @@ def test_actual_process_interrupted_resume_claim_is_not_resent(tmp_path):
     """A crash AFTER the job claim is uncertain: report, never re-dispatch."""
     _require_python()
     scratch = tmp_path / "generic-claimed-answer-world"
-    job_id, execution_id, receipt, first_pid, _ = _begin_wait(
+    job_id, execution_id, receipt, first_pid, _, _deadline = _begin_wait(
         scratch, "claimed-first.log")
 
     crashing, crashing_port, crashing_log, _ = _start(

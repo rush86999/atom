@@ -9,7 +9,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { wsMock as wsBridge } from '../../tests/helpers/wsMock';
-import AgentsDashboard from "@/pages/agents/index";
+import AgentsDashboard, { deadlineInputToUtc, formatLocalTimeZone } from "@/pages/agents/index";
 import { handleSessionExpired } from "@/lib/auth-headers";
 import { ProductProfileProvider } from "@/lib/product-profile";
 
@@ -444,6 +444,133 @@ describe("AgentsDashboard", () => {
         expect.objectContaining({ title: "Error", description: "Network error" })
       )
     );
+  });
+
+  // --- Optional absolute deadline -------------------------------------
+  const findRunPost = () =>
+    mockFetch.mock.calls.find(([url, init]: any[]) =>
+      String(url).includes("/api/agents/a1/run") &&
+      String(init?.method || "GET").toUpperCase() === "POST"
+    ) as any[] | undefined;
+
+  test("run request omits the deadline field entirely when left blank", async () => {
+    renderAgents(<AgentsDashboard />);
+    await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Run")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
+
+    await waitFor(() => expect(findRunPost()).toBeDefined());
+    const body = JSON.parse(findRunPost()![1].body);
+    expect(body).toEqual({ parameters: { task_input: "" } });
+    expect("deadline" in body).toBe(false);
+  });
+
+  test("run request sends a local deadline as a top-level UTC instant", async () => {
+    renderAgents(<AgentsDashboard />);
+    await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Run")[0]);
+    const deadlineInput = screen.getByLabelText("Deadline (optional)");
+    expect(deadlineInput).toHaveAttribute("type", "datetime-local");
+    fireEvent.change(deadlineInput, { target: { value: "2099-01-15T09:30" } });
+    fireEvent.change(screen.getByPlaceholderText(/e.g. Reconcile inventory/), {
+      target: { value: "Close the books" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
+
+    await waitFor(() => expect(findRunPost()).toBeDefined());
+    const body = JSON.parse(findRunPost()![1].body);
+    expect(body.parameters.task_input).toBe("Close the books");
+    expect(body.deadline).toBe(
+      new Date(2099, 0, 15, 9, 30, 0, 0).toISOString()
+    );
+    expect(body.deadline.endsWith("Z")).toBe(true);
+  });
+
+  test("past deadline blocks the run and explains why", async () => {
+    renderAgents(<AgentsDashboard />);
+    await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Run")[0]);
+    fireEvent.change(screen.getByLabelText("Deadline (optional)"), {
+      target: { value: "2020-01-01T09:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
+
+    expect(await screen.findByTestId("run-deadline-error")).toHaveTextContent(
+      /future/i
+    );
+    expect(screen.getByLabelText("Deadline (optional)")).toHaveAttribute(
+      "aria-invalid",
+      "true"
+    );
+    expect(
+      mockFetch.mock.calls.some(([url]: any[]) => String(url).includes("/run"))
+    ).toBe(false);
+    // The dialog stays open so the deadline can be corrected.
+    expect(screen.getByRole("heading", { name: "Run Agent" })).toBeInTheDocument();
+  });
+
+  test("deadline helper text names the local timezone and UTC conversion", async () => {
+    renderAgents(<AgentsDashboard />);
+    await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Run")[0]);
+    expect(screen.getByTestId("run-deadline-help")).toHaveTextContent(
+      /local timezone/i
+    );
+    expect(screen.getByTestId("run-deadline-help")).toHaveTextContent(/UTC/);
+    expect(
+      screen.getByTestId("run-deadline-timezone").textContent?.trim().length
+    ).toBeGreaterThan(0);
+  });
+
+  test("an invalid deadline is rejected before it can reach the API", () => {
+    const now = new Date(2099, 0, 1, 12, 0, 0, 0).getTime();
+
+    expect(deadlineInputToUtc("", now)).toEqual({});
+    expect(deadlineInputToUtc("   ", now)).toEqual({});
+    expect(deadlineInputToUtc("not-a-date", now)).toEqual({
+      error: "Enter a valid date and time.",
+    });
+    // Out-of-range components are normalized by Date, not silently accepted.
+    expect(deadlineInputToUtc("2099-13-01T10:00", now)).toEqual({
+      error: "Enter a valid date and time.",
+    });
+    expect(deadlineInputToUtc("2099-02-31T10:00", now)).toEqual({
+      error: "Enter a valid date and time.",
+    });
+    expect(deadlineInputToUtc("2099-01-15 09:30", now)).toEqual({
+      error: "Enter a valid date and time.",
+    });
+  });
+
+  test("deadline conversion treats input as local wall clock and rejects the past", () => {
+    const now = new Date(2099, 0, 1, 12, 0, 0, 0).getTime();
+
+    expect(deadlineInputToUtc("2099-01-15T09:30", now)).toEqual({
+      deadline: new Date(2099, 0, 15, 9, 30, 0, 0).toISOString(),
+    });
+    // Seconds are accepted when the browser provides them.
+    expect(deadlineInputToUtc("2099-01-15T09:30:45", now)).toEqual({
+      deadline: new Date(2099, 0, 15, 9, 30, 45, 0).toISOString(),
+    });
+    expect(deadlineInputToUtc("2098-12-31T23:59", now)).toEqual({
+      error: "Choose a deadline in the future.",
+    });
+    expect(deadlineInputToUtc("2099-01-01T12:00", now)).toEqual({
+      error: "Choose a deadline in the future.",
+    });
+  });
+
+  test("timezone label names the zone or carries a UTC offset", () => {
+    const label = formatLocalTimeZone(new Date(2099, 0, 15));
+    expect(label.trim().length).toBeGreaterThan(0);
+    expect(label).toMatch(/UTC/);
+    if (label !== "UTC") {
+      expect(label).toMatch(/UTC[+-]\d{2}:\d{2}/);
+    }
   });
 
   test("stop agent success path", async () => {

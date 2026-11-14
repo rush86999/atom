@@ -53,9 +53,19 @@ export const mockPlatform = (platform: 'ios' | 'android'): void => {
     configurable: true,
   });
 
-  // Mock Platform.select to return platform-specific value
+  // Match react-native's Platform.ios.js / Platform.android.js: check the
+  // platform key first, then `native`, then `default`. Key presence decides
+  // the branch, so explicit null/undefined values are preserved rather than
+  // falling through to another platform.
   const selectSpy = jest.spyOn(Platform, 'select').mockImplementation((spec) => {
-    return spec[platform] ?? spec.ios ?? spec.android ?? spec.default ?? spec.native;
+    const values = spec as Record<string, unknown>;
+    const selected =
+      platform in values
+        ? values[platform]
+        : 'native' in values
+          ? values.native
+          : values.default;
+    return selected as any;
   });
 
   platformSpies.push(selectSpy);
@@ -499,10 +509,10 @@ export const createMockWebSocket = (connected = true) => {
  * const mockFn = createMockFn((x) => x * 2);
  * expect(mockFn(5)).toBe(10);
  */
-export const createMockFn = <T extends (...args: unknown[]) => unknown>(
+export const createMockFn = <T extends (...args: any[]) => any>(
   implementation: T
-): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+): jest.Mock => {
+  return jest.fn(implementation);
 };
 
 /**
@@ -516,10 +526,10 @@ export const createMockFn = <T extends (...args: unknown[]) => unknown>(
  * });
  * const result = await mockAsyncFn(1);
  */
-export const createMockAsyncFn = <T extends (...args: unknown[]) => Promise<unknown>>(
+export const createMockAsyncFn = <T extends (...args: any[]) => Promise<any>>(
   implementation: T
-): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+): jest.Mock => {
+  return jest.fn(implementation);
 };
 
 // ============================================================================

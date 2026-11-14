@@ -113,6 +113,8 @@ jest.mock('expo/virtual/env', () => ({
 
 jest.mock('expo-camera', () => {
   const CameraType = {
+    front: 'front',
+    back: 'back',
     Front: 'front',
     Back: 'back',
   };
@@ -169,6 +171,16 @@ jest.mock('expo-camera', () => {
       requestCameraPermissionsAsync,
       getCameraPermissionsAsync,
       isAvailableAsync,
+      useCameraPermissions: () => [
+        { granted: true, canAskAgain: true, status: 'granted' },
+        jest.fn().mockResolvedValue({ granted: true }),
+      ],
+      takePictureAsync,
+    },
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
     },
     CameraView: {
       requestCameraPermissionsAsync,
@@ -333,6 +345,23 @@ jest.mock('expo-notifications', () => {
       DEFAULT: 'default',
       LOW: 'low',
       MIN: 'min',
+    },
+    IosAuthorizationStatus: {
+      NOT_DETERMINED: 0,
+      DENIED: 1,
+      AUTHORIZED: 2,
+      PROVISIONAL: 3,
+      EPHEMERAL: 4,
+    },
+    IosAlertStyle: {
+      NONE: 0,
+      BANNER: 1,
+      ALERT: 2,
+    },
+    IosAllowsPreviews: {
+      NEVER: 0,
+      ALWAYS: 1,
+      WHEN_AUTHENTICATED: 2,
     },
   };
 
@@ -624,6 +653,14 @@ jest.mock('react-native-mmkv', () => {
     delete: jest.fn((key) => {
       mockMmkvStorage.delete(key);
     }),
+    remove: jest.fn((key) => {
+      mockMmkvStorage.delete(key);
+    }),
+    get size() {
+      return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
+        return acc + key.length + String(value).length;
+      }, 0);
+    },
     contains: jest.fn((key) => {
       return mockMmkvStorage.has(key);
     }),
@@ -733,10 +770,42 @@ jest.mock('@react-native-community/netinfo', () => {
   };
 
   return {
+    NetInfoStateType: {
+      unknown: 'unknown',
+      none: 'none',
+      cellular: 'cellular',
+      wifi: 'wifi',
+      bluetooth: 'bluetooth',
+      ethernet: 'ethernet',
+      wimax: 'wimax',
+      vpn: 'vpn',
+      other: 'other',
+    },
+    NetInfoCellularGeneration: {
+      '2g': '2g',
+      '3g': '3g',
+      '4g': '4g',
+      '5g': '5g',
+    },
     default: mockModule,
     ...mockModule,
   };
 });
+
+// ============================================================================
+// expo-media-library Mock
+// ============================================================================
+
+jest.mock('expo-media-library', () => ({
+  requestPermissionsAsync: jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  }),
+  saveToLibraryAsync: jest.fn().mockResolvedValue(undefined),
+  createAssetAsync: jest.fn().mockResolvedValue({ uri: 'file:///mock/asset.jpg' }),
+}));
 
 // ============================================================================
 // Alert Mock (React Native)

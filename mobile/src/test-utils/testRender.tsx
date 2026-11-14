@@ -40,9 +40,6 @@ type MockNavigation = {
 
 type CustomRenderOptions = Omit<RenderOptions, 'wrapper'> & {
   navigation?: Partial<MockNavigation>;
-  authContext?: any;
-  webSocketContext?: any;
-  deviceContext?: any;
 };
 
 // ============================================================================
@@ -64,80 +61,17 @@ const createMockNavigation = (overrides: Partial<MockNavigation> = {}): MockNavi
 });
 
 // ============================================================================
-// Default Context Values
-// ============================================================================
-
-const defaultAuthContext = {
-  isAuthenticated: true,
-  isLoading: false,
-  user: {
-    id: 'test-user-id',
-    email: 'test@example.com',
-    name: 'Test User',
-    avatar: null,
-  },
-  token: 'test-auth-token',
-  login: jest.fn(),
-  logout: jest.fn(),
-  register: jest.fn(),
-  refreshToken: jest.fn(),
-  biometricAuth: jest.fn(),
-};
-
-const defaultWebSocketContext = {
-  isConnected: true,
-  isConnecting: false,
-  reconnectAttempts: 0,
-  connect: jest.fn(),
-  disconnect: jest.fn(),
-  send: jest.fn(),
-  on: jest.fn(),
-  off: jest.fn(),
-  joinRoom: jest.fn(),
-  leaveRoom: jest.fn(),
-};
-
-const defaultDeviceContext = {
-  deviceInfo: {
-    id: 'test-device-id',
-    name: 'Test Device',
-    platform: 'ios',
-    osVersion: '16.0',
-    appVersion: '1.0.0',
-  },
-  permissions: {
-    camera: 'granted',
-    location: 'granted',
-    notifications: 'granted',
-    biometric: 'granted',
-  },
-  requestPermission: jest.fn(),
-  checkPermission: jest.fn(),
-  syncDevice: jest.fn(),
-};
-
-// ============================================================================
 // All Providers Wrapper
 // ============================================================================
 
 const AllProviders: React.FC<{
   children: React.ReactNode;
-  authContext?: any;
-  webSocketContext?: any;
-  deviceContext?: any;
-}> = ({
-  children,
-  authContext = defaultAuthContext,
-  webSocketContext = defaultWebSocketContext,
-  deviceContext = defaultDeviceContext,
-}) => {
+}> = ({ children }) => {
   return (
     <NavigationContainer>
-      <AuthProvider value={authContext}>
-        <WebSocketProvider value={webSocketContext}>
-          <DeviceProvider value={deviceContext}>
-            {children}
-          </DeviceProvider>
+      <AuthProvider>
+        <WebSocketProvider>
+          <DeviceProvider>{children}</DeviceProvider>
         </WebSocketProvider>
       </AuthProvider>
     </NavigationContainer>
@@ -159,24 +93,12 @@ export function renderWithProviders(
   ui: ReactElement,
   options: CustomRenderOptions = {}
 ) {
-  const {
-    navigation: navigationOverrides,
-    authContext,
-    webSocketContext,
-    deviceContext,
-    ...renderOptions
-  } = options;
+  const { navigation: navigationOverrides, ...renderOptions } = options;
 
   const mockNavigation = createMockNavigation(navigationOverrides);
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <AllProviders
-      authContext={authContext}
-      webSocketContext={webSocketContext}
-      deviceContext={deviceContext}
-    >
-      {children}
-    </AllProviders>
+    <AllProviders>{children}</AllProviders>
   );
 
   const result = render(ui, { wrapper, ...renderOptions });
@@ -190,7 +112,7 @@ export function renderWithProviders(
 /**
  * Simplified render without providers for isolated component tests
  */
-export function renderIn isolation(ui: ReactElement, options?: RenderOptions) {
+export function renderInIsolation(ui: ReactElement, options?: RenderOptions) {
   return render(ui, options);
 }
 
@@ -201,24 +123,12 @@ export function renderWithNavigation(
   ui: ReactElement,
   options: CustomRenderOptions = {}
 ) {
-  const {
-    navigation: navigationOverrides,
-    authContext,
-    webSocketContext,
-    deviceContext,
-    ...renderOptions
-  } = options;
+  const { navigation: navigationOverrides, ...renderOptions } = options;
 
   const mockNavigation = createMockNavigation(navigationOverrides);
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <AllProviders
-      authContext={authContext}
-      webSocketContext={webSocketContext}
-      deviceContext={deviceContext}
-    >
-      {children}
-    </AllProviders>
+    <AllProviders>{children}</AllProviders>
   );
 
   // Clone element and add navigation prop

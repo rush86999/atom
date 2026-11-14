@@ -3,6 +3,36 @@
 /// Tests verify serde JSON serialization for all data transfer objects
 /// used in the menubar desktop application.
 
+// `atom-menubar` is a binary-only Tauri crate, so an integration test cannot
+// link against `commands` as a library. Compile the production modules into
+// this test crate instead, supplying the crate-root items that `main.rs`
+// normally provides for them, so the DTO assertions below exercise the real
+// structs and serde derives rather than copies.
+use std::sync::Mutex;
+
+#[path = "../src/config.rs"]
+mod config;
+
+#[path = "../src/session.rs"]
+mod session;
+
+#[derive(Clone)]
+struct UserSession {
+    token: String,
+    user_id: String,
+    email: String,
+    device_id: String,
+}
+
+struct AppState {
+    auth_token: Mutex<Option<String>>,
+    user_session: Mutex<Option<UserSession>>,
+    session_lock: tokio::sync::Mutex<()>,
+}
+
+#[path = "../src/commands.rs"]
+mod commands;
+
 #[cfg(test)]
 mod tests {
     use serde_json;
@@ -56,11 +86,53 @@ mod tests {
             email: "user@example.com".to_string(),
             password: "password123".to_string(),
             device_name: "Test Device".to_string(),
+            totp_code: None,
         };
 
         assert_eq!(login_req.email, "user@example.com");
         assert_eq!(login_req.password, "password123");
         assert_eq!(login_req.device_name, "Test Device");
+        assert_eq!(login_req.totp_code, None);
+
+        // A first attempt must not send an empty second-factor field: the
+        // server distinguishes "no code" from "wrong code".
+        let json = serde_json::to_string(&login_req).expect("Failed to serialize");
+        assert!(!json.contains("totp_code"));
+    }
+
+    #[test]
+    fn test_login_request_serializes_totp_retry() {
+        let login_req = LoginRequest {
+            email: "user@example.com".to_string(),
+            password: "password123".to_string(),
+            device_name: "Test Device".to_string(),
+            totp_code: Some("123456".to_string()),
+        };
+
+        let json = serde_json::to_string(&login_req).expect("Failed to serialize");
+        assert!(json.contains("\"totp_code\":\"123456\""));
+    }
+
+    #[test]
+    fn test_login_error_message_shapes() {
+        // Companion handler refusal.
+        assert_eq!(
+            login_error_message("{\"error\":\"Invalid email or password\"}"),
+            Some("Invalid email or password".to_string())
+        );
+        // CSRF / shared middleware refusal.
+        assert_eq!(
+            login_error_message(
+                "{\"error\":{\"type\":\"csrf_token_invalid\",\"message\":\"Invalid or missing CSRF token\"}}"
+            ),
+            Some("Invalid or missing CSRF token".to_string())
+        );
+        // FastAPI validation/rate-limit shape.
+        assert_eq!(
+            login_error_message("{\"detail\":\"Too many login attempts\"}"),
+            Some("Too many login attempts".to_string())
+        );
+        assert_eq!(login_error_message("not-json"), None);
     }
 
     #[test]
@@ -76,6 +148,7 @@ mod tests {
                 last_name: "User".to_string(),
             }),
             error: None,
+            two_factor_required: None,
         };
 
         assert_eq!(login_resp.success, true);
@@ -83,6 +156,90 @@ mod tests {
         assert_eq!(login_resp.device_id, Some("device-xyz".to_string()));
         assert!(login_resp.user.is_some());
         assert_eq!(login_resp.error, None);
+    }
+
+    #[test]
+    fn test_login_response_tolerates_missing_two_factor_field() {
+        // Older/alternate backend responses omit the field entirely.
+        let parsed: LoginResponse = serde_json::from_str(
+            "{\"success\":false,\"error\":\"Invalid email or password\"}",
+        )
+        .expect("missing optional field must deserialize");
+        assert!(!parsed.success);
+        assert_eq!(parsed.two_factor_required, None);
+    }
+
+    #[test]
+    fn test_login_session_serializes_named_fields() {
+        // `login` is a Tauri success response: a Rust tuple would cross IPC as a
+        // positional JSON array, which the webview cannot read by field name.
+        let session = LoginSession {
+            token: "token-abc123".to_string(),
+            user: User {
+                id: "user-1".to_string(),
+                email: "test@example.com".to_string(),
+                first_name: "Test".to_string(),
+                last_name: "User".to_string(),
+            },
+            device_id: "device-xyz".to_string(),
+        };
+
+        let json = serde_json::to_value(&session).expect("Failed to serialize");
+
+        assert!(
+            json.is_object(),
+            "login success must serialize as a named object, got {json}"
+        );
+        assert_eq!(json["token"], "token-abc123");
+        assert_eq!(json["user"]["id"], "user-1");
+        assert_eq!(json["user"]["email"], "test@example.com");
+        assert_eq!(json["device_id"], "device-xyz");
+
+        let object = json.as_object().expect("expected a JSON object");
+        assert_eq!(object.len(), 3, "unexpected extra fields: {json}");
+    }
+
+    #[test]
+    fn test_session_info_serializes_named_fields() {
+        // `get_session` restores an existing session: token and user only.
+        let session = SessionInfo {
+            token: "token-abc123".to_string(),
+            user: User {
+                id: "user-1".to_string(),
+                email: "test@example.com".to_string(),
+                first_name: "".to_string(),
+                last_name: "".to_string(),
+            },
+        };
+
+        let json = serde_json::to_value(&session).expect("Failed to serialize");
+
+        assert!(
+            json.is_object(),
+            "get_session success must serialize as a named object, got {json}"
+        );
+        assert_eq!(json["token"], "token-abc123");
+        assert_eq!(json["user"]["id"], "user-1");
+        assert_eq!(json["user"]["email"], "test@example.com");
+
+        let object = json.as_object().expect("expected a JSON object");
+        assert_eq!(object.len(), 2, "unexpected extra fields: {json}");
+        assert!(
+            !object.contains_key("device_id"),
+            "device_id belongs to the login response only"
+        );
+    }
+
+    #[test]
+    fn test_login_error_stays_a_plain_string() {
+        // The concurrent frontend worker surfaces Tauri's rejection payload
+        // directly, so the error channel must stay a bare string.
+        let result: Result<LoginSession, String> = Err("Invalid email or password".to_string());
+
+        let error = result.expect_err("expected a login failure");
+        let json = serde_json::to_value(&error).expect("Failed to serialize");
+
+        assert_eq!(json, serde_json::json!("Invalid email or password"));
     }
 
     #[test]
@@ -179,8 +336,8 @@ mod tests {
         let canvases = vec![create_test_canvas()];
 
         let response = RecentItemsResponse {
-            agents: agents.clone(),
-            canvases: canvases.clone(),
+            agents,
+            canvases,
         };
 
         assert_eq!(response.agents.len(), 1);

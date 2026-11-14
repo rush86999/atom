@@ -13,7 +13,8 @@
  * - Badge count management
  */
 
-import { Notifications, Notification } from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
+import type { Notification } from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -87,7 +88,7 @@ class NotificationService {
 
       // Check initial permission status
       const settings = await Notifications.getPermissionsAsync();
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = this.mapPermissionStatus(settings);
 
       // Add notification received listener
       Notifications.addNotificationReceivedListener((notification) => {
@@ -111,6 +112,21 @@ class NotificationService {
   }
 
   /**
+   * Normalize Expo's platform permission status into the service's small union.
+   */
+  private mapPermissionStatus(
+    settings: Notifications.NotificationPermissionsStatus
+  ): NotificationPermissionStatus {
+    if (settings.granted) {
+      return 'granted';
+    }
+    if (String(settings.status) === 'undetermined') {
+      return 'undetermined';
+    }
+    return 'denied';
+  }
+
+  /**
    * Request notification permissions
    */
   async requestPermissions(): Promise<NotificationPermissionStatus> {
@@ -130,7 +146,7 @@ class NotificationService {
         android: {},
       });
 
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = this.mapPermissionStatus(settings);
 
       if (this.permissionStatus === 'granted') {
         // Register for push notifications after permission granted
@@ -152,7 +168,7 @@ class NotificationService {
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
     try {
       const settings = await Notifications.getPermissionsAsync();
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = this.mapPermissionStatus(settings);
       return this.permissionStatus;
     } catch (error) {
       console.error('NotificationService: Failed to get permission status:', error);

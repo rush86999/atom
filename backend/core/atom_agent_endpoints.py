@@ -2270,6 +2270,10 @@ Provide helpful, concise responses. When you need to take actions, describe what
             # Pass agent context for tracking
             if agent and governance_enabled:
                 stream_kwargs["agent_id"] = agent.id
+            # Exact audit attribution: this endpoint created an AgentExecution
+            # row above; bind every physical stream attempt's usage to it.
+            if agent_execution is not None:
+                stream_kwargs["execution_id"] = str(agent_execution.id)
 
             async for token in llm_service.stream_completion(**stream_kwargs):
                 accumulated_content += token

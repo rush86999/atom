@@ -251,9 +251,39 @@ class TestExecuteAgentChatLLM:
                 user_id="test-user-123",
             )
 
-            # Verify LLM service was called
+            # Verify LLM service was called with the authenticated scope pair
+            # (workspace_id and tenant_id are separate identifiers, never
+            # collapsed into tenant_id=workspace_id).
             mock_llm.assert_called_once()
-            mock_llm.assert_called_with(tenant_id="default", db=None)
+            mock_llm.assert_called_with(
+                workspace_id="default", tenant_id=None, db=None)
+
+    @pytest.mark.asyncio
+    async def test_stream_completion_receives_exact_execution_and_scope(
+        self, db, sample_agent
+    ):
+        """The shared stream call carries the turn's execution + auth scope."""
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
+            mock_llm.return_value.stream_completion.return_value = (
+                _async_stream_tokens(["Response"]))
+            mock_llm.return_value.analyze_query_complexity = Mock(
+                return_value="low")
+            mock_llm.return_value.get_optimal_provider = Mock(
+                return_value=("openai", "gpt-4"))
+
+            result = await execute_agent_chat(
+                agent_id=sample_agent.id,
+                message="Test",
+                user_id="test-user-123",
+                workspace_id="default",
+                tenant_id="tenant-authenticated",
+            )
+
+            kwargs = mock_llm.return_value.stream_completion.call_args.kwargs
+            assert result["success"] is True
+            assert kwargs["execution_id"] == result["execution_id"]
+            assert kwargs["workspace_id"] == "default"
+            assert kwargs["tenant_id"] == "tenant-authenticated"
 
     @pytest.mark.asyncio
     async def test_analyzes_query_complexity(self, db, sample_agent):

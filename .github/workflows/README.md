@@ -27,12 +27,14 @@ flowchart TB
   quick["quickstart"]
   core["backend-core"]
   oracle["backend-oracle"]
+  docker["backend-docker"]
   backend["backend-tests"]
   journey["e2e-journey"]
   frontend["frontend-typecheck"]
   install --> quick
   core --> backend
   oracle --> backend
+  docker --> backend
 ```
 
 | Job ID | Actual responsibility |
@@ -43,7 +45,8 @@ flowchart TB
 | `quickstart` | Aggregate all install entries; `always()` runs the result check and explicitly refuses a non-success matrix result. |
 | `backend-core` | Explicit backend test selections and supporting controls listed in the YAML. It does not run or certify every repository test. |
 | `backend-oracle` | Explicit oracle/governance/consumer boundary selections in the YAML. This does not close whole-app ORACLE coverage. |
-| `backend-tests` | Aggregate `backend-core` and `backend-oracle`; `always()` plus explicit result checks require both lanes to succeed. |
+| `backend-docker` | Hosted real-Docker acceptance for reviewed executable skills: the focused unit test plus the full-service service-restart journey. The container path has no host fallback, `ATOM_REQUIRE_DOCKER_SANDBOX=1` makes an unavailable daemon fail, and the step fails closed unless the emitted receipt proves a real `skill_*` container and a durable receipt re-read after the service restart. |
+| `backend-tests` | Aggregate `backend-core`, `backend-oracle` and `backend-docker`; `always()` plus explicit result checks require all three lanes to succeed. |
 | `e2e-journey` | Boot the backend and frontend and run the selected API/browser journeys. See the gating distinctions below. |
 | `frontend-typecheck` | Install frontend dependencies, attempt the web type check, and run the named frontend regression tests plus the menu bar companion install, strict TypeScript/Vite build and Jest controls. The web type-check step itself is currently best-effort; the companion build is gating. |
 

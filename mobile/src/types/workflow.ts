@@ -63,7 +63,7 @@ export interface WorkflowFilters {
   status?: string;
   category?: string;
   search?: string;
-  sort_by?: 'name' | 'created_at' | 'execution_count' | 'success_rate';
+  sort_by?: 'name' | 'created_at' | 'updated_at' | 'execution_count' | 'success_rate';
   sort_order?: 'asc' | 'desc';
 }
 

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import importlib
+import io
 import itertools
 import json
 import logging
@@ -42,6 +43,7 @@ def get_byok_manager(*args, **kwargs):
 from core.cost_config import (
     BYOK_ENABLED_PLANS,
     MODEL_TIER_RESTRICTIONS,
+    get_llm_audio_cost,
     get_llm_cost)
 from core.llm.provider_rate_limits import get_provider_rate_tracker
 import core.database
@@ -834,6 +836,76 @@ class _StreamInactivityError(RuntimeError):
     that silence a first-class failed attempt so the next provider/model can
     serve the turn — and, after visible output, ends the stream instead of
     replaying it."""
+
+
+def _record_generation_outcome(
+    sink: Optional[Dict[str, Any]],
+    *,
+    success: bool,
+    reason: Optional[str] = None,
+    message: Optional[str] = None,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Write THIS call's outcome into a caller-owned mapping.
+
+    ``generate_response`` keeps its legacy text return for direct callers, so
+    a failure is otherwise only recognizable by matching an error prefix in
+    the returned string. The completion facade needs an explicit outcome: a
+    provider/policy/budget error must never become ``content`` with
+    ``success=True``. The sink is a fresh dict per
+    ``LLMService.generate_completion`` call, so concurrent calls on the shared
+    handler cannot read each other's status, served identity or diagnostics.
+
+    ``provider``/``model`` on a failure are deliberately absent: no provider
+    served the call, and guessing one from a model string would claim a
+    transport pair that never answered. Best-effort: never raises.
+    """
+    if sink is None:
+        return
+    try:
+        sink.clear()
+        sink["success"] = bool(success)
+        sink["reason"] = reason
+        sink["message"] = message
+        sink["provider"] = provider
+        sink["model"] = model
+        sink["diagnostics"] = dict(diagnostics or {})
+    except Exception:  # noqa: BLE001 — metadata must never gate generation
+        pass
+
+
+def _accepted_text_return(
+    sink: Optional[Dict[str, Any]],
+    text: str,
+    provider: Optional[str],
+    model: Optional[str],
+) -> str:
+    """Record an accepted route and return its text (legacy API unchanged)."""
+    _record_generation_outcome(
+        sink, success=True, provider=provider, model=model)
+    return text
+
+
+def _failed_text_return(
+    sink: Optional[Dict[str, Any]],
+    reason: str,
+    text: str,
+    *,
+    message: Optional[str] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Record a terminal failure and return the legacy failure text.
+
+    The text still goes back to direct ``generate_response`` consumers (the
+    text API's contract), but the structured outcome says failure so
+    ``generate_completion`` never publishes it as an answer.
+    """
+    _record_generation_outcome(
+        sink, success=False, reason=reason, message=message or text,
+        diagnostics=diagnostics)
+    return text
 
 
 @dataclass
@@ -1899,6 +1971,152 @@ def _dynamic_price_row_present(fetcher: Any, model: str) -> bool:
         return True
 
 
+def _configured_audio_cost(
+    fetcher: Any, model: str, audio_seconds: Optional[float],
+) -> Optional[float]:
+    """Configured USD cost for ``audio_seconds`` of TIME-billed audio.
+
+    Time is the quantity: a token estimate (or a byte length) is not a valid
+    substitute. In particular this never routes audio through the per-token
+    ``estimate_cost``: a token estimator multiplies a fabricated token count
+    and would price an audio attempt on a quantity the provider does not
+    bill. The same model-price catalog is reused: an explicit per-second (or
+    per-minute) rate wins, a present-but-unusable row is unknown (never masked
+    by a static/fallback price), and the static table is consulted only for
+    its exact documented model identity.
+    """
+    if audio_seconds is None or isinstance(audio_seconds, bool):
+        return None
+    try:
+        seconds = float(audio_seconds)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    if fetcher is None:
+        return _valid_cost(get_llm_audio_cost(model, seconds))
+
+    audio_estimate = getattr(fetcher, "estimate_audio_cost", None)
+    if callable(audio_estimate):
+        try:
+            cost = audio_estimate(model, seconds)
+        except Exception:
+            cost = None
+        if cost is not None:
+            return _valid_cost(cost)
+
+    price_probe = getattr(fetcher, "get_model_price", None)
+    if callable(price_probe):
+        try:
+            pricing = price_probe(model)
+        except Exception:
+            # Cannot prove absence: never replace an unreadable configured row
+            # with a fallback/free fact.
+            return None
+        if pricing is not None:
+            rate = DynamicPricingFetcher.audio_rate_per_second(pricing)
+            if rate is None:
+                return None
+            return _valid_cost(rate * seconds)
+
+    # No configured audio row is readable: only a static price for this exact
+    # model identity may fill the gap. Unknown stays unknown (None).
+    return _valid_cost(get_llm_audio_cost(model, seconds))
+
+
+def _positive_seconds(value: Any) -> Optional[float]:
+    """Finite positive duration in seconds, or ``None``.
+
+    Used for durations that are evidence of the billed quantity. Zero,
+    negatives, NaN/inf, bools and non-numerics are not durations.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    return seconds
+
+
+def _read_audio_payload(file: Any) -> tuple:
+    """Read audio bytes for duration probing without consuming the transport.
+
+    Returns ``(data, transport_file, filename)``. A seekable file-like object
+    is rewound to its original position; a non-seekable stream is replaced by
+    an equivalent ``BytesIO`` so the one physical dispatch still receives all
+    of the bytes. Unreadable/test objects yield ``(None, file, name)``.
+    """
+    name = getattr(file, "name", None)
+    if isinstance(file, (tuple, list)) and len(file) >= 2:
+        if isinstance(file[0], str):
+            name = file[0]
+        payload = file[1]
+        if isinstance(payload, (bytes, bytearray, memoryview)):
+            return bytes(payload), file, name
+    if isinstance(file, (bytes, bytearray, memoryview)):
+        return bytes(file), file, name
+
+    reader = getattr(file, "read", None)
+    if callable(reader):
+        position = None
+        try:
+            position = file.tell()
+        except Exception:
+            position = None
+        try:
+            payload = reader()
+        except Exception:
+            return None, file, name
+        if isinstance(payload, (bytes, bytearray, memoryview)):
+            data = bytes(payload)
+            if position is not None:
+                try:
+                    file.seek(position)
+                    return data, file, name
+                except Exception:
+                    pass
+            replacement = io.BytesIO(data)
+            if isinstance(name, str) and name:
+                try:
+                    replacement.name = name
+                except Exception:
+                    pass
+            return data, replacement, name
+        return None, file, name
+
+    if isinstance(file, (str, os.PathLike)):
+        try:
+            with open(file, "rb") as handle:
+                return handle.read(), file, os.fspath(file)
+        except Exception:
+            return None, file, name
+    return None, file, name
+
+
+def _audio_duration_from_response(response: Any) -> Optional[float]:
+    """Audio duration the provider reports for the completed call.
+
+    Trusted as the settlement quantity (post-dispatch) only: OpenAI's
+    ``verbose_json`` reports the duration it actually billed. It is never used
+    to shape the pre-dispatch reservation, and a missing/invalid value returns
+    ``None`` (explicit unknown liability) instead of a fabricated number.
+    """
+    for field in ("duration", "audio_duration"):
+        seconds = _positive_seconds(_response_field(response, field))
+        if seconds is not None:
+            return seconds
+    usage = _response_usage(response)
+    for field in ("duration", "audio_duration", "seconds"):
+        value = _response_field(usage, field) if usage is not None else None
+        seconds = _positive_seconds(value)
+        if seconds is not None:
+            return seconds
+    return None
+
+
 def _opencode_free_paid_fallback() -> dict:
     raw = os.getenv("OPENCODE_FREE_PAID_FALLBACK", "").strip()
     if raw:
@@ -2227,6 +2445,12 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        # Provider-native stop reason for the last completed non-streaming
+        # call ("stop"/"length"/"max_tokens"/...). generate_response returns
+        # only text, so callers that assemble a deliverable (fleet final
+        # synthesis) read this to distinguish a natural stop from an output
+        # that was cut off at the token cap. Cleared per call.
+        self._last_finish_reason: Optional[str] = None
         #: ``routing_result_id`` of the most recently recorded outcome row —
         #: the generation identity a later corrective verdict attaches to.
         self._last_feedback_decision_id: Optional[str] = None
@@ -3085,15 +3309,41 @@ class BYOKHandler:
                     return val.strip()
         return ""
 
-    def _stash_last_reasoning(self, response: Any) -> None:
-        """Stash the chain-of-thought of the last non-streaming completion
-        onto ``self._last_reasoning`` (same stash pattern as
-        _last_used_model). Best-effort: never raises."""
+    def _stash_last_reasoning(
+        self,
+        response: Any,
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Stash the chain-of-thought and provider stop reason of the last
+        non-streaming completion.
+
+        ``self._last_reasoning`` / ``self._last_finish_reason`` are kept for
+        the backward-compatible text API, but they are shared mutable state:
+        a concurrent call on the same handler can overwrite them while this
+        call is still awaiting post-response work (observed for the fleet
+        synthesis consumer). ``LLMService.generate_completion`` therefore
+        never reads the shared stop reason; it passes a caller-owned
+        ``finish_reason_sink`` mapping, and this method writes THIS call's
+        real provider reason there in the same task as the accepted response.
+        Concurrent calls cannot read each other's stop reason, and a sink
+        that is never written stays unknown (``None``). Best-effort: never
+        raises.
+        """
+        finish_reason: Optional[str] = None
         try:
-            msg = response.choices[0].message
+            choice = response.choices[0]
+            finish_reason = _response_field(choice, "finish_reason")
+            self._last_finish_reason = finish_reason
+            msg = choice.message
             self._last_reasoning = self._reasoning_from_message(msg) or None
         except Exception:
+            self._last_finish_reason = None
             self._last_reasoning = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = finish_reason
+            except Exception:
+                pass
 
     @staticmethod
     def _record_auth_success(provider_id: str, model: str) -> None:
@@ -4904,6 +5154,7 @@ class BYOKHandler:
         attempt_id: str,
         reserved_bound: Optional[float],
         agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         usage: Any = None,
     ) -> None:
         """Settle a successful stream attempt: actual when usage is supplied.
@@ -4947,6 +5198,7 @@ class BYOKHandler:
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
                 tenant_id=getattr(self, "tenant_id", None),
+                execution_id=execution_id,
                 request_id=request_id,
                 attempt_id=attempt_id,
             )
@@ -7124,6 +7376,19 @@ class BYOKHandler:
         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
         estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
         execution_id: Optional[str] = None,  # Optional server-owned execution attribution
+        # Caller-owned, per-call transport metadata sink. The accepted route
+        # writes ``finish_reason`` here. Optional and additive: callers that
+        # only consume the text API keep working unchanged.
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
+        # Caller-owned, per-call GENERATION OUTCOME sink. Every terminal
+        # return writes ``success`` plus a typed ``reason`` (and diagnostics
+        # for failures); the accepted routes write the real served
+        # provider/model. ``LLMService.generate_completion`` passes one fresh
+        # mapping per call and uses it to distinguish an accepted reply from
+        # a provider/policy/budget failure whose text used to be returned
+        # with ``success=True``. Optional and additive, so the legacy text
+        # API keeps working unchanged.
+        outcome_sink: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -7151,19 +7416,40 @@ class BYOKHandler:
         except Exception:
             pass
 
-        # Same staleness rule for the chain-of-thought stash: a call that
-        # produces no reasoning must not inherit the previous call's.
+        # Same staleness rule for the chain-of-thought and stop-reason
+        # stashes: a call that produces no reasoning/stop reason must not
+        # inherit the previous call's. The caller-owned sink is cleared in
+        # the calling task so a retained sink cannot show an older reason
+        # either; an accepted route below overwrites it with real provider
+        # metadata.
         self._last_reasoning = None
+        self._last_finish_reason = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = None
+            except Exception:
+                pass
+        # A retained outcome mapping must never leak a previous call's
+        # success/reason/identity into this one. The sink is normally fresh
+        # per call, but clearing here makes "unwritten" mean unknown even for
+        # a reused mapping.
+        if outcome_sink is not None:
+            try:
+                outcome_sink.clear()
+            except Exception:
+                pass
 
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
-            return "Trial Expired: Your free trial has ended. Please upgrade your plan in settings to continue using AI agents."
+            return _failed_text_return(
+                outcome_sink, "trial_restricted",
+                "Trial Expired: Your free trial has ended. Please upgrade your plan in settings to continue using AI agents.")
         if not self.clients:
             if task_type == "agentic":
                 # FOR DEMO: Return a mock JSON that continues the agentic loop
                 if "Check my inbox" in prompt or "analyze" in prompt.lower() or "market" in prompt.lower():
-                    return json.dumps({
+                    _demo_text = json.dumps({
                         "thought": "The user wants a full end-to-end machinery quote and client analysis. I will start by performing the market analysis.",
                         "plan_update": ["Perform market analysis for brennan.ca", "Read inbound emails", "Calculate quote and save to Excel", "Update CRM", "Send final email with meeting invite"],
                         "action": "perform_market_analysis",
@@ -7171,17 +7457,33 @@ class BYOKHandler:
                         "log": "> Starting Market Analysis for Brennan.ca...",
                         "deliverable": None
                     })
-                return json.dumps({
+                    return _failed_text_return(
+                        outcome_sink, "no_providers_configured",
+                        _demo_text,
+                        message=(
+                            "No LLM provider is configured; a scripted agentic "
+                            "demo response was returned instead."))
+                _demo_text = json.dumps({
                     "thought": "LLM not initialized, but running in agentic demo mode.",
                     "action": "DONE",
                     "log": "AI Employee Demo Mode active (No API Keys found)."
                 })
-            return "LLM Client not initialized (No API Keys configured)."
+                return _failed_text_return(
+                    outcome_sink, "no_providers_configured",
+                    _demo_text,
+                    message=(
+                        "No LLM provider is configured; a scripted agentic "
+                        "demo response was returned instead."))
+            return _failed_text_return(
+                outcome_sink, "no_providers_configured",
+                "LLM Client not initialized (No API Keys configured).")
         
         # --- Budget Enforcement (Phase 56) ---
         if llm_usage_tracker.is_budget_exceeded(self.workspace_id):
             logger.warning(f"AI Generation Blocked: Budget exceeded for workspace {self.workspace_id}")
-            return "🚨 BUDGET EXCEEDED: Your AI usage has reached 100% of your limit. Please increase your budget in Settings to continue."
+            return _failed_text_return(
+                outcome_sink, "budget_exceeded",
+                "🚨 BUDGET EXCEEDED: Your AI usage has reached 100% of your limit. Please increase your budget in Settings to continue.")
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
@@ -7478,9 +7780,18 @@ class BYOKHandler:
                         turn_index=turn_index,
                     )
                 except NoProvidersConfiguredError:
-                    return (
+                    return _failed_text_return(
+                        outcome_sink, "no_eligible_providers",
                         "No eligible LLM providers found for your current "
-                        "plan.")
+                        "plan.",
+                        diagnostics={
+                            "candidate_count": 0,
+                            "failed_providers": [],
+                            "last_error": None,
+                            "last_error_type": None,
+                            "last_finish_reason": None,
+                            "routing": "empty_ranked_pool",
+                        })
                 options = [(_fb_provider, _fb_model)]
                 logger.warning(
                     "[routing] ranked pool empty — using the absolute "
@@ -7495,7 +7806,16 @@ class BYOKHandler:
                 options[0][1] if options else "",
             )
             if _taint_block:
-                return _taint_block
+                return _failed_text_return(
+                    outcome_sink, "prompt_blocked", _taint_block,
+                    diagnostics={
+                        "candidate_count": len(options),
+                        "failed_providers": [],
+                        "last_error": None,
+                        "last_error_type": None,
+                        "last_finish_reason": None,
+                        "routing": "prompt_taint_gate",
+                    })
 
             last_error = None
             primary_provider = options[0][0] if options else None
@@ -7739,7 +8059,7 @@ class BYOKHandler:
                     else:
                         _release_once()
                     self._capture_echoed_model(response)
-                    self._stash_last_reasoning(response)
+                    self._stash_last_reasoning(response, finish_reason_sink)
                     self._clear_model_cooldown(provider_id, model)
 
                     if not getattr(response, "choices", None):
@@ -7967,7 +8287,8 @@ class BYOKHandler:
                     # attempted one.
                     set_served_route(provider_id, model)
 
-                    return result
+                    return _accepted_text_return(
+                        outcome_sink, result, provider_id, model)
 
                 except Exception as attempt_err:
                     if isinstance(attempt_err, _AccountingBlockedError):
@@ -8034,7 +8355,7 @@ class BYOKHandler:
                             response = await _to_thread_safe(
                                 client.chat.completions.create, **_t_kwargs)
                             self._capture_echoed_model(response)
-                            self._stash_last_reasoning(response)
+                            self._stash_last_reasoning(response, finish_reason_sink)
                             result = response.choices[0].message.content
                             if not _visible_content_missing(result):
                                 self._settle_physical_response(
@@ -8053,7 +8374,8 @@ class BYOKHandler:
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
                                 set_served_route(provider_id, model)
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id, model)
                         except _AccountingBlockedError:
                             raise
                         except Exception as _temp_retry_err:
@@ -8116,7 +8438,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_fb_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8141,7 +8463,9 @@ class BYOKHandler:
                                 logger.info(
                                     f"Fallback succeeded: {provider_id}/{fallback_model}"
                                 )
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id,
+                                    fallback_model)
                             except _AccountingBlockedError:
                                 raise
                             except Exception as fb_err:
@@ -8251,7 +8575,7 @@ class BYOKHandler:
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
-                                    self._stash_last_reasoning(response)
+                                    self._stash_last_reasoning(response, finish_reason_sink)
                                     result = response.choices[0].message.content
                                     if _visible_content_missing(result):
                                         raise _EmptyCompletionError(
@@ -8297,7 +8621,9 @@ class BYOKHandler:
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
                                     set_served_route(provider_id, model)
-                                    return result
+                                    return _accepted_text_return(
+                                        outcome_sink, result, provider_id,
+                                        model)
                                 except _AccountingBlockedError:
                                     raise
                                 except Exception as retry_err:
@@ -8358,7 +8684,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_paid_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8403,7 +8729,9 @@ class BYOKHandler:
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
                                 set_served_route(provider_id, paid_model)
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id,
+                                    paid_model)
                             except _AccountingBlockedError:
                                 raise
                             except Exception as paid_err:
@@ -8526,6 +8854,7 @@ class BYOKHandler:
                         response = await _to_thread_safe(
                             _client.chat.completions.create, **_sweep_kwargs)
                         self._capture_echoed_model(response)
+                        self._stash_last_reasoning(response, finish_reason_sink)
                         _sweep_result = response.choices[0].message.content
                         if _visible_content_missing(_sweep_result):
                             raise _EmptyCompletionError(
@@ -8549,7 +8878,8 @@ class BYOKHandler:
                         self._last_used_model = _sm
                         self._last_used_provider = _sp
                         set_served_route(_sp, _sm)
-                        return _sweep_result
+                        return _accepted_text_return(
+                            outcome_sink, _sweep_result, _sp, _sm)
                     except Exception as _sweep_attempt_err:
                         logger.warning(
                             f"completion ladder sweep attempt failed for "
@@ -8557,6 +8887,69 @@ class BYOKHandler:
                         last_error = _sweep_attempt_err
                 logger.error(
                     f"completion ladder sweep exhausted; all fallbacks failed")
+
+            # CALL-LOCAL FAILURE DIAGNOSTICS (2026-11-14). Compute the typed
+            # reason and retained attempt evidence BEFORE building any
+            # fallback text, so the completion facade can return a structured
+            # failure instead of the text as an answer. ``last_error`` and
+            # ``failed_providers`` are locals of this call; the stop reason is
+            # read from the caller-owned sink, never the shared
+            # ``_last_finish_reason`` attribute another concurrent call may
+            # have overwritten.
+            _last_attempt_finish_reason = None
+            if finish_reason_sink is not None:
+                _raw_attempt_reason = finish_reason_sink.get("finish_reason")
+                if isinstance(_raw_attempt_reason, str):
+                    _last_attempt_finish_reason = (
+                        _raw_attempt_reason.strip().lower() or None)
+            _policy = getattr(self, "provider_policy", None)
+            _failure_reason = "all_providers_failed"
+            _failure_routing = "ranked_candidates_exhausted"
+            if isinstance(last_error, _EmptyCompletionError):
+                _failure_reason = "empty_generation"
+            if last_error is None and not failed_providers:
+                # ZERO provider attempts with no retained error. Two routing
+                # shapes produce this: the ranked pool was empty, or the
+                # ranked pool had candidates that were all filtered out
+                # before dispatch (cooldown, catalog admission, policy,
+                # in-flight claim). The retained live evidence cannot
+                # distinguish the filters that produced the observed run, so
+                # name the ROUTING state and never invent a cause. The old
+                # text claimed "every configured provider failed" with
+                # "Last error: None".
+                _failure_reason = "no_dispatchable_candidates"
+                _failure_routing = (
+                    "empty_ranked_pool" if not options
+                    else "all_candidates_skipped")
+                if (_policy is not None
+                        and getattr(_policy, "enforced", False)
+                        and self.clients
+                        and not any(
+                            _policy.allows_provider(p)
+                            for p in self.clients)):
+                    # One REPRODUCIBLE zero-attempt control, not a claim
+                    # about the observed live run: an enforcing policy that
+                    # allows none of the configured providers. The policy is
+                    # never weakened to force a dispatch.
+                    _failure_reason = "policy_blocked"
+                    _failure_routing = "provider_policy_excluded_all"
+            _failure_diagnostics = {
+                "candidate_count": len(options),
+                "failed_providers": sorted(failed_providers),
+                "last_error": (
+                    str(last_error)[:500] if last_error else None),
+                "last_error_type": (
+                    type(last_error).__name__ if last_error else None),
+                "last_finish_reason": _last_attempt_finish_reason,
+                "routing": _failure_routing,
+            }
+            if _policy is not None and getattr(_policy, "enforced", False):
+                _failure_diagnostics["policy"] = {
+                    "mode": getattr(_policy, "mode", None),
+                    "allowed_providers": sorted(
+                        getattr(_policy, "allowed_providers", []) or []),
+                    "revision": getattr(_policy, "revision", None),
+                }
 
             # TRUTHFUL FALLBACK (2026-09-21): the generic "check your API key"
             # text misattributed a temperature-rejection (400) and — worse —
@@ -8582,41 +8975,118 @@ class BYOKHandler:
                     p for p in self.clients.keys()
                     if p not in _credit_failed_providers
                     and not self._provider_cooldown_active(p))
+                _credit_diagnostics = {
+                    "candidate_count": len(options),
+                    "failed_providers": sorted(failed_providers),
+                    "credit_failed_providers": sorted(
+                        _credit_failed_providers),
+                    "last_error": (
+                        str(last_error)[:500] if last_error else None),
+                    "last_error_type": (
+                        type(last_error).__name__ if last_error else None),
+                    "last_finish_reason": _last_attempt_finish_reason,
+                    "routing": (
+                        "ranked_candidates_exhausted" if options
+                        else "empty_ranked_pool"),
+                }
                 if _untried:
-                    return (
+                    _credit_text = (
                         "I couldn't generate a response — the providers "
                         f"this answer tried ({_names}) are out of credits. "
                         f"Healthy providers ({', '.join(_untried)}) were "
                         "reached by the fallback sweep but could not serve "
                         f"this request either. Last provider error: "
                         f"{str(last_error or '')[:160]}")
-                return (
+                    return _failed_text_return(
+                        outcome_sink, "credit_exhausted", _credit_text,
+                        diagnostics=_credit_diagnostics)
+                _credit_text = (
                     "I couldn't generate a response — every configured "
                     f"provider is out of credits ({_names}). The last "
                     f"provider error: {str(last_error or '')[:160]} Top up "
                     "the provider balances in Settings → Providers, then "
                     "ask again — retrying without a top-up will fail the "
                     "same way.")
+                return _failed_text_return(
+                    outcome_sink, "credit_exhausted", _credit_text,
+                    diagnostics=_credit_diagnostics)
             _cause = str(last_error or "no provider attempted")[:200]
-            return (
+            _failure_text = (
                 "I couldn't generate a response — every configured provider "
                 f"failed. Last error: {_cause}. Check provider status or "
                 "credentials in Settings and try again.")
+            # The legacy text above stays for direct generate_response
+            # consumers. The STRUCTURED failure message must describe what
+            # actually happened: "every configured provider failed" is false
+            # when the policy excluded every provider before dispatch.
+            _failure_message = _failure_text
+            if _failure_reason == "policy_blocked":
+                _allowed = ", ".join(
+                    _failure_diagnostics.get("policy", {}).get(
+                        "allowed_providers") or []) or "none"
+                _failure_message = (
+                    "No provider was attempted: the installation provider "
+                    f"policy excludes every configured provider (allowed: "
+                    f"{_allowed}; revision "
+                    f"{_failure_diagnostics.get('policy', {}).get('revision')}). "
+                    "No provider was called.")
+            elif _failure_reason == "no_dispatchable_candidates":
+                # The structured message must describe THIS routing state.
+                # Saying "the ranked pool was empty" was false whenever
+                # candidates existed and every one was filtered out before
+                # dispatch. The retained metadata does not identify which
+                # filter skipped a candidate, so say filtered/unknown rather
+                # than inventing cooldown, catalog, or policy as the cause.
+                if _failure_routing == "all_candidates_skipped":
+                    _failure_message = (
+                        f"No provider was attempted: the ranked pool had "
+                        f"{len(options)} candidate(s), but every candidate "
+                        "was filtered out before dispatch (the exact skip "
+                        "cause was not retained). No provider was called.")
+                else:
+                    _failure_message = (
+                        "No provider was attempted: routing produced no "
+                        "dispatchable ranked candidate (the ranked pool was "
+                        "empty). No provider was called.")
+            elif _failure_reason == "empty_generation":
+                _reason_suffix = (
+                    f" (last attempt finish_reason={_last_attempt_finish_reason})"
+                    if _last_attempt_finish_reason else "")
+                _failure_message = (
+                    "The provider returned no visible content"
+                    f"{_reason_suffix}; no accepted reply was produced. "
+                    f"Last error: {_cause}.")
+            return _failed_text_return(
+                outcome_sink, _failure_reason, _failure_text,
+                message=_failure_message,
+                diagnostics=_failure_diagnostics)
 
         except _AccountingBlockedError as accounting_err:
             logger.error(
                 "LLM generation blocked by accounting refusal: %s",
                 accounting_err)
-            return (
+            _accounting_text = (
                 "I couldn't generate a response — this request could not be "
                 "authorized against the configured budget/pricing (unknown "
                 "or invalid model price, or the budget ledger is "
                 "unavailable). Check the model pricing and budget "
                 "configuration, then retry.")
+            return _failed_text_return(
+                outcome_sink, "accounting_blocked", _accounting_text,
+                diagnostics={
+                    "last_error": str(accounting_err)[:500],
+                    "last_error_type": type(accounting_err).__name__,
+                })
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             logger.error(f"LLM Generation failed: {e}", exc_info=True)
-            return "I'm sorry, an error occurred while generating a response. Please try again."
+            return _failed_text_return(
+                outcome_sink, "generation_error",
+                "I'm sorry, an error occurred while generating a response. Please try again.",
+                diagnostics={
+                    "last_error": str(e)[:500],
+                    "last_error_type": type(e).__name__,
+                })
 
     async def _record_outcome_feedback(
         self,
@@ -11320,13 +11790,122 @@ class BYOKHandler:
         # Graceful degradation: best-ranked valid sample wins.
         return valid[0]
 
+    def _admit_transcription_attempt(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        audio_seconds: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> tuple:
+        """Durable pre-dispatch admission for ONE physical transcription call.
+
+        Transcription is billed by media TIME. The bound uses the duration
+        read from the actual audio container (never a byte length or a caller
+        hint that contradicts it) and the same TokenUsage reservation ledger
+        as every other paid attempt. Unknown duration or unknown/invalid price
+        is an explicit unknown bound: hard_stop refuses before any audio
+        leaves the process.
+
+        Enforcement is always on. A non-default tenant whose billing policy
+        cannot be resolved fails closed through the strict policy read, the
+        same as every other paid dispatch; an unresolvable scope is never
+        downgraded to an unenforced ledger row.
+        """
+        request_id = f"transcription-{uuid.uuid4().hex}"
+        attempt_id = f"{request_id}:1"
+        cost = _configured_audio_cost(
+            get_pricing_fetcher(), model, audio_seconds)
+        if cost is None:
+            bound = None
+        else:
+            try:
+                margin = float(
+                    os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
+            except (TypeError, ValueError):
+                margin = 1.25
+            if not math.isfinite(margin) or margin < 1.0:
+                margin = 1.25
+            bound = _valid_cost(cost * margin)
+        tenant_id = getattr(self, "tenant_id", None)
+        try:
+            from core.spend_aggregation_service import begin_llm_usage
+
+            begin_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=tenant_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+                reserved_cost_usd=bound,
+                enforce_budget=True,
+            )
+        except Exception as intent_err:
+            raise _AccountingBlockedError(
+                f"transcription admission refused for "
+                f"{provider_id}/{model} ({type(intent_err).__name__})"
+            ) from intent_err
+        return request_id, attempt_id, bound
+
+    def _settle_transcription_response(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        response: Any,
+        request_id: str,
+        attempt_id: str,
+        reserved_bound: Optional[float],
+        audio_seconds: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> None:
+        """Settle one transcription response under its exact attempt id.
+
+        The provider's reported ``duration`` wins; otherwise the duration read
+        from the submitted media is the actual billed quantity. No duration
+        means explicit unknown liability (the reservation is retained), never
+        a fabricated free/zero settlement. A genuine numeric-zero admission
+        bound remains authoritative free.
+        """
+        actual_seconds = _audio_duration_from_response(response)
+        if actual_seconds is None:
+            actual_seconds = audio_seconds
+        cost: Optional[float] = None
+        if actual_seconds is not None:
+            cost = _configured_audio_cost(
+                get_pricing_fetcher(), model, actual_seconds)
+        if reserved_bound == 0.0 and cost is None:
+            cost = 0.0
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error(
+                "LLM transcription settlement failed (%s)",
+                type(settle_err).__name__)
+
     async def generate_transcription(
         self,
         file: Any,
         model: str = "whisper-1",
         language: Optional[str] = None,
         prompt: Optional[str] = None,
-        response_format: str = "json"
+        response_format: str = "json",
+        duration_seconds: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Transcribe audio to text using OpenAI Whisper.
@@ -11351,17 +11930,69 @@ class BYOKHandler:
         if not client:
             raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
 
+        # ONE physical request per admission. The clients built by
+        # `_initialize_clients` already carry `max_retries=0`, but a runtime
+        # injected/compatible client (the supported local-verification path
+        # points an SDK client at a local server) keeps the SDK default of 2
+        # retries: a hidden retry is a second billed wire call that this
+        # single reservation does not cover. Any client that declares a
+        # positive numeric retry budget must be reduced to zero before audio
+        # leaves the process, or the dispatch is refused.
+        raw_client = getattr(client, "client", client)
+        retry_budget = getattr(raw_client, "max_retries", None)
+        if (isinstance(retry_budget, int) and not isinstance(retry_budget, bool)
+                and retry_budget > 0):
+            disable_retries = getattr(raw_client, "with_options", None)
+            if not callable(disable_retries):
+                raise ValueError(
+                    "Transcription transport retries cannot be disabled; "
+                    "audio was not sent.")
+            try:
+                raw_client = disable_retries(max_retries=_SDK_MAX_RETRIES)
+            except Exception as retry_err:
+                raise ValueError(
+                    "Transcription transport retries cannot be disabled; "
+                    "audio was not sent.") from retry_err
+
+        audio_bytes, transport_file, filename = _read_audio_payload(file)
+        measured_seconds = None
+        if audio_bytes:
+            from core.media_duration import media_duration_seconds
+
+            measured_seconds = media_duration_seconds(audio_bytes, filename)
+        # Billing evidence order: the submitted media bytes are authoritative
+        # for the pre-dispatch bound. A caller-supplied hint is accepted only
+        # when the payload could not be measured at all, and it can never
+        # override (i.e. shrink) a duration measured from the bytes.
+        duration_seconds = (
+            measured_seconds if measured_seconds is not None
+            else _positive_seconds(duration_seconds))
+
+        _tx_request_id, _tx_attempt_id, _tx_bound = (
+            self._admit_transcription_attempt(
+                provider_id=provider_id,
+                model=model,
+                audio_seconds=duration_seconds,
+            )
+        )
         try:
             # Use the underlying openai client if it's patched by instructor
             # or use it directly if it's a standard client
-            raw_client = getattr(client, "client", client)
-            
             response = await raw_client.audio.transcriptions.create(
                 model=model,
-                file=file,
+                file=transport_file,
                 language=language,
                 prompt=prompt,
                 response_format=response_format
+            )
+            self._settle_transcription_response(
+                provider_id=provider_id,
+                model=model,
+                response=response,
+                request_id=_tx_request_id,
+                attempt_id=_tx_attempt_id,
+                reserved_bound=_tx_bound,
+                audio_seconds=duration_seconds,
             )
             
             # Format response (handle both standard and raw response types)
@@ -11372,6 +12003,8 @@ class BYOKHandler:
                 "model": model,
                 "provider": provider_id
             }
+        except _AccountingBlockedError:
+            raise
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")
             raise
@@ -11627,6 +12260,7 @@ class BYOKHandler:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         db = None,
         task_type: Optional[str] = "chat",
         extra_kwargs: Optional[Dict[str, Any]] = None,
@@ -11650,6 +12284,10 @@ class BYOKHandler:
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             agent_id: Optional agent ID for governance tracking
+            execution_id: Optional server-owned AgentExecution id. Every
+                physical attempt (initial, self-heal, paid sibling, ranked
+                route hop, sweep) records it on its own durable usage row;
+                absent means the caller has no execution to attribute.
             db: Optional database session for governance tracking
             extra_kwargs: Extra kwargs forwarded to the provider stream call
                 (e.g. ``stop``/``top_p`` — previously silently dropped, so the
@@ -11934,6 +12572,7 @@ class BYOKHandler:
                         messages=messages,
                         max_output_tokens=_attempt_max_tokens,
                         agent_id=agent_id,
+                        execution_id=execution_id,
                         extra_kwargs={
                             k: v for k, v in create_kwargs.items()
                             if k not in ("messages", "model")
@@ -12107,6 +12746,7 @@ class BYOKHandler:
                     attempt_id=_stream_attempt_id,
                     reserved_bound=_stream_attempt_bound,
                     agent_id=agent_id,
+                    execution_id=execution_id,
                     usage=_stream_usage,
                 )
 
@@ -12264,6 +12904,7 @@ class BYOKHandler:
                                         heal_result.patched_kwargs.get(
                                             "max_tokens") or max_tokens),
                                     agent_id=agent_id,
+                                    execution_id=execution_id,
                                     extra_kwargs={
                                         k: v for k, v in
                                         heal_result.patched_kwargs.items()
@@ -12337,6 +12978,7 @@ class BYOKHandler:
                                     attempt_id=_heal_attempt_id,
                                     reserved_bound=_heal_bound,
                                     agent_id=agent_id,
+                                    execution_id=execution_id,
                                     usage=_stream_usage,
                                 )
                                 return
@@ -12402,6 +13044,7 @@ class BYOKHandler:
                                     retry_kwargs.get("max_tokens")
                                     or _DEFAULT_COMPLETION_MAX_TOKENS),
                                 agent_id=agent_id,
+                                execution_id=execution_id,
                                 extra_kwargs={
                                     k: v for k, v in retry_kwargs.items()
                                     if k not in ("messages", "model")
@@ -12467,6 +13110,7 @@ class BYOKHandler:
                                 attempt_id=_paid_attempt_id,
                                 reserved_bound=_paid_bound,
                                 agent_id=agent_id,
+                                execution_id=execution_id,
                                 usage=_stream_usage,
                             )
                             return
@@ -12585,6 +13229,7 @@ class BYOKHandler:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 agent_id=agent_id,
+                execution_id=execution_id,
                 db=db,
                 task_type=task_type,
                 extra_kwargs=extra_kwargs,
@@ -12668,6 +13313,7 @@ class BYOKHandler:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     agent_id=agent_id,
+                    execution_id=execution_id,
                     db=db,
                     task_type=task_type,
                     extra_kwargs=extra_kwargs,

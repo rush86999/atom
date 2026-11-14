@@ -42,7 +42,11 @@ if [ -f .env.local ]; then
   printf 'NEXT_PUBLIC_API_URL=http://localhost:%s\n' "$BACKEND_PORT" >> .env.local.tmp
   mv .env.local.tmp .env.local
 fi
+# NextAuth must advertise the origin this launch actually serves. Quickstart
+# writes the :3000 default, but dev.sh serves :3001 (or FRONTEND_PORT); without
+# this override the provider sign-in and callback URLs point at the wrong port.
 NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:$BACKEND_PORT}" \
+NEXTAUTH_URL="${NEXTAUTH_URL:-http://localhost:$FRONTEND_PORT}" \
 NEXT_PUBLIC_ALLOW_LOOPBACK=1 \
 npm run dev -- -p "$FRONTEND_PORT" &
 FRONTEND_PID=$!

@@ -19,6 +19,9 @@ import * as fc from 'fast-check';
 
 // Permission state types (from Expo modules)
 type PermissionStatus = 'notAsked' | 'granted' | 'denied' | 'limited';
+
+const isPromptable = (status: PermissionStatus) =>
+  status === 'notAsked' || status === 'denied';
 type PermissionState = 'not_requested' | 'requesting' | 'granted' | 'denied';
 
 // Biometric authentication states
@@ -503,7 +506,7 @@ describe('Platform-Specific Invariants', () => {
               // Subsequent requests should not prompt
             } else {
               // Android can prompt multiple times (if canAskAgain is true)
-              if (currentStatus === 'notAsked' || currentStatus === 'denied') {
+              if (isPromptable(currentStatus)) {
                 promptCount++;
                 currentStatus = 'granted';
               }

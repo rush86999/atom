@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { normalizeServerUrl } from "../config";
 
 interface Workflow {
   id: string;
@@ -23,8 +24,6 @@ interface WorkflowsPanelProps {
   /** JWT for auth-gated calls. */
   token?: string | null;
 }
-
-const DEFAULT_SERVER_URL = "http://localhost:8000";
 
 interface TriggerResponse {
   execution_id?: string;
@@ -43,7 +42,7 @@ export default function WorkflowsPanel({
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [lastTriggered, setLastTriggered] = useState<{ id: string; exec: string } | null>(null);
 
-  const base = (serverUrl || DEFAULT_SERVER_URL).replace(/\/$/, "");
+  const base = normalizeServerUrl(serverUrl);
   const headers = useCallback((): Record<string, string> => {
     const h: Record<string, string> = { "Content-Type": "application/json" };
     if (token) h.Authorization = `Bearer ${token}`;

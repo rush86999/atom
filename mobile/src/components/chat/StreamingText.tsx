@@ -384,7 +384,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
 /**
  * Markdown styles
  */
-const markdownStyles = (theme: any) => ({
+const markdownStyles = (theme: any): StyleSheet.NamedStyles<any> => ({
   body: { fontSize: 16, lineHeight: 24, color: theme.colors.onSurface },
   heading1: { fontSize: 24, fontWeight: 'bold', marginBottom: 8, color: theme.colors.onSurface },
   heading2: { fontSize: 20, fontWeight: 'bold', marginBottom: 6, color: theme.colors.onSurface },

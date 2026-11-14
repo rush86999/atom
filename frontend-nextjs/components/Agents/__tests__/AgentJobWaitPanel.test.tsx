@@ -788,4 +788,84 @@ describe("AgentJobWaitPanel", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  test("shows the server-projected waiting age and absolute deadline", async () => {
+    const job = waitingJob("wait-1", "What title?", "corr-1");
+    job.wait = {
+      ...(job.wait as NonNullable<AgentJobReadback["wait"]>),
+      deadline: "2030-01-02T03:04:05+00:00",
+      waiting_since: "2030-01-02T01:02:05+00:00",
+      waiting_age_seconds: 3661,
+      deadline_passed: false,
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(job));
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+
+    expect(await screen.findByText("What title?")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-job-wait-timing")).toHaveTextContent(
+      /Waiting for 1h 1m/,
+    );
+    expect(screen.getByTestId("agent-job-wait-timing")).toHaveTextContent(
+      /Deadline:/,
+    );
+    expect(
+      screen.getByTestId("agent-job-answer-submit"),
+    ).toBeInTheDocument();
+  });
+
+  test("a passed deadline is visible and no longer answerable", async () => {
+    const job = waitingJob("wait-1", "What title?", "corr-1");
+    job.deadline_passed = true;
+    job.wait = {
+      ...(job.wait as NonNullable<AgentJobReadback["wait"]>),
+      deadline: "2020-01-02T03:04:05+00:00",
+      waiting_since: "2020-01-02T01:02:05+00:00",
+      waiting_age_seconds: 7200,
+      deadline_passed: true,
+      can_answer: false,
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(job));
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+
+    expect(await screen.findByText("What title?")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-job-status")).toHaveTextContent(
+      "Deadline passed",
+    );
+    expect(screen.getByTestId("agent-job-wait-expired")).toHaveTextContent(
+      /deadline passed/i,
+    );
+    expect(
+      screen.queryByTestId("agent-job-answer-submit"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-answer-input"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("an expired job explains the deadline instead of a generic failure", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        agent_id: "a1",
+        job_id: "job-1",
+        execution_id: "exec-1",
+        job_status: "failed",
+        outcome: "expired",
+        reason: "wait_deadline_exceeded",
+        next_action: "review_deadline",
+        requires_reconciliation: false,
+        deadline: "2020-01-02T03:04:05+00:00",
+        deadline_passed: true,
+      }),
+    );
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+
+    expect(await screen.findByTestId("agent-job-failure")).toHaveTextContent(
+      /owner-set deadline passed/i,
+    );
+    expect(screen.queryByTestId("agent-job-completed")).not.toBeInTheDocument();
+    expect(postCalls(fetchMock)).toHaveLength(0);
+  });
+
 });

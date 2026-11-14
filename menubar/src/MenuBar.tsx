@@ -17,6 +17,12 @@ type MenuTab = "chat" | "agents" | "canvases" | "workflows" | "approvals" | "int
 
 import AgentDetail from "./components/AgentDetail";
 import { useHotkeys } from "./hooks/useHotkeys";
+import {
+  DEFAULT_BACKEND_HTTP_URL,
+  loadBackendConfig,
+  readStoredServerUrl,
+  sanitizeDiagnostic,
+} from "./config";
 import type { User, AgentSummary, CanvasSummary, ConnectionStatus } from "./types";
 
 interface MenuBarProps {
@@ -53,10 +59,60 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
   const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [serverUrl, setServerUrl] = useState<string>(
+    () => readStoredServerUrl() ?? DEFAULT_BACKEND_HTTP_URL
+  );
+  const [serverUrlLocked, setServerUrlLocked] = useState(false);
+  const [serverUrlResolved, setServerUrlResolved] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   const hotkeys = useHotkeys();
 
+  // A native environment override (for an isolated loopback backend on a
+  // separate port) wins over a stale stored value; otherwise the default and
+  // Settings value are preserved. A rejected native configuration is an error:
+  // the app must not fall back to the localhost default.
   useEffect(() => {
+    let cancelled = false;
+    loadBackendConfig()
+      .then((config) => {
+        if (cancelled) return;
+        if (config.error) {
+          setConfigError(config.error);
+          setServerUrlLocked(true);
+          return;
+        }
+        setConfigError(null);
+        setServerUrl(config.http_base_url);
+        setServerUrlLocked(config.http_base_url_source === "environment");
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setConfigError(
+            sanitizeDiagnostic(
+              error,
+              "Unable to resolve the backend endpoint configuration."
+            )
+          );
+          setServerUrlLocked(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setServerUrlResolved(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Do not issue any request until the endpoint is resolved. If native IPC
+    // rejected the configuration, keep the app request-free instead of
+    // falling through to the localhost default.
+    if (!serverUrlResolved || configError) return;
+
     // Load initial data
     loadRecentData();
     loadNotifications();
@@ -87,7 +143,7 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
       unlistenBadge.then((fn) => fn());
       unlistenNotif.then((fn) => fn());
     };
-  }, [token]);
+  }, [token, serverUrlResolved, configError]);
 
   const loadRecentData = async () => {
     if (!token) return;
@@ -219,15 +275,18 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
   };
 
 
-  // Round 80v: poll pending approvals so the settings button shows a badge
+  // Round 80v: poll pending approvals so the settings button shows a badge.
+  // Wait for endpoint resolution first: a native loopback override must not
+  // fall through to the default backend on the first poll.
   useEffect(() => {
+    if (!serverUrlResolved || configError) return;
     let cancelled = false;
     const checkPending = async () => {
       try {
         const session = await invoke<{ token: string } | null>("get_session");
         if (!session?.token || cancelled) return;
         const res = await fetch(
-          `${localStorage.getItem("atom_server_url") || "http://localhost:8000"}/api/agent-governance/pending-approvals`,
+          `${serverUrl}/api/agent-governance/pending-approvals`,
           { headers: { Authorization: `Bearer ${session.token}` } }
         );
         if (!res.ok || cancelled) return;
@@ -240,9 +299,8 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
     checkPending();
     const interval = setInterval(checkPending, 60_000); // every minute
     return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+  }, [serverUrl, serverUrlResolved, configError]);
 
-  const serverUrl = localStorage.getItem("atom_server_url") || "http://localhost:8000";
   const tabs: Array<{ id: MenuTab; label: string; icon: string; badge?: number }> = [
     { id: "chat", label: "Chat", icon: "💬" },
     { id: "agents", label: "Agents", icon: "🤖" },
@@ -357,59 +415,88 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
 
       {/* Tab Content */}
       <div style={{ padding: "12px", flex: 1, overflowY: "auto" }}>
-        {/* Chat Tab */}
-        {activeTab === "chat" && (
-          <QuickChat
-            autoFocus={true}
-            onSend={handleQuickChat}
-            agents={agents}
-          />
-        )}
-
-        {/* Agents Tab */}
-        {activeTab === "agents" && (
-          <div>
-            {isLoading ? (
-              <div className="loading">Loading...</div>
-            ) : (
-              <AgentList
+        {!serverUrlResolved ? (
+          <div className="loading" data-testid="endpoint-resolving">
+            Resolving backend endpoint...
+          </div>
+        ) : configError ? (
+          <div
+            role="alert"
+            data-testid="endpoint-config-error"
+            style={{
+              padding: "12px",
+              border: "1px solid #d32f2f",
+              borderRadius: "6px",
+              background: "#2a1414",
+              color: "#ffb4b4",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: "6px", fontSize: "12px" }}>
+              Backend endpoint unavailable
+            </div>
+            <div style={{ fontSize: "11px" }}>{configError}</div>
+            <div style={{ fontSize: "11px", color: "#c99", marginTop: "8px" }}>
+              Requests are disabled until the native endpoint configuration is
+              fixed and the app is relaunched.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat Tab */}
+            {activeTab === "chat" && (
+              <QuickChat
+                autoFocus={true}
+                onSend={handleQuickChat}
                 agents={agents}
-                getMaturityColor={getMaturityColor}
-                onAgentClick={handleAgentClick}
               />
             )}
-          </div>
-        )}
 
-        {/* Canvases Tab */}
-        {activeTab === "canvases" && (
-          <div>
-            {isLoading ? (
-              <div className="loading">Loading...</div>
-            ) : (
-              <CanvasList canvases={canvases} />
+            {/* Agents Tab */}
+            {activeTab === "agents" && (
+              <div>
+                {isLoading ? (
+                  <div className="loading">Loading...</div>
+                ) : (
+                  <AgentList
+                    agents={agents}
+                    getMaturityColor={getMaturityColor}
+                    onAgentClick={handleAgentClick}
+                  />
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Workflows Tab */}
-        {activeTab === "workflows" && (
-          <WorkflowsPanel serverUrl={serverUrl} token={token} />
-        )}
+            {/* Canvases Tab */}
+            {activeTab === "canvases" && (
+              <div>
+                {isLoading ? (
+                  <div className="loading">Loading...</div>
+                ) : (
+                  <CanvasList canvases={canvases} />
+                )}
+              </div>
+            )}
 
-        {/* Approvals Tab */}
-        {activeTab === "approvals" && (
-          <ApprovalsPanel serverUrl={serverUrl} token={token} />
-        )}
+            {/* Workflows Tab */}
+            {activeTab === "workflows" && (
+              <WorkflowsPanel serverUrl={serverUrl} token={token} />
+            )}
 
-        {/* Integrations Tab */}
-        {activeTab === "integrations" && (
-          <IntegrationsPanel serverUrl={serverUrl} token={token} />
-        )}
+            {/* Approvals Tab */}
+            {activeTab === "approvals" && (
+              <ApprovalsPanel serverUrl={serverUrl} token={token} />
+            )}
 
-        {/* Analytics Tab */}
-        {activeTab === "analytics" && (
-          <AnalyticsPanel serverUrl={serverUrl} token={token} />
+            {/* Integrations Tab */}
+            {activeTab === "integrations" && (
+              <IntegrationsPanel serverUrl={serverUrl} token={token} />
+            )}
+
+            {/* Analytics Tab */}
+            {activeTab === "analytics" && (
+              <AnalyticsPanel serverUrl={serverUrl} token={token} />
+            )}
+          </>
         )}
       </div>
 
@@ -434,7 +521,16 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
       </div>
 
       {/* Settings Modal (config only — feature tabs are above) */}
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onLogout={onLogout} />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onLogout={onLogout}
+        serverUrl={serverUrl}
+        serverUrlLocked={serverUrlLocked}
+        endpointAvailable={serverUrlResolved && !configError}
+        endpointConfigError={configError}
+        onServerUrlChange={setServerUrl}
+      />
 
       {/* Agent Detail Modal */}
       {selectedAgent && (
@@ -445,6 +541,7 @@ export default function MenuBar({ token, onLogout }: MenuBarProps) {
           confidenceScore={0.85}
           capabilities={["Chat", "Automation", "Canvas Presentation", "Workflow Execution"]}
           recentExecutions={[]}
+          serverUrl={serverUrl}
           onClose={() => setSelectedAgent(null)}
           onQuickChat={handleQuickChat}
         />

@@ -94,7 +94,7 @@ class LocationService {
   private currentLocation: LocationInfo | null = null;
   private isTracking: boolean = false;
   private isBackgroundTracking: boolean = false;
-  private watchId: number | null = null;
+  private watchId: Location.LocationSubscription | null = null;
   private currentAccuracy: LocationAccuracy = 'high';
   private locationHistory: LocationHistoryEntry[] = [];
   private geofences: GeofenceRegion[] = [];
@@ -326,10 +326,17 @@ class LocationService {
   async stopTracking(): Promise<void> {
     try {
       if (this.watchId !== null) {
-        await Location.removeSubscriptionAsync(this.watchId);
-        this.watchId = null;
+        try {
+          await this.watchId.remove();
+        } catch (error) {
+          // A failing native unsubscribe must not keep tracking flags or the
+          // throttle timer alive — fall through to the cleanup below.
+          console.error('LocationService: Failed to remove subscription:', error);
+        } finally {
+          this.watchId = null;
+        }
       }
-
+    } finally {
       if (this.updateTimer) {
         clearTimeout(this.updateTimer);
         this.updateTimer = null;
@@ -338,8 +345,6 @@ class LocationService {
       this.isTracking = false;
       this.isBackgroundTracking = false;
       console.log('LocationService: Stopped tracking');
-    } catch (error) {
-      console.error('LocationService: Failed to stop tracking:', error);
     }
   }
 
@@ -355,7 +360,9 @@ class LocationService {
       // Schedule update if not already scheduled
       if (!this.updateTimer) {
         this.updateTimer = setTimeout(() => {
-          this.processLocationUpdate(location);
+          if (this.isTracking) {
+            this.processLocationUpdate(location);
+          }
           this.updateTimer = null;
         }, THROTTLE_MS - timeSinceLastUpdate);
       }

@@ -99,6 +99,55 @@ def ensure_sqlite_columns(engine: Any, model: Any) -> None:
         logger.warning(f"schema repair skipped for {model.__tablename__}: {e}")
 
 
+def ensure_sqlite_unique_index(
+    engine: Any,
+    table_name: str,
+    index_name: str,
+    column_name: str,
+) -> None:
+    """Create a model-declared unique index that ADD COLUMN cannot add.
+
+    ``ensure_sqlite_columns`` only reconciles columns. A column declared as
+    ``unique=True, index=True`` also needs its unique index, or a repaired
+    legacy SQLite file accepts duplicate identities that PostgreSQL rejects.
+    Idempotent and best-effort, like the column repair; PostgreSQL is left to
+    Alembic.
+    """
+    key = (str(engine.url), f"index:{index_name}")
+    if key in _REPAIRED:
+        return
+    try:
+        if engine.dialect.name != "sqlite":
+            return
+        from sqlalchemy import inspect, text
+
+        insp = inspect(engine)
+        if not insp.has_table(table_name):
+            return
+        columns = {c["name"] for c in insp.get_columns(table_name)}
+        if column_name not in columns:
+            return
+        existing = {
+            index.get("name") for index in insp.get_indexes(table_name)
+        }
+        if index_name not in existing:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    f"CREATE UNIQUE INDEX IF NOT EXISTS {_q(index_name)} "
+                    f"ON {_q(table_name)} ({_q(column_name)})"
+                ))
+            logger.info(
+                f"schema repair: created unique index {index_name} "
+                f"on {table_name}.{column_name}")
+        _REPAIRED.add(key)
+    except Exception as e:
+        # Best-effort: a failed repair must never block startup. The column is
+        # still usable; the caller's writes remain correctness-checked by the
+        # application, and PostgreSQL has the real constraint.
+        logger.warning(
+            f"schema repair skipped index {index_name} on {table_name}: {e}")
+
+
 def ensure_token_usage_upgrade(engine: Any) -> None:
     """Idempotent SQLite rebuild for the durable TokenUsage ledger.
 
@@ -293,6 +342,7 @@ def repair_known_drift() -> None:
             Playbook,
             TaskOperationRecord,
             TokenUsage,
+            UserSession,
         )
 
         with get_db_session() as db:
@@ -330,6 +380,22 @@ def repair_known_drift() -> None:
             # agent_registry.promotion_episode_floor". The generic model-column
             # repair adds only what the model has and the table lacks.
             ensure_sqlite_columns(engine, AgentRegistry)
+
+            # WA-075: user_sessions.token_jti — the revocable identity for a
+            # recorded device session. Local SQLite files created before the
+            # Active Sessions work lack it, and every ORM read/write of the
+            # inventory would fail with "no such column" without this repair.
+            ensure_sqlite_columns(engine, UserSession)
+            # The model declares token_jti unique, but ALTER TABLE ADD COLUMN
+            # cannot add that index. Create it so a repaired SQLite database
+            # matches the Alembic/PostgreSQL constraint (see
+            # 20261113_user_session_token_jti).
+            ensure_sqlite_unique_index(
+                engine,
+                UserSession.__tablename__,
+                "ix_user_sessions_token_jti",
+                "token_jti",
+            )
 
             # Marketing intelligence models (marketing/models.py) carry
             # workspace_id, but pre-existing SQLite files were created from

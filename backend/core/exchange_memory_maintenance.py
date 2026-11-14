@@ -665,6 +665,16 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
     except Exception as e:
         logger.debug("goal run stale sweep step failed: %s", e)
     try:
+        # Generic job information waits with an owner-set absolute deadline.
+        # Bounded and idempotent; jobs without a deadline are untouched. Runs
+        # off-loop because each due row is a compare-and-set write.
+        from core.information_wait import expire_due_information_waits
+
+        summary["information_wait_deadline_expiry"] = await asyncio.to_thread(
+            expire_due_information_waits, bind=db.get_bind())
+    except Exception as e:
+        logger.debug("information wait deadline expiry step failed: %s", e)
+    try:
         from core.db_safety import maintenance_db_safety_step
 
         # OFF-LOOP: the sqlite snapshot copies the whole DB file; on the

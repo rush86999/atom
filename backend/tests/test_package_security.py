@@ -21,6 +21,11 @@ from unittest.mock import patch, Mock, MagicMock
 import sys
 
 # Mock docker module before importing (same pattern as test_skill_sandbox.py)
+# Save the originals so they can be restored after the import — leaving the
+# MagicMocks in sys.modules permanently would poison later test modules that
+# import the real docker package (the #918 combined-suite ordering failure).
+_DOCKER_ORIGINAL = sys.modules.get('docker')
+_DOCKER_ERRORS_ORIGINAL = sys.modules.get('docker.errors')
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
 
@@ -44,6 +49,19 @@ sys.modules['docker.errors'].APIError = APIError
 from sqlalchemy.orm import Session
 
 from core.skill_sandbox import HazardSandbox
+from tests.sandbox_lifecycle_mocks import install_container
+
+# Restore sys.modules now that core.skill_sandbox is imported (it captured the
+# module at import time; tests patch core.skill_sandbox.docker.from_env at
+# runtime).  Mock state must not outlive this module's import.
+if _DOCKER_ORIGINAL is not None:
+    sys.modules['docker'] = _DOCKER_ORIGINAL
+else:
+    sys.modules.pop('docker', None)
+if _DOCKER_ERRORS_ORIGINAL is not None:
+    sys.modules['docker.errors'] = _DOCKER_ERRORS_ORIGINAL
+else:
+    sys.modules.pop('docker.errors', None)
 from core.package_dependency_scanner import PackageDependencyScanner
 from core.package_governance_service import PackageGovernanceService
 from core.skill_security_scanner import SkillSecurityScanner
@@ -75,7 +93,7 @@ def mock_docker_client():
     """Create mock Docker client for testing."""
     mock_client = Mock()
     mock_client.ping.return_value = True
-    mock_client.containers.run.return_value = b"output\n"
+    install_container(mock_client, stdout=b"output\n")
     return mock_client
 
 
@@ -130,11 +148,11 @@ class TestContainerEscape:
             timeout_seconds=30
         )
 
-        # Verify containers.run was called
-        assert mock_docker_client.containers.run.called
+        # Verify containers.create was called
+        assert mock_docker_client.containers.create.called
 
         # Verify privileged=False (or not set, default is False)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('privileged', False) == False, \
             "Container must NOT run in privileged mode"
 
@@ -158,7 +176,7 @@ class TestContainerEscape:
         )
 
         # Verify volumes don't include Docker socket
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         volumes = call_kwargs.get('volumes', {})
 
         # Check both string and dict representations
@@ -183,7 +201,7 @@ class TestContainerEscape:
             inputs={}
         )
 
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         volumes = call_kwargs.get('volumes', {})
 
         # Verify no host paths mounted
@@ -207,7 +225,7 @@ class TestContainerEscape:
             inputs={}
         )
 
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         pid_mode = call_kwargs.get('pid_mode', None)
 
         # Verify not using host PID namespace
@@ -239,7 +257,7 @@ class TestResourceExhaustion:
         )
 
         # Verify mem_limit is set
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('mem_limit') == "256m", \
             "Memory limit must be enforced to prevent exhaustion attacks"
 
@@ -260,7 +278,7 @@ class TestResourceExhaustion:
         )
 
         # Verify cpu_quota is set (0.5 * 100000 = 50000)
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('cpu_quota') == 50000, \
             "CPU quota must be enforced (0.5 * 100000)"
         assert call_kwargs.get('cpu_period') == 100000, \
@@ -276,35 +294,43 @@ class TestResourceExhaustion:
         mock_docker.return_value = mock_docker_client
 
         sandbox = HazardSandbox()
-        sandbox.execute_python(
+        receipt = sandbox.execute_python_receipt(
             code="while True: pass",
             inputs={},
             timeout_seconds=30
         )
 
-        # Verify timeout parameter is passed
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
-        assert call_kwargs.get('timeout') == 30, \
-            "Timeout must be enforced to prevent infinite execution"
+        # containers.run/create have no timeout kwarg; the deadline is applied
+        # to the created container's wait() and the container is killed.
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
+        assert 'timeout' not in call_kwargs, \
+            "Timeout must not be smuggled into containers.create()"
+        created = mock_docker_client.containers.create.return_value
+        assert created.wait.call_args[1]["timeout"] <= 30, \
+            "The wall-clock deadline must bound container.wait()"
+        assert receipt["timeout_seconds"] == 30
 
     @patch('core.skill_sandbox.docker.from_env')
     def test_auto_remove_enabled(self, mock_docker, mock_docker_client):
         """
-        Verify containers are auto-removed after execution.
+        Verify containers are removed after execution.
 
-        Security: MEDIUM - Auto-remove prevents disk space exhaustion
+        Security: MEDIUM - Removal prevents disk space exhaustion
         """
         mock_docker.return_value = mock_docker_client
 
         sandbox = HazardSandbox()
-        sandbox.execute_python(
+        receipt = sandbox.execute_python_receipt(
             code="print('test')",
             inputs={}
         )
 
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
-        assert call_kwargs.get('auto_remove') is True, \
-            "Containers must auto-remove to prevent disk exhaustion"
+        created = mock_docker_client.containers.create.return_value
+        # The sandbox owns removal (auto_remove=False) so it can report
+        # whether the container is really gone.
+        created.remove.assert_called_once_with(force=True)
+        assert receipt["removed"] is True
+        assert receipt["ephemeral"] is True
 
 
 # ============================================================================
@@ -330,7 +356,7 @@ class TestNetworkIsolation:
         )
 
         # Verify network_disabled=True
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('network_disabled') is True, \
             "Network must be disabled to prevent data exfiltration"
 
@@ -349,7 +375,7 @@ class TestNetworkIsolation:
             inputs={}
         )
 
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         extra_hosts = call_kwargs.get('extra_hosts', {})
 
         assert extra_hosts == {} or extra_hosts is None, \
@@ -379,7 +405,7 @@ class TestFilesystemIsolation:
         )
 
         # Verify read_only=True
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         assert call_kwargs.get('read_only') is True, \
             "Filesystem must be read-only to prevent unauthorized writes"
 
@@ -399,7 +425,7 @@ class TestFilesystemIsolation:
         )
 
         # Verify tmpfs is mounted
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         tmpfs = call_kwargs.get('tmpfs', {})
 
         assert '/tmp' in tmpfs, \
@@ -422,7 +448,7 @@ class TestFilesystemIsolation:
             inputs={}
         )
 
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
         volumes = call_kwargs.get('volumes', {})
         binds = call_kwargs.get('volume_binds', [])
 
@@ -836,8 +862,8 @@ os.system('rm -rf /')
         )
 
         # Verify security constraints applied
-        assert mock_docker_client.containers.run.called
-        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        assert mock_docker_client.containers.create.called
+        call_kwargs = mock_docker_client.containers.create.call_args[1]
 
         # All critical security constraints must be present
         assert call_kwargs.get('network_disabled') is True, \

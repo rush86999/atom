@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionSettings from "@/pages/settings/sessions";
 import { useRouter } from "next/router";
+import { signOut } from "next-auth/react";
 
 jest.mock("next/router", () => ({
   useRouter: jest.fn(() => ({
@@ -15,7 +16,12 @@ jest.mock("next/router", () => ({
   })),
 }));
 
+jest.mock("next-auth/react", () => ({
+  signOut: jest.fn(() => Promise.resolve(undefined)),
+}));
+
 const mockPush = jest.fn();
+const mockSignOut = signOut as unknown as jest.Mock;
 
 const SESSIONS = {
   sessions: [
@@ -29,6 +35,7 @@ const SESSIONS = {
       created_at: "2026-08-01T09:00:00Z",
       is_active: true,
       is_current: true,
+      revocable: true,
     },
     {
       id: "sess-phone",
@@ -40,6 +47,7 @@ const SESSIONS = {
       created_at: "2026-08-02T09:00:00Z",
       is_active: true,
       is_current: false,
+      revocable: true,
     },
   ],
 };
@@ -68,9 +76,9 @@ describe("SessionSettings", () => {
       back: jest.fn(),
     });
     global.fetch = mockFetch;
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/auth/sessions") && url !== "/api/auth/sessions") {
-        return Promise.resolve(okResponse(SESSIONS));
+    mockFetch.mockImplementation((url: string, init?: any) => {
+      if (init?.method === "POST") {
+        return Promise.resolve(okResponse({ tracked: true, registered: false, is_current: true }));
       }
       return Promise.resolve(okResponse(SESSIONS));
     });
@@ -93,38 +101,52 @@ describe("SessionSettings", () => {
     expect(document.querySelector(".animate-spin")).not.toBeNull();
   });
 
-  it("records the current session and renders the session list", async () => {
+  it("sends a bodyless heartbeat and renders the session list", async () => {
     render(<SessionSettings />);
 
     await waitFor(() => {
       expect(screen.getByText("Chrome on macOS")).toBeInTheDocument();
     });
 
-    // Current session is recorded on mount. R82: the page sends the real
-    // backend JWT (the old shared 'current-session-token' placeholder
-    // collided all users onto one upsert row).
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/auth/sessions",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ token: "test-token" }),
-      })
-    );
+    const heartbeat = mockFetch.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(heartbeat).toBeDefined();
+    // WA-075: no client-supplied token may be recorded or later revoked.
+    expect(heartbeat?.[1]?.body).toBeUndefined();
 
     expect(screen.getByText("Current Device")).toBeInTheDocument();
     expect(screen.getByText("192.168.1.10")).toBeInTheDocument();
     expect(screen.getByText("Safari on iOS")).toBeInTheDocument();
     expect(screen.getByText("203.0.113.7")).toBeInTheDocument();
 
-    // Revoke button only for non-current sessions
     expect(screen.getByRole("button", { name: /revoke/i })).toBeInTheDocument();
-    // Multiple sessions -> Sign Out Everywhere available
     expect(screen.getByRole("button", { name: /sign out everywhere/i })).toBeInTheDocument();
   });
 
+  it("shows the untracked-session notice from the heartbeat", async () => {
+    mockFetch.mockImplementation((url: string, init?: any) => {
+      if (init?.method === "POST") {
+        return Promise.resolve(
+          okResponse({
+            tracked: false,
+            registered: false,
+            is_current: false,
+            message: "This session is not in the device inventory.",
+          }),
+        );
+      }
+      return Promise.resolve(okResponse(SESSIONS));
+    });
+
+    render(<SessionSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText("This session is not in the device inventory.")).toBeInTheDocument();
+    });
+  });
+
   it("shows the empty state when there are no sessions", async () => {
-    mockFetch.mockImplementation((url: string) =>
-      Promise.resolve(okResponse({ sessions: [] }))
+    mockFetch.mockImplementation((url: string, init?: any) =>
+      Promise.resolve(init?.method === "POST" ? okResponse({ tracked: true }) : okResponse({ sessions: [] })),
     );
 
     render(<SessionSettings />);
@@ -135,16 +157,40 @@ describe("SessionSettings", () => {
     expect(screen.queryByRole("button", { name: /sign out everywhere/i })).not.toBeInTheDocument();
   });
 
-  it("shows an error alert when the session fetch fails", async () => {
-    mockFetch.mockImplementation((url: string) =>
-      Promise.resolve(errResponse(500, {}))
+  it("shows the backend message when the session fetch fails", async () => {
+    mockFetch.mockImplementation((url: string, init?: any) =>
+      Promise.resolve(
+        init?.method === "POST"
+          ? okResponse({ tracked: true })
+          : errResponse(401, { message: "Backend session unavailable" }),
+      ),
     );
 
     render(<SessionSettings />);
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to fetch sessions")).toBeInTheDocument();
+      expect(screen.getByText("Backend session unavailable")).toBeInTheDocument();
     });
+  });
+
+  it("does not offer a revoke control for an unverifiable entry", async () => {
+    mockFetch.mockImplementation((url: string, init?: any) => {
+      if (init?.method === "POST") return Promise.resolve(okResponse({ tracked: true }));
+      return Promise.resolve(
+        okResponse({
+          sessions: [
+            SESSIONS.sessions[0],
+            { ...SESSIONS.sessions[1], id: "legacy", revocable: false },
+          ],
+        }),
+      );
+    });
+
+    render(<SessionSettings />);
+
+    await waitFor(() => expect(screen.getByText("Safari on iOS")).toBeInTheDocument());
+    expect(screen.getByText("Cannot be revoked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /revoke/i })).toBeDisabled();
   });
 
   it("revokes a single session after confirmation and refetches", async () => {
@@ -161,11 +207,10 @@ describe("SessionSettings", () => {
         expect.objectContaining({
           method: "DELETE",
           body: JSON.stringify({ sessionId: "sess-phone" }),
-        })
+        }),
       );
     });
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("revoke this session"));
-    // Sessions refetched after revoke
     expect(mockFetch.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
@@ -179,16 +224,18 @@ describe("SessionSettings", () => {
     await waitFor(() => {
       expect(mockFetch).not.toHaveBeenCalledWith(
         "/api/auth/sessions",
-        expect.objectContaining({ method: "DELETE" })
+        expect.objectContaining({ method: "DELETE" }),
       );
     });
   });
 
-  it("shows an error alert when revoking a session fails", async () => {
-    jest.spyOn(window, "confirm").mockReturnValue(true);
-    mockFetch.mockImplementation((url: string) => {
-      if ((mockFetch as any)._deleteMode === true) {
-        return Promise.resolve(errResponse(500, {}));
+  it("surfaces the backend reason when a revocation is refused", async () => {
+    const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+    mockFetch.mockImplementation((url: string, init?: any) => {
+      if (init?.method === "DELETE") {
+        return Promise.resolve(
+          errResponse(409, { message: "This entry could not be tied to a revocable token." }),
+        );
       }
       return Promise.resolve(okResponse(SESSIONS));
     });
@@ -196,15 +243,17 @@ describe("SessionSettings", () => {
     render(<SessionSettings />);
     await waitFor(() => expect(screen.getByText("Chrome on macOS")).toBeInTheDocument());
 
-    (mockFetch as any)._deleteMode = true;
     fireEvent.click(screen.getByRole("button", { name: /revoke/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to revoke session")).toBeInTheDocument();
+      expect(
+        screen.getByText("This entry could not be tied to a revocable token."),
+      ).toBeInTheDocument();
     });
+    expect(confirmSpy).toHaveBeenCalled();
   });
 
-  it("signs out everywhere: revokes all and redirects to the signout endpoint", async () => {
+  it("signs out everywhere with the NextAuth signOut event, not the signout page", async () => {
     const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
     render(<SessionSettings />);
     await waitFor(() => expect(screen.getByText("Chrome on macOS")).toBeInTheDocument());
@@ -217,18 +266,19 @@ describe("SessionSettings", () => {
         expect.objectContaining({
           method: "DELETE",
           body: JSON.stringify({ revokeAll: true }),
-        })
+        }),
       );
-      expect(mockPush).toHaveBeenCalledWith("/api/auth/signout");
+      expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/auth/signin" });
     });
+    expect(mockPush).not.toHaveBeenCalledWith("/api/auth/signout");
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("sign out of all devices"));
   });
 
   it("keeps the user on the page when revoke-all fails", async () => {
     jest.spyOn(window, "confirm").mockReturnValue(true);
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/auth/sessions") && (mockFetch as any)._revokeAllMode === true) {
-        return Promise.resolve(errResponse(500, {}));
+    mockFetch.mockImplementation((url: string, init?: any) => {
+      if (init?.method === "DELETE") {
+        return Promise.resolve(errResponse(503, { message: "Revocation could not be confirmed." }));
       }
       return Promise.resolve(okResponse(SESSIONS));
     });
@@ -236,13 +286,12 @@ describe("SessionSettings", () => {
     render(<SessionSettings />);
     await waitFor(() => expect(screen.getByText("Chrome on macOS")).toBeInTheDocument());
 
-    (mockFetch as any)._revokeAllMode = true;
     fireEvent.click(screen.getByRole("button", { name: /sign out everywhere/i }));
 
     await waitFor(() => {
-      // Page surfaces the thrown error message ('Failed to revoke all sessions')
-      expect(screen.getByText("Failed to revoke all sessions")).toBeInTheDocument();
+      expect(screen.getByText("Revocation could not be confirmed.")).toBeInTheDocument();
     });
+    expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalledWith("/api/auth/signout");
   });
 });

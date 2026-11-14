@@ -20,6 +20,22 @@ reconciled. Ownership is recorded on every ORM insert by
 ``core.execution_ownership``; rows it cannot account for are reported in
 ``agent_unknown_detail`` rather than acted on.
 
+FLEET CHAINS RIDE THE SAME VERDICT
+A fleet run is a ``DelegationChain`` rooted at the ``AgentExecution`` that
+started it. ``DelegationChain.root_execution_id`` is that durable parent-to-chain
+binding (unlike in-memory fleet state, it survives the crash). If startup fails
+the root execution but leaves the chain ``active`` and its ``in_progress`` links
+untouched, the fleet dashboard reports a live fleet that no worker can ever
+advance -- the exact "ghost run" this module exists to remove, one layer up.
+
+So the *same* recovered ids drive chain reconciliation. Only a chain whose
+``root_execution_id`` exactly equals a reconciliation id from THIS sweep is
+touched; a chain rooted at a live or UNKNOWN owner is left alone, as is an
+unlinked/legacy chain and a chain in a different tenant or workspace. Completed
+links are preserved (their work really happened); only non-terminal links are
+failed. The chain and its links are written in one transaction, and an
+already-terminal chain is skipped, so a second sweep is a no-op.
+
 Gated by ``ATOM_EXECUTION_RECOVERY_ENABLED`` (default true).
 """
 from __future__ import annotations
@@ -33,13 +49,33 @@ from typing import Any, Dict, List, Tuple
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
-from core.models import AgentExecution, ExecutionStatus, WorkflowExecution, WorkflowExecutionStatus
+from core.models import (
+    AgentExecution,
+    AgentRegistry,
+    ChainLink,
+    DelegationChain,
+    ExecutionStatus,
+    WorkflowExecution,
+    WorkflowExecutionStatus,
+)
 
 logger = logging.getLogger(__name__)
 
 RECOVERY_ENABLED = os.getenv("ATOM_EXECUTION_RECOVERY_ENABLED", "true").lower() == "true"
 
 _CRASH_ERROR_MESSAGE = "Process restarted while execution was running (crashed)"
+
+#: Chain statuses that are already resolved. A chain in one of these states has
+#: nothing left to recover, even if it still points at a dead root execution.
+_TERMINAL_CHAIN_STATUSES = frozenset({"completed", "failed", "cancelled", "canceled"})
+
+#: Link statuses whose work is already resolved. ``completed`` means the
+#: specialist's work really happened and must never be rewritten by recovery;
+#: the failure/cancel/skip states are equally terminal. Everything else
+#: (pending, in_progress, processing, active, ...) is orphaned by definition
+#: once the chain's root execution is verified dead.
+_TERMINAL_LINK_STATUSES = _TERMINAL_CHAIN_STATUSES | frozenset({"skipped"})
+
 
 
 def _recover_workflow_executions(session: Session) -> int:
@@ -215,6 +251,202 @@ def _release_crashed_chat_requests(session: Session, recovered_ids: List[str]) -
 
 
 
+def _metadata_dict(metadata: Any) -> Dict[str, Any]:
+    """Return a metadata blob as a mutable dict, tolerating every stored shape."""
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except (ValueError, TypeError):
+            return {}
+    if isinstance(metadata, dict):
+        return dict(metadata)
+    return {}
+
+
+def _scope_text(value: Any) -> Any:
+    """Normalize a tenant/workspace value for comparison.
+
+    ``None`` and an empty string both mean "not recorded". They are kept
+    distinct from a real value so "one side did not record a scope" is not
+    mistaken for "the scopes differ".
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _chain_workspace(chain: DelegationChain, root_agent: Any) -> Any:
+    """The chain's workspace, from its blackboard or its root agent."""
+    workspace = _scope_text(
+        _metadata_dict(chain.metadata_json).get("workspace_id"))
+    if workspace is None and root_agent is not None:
+        workspace = _scope_text(getattr(root_agent, "workspace_id", None))
+    return workspace
+
+
+def _fleet_scope_conflicts(
+    chain: DelegationChain, execution: AgentExecution, root_agent: Any,
+) -> List[str]:
+    """Which scopes DISAGREE between a chain and its purported root execution.
+
+    A durable id match is the positive link, but an id is not a permission: if
+    both sides record a tenant or workspace and they differ, this execution is
+    not the owner of that chain in any scope-aware sense. The chain is left
+    alone (and reported) rather than failed across a tenant/workspace boundary.
+    A missing value on either side is not a disagreement -- older rows did not
+    always record scope.
+    """
+    conflicts: List[str] = []
+    chain_tenant = _scope_text(chain.tenant_id)
+    execution_tenant = _scope_text(execution.tenant_id)
+    if chain_tenant and execution_tenant and chain_tenant != execution_tenant:
+        conflicts.append("tenant")
+    chain_workspace = _chain_workspace(chain, root_agent)
+    execution_workspace = _scope_text(execution.workspace_id)
+    if (chain_workspace and execution_workspace
+            and chain_workspace != execution_workspace):
+        conflicts.append("workspace")
+    return conflicts
+
+
+def _duration_ms(started_at: Any, completed_at: datetime) -> Any:
+    """Milliseconds between a link's DB timestamp and ``completed_at``.
+
+    SQLite returns naive datetimes even for ``DateTime(timezone=True)``; mixing
+    one with an aware ``completed_at`` raised TypeError in
+    ``AgentFleetService.update_link_status``. Normalize before subtracting.
+    """
+    if started_at is None:
+        return None
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    return max(0, int((completed_at - started_at).total_seconds() * 1000))
+
+
+def _recover_fleet_chains(
+    session: Session, recovered_ids: List[str],
+) -> Tuple[int, int, List[Dict[str, Any]]]:
+    """Resolve fleet chains whose durable root execution this sweep just failed.
+
+    ``DelegationChain.root_execution_id`` is the durable parent-to-chain
+    binding; it is written when the fleet is initialized and survives a restart.
+    Only a chain bound to an id in ``recovered_ids`` -- which contains ONLY
+    executions whose owner was VERIFIED dead in this same sweep -- is touched.
+    A live owner, an UNKNOWN owner, an unlinked chain and a chain whose scope
+    disagrees with the execution are all left exactly as they are.
+
+    Within a reconciled chain:
+
+    * links whose work is already terminal (``completed`` above all) are kept;
+      completed work really happened and recovery must not rewrite it;
+    * links still waiting/running are marked ``failed`` with the crash truth,
+      so no dashboard reports a fleet that can never advance;
+    * the chain becomes ``failed`` with a ``recovery`` marker naming the dead
+      root execution.
+
+    Idempotent: a terminal chain is skipped, and only non-terminal links are
+    rewritten, so re-running cannot restamp completed work.
+
+    Returns ``(chains_recovered, links_reconciled, scope_skipped_detail)``.
+    """
+    execution_ids = [str(rid) for rid in recovered_ids if rid]
+    if not execution_ids:
+        return 0, 0, []
+
+    executions = {
+        str(row.id): row
+        for row in session.query(AgentExecution)
+        .filter(AgentExecution.id.in_(execution_ids))
+        .all()
+    }
+    if not executions:
+        return 0, 0, []
+
+    chains = (
+        session.query(DelegationChain)
+        .filter(DelegationChain.root_execution_id.in_(list(executions)))
+        .all()
+    )
+    if not chains:
+        return 0, 0, []
+
+    root_agent_ids = {
+        str(chain.root_agent_id) for chain in chains if chain.root_agent_id
+    }
+    root_agents = {
+        str(row.id): row
+        for row in session.query(AgentRegistry)
+        .filter(AgentRegistry.id.in_(list(root_agent_ids)))
+        .all()
+    } if root_agent_ids else {}
+
+    now = datetime.now(timezone.utc)
+    chains_recovered = 0
+    links_reconciled = 0
+    scope_skipped: List[Dict[str, Any]] = []
+
+    for chain in chains:
+        root_execution_id = _scope_text(chain.root_execution_id)
+        execution = executions.get(root_execution_id)
+        # Only a POSITIVE binding counts: no id, or an id outside this sweep's
+        # verified-dead set, is not linked evidence.
+        if execution is None:
+            continue
+        if str(chain.status or "").strip().lower() in _TERMINAL_CHAIN_STATUSES:
+            continue
+
+        root_agent = root_agents.get(str(chain.root_agent_id or ""))
+        conflicts = _fleet_scope_conflicts(chain, execution, root_agent)
+        if conflicts:
+            scope_skipped.append({
+                "chain_id": chain.id,
+                "root_execution_id": root_execution_id,
+                "tenant_id": chain.tenant_id,
+                "workspace_id": _chain_workspace(chain, root_agent),
+                "execution_tenant_id": execution.tenant_id,
+                "execution_workspace_id": execution.workspace_id,
+                "conflicts": conflicts,
+            })
+            continue
+
+        links = (
+            session.query(ChainLink)
+            .filter(ChainLink.chain_id == chain.id)
+            .all()
+        )
+        chain_link_failures = 0
+        for link in links:
+            if str(link.status or "").strip().lower() in _TERMINAL_LINK_STATUSES:
+                continue
+            link.status = "failed"
+            link.error_message = (
+                f"Parent execution {root_execution_id} crashed while this link "
+                "was in progress (owner VERIFIED dead; recovered after restart)"
+            )
+            link.completed_at = now
+            link.duration_ms = _duration_ms(link.started_at, now)
+            chain_link_failures += 1
+
+        metadata = _metadata_dict(chain.metadata_json)
+        metadata["recovery"] = {
+            "crashed": True,
+            "recovered_at": now.isoformat(),
+            "owner_state": "dead",
+            "root_execution_id": root_execution_id,
+            "links_failed": chain_link_failures,
+        }
+        chain.metadata_json = metadata
+        chain.status = "failed"
+        chain.completed_at = now
+
+        chains_recovered += 1
+        links_reconciled += chain_link_failures
+
+    return chains_recovered, links_reconciled, scope_skipped
+
+
+
 def reconcile_orphaned_executions() -> dict:
     """Find and fail executions orphaned by a process crash.
 
@@ -225,6 +457,8 @@ def reconcile_orphaned_executions() -> dict:
         ``{"workflow_recovered": int, "agent_recovered": int,
            "agent_untouched_live": int, "agent_untouched_detail": [...],
            "agent_unknown_owner": int, "agent_unknown_detail": [...],
+           "fleet_chains_recovered": int, "fleet_links_reconciled": int,
+           "fleet_chain_scope_skipped": [...],
            "chat_requests_released": int, "enabled": bool}``
     """
     if not RECOVERY_ENABLED:
@@ -232,6 +466,8 @@ def reconcile_orphaned_executions() -> dict:
         return {"workflow_recovered": 0, "agent_recovered": 0,
                 "agent_untouched_live": 0, "agent_untouched_detail": [],
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
+                "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
+                "fleet_chain_scope_skipped": [],
                 "chat_requests_released": 0, "enabled": False}
 
     session: Session = SessionLocal()
@@ -239,12 +475,16 @@ def reconcile_orphaned_executions() -> dict:
         wf_count = _recover_workflow_executions(session)
         (agent_count, untouched, untouched_detail,
          unknown, recovered_ids) = _recover_agent_executions(session)
+        (chain_count, link_count,
+         chain_scope_skipped) = _recover_fleet_chains(session, recovered_ids)
         released = _release_crashed_chat_requests(session, recovered_ids)
         session.commit()
-        if wf_count or agent_count or released:
+        if wf_count or agent_count or released or chain_count or link_count:
             logger.warning(
                 f"Crash recovery: reconciled {wf_count} workflow execution(s) and "
                 f"{agent_count} agent execution(s) with a VERIFIED dead owner; "
+                f"failed {chain_count} fleet delegation chain(s) and "
+                f"{link_count} non-terminal chain link(s) bound to them; "
                 f"released {released} in-progress chat request(s); left "
                 f"{untouched} alone (live owner) and {len(unknown)} UNKNOWN "
                 f"(ownership not established -- not touched, not declared crashed)"
@@ -281,6 +521,18 @@ def reconcile_orphaned_executions() -> dict:
                     "declared crashed: execution=%s reason=%s owner=%s",
                     row.get("execution_id"), row.get("reason"),
                     {k: row.get(k) for k in ("pid", "host", "token")})
+        for row in chain_scope_skipped:
+            # A durable id matched but the recorded scope did not. Failing the
+            # chain across that boundary would be a cross-tenant write on the
+            # strength of an id alone, so it is reported instead.
+            logger.warning(
+                "Crash recovery: fleet chain %s is bound to dead execution %s "
+                "but its scope disagrees (%s); left untouched: chain_tenant=%s "
+                "chain_workspace=%s execution_tenant=%s execution_workspace=%s",
+                row.get("chain_id"), row.get("root_execution_id"),
+                ",".join(row.get("conflicts") or []), row.get("tenant_id"),
+                row.get("workspace_id"), row.get("execution_tenant_id"),
+                row.get("execution_workspace_id"))
         return {
             "workflow_recovered": wf_count,
             "agent_recovered": agent_count,
@@ -288,6 +540,9 @@ def reconcile_orphaned_executions() -> dict:
             "agent_untouched_detail": untouched_detail,
             "agent_unknown_owner": len(unknown),
             "agent_unknown_detail": unknown,
+            "fleet_chains_recovered": chain_count,
+            "fleet_links_reconciled": link_count,
+            "fleet_chain_scope_skipped": chain_scope_skipped,
             "chat_requests_released": released,
             "enabled": True,
         }
@@ -297,6 +552,8 @@ def reconcile_orphaned_executions() -> dict:
         return {"workflow_recovered": 0, "agent_recovered": 0,
                 "agent_untouched_live": 0, "agent_untouched_detail": [],
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
+                "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
+                "fleet_chain_scope_skipped": [],
                 "chat_requests_released": 0, "enabled": True, "error": str(e)}
     finally:
         session.close()

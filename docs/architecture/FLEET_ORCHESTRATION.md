@@ -184,3 +184,225 @@ that point → auto-revoke → override cleared → shadow again.
 `POST .../run-now`, `POST .../approve`, `POST .../reject` (all admin-gated,
 403 otherwise); `GET /api/v1/fleet/automation/status` + `/health/fleet-router`
 are public read-only.
+
+## Final synthesis completion contract (2026-11-14)
+
+The live Goal 13 replay returned a user-visible answer that stopped
+mid-action ("... slipped deals are more likely") while the fleet reported
+`status=success`; the specialist's durable output contained all three
+corrective actions. Two independent truncation axes were conflated:
+
+| Axis | Field | Meaning |
+|---|---|---|
+| INPUT | `final_synthesis.evidence_truncated` | The bounded synthesis prompt omitted specialist text. |
+| OUTPUT (proven) | `final_synthesis.finish_reason` / `output_truncated` | The provider reported a truncating limit (`length` / `max_tokens` / `model_context_window_exceeded`). Only this is proof. The first two are the request's output cap; the last is the model's context window, so disclosures say "a limit the provider reported", never "output limit". |
+| OUTPUT (suspected) | `final_synthesis.output_ending_unverified` | The text shape is weak evidence of a cut and no usable stop reason survived. This is suspicion, never a provider fact, and it does not claim the provider omitted a reason. |
+| PROVENANCE | `final_synthesis.truncation_evidence` | `provider_finish_reason` (provider-proven), `text_shape` (a fresh probe actually observed the shape), `legacy_record_unverified` (a cached repair knows only that the old boolean survived), or `None`. |
+
+`evidence_truncated=true` is **not** evidence that the provider hit the 900
+token cap (the replay used 820 completion tokens).
+
+**Provider contract.** `BYOKHandler` has always known the provider stop reason
+but `generate_response` dropped it. The accepted route now writes it into a
+caller-owned `finish_reason_sink` passed by `LLMService.generate_completion`
+(one fresh mapping per call), and the service surfaces real provider metadata
+as `finish_reason`. The legacy `_last_finish_reason` attribute is retained only
+for the backward-compatible text API; `generate_completion` never consults it,
+not even as a fallback. It is shared mutable state whose value belongs to
+whichever concurrent call wrote last, so borrowing it would attribute another
+call's provider metadata to this answer. A handler that cannot receive a sink
+(narrow legacy signature, non-introspectable callable) keeps working -- no
+additive keyword is sent -- and reports `None` (unknown); a sink that was
+passed but never written is likewise `None`. Nothing is invented: no stop
+reason from the provider means `None`, `empty_synthesis`, or an error reason,
+never a fabricated `"stop"`. The shared result boundary trims/lowercases the
+provider value and normalizes a blank/missing value to `None`, so `""` can
+neither masquerade as a known reason nor suppress the missing-metadata shape
+backstop. Truncation is detected from the provider vocabulary, not from the
+input flag:
+
+- OpenAI Chat Completions: `finish_reason="length"` means the maximum number of
+  tokens specified in the request was reached
+  (<https://platform.openai.com/docs/api-reference/chat/object>).
+- Anthropic Messages: `stop_reason="max_tokens"` means the response was cut at
+  `max_tokens`, and `model_context_window_exceeded` is treated as truncated
+  (<https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons>).
+
+**Text shape is weak evidence.** With no provider stop reason, only a
+structural clue is considered: an unbalanced opening bracket, or a trailing
+article/conjunction/preposition that cannot end an English clause (e.g.
+"... corrective actions on the", "... 2 of"). Evaluative endings such as
+"Risk: unlikely", "Recovery is likely", and the live "... slipped deals are
+more likely" are **valid concise answers**, not model truncation; the old
+letters-only tokenizer also dropped the final number in "Completed items:
+2 of 2" and inspected the preceding "of". Auxiliary, modal, and copula verbs
+are deliberately not continuation tokens either: "It should.", "Ownership:
+the platform team does.", and "It is." are complete elliptical answers, so
+the backstop reports unknown rather than fabricating a cut. A provider reason
+always wins over this weak shape signal: `stop` uses the text, `length`/
+`max_tokens` uses the durable fallback even when the text looks complete.
+There is no quantity or domain special case.
+
+**Proof is not the same as suspicion (2026-11-14 root counterprobe).** The
+same shape can complete a status label or a particle imperative ("Device
+status: on", "Count me in", "Carry on"). With `finish_reason=None` the old
+code escalated that shape to `output_truncated=true` and told the user the
+answer "was cut off at the model's output limit" -- a provider fact no one
+reported. The two outcomes are now separate:
+
+- `output_truncated=true` + `reason="output_truncated"` +
+  `truncation_evidence="provider_finish_reason"` only when the provider
+  reported a truncating stop reason;
+- `output_ending_unverified=true` + `reason="output_ending_unverified"` +
+  `truncation_evidence="text_shape"` for the missing-stop-reason backstop.
+  The cautious fallback is unchanged (the editorial text is still withheld),
+  but the disclosure says the ending could not be verified as complete
+  instead of asserting an output limit. It also does not say "the provider
+  reported no stop reason": a missing call-local reason is unknown, and a
+  legacy adapter may simply have lost one the provider sent.
+- an explicit non-truncating reason (`stop`), a missing `None` reason with no
+  shape concern, and a blank reason that normalizes to `None` all leave the
+  editorial text usable; a blank reason still arms the shape backstop.
+
+`reason` therefore never overstates proof. The same distinction survives a
+cached readback, using only what the durable record actually retains:
+
+- a retained truncating reason (`length` / `max_tokens` /
+  `model_context_window_exceeded`) stays provider-proven
+  (`output_truncated`, `truncation_evidence="provider_finish_reason"`);
+- an old `output_truncated=true` claim with **no** retained reason was never
+  supported by anything in the record, so it is relabelled
+  `output_ending_unverified` with `truncation_evidence="legacy_record_unverified"`
+  -- not `text_shape`, because the repair observed no text and cannot know
+  whether the provider omitted a reason or a legacy adapter dropped it;
+- an old `output_truncated=true` claim contradicted by a retained
+  non-truncating reason (e.g. `stop`) is repaired to
+  `reason="cached_output_claim_unproven"` with no truncation or unverified-
+  ending assertion, because the withheld editorial text was never persisted.
+
+Every repair takes zero synthesis calls and zero dispatches, and is persisted
+for later readbacks.
+
+**Deliverable rule.** The editorial synthesis is used only when the output was
+not truncated and the bounded prompt carried the complete specialist
+evidence. Otherwise the existing durable raw-contribution fallback is used:
+full attributed specialist outputs + deterministic quantitative
+reconciliation (including a non-zero residual) + the execution-status footer.
+No extra provider call is made and no specialist is re-dispatched, so there is
+no unpriced retry and no duplicate work. `final_synthesis.used=false` with
+`reason="output_truncated"`, `"output_ending_unverified"`,
+`"cached_output_claim_unproven"`, or `"evidence_truncated"` records why.
+
+**Budget.** The synthesis remains one bounded read-only call:
+`_SYNTHESIS_MAX_OUTPUT_TOKENS=1400` (up from 900; the five required sections
+plus a 3-action list did not fit) and a shared
+`_SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS=10000` budget with a 6,000-char
+per-contribution ceiling (up from 2,000, which cut the replay's action list
+after item 1). The evidence budget is unchanged, so a large roster still
+cannot dominate the prompt.
+
+**Durable readback.** A cached result written before output truncation was
+tracked (`used=true` + `evidence_truncated=true`) is repaired on read from its
+own durable `specialist_results`, then persisted. A cached result that claimed
+`output_truncated=true` is relabelled from what the record retained: no reason
+surviving means `output_ending_unverified` with the
+`legacy_record_unverified` basis; a retained `stop` (or any other
+non-truncating reason) means `cached_output_claim_unproven` with no cause
+asserted; a retained `length`/`max_tokens`/`model_context_window_exceeded`
+remains provider-proven. This makes the retained live replay complete without
+a new provider call, and a restart readback returns the same text with zero
+synthesis calls and zero dispatches.
+
+**Completion outcome contract (2026-11-14 live failure).**
+`generate_response` is a TEXT API: every terminal failure returns a
+human-readable string, and direct callers rely on that. `generate_completion`
+therefore could not tell an accepted answer from the failure text and returned
+`success=True` for both. The live 2,000-token replay exposed the worst case:
+Fleet's synthesis call made ZERO provider requests, the handler returned
+"every configured provider failed. Last error: no provider attempted", and
+the facade published it as `content` with
+`success=True`/`provider="deepseek"` (the provider was inferred from the model
+name, although no provider answered). Fleet appended its quantitative block
+to that text as if it were a valid synthesis.
+
+The EXACT routing cause of that zero-attempt call is **UNCONFIRMED**. The
+retained live runtime policy row was never inspected, and an empty ranked pool
+(policy, capability, catalog, or window filters), a cooldown/catalog skip, and
+"all candidates skipped" all leave `last_error=None`. The first call in the
+same process did dispatch and was served, so a process-wide policy exclusion
+alone does not explain why the second call differed. This is not evidence for
+any one filter, and the routing, policy, cooldown, and breaker behavior was
+not weakened to manufacture a live reproduction.
+
+The shared seam is a caller-owned `outcome_sink` (one fresh mapping per
+`generate_completion` call), written by `BYOKHandler.generate_response` on
+every terminal return:
+
+- the six accepted routes write `success=True` plus the REAL served
+  provider/model; `generate_completion` uses only that call-local identity on
+  success (never the request alias or a shared handler attribute);
+- every failure writes `success=False`, a typed `reason`
+  (`all_providers_failed`, `empty_generation`, `no_dispatchable_candidates`,
+  `policy_blocked`, `budget_exceeded`, `accounting_blocked`,
+  `no_providers_configured`, `trial_restricted`, `no_eligible_providers`,
+  `credit_exhausted`, `prompt_blocked`, `generation_error`), a truthful
+  message and attempt diagnostics (`last_error`, `last_error_type`,
+  `last_finish_reason`, `candidate_count`, `routing`, and the enforcing
+  policy's allowed set/revision when relevant);
+- `generate_completion` returns the existing structured failure shape
+  (`success=False`, zero usage, no served provider/model) with EMPTY
+  `content`/`text`; the human message is `error`, and the structured detail
+  is `failure`. A retained attempt `finish_reason` (e.g. `length` on an
+  empty generation) stays inside `failure.last_finish_reason`; the result's
+  top-level `finish_reason` is `None` because no reply was accepted;
+- the legacy text API keeps its exact strings for direct consumers. A
+  producer that cannot receive the sink, or accepts it and leaves it
+  unwritten, keeps the historical `success=True` contract (silence is
+  legacy, not a guessed failure).
+
+A zero-attempt result is NOT a provider failure: nothing was dispatched, so
+"every configured provider failed" is false. The structured result names the
+ROUTING state instead:
+
+- `no_dispatchable_candidates` with `routing="empty_ranked_pool"` when routing
+  produced no ranked candidate; the message says the pool was empty;
+- `no_dispatchable_candidates` with `routing="all_candidates_skipped"` when
+  candidates existed but every one was filtered out before dispatch. The
+  retained metadata does not identify WHICH filter skipped them, so the
+  message says filtered/unknown and never invents cooldown, catalog, or policy
+  as the cause;
+- one REPRODUCIBLE zero-attempt control -- an installing policy that allows
+  none of the configured providers -- is typed `policy_blocked` /
+  `routing="provider_policy_excluded_all"` with `candidate_count=0` and
+  `last_error=None`. BPC filters before ranking and the cascade plus the
+  last-resort catalog sweep re-check the same policy before transport, so no
+  provider is dispatched. The policy is not weakened and no cooldown/breaker
+  was touched. This control is NOT evidence of the observed live cause.
+
+Behavior change for other callers: consumers that previously treated the
+failure text as content now receive empty content and must read `success`
+(and optionally `error`). The chat orchestrator's bounded guard regeneration
+treats `success=False` as a failed regeneration so it keeps the already-good
+reply instead of replacing it with an empty one; the match-confidence
+tiebreaker records a circuit-breaker failure instead of a success. The
+Auto-Dev Memento/AlphaEvolve code proposers use their existing failure
+fallback instead of persisting/returning empty code. Consumers that already
+checked `success` (Fleet, operator loop, lux computer-use, NLU, PDF OCR) keep
+their existing failure branches.
+Tests:
+`backend/tests/test_generate_completion_failure_contract.py` (all providers
+failed / zero-attempt policy block / empty `length` generation / budget and
+accounting denial / pre-dispatch refusals / accepted identity + stop reason /
+legacy text-API and unwritten-sink compatibility / one shared handler with
+concurrent accepted, failed and empty calls); plus
+`backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
+truncated / missing finish_reason / provider failure / evidence-vs-output /
+cached readback / legacy durable repair / unproven-label relabel /
+cached twins for no retained reason, retained `stop`, retained `length`, and
+retained `model_context_window_exceeded` /
+wrapper propagation / valid concise and elliptical negative twins /
+complete label and particle-imperative negatives / explicit-reason precedence /
+potential concurrency twins for a real sink producer, a `**kwargs` wrapper that
+ignores the sink, a narrow legacy handler, and non-introspectable/positional-only
+callables / blank-reason normalization / structured provider-failure
+withholding) plus the existing `tests/test_fleet_final_synthesis.py` contract.

@@ -29,6 +29,7 @@ interface Message {
   agent_maturity?: 'STUDENT' | 'INTERN' | 'SUPERVISED' | 'AUTONOMOUS';
   timestamp: Date;
   isStreaming?: boolean;
+  showTimestamp?: boolean;
   governance?: {
     action_complexity?: number;
     requires_approval?: boolean;
@@ -275,12 +276,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
               {/* Read receipts for user messages */}
               {isUser && (message as any).read && (
-                <Icon
-                  source="check-all"
-                  size={14}
-                  color={theme.colors.primary}
-                  style={styles.readReceipt}
-                />
+                <View style={styles.readReceipt}>
+                  <Icon
+                    source="check-all"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                </View>
               )}
             </View>
           )}
@@ -482,7 +484,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   /**
    * Render each item
    */
-  const renderItem = ({ item }: { item: { type: string; data?: Message; date?: Date } }) => {
+  const renderItem = ({ item }: { item: { id: string; type: string; data?: Message; date?: Date } }) => {
     if (item.type === 'date' && item.date) {
       return renderDateSeparator(item.date);
     }

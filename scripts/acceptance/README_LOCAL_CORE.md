@@ -155,3 +155,32 @@ python scripts/acceptance/wait_value_positive_twins.py \
 
 The composite uses controlled external effects only. It does not send a real
 email, write to a connected source, or replace the existing service.
+
+## 6. Signed-in settings (WA-075)
+
+Proves the Account, AI, Sessions, Routing and Local Models settings tabs at the
+signed-in browser boundary: a real save/reload/restore of reversible controls,
+a disposable secondary session, real routing telemetry equality, and a
+disposable local-model provider that is registered, reloaded and deleted. The
+world is the existing integrated-local scratch world; nothing is installed and
+no external provider is contacted. Full detail and the honest non-claims live
+in `docs/acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md`.
+
+```bash
+# preflight only (starts nothing, writes only --report)
+python scripts/acceptance/browser_settings_preflight.py \
+  --world <repo>/backend/data/acceptance_worlds/wa075_settings \
+  --admin-password-file /path/to/0600/wa075-admin-password \
+  --report /scratch/wa075/preflight.json
+
+# after the world is serving (see the WA-075 document for the launcher env)
+ATOM_WA075_WORLD="$WORLD" \
+ATOM_SCOPE_PASSWORD="$(cat /path/to/0600/wa075-admin-password)" \
+node scripts/acceptance/browser_settings_acceptance.mjs \
+  --out /scratch/wa075/signed-in-settings.json
+```
+
+Exit codes: `0` all checks pass, `1` a product failure, `2` fatal (including an
+unverified scratch identity), `3` no failures but a capability is missing, `4`
+no failures but a required check was skipped (incomplete). The missing and
+skipped check ids and reasons are in the JSON; a skip is never a silent pass.

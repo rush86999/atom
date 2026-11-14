@@ -39,7 +39,8 @@ export function deepEquals(a: unknown, b: unknown): boolean {
   }
 
   if (b === null || b === undefined) {
-    return a === b;
+    // `a` is known to be non-null here, so it cannot equal `b`.
+    return false;
   }
 
   // Handle primitives

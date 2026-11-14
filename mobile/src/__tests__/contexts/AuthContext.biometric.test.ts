@@ -166,7 +166,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -191,7 +191,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -209,7 +209,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -225,7 +225,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -243,7 +243,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -274,7 +274,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      let regResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -298,7 +298,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      let regResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -320,7 +320,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      let regResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -341,7 +341,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      let regResult: { success: boolean; error?: string } = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });

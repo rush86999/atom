@@ -13,6 +13,7 @@ import {
   Text,
   ActivityIndicator,
   ScrollView,
+  TouchableWithoutFeedback,
   Dimensions,
   GestureResponderEvent,
 } from 'react-native';
@@ -68,6 +69,8 @@ interface CanvasChartProps {
   enableZoom?: boolean;
   enablePan?: boolean;
   enableExport?: boolean;
+  showLegend?: boolean;
+  animationEnabled?: boolean;
   portrait?: boolean;
   loading?: boolean;
   empty?: boolean;
@@ -87,6 +90,8 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
   enableZoom = true,
   enablePan = true,
   enableExport = true,
+  showLegend: showLegendProp,
+  animationEnabled,
   portrait = true,
   loading = false,
   empty = false,
@@ -95,7 +100,10 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
   const theme = useTheme();
   const chartRef = useRef<any>(null);
 
-  const [showLegend, setShowLegend] = useState(data.showLegend !== false);
+  const [showLegend, setShowLegend] = useState(
+    showLegendProp ?? data.showLegend !== false
+  );
+  const animationsEnabled = animationEnabled ?? data.animationEnabled;
   const [tooltipData, setTooltipData] = useState<ChartDataPoint | null>(null);
   const [zoomDomain, setZoomDomain] = useState<{ x: [number, number]; y: [number, number] } | undefined>();
   const [isExporting, setIsExporting] = useState(false);
@@ -246,7 +254,14 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           <VictoryZoomContainer
             zoomDimension="x"
             zoomDomain={zoomDomain}
-            onZoomDomainChange={setZoomDomain}
+            onZoomDomainChange={(domain) => {
+              const toNumber = (value: number | Date) =>
+                typeof value === 'number' ? value : value.getTime();
+              setZoomDomain({
+                x: [toNumber(domain.x[0]), toNumber(domain.x[1])],
+                y: [toNumber(domain.y[0]), toNumber(domain.y[1])],
+              });
+            }}
           />
         ) : (
           <VictoryVoronoiContainer
@@ -261,9 +276,6 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
                 style={{ fill: theme.colors.onSurface, fontSize: 12 }}
               />
             }
-            events={[{
-              onChildPress: handlePointPress,
-            }]}
           />
         )
       }
@@ -292,7 +304,13 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           },
           labels: { fontSize: 10 },
         }}
-        animate={data.animationEnabled !== false ? { duration: 500 } : false}
+        events={[
+          {
+            target: 'data',
+            eventHandlers: { onClick: handlePointPress },
+          },
+        ]}
+        animate={animationsEnabled !== false ? { duration: 500 } : false}
       />
     </VictoryChart>
   );
@@ -316,9 +334,6 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
               style={{ fill: theme.colors.onSurface, fontSize: 12 }}
             />
           }
-          events={[{
-            onChildPress: handlePointPress,
-          }]}
         />
       }
     >
@@ -341,11 +356,18 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
         data={data.data}
         style={{
           data: {
-            fill: ({ index }) => chartColors[index % chartColors.length],
+            fill: ({ index }) =>
+              chartColors[Number(index ?? 0) % chartColors.length],
           },
           labels: { fontSize: 10 },
         }}
-        animate={data.animationEnabled !== false ? { duration: 500 } : false}
+        events={[
+          {
+            target: 'data',
+            eventHandlers: { onClick: handlePointPress },
+          },
+        ]}
+        animate={animationsEnabled !== false ? { duration: 500 } : false}
       />
     </VictoryChart>
   );
@@ -374,10 +396,13 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           fill: theme.colors.onSurface,
         },
       }}
-      events={[{
-        onChildPress: handlePointPress,
-      }]}
-      animate={data.animationEnabled !== false ? { duration: 500 } : false}
+      events={[
+        {
+          target: 'data',
+          eventHandlers: { onClick: handlePointPress },
+        },
+      ]}
+      animate={animationsEnabled !== false ? { duration: 500 } : false}
     />
   );
 
@@ -478,13 +503,14 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
       </View>
 
       {/* Chart */}
-      <ScrollView
-        horizontal={data.type !== 'pie'}
-        showsHorizontalScrollIndicator={true}
-        onLongPress={handleLongPress}
-      >
-        {renderChart()}
-      </ScrollView>
+      <TouchableWithoutFeedback onLongPress={handleLongPress}>
+        <ScrollView
+          horizontal={data.type !== 'pie'}
+          showsHorizontalScrollIndicator={true}
+        >
+          {renderChart()}
+        </ScrollView>
+      </TouchableWithoutFeedback>
 
       {/* Legend */}
       {renderLegend()}

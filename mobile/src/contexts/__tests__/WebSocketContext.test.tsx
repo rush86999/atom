@@ -1530,7 +1530,6 @@ describe('WebSocketContext', () => {
       });
 
       await act(async () => {
-        await result.current.socket?.connect();
         mockSocket.connected = true;
       });
 
@@ -2301,10 +2300,6 @@ describe('WebSocketContext', () => {
         wrapper: createWrapper(),
       });
 
-      await act(async () => {
-        await result.current.connect?.();
-      });
-
       const connectCallback = mockSocket.on.mock.calls.find(
         (call: any[]) => call[0] === 'connect'
       )?.[1];
@@ -2341,8 +2336,12 @@ describe('WebSocketContext', () => {
         wrapper: createWrapper(),
       });
 
-      await act(async () => {
-        await result.current.connect?.();
+      // Provider connects asynchronously; wait for the socket handler to exist
+      // before driving its connect callback.
+      await waitFor(() => {
+        expect(
+          mockSocket.on.mock.calls.some((call: any[]) => call[0] === 'connect')
+        ).toBe(true);
       });
 
       const connectCallback = mockSocket.on.mock.calls.find(
@@ -2359,20 +2358,24 @@ describe('WebSocketContext', () => {
         configurable: true,
       });
 
-      const messageCallback = mockSocket.on.mock.calls.filter(
-        (call: any[]) => call[0] === 'agent:message'
-      ).slice(-1)[0]?.[1];
-      const completeCallback = mockSocket.on.mock.calls.filter(
-        (call: any[]) => call[0] === 'agent:streaming_complete'
-      ).slice(-1)[0]?.[1];
+      const messageCallbacks = mockSocket.on.mock.calls
+        .filter((call: any[]) => call[0] === 'agent:message')
+        .map((call: any[]) => call[1]);
+      const completeCallbacks = mockSocket.on.mock.calls
+        .filter((call: any[]) => call[0] === 'agent:streaming_complete')
+        .map((call: any[]) => call[1]);
 
       act(() => {
         // A plain (non-streaming) last message
-        messageCallback?.({ agent_id: 'agent-1', content: 'final' });
+        messageCallbacks.forEach((callback: ((data: any) => void) | undefined) =>
+          callback?.({ agent_id: 'agent-1', content: 'final' })
+        );
       });
 
       act(() => {
-        completeCallback?.({ agent_id: 'agent-1' });
+        completeCallbacks.forEach((callback: ((data: any) => void) | undefined) =>
+          callback?.({ agent_id: 'agent-1' })
+        );
       });
 
       await waitFor(() => {

@@ -32,6 +32,11 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { rpc } from "@/lib/rpc-client";
+import { configureLocalMonaco } from "@/lib/monaco-local";
+
+// Module scope, before React mounts the editor (the loader initializes in the
+// Editor's own effect).
+configureLocalMonaco();
 
 interface MiniAppHarnessProps {
   canvasId: string;

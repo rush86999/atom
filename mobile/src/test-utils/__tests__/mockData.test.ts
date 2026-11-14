@@ -133,8 +133,8 @@ describe('mockData fixtures', () => {
 
   describe('device fixtures', () => {
     it('deviceInfo describes a device', () => {
-      expect(mockDeviceInfo.osName || mockDeviceInfo.platform).toBeTruthy();
-      expect(mockDeviceInfo.modelName || mockDeviceInfo.model).toBeTruthy();
+      expect(mockDeviceInfo.platform).toBeTruthy();
+      expect(mockDeviceInfo.model).toBeTruthy();
     });
 
     it('devicePermissions gate capabilities', () => {

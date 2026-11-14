@@ -702,6 +702,16 @@ class TestCognitiveTierGeneration:
 
 
 class TestTranscription:
+    @pytest.fixture(autouse=True)
+    def _scratch_billing(self, monkeypatch, tmp_path):
+        """The fixture's tenant is synthetic; seed its policy in a scratch
+        store so the (always-enforced) paid admission can be exercised."""
+        from tests._scratch_billing import install_scratch_billing
+
+        install_scratch_billing(
+            monkeypatch, tmp_path, tenant_id="t-1", workspace_id="ws-1",
+            limit=0.0, mode="soft_stop")
+
     @pytest.mark.asyncio
     async def test_no_client(self, handler):
         handler.async_clients = {}

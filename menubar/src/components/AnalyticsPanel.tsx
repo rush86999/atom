@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { normalizeServerUrl } from "../config";
 
 interface DashboardKPIs {
   total_executions: number;
@@ -39,7 +40,7 @@ export default function AnalyticsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const base = (serverUrl || "http://localhost:8000").replace(/\/$/, "");
+  const base = normalizeServerUrl(serverUrl);
 
   const load = useCallback(
     async (tw: TimeWindow) => {

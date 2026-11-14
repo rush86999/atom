@@ -37,6 +37,7 @@ RECOVERY_CALLS = (
     "reconcile_orphaned_executions",
     "notify_recovered_continuations",
     "recover_active_assignments_at_startup",
+    "expire_due_information_waits",
     "drain_accepted_information_waits",
 )
 
@@ -112,6 +113,24 @@ def test_sweep_runs_before_the_scheduler_gate():
     )
 
 
+def test_deadline_expiry_runs_before_accepted_answer_recovery():
+    """Expiry must win over accepted input withheld by downtime.
+
+    A fact accepted just before a crash is otherwise eligible for the
+    accepted-wait drain. The absolute deadline check has to settle the wait
+    first, or a past-deadline job would be resumed by its own durable input.
+    """
+    lifespan = _lifespan(ast.parse(MAIN_APP.read_text()))
+    lines = dict(_called_names(lifespan))
+    expiry_line = lines.get("expire_due_information_waits")
+    drain_line = lines.get("drain_accepted_information_waits")
+    assert expiry_line is not None and drain_line is not None, lines
+    assert expiry_line < drain_line, (
+        f"deadline expiry (line {expiry_line}) must run before the "
+        f"accepted-answer drain (line {drain_line})"
+    )
+
+
 NESTED = '''
 async def lifespan(app):
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
@@ -121,6 +140,8 @@ async def lifespan(app):
         notify_recovered_continuations()
         from core.assignment_recovery import recover_active_assignments_at_startup
         recover_active_assignments_at_startup()
+        from core.information_wait import expire_due_information_waits
+        expire_due_information_waits()
         from core.information_wait import drain_accepted_information_waits
         drain_accepted_information_waits()
 '''

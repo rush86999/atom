@@ -523,7 +523,7 @@ describe('OfflineIndicator Component', () => {
       );
 
       const indicator = getByText('3 Pending Changes').parent;
-      fireEvent.press(indicator);
+      if (indicator) fireEvent.press(indicator);
 
       expect(mockOnViewPendingActions).toHaveBeenCalled();
     });
@@ -542,7 +542,7 @@ describe('OfflineIndicator Component', () => {
       );
 
       const indicator = getByText('All Synced').parent;
-      fireEvent.press(indicator);
+      if (indicator) fireEvent.press(indicator);
 
       expect(mockOnViewPendingActions).not.toHaveBeenCalled();
     });

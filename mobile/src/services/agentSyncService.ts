@@ -83,6 +83,15 @@ class AgentSyncService {
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
 
+  constructor() {
+    this.cache = {
+      agents: {},
+      lastSyncAt: null,
+      pendingExecutions: [],
+      favorites: new Set(),
+    };
+  }
+
   /**
    * Initialize the agent sync service
    */
@@ -116,7 +125,7 @@ class AgentSyncService {
       console.log('AgentSync: Syncing agents');
 
       // Fetch agents from server
-      const response = await apiService.get('/api/agents');
+      const response = await apiService.get<{ agents: Agent[] }>('/api/agents');
 
       if (!response.success || !response.data) {
         console.error('AgentSync: Failed to fetch agents:', response.error);
@@ -129,7 +138,7 @@ class AgentSyncService {
         };
       }
 
-      const agents: Agent[] = response.data.agents || [];
+      const agents = response.data.agents || [];
 
       // Process each agent
       for (const agent of agents) {
@@ -196,9 +205,9 @@ class AgentSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/agents/${agentId}`);
+      const response = await apiService.get<Agent>(`/api/agents/${agentId}`);
       if (response.success && response.data) {
-        const agent: Agent = response.data;
+        const agent = response.data;
         this.cache.agents[agentId] = agent;
         await this.saveCache();
         return agent;

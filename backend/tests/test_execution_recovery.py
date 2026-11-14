@@ -29,7 +29,7 @@ import subprocess
 import sys
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import pytest
@@ -40,7 +40,9 @@ from core.chat_transport import IN_PROGRESS
 from core.execution_ownership import HOSTNAME, _os_process_start
 from core.models import (
     AgentExecution,
+    ChainLink,
     ChatRequestRecord,
+    DelegationChain,
     ExecutionStatus,
     WorkflowExecution,
     WorkflowExecutionStatus,
@@ -147,6 +149,8 @@ def _make_agent_exec(
     db: Session,
     status: str = ExecutionStatus.RUNNING.value,
     metadata: Optional[Dict[str, Any]] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> AgentExecution:
     """An AgentExecution row, owned by a VERIFIED DEAD process by default.
 
@@ -158,6 +162,8 @@ def _make_agent_exec(
     row = AgentExecution(
         id=str(uuid.uuid4()),
         agent_id="atom_main",
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
         status=status,
         input_summary="test",
         triggered_by="manual",
@@ -171,6 +177,64 @@ def _make_agent_exec(
     db.commit()
     db.refresh(row)
     return row
+
+
+def _make_chain(
+    db: Session,
+    *,
+    root_execution_id: Optional[str],
+    tenant_id: str = "tenant-scratch",
+    workspace_id: Optional[str] = "workspace-scratch",
+    status: str = "active",
+    link_statuses: tuple = ("in_progress",),
+) -> tuple[DelegationChain, list[ChainLink]]:
+    """A durable fleet chain bound to a parent execution, with live links.
+
+    Mirrors what ``AgentFleetService.initialize_fleet`` /
+    ``recruit_member`` persist: ``root_execution_id`` is the durable
+    parent-to-chain binding that survives a process crash.
+    """
+    metadata: Dict[str, Any] = {}
+    if workspace_id is not None:
+        metadata["workspace_id"] = workspace_id
+    chain = DelegationChain(
+        id=str(uuid.uuid4()),
+        tenant_id=tenant_id,
+        root_agent_id="atom_main",
+        root_task="scratch replay fleet",
+        root_execution_id=root_execution_id,
+        status=status,
+        total_links=len(link_statuses),
+        metadata_json=metadata,
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(chain)
+    db.flush()
+
+    links: list[ChainLink] = []
+    for order, link_status in enumerate(link_statuses):
+        link = ChainLink(
+            id=str(uuid.uuid4()),
+            chain_id=chain.id,
+            parent_agent_id="atom_main",
+            child_agent_id=f"specialist_{order}",
+            task_description=f"scratch sub-task {order}",
+            context_json={"scratch": True},
+            status=link_status,
+            link_order=order,
+            started_at=datetime.now(timezone.utc) - timedelta(seconds=5),
+        )
+        if link_status == "completed":
+            link.result_json = {"execution_id": f"child-{order}",
+                                "output": "work that really happened"}
+            link.completed_at = datetime.now(timezone.utc)
+        db.add(link)
+        links.append(link)
+    db.commit()
+    db.refresh(chain)
+    for link in links:
+        db.refresh(link)
+    return chain, links
 
 
 def _strip_owner(db: Session, execution_id: str, metadata: Dict[str, Any]) -> None:
@@ -504,4 +568,237 @@ class TestOwnerLivenessGate:
 
         assert result["chat_requests_released"] >= 1
         assert _request_state(db, request_id) == CRASHED
+
+
+# ============================================================================
+# FLEET CHAINS: the durable parent binding, reconciled on the same verdict
+# ============================================================================
+# A DelegationChain remembers the AgentExecution that rooted it in
+# ``root_execution_id``. Marking that execution failed without resolving the
+# chain leaves a fleet "active" with an in-progress link that no live worker
+# owns -- the ghost-run problem one layer up. The chain must follow exactly the
+# same ownership verdict as its root: verified dead -> fail, live/unknown ->
+# untouched, and only when the durable id (not recency or a guessed join)
+# positively links the two.
+
+
+class TestFleetChainCrashRecovery:
+    def _sweep(self, monkeypatch, session_factory):
+        from core import execution_recovery as er
+
+        monkeypatch.setattr(er, "SessionLocal", session_factory)
+        monkeypatch.setattr(er, "RECOVERY_ENABLED", True)
+        return er.reconcile_orphaned_executions()
+
+    def test_verified_dead_root_fails_chain_and_live_links_only(
+        self, db, session_factory, monkeypatch
+    ):
+        """The scratch replay shape: dead root execution, active chain,
+        one in-progress link, plus completed work that must survive."""
+        root = _make_agent_exec(
+            db, status="running", tenant_id="tenant-1", workspace_id="ws-1")
+        chain, links = _make_chain(
+            db,
+            root_execution_id=root.id,
+            tenant_id="tenant-1",
+            workspace_id="ws-1",
+            link_statuses=("completed", "in_progress", "pending"),
+        )
+        completed, in_progress, pending = links
+        completed_result = dict(completed.result_json)
+
+        result = self._sweep(monkeypatch, session_factory)
+
+        assert result["agent_recovered"] >= 1
+        assert result["fleet_chains_recovered"] >= 1
+        assert result["fleet_links_reconciled"] >= 2
+
+        db.refresh(root)
+        db.refresh(chain)
+        db.refresh(completed)
+        db.refresh(in_progress)
+        db.refresh(pending)
+
+        assert root.status == "failed"
+        assert chain.status == "failed", (
+            "a chain rooted at a VERIFIED dead execution stayed active")
+        assert chain.completed_at is not None
+        marker = (chain.metadata_json or {}).get("recovery") or {}
+        assert marker.get("crashed") is True
+        assert marker.get("owner_state") == "dead"
+        assert marker.get("root_execution_id") == root.id
+        assert marker.get("links_failed") == 2
+
+        # Only the non-terminal links are resolved; the completed one is proof
+        # the specialist's work really happened and must not be rewritten.
+        assert completed.status == "completed"
+        assert completed.result_json == completed_result
+        for link in (in_progress, pending):
+            assert link.status == "failed"
+            assert "crashed" in (link.error_message or "").lower()
+            assert link.completed_at is not None
+            assert link.duration_ms is not None
+
+    def test_verified_live_root_leaves_chain_and_links_untouched(
+        self, db, session_factory, monkeypatch
+    ):
+        with _live_owner() as (pid, owner):
+            root = _make_agent_exec(
+                db, status="running", metadata={"owner": owner},
+                tenant_id="tenant-live", workspace_id="ws-live")
+            chain, (link,) = _make_chain(
+                db, root_execution_id=root.id, tenant_id="tenant-live",
+                workspace_id="ws-live", link_statuses=("in_progress",))
+
+            self._sweep(monkeypatch, session_factory)
+
+            db.refresh(root)
+            db.refresh(chain)
+            db.refresh(link)
+            assert root.status == "running"
+            assert chain.status == "active", (
+                "a chain rooted at a live owner was failed")
+            assert chain.completed_at is None
+            assert (chain.metadata_json or {}).get("recovery") is None
+            assert link.status == "in_progress"
+            assert link.completed_at is None
+
+            # The owner process is reaped by _live_owner's finally block when
+            # this test ends. Leave the rows terminal so a later test's sweep
+            # is not legitimately recovering this now-dead owner and inflating
+            # its counts (the gate itself is asserted above, while it is live).
+            now = datetime.now(timezone.utc)
+            root.status = "completed"
+            root.completed_at = now
+            chain.status = "completed"
+            chain.completed_at = now
+            link.status = "completed"
+            link.completed_at = now
+            db.commit()
+
+    def test_unknown_owner_root_leaves_chain_and_links_untouched(
+        self, db, session_factory, monkeypatch
+    ):
+        root = _make_agent_exec(
+            db, status="running", metadata={"request_id": "scratch"},
+            tenant_id="tenant-unknown", workspace_id="ws-unknown")
+        _strip_owner(db, root.id, {"request_id": "scratch"})
+        chain, (link,) = _make_chain(
+            db, root_execution_id=root.id, tenant_id="tenant-unknown",
+            workspace_id="ws-unknown", link_statuses=("in_progress",))
+
+        result = self._sweep(monkeypatch, session_factory)
+
+        db.refresh(root)
+        db.refresh(chain)
+        db.refresh(link)
+        assert root.status == "running"
+        assert chain.status == "active", (
+            "a chain rooted at an UNKNOWN owner was declared crashed")
+        assert link.status == "in_progress"
+        assert any(
+            row.get("execution_id") == root.id
+            for row in result["agent_unknown_detail"]
+        )
+
+    @pytest.mark.parametrize("binding", ["missing", "different"])
+    def test_chain_without_positive_root_binding_is_untouched(
+        self, db, session_factory, monkeypatch, binding
+    ):
+        root = _make_agent_exec(
+            db, status="running", tenant_id="tenant-unlinked",
+            workspace_id="ws-unlinked")
+        root_execution_id = (
+            None if binding == "missing" else str(uuid.uuid4()))
+        chain, (link,) = _make_chain(
+            db, root_execution_id=root_execution_id,
+            tenant_id="tenant-unlinked", workspace_id="ws-unlinked",
+            link_statuses=("in_progress",))
+
+        self._sweep(monkeypatch, session_factory)
+
+        db.refresh(root)
+        db.refresh(chain)
+        db.refresh(link)
+        assert root.status == "failed"
+        assert chain.status == "active", (
+            f"{binding}: a chain without a positive parent binding was failed")
+        assert link.status == "in_progress"
+        assert (chain.metadata_json or {}).get("recovery") is None
+
+    @pytest.mark.parametrize("mismatch", ["tenant", "workspace"])
+    def test_cross_scope_chain_is_reported_not_reconciled(
+        self, db, session_factory, monkeypatch, mismatch
+    ):
+        root = _make_agent_exec(
+            db, status="running", tenant_id="tenant-a", workspace_id="ws-a")
+        chain, (link,) = _make_chain(
+            db,
+            root_execution_id=root.id,
+            tenant_id=("tenant-b" if mismatch == "tenant" else "tenant-a"),
+            workspace_id=("ws-a" if mismatch == "tenant" else "ws-b"),
+            link_statuses=("in_progress",),
+        )
+
+        result = self._sweep(monkeypatch, session_factory)
+
+        db.refresh(chain)
+        db.refresh(link)
+        assert root.status == "failed"
+        assert chain.status == "active", (
+            f"{mismatch}: crossed a tenant/workspace boundary")
+        assert link.status == "in_progress"
+        skipped = [
+            row for row in result["fleet_chain_scope_skipped"]
+            if row.get("chain_id") == chain.id
+        ]
+        assert skipped, f"{mismatch}: cross-scope chain was not reported"
+        assert mismatch in skipped[0]["conflicts"]
+
+    def test_completed_chain_bound_to_dead_root_is_preserved(
+        self, db, session_factory, monkeypatch
+    ):
+        root = _make_agent_exec(
+            db, status="running", tenant_id="tenant-done",
+            workspace_id="ws-done")
+        chain, (link,) = _make_chain(
+            db, root_execution_id=root.id, tenant_id="tenant-done",
+            workspace_id="ws-done", status="completed",
+            link_statuses=("completed",))
+
+        self._sweep(monkeypatch, session_factory)
+
+        db.refresh(chain)
+        db.refresh(link)
+        assert root.status == "failed"
+        assert chain.status == "completed"
+        assert link.status == "completed"
+
+    def test_chain_reconciliation_is_idempotent(
+        self, db, session_factory, monkeypatch
+    ):
+        root = _make_agent_exec(
+            db, status="running", tenant_id="tenant-idem",
+            workspace_id="ws-idem")
+        chain, (link,) = _make_chain(
+            db, root_execution_id=root.id, tenant_id="tenant-idem",
+            workspace_id="ws-idem", link_statuses=("in_progress",))
+
+        first = self._sweep(monkeypatch, session_factory)
+        assert first["fleet_chains_recovered"] >= 1
+        assert first["fleet_links_reconciled"] >= 1
+        db.refresh(chain)
+        db.refresh(link)
+        first_completed_at = link.completed_at
+        first_link_error = link.error_message
+
+        second = self._sweep(monkeypatch, session_factory)
+        assert second["fleet_chains_recovered"] == 0
+        assert second["fleet_links_reconciled"] == 0
+        db.refresh(chain)
+        db.refresh(link)
+        assert chain.status == "failed"
+        assert link.status == "failed"
+        assert link.completed_at == first_completed_at
+        assert link.error_message == first_link_error
 

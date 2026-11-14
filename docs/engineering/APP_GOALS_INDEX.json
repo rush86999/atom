@@ -89,6 +89,17 @@
       "goal": "Profile breadth"
     }
   ],
+  "current_readiness_evidence": {
+    "path": "CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md",
+    "as_of_main": "a868435fdcc7be66753366362d7542cc1082ce84",
+    "requested_base": "b4370d0d41ae6e9e5a280387d1230a80c82e14a7",
+    "state": "Navigation overlay only. Observed main after #943; the historical quick_reference below is unchanged and is not a current-main score.",
+    "preserves": {
+      "historical_claims": 143,
+      "goal_rows": 18,
+      "app_complete": false
+    }
+  },
   "explicit_user_requirements": [
     "Long-running domain-independent jobs can wait for missing information for days, survive restart, continue independent useful work, and resume the same job when authorized relevant information arrives.",
     "Agent graduation to autonomy requires verified evidence, appropriate approval, and enforceable authority boundaries.",

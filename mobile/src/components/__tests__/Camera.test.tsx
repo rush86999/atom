@@ -18,10 +18,32 @@ import { CameraScreen } from '../../screens/device/CameraScreen';
 import { cameraService } from '../../services/cameraService';
 
 // Mock expo-camera
-jest.mock('expo-camera', () => ({
-  CameraView: 'CameraView',
-  useCameraPermissions: jest.fn(),
-}));
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const useCameraPermissions = jest.fn();
+  const Camera = React.forwardRef((props: any, ref: any) =>
+    React.createElement(View, { ...props, ref, testID: 'camera' })
+  );
+  Camera.useCameraPermissions = useCameraPermissions;
+  Camera.getCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+    expires: 'never',
+  });
+  return {
+    Camera,
+    useCameraPermissions,
+    CameraType: { front: 'front', back: 'back' },
+    FlashMode: { on: 'on', off: 'off', auto: 'auto', torch: 'torch' },
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
+    },
+  };
+});
 
 // Mock expo-vector-icons
 jest.mock('@expo/vector-icons', () => ({

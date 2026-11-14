@@ -891,9 +891,11 @@ def test_provider_clients_disable_sdk_hidden_retries():
     src = inspect.getsource(bh)
     assert bh._SDK_MAX_RETRIES == 0
     # 7 construction sites: lux sync/async, ollama sync/async, the shared
-    # provider client_kwargs dict, and registered-local sync/async.
-    assert src.count("_SDK_MAX_RETRIES") == 8
-    assert src.count("max_retries=_SDK_MAX_RETRIES") == 6
+    # provider client_kwargs dict, and registered-local sync/async — plus the
+    # transcription dispatch, which reduces an injected/compatible client's
+    # positive retry budget to zero for that one wire call.
+    assert src.count("_SDK_MAX_RETRIES") == 9
+    assert src.count("max_retries=_SDK_MAX_RETRIES") == 7
     assert '"max_retries": _SDK_MAX_RETRIES' in src
 
 
