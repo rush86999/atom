@@ -299,12 +299,16 @@ assert SUM_RECORD["operation"] == "sum"
 assert SUM_RECORD["measure"] == "Total"
 assert [row["row"] for row in SUM_RECORD["rows"]] == [2, 3, 4]
 assert "85.00" in SUM_RECORD["artifact_text"]
-assert "scotch-parts.xlsx" in SUM_RECORD["artifact_text"]
+assert "sum of Total: 85.00 USD" in SUM_RECORD["artifact_text"]
 assert SUM_RECORD["approved_status"] == "completed"
 assert any("85.00" in str(item.get("body")) for item in SUM_RECORD["outbox"])
 assert COUNT_RECORD["value"] == "3"
 assert COUNT_RECORD["operation"] == "count"
-assert "3" in COUNT_RECORD["artifact_text"]
+assert COUNT_RECORD["unit"] == "rows"
+# The count is a row tally; the currency buckets remain as provenance only.
+assert COUNT_RECORD["subtotals"] == {"USD": {"rows": 3, "value": "3.00"}}
+assert "count of rows: 3" in COUNT_RECORD["artifact_text"]
+assert "3.00 USD" not in COUNT_RECORD["artifact_text"]
 assert all(item["status"] == "completed"
            for item in REOPEN_STATUS.values())
 

@@ -11,7 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as Device from 'expo-device';
-import * as Constants from 'expo-constants';
+import Constants from 'expo-constants';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { secureGet, secureSet, secureDelete } from '../storage/secureTokenStorage';
@@ -151,7 +151,7 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         platform: Platform.OS,
         device_type: Device.deviceType,
         total_memory: Device.totalMemory || 0,
-        supported_abi: Device.supportedAbis || [],
+        supported_abi: Device.supportedCpuArchitectures || [],
       };
     } catch (error) {
       console.error('Failed to get device info:', error);

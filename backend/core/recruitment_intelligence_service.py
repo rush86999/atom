@@ -22,7 +22,11 @@ import logging
 import json
 
 from core.llm_service import LLMService
-from core.specialist_matcher import SpecialistMatcher
+from core.specialist_matcher import (
+    SpecialistMatcher,
+    canonical_domain,
+    domain_category_condition,
+)
 from core.recruitment_analytics_service import RecruitmentAnalyticsService
 from core.agent_fleet_service import AgentFleetService
 from analytics.fleet_optimization_service import FleetOptimizationService
@@ -145,26 +149,50 @@ Return JSON matching the RecruitmentPlan schema."""
                 system_instruction="You are an expert at multi-agent task decomposition and domain analysis.",
                 response_model=RecruitmentPlan,
                 temperature=0.3,
-                user_id=user_id  # Changed from tenant_id
+                user_id=user_id,  # acting user: personalization/audit attribution
+                # Authenticated scope. LLMService names these as supported
+                # parameters and selects the handler by BOTH identifiers; a
+                # default-scope handler would route/attribute this analysis
+                # away from the requesting workspace.
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
             )
 
-            # Validate domains are available
-            valid_domains = [d for d in result.required_domains if d in self.AVAILABLE_DOMAINS]
-            if len(valid_domains) < len(result.required_domains):
+            # Resolve model labels to the canonical vocabulary before
+            # validating. Real models return display labels ("Finance",
+            # "Data_Analysis") for agents whose registry category uses that
+            # same display form; exact-match validation silently dropped both
+            # and recruitment proceeded with zero domains.
+            valid_domains: List[str] = []
+            unavailable: List[str] = []
+            rationale: Dict[str, str] = {}
+            for requested in result.required_domains:
+                canonical = canonical_domain(
+                    requested, allowed=self.AVAILABLE_DOMAINS)
+                if canonical is None:
+                    unavailable.append(requested)
+                    continue
+                if canonical in valid_domains:
+                    continue
+                valid_domains.append(canonical)
+                reason = (
+                    result.domain_rationale.get(requested)
+                    or result.domain_rationale.get(canonical)
+                )
+                if reason:
+                    rationale[canonical] = reason
+
+            if unavailable:
                 logger.warning(
                     f"[RecruitmentIntelligence] Filtered unavailable domains: "
-                    f"{set(result.required_domains) - set(valid_domains)}"
+                    f"{set(unavailable)}"
                 )
 
             result.required_domains = valid_domains
             # Keep suggested_specialist_count and domain_rationale consistent
-            # with the (possibly filtered) required_domains list.
+            # with the (possibly filtered/deduplicated) domain list.
             result.suggested_specialist_count = max(1, len(valid_domains))
-            result.domain_rationale = {
-                d: result.domain_rationale[d]
-                for d in valid_domains
-                if d in result.domain_rationale
-            }
+            result.domain_rationale = rationale
 
             return result
 
@@ -182,10 +210,13 @@ Return JSON matching the RecruitmentPlan schema."""
 
         catalog_lines = []
         for domain in domains:
-            # Count agents for this domain within the authenticated scope.
+            # Count agents for this canonical domain within the authenticated
+            # scope. The category condition resolves synonyms ("Data_Analysis"
+            # → intelligence, "Finance" → finance), so the count agrees with
+            # the mapped catalog label the LLM is asked to choose.
             agent_count = self.db.query(AgentRegistry).filter(
                 AgentRegistry.user_id == user_id,
-                AgentRegistry.category.ilike(f"%{domain}%"),
+                domain_category_condition(domain),
                 agent_workspace_scope_condition(self.workspace_id),
             ).count()
 

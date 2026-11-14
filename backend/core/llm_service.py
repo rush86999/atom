@@ -23,6 +23,34 @@ from core.continuous_learning_service import ContinuousLearningService
 logger = logging.getLogger(__name__)
 
 
+_QUERY_COMPLEXITY_BY_NAME = {
+    "simple": QueryComplexity.SIMPLE,
+    "moderate": QueryComplexity.MODERATE,
+    "complex": QueryComplexity.COMPLEX,
+    "advanced": QueryComplexity.ADVANCED,
+}
+
+
+def _coerce_query_complexity(
+    complexity: Union[str, QueryComplexity]
+) -> QueryComplexity:
+    """Normalize a routing complexity input to ``QueryComplexity``.
+
+    Callers legitimately pass either the documented lowercase string
+    (``"simple"``..``"advanced"``) or the enum returned by
+    ``analyze_query_complexity``. Unknown values keep the historical
+    fallback to ``QueryComplexity.MODERATE``.
+    """
+    if isinstance(complexity, QueryComplexity):
+        return complexity
+
+    value = getattr(complexity, "value", complexity)
+    if isinstance(value, str):
+        return _QUERY_COMPLEXITY_BY_NAME.get(
+            value.lower(), QueryComplexity.MODERATE)
+    return QueryComplexity.MODERATE
+
+
 class LLMProvider(str, Enum):
     """Supported LLM providers"""
     OPENAI = "openai"
@@ -600,7 +628,13 @@ class LLMService:
         """Simple text generation interface."""
         # Personalization
         agent_id = kwargs.get("agent_id")
-        user_id = kwargs.get("user_id")
+        # ``user_id`` is SERVICE-level attribution: it feeds personalization
+        # above and (on the self-consistency path) the audit row. The handler
+        # has no such parameter, so it must be POPPED, not forwarded — a bare
+        # ``kwargs.get`` left it in the passthrough and every call naming an
+        # acting user raised "unexpected keyword argument 'user_id'". Same
+        # contract as ``generate_structured_response`` below.
+        user_id = kwargs.pop("user_id", None)
         # Tenant and workspace stay separate: the handler is selected by
         # BOTH identifiers (a tenant-only caller resolves the tenant's
         # own workspace inside _get_handler — the tenant id never
@@ -818,7 +852,19 @@ class LLMService:
 
         # Personalization
         agent_id = kwargs.get("agent_id")
-        user_id = kwargs.get("user_id")
+        # ``user_id`` is SERVICE-level attribution: it feeds personalization
+        # here and the voter's audit row on the self-consistency path. The
+        # handler's structured signature has no ``user_id`` parameter, so it
+        # must be POPPED before the passthrough below. Leaving it in raised
+        # "BYOKHandler.generate_structured_response() got an unexpected
+        # keyword argument 'user_id'" for every fleet call naming an acting
+        # user; both call sites swallow exceptions into fallbacks, so the
+        # only symptom was degraded output (Goal 13 probe: task analysis fell
+        # back to "LLM analysis failed..." and recruitment to keyword
+        # matching). Attribution is preserved through the supported
+        # mechanisms: personalization/audit here, agent_id/chain_id forwarded,
+        # workspace_id/tenant_id scope the handler selection above.
+        user_id = kwargs.pop("user_id", None)
         explicit_temperature = kwargs.pop("temperature", None)
         if agent_id and self.continuous_learning:
             params = self.continuous_learning.get_personalized_parameters(
@@ -1009,7 +1055,7 @@ class LLMService:
 
     def get_optimal_provider(
         self,
-        complexity: str = "moderate",
+        complexity: Union[str, QueryComplexity] = "moderate",
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         tenant_plan: str = "free",
@@ -1022,7 +1068,9 @@ class LLMService:
         Get the optimal provider and model for a given complexity level.
         
         Args:
-            complexity: Query complexity level
+            complexity: Query complexity level — lowercase string or
+                ``QueryComplexity`` enum (as returned by
+                ``analyze_query_complexity``)
             task_type: Optional task type hint
             prefer_cost: Whether to prefer cost over quality
             tenant_plan: Tenant plan for model restrictions
@@ -1031,14 +1079,7 @@ class LLMService:
             requires_structured: Whether model must support structured output
             turn_index: Interaction turn (0 = creation, 1+ = reuse)
         """
-        # Map complexity string to QueryComplexity enum
-        complexity_map = {
-            "simple": QueryComplexity.SIMPLE,
-            "moderate": QueryComplexity.MODERATE,
-            "complex": QueryComplexity.COMPLEX,
-            "advanced": QueryComplexity.ADVANCED
-        }
-        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+        complexity_enum = _coerce_query_complexity(complexity)
 
         result = self.handler.get_optimal_provider(
             complexity=complexity_enum,
@@ -1054,7 +1095,7 @@ class LLMService:
 
     def get_ranked_providers(
         self,
-        complexity: str = "moderate",
+        complexity: Union[str, QueryComplexity] = "moderate",
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         tenant_plan: str = "free",
@@ -1065,14 +1106,7 @@ class LLMService:
         cognitive_tier: Optional[str] = None,
         turn_index: int = 0
     ) -> List[tuple[str, str]]:
-        # Map complexity string to QueryComplexity enum
-        complexity_map = {
-            "simple": QueryComplexity.SIMPLE,
-            "moderate": QueryComplexity.MODERATE,
-            "complex": QueryComplexity.COMPLEX,
-            "advanced": QueryComplexity.ADVANCED
-        }
-        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+        complexity_enum = _coerce_query_complexity(complexity)
 
         # Map cognitive_tier string to CognitiveTier enum if provided
         cognitive_tier_enum = None

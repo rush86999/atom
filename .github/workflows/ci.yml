@@ -230,7 +230,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_office_path_launch_anchor.py tests/test_round53_office_sync_path_containment.py tests/core/services/test_office_service.py tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_document_joined_lifecycle.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_office_path_launch_anchor.py tests/test_round53_office_sync_path_containment.py tests/core/services/test_office_service.py tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_document_delete_truth.py tests/test_document_joined_lifecycle.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run document browser prerequisite controls
         env:
           TESTING: "1"
@@ -595,7 +595,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_spend_window_clock.py tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py tests/test_goal9_embedding_attempts.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_spend_window_clock.py tests/test_goal9_physical_attempts.py tests/test_goal9_structured_attempts.py tests/test_goal9_pricing_material.py tests/test_goal9_stream_usage.py tests/test_goal9_embedding_attempts.py tests/test_goal9_whisper_attempts.py -q --tb=short --timeout=300 --timeout-method=thread
 
       - name: Run spawned agent authority and receipt controls
         env:
@@ -797,6 +797,7 @@ jobs:
             tests/test_oracle_effect_families.py \
             tests/test_oracle_connected_mutations.py \
             tests/test_assignment_executor.py \
+            tests/test_assignment_multi_source_total.py \
             tests/test_generic_oracle_mutation_contract.py \
             tests/test_lead_shopify_authorized_material.py \
             tests/test_oracle_shopify_product_authorized_material.py \

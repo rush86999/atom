@@ -396,6 +396,55 @@ def test_whisper_realistic_encoded_fixture_duration(encoded_clip, container):
     assert seconds <= CLIP_SECONDS + 0.25, (container, seconds)
 
 
+@pytest.fixture(scope="module")
+def chained_clips(tmp_path_factory):
+    """Two independently encoded links byte-concatenated into one upload.
+
+    Chained audio is a real upload shape (resumed recordings, concatenated
+    voice notes). Ogg, WebM and MP3 demuxers decode every link back to back,
+    so a duration taken from the LAST granule, the FIRST Xing header or the
+    FIRST matroska Segment under-bills everything after the first link.
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        pytest.skip("ffmpeg is not installed; realistic fixtures unavailable")
+    output = tmp_path_factory.mktemp("whisper-chained-clips")
+    recipes = {
+        "ogg": ["-c:a", "libopus", "-b:a", "24k", "-f", "ogg"],
+        "mp3": ["-c:a", "libmp3lame", "-b:a", "32k", "-f", "mp3"],
+        "webm": ["-c:a", "libopus", "-b:a", "24k", "-f", "webm"],
+    }
+    clips = {}
+    for extension, arguments in recipes.items():
+        payload = b""
+        for frequency in (440, 660):
+            path = output / f"{extension}-{frequency}.{extension}"
+            subprocess.run(
+                [ffmpeg, "-v", "error", "-f", "lavfi", "-i",
+                 f"sine=frequency={frequency}:duration={CLIP_SECONDS}",
+                 "-ar", "48000", "-ac", "1", *arguments, str(path)],
+                check=True, capture_output=True)
+            payload += path.read_bytes()
+        clips[extension] = payload
+    return clips
+
+
+@pytest.mark.parametrize("container", ("ogg", "mp3", "webm"))
+def test_whisper_chained_audio_bills_every_link(chained_clips, container):
+    """Concatenated links must all be reserved, not just the first one.
+
+    Measured regression on this parser: a 2 x 3.25s chained upload reported
+    3.2565s (Ogg, last-granule), 3.2914s (MP3, first Xing header) and 3.258s
+    (WebM, first Segment) while every decoder played ~6.5s.
+    """
+    from core.media_duration import media_duration_seconds
+
+    seconds = media_duration_seconds(
+        chained_clips[container], f"chain.{container}")
+    assert seconds is not None
+    assert seconds >= 2 * CLIP_SECONDS - 0.05, (container, seconds)
+
+
 def test_whisper_pricing_catalog_preserves_audio_rate():
     from core.cost_config import get_llm_audio_cost
     from core.dynamic_pricing_fetcher import DynamicPricingFetcher
@@ -462,3 +511,71 @@ def test_whisper_openai_clients_disable_sdk_retries():
     source = inspect.getsource(bh.BYOKHandler._initialize_clients)
     assert "max_retries=_SDK_MAX_RETRIES" in source
     assert bh._SDK_MAX_RETRIES == 0
+
+
+class _RetryableAudioClient:
+    """SDK-shaped transport that still carries the SDK's default retries.
+
+    This is the runtime-injected/compatible-client shape: the handler did not
+    build it, so its retry budget is whatever that client chose.
+    """
+
+    def __init__(self, script, calls, *, can_clone=True):
+        self.max_retries = 2
+        self.clone_kwargs = None
+        self._script = list(script)
+        self._calls = calls
+        self._can_clone = can_clone
+        self.audio = SimpleNamespace(
+            transcriptions=SimpleNamespace(create=self._create))
+
+    def with_options(self, **kwargs):
+        if not self._can_clone:
+            raise TypeError("client cannot be cloned")
+        self.clone_kwargs = dict(kwargs)
+        clone = _AudioClient(self._script, self._calls)
+        clone.max_retries = 0
+        return clone
+
+    async def _create(self, **kwargs):
+        raise AssertionError("un-cloned transport must never be dispatched")
+
+
+def test_whisper_positive_sdk_retry_budget_disabled_before_dispatch(
+        host, monkeypatch, tmp_path):
+    """One admission covers ONE wire call; a hidden SDK retry is a second
+    billed request. A positive retry budget must be reduced to zero."""
+    _seed(host, spend=0.0)
+    _audio_pricing(monkeypatch)
+    calls = []
+    client = _RetryableAudioClient(
+        [SimpleNamespace(text="single wire call")], calls)
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["whisper-1"]},
+        async_={"openai": client})
+
+    result = asyncio.run(handler.generate_transcription(
+        file=io.BytesIO(_wav_bytes(1.0)), model="whisper-1"))
+
+    assert result["text"] == "single wire call"
+    assert client.clone_kwargs == {"max_retries": 0}
+    assert len(calls) == 1
+
+
+def test_whisper_unbounded_sdk_retries_refuse_before_transport(
+        host, monkeypatch, tmp_path):
+    """If the retry budget cannot be reduced, no audio leaves the process."""
+    _seed(host, spend=0.0)
+    _audio_pricing(monkeypatch)
+    calls = []
+    client = _RetryableAudioClient([], calls, can_clone=False)
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["whisper-1"]},
+        async_={"openai": client})
+
+    with pytest.raises(ValueError, match="audio was not sent"):
+        asyncio.run(handler.generate_transcription(
+            file=io.BytesIO(_wav_bytes(1.0)), model="whisper-1"))
+
+    assert calls == []
+    assert _attempt_rows(host) == []

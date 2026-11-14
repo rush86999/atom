@@ -21,6 +21,11 @@ import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
 import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, isTextBodyComponent, extractTextBody, isTextBodyEnvelope, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
 import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/canvas/EmailAttachmentStrip";
+import { configureLocalMonaco } from "@/lib/monaco-local";
+
+// Module scope, before React mounts the editor: the loader initializes in the
+// Editor's own effect, so configuring later would race the CDN default.
+configureLocalMonaco();
 
 interface CanvasState {
     id?: string;

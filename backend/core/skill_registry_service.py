@@ -25,6 +25,7 @@ Reference: Phase 36 Plan 06 - npm Skill Integration
 
 import datetime
 import hashlib
+import json
 import logging
 import uuid
 from pathlib import Path
@@ -315,6 +316,50 @@ class SkillRegistryService:
             "created_at": skill.created_at.isoformat() if skill.created_at else None
         }
 
+    @staticmethod
+    def _json_object(value: Any) -> Dict[str, Any]:
+        """Normalize a JSON column that may arrive as a dict or a string."""
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                return {}
+            return parsed if isinstance(parsed, dict) else {}
+        return {}
+
+    def _declares_reviewed_executable(self, skill: Dict[str, Any]) -> bool:
+        """Whether this registry record claims reviewed-executable provenance.
+
+        The binding is normally on ``input_params.reviewed_executable``.  A
+        record that lost that binding must not silently fall through to the
+        generic community-skill path: the reviewed package frontmatter
+        (code digests) and the linked ``Skill.config`` are durable markers
+        that the artifact is the executable exception.  Fail closed when any
+        marker is present.
+        """
+        metadata = self._json_object(skill.get("skill_metadata"))
+        if any(metadata.get(key) for key in (
+                "executable_code_sha256", "candidate_code_sha256",
+                "reviewed_executable")):
+            return True
+
+        linked_skill_id = str(skill.get("linked_skill_id") or "")
+        if not linked_skill_id:
+            return False
+        from core.models import Skill
+
+        linked = (
+            self.db.query(Skill)
+            .filter(Skill.id == linked_skill_id)
+            .first()
+        )
+        if linked is None:
+            return False
+        config = self._json_object(linked.config)
+        return bool(config.get("reviewed_executable"))
+
     async def execute_skill(
         self,
         skill_id: str,
@@ -367,8 +412,15 @@ class SkillRegistryService:
         # Reviewed executable skills are authorized against the exact review
         # binding BEFORE a SkillExecution row is created.  A refusal here is
         # therefore a hard request error, not an execution failure receipt.
+        # A record that still carries reviewed-executable provenance (package
+        # digests / linked Skill binding) but lost the registry binding must
+        # not downgrade into the generic community-skill execution path.
         reviewed_binding = skill.get("reviewed_executable")
         reviewed_verified: Optional[Dict[str, Any]] = None
+        if not reviewed_binding and self._declares_reviewed_executable(skill):
+            raise ValueError(
+                "reviewed_executable_not_approved: registry record is missing "
+                "the reviewed executable binding")
         if reviewed_binding:
             reviewed_verified = self._authorize_reviewed_executable(
                 skill, reviewed_binding,
@@ -733,6 +785,20 @@ class SkillRegistryService:
             raise ValueError(
                 "reviewed_executable_artifact_changed: linked Skill code/type "
                 "differs from the registered artifact")
+
+        linked_binding = self._json_object(linked_skill.config).get(
+            "reviewed_executable")
+        if not isinstance(linked_binding, dict) or not linked_binding:
+            raise ValueError(
+                "reviewed_executable_not_approved: linked Skill row has no "
+                "executable binding")
+        from core.reviewed_executable import canonical_json
+
+        if (canonical_json(linked_binding)
+                != canonical_json(binding)):
+            raise ValueError(
+                "reviewed_executable_artifact_changed: linked Skill binding "
+                "differs from the registry binding")
 
         return verify_executable_artifact(
             binding=binding,

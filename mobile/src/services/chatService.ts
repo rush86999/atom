@@ -36,7 +36,7 @@ interface MessageSearchParams {
   limit?: number;
 }
 
-interface ConversationSummary {
+export interface ConversationSummary {
   session_id: string;
   agent_id: string;
   agent_name: string;
@@ -343,9 +343,14 @@ class ChatService {
       if (response.success) {
         this.failedMessages.delete(messageId);
         await this.savePendingMessages();
+        return { success: true };
       }
 
-      return response;
+      return {
+        success: false,
+        error: response.error,
+        message: response.message,
+      };
     } catch (error: any) {
       return {
         success: false,

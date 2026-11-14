@@ -56,6 +56,135 @@ except Exception:  # pragma: no cover - defensive
 
 _SUCCESS_STATUSES = {"success", "objective_satisfied"}
 
+# Honest terminal output when the step budget runs out without a model answer.
+# The model's private reasoning is never promoted to the user-facing answer.
+_MAX_STEPS_WITHOUT_ANSWER = "Maximum steps reached without final answer."
+
+# Producer identity stamped on the ONLY evidence that proves a tool leaf was
+# actually invoked. A step's ``action.tool`` is the model's request; it is not
+# dispatch proof (a denied/blocked call retains the name too). Consumers such
+# as the fleet receipt ledger require this typed envelope before claiming work
+# ran, so the stamp is written at the dispatch site -- never inferred from the
+# observation text (which can be external, instruction-shaped content).
+_DISPATCH_EVIDENCE_PRODUCER = "core.generic_agent.tool_dispatch"
+_DISPATCHED_KINDS = frozenset({
+    "verified", "unverified", "failed_verification",
+})
+
+
+def _new_dispatch_evidence(tool_name: str) -> Dict[str, Any]:
+    """Start a producer-owned dispatch envelope for one attempted call."""
+    return {
+        "producer": _DISPATCH_EVIDENCE_PRODUCER,
+        "tool": str(tool_name or "")[:120],
+        "dispatched": False,
+        "status": "not_dispatched",
+    }
+
+
+def _mark_dispatch_started(
+    evidence: Optional[Dict[str, Any]],
+    *,
+    operation_id: Optional[str] = None,
+    reason: Optional[str] = None,
+) -> None:
+    """Mark the leaf as actually invoked, immediately before dispatch.
+
+    Mutates the caller-owned envelope so the ReAct loop can retain the exact
+    evidence for the step it belongs to (parallel calls each carry their own
+    dict; there is no shared last-call attribute to race on).
+    """
+    if not isinstance(evidence, dict):
+        return
+    evidence["dispatched"] = True
+    evidence["status"] = "dispatched"
+    evidence["dispatched_at"] = datetime.now(timezone.utc).isoformat()
+    if operation_id:
+        evidence["operation_id"] = str(operation_id)[:200]
+    if reason:
+        evidence["reason"] = str(reason)[:300]
+
+
+def _mark_dispatch_refused(
+    evidence: Optional[Dict[str, Any]],
+    *,
+    status: str,
+    reason: Optional[str] = None,
+) -> None:
+    """Record a producer-side refusal without turning it into dispatch proof."""
+    if not isinstance(evidence, dict):
+        return
+    evidence["dispatched"] = False
+    evidence["status"] = str(status or "not_dispatched")[:80]
+    if reason:
+        evidence["reason"] = str(reason)[:300]
+
+
+def _verification_kind(result: Any, dispatch_evidence: Dict[str, Any]) -> str:
+    """Typed outcome kind for a step, without treating a refusal as a run."""
+    if not isinstance(dispatch_evidence, dict) or dispatch_evidence.get(
+            "dispatched") is not True:
+        return str(dispatch_evidence.get("status") if isinstance(
+            dispatch_evidence, dict) else "") or "not_dispatched"
+    if isinstance(result, dict):
+        kind = result.get("verified_kind")
+        if kind in _DISPATCHED_KINDS:
+            return str(kind)
+        if result.get("oracle_verified") is True:
+            return "verified"
+        if result.get("oracle_verified") is False:
+            return "failed_verification"
+    try:
+        from core.tool_outcome_verifier import parse_tool_outcome
+        return str(parse_tool_outcome(result).kind)
+    except Exception:  # noqa: BLE001 - unparsable stays unverified
+        return "unverified"
+
+
+def _thought_only_recovery_note(step_number: int, max_steps: int) -> str:
+    """Deterministic next-turn instruction for a thought-only structured step.
+
+    A validated ReActStep may legally carry only ``thought``. When that happens
+    the loop cannot execute or finish anything, so the next model call must be
+    told exactly what the contract requires: a user-facing final answer or one
+    valid control field. This is guidance appended to the existing history —
+    it adds no step and no LLM call of its own.
+    """
+    return (
+        f"[NO CONTROL FIELD] Step {step_number} of {max_steps} contained "
+        "reasoning but no user-facing final answer and no action, actions, "
+        "or information_wait. Do not respond with reasoning alone. On this "
+        "next step you MUST provide final_answer with the complete "
+        "user-facing response, OR exactly one valid control field: action or "
+        "actions naming an advertised tool, or information_wait for a "
+        "required missing fact. A thought-only response does not complete a "
+        "step.\n")
+
+
+def _dispatch_denial_note(tool_name: str, observation: Any) -> str:
+    """Deterministic guidance for a tool the dispatch gates refused.
+
+    A capability/sandbox refusal is an authorization boundary, not a transient
+    tool error: retrying a differently-worded call can never succeed. The
+    generic ``[CRITIQUE] ... re-plan before retrying`` note left that
+    ambiguous, and Goal 13 specialists kept re-planning against a gate that
+    could not move. Returns "" for every other observation.
+    """
+    blocked_by = (
+        observation.get("blocked_by")
+        if isinstance(observation, dict) else None)
+    text = str(observation or "")
+    if blocked_by == "capability_gate":
+        reason = "not authorized for this agent at its current governance tier"
+    elif text.strip().lower().startswith("sandbox blocked"):
+        reason = "outside this run's sandbox tool policy"
+    else:
+        return ""
+    return (
+        f"[TOOL DENIED] '{tool_name}' is {reason}. It is not in AVAILABLE "
+        "TOOLS in a form this run can dispatch. Do not request it again; use "
+        "an advertised tool or answer from the information you already have.\n")
+
 
 class GenericAgent:
     """
@@ -131,6 +260,10 @@ class GenericAgent:
         # Maturity floor string (STUDENT < INTERN < SUPERVISED < AUTONOMOUS);
         # set once per execution run, None = unrestricted.
         self._run_maturity: Optional[str] = None
+        # Dispatch-authority predicate for the ADVERTISED tool surface
+        # (Goal 13). Set once per run from the same governance row + tier the
+        # P2/P9 dispatch gates use; None = no identity, legacy surface.
+        self._dispatch_tool_allowed: Optional[Any] = None
         # Actual provider/model that served this run's LLM calls, kept per
         # run so durable episode evidence reports what answered rather than
         # the caller alias ("auto") or an attempted-but-failed route.
@@ -292,6 +425,7 @@ class GenericAgent:
         # server-owned tier frozen by admission/dispatch, then let a current
         # canonical demotion (or revocation) narrow it. Never accept a
         # caller-supplied ``tier``/``tier_at_issuance`` as authority.
+        _tier_row = None
         try:
             from core.database import get_db_session as _get_db_session_local
             with _get_db_session_local() as _tier_db:
@@ -322,6 +456,30 @@ class GenericAgent:
             context["governance_tier_next_action"] = "review_agent_maturity"
         elif not context.get("governance_tier_restricted"):
             context.pop("governance_tier_next_action", None)
+
+        # Goal 13: the model may only be shown tools that BOTH dispatch gates
+        # (P2 capability + P9 sandbox whitelist) will admit for this exact
+        # governance row/tier. Advertising the refusal surface made restricted
+        # fleet specialists loop on mcp_tool_search / documents.* until the
+        # step budget expired with no final answer. The predicate narrows the
+        # ADVERTISEMENT only; the gates still run at dispatch.
+        self._dispatch_tool_allowed = None
+        if _tier_row is not None:
+            try:
+                from core.capability_resolver import (
+                    build_dispatch_tool_predicate,
+                )
+
+                self._dispatch_tool_allowed = build_dispatch_tool_predicate(
+                    _tier_row, tier=_tier)
+            except Exception as _surface_err:  # noqa: BLE001
+                # Never break planning over an advertisement optimization;
+                # an unresolved surface keeps the legacy catalog, and the
+                # dispatch gates still refuse anything unauthorized.
+                logger.debug(
+                    "dispatch tool-surface filter unavailable: %s",
+                    _surface_err)
+                self._dispatch_tool_allowed = None
 
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
@@ -523,6 +681,10 @@ class GenericAgent:
                     # only by a producer-owned denial envelope; a later model
                     # answer cannot clear it.
                     _terminal_denial: Optional[Dict[str, Any]] = None
+                    # True only when this step carried thought and no usable
+                    # control field (action/actions/final_answer/wait). Such a
+                    # step can never be treated as a finished answer.
+                    _thought_only_step = False
 
                     # AgentRadio — passive awareness (never raises, sub-ms):
                     # absorb @mentions from the team's lateral thread into
@@ -685,13 +847,24 @@ class GenericAgent:
                                 _terminal_denial = (
                                     self._terminal_authority_denial(
                                         pr.get("output")))
+                            _p_dispatch_evidence = pr.get(
+                                "dispatch_evidence")
+                            if not isinstance(_p_dispatch_evidence, dict):
+                                _p_dispatch_evidence = _new_dispatch_evidence(
+                                    p_tool)
                             # R84c: ledger each parallel tool decision too.
                             try:
                                 from core.agent_action_audit import log_agent_action
                                 log_agent_action(
                                     action=f"tool:{p_tool}",
-                                    description=f"Tool {p_tool} invoked (parallel batch)",
-                                    metadata={"params": p_params},
+                                    description=(
+                                        f"Tool {p_tool} invoked (parallel "
+                                        f"batch)"),
+                                    metadata={
+                                        "params": p_params,
+                                        "dispatch_evidence": dict(
+                                            _p_dispatch_evidence),
+                                    },
                                 )
                             except Exception:  # noqa: BLE001
                                 pass
@@ -701,6 +874,16 @@ class GenericAgent:
                                 "action": {"tool": p_tool, "params": p_params},
                                 "output": str(pr["output"])[:500],
                                 "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "dispatch_evidence": dict(
+                                    _p_dispatch_evidence),
+                                "dispatch": dict(_p_dispatch_evidence),
+                                "_dispatch_evidence": dict(
+                                    _p_dispatch_evidence),
+                                "_verified_kind": pr.get(
+                                    "verified_kind") or _verification_kind(
+                                        pr["output"], _p_dispatch_evidence),
+                                "_verified_evidence": pr.get(
+                                    "verified_evidence"),
                             }
                             if step_callback:
                                 await step_callback(p_record)
@@ -725,6 +908,10 @@ class GenericAgent:
                                     f"error: {str(pr['output'])[:200]}. Re-plan "
                                     f"before retrying.\n"
                                 )
+                            _denial_note = _dispatch_denial_note(
+                                p_tool, pr["output"])
+                            if _denial_note:
+                                execution_history += _denial_note
                             steps.append(p_record)
                         if _terminal_denial:
                             self._record_terminal_authority_denial(
@@ -766,13 +953,25 @@ class GenericAgent:
                             break
                         _stuck_keys.append(_stuck_key)
 
+                        # Producer-owned dispatch evidence for this exact
+                        # step. The model's action name alone is not proof it
+                        # ran: the local allowlist can refuse it without any
+                        # leaf invocation, and governance/HITL can refuse it
+                        # inside ``_step_act``.
+                        _dispatch_evidence = _new_dispatch_evidence(tool_name)
+
                         # Safety check
                         if (
                             self.allowed_tools != "*" and tool_name not in self.allowed_tools
                         ) or tool_name in self.blocked_tools:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
+                            _mark_dispatch_refused(
+                                _dispatch_evidence, status="denied",
+                                reason="tool_not_allowed")
                         else:
-                            observation = await self._step_act(tool_name, tool_args, context, step_callback)
+                            observation = await self._step_act(
+                                tool_name, tool_args, context, step_callback,
+                                dispatch_evidence=_dispatch_evidence)
                             _terminal_denial = (
                                 self._terminal_authority_denial(observation))
                             # W5 (P5b): refresh the utility delta after the
@@ -797,6 +996,17 @@ class GenericAgent:
                                     logger.warning(f"Failed to capture screenshot for vision: {se}")
                         
                         step_record["output"] = observation
+                        # Typed dispatch/verification metadata retained on the
+                        # step. The observation remains untouched (it may be
+                        # external content); only this producer stamp may be
+                        # read as proof that the tool leaf ran.
+                        step_record["dispatch_evidence"] = dict(
+                            _dispatch_evidence)
+                        step_record["dispatch"] = dict(_dispatch_evidence)
+                        step_record["_dispatch_evidence"] = dict(
+                            _dispatch_evidence)
+                        step_record["_verified_kind"] = _verification_kind(
+                            observation, _dispatch_evidence)
                         # A second identical action is the cheap warning
                         # before the hard stop: tell the model (and the
                         # durable execution history) that this path is not
@@ -866,6 +1076,12 @@ class GenericAgent:
                                 f"[CRITIQUE] The action {tool_name} returned an error: "
                                 f"{str(observation)[:200]}. Re-plan before retrying.\n"
                             )
+                        # An authorization refusal cannot be retried into
+                        # success; say so deterministically (Goal 13).
+                        _denial_note = _dispatch_denial_note(
+                            tool_name, observation)
+                        if _denial_note:
+                            execution_history += _denial_note
 
                         # ── SupervisorAgent-style observation filter ─────────
                         # Additive + flag-gated + default OFF. Wrapped in
@@ -902,11 +1118,27 @@ class GenericAgent:
                             await step_callback(step_record)
                         
                     else:
+                        # Structured step with a thought but no usable control
+                        # field. An unrecorded information_wait already got its
+                        # own deterministic note above; every other thought-only
+                        # step gets an explicit contract for the NEXT call.
+                        _wait_requested = (
+                            react_step.information_wait is not None)
+                        _thought_only_step = not _wait_requested
                         if current_step == max_steps:
-                            # If we hit max steps without an answer, the last thought might contain something
-                            final_answer = thought or "Maximum steps reached without final answer."
+                            # Budget exhausted with reasoning only: return an
+                            # honest terminal message. Private thought is not a
+                            # user-facing answer.
+                            final_answer = _MAX_STEPS_WITHOUT_ANSWER
                             status = "max_steps_exceeded"
-                            
+                            step_record["exhausted_without_answer"] = True
+                        elif _thought_only_step:
+                            _recovery_note = _thought_only_recovery_note(
+                                current_step, max_steps)
+                            execution_history += _recovery_note
+                            step_record["recovery_instruction"] = (
+                                _recovery_note)
+
                     steps.append(step_record)
 
                     if _terminal_denial:
@@ -932,7 +1164,12 @@ class GenericAgent:
                         "current_step": current_step,
                     }):
                         if not final_answer:
-                            final_answer = thought or "Objective satisfied."
+                            # Never promote a thought-only step's reasoning to
+                            # the user-facing answer (same contract as the
+                            # max-steps exhaustion path).
+                            final_answer = (
+                                "Objective satisfied." if _thought_only_step
+                                else (thought or "Objective satisfied."))
                         status = "objective_satisfied"
                         break
 
@@ -940,7 +1177,7 @@ class GenericAgent:
             await asyncio.wait_for(run_loop(), timeout=timeout_seconds)
 
             if not final_answer:
-                final_answer = "Maximum steps reached without final answer."
+                final_answer = _MAX_STEPS_WITHOUT_ANSWER
                 status = "max_steps_exceeded"
                 
         except asyncio.TimeoutError:
@@ -956,6 +1193,9 @@ class GenericAgent:
             # W5 (P5c): reset the per-run maturity cache (custom-action
             # discovery floor) so it never leaks across executions.
             self._run_maturity = None
+            # Goal 13: the advertised-surface predicate is per governance
+            # row/tier; a reused runner must not inherit another run's scope.
+            self._dispatch_tool_allowed = None
 
         # 2.5: Generate Reflection/Critique on failure (Phase 215)
         if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded", "stuck"]:
@@ -1573,13 +1813,30 @@ class GenericAgent:
                 unique_active_tools.append(t)
                 seen_tools.add(t["name"])
 
-        # Inject special "mcp_tool_search" if not present
-        if "mcp_tool_search" not in [t["name"] for t in unique_active_tools]:
+        # Goal 13: restrict the ADVERTISED catalog to what this run's dispatch
+        # gates will actually admit (P2 capability + P9 sandbox whitelist).
+        # None = no resolved identity (legacy behaviour, gates still apply at
+        # dispatch). Custom actions below are exempt: they are agent-scoped,
+        # registered per-agent, and dispatched locally before MCP/gates.
+        dispatch_allowed = getattr(self, "_dispatch_tool_allowed", None)
+
+        def _dispatchable(tool_name: str) -> bool:
+            return dispatch_allowed is None or bool(dispatch_allowed(tool_name))
+
+        unique_active_tools = [
+            t for t in unique_active_tools if _dispatchable(t["name"])
+        ]
+
+        # Inject special "mcp_tool_search" if not present AND dispatchable.
+        advertised_names = {t["name"] for t in unique_active_tools}
+        if "mcp_tool_search" not in advertised_names and _dispatchable(
+                "mcp_tool_search"):
              unique_active_tools.append({
                  "name": "mcp_tool_search",
                  "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
                  "parameters": {"query": "string"}
              })
+             advertised_names.add("mcp_tool_search")
 
         # W5 (P5c): agent-extensible tool surface — registered custom actions
         # join the available tools, maturity-gated (hidden when the agent's
@@ -1597,11 +1854,58 @@ class GenericAgent:
         # pointer — a hidden tool it can't see must at least be discoverable.
         from core.agent_tool_budget import render_tool_catalog
         tool_descriptions, hidden_tool_count = render_tool_catalog(unique_active_tools)
-        if hidden_tool_count:
+        if hidden_tool_count and "mcp_tool_search" in advertised_names:
             tool_descriptions += (
                 f"\n(+{hidden_tool_count} more tools exist but are not listed — "
                 "call mcp_tool_search with what you need to surface them.)"
             )
+
+        # Truthful surface contract: when nothing is dispatchable, say so and
+        # require an answer instead of inviting a tool call the platform will
+        # refuse (the Goal-13 max_steps_exceeded loop). The orchestration
+        # claims are only rendered when the tools they describe are actually
+        # dispatchable for this run.
+        _full_powers = dispatch_allowed is None or all(
+            _dispatchable(name) for name in (
+                "mcp_tool_search",
+                "save_business_fact",
+                "verify_citation",
+                "ingest_knowledge_from_text",
+                "create_record",
+                "update_record",
+            )
+        )
+        if unique_active_tools and _full_powers:
+            tool_surface_block = f"AVAILABLE TOOLS:\n{tool_descriptions}"
+            orchestration_block = """ORCHESTRATION POWERS:
+- You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
+- You can list and trigger automated workflows
+- You can spawn sub-specialty agents to help you
+- You can INGEST KNOWLEDGE from text and files (PDF, CSV, Excel) into Atom's long-term memory
+- You can SEARCH FORMULAS and business logic to ensure calculation accuracy
+- You can PUSH/CREATE/UPDATE data (leads, deals, tasks, invoices, tickets, orders, files) across ALL 46+ integrations in a granular way
+- You can DISCOVER connected integrations and SEARCH across all of them simultaneously
+- You can use 'create_record' and 'update_record' for universal granular manipulation of any connected system
+- **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
+"""
+        elif unique_active_tools:
+            tool_surface_block = f"AVAILABLE TOOLS:\n{tool_descriptions}"
+            orchestration_block = (
+                "ORCHESTRATION POWERS (limited to AVAILABLE TOOLS):\n"
+                "- Only the tools listed above can be called. Broader "
+                "integration/workflow/discovery powers are not authorized for "
+                "this agent at its current governance tier.\n"
+            )
+        else:
+            tool_surface_block = (
+                "AVAILABLE TOOLS: none.\n"
+                "No tool is authorized for this agent at its current "
+                "governance tier, so every tool call will be refused. Do NOT "
+                "emit action or actions. Put the complete answer in "
+                "final_answer from the request, the memory context above, and "
+                "your own reasoning; state your assumptions explicitly and "
+                "name any missing evidence as a blocker.")
+            orchestration_block = ""
         
         optimization = context.get("optimization", {})
         agent_model_tier = optimization.get("model") or "auto"
@@ -1731,8 +2035,7 @@ class GenericAgent:
 {utility_block}
 {bpe_block}
 {managed_guidance_block}
-AVAILABLE TOOLS:
-{tool_descriptions}
+{tool_surface_block}
 
 FORMAT: You must respond with structured output containing:
 - thought: Your reasoning about what to do next
@@ -1743,17 +2046,7 @@ FORMAT: You must respond with structured output containing:
 
 Only provide EITHER action OR actions OR final_answer OR information_wait, not multiple.
 
-ORCHESTRATION POWERS:
-- You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
-- You can list and trigger automated workflows
-- You can spawn sub-specialty agents to help you
-- You can INGEST KNOWLEDGE from text and files (PDF, CSV, Excel) into Atom's long-term memory
-- You can SEARCH FORMULAS and business logic to ensure calculation accuracy
-- You can PUSH/CREATE/UPDATE data (leads, deals, tasks, invoices, tickets, orders, files) across ALL 46+ integrations in a granular way
-- You can DISCOVER connected integrations and SEARCH across all of them simultaneously
-- You can use 'create_record' and 'update_record' for universal granular manipulation of any connected system
-- **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
-"""
+{orchestration_block}"""
         
         # R83 #3: append the datamarking preamble when active (idempotent;
         # off → prompt unchanged).
@@ -2980,20 +3273,33 @@ What is your next step?"""
         except Exception:  # never break the tool result path
             return False
 
-    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None) -> Any:
         """Auditing wrapper around every tool invocation (R84c).
 
         Ledgers success, error-string results, and exceptions into the
         per-decision audit trail; the audit write itself is guarded so a
         downed audit store never breaks the tool call. Delegates to
         ``_step_act_unaudited`` for the actual governance + MCP dispatch.
+
+        ``dispatch_evidence`` is a caller-owned envelope the leaf dispatch
+        mutates only when the handler is actually invoked. It is retained on
+        the step and in the companion audit row so a retained tool name is
+        never mistaken for proof that the tool ran.
         """
         import time as _time
 
+        evidence = (
+            dispatch_evidence if isinstance(dispatch_evidence, dict)
+            else _new_dispatch_evidence(tool_name))
+        evidence.setdefault("producer", _DISPATCH_EVIDENCE_PRODUCER)
+        evidence.setdefault("tool", str(tool_name or "")[:120])
+        evidence.setdefault("dispatched", False)
+        evidence.setdefault("status", "not_dispatched")
         _start = _time.monotonic()
         try:
             result = await self._step_act_unaudited(
-                tool_name, args, context, step_callback, pre_approved
+                tool_name, args, context, step_callback, pre_approved,
+                dispatch_evidence=evidence,
             )
         except Exception as tool_err:
             self._record_tool_failure(tool_name, tool_err, context)
@@ -3006,6 +3312,7 @@ What is your next step?"""
                         "tool": tool_name,
                         "params": args,
                         "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                        "dispatch_evidence": dict(evidence),
                     },
                     success=False,
                     error_message=str(tool_err)[:2000],
@@ -3035,11 +3342,15 @@ What is your next step?"""
             from core.agent_action_audit import log_agent_action
             log_agent_action(
                 action=f"tool:{tool_name}",
-                description=f"Tool {tool_name} invoked",
+                description=(
+                    f"Tool {tool_name} invoked"
+                    if evidence.get("dispatched") is True
+                    else f"Tool {tool_name} not dispatched"),
                 metadata={
                     "tool": tool_name,
                     "params": args,
                     "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    "dispatch_evidence": dict(evidence),
                 },
                 success=not _is_err,
                 error_message=str(result)[:2000] if _is_err else None,
@@ -3048,17 +3359,30 @@ What is your next step?"""
             pass
         return result
 
-    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
+    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None) -> Any:
         """Execute a tool via MCP with Governance Check
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is
         skipped — the caller (the parallel-tools batch) has already run it and
         obtained all-or-nothing approval for the whole batch.
+
+        ``dispatch_evidence`` is stamped ``dispatched=True`` immediately before
+        the actual local/MCP handler call and left false on every refusal path
+        (governance, HITL rejection, operation-claim refusal). Consumers must
+        read that envelope, not the retained tool name, as proof of execution.
         """
+        evidence = (
+            dispatch_evidence if isinstance(dispatch_evidence, dict)
+            else _new_dispatch_evidence(tool_name))
+        evidence.setdefault("producer", _DISPATCH_EVIDENCE_PRODUCER)
+        evidence.setdefault("tool", str(tool_name or "")[:120])
+        evidence.setdefault("dispatched", False)
+        evidence.setdefault("status", "not_dispatched")
         # W5 (P5c): agent-extensible tool surface — custom registered actions
         # dispatch locally, before governance/MCP (they are agent-scoped and
         # pre-authorized by registration).
         if tool_name in self._custom_actions:
+            _mark_dispatch_started(evidence, reason="custom_action")
             try:
                 result = self._custom_actions[tool_name](args or {}, context or {})
                 if asyncio.iscoroutine(result):
@@ -3083,11 +3407,14 @@ What is your next step?"""
         if mutating and not claim_operation_id and not server_slot:
             prior = self._unresolved_prior_operation(tool_name, context)
             if isinstance(prior, dict) and prior.get("unavailable"):
-                evidence = (
+                _evidence_text = (
                     "operation claim store unavailable before dispatch "
                     f"({prior.get('unavailable')})")
+                _mark_dispatch_refused(
+                    evidence, status="not_dispatched",
+                    reason=_evidence_text)
                 self._record_uncertain_operation(
-                    context, tool_name, "", evidence)
+                    context, tool_name, "", _evidence_text)
                 return {
                     "success": False,
                     "status": "failed_before_effect",
@@ -3177,11 +3504,17 @@ What is your next step?"""
                         # Wait for approval
                         approved = await self._wait_for_approval(action_id)
                         if not approved:
+                            _mark_dispatch_refused(
+                                evidence, status="denied",
+                                reason="approval_rejected_or_timed_out")
                             return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
 
                         logger.info(f"Action {tool_name} APPROVED. Proceeding...")
 
                     elif not auth_check["allowed"]:
+                        _mark_dispatch_refused(
+                            evidence, status="denied",
+                            reason=auth_check.get("reason"))
                         return f"Governance Error: {auth_check['reason']}"
 
             # 2. Durable operation claim BEFORE the leaf: a declared mutation
@@ -3193,11 +3526,15 @@ What is your next step?"""
                 claim = self._claim_mutation_operation(
                     tool_name, authorized, context, claim_operation_id)
                 if claim is None:
-                    evidence = (
+                    _evidence_text = (
                         "no authoritative server-owned operation scope "
                         "was available")
+                    _mark_dispatch_refused(
+                        evidence, status="not_dispatched",
+                        reason=_evidence_text)
                     self._record_uncertain_operation(
-                        context, tool_name, claim_operation_id, evidence)
+                        context, tool_name, claim_operation_id,
+                        _evidence_text)
                     return {
                         "success": False,
                         "status": "failed_before_effect",
@@ -3216,12 +3553,18 @@ What is your next step?"""
                     }
                 if claim is not None:
                     if not claim.get("won"):
+                        _mark_dispatch_refused(
+                            evidence, status="not_dispatched",
+                            reason="operation_already_claimed")
                         return await self._claim_replay_result(
                             tool_name, authorized, expected, claim, context)
                     from core import outbound_operation_claim as claims
                     if not self._mark_claim_status(
                             claim, claims.DISPATCHING,
                             expected_status=claims.CLAIMED):
+                        _mark_dispatch_refused(
+                            evidence, status="not_dispatched",
+                            reason="operation_claim_not_advanced")
                         return {
                             "success": False,
                             "status": "uncertain",
@@ -3258,6 +3601,11 @@ What is your next step?"""
             # Server-owned subsecond ordering; SQLite CURRENT_TIMESTAMP alone
             # cannot distinguish dispatches around a same-second correction.
             dispatch_recorded_at = datetime.now(timezone.utc).isoformat()
+            # Last safe point to prove the leaf was invoked: every refusal
+            # above returned before this line, so the retained envelope cannot
+            # describe a blocked/denied call as executed.
+            _mark_dispatch_started(
+                evidence, operation_id=durable_dispatch_id or None)
             result = await self.mcp.call_tool(
                 tool_name, copy.deepcopy(authorized), context=handler_context)
             # 4. Default-on outcome verification (W2): for actions with a
@@ -3302,13 +3650,13 @@ What is your next step?"""
                     self._mark_claim_status(
                         claim, claims.UNCERTAIN_EFFECT,
                         expected_status=claims.DISPATCHING)
-                    evidence = (
+                    _evidence_text = (
                         "the provider effect was independently verified, but "
                         "its exact durable identity receipt could not be "
                         "committed; the effect is not rolled back and must not "
                         "be retried")
                     self._record_uncertain_operation(
-                        context, tool_name, operation_id, evidence)
+                        context, tool_name, operation_id, _evidence_text)
                     downgraded = dict(final) if isinstance(final, dict) else {}
                     downgraded.update({
                         "success": False,
@@ -3392,7 +3740,7 @@ What is your next step?"""
                         f"Do NOT retry — treat the action as succeeded."
                     )
                 if mutating or oracle_covered:
-                    evidence = (
+                    _evidence_text = (
                         "tool timed out after dispatch and no independent "
                         "postcondition verdict confirmed the landed effect"
                     )
@@ -3403,7 +3751,8 @@ What is your next step?"""
                             claim, claims.UNCERTAIN_EFFECT,
                             expected_status=claims.DISPATCHING)
                     self._record_uncertain_operation(
-                        context, tool_name, durable_operation_id, evidence)
+                        context, tool_name, durable_operation_id,
+                        _evidence_text)
                     return {
                         "success": False,
                         "status": "uncertain",
@@ -3413,7 +3762,7 @@ What is your next step?"""
                         "operation_id": durable_operation_id,
                         "durable_claim": bool(claim and claim.get("won")),
                         "oracle_verified": False,
-                        "oracle_evidence": evidence,
+                        "oracle_evidence": _evidence_text,
                         "requires_reconciliation": True,
                         "retryable": False,
                         "message": (
@@ -3442,10 +3791,10 @@ What is your next step?"""
                     else claims.UNCERTAIN_EFFECT,
                     expected_status=claims.DISPATCHING)
                 if not no_effect:
-                    evidence = (
+                    _evidence_text = (
                         f"dispatch raised after start ({type(e).__name__})")
                     self._record_uncertain_operation(
-                        context, tool_name, operation_id, evidence)
+                        context, tool_name, operation_id, _evidence_text)
                     return {
                         "success": False,
                         "status": "uncertain",
@@ -3455,7 +3804,7 @@ What is your next step?"""
                         "operation_id": operation_id,
                         "durable_claim": bool(claim and claim.get("won")),
                         "oracle_verified": False,
-                        "oracle_evidence": evidence,
+                        "oracle_evidence": _evidence_text,
                         "requires_reconciliation": True,
                         "retryable": False,
                         "message": (
@@ -3754,15 +4103,19 @@ What is your next step?"""
         if not is_parallel_tools_enabled():
             records = []
             for act in actions[: get_max_parallel_tools()]:
+                evidence = _new_dispatch_evidence(act.tool)
                 observation = await self._step_act(
-                    act.tool, act.params, context, step_callback
+                    act.tool, act.params, context, step_callback,
+                    dispatch_evidence=evidence,
                 )
                 records.append({
                     "tool_name": act.tool,
                     "params": act.params,
                     "output": observation,
-                    "verified_kind": "unverified",
+                    "verified_kind": _verification_kind(
+                        observation, evidence),
                     "verified_evidence": None,
+                    "dispatch_evidence": dict(evidence),
                 })
             return records
 
@@ -3807,6 +4160,12 @@ What is your next step?"""
                             "output": f"Governance Error: {auth_check['reason']}",
                             "verified_kind": "blocked",
                             "verified_evidence": None,
+                            "dispatch_evidence": {
+                                **_new_dispatch_evidence(a.tool),
+                                "status": "denied",
+                                "reason": str(
+                                    auth_check.get("reason") or "")[:300],
+                            },
                         }
                         for a in parallel_actions
                     ]
@@ -3824,15 +4183,25 @@ What is your next step?"""
                         ),
                         "verified_kind": "rejected",
                         "verified_evidence": None,
+                        "dispatch_evidence": {
+                            **_new_dispatch_evidence(a.tool),
+                            "status": "denied",
+                            "reason": "approval_rejected_or_timed_out",
+                        },
                     }
                     for a in parallel_actions
                 ]
 
         # 2. Execute the parallel batch. Governance already granted above.
+        # Every tool gets its own envelope so concurrent dispatches cannot
+        # overwrite one another's proof.
+        dispatch_envelopes = {
+            id(a): _new_dispatch_evidence(a.tool) for a in parallel_actions}
         results = await asyncio.gather(
             *[
                 self._step_act(
-                    a.tool, a.params, context, step_callback, pre_approved=True
+                    a.tool, a.params, context, step_callback, pre_approved=True,
+                    dispatch_evidence=dispatch_envelopes[id(a)],
                 )
                 for a in parallel_actions
             ],
@@ -3841,6 +4210,7 @@ What is your next step?"""
 
         records: List[Dict[str, Any]] = []
         for act, res in zip(parallel_actions, results):
+            evidence = dispatch_envelopes[id(act)]
             if isinstance(res, Exception):
                 observation = f"Tool Execution Failed: {res}. You can try to correct parameters or move to next step."
             else:
@@ -3849,13 +4219,19 @@ What is your next step?"""
                 "tool_name": act.tool,
                 "params": act.params,
                 "output": observation,
-                "verified_kind": "unverified",
+                "verified_kind": _verification_kind(observation, evidence),
                 "verified_evidence": None,
+                "dispatch_evidence": dict(evidence),
             })
 
         # 3. Serial tool-search actions (mutate session_tools — no race).
         for act in serial_actions:
+            evidence = _new_dispatch_evidence(act.tool)
             try:
+                # This branch calls the search leaf directly, so its proof is
+                # stamped at the same site as any other real invocation.
+                _mark_dispatch_started(
+                    evidence, reason="serial_tool_search")
                 found_tools = await self.mcp.search_tools(
                     act.params.get("query", ""), limit=5
                 )
@@ -3875,8 +4251,11 @@ What is your next step?"""
                 "tool_name": act.tool,
                 "params": act.params,
                 "output": observation,
-                "verified_kind": "unverified",
+                "verified_kind": (
+                    "unverified" if evidence.get("dispatched") is True
+                    else str(evidence.get("status") or "not_dispatched")),
                 "verified_evidence": None,
+                "dispatch_evidence": dict(evidence),
             })
 
         return records

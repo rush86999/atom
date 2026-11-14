@@ -31,7 +31,10 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock agentService
-const mockGetAgent = jest.fn(() =>
+const mockGetAgent = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string]
+>(() =>
   Promise.resolve({
     success: true,
     data: {
@@ -46,7 +49,10 @@ const mockGetAgent = jest.fn(() =>
   })
 );
 
-const mockGetAvailableAgents = jest.fn(() =>
+const mockGetAvailableAgents = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  []
+>(() =>
   Promise.resolve({
     success: true,
     data: [
@@ -60,7 +66,10 @@ const mockGetAvailableAgents = jest.fn(() =>
   })
 );
 
-const mockSendMessage = jest.fn(() =>
+const mockSendMessage = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string, string, string?]
+>(() =>
   Promise.resolve({
     success: true,
     data: {
@@ -75,7 +84,10 @@ const mockSendMessage = jest.fn(() =>
   })
 );
 
-const mockGetChatSession = jest.fn(() =>
+const mockGetChatSession = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string]
+>(() =>
   Promise.resolve({
     success: true,
     data: {
@@ -103,7 +115,10 @@ const mockGetChatSession = jest.fn(() =>
   })
 );
 
-const mockGetEpisodeContext = jest.fn(() =>
+const mockGetEpisodeContext = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [string, string, number]
+>(() =>
   Promise.resolve({
     success: true,
     data: [],

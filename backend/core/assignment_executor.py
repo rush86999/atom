@@ -363,6 +363,13 @@ _MAX_EXECUTABLE_NODES = 100_000
 _MAX_EXECUTABLE_ENTRIES = 100_000
 _MAX_EXECUTABLE_KEY_CHARS = 512
 
+#: Row-level evidence kept for human review is a bounded preview. The
+#: serializer applies this bound to every non-executable list, and multi-source
+#: aggregates use it to retain a per-source quota so each contributing sheet is
+#: represented. The full selected population is always reported separately
+#: (``selected_count``); a preview is never presented as the whole population.
+_EVIDENCE_ROW_PREVIEW_LIMIT = 80
+
 
 class _SerializationBudget:
     """One budget shared by every node of an executable result."""
@@ -486,7 +493,8 @@ def _json_safe_inner(
             raise ExecutablePayloadTooLarge(
                 f"executable list has {len(value)} items; limit is "
                 f"{_MAX_EXECUTABLE_LIST}")
-        limit = len(value) if executable else min(len(value), 80)
+        limit = len(value) if executable else min(
+            len(value), _EVIDENCE_ROW_PREVIEW_LIMIT)
         items = []
         for item in list(value)[:limit]:
             if budget:
@@ -759,6 +767,9 @@ def _collect_evidence(
     facts: List[Dict[str, Any]] = []
     row_sets: List[Dict[str, Any]] = []
     labels: List[str] = []
+    sources: List[Dict[str, Any]] = []
+    calculations: List[Dict[str, Any]] = []
+    source_index: Dict[Tuple[str, ...], Dict[str, Any]] = {}
     selected = {
         str(item) for item in (only_step_ids or []) if str(item).strip()}
 
@@ -766,6 +777,24 @@ def _collect_evidence(
         text = str(value or "").strip()
         if text and text not in labels:
             labels.append(text)
+
+    def add_source(entry: Dict[str, Any]) -> None:
+        key = tuple(str(entry.get(name) or "").strip() for name in (
+            "file_name", "sheet", "dataset_name", "resource_id",
+            "source_version"))
+        existing = source_index.get(key)
+        if existing is None:
+            entry["selected_count"] = int(entry.get("selected_count") or 0)
+            entry["retained_rows"] = int(entry.get("retained_rows") or 0)
+            source_index[key] = entry
+            sources.append(entry)
+            return
+        existing["retained_rows"] = max(
+            int(existing.get("retained_rows") or 0),
+            int(entry.get("retained_rows") or 0))
+        existing["selected_count"] = max(
+            int(existing.get("selected_count") or 0),
+            int(entry.get("selected_count") or 0))
 
     for source in context.get("sources") or []:
         if not isinstance(source, dict):
@@ -793,18 +822,42 @@ def _collect_evidence(
                 "required": True,
             })
         elif result.get("operation") and result.get("subtotals"):
-            for currency, item in (result.get("subtotals") or {}).items():
-                unit = "" if currency == "(unstated)" else str(currency)
+            operation = str(result.get("operation") or "")
+            if operation == "count":
+                # A count is a row tally, not a money amount. The per-currency
+                # subtotal buckets only group the counted rows, so using the
+                # bucket key as the unit rendered "count of rows: 3.00 USD"
+                # for three plain rows. Keep the aggregate's own (row) unit
+                # and leave monetary sums on the per-currency path below.
+                subtotals = result.get("subtotals") or {}
+                value = result.get("value")
+                if value is None:
+                    value = str(sum(
+                        int(item.get("rows") or 0)
+                        for item in subtotals.values()
+                        if isinstance(item, dict)))
                 facts.append({
                     "step_id": step_id,
                     "label": (
-                        f"{result.get('operation')} of "
-                        f"{result.get('measure') or 'rows'}: "
-                        f"{item.get('value')} {unit}".strip()),
-                    "value": item.get("value"),
-                    "unit": unit,
+                        f"{operation} of "
+                        f"{result.get('measure') or 'rows'}: {value}"),
+                    "value": value,
+                    "unit": "rows",
                     "required": True,
                 })
+            else:
+                for currency, item in (result.get("subtotals") or {}).items():
+                    unit = "" if currency == "(unstated)" else str(currency)
+                    facts.append({
+                        "step_id": step_id,
+                        "label": (
+                            f"{result.get('operation')} of "
+                            f"{result.get('measure') or 'rows'}: "
+                            f"{item.get('value')} {unit}".strip()),
+                        "value": item.get("value"),
+                        "unit": unit,
+                        "required": True,
+                    })
         elif result.get("operation") and result.get("value") is not None:
             facts.append({
                 "step_id": step_id,
@@ -851,6 +904,67 @@ def _collect_evidence(
                 "source_label": row_label,
                 "source": result.get("source") or {},
             })
+        per_source = result.get("per_source")
+        source_block = result.get("source") if isinstance(
+            result.get("source"), dict) else {}
+        retained_by_sheet: Dict[str, int] = {}
+        for row in rows:
+            sheet_name = str(row.get("sheet") or "").strip()
+            if sheet_name:
+                retained_by_sheet[sheet_name] = (
+                    retained_by_sheet.get(sheet_name, 0) + 1)
+        if isinstance(per_source, list) and per_source:
+            for item in per_source:
+                if not isinstance(item, dict):
+                    continue
+                add_source({
+                    "step_id": step_id,
+                    "sheet": item.get("sheet"),
+                    "file_name": item.get("file_name"),
+                    "dataset_name": item.get("dataset_name"),
+                    "resource_id": item.get("resource_id"),
+                    "source_version": item.get("source_version"),
+                    "value": item.get("value"),
+                    "unit": item.get("unit") or "",
+                    "selected_count": item.get("selected_count"),
+                    "row_count": item.get("row_count"),
+                    "retained_rows": (
+                        retained_by_sheet.get(
+                            str(item.get("sheet") or "").strip(), 0)
+                        or item.get("retained_rows") or 0),
+                })
+        elif source_block:
+            add_source({
+                "step_id": step_id,
+                "sheet": source_block.get("sheet"),
+                "file_name": source_block.get("file_name"),
+                "dataset_name": source_block.get("dataset_name"),
+                "resource_id": source_block.get("resource_id"),
+                "source_version": result.get("source_version")
+                or source_block.get("source_version"),
+                "value": result.get("value"),
+                "unit": result.get("unit") or "",
+                "selected_count": result.get("selected_count"),
+                "row_count": (source_block.get("coverage") or {}).get(
+                    "source_row_count"),
+                "retained_rows": len(rows),
+            })
+        if result.get("operation") and (
+                result.get("selected_count") is not None
+                or per_source or source_block):
+            calculations.append({
+                "step_id": step_id,
+                "operation": result.get("operation"),
+                "measure": result.get("measure") or "rows",
+                "value": result.get("value"),
+                "unit": result.get("unit") or "",
+                "selected_count": int(result.get("selected_count") or 0),
+                "retained_count": len(rows),
+                "source_count": int(
+                    result.get("source_count")
+                    or (len(per_source) if isinstance(per_source, list) else 0)
+                    or (1 if source_block else 0)),
+            })
         for evidence in result.get("evidence") or []:
             if not isinstance(evidence, dict):
                 continue
@@ -861,14 +975,31 @@ def _collect_evidence(
             if path and evidence.get("kind") not in (
                     "connected_dataset", "connected_aggregate"):
                 add_label(Path(path).name)
-        source = result.get("source") if isinstance(
-            result.get("source"), dict) else {}
-        add_label(source.get("dataset_name"))
-        add_label(source.get("file_name"))
-        add_label(source.get("sheet"))
+        add_label(source_block.get("dataset_name"))
+        add_label(source_block.get("file_name"))
+        add_label(source_block.get("sheet"))
         add_label(result.get("source_label"))
 
-    return {"facts": facts, "row_sets": row_sets, "labels": labels}
+    population: Dict[str, Any] = {}
+    if calculations:
+        population = {
+            "selected_count": sum(
+                int(item.get("selected_count") or 0)
+                for item in calculations),
+            "retained_count": sum(
+                int(item.get("retained_count") or 0)
+                for item in calculations),
+            "source_count": len(sources),
+            "calculations": len(calculations),
+        }
+    return {
+        "facts": facts,
+        "row_sets": row_sets,
+        "labels": labels,
+        "sources": sources,
+        "calculations": calculations,
+        "population": population,
+    }
 
 
 def _row_columns(rows: List[Dict[str, Any]]) -> List[str]:
@@ -944,6 +1075,115 @@ def _row_set_label(entry: Dict[str, Any]) -> str:
                or entry.get("step_id") or "authorized source")
 
 
+def _source_identity(source: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    file_name = str(source.get("file_name") or "").strip()
+    dataset = str(source.get("dataset_name") or "").strip()
+    resource = str(source.get("resource_id") or "").strip()
+    if file_name:
+        parts.append(file_name)
+    if dataset and dataset not in parts:
+        parts.append(dataset)
+    if resource and resource not in parts:
+        parts.append(resource)
+    return " / ".join(parts) or "authorized source"
+
+
+def _source_value_text(source: Dict[str, Any]) -> str:
+    value = source.get("value")
+    if value in (None, ""):
+        return ""
+    return f"{value} {source.get('unit') or ''}".strip()
+
+
+def _source_summary_text(source: Dict[str, Any]) -> str:
+    """Human-facing identity + counts + revision for one contributing source."""
+    parts = [str(source.get("sheet") or "").strip() or "authorized source"]
+    selected = source.get("selected_count")
+    retained = source.get("retained_rows")
+    if selected not in (None, ""):
+        counts = f"{selected} row(s)"
+        if retained not in (None, "") and str(retained) != str(selected):
+            counts += f"; {retained} retained"
+        parts.append(counts)
+    value = _source_value_text(source)
+    if value:
+        parts.append(value)
+    revision = str(source.get("source_version") or "").strip()
+    if revision:
+        parts.append(f"revision {revision[:12]}")
+    parts.append(_source_identity(source))
+    return " · ".join(parts)
+
+
+def _source_table_lines(sources: Sequence[Dict[str, Any]]) -> List[str]:
+    """One row per contributing source, including identity and revision."""
+    lines = [
+        "| Sheet | Rows | Total | Revision | Source |",
+        "|---|---|---|---|---|",
+    ]
+    for source in sources:
+        sheet = str(source.get("sheet") or "").replace("|", "/")
+        selected = source.get("selected_count")
+        rows = "" if selected in (None, "") else str(selected)
+        retained = source.get("retained_rows")
+        if retained not in (None, "") and str(retained) != rows:
+            rows += f" ({retained} retained)"
+        total = _source_value_text(source).replace("|", "/")
+        revision = str(source.get("source_version") or "").strip()[:12]
+        identity = _source_identity(source).replace("|", "/")
+        lines.append(
+            f"| {sheet} | {rows} | {total} | {revision} | {identity} |")
+    return lines
+
+
+def _source_lineage_text(source: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    for name, label in (
+            ("sheet", "sheet"), ("file_name", "file"),
+            ("dataset_name", "dataset"), ("resource_id", "resource")):
+        value = str(source.get(name) or "").strip()
+        if value:
+            parts.append(f"{label}={value}")
+    revision = str(source.get("source_version") or "").strip()
+    if revision:
+        parts.append(f"version={revision}")
+    rows: List[str] = []
+    if source.get("selected_count") not in (None, ""):
+        rows.append(f"{source.get('selected_count')} selected")
+    if source.get("retained_rows") not in (None, ""):
+        rows.append(f"{source.get('retained_rows')} retained")
+    for name, label in (("first_row", "first_row"), ("last_row", "last_row")):
+        if source.get(name) not in (None, ""):
+            rows.append(f"{label}={source.get(name)}")
+    if rows:
+        parts.append("rows: " + ", ".join(rows))
+    value = _source_value_text(source)
+    if value:
+        parts.append(f"total={value}")
+    return " · ".join(parts)
+
+
+def _population_line(population: Dict[str, Any]) -> str:
+    """Name the full selected population separately from the row preview."""
+    if not population:
+        return ""
+    selected = int(population.get("selected_count") or 0)
+    retained = int(population.get("retained_count") or 0)
+    source_count = int(population.get("source_count") or 0)
+    if not selected:
+        return ""
+    parts = [f"{selected} row(s) selected across {source_count} source(s)"]
+    if retained != selected:
+        parts.append(f"{retained} row(s) retained as row-level preview")
+        parts.append(
+            f"the remaining {max(selected - retained, 0)} row(s) are counted "
+            "in the total and cited by sheet row")
+    else:
+        parts.append(f"{retained} row(s) retained as row-level evidence")
+    return "; ".join(parts)
+
+
 def _compose_evidence_content(
     kind: str,
     inputs: Dict[str, Any],
@@ -955,6 +1195,9 @@ def _compose_evidence_content(
     facts = evidence["facts"]
     row_sets = evidence["row_sets"]
     labels = evidence["labels"]
+    sources = evidence["sources"]
+    population = evidence["population"]
+    population_line = _population_line(population)
     if not facts and not row_sets:
         return ""
     title = str(inputs.get("title") or context.get("objective")
@@ -966,6 +1209,8 @@ def _compose_evidence_content(
         if facts:
             lines += ["", f"Slide {slide}: Result"]
             lines += [f"- {fact['label']}" for fact in facts[:5]]
+            if population_line:
+                lines.append(f"- {population_line}")
             slide += 1
         if row_sets:
             lines += ["", f"Slide {slide}: Findings"]
@@ -979,8 +1224,21 @@ def _compose_evidence_content(
                     prefix = f"row {row_number}: " if row_number else ""
                     lines.append(f"  - {prefix}{cells}")
             slide += 1
-        lines += ["", f"Slide {slide}: Sources"]
-        lines += [f"- {label}" for label in (labels[:8] or ["authorized source"])]
+        if sources:
+            for start in range(0, len(sources), 10):
+                lines += ["", f"Slide {slide}: Sources"]
+                if start == 0 and population_line:
+                    lines.append(f"- {population_line}")
+                lines += [
+                    f"- {_source_summary_text(source)}"
+                    for source in sources[start:start + 10]
+                ]
+                slide += 1
+        else:
+            lines += ["", f"Slide {slide}: Sources"]
+            lines += [
+                f"- {label}"
+                for label in (labels[:8] or ["authorized source"])]
         return "\n".join(lines)
 
     lines = [f"# {title}", "", "## Objective", objective or title, "",
@@ -989,8 +1247,20 @@ def _compose_evidence_content(
         lines += [f"- {fact['label']}" for fact in facts]
     else:
         lines += ["- See the retrieved records below."]
+    if population_line:
+        lines.append(f"- Population: {population_line}")
+    if sources:
+        lines += ["", "## Sources"]
+        lines += _source_table_lines(sources)
     if row_sets:
         lines += ["", "## Findings"]
+        if population_line and population.get("retained_count") != population.get(
+                "selected_count"):
+            lines.append(
+                "Row-level preview: "
+                f"{population.get('retained_count')} of "
+                f"{population.get('selected_count')} row(s); the total above "
+                "covers the full selected population.")
         for entry in row_sets[:3]:
             rows = entry["rows"]
             columns = _document_columns(rows)
@@ -1010,9 +1280,12 @@ def _compose_evidence_content(
                         + " | ".join(values) + " |")
             else:
                 lines += [f"- {row}" for row in rows[:10]]
-    lines += ["", "## Sources"]
-    lines += [f"- {label}" for label in (labels[:12] or ["authorized source"])]
-    audit = _document_audit_lines(facts, row_sets)
+    if not sources:
+        lines += ["", "## Sources"]
+        lines += [
+            f"- {label}" for label in (labels[:12] or ["authorized source"])]
+    audit = _document_audit_lines(
+        facts, row_sets, sources=sources, population=population)
     if audit:
         lines += ["", "## Audit"]
         lines += audit
@@ -1022,20 +1295,40 @@ def _compose_evidence_content(
 def _document_audit_lines(
     facts: Sequence[Dict[str, Any]],
     row_sets: Sequence[Dict[str, Any]],
+    *,
+    sources: Sequence[Dict[str, Any]] = (),
+    population: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
-    """Technical lineage kept out of the human-facing tables."""
+    """Technical lineage kept out of the human-facing tables.
+
+    Every contributing source is named with its identity, revision and counts;
+    the row preview is labelled with how many of the selected rows it retains.
+    """
     lines: List[str] = []
     for fact in facts[:8]:
         step_id = str(fact.get("step_id") or "").strip()
         if step_id:
             lines.append(f"- Calculation step: {step_id}")
+    population_line = _population_line(population or {})
+    if population_line:
+        lines.append(f"- Population: {population_line}")
+    for source in sources:
+        lineage = _source_lineage_text(source)
+        if lineage:
+            lines.append(f"- Source: {lineage}")
+    selected_count = int((population or {}).get("selected_count") or 0)
     for entry in row_sets[:3]:
         step_id = str(entry.get("step_id") or "").strip()
         rows = entry.get("rows") or []
         summary = f"- Row set: {step_id or 'authorized source'}"
         if entry.get("source_label"):
             summary += f" · {entry['source_label']}"
-        summary += f" · {len(rows)} row(s)"
+        if selected_count and selected_count != len(rows):
+            summary += (
+                f" · {len(rows)} of {selected_count} row(s) retained as "
+                "row-level preview")
+        else:
+            summary += f" · {len(rows)} row(s)"
         lines.append(summary)
         for row in rows[:10]:
             ref = row.get("source_ref") if isinstance(
@@ -1046,6 +1339,12 @@ def _document_audit_lines(
             item = str(row.get("item_id") or "").strip()
             if item:
                 parts.append(f"item={item}")
+            sheet = str(row.get("sheet") or "").strip()
+            row_number = row.get("__sheet_row")
+            if sheet:
+                parts.append(f"sheet={sheet}")
+            if row_number not in (None, ""):
+                parts.append(f"sheet_row={row_number}")
             if ref.get("resource_id"):
                 parts.append(f"resource={ref['resource_id']}")
             if ref.get("source_version"):
@@ -1075,6 +1374,9 @@ def _compose_evidence_text(
     if evidence["facts"]:
         lines.append("Result:")
         lines += [f"- {fact['label']}" for fact in evidence["facts"]]
+    population_line = _population_line(evidence["population"])
+    if population_line:
+        lines.append(f"Population: {population_line}")
     if evidence["row_sets"]:
         lines.append("Findings:")
         for entry in evidence["row_sets"][:3]:
@@ -1089,8 +1391,13 @@ def _compose_evidence_text(
                     f"  - row {row_number}: {cells}" if row_number
                     else f"  - {cells}")
     lines.append("Sources:")
-    lines += [f"- {label}" for label in
-              (evidence["labels"][:8] or ["authorized source"])]
+    if evidence["sources"]:
+        lines += [
+            f"- {_source_summary_text(source)}"
+            for source in evidence["sources"]]
+    else:
+        lines += [f"- {label}" for label in
+                  (evidence["labels"][:8] or ["authorized source"])]
     return "\n".join(lines)
 
 
@@ -8113,10 +8420,16 @@ class AssignmentExecutor:
             "subtotals": result.get("subtotals"),
             "calculation_receipt": result.get("calculation_receipt"),
             "source": result.get("source"),
+            "sources": result.get("sources"),
+            "per_source": result.get("per_source"),
             "source_label": result.get("source_label"),
             "formulas": result.get("formulas"),
             "matched_count": result.get("matched_count"),
             "selected_count": result.get("selected_count"),
+            "retained_count": result.get("retained_count"),
+            "population_count": result.get("population_count"),
+            "rows_truncated": result.get("rows_truncated"),
+            "source_count": result.get("source_count"),
             "truncated": result.get("truncated"),
             "substantive": result.get("substantive"),
             "source_version": result.get("source_version"),
@@ -9561,6 +9874,9 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
 async def _dataset_aggregate(
     inputs: Dict[str, Any], context: Dict[str, Any],
 ) -> Dict[str, Any]:
+    bindings = inputs.get("resource_bindings")
+    if isinstance(bindings, list) and bindings:
+        return await _aggregate_across_sources(bindings, inputs, context)
     binding = dict(inputs.get("resource_binding") or {})
     resolved = await asyncio.to_thread(_recheck_binding, binding, context)
     path = str(resolved.get("path") or "").strip()
@@ -9757,6 +10073,187 @@ async def _dataset_aggregate(
             "sheet_rows": row_numbers[:2000],
             "selected_count": len(records),
         }],
+    }
+
+
+async def _aggregate_across_sources(
+    bindings: Sequence[Dict[str, Any]],
+    inputs: Dict[str, Any],
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Aggregate every accepted binding and combine them deterministically.
+
+    One calculation over the whole accepted source scope: each binding is
+    rechecked and aggregated by the single-source path (so source-version,
+    grant and coverage refusals keep their exact semantics), then the
+    per-source subtotals are summed. A source that cannot be aggregated raises
+    its own named gap — it is never skipped, so a combined total can never be
+    a silent partial. Per-source evidence (path, sheet, version, row numbers,
+    subtotal) stays attached to the durable result.
+
+    Row-level evidence is a bounded preview: the retained quota is spread
+    across every source so each contributing sheet is represented, and the
+    result names both the retained count and the full selected population.
+    """
+    base = {key: value for key, value in inputs.items()
+            if key not in ("resource_bindings", "resource_binding")}
+    parts: List[Dict[str, Any]] = []
+    for binding in bindings:
+        single = dict(base)
+        single["resource_binding"] = dict(binding or {})
+        try:
+            parts.append(await _dataset_aggregate(single, context))
+        except NeedsContext as exc:
+            gap = dict(exc.gap)
+            label = _source_label(_connected_source_block(
+                dict(binding or {}), dict(binding or {})))
+            gap["affected_subjects"] = list(
+                gap.get("affected_subjects") or []) + [label]
+            gap["checked_evidence"] = list(
+                gap.get("checked_evidence") or []) + [f"source={label}"]
+            raise NeedsContext(gap) from exc
+    if not parts:
+        raise NeedsContext({
+            "concept": "resource_binding",
+            "reason": "the aggregate names no accepted source",
+            "question": "Which authorized source should be aggregated?",
+            "kind": "missing_evidence",
+        })
+
+    operation = str(parts[0].get("operation")
+                    or inputs.get("operation") or "sum").strip().lower()
+    sources: List[Dict[str, Any]] = []
+    evidence: List[Dict[str, Any]] = []
+    per_source: List[Dict[str, Any]] = []
+    formulas: Dict[str, str] = {}
+    versions = set()
+    selected_count = 0
+    rows: List[Dict[str, Any]] = []
+    combined: Dict[str, Dict[str, Any]] = {}
+    # Each source contributes its share of the row preview, so a multi-source
+    # document shows every sheet's provenance rather than only the first few.
+    row_quota = max(
+        1, _EVIDENCE_ROW_PREVIEW_LIMIT // max(1, len(parts)))
+    for part in parts:
+        source = dict(part.get("source") or {})
+        sheet = str(source.get("sheet") or "")
+        sources.append(source)
+        sheet_rows: List[int] = []
+        for item in part.get("evidence") or []:
+            if not isinstance(item, dict):
+                continue
+            for raw in item.get("sheet_rows") or []:
+                try:
+                    sheet_rows.append(int(raw))
+                except (TypeError, ValueError):
+                    continue
+            entry = dict(item)
+            entry["value"] = part.get("value")
+            entry["unit"] = part.get("unit") or ""
+            evidence.append(entry)
+        retained_rows = 0
+        if isinstance(part.get("rows"), list):
+            for row in part["rows"]:
+                if not isinstance(row, dict) or len(rows) >= 500:
+                    continue
+                if retained_rows >= row_quota:
+                    continue
+                rows.append({**row, "sheet": sheet} if sheet else dict(row))
+                retained_rows += 1
+        for item in part.get("values") or []:
+            if not isinstance(item, dict):
+                continue
+            bucket = str(item.get("currency") or "(unstated)")
+            total = combined.setdefault(
+                bucket, {"rows": 0, "value": Decimal("0")})
+            total["rows"] += int(item.get("rows") or 0)
+            if item.get("value") is not None:
+                total["value"] += Decimal(str(item.get("value")))
+        selected_count += int(part.get("selected_count") or 0)
+        versions.add(str(part.get("source_version") or ""))
+        coverage = dict(source.get("coverage") or {})
+        per_source.append({
+            "sheet": sheet,
+            "file_name": source.get("file_name"),
+            "dataset_name": source.get("dataset_name"),
+            "resource_id": source.get("resource_id"),
+            "source_version": part.get("source_version"),
+            "value": part.get("value"),
+            "unit": part.get("unit") or "",
+            "selected_count": part.get("selected_count"),
+            "row_count": (
+                coverage.get("source_row_count")
+                if coverage.get("source_row_count") is not None
+                else part.get("selected_count")),
+            "retained_rows": retained_rows,
+            "first_row": min(sheet_rows) if sheet_rows else None,
+            "last_row": max(sheet_rows) if sheet_rows else None,
+            "coverage": coverage,
+        })
+        for cell, formula in (part.get("formulas") or {}).items():
+            key = f"{sheet}!{cell}" if sheet else str(cell)
+            formulas.setdefault(key, str(formula))
+
+    subtotals = {
+        bucket: {
+            "rows": item["rows"],
+            "value": str(item["value"].quantize(Decimal("0.01"))),
+        }
+        for bucket, item in combined.items()
+    }
+    values = [
+        {"currency": bucket, "value": item["value"], "rows": item["rows"]}
+        for bucket, item in subtotals.items()
+    ]
+    if operation == "count":
+        value = str(sum(int(item.get("rows") or 0)
+                        for item in subtotals.values()))
+        unit = "rows"
+    elif len(values) == 1:
+        unit = values[0]["currency"]
+        value = str(values[0]["value"])
+        unit = "" if unit == "(unstated)" else unit
+    else:
+        value = None
+        unit = ""
+    measure = str(inputs.get("value_column") or "") or (
+        "rows" if operation == "count" else str(
+            parts[0].get("measure") or "rows"))
+    first = sources[0] if sources else {}
+    source_label = (
+        f"{first.get('file_name') or first.get('dataset_name') or 'source'}"
+        f" / {len(parts)} sheets")
+    summary = (
+        f"{operation} of {measure} = {value} {unit} across "
+        f"{selected_count} row(s) from {len(parts)} source(s) "
+        f"({source_label})".strip()
+        if value is not None else
+        f"{operation} of {measure} across {selected_count} row(s) from "
+        f"{len(parts)} source(s) ({source_label}; per-currency subtotals)")
+    retained_count = len(rows)
+    return {
+        "status": "applied",
+        "summary": summary,
+        "operation": operation,
+        "measure": measure,
+        "group_by": "",
+        "value": value,
+        "unit": unit,
+        "values": _json_safe(values),
+        "rows": _json_safe(rows),
+        "subtotals": _json_safe(subtotals),
+        "per_source": _json_safe(per_source),
+        "formulas": formulas,
+        "selected_count": selected_count,
+        "retained_count": retained_count,
+        "population_count": selected_count,
+        "rows_truncated": retained_count < selected_count,
+        "source_count": len(parts),
+        "source_version": (versions.pop() if len(versions) == 1 else ""),
+        "source": {},
+        "sources": _json_safe(sources),
+        "source_label": source_label,
+        "evidence": _json_safe(evidence),
     }
 
 

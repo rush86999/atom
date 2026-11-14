@@ -33,11 +33,23 @@ function App() {
     }
   };
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (
+    email: string,
+    password: string,
+    totpCode?: string
+  ) => {
     try {
       const result = await invoke<{ token: string; user: User; device_id: string }>(
         "login",
-        { email, password, deviceName: "MenuBar" }
+        {
+          email,
+          password,
+          deviceName: "MenuBar",
+          // Always include the key so the native Option<String> receives an
+          // explicit null (None). LoginRequest still omits totp_code from the
+          // HTTP body, so password-only requests are unchanged.
+          totpCode: totpCode ?? null,
+        }
       );
 
       setToken(result.token);
@@ -52,11 +64,15 @@ function App() {
   const handleLogout = async () => {
     try {
       await invoke("logout");
+    } catch (error) {
+      // Native logout clears in-memory state even when Keychain cleanup fails.
+      // The UI must fail closed as well instead of leaving an authenticated
+      // session on screen.
+      console.error("Logout failed:", error);
+    } finally {
       setToken(null);
       setUser(null);
       setAuthState({ isAuthenticated: false, isLoading: false });
-    } catch (error) {
-      console.error("Logout failed:", error);
     }
   };
 

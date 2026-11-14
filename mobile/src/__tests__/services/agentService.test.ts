@@ -13,6 +13,7 @@
  */
 
 import { agentService } from '../../services/agentService';
+import { AgentMaturity, AgentStatus } from '../../types/agent';
 import { apiService } from '../../services/api';
 
 // Mock the apiService
@@ -35,7 +36,7 @@ describe('AgentService', () => {
   describe('getAgents', () => {
     test('should fetch agent list successfully', async () => {
       const mockAgents = [
-        { id: 'agent_1', name: 'Test Agent 1', maturity_level: 'AUTONOMOUS' },
+        { id: 'agent_1', name: 'Test Agent 1', maturity_level: AgentMaturity.AUTONOMOUS },
         { id: 'agent_2', name: 'Test Agent 2', maturity_level: 'SUPERVISED' },
       ];
 
@@ -55,7 +56,7 @@ describe('AgentService', () => {
 
     test('should fetch agents with maturity filter', async () => {
       const mockAgents = [
-        { id: 'agent_1', name: 'Test Agent', maturity_level: 'AUTONOMOUS' },
+        { id: 'agent_1', name: 'Test Agent', maturity_level: AgentMaturity.AUTONOMOUS },
       ];
 
       (apiService.get as jest.Mock).mockResolvedValue({
@@ -63,11 +64,11 @@ describe('AgentService', () => {
         data: mockAgents,
       });
 
-      const result = await agentService.getAgents({ maturity: 'AUTONOMOUS' });
+      const result = await agentService.getAgents({ maturity: AgentMaturity.AUTONOMOUS });
 
       expect(result.success).toBe(true);
       expect(apiService.get).toHaveBeenCalledWith('/api/agents', {
-        params: { maturity_level: 'AUTONOMOUS' },
+        params: { maturity_level: AgentMaturity.AUTONOMOUS },
       });
     });
 
@@ -77,10 +78,10 @@ describe('AgentService', () => {
         data: [],
       });
 
-      await agentService.getAgents({ status: 'ACTIVE' });
+      await agentService.getAgents({ status: AgentStatus.ONLINE });
 
       expect(apiService.get).toHaveBeenCalledWith('/api/agents', {
-        params: { status: 'ACTIVE' },
+        params: { status: AgentStatus.ONLINE },
       });
     });
 
@@ -133,8 +134,8 @@ describe('AgentService', () => {
       });
 
       await agentService.getAgents({
-        maturity: 'AUTONOMOUS',
-        status: 'ACTIVE',
+        maturity: AgentMaturity.AUTONOMOUS,
+        status: AgentStatus.ONLINE,
         capability: 'browser_automation',
         search_query: 'test',
         sort_by: 'name',
@@ -143,8 +144,8 @@ describe('AgentService', () => {
 
       expect(apiService.get).toHaveBeenCalledWith('/api/agents', {
         params: {
-          maturity_level: 'AUTONOMOUS',
-          status: 'ACTIVE',
+          maturity_level: AgentMaturity.AUTONOMOUS,
+          status: AgentStatus.ONLINE,
           capability: 'browser_automation',
           search: 'test',
           sort_by: 'name',
@@ -183,7 +184,7 @@ describe('AgentService', () => {
       const mockAgent = {
         id: 'agent_1',
         name: 'Test Agent',
-        maturity_level: 'AUTONOMOUS',
+        maturity_level: AgentMaturity.AUTONOMOUS,
         capabilities: ['browser_automation'],
       };
 

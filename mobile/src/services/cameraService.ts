@@ -19,10 +19,16 @@
  * Uses expo-camera for cross-platform camera support.
  */
 
-import { CameraView, CameraType, CameraPermissionStatus, BarcodeScanningResult } from 'expo-camera';
+import {
+  Camera,
+  CameraType,
+  PermissionStatus,
+  BarCodeScanningResult as BarcodeScanningResult,
+} from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as MediaLibrary from 'expo-media-library';
 import { Platform } from 'react-native';
 
 // Types
@@ -35,8 +41,8 @@ export type FlashMode = 'off' | 'on' | 'auto' | 'torch';
 export type CameraMode = 'picture' | 'video' | 'document' | 'barcode';
 
 export interface PhotoOptions {
-  quality: number; // 0-1
-  skipProcessing: boolean;
+  quality?: number; // 0-1
+  skipProcessing?: boolean;
   exif?: boolean;
 }
 
@@ -77,6 +83,17 @@ export interface BarcodeResult {
   corners?: DocumentCorners;
 }
 
+interface LegacyBarcode {
+  type: string;
+  data?: string;
+  rawValue?: string;
+  cornerPoints?: Array<{ x: number; y: number }>;
+}
+
+interface LegacyBarcodeScanningResult {
+  barcodes: LegacyBarcode[];
+}
+
 export interface CapturedPhotos {
   photos: CapturedMedia[];
   currentIndex: number;
@@ -85,6 +102,13 @@ export interface CapturedPhotos {
 // Configuration
 const COMPRESSION_QUALITY = 0.8;
 const MAX_IMAGE_DIMENSION = 2048;
+
+const toByteSize = (value: unknown): number | undefined => {
+  const numeric = typeof value === 'string' ? Number(value) : value;
+  return typeof numeric === 'number' && Number.isFinite(numeric)
+    ? numeric
+    : undefined;
+};
 
 /**
  * Camera Service
@@ -97,13 +121,19 @@ class CameraService {
   private capturedPhotos: CapturedMedia[] = [];
   private currentPhotoIndex = 0;
 
+  private normalizePermission(status: PermissionStatus): CameraPermission {
+    if (status === PermissionStatus.GRANTED) return 'granted';
+    if (status === PermissionStatus.UNDETERMINED) return 'undetermined';
+    return 'denied';
+  }
+
   /**
    * Initialize the camera service
    */
   async initialize(): Promise<void> {
     try {
-      const { status } = await CameraView.getCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = this.normalizePermission(status);
 
       console.log('CameraService: Initialized, permission:', this.permissionStatus);
     } catch (error) {
@@ -116,8 +146,8 @@ class CameraService {
    */
   async requestPermissions(): Promise<CameraPermission> {
     try {
-      const { status } = await CameraView.requestCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      this.permissionStatus = this.normalizePermission(status);
 
       console.log('CameraService: Permission requested, status:', this.permissionStatus);
       return this.permissionStatus;
@@ -132,8 +162,8 @@ class CameraService {
    */
   async getPermissionStatus(): Promise<CameraPermission> {
     try {
-      const { status } = await CameraView.getCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = this.normalizePermission(status);
       return this.permissionStatus;
     } catch (error) {
       console.error('CameraService: Failed to get permission status:', error);
@@ -150,7 +180,7 @@ class CameraService {
         return false; // Camera not supported on web
       }
 
-      const isAvailable = await CameraView.isAvailableAsync();
+      const isAvailable = await Camera.isAvailableAsync();
       return isAvailable;
     } catch (error) {
       console.error('CameraService: Failed to check availability:', error);
@@ -162,7 +192,7 @@ class CameraService {
    * Take a picture
    */
   async takePicture(
-    cameraRef: React.RefObject<CameraView>,
+    cameraRef: React.RefObject<Camera>,
     options: PhotoOptions = {
       quality: COMPRESSION_QUALITY,
       skipProcessing: false,
@@ -177,7 +207,11 @@ class CameraService {
         throw new Error('Camera permission not granted');
       }
 
-      const photo = await cameraRef.current.takePictureAsync(options);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: COMPRESSION_QUALITY,
+        skipProcessing: false,
+        ...options,
+      });
 
       // Get file info
       const fileInfo = await FileSystem.getInfoAsync(photo.uri);
@@ -205,7 +239,7 @@ class CameraService {
         type: 'photo',
         width: photo.width,
         height: photo.height,
-        size: fileInfo.size ? parseInt(fileInfo.size, 10) : undefined,
+        size: fileInfo.exists ? toByteSize(fileInfo.size) : undefined,
         exif: photo.exif || undefined,
       };
 
@@ -221,7 +255,7 @@ class CameraService {
    * Record video
    */
   async recordVideo(
-    cameraRef: React.RefObject<CameraView>,
+    cameraRef: React.RefObject<Camera>,
     options: VideoOptions = {
       quality: '1080p',
       maxDuration: 60, // 1 minute
@@ -255,21 +289,32 @@ class CameraService {
   /**
    * Stop video recording
    */
-  async stopRecording(cameraRef: React.RefObject<CameraView>): Promise<CapturedMedia | null> {
+  async stopRecording(cameraRef: React.RefObject<Camera>): Promise<CapturedMedia | null> {
     try {
       if (!cameraRef.current) {
         throw new Error('Camera ref not available');
       }
 
-      const video = await cameraRef.current.stopRecording();
+      // expo-camera 14 resolves recordings through `recordAsync()`;
+      // `stopRecording()` returns void. Some older callers/mocks still return
+      // the media object, so accept either shape without asserting it.
+      const stopResult: unknown = await cameraRef.current.stopRecording();
+      if (
+        !stopResult ||
+        typeof stopResult !== 'object' ||
+        !('uri' in stopResult) ||
+        typeof stopResult.uri !== 'string'
+      ) {
+        return null;
+      }
 
       // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(video.uri);
+      const fileInfo = await FileSystem.getInfoAsync(stopResult.uri);
 
       const media: CapturedMedia = {
-        uri: video.uri,
+        uri: stopResult.uri,
         type: 'video',
-        size: fileInfo.size ? parseInt(fileInfo.size, 10) : undefined,
+        size: fileInfo.exists ? toByteSize(fileInfo.size) : undefined,
       };
 
       console.log('CameraService: Video recording stopped', media);
@@ -299,8 +344,8 @@ class CameraService {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultiple: options?.allowsMultiple ?? false,
-        maxResults: options?.maxResults ?? 1,
+        allowsMultipleSelection: options?.allowsMultiple ?? false,
+        selectionLimit: options?.maxResults ?? 1,
         quality: options?.quality ?? COMPRESSION_QUALITY,
         exif: options?.exif ?? false,
       });
@@ -314,7 +359,7 @@ class CameraService {
         type: 'photo',
         width: asset.width,
         height: asset.height,
-        size: asset.fileSize ? parseInt(asset.fileSize, 10) : undefined,
+        size: toByteSize(asset.fileSize),
       }));
 
       console.log(`CameraService: ${media.length} image(s) picked`);
@@ -376,21 +421,30 @@ class CameraService {
    * Scan barcode/QR code
    */
   async scanBarcode(
-    barcodeScanningResult: BarcodeScanningResult | null
+    barcodeScanningResult: BarcodeScanningResult | LegacyBarcodeScanningResult | null
   ): Promise<BarcodeResult | null> {
     try {
       if (!barcodeScanningResult) {
         return null;
       }
 
-      const [barcode] = barcodeScanningResult.barcodes;
-      if (!barcode) {
+      // expo-camera 14 reports one barcode per callback; older versions
+      // wrapped results in a `barcodes` array.
+      const barcode =
+        'barcodes' in barcodeScanningResult
+          ? barcodeScanningResult.barcodes[0]
+          : barcodeScanningResult;
+
+      if (!barcode || typeof barcode.type !== 'string') {
         return null;
       }
 
       return {
         type: barcode.type,
-        data: barcode.rawValue || '',
+        data:
+          barcode.data ??
+          ('rawValue' in barcode ? barcode.rawValue : undefined) ??
+          '',
         corners: barcode.cornerPoints?.length === 4
           ? {
               topLeft: barcode.cornerPoints[0],
@@ -518,7 +572,7 @@ class CameraService {
    * Capture multiple photos
    */
   async captureMultiplePhotos(
-    cameraRef: React.RefObject<CameraView>,
+    cameraRef: React.RefObject<Camera>,
     count: number,
     options?: PhotoOptions
   ): Promise<CapturedMedia[]> {
@@ -661,16 +715,22 @@ class CameraService {
    */
   async saveToGallery(uri: string): Promise<boolean> {
     try {
-      if (Platform.OS === 'ios') {
-        await CameraView.savePhotoToLibraryAsync(uri);
-        console.log('CameraService: Photo saved to gallery');
-        return true;
-      } else if (Platform.OS === 'android') {
-        // Android automatically saves to gallery
-        console.log('CameraService: Photo automatically saved to gallery');
+      if (Platform.OS === 'android') {
+        // Android automatically saves captured media to the gallery.
         return true;
       }
-      return false;
+      if (Platform.OS !== 'ios') {
+        return false;
+      }
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        return false;
+      }
+
+      await MediaLibrary.saveToLibraryAsync(uri);
+      console.log('CameraService: Photo saved to gallery');
+      return true;
     } catch (error) {
       console.error('CameraService: Failed to save to gallery:', error);
       return false;
@@ -681,7 +741,7 @@ class CameraService {
    * Get camera type for CameraView
    */
   getCameraType(): CameraType {
-    return this.currentCamera === 'front' ? CameraType.Front : CameraType.Back;
+    return this.currentCamera === 'front' ? CameraType.front : CameraType.back;
   }
 
   /**

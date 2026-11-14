@@ -161,6 +161,30 @@ def _mp3_frame_header(data: bytes, offset: int) -> Optional[dict]:
     }
 
 
+def _mp3_declared_frames(
+        data: bytes, offset: int, header: dict) -> Optional[int]:
+    """Frame count declared by the first link's Xing/Info or VBRI header."""
+    if header["layer"] != 3:
+        return None
+    side_info = 17 if header["version"] == 1 else 9
+    pos = offset + 4 + side_info
+    for marker in (b"Xing", b"Info"):
+        if data[pos:pos + 4] == marker and pos + 12 <= len(data):
+            flags = int.from_bytes(data[pos + 4:pos + 8], "big")
+            if flags & 0x01:
+                frames = int.from_bytes(data[pos + 8:pos + 12], "big")
+                if frames > 0:
+                    return frames
+    # VBRI header (Fraunhofer) sits 32 bytes after the frame header.
+    if data[offset + 4 + 32:offset + 4 + 36] == b"VBRI":
+        vbri = offset + 4 + 36
+        if vbri + 18 <= len(data):
+            frames = int.from_bytes(data[vbri + 14:vbri + 18], "big")
+            if frames > 0:
+                return frames
+    return None
+
+
 def _mp3_duration(data: bytes) -> Optional[float]:
     if not data:
         return None
@@ -175,48 +199,46 @@ def _mp3_duration(data: bytes) -> Optional[float]:
     if first is None:
         return None
     offset, header = first
-    # Xing/Info VBR header: number of frames is authoritative.
-    side_info = 17 if header["version"] == 1 else 9
-    if header["layer"] == 3:
-        for marker in (b"Xing", b"Info"):
-            pos = offset + 4 + side_info
-            if data[pos:pos + 4] == marker and pos + 12 <= len(data):
-                flags = int.from_bytes(data[pos + 4:pos + 8], "big")
-                if flags & 0x01:
-                    frames = int.from_bytes(data[pos + 8:pos + 12], "big")
-                    if frames > 0:
-                        return (
-                            frames * header["samples_per_frame"]
-                            / float(header["sample_rate"])
-                        )
-    # VBRI header (Fraunhofer) sits 32 bytes after the frame header.
-    if header["layer"] == 3 and data[offset + 4 + 32:offset + 4 + 36] == b"VBRI":
-        pos = offset + 4 + 36
-        if pos + 18 <= len(data):
-            frames = int.from_bytes(data[pos + 14:pos + 18], "big")
-            if frames > 0:
-                return (
-                    frames * header["samples_per_frame"]
-                    / float(header["sample_rate"])
-                )
-    # Walk frames. This handles CBR and headerless VBR without trusting one
-    # frame's bitrate for the whole file.
-    total_samples = 0
+    # Xing/Info VBR header: number of frames is authoritative for ITS OWN
+    # logical stream. It is recorded as a candidate, not returned eagerly: a
+    # byte-concatenated recording (two voice notes joined with `cat`, a
+    # resumed upload) has a first link whose header describes only that link,
+    # so returning it would silently bill half the audio.
+    declared_frames = _mp3_declared_frames(data, offset, header)
+    # Walk every frame. This handles CBR, headerless VBR and CONCATENATED
+    # streams: each frame's own header supplies its sample rate, so
+    # mixed-rate chains still add real seconds. Known ID3v2 tags at a link
+    # boundary are skipped wholesale instead of byte-scanned.
+    total_seconds = 0.0
     cursor = offset
     frames = 0
     while cursor + 4 <= len(data) and frames < 2_000_000:
         current = _mp3_frame_header(data, cursor)
         if current is None:
-            # Tolerate one damaged byte, then stop: trailing tags are not
-            # audio frames and must not extend the billed duration.
+            if data[cursor:cursor + 3] == b"ID3":
+                skipped = _skip_id3v2(data[cursor:])
+                if skipped > 3:
+                    cursor += skipped
+                    continue
+            # Tolerate damaged/tag bytes; trailing tags are not audio frames
+            # and must not extend the billed duration.
             cursor += 1
             continue
-        total_samples += current["samples_per_frame"]
+        total_seconds += (
+            current["samples_per_frame"] / float(current["sample_rate"]))
         frames += 1
         cursor += current["frame_length"]
-    if total_samples > 0:
-        return total_samples / float(header["sample_rate"])
-    return None
+    if frames == 0:
+        return None
+    if declared_frames is not None and frames <= declared_frames + 2:
+        # Up to two frame slots of slack: each in-band Xing/VBRI header
+        # occupies a frame that carries no audio. Anything materially beyond
+        # that is additional concatenated audio and must be billed.
+        return (
+            declared_frames * header["samples_per_frame"]
+            / float(header["sample_rate"])
+        )
+    return total_seconds if total_seconds > 0 else None
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +383,12 @@ def _webm_duration(data: bytes) -> Optional[float]:
     if len(data) < 4 or data[:4] != b"\x1a\x45\xdf\xa3":
         return None
     try:
+        # A chained Matroska/WebM upload is several top-level Segments in one
+        # byte stream; a spec-compliant demuxer plays them back to back, so
+        # billing only the first Segment understates the decoded audio. Sum
+        # every Segment's own Duration (each carries its own TimecodeScale).
+        total_seconds = 0.0
+        found = False
         for element_id, start, end in _ebml_elements(data, 0, len(data)):
             if element_id != 0x18538067:  # Segment
                 continue
@@ -383,46 +411,130 @@ def _webm_duration(data: bytes) -> Optional[float]:
                         elif payload_len == 8:
                             duration_units = struct.unpack(
                                 ">d", data[info_start:info_end])[0]
-                if duration_units is not None:
-                    return duration_units * timecode_scale / 1_000_000_000.0
-            break
+            if duration_units is not None:
+                seconds = _positive_finite(
+                    duration_units * timecode_scale / 1_000_000_000.0)
+                if seconds is not None:
+                    total_seconds += seconds
+                    found = True
+        return total_seconds if found else None
     except Exception:
         return None
-    return None
 
 
 # ---------------------------------------------------------------------------
 # OGG (Vorbis / Opus)
 # ---------------------------------------------------------------------------
+_OGG_PAGE_HEADER_BYTES = 27
+_OGG_OPUS_GRANULE_RATE = 48_000
+
+
+def _ogg_page(data: bytes, offset: int):
+    """Parse one structurally complete Ogg page header at ``offset``.
+
+    Returns ``(header_type, granule, serial, payload, end)`` or ``None`` when
+    ``offset`` is not a page start (or the page is truncated). ``payload`` is
+    only the first bytes of the page body, enough for a BOS codec sniff.
+    """
+    if (offset + _OGG_PAGE_HEADER_BYTES > len(data)
+            or data[offset:offset + 4] != b"OggS"):
+        return None
+    if data[offset + 4] != 0:  # stream_structure_version
+        return None
+    header_type = data[offset + 5]
+    granule = int.from_bytes(
+        data[offset + 6:offset + 14], "little", signed=True)
+    serial = int.from_bytes(data[offset + 14:offset + 18], "little")
+    segments = data[offset + 26]
+    table_end = offset + _OGG_PAGE_HEADER_BYTES + segments
+    if table_end > len(data):
+        return None
+    body_bytes = sum(data[offset + _OGG_PAGE_HEADER_BYTES:table_end])
+    end = table_end + body_bytes
+    if end > len(data):
+        # A truncated final page has no trustworthy granule.
+        return None
+    payload = data[table_end:min(end, table_end + 64)]
+    return header_type, granule, serial, payload, end
+
+
+def _ogg_codec_rate(payload: bytes) -> Optional[int]:
+    """Granule clock (Hz) for the audio codec in a BOS page, or ``None``."""
+    if payload.startswith(b"\x01vorbis") and len(payload) >= 16:
+        return int.from_bytes(payload[12:16], "little") or None
+    if payload.startswith(b"OpusHead"):
+        # Opus granules are always on a fixed 48 kHz clock, independent of
+        # the input sample rate declared in the header.
+        return _OGG_OPUS_GRANULE_RATE
+    return None
+
+
+def _ogg_track_link(
+    streams: dict, header_type: int, granule: int, serial: int,
+    payload: bytes,
+) -> None:
+    """Fold one parsed page into the per-serial link accumulator."""
+    state = streams.get(serial)
+    if state is None:
+        state = {"rate": None, "completed": 0, "last": 0}
+        streams[serial] = state
+    if header_type & 0x02:  # beginning of stream (a new link)
+        rate = _ogg_codec_rate(payload)
+        if rate:
+            state["rate"] = rate
+        if state["last"] > 0:
+            state["completed"] += state["last"]
+            state["last"] = 0
+    elif state["rate"] is None:
+        rate = _ogg_codec_rate(payload)
+        if rate:
+            state["rate"] = rate
+    if granule > 0:
+        if granule < state["last"]:
+            # A link restarted without a BOS page (same serial).
+            state["completed"] += state["last"]
+        state["last"] = granule
+
+
 def _ogg_duration(data: bytes) -> Optional[float]:
     if len(data) < 28 or data[:4] != b"OggS":
         return None
+    # Chained Ogg (multiple logical bitstreams in one upload) restarts the
+    # granule timeline per link. Reading only the LAST page's granule — the
+    # old behavior — therefore bills the final link and silently drops every
+    # earlier one. Track links per serial and sum them; a serial reused by a
+    # later link is detected via its BOS page or a backward granule jump.
+    # Only recognized audio codecs contribute, and concurrent audio tracks
+    # (which no transcription caller produces) would be summed — that
+    # over-reservation is conservative, never an understatement.
+    streams: dict = {}
+    offset = 0
     try:
-        # First page payload identifies the codec and its sample rate.
-        segments = data[26]
-        payload_start = 27 + segments
-        payload = data[payload_start:payload_start + 64]
-        sample_rate = None
-        granule_rate = None
-        if payload.startswith(b"\x01vorbis") and len(payload) >= 16:
-            sample_rate = int.from_bytes(payload[12:16], "little")
-            granule_rate = sample_rate
-        elif payload.startswith(b"OpusHead") and len(payload) >= 16:
-            # Opus granules are always 48 kHz regardless of input rate.
-            sample_rate = int.from_bytes(payload[12:16], "little")
-            granule_rate = 48000
-        if not sample_rate or not granule_rate:
-            return None
-        # Last completed page's granule position is the total sample count.
-        last = data.rfind(b"OggS")
-        if last < 0 or last + 14 > len(data):
-            return None
-        granule = int.from_bytes(data[last + 6:last + 14], "little", signed=True)
-        if granule > 0:
-            return granule / float(granule_rate)
+        while offset < len(data):
+            page = _ogg_page(data, offset)
+            if page is None:
+                nxt = data.find(
+                    b"OggS", offset + 1, min(len(data), offset + 65536))
+                if nxt < 0:
+                    break
+                offset = nxt
+                continue
+            header_type, granule, serial, payload, end = page
+            _ogg_track_link(streams, header_type, granule, serial, payload)
+            offset = end
+        total_seconds = 0.0
+        found = False
+        for state in streams.values():
+            rate = state["rate"]
+            if not rate:
+                continue
+            samples = state["completed"] + state["last"]
+            if samples > 0:
+                total_seconds += samples / float(rate)
+                found = True
+        return total_seconds if found else None
     except Exception:
         return None
-    return None
 
 
 # ---------------------------------------------------------------------------

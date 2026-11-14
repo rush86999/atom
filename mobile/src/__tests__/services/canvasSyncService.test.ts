@@ -576,7 +576,7 @@ describe('canvasSyncService', () => {
       const { apiService } = require('../../services/api');
 
       // Cache canvases with different favorite statuses
-      apiService.get.mockImplementation((url) => {
+      apiService.get.mockImplementation((url: string) => {
         if (url === '/api/canvas/canvas_1') {
           return Promise.resolve({
             success: true,

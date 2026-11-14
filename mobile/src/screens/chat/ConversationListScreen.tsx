@@ -16,8 +16,19 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useTheme, Avatar, Badge, Searchbar, Chip, IconButton, SwipeRow, FAB } from 'react-native-paper';
+import { useTheme, Avatar, Badge, Searchbar, Chip, IconButton, FAB } from 'react-native-paper';
 import { Icon } from 'react-native-paper';
+import { SwipeRow as SwipeRowBase } from 'react-native-swipe-list-view';
+
+// react-native-swipe-list-view's declarations omit the implicit `children`
+// prop that its component renders. Re-type only that gap instead of casting
+// the component at the call site.
+type SwipeRowProps = React.PropsWithChildren<{
+  leftOpenValue?: number;
+  rightOpenValue?: number;
+  disableRightSwipe?: boolean;
+}>;
+const SwipeRow = SwipeRowBase as React.ComponentType<SwipeRowProps>;
 import { formatDistanceToNow } from 'date-fns';
 import { chatService } from '../../services/chatService';
 import { ConversationSummary } from '../../services/chatService';

@@ -121,7 +121,9 @@ export const ExecutionProgressScreen: React.FC = () => {
   };
 
   // Get step status icon
-  const getStepIcon = (status?: string): string => {
+  const getStepIcon = (
+    status?: string
+  ): React.ComponentProps<typeof Ionicons>['name'] => {
     switch (status) {
       case 'completed':
         return 'checkmark-circle';
