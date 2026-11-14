@@ -147,6 +147,82 @@ def _require_file_binding(db: Session, canvas_id: str, file_path: str) -> None:
         raise HTTPException(status_code=403, detail="File is not bound to this canvas")
 
 
+def _require_canvas_active(db: Session, canvas_id: str) -> None:
+    """Office-boundary wrapper over the canonical canvas tombstone gate.
+
+    Ownership and lifecycle are distinct checks: ``_require_canvas_owner``
+    authorizes WHO may act; this refuses a canvas that was DELETED. The
+    canonical tombstone lives in the newest ``CanvasAudit`` row (the delete
+    path is append-only and ``Canvas.status`` stays ``active``), so the shared
+    helper is consulted instead of a local "deleted" convention. The existing
+    undelete path appends a restore row past the tombstone, after which this
+    gate passes again — history/restore stay possible while a deleted canvas
+    is absent from every office read/write/bind surface.
+    """
+    from core.canvas_authority import CanvasAuthorityError, require_canvas_active
+
+    try:
+        require_canvas_active(db, str(canvas_id))
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+def _bound_canvas_ids(db: Session, file_path: str) -> List[str]:
+    """Canvas ids whose persisted binding names exactly this office file.
+
+    Path-only office endpoints (``/excel``, ``/word``, ``/pptx``) carry no
+    canvas id at all, so the tombstone gate has to resolve the bindings
+    first. Candidate rows are narrowed with a portable text ``LIKE`` on the
+    unique stored file name and then compared through ``_office_path_key``
+    (the absolute/legacy-relative equivalence the sync service already uses).
+    An unbound file has no ids and is unaffected — that keeps legitimate new
+    uploads and legacy manual files working.
+    """
+    from sqlalchemy import String, cast
+
+    from core.models import Canvas
+    from core.office_sync_service import _office_path_key
+
+    resolved = _require_office_path(file_path)
+    key = _office_path_key(resolved)
+    if not key:
+        return []
+    name = Path(resolved).name
+    if not name:
+        return []
+    rows = (
+        db.query(Canvas)
+        .filter(cast(Canvas.content, String).contains(name))
+        .all()
+    )
+    ids: List[str] = []
+    for row in rows:
+        content = row.content if isinstance(row.content, dict) else {}
+        bound = {
+            _office_path_key(content.get("office_file")),
+            _office_path_key(content.get("file_path")),
+        }
+        if key in bound:
+            ids.append(str(row.id))
+    return ids
+
+
+def _require_live_office_file(db: Session, file_path: str) -> None:
+    """Refuse a path-only office operation on a tombstoned artifact.
+
+    A file bound ONLY to deleted canvases is no longer workspace-readable or
+    writable through the office API; the same file stays available the moment
+    any live canvas is bound to it (or it is re-presented, which creates a
+    fresh canvas) and after the canonical undelete. Unbound files are allowed
+    so the plain "upload a file, no canvas" surface keeps working.
+    """
+    from tools.canvas_crud_tool import deleted_canvas_ids
+
+    bound = _bound_canvas_ids(db, file_path)
+    if bound and len(deleted_canvas_ids(db, bound)) == len(bound):
+        raise HTTPException(status_code=404, detail="File is not available")
+
+
 def _require_canvas_owner(db: Session, canvas_id: str, user: User) -> None:
     """A caller may only bind/mutate a canvas they own or authored."""
     from core.models import Canvas
@@ -226,10 +302,12 @@ class SyncUpdateRequest(BaseModel):
 @router.get("/excel")
 def read_excel(
     file_path: str = Query(..., description="Path to XLSX file"),
-    cell_path: str = Query("", description="DOM-like path or coordinate, e.g. /Sheet1/A1")
+    cell_path: str = Query("", description="DOM-like path or coordinate, e.g. /Sheet1/A1"),
+    db: Session = Depends(get_db_session_dep),
 ):
     """Read values from an Excel sheet range or coordinate."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.excel.read_range(file_path, cell_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -255,6 +333,12 @@ async def upload_office_file(
     max_bytes = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
     if len(content) > max_bytes:
         raise HTTPException(status_code=400, detail="File too large")
+    # Authorize the canvas BEFORE landing bytes: a foreign or deleted canvas
+    # used to be rejected only after the file was already written, leaving an
+    # orphan artifact behind a refused request.
+    if canvas_id:
+        _require_canvas_owner(db, canvas_id, current_user)
+        _require_canvas_active(db, canvas_id)
     safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(file_name).stem).strip("-")[:60] or "upload"
     office_dir = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
     office_dir.mkdir(parents=True, exist_ok=True)
@@ -271,7 +355,6 @@ async def upload_office_file(
         "sha256": hashlib.sha256(content).hexdigest(),
     }
     if canvas_id:
-        _require_canvas_owner(db, canvas_id, current_user)
         from core.office_sync_service import OfficeSyncService
         sync = OfficeSyncService(db)
         bound = sync.ensure_canvas_for_file(
@@ -312,6 +395,7 @@ def download_office_file(
     """Download an office artifact the caller's canvas actually owns."""
     contained = _require_office_path(file_path)
     _require_canvas_owner(db, canvas_id, current_user)
+    _require_canvas_active(db, canvas_id)
     from core.models import Canvas
 
     row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
@@ -336,9 +420,10 @@ def download_office_file(
 
 
 @router.post("/excel")
-def write_excel(req: ExcelWriteRequest):
+def write_excel(req: ExcelWriteRequest, db: Session = Depends(get_db_session_dep)):
     """Write data or formulas to an Excel sheet coordinate."""
     file_path = _require_office_path(req.file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.excel.write_cell(
         file_path=req.file_path,
         cell_path=req.cell_path,
@@ -352,10 +437,12 @@ def write_excel(req: ExcelWriteRequest):
 
 @router.post("/excel/recalculate")
 async def recalculate_excel(
-    file_path: str = Query(..., description="Path to XLSX file")
+    file_path: str = Query(..., description="Path to XLSX file"),
+    db: Session = Depends(get_db_session_dep),
 ):
     """Force recalculation of all formulas in the workbook."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.recalculate(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -367,10 +454,12 @@ async def insert_excel_rows(
     file_path: str = Query(..., description="Path to XLSX file"),
     sheet_name: str = Query(..., description="Worksheet name"),
     row: int = Query(..., description="Row number to insert at (1-based)"),
-    count: int = Query(1, description="Number of rows to insert")
+    count: int = Query(1, description="Number of rows to insert"),
+    db: Session = Depends(get_db_session_dep),
 ):
     """Insert rows and recalculate formulas to maintain references."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.insert_rows(file_path, sheet_name, row, count)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -382,10 +471,12 @@ async def insert_excel_columns(
     file_path: str = Query(..., description="Path to XLSX file"),
     sheet_name: str = Query(..., description="Worksheet name"),
     column: int = Query(..., description="Column number to insert at (1-based)"),
-    count: int = Query(1, description="Number of columns to insert")
+    count: int = Query(1, description="Number of columns to insert"),
+    db: Session = Depends(get_db_session_dep),
 ):
     """Insert columns and recalculate formulas."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.insert_columns(file_path, sheet_name, column, count)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -395,10 +486,12 @@ async def insert_excel_columns(
 @router.get("/excel/formula-result")
 async def get_formula_result(
     file_path: str = Query(..., description="Path to XLSX file"),
-    cell_path: str = Query(..., description="DOM-like path, e.g. /Sheet1/A4")
+    cell_path: str = Query(..., description="DOM-like path, e.g. /Sheet1/A4"),
+    db: Session = Depends(get_db_session_dep),
 ):
     """Get the computed result of a formula cell (evaluates if needed)."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.get_evaluated_range(file_path, cell_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -406,9 +499,13 @@ async def get_formula_result(
 
 
 @router.post("/excel/pivot-table")
-async def create_excel_pivot_table(req: ExcelPivotTableRequest):
+async def create_excel_pivot_table(
+    req: ExcelPivotTableRequest,
+    db: Session = Depends(get_db_session_dep),
+):
     """Create a styled pivot table in the Excel workbook."""
     file_path = _require_office_path(req.file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.add_pivot_table(
         req.file_path, req.sheet_name, req.pivot_sheet_name,
         req.data_range, req.rows, req.columns, req.values
@@ -419,9 +516,13 @@ async def create_excel_pivot_table(req: ExcelPivotTableRequest):
 
 
 @router.post("/excel/run-macro")
-async def run_excel_macro(req: ExcelRunMacroRequest):
+async def run_excel_macro(
+    req: ExcelRunMacroRequest,
+    db: Session = Depends(get_db_session_dep),
+):
     """Run an Excel VBA/Basic macro inside a sandboxed environment."""
     file_path = _require_office_path(req.file_path)
+    _require_live_office_file(db, file_path)
     res = await office_service.excel.run_excel_macro(file_path, req.macro_name)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -429,9 +530,13 @@ async def run_excel_macro(req: ExcelRunMacroRequest):
 
 
 @router.get("/word")
-def read_word(file_path: str = Query(..., description="Path to DOCX file")):
+def read_word(
+    file_path: str = Query(..., description="Path to DOCX file"),
+    db: Session = Depends(get_db_session_dep),
+):
     """Read contents of a Word document."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.word.read_document(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -439,9 +544,13 @@ def read_word(file_path: str = Query(..., description="Path to DOCX file")):
 
 
 @router.post("/word")
-def modify_word(req: WordModifyRequest):
+def modify_word(
+    req: WordModifyRequest,
+    db: Session = Depends(get_db_session_dep),
+):
     """Modify paragraphs or replace text placeholders in a Word document."""
     file_path = _require_office_path(req.file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.word.modify_document(
         file_path=req.file_path,
         action=req.action,
@@ -454,9 +563,13 @@ def modify_word(req: WordModifyRequest):
 
 
 @router.get("/pptx")
-def read_pptx(file_path: str = Query(..., description="Path to PPTX file")):
+def read_pptx(
+    file_path: str = Query(..., description="Path to PPTX file"),
+    db: Session = Depends(get_db_session_dep),
+):
     """Read slides and shape contents of a PowerPoint presentation."""
     file_path = _require_office_path(file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.pptx.read_slides(file_path)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
@@ -464,9 +577,13 @@ def read_pptx(file_path: str = Query(..., description="Path to PPTX file")):
 
 
 @router.post("/pptx")
-def modify_pptx(req: PptxModifyRequest):
+def modify_pptx(
+    req: PptxModifyRequest,
+    db: Session = Depends(get_db_session_dep),
+):
     """Modify slides or layouts in a PowerPoint presentation."""
     file_path = _require_office_path(req.file_path)
+    _require_live_office_file(db, file_path)
     res = office_service.pptx.modify_slides(
         file_path=req.file_path,
         action=req.action,
@@ -487,6 +604,7 @@ async def present_coedit(
     file_path = _require_office_path(req.file_path)
     if req.canvas_id:
         _require_canvas_owner(db, req.canvas_id, current_user)
+        _require_canvas_active(db, req.canvas_id)
     sync_service = OfficeSyncService(db)
 
     # Persist (or reuse) the Canvas row bound to this file so the co-edit
@@ -539,6 +657,7 @@ async def sync_update(
     # must never reach the filesystem or leak canvas existence.
     _require_office_path(req.file_path)
     _require_canvas_owner(db, req.canvas_id, current_user)
+    _require_canvas_active(db, req.canvas_id)
     _require_file_binding(db, req.canvas_id, req.file_path)
     sync_service = OfficeSyncService(db)
     res = sync_service.sync_canvas_to_file(

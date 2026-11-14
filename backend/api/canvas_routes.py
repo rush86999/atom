@@ -290,14 +290,22 @@ class AttachCanvasAgentRequest(BaseModel):
 
 
 def _get_owned_canvas(db: Session, canvas_id: str, current_user: User):
-    """Ownership-guarded Canvas row (404 without an existence leak)."""
+    """Ownership-guarded Canvas row (404 without an existence leak).
+
+    Also refuses a TOMBSTONED canvas: agents/attachments/uploaded data are
+    canvas-scoped writers that append audit rows, so accepting a deleted id
+    here silently un-deleted it (the same class of bug the office file
+    fan-out already guards with ``deleted_canvas_ids``). Ownership stays the
+    first gate, so a stranger still learns nothing about the tombstone; the
+    canonical undelete path appends a restore row and this gate passes again.
+    """
     from core.models import Canvas
-    from tools.canvas_crud_tool import _verify_canvas_owner
+    from tools.canvas_crud_tool import _verify_canvas_owner, deleted_canvas_ids
 
     if not _verify_canvas_owner(db, canvas_id, str(current_user.id)):
         raise router.not_found_error("Canvas", canvas_id)
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-    if canvas is None:
+    if canvas is None or deleted_canvas_ids(db, [str(canvas_id)]):
         raise router.not_found_error("Canvas", canvas_id)
     return canvas
 
