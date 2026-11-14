@@ -5,6 +5,7 @@ Provides a unified interface for LLM interactions across the platform,
 wrapping the advanced BYOKHandler infrastructure.
 """
 
+import inspect
 import json
 import logging
 import os
@@ -29,6 +30,55 @@ _QUERY_COMPLEXITY_BY_NAME = {
     "complex": QueryComplexity.COMPLEX,
     "advanced": QueryComplexity.ADVANCED,
 }
+
+
+def _accepts_keyword(fn: Any, name: str) -> bool:
+    """Whether ``fn`` can receive keyword ``name``.
+
+    Used for additive handler metadata: real BYOKHandler accepts the per-call
+    sink, while an older/test handler with a narrow signature keeps working
+    unchanged instead of raising TypeError.
+
+    Fail CLOSED when the signature cannot be inspected. Some C-backed or
+    exotic callables raise from ``inspect.signature``; passing an unknown
+    keyword to one of those is a hard TypeError at the call site, so the safe
+    compatibility path is to send no additive argument and report the
+    metadata as unknown.
+
+    A named POSITIONAL_ONLY parameter does not accept a keyword. It must not
+    count as sink-capable even though its name matches.
+    """
+    try:
+        parameters = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    parameter = parameters.get(name)
+    if parameter is not None:
+        return parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_KEYWORD,
+        )
+    return any(
+        p.kind is inspect.Parameter.VAR_KEYWORD
+        for p in parameters.values())
+
+
+def _normalize_finish_reason(value: Any) -> Optional[str]:
+    """Normalize a provider stop reason at the shared result boundary.
+
+    Provider stop reasons are enumerations (``stop``, ``length``,
+    ``max_tokens``, ...), so surrounding whitespace and case carry no
+    meaning. A missing, non-string, or blank value means "not reported"
+    (``None``) -- never a known reason. Returning ``""`` would let a
+    consumer's ``finish_reason is None`` missing-metadata backstop be
+    suppressed while also matching no truncation vocabulary, which is the
+    worst of both outcomes.
+    """
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
 
 
 def _coerce_query_complexity(
@@ -292,6 +342,75 @@ class LLMService:
             },
             "usage": {"prompt_tokens": 0, "completion_tokens": 0,
                       "total_tokens": 0},
+            # Provider stop reason is unknown because no provider ran.
+            "finish_reason": None,
+        }
+
+    def _completion_failure_result(self, outcome: Dict[str, Any],
+                                   model: str) -> Dict[str, Any]:
+        """Structured failure result for a terminal generation failure.
+
+        Mirrors the existing unresolved-scope refusal contract (``success``
+        False, no provider/model claim, zero usage) but keeps the legacy
+        text API's failure string OUT of ``content``/``text``: an error
+        message must never be accepted as an answer. Callers that want the
+        human-readable message read ``error``; structured callers read
+        ``failure``.
+
+        Identity is deliberately unknown: no provider served this call, and
+        inferring one from the model name would claim a route that never
+        answered. ``requested_model`` records only what the caller asked
+        for. Attempt diagnostics (last error, retained stop reason, whether
+        there were zero candidates) come from THIS call's outcome sink,
+        never shared handler state.
+
+        ``usage`` is a facade legacy placeholder (the unresolved-scope
+        refusal has always reported zeros), not a billing or ledger
+        statement: a physical provider request may have been made and billed
+        before the failure (for example an empty ``length`` generation).
+        """
+        reason = str(outcome.get("reason") or "generation_failed")
+        message = str(
+            outcome.get("message") or "The LLM generation failed.")
+        diagnostics = outcome.get("diagnostics")
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
+        failure: Dict[str, Any] = {
+            "reason": reason,
+            "message": message,
+            "requested_model": model,
+            "provider": None,
+            "model": None,
+            "last_error": diagnostics.get("last_error"),
+            "last_error_type": diagnostics.get("last_error_type"),
+            # A retained attempt stop reason is ATTEMPT evidence. It is not
+            # the accepted reply's finish_reason, so it never appears at the
+            # result's top level.
+            "last_finish_reason": _normalize_finish_reason(
+                diagnostics.get("last_finish_reason")),
+        }
+        for key in ("candidate_count", "failed_providers",
+                    "credit_failed_providers", "routing", "policy"):
+            if key in diagnostics:
+                failure[key] = diagnostics[key]
+        logger.warning("LLM completion failed (%s): %s", reason, message)
+        return {
+            "success": False,
+            "content": "",
+            "text": "",
+            # No served route to report. The request alias and a provider
+            # guessed from the model name are not a served pair.
+            "model": None,
+            "provider": None,
+            # Legacy facade placeholder, NOT proof that no physical/provider
+            # request was billed. The unresolved-scope refusal shape has
+            # always reported zeros; the durable usage ledger (fed by BYOK
+            # admission/settlement) remains the billing authority.
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0,
+                      "total_tokens": 0},
+            "finish_reason": None,
+            "error": message,
+            "failure": failure,
         }
 
     def _workspace_for_tenant(self, tenant_id: str):
@@ -776,6 +895,30 @@ class LLMService:
         # request down to 1000.
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        # Per-call transport metadata. The handler writes this call's real
+        # provider stop reason into the sink. The sink is a distinct object
+        # per generate_completion call, so a consumer never inherits a
+        # neighbour's finish_reason. The handler instance attribute remains
+        # only for its own text-API compatibility; this method never reads it
+        # (see below).
+        finish_reason_sink: Dict[str, Any] = {}
+        sink_passed = _accepts_keyword(
+            handler.generate_response, "finish_reason_sink")
+        if sink_passed:
+            kwargs["finish_reason_sink"] = finish_reason_sink
+        # Per-call GENERATION OUTCOME metadata. ``generate_response`` keeps
+        # its legacy text contract, so a provider/policy/budget failure is
+        # otherwise indistinguishable from an accepted reply here — the
+        # 2026-11-14 live replay returned "every configured provider failed
+        # ... Last error: no provider attempted" as ``content`` with
+        # ``success=True``. The handler writes THIS call's outcome into the
+        # fresh mapping; an unwritten mapping means a legacy producer and
+        # keeps the historical success contract.
+        outcome_sink: Dict[str, Any] = {}
+        outcome_passed = _accepts_keyword(
+            handler.generate_response, "outcome_sink")
+        if outcome_passed:
+            kwargs["outcome_sink"] = outcome_sink
         response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
@@ -795,17 +938,51 @@ class LLMService:
             **kwargs
         )
 
+        # The handler's text API returns a human-readable failure string on
+        # every terminal failure path. The structured outcome is the only
+        # evidence that the call failed; when it says failure (or a
+        # sink-capable producer explicitly declared success but produced no
+        # text), this facade must not publish that string as an accepted
+        # answer. A sink that was passed but never written means a legacy
+        # producer: the historical success contract is preserved.
+        outcome_written = (
+            outcome_passed and isinstance(outcome_sink.get("success"), bool))
+        if outcome_written and outcome_sink.get("success") is False:
+            return self._completion_failure_result(outcome_sink, model)
+        if (outcome_written and outcome_sink.get("success") is True
+                and not str(response_text or "").strip()):
+            empty_outcome = dict(outcome_sink)
+            empty_outcome["reason"] = "empty_generation"
+            return self._completion_failure_result(empty_outcome, model)
+
         # Approximate token usage
         input_tokens = self.estimate_tokens(prompt + system_instruction, model)
         output_tokens = self.estimate_tokens(response_text, model)
 
         # Surface the concrete model/provider BPC actually selected (not the
-        # "auto" input). BYOKHandler stashes these before returning; fall back
-        # to the input model if the stash is empty (defensive).
-        used_model = getattr(handler, "_last_used_model", None) or model
-        used_provider = getattr(handler, "_last_used_provider", None)
-        if used_provider is None:
-            used_provider = self.get_provider(used_model).value
+        # "auto" input). When the producer reported THIS call's accepted
+        # identity, use only that call-local value — never the request alias
+        # or a shared handler attribute another concurrent call may have
+        # overwritten. Legacy producers keep the historical fallback.
+        if outcome_written and outcome_sink.get("success") is True:
+            used_model = outcome_sink.get("model")
+            used_provider = outcome_sink.get("provider")
+        else:
+            used_model = getattr(handler, "_last_used_model", None) or model
+            used_provider = getattr(handler, "_last_used_provider", None)
+            if used_provider is None:
+                used_provider = self.get_provider(used_model).value
+
+        # Read THIS call's sink only. A handler that cannot receive the sink
+        # (narrow legacy signature, non-introspectable callable) reports
+        # unknown -- ``None``. The shared ``_last_finish_reason`` attribute is
+        # deliberately never consulted here, even as a fallback: it belongs
+        # to whichever concurrent call wrote it last, so borrowing it would
+        # attribute another call's provider metadata to this answer. A sink
+        # that was passed but never written is likewise unknown, not a
+        # neighbour's reason.
+        finish_reason = _normalize_finish_reason(
+            finish_reason_sink.get("finish_reason") if sink_passed else None)
 
         return {
             "success": True,
@@ -818,6 +995,15 @@ class LLMService:
             },
             "model": used_model,
             "provider": used_provider,
+            # Provider-native stop reason for THIS call ("stop", "length",
+            # "max_tokens", ...). Read from the call-local sink the handler
+            # wrote at the accepted response; when the handler could not
+            # receive a sink there is no call-local evidence, so the value is
+            # ``None`` (unknown). Normalized (trimmed, lowercase; blank ->
+            # None) at this shared boundary. The handler returns only text,
+            # so without this a caller cannot distinguish a naturally
+            # finished answer from one cut off at the output-token cap.
+            "finish_reason": finish_reason,
             # Identity of this generation's outcome row (set by the handler
             # when it recorded one). Callers that judge the ASSEMBLED reply
             # afterwards — the figure-grounding and verification guards — pass
