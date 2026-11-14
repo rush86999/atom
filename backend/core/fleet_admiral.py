@@ -95,20 +95,20 @@ _SYNTHESIS_TRUNCATION_FINISH_REASONS = frozenset({
     "model_context_window_exceeded",
 })
 # Backstop for providers/gateways that omit finish_reason: a completion that
-# ends on a function word which cannot grammatically end a sentence (article,
-# conjunction, preposition, auxiliary) is weak shape evidence of a cut. This
-# is NOT proof of output truncation; an explicit provider finish_reason always
-# wins, and evaluative endings ("likely", "unlikely", "more", "most", "next")
-# are deliberately excluded because "Risk: unlikely" is a valid concise
-# answer, not a model truncation.
+# ends on a word which cannot grammatically end an English clause (article,
+# conjunction, preposition) is weak shape evidence of a cut. This is NOT proof
+# of output truncation; an explicit provider finish_reason always wins, and
+# every ambiguous ending is deliberately treated as unknown rather than as a
+# fabricated cut claim. In particular auxiliary/modal/copula verbs are NOT
+# continuation words: "It should.", "Ownership: the platform team does." and
+# "It is." are complete elliptical answers to a question. Evaluative endings
+# ("likely", "unlikely", "more", "most", "next") are likewise excluded
+# because "Risk: unlikely" is a valid concise answer, not a model truncation.
 _SYNTHESIS_CONTINUATION_WORDS = frozenset({
-    "a", "an", "and", "are", "as", "at", "be", "because", "been", "being",
-    "but", "by", "can", "could", "did", "do", "does", "for", "from", "had",
-    "has", "have", "having", "how", "if", "in", "include", "includes",
-    "including", "into", "is", "may", "might", "must", "nor", "of", "on",
-    "or", "per", "shall", "should", "such", "than", "that", "the", "then",
-    "to", "under", "upon", "using", "via", "was", "were", "when", "where",
-    "whether", "which", "while", "will", "with", "without", "would",
+    "a", "an", "and", "as", "at", "because", "but", "by", "for", "from",
+    "if", "in", "include", "includes", "including", "into", "nor", "of",
+    "on", "or", "per", "than", "the", "to", "under", "upon", "using",
+    "via", "which", "while", "with", "without",
 })
 
 # Specialist execution can include authorized tool actions. The fleet keeps a
@@ -4278,6 +4278,22 @@ Return JSON matching the TaskAnalysis schema."""
         return prompt, truncated
 
     @staticmethod
+    def _normalize_finish_reason(finish_reason: Any) -> Optional[str]:
+        """Normalize a provider stop reason at the result boundary.
+
+        Mirrors ``LLMService``'s shared normalization: stop reasons are
+        enumerations, so surrounding whitespace/case carry no meaning, and a
+        blank/missing/non-string value means "not reported" (``None``). A
+        blank value must not survive as a truthy-but-unknown reason: the
+        missing-metadata text-shape backstop keys off ``finish_reason is
+        None`` and would otherwise be silently suppressed.
+        """
+        if not isinstance(finish_reason, str):
+            return None
+        normalized = finish_reason.strip().lower()
+        return normalized or None
+
+    @staticmethod
     def _synthesis_finish_reason_truncated(finish_reason: Any) -> bool:
         """Whether a provider stop reason means the output was cut off.
 
@@ -4300,8 +4316,10 @@ Return JSON matching the TaskAnalysis schema."""
         concise answer can end on any word, and an evaluative ending such as
         "Risk: unlikely" is not a cut. Only strong structural evidence is
         reported here -- an unbalanced opening bracket, or a trailing
-        function word that cannot end a sentence ("... corrective actions
-        are", "... 2 of").
+        article/conjunction/preposition that cannot end a clause ("...
+        corrective actions on the", "... 2 of"). Elliptical answers ending in
+        an auxiliary or copula ("It should.", "Ownership: the platform team
+        does.") and a numeric tail are complete, not cut.
 
         A numeric tail is significant: ``re.findall(r"[A-Za-z']+")`` used to
         discard the final ``2`` in "Completed items: 2 of 2" and inspect the
@@ -4499,11 +4517,8 @@ Return JSON matching the TaskAnalysis schema."""
             metadata["model"] = response.get("model")
             metadata["provider"] = response.get("provider")
             metadata["usage"] = response.get("usage")
-            finish_reason = response.get("finish_reason")
-            # A blank stop reason is "not reported", not a known reason that
-            # should suppress the weak shape backstop.
-            if isinstance(finish_reason, str) and not finish_reason.strip():
-                finish_reason = None
+            finish_reason = self._normalize_finish_reason(
+                response.get("finish_reason"))
         else:
             content = ""
         metadata["finish_reason"] = finish_reason

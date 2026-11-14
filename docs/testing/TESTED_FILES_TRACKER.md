@@ -9874,3 +9874,22 @@ negative twins, explicit `stop`/`length` precedence, and a joined
 positive/failure/unknown concurrency test against the actual
 `LLMService` consumer. No live provider request, credential/config read,
 push, or merge; scratch SQLite only.
+
+**Second follow-up (2026-11-14 root metadata probe)**: the residual
+`_MISSING` fallback still let an unwritten call-local sink borrow a
+neighbouring call's shared attribute (a `**kwargs` wrapper swallows the sink;
+the root counterprobe observed `["length","length"]` instead of
+`[null,null]`). `generate_completion` now never consults
+`_last_finish_reason`: a sink is passed only when `_accepts_keyword` proves the
+producer can receive it, and an unwritten/unavailable sink is unknown
+(`None`). `_accepts_keyword` now fails closed when `inspect.signature` raises
+and treats a POSITIONAL_ONLY parameter as not keyword-capable, so additive
+dispatch cannot raise TypeError on a C-backed/exotic callable. The shared
+result boundary normalizes stop reasons (trim + lowercase; blank/missing →
+`None`), which keeps the fleet's missing-metadata shape backstop armed.
+Elliptical answers ending in auxiliaries/copulas ("It should.", "Ownership:
+the platform team does.") are no longer shape-truncation evidence. Tests add
+concurrent twins for a real sink producer, a sink-ignoring `**kwargs` wrapper,
+a narrow legacy handler, a non-introspectable callable, and a positional-only
+sink name, plus blank-reason normalization and elliptical negatives; selection
+is 115 passed (scratch SQLite, no provider).

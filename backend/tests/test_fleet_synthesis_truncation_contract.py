@@ -116,17 +116,18 @@ TRUNCATED_SYNTHESIS = (
     "the specialist's reasoning that slipped deals are more likely"
 )
 
-# Same live symptom, but with an unambiguous structural cut: the sentence
-# ends on an auxiliary verb. Used only to exercise the provider-omitted
-# ``finish_reason`` backstop; the live evaluative ending above is weak
-# evidence on its own and must not be relabelled as truncation.
+# Same live symptom, but with an unambiguous structural cut: the final line
+# ends on a preposition/article that cannot end a clause. Used only to
+# exercise the provider-omitted ``finish_reason`` backstop; the live
+# evaluative ending above is weak evidence on its own and must not be
+# relabelled as truncation.
 STRONG_CUT_SYNTHESIS = (
     "## DIRECT ANSWER:\n"
     "Quarterly revenue closed at $198,000 against a $240,000 target - a "
     "$42,000 shortfall.\n\n"
     "## PROPOSED NEXT STEPS (NOT EXECUTED):\n"
     "1. **Prioritize slipped-deal recovery** - address the $15,000 first "
-    "because the specialist's reasoning is"
+    "because the specialist's reasoning depends on the"
 )
 
 
@@ -325,7 +326,27 @@ def test_valid_concise_outputs_are_not_labelled_as_model_truncation(text):
 
 
 @pytest.mark.parametrize("text", [
-    "The corrective actions are",
+    "It should.",
+    "It should",
+    "Ownership: the platform team does.",
+    "Ownership: the platform team does",
+    "It is.",
+    "The rollout will.",
+])
+def test_complete_elliptical_answers_are_not_shape_truncation(text):
+    """Modal/auxiliary/copula endings can complete an elliptical answer.
+
+    "Should rollout pause?" -> "It should." and "Who owns it?" -> "Ownership:
+    the platform team does." are grammatically complete. Treating those words
+    as dangling continuation tokens fabricated a truncation claim the provider
+    never made. With no explicit stop reason the honest classification is
+    unknown, so the shape backstop must stay quiet.
+    """
+    assert FleetAdmiral._synthesis_text_looks_cut_off(text) is False
+
+
+@pytest.mark.parametrize("text", [
+    "The corrective actions depend on the",
     "Completed items: 2 of",
     "Open the attached evidence (",
 ])
@@ -362,6 +383,36 @@ def test_explicit_length_reason_wins_over_complete_looking_text(world):
     assert synthesis["output_truncated"] is True
     assert synthesis["finish_reason"] == "length"
     assert "## DIRECT ANSWER:" not in result["final_output"]
+    _assert_all_actions_grounded(result["final_output"])
+
+
+def test_blank_finish_reason_normalizes_to_none_and_keeps_shape_backstop(world):
+    """A blank provider reason is unknown, not a reason that suppresses the
+    missing-metadata backstop."""
+    _seed_chain(world)
+    result = _run(world, FakeLLM(
+        content=STRONG_CUT_SYNTHESIS, finish_reason="   "))
+
+    synthesis = result["final_synthesis"]
+    assert synthesis["finish_reason"] is None
+    assert synthesis["used"] is False
+    assert synthesis["reason"] == "output_truncated"
+    assert synthesis["output_truncated"] is True
+    _assert_all_actions_grounded(result["final_output"])
+
+
+def test_elliptical_complete_answer_is_used_when_no_reason_is_reported(world):
+    """A complete answer ending on an auxiliary is not a fabricated cut."""
+    _seed_chain(world)
+    result = _run(world, FakeLLM(
+        content=COMPLETE_SYNTHESIS + "\n\nOwnership: the platform team does.",
+        finish_reason=None))
+
+    synthesis = result["final_synthesis"]
+    assert synthesis["used"] is True
+    assert synthesis["reason"] is None
+    assert synthesis["output_truncated"] is False
+    assert synthesis["finish_reason"] is None
     _assert_all_actions_grounded(result["final_output"])
 
 
@@ -521,10 +572,15 @@ def _service_with_handler(monkeypatch, handler):
     return service
 
 
-def test_generate_completion_surfaces_finish_reason_for_text_only_handler(
+def test_generate_completion_narrow_legacy_handler_reports_unknown(
         monkeypatch):
-    """Backward compatibility: a handler that only sets the legacy attribute
-    still works with the unchanged text API."""
+    """A handler that cannot receive the sink still works -- and reports
+    unknown (None), never the shared attribute another call wrote.
+
+    The legacy text API keeps the attribute for its own consumers. This
+    consumer must not borrow it: the value in it belongs to whichever
+    concurrent call wrote last, not necessarily this call.
+    """
     class Handler:
         workspace_id = WORKSPACE
         _last_used_model = "synthesis-model"
@@ -533,7 +589,9 @@ def test_generate_completion_surfaces_finish_reason_for_text_only_handler(
         _last_feedback_decision_id = None
         _last_reasoning = None
 
-        async def generate_response(self, **kwargs):
+        async def generate_response(
+                self, prompt, system_instruction, model_type, temperature,
+                turn_index, estimated_tokens, messages):
             return "cut"
 
     service = _service_with_handler(monkeypatch, Handler())
@@ -542,7 +600,160 @@ def test_generate_completion_surfaces_finish_reason_for_text_only_handler(
         workspace_id=WORKSPACE, tenant_id=TENANT))
 
     assert result["success"] is True
-    assert result["finish_reason"] == "length"
+    assert result["content"] == "cut"
+    assert result["finish_reason"] is None
+
+
+def test_generate_completion_ignores_a_stale_attribute_when_sink_is_unwritten(
+        monkeypatch):
+    """A ``**kwargs`` wrapper that swallows the sink cannot borrow.
+
+    This is the GLM-proven shape: a metrics/forwarding wrapper accepts
+    ``**kwargs`` (so the sink is dispatchable), drops it, and an older inner
+    handler updates the shared attribute. An unwritten call-local sink means
+    unknown, not the neighbour's reason.
+    """
+    class SinkIgnoringWrapper:
+        workspace_id = WORKSPACE
+        _last_used_model = "synthesis-model"
+        _last_used_provider = "synthesis-provider"
+        _last_finish_reason = "length"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+
+        async def generate_response(self, **kwargs):
+            self.seen_sink = kwargs.get("finish_reason_sink")
+            return "cut"
+
+    handler = SinkIgnoringWrapper()
+    service = _service_with_handler(monkeypatch, handler)
+    result = asyncio.run(service.generate_completion(
+        messages=[{"role": "user", "content": "hello"}],
+        workspace_id=WORKSPACE, tenant_id=TENANT))
+
+    assert result["finish_reason"] is None
+    # The sink was genuinely dispatched; it simply stayed unwritten.
+    assert handler.seen_sink == {}
+    assert handler._last_finish_reason == "length"
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("", None),
+    ("   ", None),
+    ("\n\t", None),
+    (None, None),
+    ("  LENGTH  ", "length"),
+    ("Stop", "stop"),
+    (" max_tokens", "max_tokens"),
+])
+def test_generate_completion_normalizes_finish_reason_at_result_boundary(
+        raw, expected, monkeypatch):
+    """Blank/missing reasons normalize to None; provider values are trimmed
+    and lowercased because stop reasons are enumerations."""
+    class Handler:
+        workspace_id = WORKSPACE
+        _last_used_model = "synthesis-model"
+        _last_used_provider = "synthesis-provider"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+
+        async def generate_response(self, *, finish_reason_sink, **kwargs):
+            finish_reason_sink["finish_reason"] = raw
+            return "answer"
+
+    service = _service_with_handler(monkeypatch, Handler())
+    result = asyncio.run(service.generate_completion(
+        messages=[{"role": "user", "content": "hello"}],
+        workspace_id=WORKSPACE, tenant_id=TENANT))
+
+    assert result["finish_reason"] == expected
+
+
+def test_accepts_keyword_is_safe_for_opaque_and_positional_only_callables():
+    """Additive dispatch must fail closed and never treat positional-only as
+    keyword-capable."""
+    from core.llm_service import _accepts_keyword
+
+    def positional_only(prompt, finish_reason_sink=None, /):
+        return "answer"
+
+    def opaque(**kwargs):
+        return "answer"
+
+    opaque.__signature__ = object()
+
+    def accepts_kwargs(**kwargs):
+        return "answer"
+
+    def accepts_keyword_only(*, finish_reason_sink):
+        return "answer"
+
+    assert _accepts_keyword(positional_only, "finish_reason_sink") is False
+    assert _accepts_keyword(opaque, "finish_reason_sink") is False
+    assert _accepts_keyword(accepts_kwargs, "finish_reason_sink") is True
+    assert _accepts_keyword(
+        accepts_keyword_only, "finish_reason_sink") is True
+
+
+def test_nonintrospectable_handler_gets_no_sink_and_reports_unknown(
+        monkeypatch):
+    """An exotic callable must not receive an unknown keyword (TypeError) and
+    must not borrow the shared attribute either."""
+    seen = {}
+
+    async def opaque(**kwargs):
+        seen.update(kwargs)
+        return "answer"
+
+    opaque.__signature__ = object()
+
+    class Handler:
+        workspace_id = WORKSPACE
+        _last_used_model = "synthesis-model"
+        _last_used_provider = "synthesis-provider"
+        _last_finish_reason = "length"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+
+    handler = Handler()
+    handler.generate_response = opaque
+    service = _service_with_handler(monkeypatch, handler)
+    result = asyncio.run(service.generate_completion(
+        messages=[{"role": "user", "content": "hello"}],
+        workspace_id=WORKSPACE, tenant_id=TENANT))
+
+    assert result["success"] is True
+    assert result["finish_reason"] is None
+    assert "finish_reason_sink" not in seen
+
+
+def test_positional_only_sink_name_is_not_dispatched_as_keyword(monkeypatch):
+    """A parameter named ``finish_reason_sink`` that is POSITIONAL_ONLY does
+    not accept a keyword; sending one would be wrong (and may be captured by
+    a **kwargs mapping instead of binding)."""
+    captured = []
+
+    class Handler:
+        workspace_id = WORKSPACE
+        _last_used_model = "synthesis-model"
+        _last_used_provider = "synthesis-provider"
+        _last_finish_reason = "length"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+
+        async def generate_response(
+                self, prompt=None, finish_reason_sink=None, /, **kwargs):
+            captured.append(kwargs)
+            return "answer"
+
+    service = _service_with_handler(monkeypatch, Handler())
+    result = asyncio.run(service.generate_completion(
+        messages=[{"role": "user", "content": "hello"}],
+        workspace_id=WORKSPACE, tenant_id=TENANT))
+
+    assert result["success"] is True
+    assert result["finish_reason"] is None
+    assert captured and "finish_reason_sink" not in captured[0]
 
 
 def test_generate_completion_prefers_the_per_call_finish_reason_sink(
@@ -628,3 +839,105 @@ def test_joined_concurrent_calls_never_share_finish_reason(monkeypatch):
     # the other two correctly, proving the results did not come from it.
     shared = producer._last_finish_reason
     assert sum(result["finish_reason"] == shared for result in results) <= 1
+
+
+def test_joined_concurrent_calls_through_sink_ignoring_wrapper_stay_unknown(
+        monkeypatch):
+    """Twin of the shared-producer case for a ``**kwargs`` wrapper that drops
+    the sink.
+
+    Both calls are in flight together; the wrapper updates the shared
+    attribute to a real provider reason before returning. Neither consumer may
+    borrow it: the sink was dispatched but unwritten, which means unknown.
+    """
+    class SinkIgnoringWrapper:
+        workspace_id = WORKSPACE
+        _last_used_model = "shared-model"
+        _last_used_provider = "shared-provider"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+        _last_finish_reason = None
+
+        def __init__(self):
+            self.arrived = 0
+            self.all_arrived = asyncio.Event()
+            self.sinks = []
+
+        async def generate_response(self, *, prompt, **kwargs):
+            # A metrics/forwarding wrapper accepts **kwargs, sees the sink,
+            # and drops it on the way to the legacy inner handler.
+            self.sinks.append(kwargs.get("finish_reason_sink"))
+            self._last_finish_reason = (
+                "length" if prompt == "truncated" else "stop")
+            self.arrived += 1
+            if self.arrived == 2:
+                self.all_arrived.set()
+            await self.all_arrived.wait()
+            return f"answer:{prompt}"
+
+    producer = SinkIgnoringWrapper()
+    service = _service_with_handler(monkeypatch, producer)
+
+    async def joined():
+        return await asyncio.gather(*(
+            service.generate_completion(
+                messages=[{"role": "user", "content": key}],
+                workspace_id=WORKSPACE, tenant_id=TENANT)
+            for key in ("positive", "truncated")
+        ))
+
+    results = asyncio.run(joined())
+
+    assert [result["finish_reason"] for result in results] == [None, None]
+    # The sink really was passed to the wrapper; dropping it is the bug the
+    # consumer must absorb without inventing a reason.
+    assert producer.sinks and all(sink == {} for sink in producer.sinks)
+    assert producer._last_finish_reason in ("stop", "length")
+
+
+def test_joined_concurrent_calls_with_narrow_legacy_handler_stay_unknown(
+        monkeypatch):
+    """Twin for a producer whose signature cannot carry the sink at all.
+
+    The handler still works (no TypeError) but neither concurrent call may
+    read the shared attribute, even though every call writes a real reason to
+    it before returning.
+    """
+    class NarrowLegacyProducer:
+        workspace_id = WORKSPACE
+        _last_used_model = "shared-model"
+        _last_used_provider = "shared-provider"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+        _last_finish_reason = None
+
+        def __init__(self):
+            self.arrived = 0
+            self.all_arrived = asyncio.Event()
+
+        async def generate_response(
+                self, prompt, system_instruction, model_type, temperature,
+                turn_index, estimated_tokens, messages):
+            self._last_finish_reason = (
+                "length" if prompt == "truncated" else "stop")
+            self.arrived += 1
+            if self.arrived == 2:
+                self.all_arrived.set()
+            await self.all_arrived.wait()
+            return f"answer:{prompt}"
+
+    producer = NarrowLegacyProducer()
+    service = _service_with_handler(monkeypatch, producer)
+
+    async def joined():
+        return await asyncio.gather(*(
+            service.generate_completion(
+                messages=[{"role": "user", "content": key}],
+                workspace_id=WORKSPACE, tenant_id=TENANT)
+            for key in ("positive", "truncated")
+        ))
+
+    results = asyncio.run(joined())
+
+    assert [result["finish_reason"] for result in results] == [None, None]
+    assert producer._last_finish_reason in ("stop", "length")

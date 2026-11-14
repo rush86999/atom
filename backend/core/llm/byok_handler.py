@@ -3103,10 +3103,13 @@ class BYOKHandler:
         the backward-compatible text API, but they are shared mutable state:
         a concurrent call on the same handler can overwrite them while this
         call is still awaiting post-response work (observed for the fleet
-        synthesis consumer). Callers that need THIS call's provider metadata
-        pass a caller-owned ``finish_reason_sink`` mapping; it is written in
-        the same task as the accepted response, so concurrent calls cannot
-        read each other's stop reason. Best-effort: never raises.
+        synthesis consumer). ``LLMService.generate_completion`` therefore
+        never reads the shared stop reason; it passes a caller-owned
+        ``finish_reason_sink`` mapping, and this method writes THIS call's
+        real provider reason there in the same task as the accepted response.
+        Concurrent calls cannot read each other's stop reason, and a sink
+        that is never written stays unknown (``None``). Best-effort: never
+        raises.
         """
         finish_reason: Optional[str] = None
         try:

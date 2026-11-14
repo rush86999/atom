@@ -32,25 +32,53 @@ _QUERY_COMPLEXITY_BY_NAME = {
 }
 
 
-_MISSING = object()
-
-
 def _accepts_keyword(fn: Any, name: str) -> bool:
     """Whether ``fn`` can receive keyword ``name``.
 
     Used for additive handler metadata: real BYOKHandler accepts the per-call
     sink, while an older/test handler with a narrow signature keeps working
-    through the legacy attribute fallback instead of raising TypeError.
+    unchanged instead of raising TypeError.
+
+    Fail CLOSED when the signature cannot be inspected. Some C-backed or
+    exotic callables raise from ``inspect.signature``; passing an unknown
+    keyword to one of those is a hard TypeError at the call site, so the safe
+    compatibility path is to send no additive argument and report the
+    metadata as unknown.
+
+    A named POSITIONAL_ONLY parameter does not accept a keyword. It must not
+    count as sink-capable even though its name matches.
     """
     try:
         parameters = inspect.signature(fn).parameters
     except (TypeError, ValueError):
-        return True
-    if name in parameters:
-        return True
+        return False
+    parameter = parameters.get(name)
+    if parameter is not None:
+        return parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_KEYWORD,
+        )
     return any(
         p.kind is inspect.Parameter.VAR_KEYWORD
         for p in parameters.values())
+
+
+def _normalize_finish_reason(value: Any) -> Optional[str]:
+    """Normalize a provider stop reason at the shared result boundary.
+
+    Provider stop reasons are enumerations (``stop``, ``length``,
+    ``max_tokens``, ...), so surrounding whitespace and case carry no
+    meaning. A missing, non-string, or blank value means "not reported"
+    (``None``) -- never a known reason. Returning ``""`` would let a
+    consumer's ``finish_reason is None`` missing-metadata backstop be
+    suppressed while also matching no truncation vocabulary, which is the
+    worst of both outcomes.
+    """
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
 
 
 def _coerce_query_complexity(
@@ -801,15 +829,15 @@ class LLMService:
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
         # Per-call transport metadata. The handler writes this call's real
-        # provider stop reason into the sink; the handler instance attribute
-        # remains for the text-only compatibility path, but it is shared
-        # mutable state and a concurrent call can overwrite it while THIS
-        # call is still awaiting post-response work. The sink is a distinct
-        # object per generate_completion call, so consumers never inherit a
-        # neighbour's finish_reason.
+        # provider stop reason into the sink. The sink is a distinct object
+        # per generate_completion call, so a consumer never inherits a
+        # neighbour's finish_reason. The handler instance attribute remains
+        # only for its own text-API compatibility; this method never reads it
+        # (see below).
         finish_reason_sink: Dict[str, Any] = {}
-        if _accepts_keyword(
-                handler.generate_response, "finish_reason_sink"):
+        sink_passed = _accepts_keyword(
+            handler.generate_response, "finish_reason_sink")
+        if sink_passed:
             kwargs["finish_reason_sink"] = finish_reason_sink
         response_text = await handler.generate_response(
             prompt=prompt,
@@ -842,13 +870,16 @@ class LLMService:
         if used_provider is None:
             used_provider = self.get_provider(used_model).value
 
-        # The sink key is present when the handler understood the contract
-        # (including an explicit None = "provider reported no stop reason").
-        # Only a handler that ignored the sink falls back to the legacy
-        # shared attribute.
-        finish_reason = finish_reason_sink.get("finish_reason", _MISSING)
-        if finish_reason is _MISSING:
-            finish_reason = getattr(handler, "_last_finish_reason", None)
+        # Read THIS call's sink only. A handler that cannot receive the sink
+        # (narrow legacy signature, non-introspectable callable) reports
+        # unknown -- ``None``. The shared ``_last_finish_reason`` attribute is
+        # deliberately never consulted here, even as a fallback: it belongs
+        # to whichever concurrent call wrote it last, so borrowing it would
+        # attribute another call's provider metadata to this answer. A sink
+        # that was passed but never written is likewise unknown, not a
+        # neighbour's reason.
+        finish_reason = _normalize_finish_reason(
+            finish_reason_sink.get("finish_reason") if sink_passed else None)
 
         return {
             "success": True,
@@ -863,11 +894,12 @@ class LLMService:
             "provider": used_provider,
             # Provider-native stop reason for THIS call ("stop", "length",
             # "max_tokens", ...). Read from the call-local sink the handler
-            # wrote at the accepted response; fall back to the legacy
-            # handler attribute only when the handler ignored the sink. The
-            # handler returns only text, so without this a caller cannot
-            # distinguish a naturally finished answer from one cut off at
-            # the output-token cap.
+            # wrote at the accepted response; when the handler could not
+            # receive a sink there is no call-local evidence, so the value is
+            # ``None`` (unknown). Normalized (trimmed, lowercase; blank ->
+            # None) at this shared boundary. The handler returns only text,
+            # so without this a caller cannot distinguish a naturally
+            # finished answer from one cut off at the output-token cap.
             "finish_reason": finish_reason,
             # Identity of this generation's outcome row (set by the handler
             # when it recorded one). Callers that judge the ASSEMBLED reply
