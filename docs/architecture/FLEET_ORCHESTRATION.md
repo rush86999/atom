@@ -195,9 +195,9 @@ corrective actions. Two independent truncation axes were conflated:
 | Axis | Field | Meaning |
 |---|---|---|
 | INPUT | `final_synthesis.evidence_truncated` | The bounded synthesis prompt omitted specialist text. |
-| OUTPUT (proven) | `final_synthesis.finish_reason` / `output_truncated` | The provider reported the output-token cap (`length` / `max_tokens` / `model_context_window_exceeded`). Only this is proof. |
-| OUTPUT (suspected) | `final_synthesis.output_ending_unverified` | No stop reason was reported and the text shape is weak evidence of a cut. This is suspicion, never a provider fact. |
-| PROVENANCE | `final_synthesis.truncation_evidence` | `provider_finish_reason`, `text_shape`, or `None`. |
+| OUTPUT (proven) | `final_synthesis.finish_reason` / `output_truncated` | The provider reported a truncating limit (`length` / `max_tokens` / `model_context_window_exceeded`). Only this is proof. The first two are the request's output cap; the last is the model's context window, so disclosures say "a limit the provider reported", never "output limit". |
+| OUTPUT (suspected) | `final_synthesis.output_ending_unverified` | The text shape is weak evidence of a cut and no usable stop reason survived. This is suspicion, never a provider fact, and it does not claim the provider omitted a reason. |
+| PROVENANCE | `final_synthesis.truncation_evidence` | `provider_finish_reason` (provider-proven), `text_shape` (a fresh probe actually observed the shape), `legacy_record_unverified` (a cached repair knows only that the old boolean survived), or `None`. |
 
 `evidence_truncated=true` is **not** evidence that the provider hit the 900
 token cap (the replay used 820 completion tokens).
@@ -257,16 +257,31 @@ reported. The two outcomes are now separate:
   `truncation_evidence="text_shape"` for the missing-stop-reason backstop.
   The cautious fallback is unchanged (the editorial text is still withheld),
   but the disclosure says the ending could not be verified as complete
-  instead of asserting an output limit;
+  instead of asserting an output limit. It also does not say "the provider
+  reported no stop reason": a missing call-local reason is unknown, and a
+  legacy adapter may simply have lost one the provider sent.
 - an explicit non-truncating reason (`stop`), a missing `None` reason with no
   shape concern, and a blank reason that normalizes to `None` all leave the
   editorial text usable; a blank reason still arms the shape backstop.
 
-`reason` therefore never overstates proof, and the same distinction survives
-a cached readback: a durable result that claimed `output_truncated=true`
-without a retained provider reason is relabelled `output_ending_unverified`
-from its own `specialist_results`, while a retained `length`/`max_tokens`
-stays proven. Both repairs take zero synthesis calls and zero dispatches.
+`reason` therefore never overstates proof. The same distinction survives a
+cached readback, using only what the durable record actually retains:
+
+- a retained truncating reason (`length` / `max_tokens` /
+  `model_context_window_exceeded`) stays provider-proven
+  (`output_truncated`, `truncation_evidence="provider_finish_reason"`);
+- an old `output_truncated=true` claim with **no** retained reason was never
+  supported by anything in the record, so it is relabelled
+  `output_ending_unverified` with `truncation_evidence="legacy_record_unverified"`
+  -- not `text_shape`, because the repair observed no text and cannot know
+  whether the provider omitted a reason or a legacy adapter dropped it;
+- an old `output_truncated=true` claim contradicted by a retained
+  non-truncating reason (e.g. `stop`) is repaired to
+  `reason="cached_output_claim_unproven"` with no truncation or unverified-
+  ending assertion, because the withheld editorial text was never persisted.
+
+Every repair takes zero synthesis calls and zero dispatches, and is persisted
+for later readbacks.
 
 **Deliverable rule.** The editorial synthesis is used only when the output was
 not truncated and the bounded prompt carried the complete specialist
@@ -275,8 +290,8 @@ full attributed specialist outputs + deterministic quantitative
 reconciliation (including a non-zero residual) + the execution-status footer.
 No extra provider call is made and no specialist is re-dispatched, so there is
 no unpriced retry and no duplicate work. `final_synthesis.used=false` with
-`reason="output_truncated"`, `"output_ending_unverified"`, or
-`"evidence_truncated"` records why.
+`reason="output_truncated"`, `"output_ending_unverified"`,
+`"cached_output_claim_unproven"`, or `"evidence_truncated"` records why.
 
 **Budget.** The synthesis remains one bounded read-only call:
 `_SYNTHESIS_MAX_OUTPUT_TOKENS=1400` (up from 900; the five required sections
@@ -289,8 +304,11 @@ cannot dominate the prompt.
 **Durable readback.** A cached result written before output truncation was
 tracked (`used=true` + `evidence_truncated=true`) is repaired on read from its
 own durable `specialist_results`, then persisted. A cached result that claimed
-`output_truncated=true` without a retained provider stop reason is relabelled
-`output_ending_unverified` the same way; a retained `length`/`max_tokens`
+`output_truncated=true` is relabelled from what the record retained: no reason
+surviving means `output_ending_unverified` with the
+`legacy_record_unverified` basis; a retained `stop` (or any other
+non-truncating reason) means `cached_output_claim_unproven` with no cause
+asserted; a retained `length`/`max_tokens`/`model_context_window_exceeded`
 remains provider-proven. This makes the retained live replay complete without
 a new provider call, and a restart readback returns the same text with zero
 synthesis calls and zero dispatches.
@@ -298,6 +316,8 @@ synthesis calls and zero dispatches.
 Tests: `backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
 truncated / missing finish_reason / provider failure / evidence-vs-output /
 cached readback / legacy durable repair / unproven-label relabel /
+cached twins for no retained reason, retained `stop`, retained `length`, and
+retained `model_context_window_exceeded` /
 wrapper propagation / valid concise and elliptical negative twins /
 complete label and particle-imperative negatives / explicit-reason precedence /
 potential concurrency twins for a real sink producer, a `**kwargs` wrapper that

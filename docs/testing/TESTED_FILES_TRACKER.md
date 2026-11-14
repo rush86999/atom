@@ -9917,3 +9917,26 @@ dispatches. Tests add complete label/particle negatives ("Device status: on",
 unproven, the counterprobe-shaped legacy relabel, and a proven-label readback
 twin; truncation contract is 49 passed, with `test_fleet_final_synthesis.py`
 121 passed in one scratch run (no provider, no live DB).
+
+**Fourth follow-up (2026-11-14 cached-disclosure counterprobe)**: the durable
+repair still asserted causes the record could not support. A legacy cached
+`{used:false, output_truncated:true}` fallback with a retained `stop` was
+relabelled `output_ending_unverified` / `truncation_evidence="text_shape"` and
+told the user "the provider reported no stop reason" -- but the record retains
+`stop`, and no text shape was retained to observe. The same shape with no
+retained reason is unknown, not proof the provider omitted one (a legacy
+adapter may have dropped it). Repair now uses only the retained basis:
+no reason survived -> `output_ending_unverified` with
+`truncation_evidence="legacy_record_unverified"`; a retained non-truncating
+reason -> `reason="cached_output_claim_unproven"` with neither a cut nor an
+unverified-ending claim; retained `length`/`max_tokens`/
+`model_context_window_exceeded` stays provider-proven. Because a
+context-window stop is not the request's output cap, the provider-proven reply
+now says "cut off at a limit the provider reported" instead of "the model's
+output limit", and the unverified-ending reply no longer claims the provider
+reported no reason. All repairs remain zero-synthesis-call, zero-dispatch and
+persist identically. Tests add cached twins for no reason, retained `stop`,
+retained `length`, and retained context-window stop, asserting no false
+provider-absence or model-cap literals and preserving every prior fallback
+control; truncation contract is 53 passed (was 49), and the combined 18-file
+gate is 503 passed (was 499) in one scratch run (no provider, no live DB).

@@ -94,6 +94,18 @@ _SYNTHESIS_TRUNCATION_FINISH_REASONS = frozenset({
     "length", "max_tokens", "max_output_tokens",
     "model_context_window_exceeded",
 })
+# Durable-repair basis. A cached result written before the proof seam can claim
+# an output limit that the record cannot support: the old boolean survives but
+# the signal behind it does not. That is not ``text_shape`` (no text was
+# retained for a replay to inspect) and it is not proof that the provider
+# omitted a reason (a legacy adapter may simply have lost it). Name the actual
+# basis -- the unverified legacy record -- instead.
+_LEGACY_RECORD_UNVERIFIED_EVIDENCE = "legacy_record_unverified"
+# Repair reason for a cached claim contradicted by a retained non-truncating
+# provider reason (e.g. ``stop``). The withheld editorial text was never
+# persisted, so the fallback stays, but neither truncation nor an unverified
+# ending may be asserted.
+_CACHED_OUTPUT_CLAIM_UNPROVEN = "cached_output_claim_unproven"
 # Backstop for providers/gateways that omit finish_reason: a completion that
 # ends on a word which cannot grammatically end an English clause (article,
 # conjunction, preposition) is weak shape evidence of a cut. This is NOT proof
@@ -4377,13 +4389,20 @@ Return JSON matching the TaskAnalysis schema."""
         return None
 
     @staticmethod
-    def _synthesis_disclosure(reason: Optional[str]) -> Dict[str, Any]:
+    def _synthesis_disclosure(
+        reason: Optional[str], *, evidence: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Map a completion verdict to its honest metadata fields.
 
         ``output_truncated`` means provider-proven output truncation only.
-        ``truncation_evidence`` names the proof source so a consumer can tell
-        a provider fact from the weak text-shape backstop; it is ``None`` for
-        every other reason (evidence bound, provider failure, usable output).
+        ``truncation_evidence`` names the basis for the output decision so a
+        consumer can tell a provider fact from the weak text-shape backstop and
+        from a cached claim whose original basis was never retained; it is
+        ``None`` when there is no output-level concern.
+
+        ``evidence`` overrides the fresh-probe default because a durable repair
+        did not observe text shape at all: it only knows that the old record's
+        boolean survived without its source.
         """
         if reason == "output_truncated":
             return {
@@ -4395,7 +4414,14 @@ Return JSON matching the TaskAnalysis schema."""
             return {
                 "output_truncated": False,
                 "output_ending_unverified": True,
-                "truncation_evidence": "text_shape",
+                "truncation_evidence": evidence or "text_shape",
+            }
+        if reason == _CACHED_OUTPUT_CLAIM_UNPROVEN:
+            return {
+                "output_truncated": False,
+                "output_ending_unverified": False,
+                "truncation_evidence": (
+                    evidence or _LEGACY_RECORD_UNVERIFIED_EVIDENCE),
             }
         return {
             "output_truncated": False,
@@ -4421,20 +4447,34 @@ Return JSON matching the TaskAnalysis schema."""
         truncated editorial pass is never mistaken for a complete one.
         """
         if reason == "output_truncated":
-            # Provider-proven: the stop reason reported the token cap.
+            # Provider-proven: a reported stop reason said the output hit a
+            # limit. The vocabulary covers both the request's output cap
+            # (``length``/``max_tokens``) and the model's context window
+            # (``model_context_window_exceeded``), so the disclosure names a
+            # provider-reported limit rather than claiming the output cap.
             prefix = (
-                "Final synthesis was cut off at the model's output limit; "
+                "Final synthesis was cut off at a limit the provider reported; "
                 "the complete attributed specialist contributions follow "
                 "(not independently verified).")
         elif reason == "output_ending_unverified":
             # Text shape is a weak signal, never proof of an output limit.
             # The editorial text is still withheld (cautious fallback), but
-            # the disclosure must not invent a provider truncation fact.
+            # the disclosure must not invent a provider truncation fact. It
+            # also must not claim the provider reported no stop reason: a
+            # missing call-local reason is unknown, and a legacy adapter may
+            # have dropped one the provider did send.
             prefix = (
                 "Final synthesis was not used because its ending could not be "
-                "verified as complete (the provider reported no stop reason); "
-                "the complete attributed specialist contributions follow "
-                "(not independently verified).")
+                "verified as complete; the complete attributed specialist "
+                "contributions follow (not independently verified).")
+        elif reason == _CACHED_OUTPUT_CLAIM_UNPROVEN:
+            # A retained non-truncating provider reason contradicts the old
+            # cached output-limit flag, but the withheld editorial text was
+            # never persisted. Neither a cut nor an unverified ending can be
+            # asserted, so the disclosure names no cause at all.
+            prefix = (
+                "Final synthesis was not used; the complete attributed "
+                "specialist contributions follow (not independently verified).")
         elif reason == "evidence_truncated":
             prefix = (
                 "Final synthesis was not used because the bounded evidence "
@@ -4481,10 +4521,11 @@ Return JSON matching the TaskAnalysis schema."""
         specialist results without a synthesis or specialist re-dispatch.
 
         A fallback result written before the proof seam existed can also carry
-        an unproven ``output_truncated=True`` claim (no provider stop reason
-        retained). That user-visible "output limit" statement is not supported
-        by any stored provider fact, so only that label is rebuilt -- a
-        provider-proven truncation already reads correctly and is left alone.
+        an unproven ``output_truncated=True`` claim (no retained provider stop
+        reason, or a retained non-truncating reason that contradicts it). That
+        user-visible "output limit" statement is not supported by the record,
+        so only that label is rebuilt -- a provider-proven truncation already
+        reads correctly and is left alone.
         """
         synthesis = result.get("final_synthesis")
         if not isinstance(synthesis, dict):
@@ -4508,18 +4549,29 @@ Return JSON matching the TaskAnalysis schema."""
     ) -> str:
         """Re-derive the honest fallback reason from durable metadata only.
 
-        A provider stop reason retained in the record is proof. Everything
-        else that previously claimed output truncation is downgraded to the
-        unverified-ending reason: the durable record cannot show which signal
-        produced the old claim, and text shape never proves an output limit.
+        A retained truncating provider reason is proof. A retained
+        non-truncating reason (e.g. ``stop``) contradicts the old cached
+        output-limit claim outright; because the withheld editorial text was
+        never persisted, the honest outcome is a cause-free fallback. When the
+        record retains no reason at all, the old claim is unproven -- a missing
+        entry may mean the provider omitted it or a legacy adapter dropped it,
+        so only an unverified ending can be disclosed.
         """
         if cls._synthesis_finish_reason_truncated(
                 synthesis.get("finish_reason")):
             return "output_truncated"
-        if synthesis.get("output_truncated") is True or \
-                synthesis.get("output_ending_unverified") is True:
-            return "output_ending_unverified"
-        return "evidence_truncated"
+        unproven_output_claim = (
+            synthesis.get("output_truncated") is True
+            or synthesis.get("output_ending_unverified") is True)
+        if not unproven_output_claim:
+            # The repair was triggered by bounded INPUT evidence, not by an
+            # output claim; keep that disclosure intact.
+            return "evidence_truncated"
+        retained_reason = cls._normalize_finish_reason(
+            synthesis.get("finish_reason"))
+        if retained_reason is not None:
+            return _CACHED_OUTPUT_CLAIM_UNPROVEN
+        return "output_ending_unverified"
 
     async def _synthesize_final_output(
         self,
@@ -4835,8 +4887,9 @@ Return JSON matching the TaskAnalysis schema."""
             # may still say ``used=True`` while its evidence was bounded (the
             # live Goal 13 replay did exactly that). A fallback answer written
             # before proof levels were separated may also carry an unproven
-            # "output limit" disclosure (no retained provider stop reason).
-            # Repair either from the SAME durable specialist results: zero
+            # "output limit" disclosure: the old boolean survived without its
+            # signal, and a retained non-truncating reason may even contradict
+            # it. Repair either from the SAME durable specialist results: zero
             # synthesis calls, zero specialist re-dispatch, and the complete
             # attributed answer is persisted for every later readback.
             if self._cached_synthesis_needs_repair(cached_result):
@@ -4864,7 +4917,11 @@ Return JSON matching the TaskAnalysis schema."""
                 synthesis["reason"] = reason
                 synthesis["repaired_from_durable"] = True
                 synthesis.setdefault("finish_reason", None)
-                disclosure = self._synthesis_disclosure(reason)
+                # This repair replayed no text and saw no provider call, so
+                # the honest basis for a downgraded cached claim is the
+                # legacy record itself -- never an observed ``text_shape``.
+                disclosure = self._synthesis_disclosure(
+                    reason, evidence=_LEGACY_RECORD_UNVERIFIED_EVIDENCE)
                 synthesis["output_truncated"] = disclosure["output_truncated"]
                 synthesis["output_ending_unverified"] = (
                     disclosure["output_ending_unverified"])
