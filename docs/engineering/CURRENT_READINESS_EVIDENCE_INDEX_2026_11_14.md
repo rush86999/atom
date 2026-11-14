@@ -154,7 +154,7 @@ acceptance status are separately scoped. The requested base was `b4370d0d4`;
 
 | PR | Merge commit | Current-main scope | Goal(s) | Evidence binding |
 |---:|---|---|---|---|
-| #943 | `a868435fd` | Native menu bar sign-in, session restore, logout, 2FA and chat wiring | 1, 16 | Merged tree differs from reviewed draft `5d1f11de4` only by `#937`'s two skill files. Native login/relaunch/logout/2FA evidence is bound to the draft head and its sanitized packet; live provider chat remains unverified. |
+| #943 | `a868435fd` | Native menu bar sign-in, session restore, logout, 2FA and chat wiring | 1, 16 | Merged tree differs from reviewed draft `5d1f11de4` only by `#937`'s two skill files. Native login/relaunch/logout/2FA evidence is bound to the draft head and its sanitized packet; public-API live Go chat passed at the reviewed head (see the verifier update below); native UI chat remains unverified. |
 | #926 | `1c00a72fc` | Accept unslashed `GET /api/canvas`; Canvas list dashboard path | 5, 15 | Post-merge signed-in replay 22/22 at `6ad2738ed`; `retained-private` result `/private/tmp/canvas-926-postmerge-20261113_221126/evidence/result.json`; initial browser proof was at PR head `7d3e2bfc4`. |
 | #927 | `d12d68b86` | Test-only quote term binding repair | 4 | No product change; merged test repair. Do not count as product capability. |
 | #928 | `b39cc2982` | Source-grounded quote discounts | 4 | Module/compiler changes merged; no ordinary served-model or live-source proof in this pass. |
@@ -626,7 +626,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   `#936` merged the quickstart hardening. Mobile CI is merged (`#941`) and
   passed hosted strict TypeScript/Jest; native device journeys remain open.
   Menu bar native login/session/logout/2FA is merged in `#943` (`a868435fd`;
-  native evidence at draft head `5d1f11de4`), with live chat pending. Linux
+  native evidence at draft head `5d1f11de4`), with public-API live Go chat verified and native UI chat pending. Linux
   3.11–3.13 CI is bounded; KVM/Firecracker, PostgreSQL/multi-worker and native
   mobile/menubar live use remain open.
 - **Exact sources:** `#936` `d1e3ddac8`; `#941` `935a890e7` (hosted mobile job
@@ -979,7 +979,7 @@ reassignment; other workers own the lanes noted.
 | 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
 | 4 | **Goal 6 automatic skill invocation** | `#937` approval gate merged; ordinary execute route tested; **no model-callable skill execution tool**. Another worker owns the auto-invoke lane. | An approved executable skill invoked by the ordinary agent loop, with a pre-dispatch denial twin for an unapproved/changed artifact. Do not duplicate the worker. |
-| 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; live provider chat pending. | Native UI chat with a real configured provider and no credential leakage. Another worker owns the live-chat lane. |
+| 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
 | 8 | **Goal 5 Canvas full families** | WA-045 32/32 and Canvas list 22/22 at `6ad2738ed`; full D2 open; mini-app KVM legs environment-limited. | Full Canvas D2, remaining families, ordinary reopen/export, and a KVM/microVM run where applicable. |
@@ -1023,7 +1023,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 | Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
 | Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
 | Goal 6 automatic skill invocation | **missing** | #937 approval gate is not auto-invocation; other worker active. |
-| Goal 16 native menu bar live chat | **missing** | Native login/session/2FA merged in `#943`; live chat pending. |
+| Goal 16 native menu bar live chat | **missing** | Native login/session/2FA and public-API live Go chat verified on the reviewed `#943` source; native UI chat pending. |
 | Goal 16 native mobile device journey | **missing** | Hosted CI/Jest passed; no supported simulator/device native journey. |
 | Goal 17 measurement | **missing** | No declared environment/workload/sample; cache-only benchmark is narrower. |
 | Goal 18 full profile | **owner-deferred** | No force-enable decision/qualified breadth run. |
@@ -1065,3 +1065,11 @@ the *current status* of a PR or a slice, but it does not erase these records.
 - Other workers own the menu bar live-chat and automatic skill-invocation
   lanes. This index records their accepted scope and open gates; it does not
   duplicate their runs or claim their unfinished work.
+
+## Verifier update after the index pass
+
+On the reviewed #943 head `5d1f11de4932292c45aa04b86c90d19fd8f634b1`, the real ASGI public menu bar quick-chat route returned `ATOM_LIVE_OK` from the subscribed OpenCode Go endpoint. The provider response identified `deepseek-v4.1-flash` with 79 input and 7 output tokens. The completed execution, successful menu bar audit and priced settled usage row persisted. All 42 PR files were independently verified byte-identical after merge `a868435fdcc7be66753366362d7542cc1082ce84`. This replay used TestClient and real middleware, not native UI chat typing. The first diagnostic call used the default Zen endpoint and returned 402; the successful call configured the supported Go base URL. Evidence: `/private/tmp/atom-menubar-live-chat-report.md` and `/private/tmp/atom-menubar-live-chat-evidence/` (private local artifacts).
+
+The settled usage row has no `execution_id`, so this result does not close Goal 9 attribution. That gap has a separate implementation lane. The native UI chat journey remains open.
+
+At transcription candidate #932 `818bd0fd960d71549af160288e4bf5482e5918fb`, a real local `openai/whisper-tiny.en` model decoded WAV, MP3, M4A, OGG and WebM and returned the expected text through LLMService/VoiceService only with a harness-injected local compatible client. The normal no-key configuration still has no supported local speech provider; its fallback reports transcription unavailable. The controlled billing suite passed 21 tests. Local calls priced at OpenAI's list rate are not remote billing evidence. No OpenAI key or cloud speech request was used. Evidence: `/private/tmp/atom-local-transcription-report.md` and `/private/tmp/atom-local-transcription-evidence/` (private local artifacts). This records a verified decoder and service-boundary result plus an unresolved configuration gap, not full local transcription readiness.
