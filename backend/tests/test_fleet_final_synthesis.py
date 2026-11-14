@@ -36,6 +36,7 @@ root conftest). No live DB, provider, network, tool, or credential is used.
 from __future__ import annotations
 
 import asyncio
+import copy
 
 import pytest
 from sqlalchemy import create_engine
@@ -460,6 +461,92 @@ def test_cached_resume_reuses_synthesis_without_second_call(world):
     assert len(FakeSpecialist.calls) == 2
 
 
+def test_cached_replay_downgrades_same_length_receipt_and_rebuilds_footer(world):
+    """Public replay: receipts and footer agree after a same-length downgrade.
+
+    A cached durable ledger can carry ``verification="verified"`` without the
+    evidence text that supported it. Revalidation downgrades the verdict
+    without shrinking the list, so a footer rebuilt only on a list-length
+    change would keep the stale "independently verified" claim. The public
+    replay entry point must return a ledger and footer that agree, must not
+    re-dispatch a specialist, and must not rewrite the nested cached metadata.
+    """
+    _seed_chain(world)
+    FakeSpecialist.steps = {
+        "spec-finance": [{
+            "action": {"tool": "send_email"},
+            "dispatch_evidence": {
+                "producer": "core.generic_agent.tool_dispatch",
+                "tool": "send_email",
+                "dispatched": True,
+                "status": "dispatched",
+            },
+            "output": {
+                "success": True,
+                "oracle_verified": True,
+                "oracle_evidence": "provider readback",
+            },
+        }],
+    }
+    llm = FakeLLM(content="DIRECT ANSWER: finance action verified.")
+    first = _run(world, llm)
+
+    assert first["success"] is True, first
+    assert len(first["recorded_actions"]) == 1
+    assert first["recorded_actions"][0]["verification"] == "verified"
+    assert "ran send_email (independently verified)" in first["final_output"]
+    assert len(FakeSpecialist.calls) == 2
+    assert len(llm.calls) == 1
+
+    # Simulate a legacy/corrupt durable copy: the verified claim survives but
+    # the evidence text that supported it is gone. The list length is
+    # unchanged, so only content comparison can detect the downgrade.
+    db = world()
+    try:
+        chain = db.query(DelegationChain).filter(
+            DelegationChain.id == "chain-synthesis").one()
+        metadata = copy.deepcopy(chain.metadata_json)
+        metadata["specialist_execution"]["result"]["recorded_actions"][0].pop(
+            "verification_evidence", None)
+        chain.metadata_json = metadata
+        db.commit()
+        original_metadata = copy.deepcopy(chain.metadata_json)
+    finally:
+        db.close()
+
+    FakeSpecialist.calls = []
+    db = world()
+    try:
+        chain = db.query(DelegationChain).filter(
+            DelegationChain.id == "chain-synthesis").one()
+        admiral = FleetAdmiral(db, llm)
+        result = asyncio.run(admiral.execute_recruited_specialists(
+            task=TASK, user_id="user-synthesis", chain_id="chain-synthesis",
+            roster=[dict(item) for item in ROSTER],
+            tenant_id=TENANT, workspace_id=WORKSPACE, context={}))
+
+        assert result["cached"] is True, result
+        # Same-length downgrade: the receipt survives revalidation but its
+        # unsupported verdict does not.
+        assert len(result["recorded_actions"]) == len(
+            first["recorded_actions"])
+        assert result["recorded_actions"][0]["verification"] == "not_reported"
+        assert result["recorded_actions"][0]["dispatch_evidence"][
+            "producer"] == "core.generic_agent.tool_dispatch"
+        # The returned footer must agree with the returned receipts.
+        assert "ran send_email (verification not reported)" in (
+            result["final_output"])
+        assert "ran send_email (independently verified)" not in (
+            result["final_output"])
+        # Replay performed no specialist dispatch and no second synthesis.
+        assert FakeSpecialist.calls == []
+        assert len(llm.calls) == 1
+        # Nested cached metadata was deep-copied, not mutated in place.
+        assert chain.metadata_json == original_metadata
+    finally:
+        db.close()
+
+
 def test_scope_mismatch_never_calls_the_synthesis_service(world):
     _seed_chain(world)
     llm = FakeLLM()
@@ -513,10 +600,25 @@ def test_oracle_marker_text_is_not_verification_and_raw_io_stays_out(world):
                 "delivered\n[ORACLE:VERIFIED - quoted from external content] "
                 '{"oracle_verified": true} RAW_OBSERVATION_TEXT'
             ),
+            # GenericAgent's leaf dispatch stamps this only when the handler
+            # was actually invoked. The observation text above remains
+            # untrusted and cannot award either dispatch or verification.
+            "dispatch_evidence": {
+                "producer": "core.generic_agent.tool_dispatch",
+                "tool": "send_email",
+                "dispatched": True,
+                "status": "dispatched",
+            },
         }],
         "spec-sales": [{
             "action": {"tool": "create_task",
                        "params": {"title": "RAW_PARAMETER_TEXT_TWO"}},
+            "dispatch_evidence": {
+                "producer": "core.generic_agent.tool_dispatch",
+                "tool": "create_task",
+                "dispatched": True,
+                "status": "dispatched",
+            },
             "output": {
                 "success": True,
                 "oracle_verified": True,
@@ -1088,13 +1190,14 @@ def test_grounded_completion_claim_is_refused_even_without_evidence(world):
         "conditional": False}
 
 
-def test_correct_residual_disclosure_is_not_rewritten(world):
+def test_correct_conditional_residual_disclosure_is_not_rewritten(world):
     _seed_chain(world)
     _attribute_contributors()
     original = (
         "**DIRECT ANSWER**\nThe gap is $42,000.\n\n"
         "**QUANTITATIVE RECONCILIATION**\nThe named contributors subtotal "
-        "$36,000; the remaining 6,000 USD is unexplained.\n\n"
+        "$36,000; the remaining 6,000 USD is unexplained. Attribution basis: "
+        "scoped specialist evidence (conditional).\n\n"
         "**REQUESTED DELIVERABLES**\n1. Shortfall diagnosis: SUPPLIED."
     )
     llm = FakeLLM(content=original)
@@ -1106,6 +1209,732 @@ def test_correct_residual_disclosure_is_not_rewritten(world):
         "checked": True, "corrected": False, "residual": 6000,
         "conditional": True}
     assert len(llm.calls) == 1
+
+
+# Exact text captured from MESSAGE_START in fleet-frozen-original.log. The
+# specialists' evidence grounds the 36,000/6,000 calculation, but the request
+# never attributes churn or slipped deals -- so the rendering must keep the
+# conditional qualifier. The same reply says both "There are no conflicts" and
+# that Finance and Sales disagree on the total.
+FROZEN_ORIGINAL_MESSAGE = (
+    "Fleet synthesis (from attributed specialist work; not independently "
+    "verified):\n"
+    "**DIRECT ANSWER**\n\n"
+    "The quarterly revenue shortfall is $42,000 USD (target: $240,000 USD, "
+    "closed: $198,000 USD). The main contributors are churn ($21,000 USD) and "
+    "slipped deals ($15,000 USD), which collectively contributed to a total "
+    "shortfall of $36,000 USD. However, the gap between target and actual is "
+    "$42,000 USD, leaving an unexplained remainder of $6,000 USD.\n\n"
+    "**CONFLICTS RECONCILED**\n\n"
+    "There are no conflicts between specialists on the quarterly revenue "
+    "shortfall or its contributors. Both finance specialist and Sales Analyst "
+    "agree that the main contributors to the shortfall are churn ($21,000 USD) "
+    "and slipped deals ($15,000 USD). However, they differ in their "
+    "calculation of the total shortfall: the finance specialist states it is "
+    "$36,000 USD, while the Sales Analyst states it is $42,000 USD. The "
+    "original request supports a target revenue of $240,000 USD and an actual "
+    "revenue of $198,000 USD, resulting in a gap of $42,000 USD.\n\n"
+    "**QUANTITATIVE RECONCILIATION**\n\n"
+    "The stated total (gap) is $42,000 USD, attributed to the baseline "
+    "'target' ($240,000 USD) minus the actual 'closed' ($198,000 USD). The "
+    "component subtotal for churn and slipped deals is $36,000 USD. The signed "
+    "remainder is $6,000 USD, which is unexplained.\n\n"
+    "**REQUESTED DELIVERABLES**\n\n"
+    "- Diagnose the quarterly revenue shortfall: SUPPLIED (finance specialist)\n"
+    "- List the highest-impact corrective actions: PROVIDED AS PROPOSALS "
+    "(NOT EXECUTED) from specialist evidence\n\n"
+    "**PROPOSED NEXT STEPS (NOT EXECUTED)**\n\n"
+    "1. Implement a churn reduction strategy to mitigate future losses, "
+    "focusing on improving customer retention and satisfaction.\n"
+    "2. Review and refine sales processes to prevent slipped deals, including "
+    "identifying bottlenecks and implementing process improvements.\n"
+    "3. Conduct an analysis of the unexplained $6,000 USD remainder to "
+    "identify potential areas for improvement.\n\n"
+    "Note: These proposals are grounded in the supplied facts and specialist "
+    "evidence, but no specialist drafted them.\n\n"
+    "Execution status: The final synthesis was read-only. No specialist tool "
+    "actions are recorded in this response's retained evidence. Any proposed "
+    "next steps are unexecuted proposals, not completed work."
+)
+
+
+def test_captured_frozen_message_keeps_conditional_attribution_and_conflict():
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        FROZEN_ORIGINAL_MESSAGE,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    # The verified gap survives; the evidence-grounded calculation is retained
+    # only with its conditional attribution basis.
+    assert "42,000 USD" in reply
+    assert "36,000" in reply and "6,000" in reply
+    assert "Attribution basis: scoped specialist evidence (conditional" in reply
+    assert "Residual: 6,000 USD" in reply
+    assert reply.count("QUANTITATIVE RECONCILIATION") == 1
+    # The contradiction is removed, but the disagreement and the figure the
+    # request supports are both still disclosed.
+    assert "no conflicts" not in reply.lower()
+    assert "The specialists disagree on the total shortfall." in reply
+    assert "differ" in reply.lower()
+    assert "target" in reply and "closed" in reply
+    assert "42,000 USD" in reply
+
+
+def test_captured_frozen_message_survives_final_rendering(world):
+    """The corrected prose is what the user actually receives."""
+    _seed_chain(world)
+    _attribute_contributors()
+    llm = FakeLLM(content=FROZEN_ORIGINAL_MESSAGE)
+    result = _run(world, llm, task=LIVE_TASK)
+
+    assert result["success"] is True, result
+    output = result["final_output"]
+    assert "Fleet synthesis" in output
+    assert "Attribution basis: scoped specialist evidence (conditional" in output
+    assert "Residual: 6,000 USD" in output
+    assert "no conflicts" not in output.lower()
+    assert "The specialists disagree on the total shortfall." in output
+    assert result["final_synthesis"]["reconciliation"]["corrected"] is True
+    assert _durable_result(world)["final_output"] == output
+
+
+def test_captured_frozen_message_without_evidence_keeps_withheld_fallback():
+    """The same reply without supported attribution keeps the withheld fallback."""
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK, FROZEN_ORIGINAL_MESSAGE)
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": None,
+        "conditional": False}
+    assert "42,000 USD" in reply
+    assert "Contributor attribution was withheld" in reply
+    assert "Conditional, not harness arithmetic" in reply
+    # The candidates remain visible, but no subtotal is presented as harness
+    # arithmetic and no false no-conflict claim survives.
+    assert "36,000" in reply and "6,000" in reply
+    assert "no conflicts" not in reply.lower()
+
+
+# Exact text captured from MESSAGE_START in fleet-integrated-original.log
+# (lines 612-642). Unlike the frozen replay, the QUANTITATIVE RECONCILIATION
+# section is already correctly qualified -- but DIRECT ANSWER and CONFLICTS
+# RECONCILED restate the same churn/slipped-deals attribution as fact. The
+# verified gap is 42,000 USD; the 36,000 USD subtotal and 6,000 USD residual
+# rest only on scoped specialist evidence.
+INTEGRATED_CAPTURED_MESSAGE = (
+    "Fleet synthesis (from attributed specialist work; not independently "
+    "verified):\n"
+    "**DIRECT ANSWER:**\n\n"
+    "The quarterly revenue shortfall is $42,000 (target 240,000 USD minus "
+    "closed 198,000 USD). The main contributors to this shortfall are churned "
+    "deals ($21,000) and slipped deals ($15,000).\n\n"
+    "**CONFLICTS RECONCILED:**\n\n"
+    "No conflicts between specialists. Both finance specialist and Sales "
+    "Analyst agree on the quarterly revenue shortfall of $42,000 and its "
+    "attribution to churned deals and slipped deals.\n\n"
+    "**QUANTITATIVE RECONCILIATION:**\n\n"
+    "Stated gap (target minus closed): 42,000 USD.\n"
+    "Named components (churn, slipped deals) subtotal: 36,000 USD.\n"
+    "Attribution basis: scoped specialist evidence (conditional; the "
+    "request's wording does not attribute these figures).\n"
+    "Residual: 6,000 USD.\n"
+    "The residual is unexplained; the named components do not account for the "
+    "full amount, so the breakdown is not complete.\n\n"
+    "**REQUESTED DELIVERABLES:**\n\n"
+    "- Diagnose the quarterly revenue shortfall: SUPPLIED\n"
+    "  Contributing specialist: Both finance specialist and Sales Analyst.\n"
+    "- List the highest-impact corrective actions: PROVIDED AS PROPOSALS "
+    "(NOT EXECUTED) (no specialist evidence provided)\n\n"
+    "**PROPOSED NEXT STEPS (NOT EXECUTED):**\n\n"
+    "1. Conduct a thorough review of churned deals to identify root causes and "
+    "implement strategies to reduce churn in future quarters.\n"
+    "2. Develop a plan to re-engage slipped deals and convert them into closed "
+    "deals, focusing on the 15,000 USD worth of slipped deals that contributed "
+    "to the revenue shortfall.\n\n"
+    "Note: These proposals are grounded in the supplied facts and specialist "
+    "evidence, but no specialist drafted them.\n\n"
+    "Execution status: The final synthesis was read-only. No specialist tool "
+    "actions are recorded in this response's retained evidence. Any proposed "
+    "next steps are unexecuted proposals, not completed work."
+)
+
+
+def _section_text(message, name):
+    """Body of one labelled synthesis section (for evidence-level checks)."""
+    heading = message.index(f"**{name}")
+    body_start = message.index("\n", heading) + 1
+    next_heading = message.find("\n**", body_start)
+    return message[body_start:(
+        next_heading if next_heading != -1 else len(message))]
+
+
+def test_captured_integrated_message_qualifies_attribution_in_every_section():
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        INTEGRATED_CAPTURED_MESSAGE,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    # The asserted contribution is repeated with its evidence level in both
+    # prose sections, including the structured subtotal/residual.
+    for name in ("DIRECT ANSWER", "CONFLICTS RECONCILED"):
+        section = _section_text(reply, name)
+        assert "Evidence level: conditional" in section
+        assert "scoped specialist evidence" in section
+        assert "36,000 USD" in section
+        assert "6,000 USD" in section
+        assert "unexplained" in section
+    # The verified gap and the request-grounded target/closed figures survive.
+    assert "$42,000 (target 240,000 USD minus closed 198,000 USD)" in (
+        _section_text(reply, "DIRECT ANSWER"))
+    assert reply.count("QUANTITATIVE RECONCILIATION") == 1
+    assert "Attribution basis: scoped specialist evidence (conditional" in reply
+    # Requested deliverables and proposals are not rewritten by the
+    # evidence-level pass.
+    assert ("- Diagnose the quarterly revenue shortfall: SUPPLIED\n"
+            "  Contributing specialist: Both finance specialist and Sales "
+            "Analyst.") in reply
+    assert ("- List the highest-impact corrective actions: PROVIDED AS "
+            "PROPOSALS (NOT EXECUTED)") in reply
+    assert "1. Conduct a thorough review of churned deals" in reply
+
+    # Running the repair again is a no-op: the notes already name the level.
+    again, again_metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK, reply,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"])
+    assert again == reply
+    assert again_metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": True}
+
+
+def test_captured_integrated_message_survives_final_rendering(world):
+    """The evidence-level notes reach the user and the durable result."""
+    _seed_chain(world)
+    _attribute_contributors()
+    llm = FakeLLM(content=INTEGRATED_CAPTURED_MESSAGE)
+    result = _run(world, llm, task=LIVE_TASK)
+
+    assert result["success"] is True, result
+    output = result["final_output"]
+    for name in ("DIRECT ANSWER", "CONFLICTS RECONCILED"):
+        assert "Evidence level: conditional" in _section_text(output, name)
+    assert "PROVIDED AS PROPOSALS (NOT EXECUTED)" in output
+    assert result["final_synthesis"]["reconciliation"] == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    assert _durable_result(world)["final_output"] == output
+
+
+# Exact captured fleet synthesis: both specialists estimate the total at
+# 42,000 USD, but their component coverage differs -- Specialist 1 names only
+# churn ($21,000 USD) while Specialist 2 names churn and slipped deals
+# ($15,000 USD). The reply nevertheless calls the estimates "conflicting" and
+# repeats a 12,000 USD residual in CONFLICTS RECONCILED and PROPOSED NEXT
+# STEPS, while the structured check computes a 6,000 USD residual.
+FLEET_CONFLICT_RESIDUAL_MESSAGE = (
+    "Fleet synthesis (from attributed specialist work; not independently "
+    "verified):\n"
+    "**DIRECT ANSWER**\n\n"
+    "The quarterly revenue shortfall is $42,000 USD.\n\n"
+    "**CONFLICTS RECONCILED**\n\n"
+    "There are two conflicting estimates of the quarterly revenue shortfall: \n"
+    "- Specialist 1 (finance) and Specialist 2 (sales) both estimate a "
+    "shortfall of $42,000 USD.\n"
+    "- The original request does not attribute any figures to contributors, "
+    "but Specialist 1 attributes the shortfall to churn ($21,000 USD), while "
+    "Specialist 2 attributes it to churn and slipped deals ($15,000 USD).\n"
+    "The remaining shortfall of $12,000 USD remains unresolved.\n\n"
+    "Evidence level: conditional. The contributor attribution (churn, slipped "
+    "deals) comes from scoped specialist evidence, not the request's wording. "
+    "Their subtotal is 36,000 USD and the 6,000 USD residual is unexplained.\n\n"
+    "**QUANTITATIVE RECONCILIATION**\n\n"
+    "Stated gap (target minus closed): 42,000 USD.\n"
+    "Named components (churn, slipped deals) subtotal: 36,000 USD.\n"
+    "Attribution basis: scoped specialist evidence (conditional; the "
+    "request's wording does not attribute these figures).\n"
+    "Residual: 6,000 USD.\n"
+    "The residual is unexplained; the named components do not account for the "
+    "full amount, so the breakdown is not complete.\n\n"
+    "**REQUESTED DELIVERABLES**\n\n"
+    "- Diagnose the quarterly revenue shortfall for the executive review: "
+    "SUPPLIED.\n"
+    "  - Contributing specialist(s): Specialist 1 (finance) and Specialist 2 "
+    "(sales)\n"
+    "- List the highest-impact corrective actions: PROVIDED AS PROPOSALS "
+    "(NOT EXECUTED). The specialist evidence does not provide specific "
+    "recommendations or corrective actions.\n\n"
+    "**PROPOSED NEXT STEPS (NOT EXECUTED)**\n\n"
+    "- Conduct a thorough analysis of sales performance and market conditions "
+    "to identify potential causes for the remaining $12,000 USD shortfall.\n"
+    "- Develop a plan to mitigate churn and slipped deals in future quarters.\n"
+    "- Provide additional training to sales teams on effective deal management "
+    "and negotiation techniques.\n\n"
+    "Execution status: The final synthesis was read-only. No specialist tool "
+    "actions are recorded in this response's retained evidence. Any proposed "
+    "next steps are unexecuted proposals, not completed work."
+)
+
+
+def test_captured_conflict_residual_message_grounds_total_and_residual():
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        FLEET_CONFLICT_RESIDUAL_MESSAGE,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+    proposals = _section_text(reply, "PROPOSED NEXT STEPS")
+
+    # Identical 42,000 USD estimates agree on the total even when the
+    # specialists' component coverage differs.
+    assert "two conflicting estimates" not in conflicts.lower()
+    assert "identical 42,000 usd estimates agree on the total" in (
+        conflicts.lower())
+    assert "coverage differs" in conflicts.lower()
+    # The genuine coverage difference and its component amounts survive.
+    assert "Specialist 1" in conflicts and "Specialist 2" in conflicts
+    assert "churn ($21,000 USD)" in conflicts
+    assert "slipped deals ($15,000 USD)" in conflicts
+
+    # Every residual reference is grounded in the structured check, in both
+    # the conflicts disclosure and the proposed actions.
+    assert "12,000" not in conflicts
+    assert "12,000" not in proposals
+    assert "6,000 USD" in conflicts
+    assert "6,000 USD" in proposals
+    # The authoritative reconciliation section is still present exactly once.
+    assert reply.count("QUANTITATIVE RECONCILIATION") == 1
+    assert reply.count("Residual: 6,000 USD.") == 1
+
+    # The repair is deterministic and a second pass is a no-op.
+    again, again_metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK, reply,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"])
+    assert again == reply
+    assert again_metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": True}
+
+
+def test_captured_conflict_residual_message_survives_final_rendering(world):
+    """The grounded total/residual reaches the user and the durable result."""
+    _seed_chain(world)
+    _attribute_contributors()
+    llm = FakeLLM(content=FLEET_CONFLICT_RESIDUAL_MESSAGE)
+    result = _run(world, llm, task=LIVE_TASK)
+
+    assert result["success"] is True, result
+    output = result["final_output"]
+    conflicts = _section_text(output, "CONFLICTS RECONCILED")
+    proposals = _section_text(output, "PROPOSED NEXT STEPS")
+    assert "two conflicting estimates" not in conflicts.lower()
+    assert "identical 42,000 usd estimates agree on the total" in (
+        conflicts.lower())
+    assert "12,000" not in conflicts and "12,000" not in proposals
+    assert "6,000 USD" in conflicts and "6,000 USD" in proposals
+    assert result["final_synthesis"]["reconciliation"] == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    assert _durable_result(world)["final_output"] == output
+
+
+# Exact text captured from MESSAGE_START in fleet-cross-live.log (and saved as
+# fleet-cross-live-captured.txt). The request supplies target/closed and the
+# two component figures, so the 42,000 gap is harness arithmetic and only the
+# contributor membership is conditional on specialist evidence. The reply
+# nevertheless says the specialists disagree (they both name the same
+# contributors), glues the reconciliation heading onto the prior sentence, and
+# attributes the verified gap's calculation to specialist evidence.
+CROSS_LIVE_TASK = (
+    "Diagnose the quarterly revenue shortfall for the executive review and "
+    "list the highest-impact corrective actions. Supplied figures: target "
+    "240000 USD, closed 198000 USD, churn 21000 USD, slipped deals 15000 USD."
+)
+
+CROSS_LIVE_CAPTURED_MESSAGE = (
+    "Fleet synthesis (from attributed specialist work; not independently "
+    "verified):\n"
+    "**DIRECT ANSWER:**\n\n"
+    "The quarterly revenue shortfall is $42,000 USD.\n\n"
+    "**CONFLICTS RECONCILED:**\n\n"
+    "The specialists disagree. However, there is a disagreement on the "
+    "attribution of contributors to the shortfall. The finance specialist and "
+    "Sales Analyst both attribute the churned deals ($21,000 USD) and slipped "
+    "deals ($15,000 USD) as main contributors, but do not specify if these "
+    "are the only contributors. The original request supports the 42,000 USD "
+    "gap (target minus closed).**QUANTITATIVE RECONCILIATION:**\n\n"
+    "The stated total revenue shortfall is $42,000 USD. The attributed "
+    "specialist evidence states that this is calculated as the difference "
+    "between the target revenue ($240,000 USD) and the closed revenue "
+    "($198,000 USD). This calculation is a qualified calculation, not harness "
+    "arithmetic.\n\n"
+    "Inputs:\n"
+    "- Target revenue: $240,000 USD\n"
+    "- Closed revenue: $198,000 USD\n\n"
+    "Result:\n"
+    "$42,000 USD (shortfall)\n\n"
+    "The named contributors (churned deals and slipped deals) subtotal "
+    "$36,000 USD. The gap minus contributors = $6,000 USD; the residual is "
+    "unexplained.\n\n"
+    "**REQUESTED DELIVERABLES:**\n\n"
+    "- Diagnose the quarterly revenue shortfall for the executive review: "
+    "SUPPLIED by specialist evidence.\n"
+    "- List the highest-impact corrective actions: PROVIDED AS PROPOSALS "
+    "(NOT EXECUTED) from specialist evidence.\n\n"
+    "**PROPOSED NEXT STEPS (NOT EXECUTED):**\n\n"
+    "Based on the supplied facts and specialist evidence, a proposal is to:\n\n"
+    "1. Investigate the unexplained $6,000 USD residual in the revenue "
+    "shortfall breakdown to identify potential additional contributors.\n"
+    "2. Develop a plan to address the churned deals ($21,000 USD) and slipped "
+    "deals ($15,000 USD), including strategies to improve sales performance "
+    "and reduce losses.\n"
+    "3. Review and adjust the target revenue for the next quarter based on "
+    "lessons learned from this quarter's shortfall.\n\n"
+    "These proposals are grounded in the supplied facts and specialist "
+    "evidence, but have not been executed.\n\n"
+    "Execution status: The final synthesis was read-only. No specialist tool "
+    "actions are recorded in this response's retained evidence. Any proposed "
+    "next steps are unexecuted proposals, not completed work.\n"
+)
+
+
+def test_captured_cross_live_message_grounds_gap_source_and_removes_false_conflict():
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        CROSS_LIVE_TASK,
+        CROSS_LIVE_CAPTURED_MESSAGE,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+    quant = _section_text(reply, "QUANTITATIVE RECONCILIATION")
+
+    # Both specialists name the same contributors, so the asserted
+    # disagreement is not supported by the retained evidence.
+    assert "specialists disagree" not in reply.lower()
+    assert "there is a disagreement" not in reply.lower()
+    assert ("The specialists agree on the 42,000 USD gap (target minus "
+            "closed)") in conflicts
+    # The genuine coverage caveat and the specialist amounts remain.
+    assert "do not specify if these are the only contributors" in conflicts
+    assert "churned deals ($21,000 USD)" in conflicts
+    assert "slipped deals ($15,000 USD)" in conflicts
+    assert "Evidence level: conditional" in conflicts
+
+    # The glued heading is a paragraph boundary again, exactly once.
+    assert "closed).**QUANTITATIVE" not in reply
+    assert "\n\n**QUANTITATIVE RECONCILIATION:**" in reply
+    assert reply.count("QUANTITATIVE RECONCILIATION") == 1
+
+    # The verified gap is request-grounded harness arithmetic; only the
+    # contributor attribution is conditional on specialist evidence.
+    assert "Stated gap (target minus closed): 42,000 USD." in quant
+    assert "Attribution basis: scoped specialist evidence (conditional" in quant
+    assert "not harness arithmetic" not in quant
+    assert "attributed specialist evidence states" not in quant.lower()
+    assert "Residual: 6,000 USD." in quant
+
+    # The repair is deterministic and a second pass is a no-op.
+    again, again_metadata = FleetAdmiral._reconcile_synthesis_text(
+        CROSS_LIVE_TASK, reply,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"])
+    assert again == reply
+    assert again_metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": True}
+
+
+def test_captured_cross_live_message_survives_final_rendering(world):
+    """The corrected source and conflict disclosure reach the user."""
+    _seed_chain(world)
+    _attribute_contributors()
+    llm = FakeLLM(content=CROSS_LIVE_CAPTURED_MESSAGE)
+    result = _run(world, llm, task=CROSS_LIVE_TASK)
+
+    assert result["success"] is True, result
+    output = result["final_output"]
+    assert "specialists disagree" not in output.lower()
+    assert "there is a disagreement" not in output.lower()
+    assert ("The specialists agree on the 42,000 USD gap (target minus "
+            "closed)") in output
+    assert "\n\n**QUANTITATIVE RECONCILIATION:**" in output
+    assert "closed).**QUANTITATIVE" not in output
+    assert "Stated gap (target minus closed): 42,000 USD." in output
+    assert "Attribution basis: scoped specialist evidence (conditional" in output
+    assert result["final_synthesis"]["reconciliation"] == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    assert _durable_result(world)["final_output"] == output
+
+
+# Exact frozen capture from fleet-final-frozen-captured.txt: the live Markdown
+# put blank lines between every heading name and the colon that stays inside
+# the bold markers ("**DIRECT ANSWER\n\n:**"). Only one specialist names the
+# churn rate, which is a difference in coverage -- not a competing value -- so
+# the observation (and its "unresolved" status) must survive the repair.
+FINAL_FROZEN_CAPTURED_MESSAGE = (
+    "Fleet synthesis (from attributed specialist work; not independently "
+    "verified):\n"
+    "**DIRECT ANSWER\n\n:**\n\n"
+    "The quarterly revenue shortfall is $42,000 USD.\n\n"
+    "**CONFLICTS RECONCILED\n\n:**\n\n"
+    "There are no direct conflicts between specialists on the total revenue "
+    "shortfall figure. However, there is a discrepancy in the attribution of "
+    "the churn rate. The finance specialist mentions that the churn rate is "
+    "$21,000/ $240,000), while the Sales Analyst only mentions the churned "
+    "deals amount without providing a percentage. This remains unresolved.\n\n"
+    "Evidence level: conditional. The contributor attribution (churn, slipped "
+    "deals) comes from scoped specialist evidence, not the request's wording. "
+    "Their subtotal is 36,000 USD and the 6,000 USD residual is unexplained.\n\n"
+    "**QUANTITATIVE RECONCILIATION\n\n:**\n\n"
+    "The request attributes the shortfall to the target and closed figures. "
+    "The baseline 'target' is 240,000 USD. Minus supplied actual 'closed' "
+    "(198,000 USD) = gap 42,000 USD.\n\n"
+    "Conditional on scoped specialist evidence, the two named contributors "
+    "(churn, slipped deals) subtotal 36,000 USD. Gap minus contributors = "
+    "6,000 USD; the residual is unexplained and the named contributors "
+    "explain only part of the gap.\n\n"
+    "**REQUESTED DELIVERABLES\n\n:**\n\n"
+    "- Diagnose the quarterly revenue shortfall for the executive review: "
+    "SUPPLIED\n"
+    "  - Contributing specialist: finance specialist (and Sales Analyst)\n"
+    "- List the highest-impact corrective actions: PROVIDED AS PROPOSALS "
+    "(NOT EXECUTED)\n\n"
+    "**PROPOSED NEXT STEPS (NOT EXECUTED)\n\n:**\n\n"
+    "1. Conduct further analysis to determine the root causes of the churned "
+    "deals and slipped opportunities, including reviewing sales processes and "
+    "pricing strategies.\n"
+    "2. Develop a plan to improve customer retention strategies based on the "
+    "identified root causes.\n"
+    "3. Implement corrective actions to address the inefficiencies in sales "
+    "processes and inadequate pricing.\n\n"
+    "Note: These proposals are grounded in the supplied facts and specialist "
+    "evidence, but no specialist drafted them.\n\n"
+    "Execution status: The final synthesis was read-only. No specialist tool "
+    "actions are recorded in this response's retained evidence. Any proposed "
+    "next steps are unexecuted proposals, not completed work."
+)
+
+
+def test_captured_final_frozen_message_normalizes_headings_and_keeps_coverage():
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        FINAL_FROZEN_CAPTURED_MESSAGE,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+
+    assert metadata == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    # The blank line before the colon is normalized conservatively: each
+    # heading is exactly once, and no heading is split inside its bold markers.
+    for name in (
+            "DIRECT ANSWER", "CONFLICTS RECONCILED",
+            "QUANTITATIVE RECONCILIATION", "REQUESTED DELIVERABLES",
+            "PROPOSED NEXT STEPS (NOT EXECUTED)"):
+        assert reply.count(f"**{name}") == 1, name
+    assert "\n\n:**" not in reply
+    # Body paragraphs keep their own blank-line boundaries.
+    assert ("**DIRECT ANSWER:**\n\nThe quarterly revenue shortfall is "
+            "$42,000 USD.") in reply
+    assert ("**QUANTITATIVE RECONCILIATION:**\n\nThe request attributes the "
+            "shortfall") in reply
+
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+    # The single-specialist churn-rate statement is coverage, not a competing
+    # value: the observation and the genuine "unresolved" note stay intact.
+    assert "no direct conflicts between specialists" in conflicts
+    assert "discrepancy in the attribution of the churn rate" in conflicts
+    assert ("The finance specialist mentions that the churn rate is "
+            "$21,000/ $240,000)") in conflicts
+    assert ("the Sales Analyst only mentions the churned deals amount without "
+            "providing a percentage") in conflicts
+    assert "This remains unresolved." in conflicts
+
+    quant = _section_text(reply, "QUANTITATIVE RECONCILIATION")
+    assert "gap 42,000 USD" in quant
+    assert "subtotal 36,000 USD" in quant
+    assert "6,000 USD" in quant
+    assert "6,000 USD residual is unexplained" in reply
+    # The deterministic execution footer survives.
+    assert ("Execution status: The final synthesis was read-only. No "
+            "specialist tool actions are recorded") in reply
+    assert reply.endswith("not completed work.")
+
+    # A second pass is a no-op.
+    again, again_metadata = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK, reply,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"])
+    assert again == reply
+    assert again_metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": True}
+
+
+def test_captured_final_frozen_message_survives_final_rendering(world):
+    _seed_chain(world)
+    _attribute_contributors()
+    llm = FakeLLM(content=FINAL_FROZEN_CAPTURED_MESSAGE)
+    result = _run(world, llm, task=LIVE_TASK)
+
+    assert result["success"] is True, result
+    output = result["final_output"]
+    assert "\n\n:**" not in output
+    assert "**CONFLICTS RECONCILED:**" in output
+    assert "gap 42,000 USD" in output
+    assert "subtotal 36,000 USD" in output
+    assert "6,000 USD residual is unexplained" in output
+    assert output.endswith("not completed work.")
+    assert result["final_synthesis"]["reconciliation"] == {
+        "checked": True, "corrected": True, "residual": 6000,
+        "conditional": True}
+    assert _durable_result(world)["final_output"] == output
+
+
+def test_conflicting_component_amounts_are_not_called_agreement():
+    """Two different values for one component are a valid disagreement."""
+    message = (
+        "**CONFLICTS RECONCILED**\n"
+        "The specialists disagree on churn: Specialist 1 says churn is "
+        "$18,000 USD, while Specialist 2 says churn is $21,000 USD.\n\n"
+        "**QUANTITATIVE RECONCILIATION**\n"
+        "Named components (churn, slipped deals) subtotal: 39,000 USD.\n"
+        "Residual: 3,000 USD.\n"
+        "The residual is unexplained.\n"
+    )
+
+    reply, _ = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        message,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+
+    assert "The specialists disagree on churn" in conflicts
+    assert "Specialist 1 says churn is $18,000 USD" in conflicts
+    assert "Specialist 2 says churn is $21,000 USD" in conflicts
+
+
+def test_evidence_backed_total_disagreement_keeps_conflict():
+    """Retained evidence with two totals keeps the disagreement visible."""
+    message = (
+        "**CONFLICTS RECONCILED**\n"
+        "The specialists disagree on the total shortfall: $42,000 USD.\n"
+    )
+    evidence = (
+        "Specialist 1 states the total shortfall is 36,000 USD; Specialist 2 "
+        "states it is 42,000 USD.")
+
+    reply, _ = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK, message, contributor_evidence=evidence)
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+
+    assert "The specialists disagree on the total shortfall" in conflicts
+
+
+def test_qualitative_recommendation_disagreement_is_preserved():
+    """A non-numeric disagreement is not a rendering artefact."""
+    message = (
+        "**CONFLICTS RECONCILED**\n"
+        "The specialists disagree on the corrective action for churn: "
+        "Specialist 1 recommends discounting, while Specialist 2 recommends "
+        "retention work.\n"
+    )
+
+    reply, _ = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        message,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+
+    assert "The specialists disagree on the corrective action" in conflicts
+    assert "Specialist 1 recommends discounting" in conflicts
+    assert "Specialist 2 recommends retention work" in conflicts
+
+
+def test_genuine_residual_disagreement_and_unrelated_amounts_are_preserved():
+    message = (
+        "**CONFLICTS RECONCILED**\n"
+        "The specialists disagree on the remaining shortfall: Specialist 1 "
+        "says it is $12,000 USD, while Specialist 2 says $6,000 USD.\n\n"
+        "**PROPOSED NEXT STEPS (NOT EXECUTED)**\n"
+        "- Investigate the remaining $12,000 USD shortfall and allocate "
+        "$3,000 USD for training.\n"
+    )
+    reply, _ = FleetAdmiral._reconcile_synthesis_text(
+        LIVE_TASK,
+        message,
+        contributor_evidence=ATTRIBUTION_EVIDENCE["spec-finance"],
+    )
+    conflicts = _section_text(reply, "CONFLICTS RECONCILED")
+    proposals = _section_text(reply, "PROPOSED NEXT STEPS")
+
+    # A specialist-attributed residual disagreement is evidence, not a
+    # rendering error, so both stated amounts stay.
+    assert "Specialist 1 says it is $12,000 USD" in conflicts
+    assert "Specialist 2 says $6,000 USD" in conflicts
+    # An unattributed residual reference is grounded in the structured check;
+    # an unrelated amount in the same proposal is untouched.
+    assert "$12,000 USD" not in proposals
+    assert "6,000 USD" in proposals
+    assert "$3,000 USD" in proposals
+
+
+def test_request_attributed_contributors_are_not_qualified_in_prose():
+    """An explicit request attribution stays a fact, not a conditional note."""
+    message = (
+        "**DIRECT ANSWER:**\n"
+        "The total shortfall is 42,000 USD. The contributors are churn "
+        "(21,000 USD) and slipped deals (15,000 USD).\n\n"
+        "**CONFLICTS RECONCILED:**\n"
+        "Both specialists agree on the contributors: churn and slipped "
+        "deals.\n\n"
+        "**QUANTITATIVE RECONCILIATION:**\n"
+        "Stated total (total shortfall): 42,000 USD.\n"
+        "Named components (churn, slipped deals) subtotal: 36,000 USD.\n"
+        "Residual: 6,000 USD.\n"
+        "The residual is unexplained; the named components do not account for "
+        "the full amount, so the breakdown is not complete.\n"
+    )
+
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(TASK, message)
+
+    assert reply == message
+    assert metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": False}
+
+
+def test_explicit_components_reconciliation_is_preserved():
+    """Request-attributed components do not need a conditional qualifier."""
+    original = (
+        "**QUANTITATIVE RECONCILIATION**\n"
+        "Stated total (total shortfall): 42,000 USD.\n"
+        "Named components (churn, slipped deals) subtotal: 36,000 USD.\n"
+        "Residual: 6,000 USD.\n"
+        "The residual is unexplained; the named components do not account for "
+        "the full amount, so the breakdown is not complete.\n"
+    )
+    reply, metadata = FleetAdmiral._reconcile_synthesis_text(TASK, original)
+
+    assert reply == original
+    assert metadata == {
+        "checked": True, "corrected": False, "residual": 6000,
+        "conditional": False}
 
 
 def test_requested_recommendations_are_delivered_as_proposals(world):
@@ -1202,6 +2031,20 @@ def test_duplicate_reconciliation_sections_collapse_to_one(world):
     assert "Residual: 6,000 USD." in output
 
 
+def test_heading_glued_to_its_body_is_split():
+    """A heading immediately followed by prose is still a section boundary."""
+    normalized = FleetAdmiral._normalize_section_breaks(
+        "Fleet synthesis\n**DIRECT ANSWER:**The gap is 42,000 USD.\n\n"
+        "**QUANTITATIVE RECONCILIATION:**Stated gap (target minus closed): "
+        "42,000 USD.\n")
+
+    assert normalized.startswith(
+        "Fleet synthesis\n\n**DIRECT ANSWER:**\n\nThe gap is 42,000 USD.")
+    assert "**QUANTITATIVE RECONCILIATION:**\n\nStated gap" in normalized
+    # An already well-formed heading is not split inside its bold markers.
+    assert "**DIRECT ANSWER\n" not in normalized
+
+
 def test_colon_inside_bold_correct_section_is_not_rewritten(world):
     _seed_chain(world)
     _attribute_contributors()
@@ -1209,7 +2052,8 @@ def test_colon_inside_bold_correct_section_is_not_rewritten(world):
         "**DIRECT ANSWER:**\nThe gap is 42,000 USD.\n\n"
         "**QUANTITATIVE RECONCILIATION:**\n"
         "The named contributors subtotal 36,000 USD; the remaining 6,000 USD "
-        "is unexplained and the breakdown is not complete.\n\n"
+        "is unexplained and the breakdown is not complete. Attribution basis: "
+        "scoped specialist evidence (conditional).\n\n"
         "**REQUESTED DELIVERABLES:**\n- Diagnose: SUPPLIED."
     )
     llm = FakeLLM(content=original)
@@ -1291,6 +2135,48 @@ def test_qualified_conditional_arithmetic_is_not_rewritten():
     assert metadata == {
         "checked": True, "corrected": False, "residual": None,
         "conditional": False}
+
+
+# Exact verifier input: the request declares USD amounts as suffixes, while the
+# model may render the signed residual with a dollar prefix ("-$6,000"). The
+# prefix is the same currency in output notation, so the sign must still be
+# checked; a longer amount such as $36,000 must never satisfy the 6,000 residual.
+USD_SUFFIX_EXPLICIT_TASK = (
+    "Diagnose the quarterly revenue shortfall. Supplied figures: total "
+    "shortfall 42000 USD; components: churn 21000 USD, slipped deals 15000 USD."
+)
+
+
+def test_signed_residual_with_dollar_prefix_is_repaired_for_usd_suffix_input():
+    for wrong in ("-$6,000", "−$6,000", "-6,000 USD"):
+        reply, metadata = FleetAdmiral._reconcile_synthesis_text(
+            USD_SUFFIX_EXPLICIT_TASK,
+            "**QUANTITATIVE RECONCILIATION:**\n"
+            f"The component subtotal is $36,000. The signed remainder is "
+            f"{wrong}.",
+        )
+
+        assert wrong not in reply, (wrong, reply)
+        assert "6,000 USD" in reply, (wrong, reply)
+        assert reply.count("QUANTITATIVE RECONCILIATION") == 1
+        assert metadata == {
+            "checked": True, "corrected": True, "residual": 6000,
+            "conditional": False}
+
+
+def test_dollar_prefix_matching_keeps_amount_boundaries():
+    assert FleetAdmiral._reconciliation_amount_present(
+        "The remainder is $6,000.", 6000, "", "USD")
+    assert FleetAdmiral._reconciliation_negative_amount_present(
+        "The remainder is -$6,000.", 6000, "", "USD")
+    # $36,000 is the subtotal, not the 6,000 residual.
+    assert not FleetAdmiral._reconciliation_amount_present(
+        "The subtotal is $36,000.", 6000, "", "USD")
+    assert not FleetAdmiral._reconciliation_negative_amount_present(
+        "The subtotal is -$36,000.", 6000, "", "USD")
+    # A different currency symbol is not compatible output notation.
+    assert not FleetAdmiral._reconciliation_negative_amount_present(
+        "The remainder is -€6,000.", 6000, "", "USD")
 
 
 def test_unavailable_synthesis_fallback_withholds_unsupported_arithmetic(world):

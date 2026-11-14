@@ -18,13 +18,14 @@ Changes: Removed SaaS-specific features (billing, quota, multi-tenancy)
 """
 
 import asyncio
+import copy
 import hashlib
 import logging
 import re
 import uuid
 import json
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Callable, Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -92,6 +93,36 @@ _SYNTHESIS_FAILURE_MAX_CHARS = 300
 _ACTION_RECEIPTS_MAX_ITEMS = 20
 _ACTION_RECEIPT_PROMPT_MAX_ITEMS = 20
 _ACTION_TOOL_MAX_CHARS = 120
+_ACTION_EVIDENCE_MAX_CHARS = 300
+
+# Only these typed outcome kinds prove the dispatch leaf actually ran. A
+# denied/blocked/refused call retains the requested tool name but has no leaf
+# invocation, so it is never an execution receipt. ``failed_verification`` did
+# run (and its verification failed); ``error`` is deliberately excluded because
+# an exception can be raised before the leaf is reached.
+_DISPATCHED_OUTCOME_KINDS = frozenset({
+    "verified", "unverified", "failed_verification",
+})
+_DISPATCH_REFUSAL_KINDS = frozenset({
+    "blocked", "rejected", "denied", "refused", "error",
+    "not_dispatched", "failed_before_effect", "skipped",
+})
+_DISPATCH_POSITIVE_STATUSES = frozenset({
+    "dispatched", "started", "invoked", "executed", "succeeded",
+})
+_DISPATCH_EVIDENCE_KEYS = (
+    "dispatch_evidence", "_dispatch_evidence", "dispatch")
+# The only component allowed to own a dispatch stamp for a specialist tool
+# call. A receipt (fresh or cached) that names any other producer is not
+# dispatcher evidence, even if it carries ``dispatched: True``: tool-authored
+# output can contain arbitrary JSON and must not be able to impersonate the
+# dispatcher. Kept as a literal so this consumer does not import the agent
+# module; ``tests/test_fleet_receipt_dispatch_evidence.py`` pins it to
+# ``generic_agent._DISPATCH_EVIDENCE_PRODUCER`` so the two cannot drift.
+_DISPATCH_EVIDENCE_PRODUCERS = frozenset({
+    "core.generic_agent.tool_dispatch",
+})
+
 
 # Quantitative reconciliation is domain-neutral: it only reads labelled
 # figures from an explicit "supplied figures/numbers/amounts/totals/metrics"
@@ -132,12 +163,66 @@ _SUPPLIED_FIGURES_CLAUSE = re.compile(
     r"(?:figures|numbers|amounts|totals|metrics)\b\s*[:\-]\s*"
     r"(?P<clause>.+?)(?=\s*\.(?:\s|$)|\n|$)"
 )
+# Currency is a property of the amount, not of its position in the segment:
+# a symbol may prefix it ("$42,000") and an ISO code may prefix or suffix it
+# ("USD 42,000", "42,000 USD"). Only known codes are accepted as a prefix so a
+# label word is never mistaken for a currency. Grouped amounts keep their
+# thousands separators; the segment splitter below must not break them apart.
+_CURRENCY_CODES = frozenset({
+    "USD", "CAD", "EUR", "GBP", "AUD", "NZD", "JPY", "CHF", "INR",
+    "MXN", "BRL", "ZAR", "CNY", "HKD", "SGD", "SEK", "NOK", "DKK", "PLN",
+})
+_CURRENCY_CODE_PREFIX = (
+    r"(?i:USD|CAD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR|CNY|HKD|"
+    r"SGD|SEK|NOK|DKK|PLN)"
+)
+# Rendered prose may swap an ISO code suffix for that currency's usual symbol
+# prefix ("42,000 USD" -> "$42,000"). This mapping is output notation only: it
+# is consulted when recognising an amount already parsed under a known code, so
+# a bare symbol never feeds back into parsing or becomes a currency identity in
+# the mixed-currency guard.
+_CURRENCY_CODE_SYMBOLS = {"USD": "$"}
 _FIGURE_SEGMENT = re.compile(
     r"^(?P<label>.*?)\s*(?:[:=]\s*)?"
-    r"(?P<currency>[$€£¥])?\s*"
+    r"(?P<currency>[$€£¥₹]|" + _CURRENCY_CODE_PREFIX + r")?\s*"
     r"(?P<number>-?\d[\d,]*(?:\.\d+)?)"
     r"\s*(?P<unit>[A-Za-z%]{0,12})\s*$"
 )
+_DIGITS = "0123456789"
+_THOUSANDS_GROUP_RE = re.compile(r"\d{3}(?!\d)")
+_FIGURE_SEGMENT_SPLIT_RE = re.compile(r"[,;\n]")
+
+
+def _is_thousands_separator(text: str, index: int) -> bool:
+    """Whether the comma at ``index`` groups digits instead of separating items."""
+    if index <= 0 or index + 1 >= len(text):
+        return False
+    if text[index - 1] not in _DIGITS or text[index + 1] not in _DIGITS:
+        return False
+    return _THOUSANDS_GROUP_RE.match(text, index + 1) is not None
+
+
+def _figure_segment_spans(clause: str) -> List[tuple[int, int]]:
+    """Clause-relative spans of supplied-figure segments.
+
+    Segments are separated by ``;``, newlines and list commas. A comma between
+    digits that introduces a three-digit group is a thousands separator and
+    belongs to the number, so "42,000 USD" stays one segment instead of
+    splitting into "42" and "000 USD".
+    """
+    spans: List[tuple[int, int]] = []
+    start = 0
+    for index, character in enumerate(clause):
+        if not _FIGURE_SEGMENT_SPLIT_RE.match(character):
+            continue
+        if character == "," and _is_thousands_separator(clause, index):
+            continue
+        if index > start:
+            spans.append((start, index))
+        start = index + 1
+    if start < len(clause):
+        spans.append((start, len(clause)))
+    return spans
 # A shortfall/gap can be grounded by one labelled baseline and one labelled
 # actual, but only when the request asks for that comparison. The labels are
 # role-typed: a target-role baseline (target/plan/forecast) pairs with an
@@ -197,6 +282,207 @@ _CONDITIONAL_QUALIFIER_RE = re.compile(
     r"not\s+established|would\s+be|assuming|assumption|candidates?|"
     r"not\s+harness\s+arithmetic|only\s+if|"
     r"if\s+(?:those|these|the)\b)\b")
+# A conditional calculation must name both the qualifier and the attribution
+# basis in the rendered answer. Numeric agreement alone does not establish who
+# attributed the figures; dropping either half presents evidence-grounded
+# arithmetic as harness fact.
+_ATTRIBUTION_BASIS_RE = re.compile(
+    r"(?i)\b(?:specialist|evidence|attribut\w*|contributors?)\b")
+# DIRECT ANSWER and CONFLICTS RECONCILED restate the contributors the
+# reconciliation section qualifies. A section that presents those members as
+# its own finding must carry the same evidence level; otherwise the reply
+# asserts in the summary what it calls conditional in the arithmetic.
+_CONTRIBUTOR_CLAIM_RE = re.compile(
+    r"(?i)\b(?:contributors?|contribut\w*|attribut\w*|drivers?|"
+    r"driven\s+by|due\s+to|stem(?:s|med)?\s+from|account(?:s|ed)?\s+for)\b")
+_LABEL_WORD_RE = re.compile(r"[^a-z0-9]+")
+# A model can write "There are no conflicts" and then describe a disagreement
+# in the same section. That contradiction must not reach the user: replace the
+# unsupported no-conflict sentence with an explicit disagreement while keeping
+# the evidence-supported figure (and the rest of the disclosure).
+_CONFLICT_DISAGREEMENT_RE = re.compile(
+    r"(?i)(?:\b(?:disagree(?:s|d|ment|ments)?|"
+    r"differ(?:s|ed|ence|ences)?|whereas|unresolved|inconsistent|"
+    r"conflicting)\b|"
+    r"\b(?:states?|says?|reports?|calculates?)\b[^.\n]{0,120}\b"
+    r"(?:while|whereas|but|versus|vs\.?)\b|"
+    r"\b(?:while|whereas)\b[^.\n]{0,120}\b"
+    r"(?:states?|says?|reports?|calculates?)\b)")
+_NO_CONFLICT_CLAIM_RE = re.compile(
+    r"(?i)\b(?:no\s+(?:conflicts?|disagreements?)|none)\b")
+_NO_CONFLICT_SENTENCE_RE = re.compile(
+    r"(?im)(?:^|(?<=[.!?])\s+)"
+    r"[^.!?\n]*\b(?:no\s+(?:conflicts?|disagreements?)|none)\b"
+    r"[^.!?\n]*[.!?]?")
+# A model can glue a heading onto the sentence before it
+# ("... (target minus closed).**QUANTITATIVE RECONCILIATION:**"). The heading
+# would then be invisible to section parsing, so the reply keeps an
+# unqualified/duplicate section. Normalise those boundaries before any repair.
+_SYNTHESIS_HEADING_TOKEN = (
+    r"\*\*(?:DIRECT ANSWER|CONFLICTS RECONCILED|"
+    r"QUANTITATIVE RECONCILIATION|REQUESTED DELIVERABLES|"
+    r"PROPOSED NEXT STEPS)")
+_GLUED_HEADING_RE = re.compile(
+    r"(?<=[^\n])[ \t]*(?=" + _SYNTHESIS_HEADING_TOKEN + r")")
+_GLUED_HEADING_BODY_RE = re.compile(
+    r"(" + _SYNTHESIS_HEADING_TOKEN
+    + r"(?:[ \t]*\(NOT EXECUTED\))?[ \t]*(?:(?::[ \t]*)?\*\*|:)?[ \t]*)"
+    r"(?![:\s*])(?!\s*\(NOT EXECUTED\))")
+_SINGLE_NEWLINE_HEADING_RE = re.compile(
+    r"(?<!\n)\n(?=" + _SYNTHESIS_HEADING_TOKEN + r")")
+# A captured reply put blank lines between the heading name and the colon
+# inside the bold markers ("**DIRECT ANSWER\n\n:**"). The section regex matches
+# a heading on one line, so without normalisation every body section was
+# invisible and the attribution repairs silently skipped it. Only whitespace
+# immediately before a colon that is still inside the bold markers is
+# collapsed; body paragraphs and the colon-inside form "**NAME\n\n:**" keep
+# their text, and a second pass is a no-op.
+_HEADING_NAME_TOKEN = (
+    r"(?:DIRECT ANSWER|CONFLICTS RECONCILED|"
+    r"QUANTITATIVE RECONCILIATION|REQUESTED DELIVERABLES|"
+    r"PROPOSED NEXT STEPS(?:[ \t]*\(NOT EXECUTED\))?)")
+_BLANK_BEFORE_HEADING_COLON_RE = re.compile(
+    r"(?im)(\*\*[ \t]*" + _HEADING_NAME_TOKEN + r")[ \t]*"
+    r"(?:\r?\n[ \t]*)+:\*\*")
+# Prose may turn a conditional contributor calculation into a definitive
+# clause even after the arithmetic section is qualified. These patterns name
+# the attribution forms seen in captured replies; the replacement always keeps
+# the labels/amounts while making the evidence level explicit.
+_MAIN_CONTRIBUTORS_RE = re.compile(
+    r"(?i)\bthe\s+(?:main|primary|key|biggest)\s+contributors?"
+    r"(?P<tail>\s+to\s+[^.!?\n]+?)?\s+(?:are|is)\b")
+_AGREE_MAIN_CONTRIBUTORS_RE = re.compile(
+    r"(?i)\bagree(?:s|d)?\s+(?:that\s+)?the\s+(?:main|primary|key|biggest)\s+"
+    r"contributors?(?P<tail>\s+to\s+[^.!?\n]+?)?\s+(?:are|is)\b")
+_ITS_ATTRIBUTION_RE = re.compile(r"(?i)\bits\s+attribution\s+to\b")
+_COLLECTIVE_CONTRIBUTION_RE = re.compile(
+    r"(?i)\b(?:which\s+)?(?:collectively\s+)?contributed\s+to\s+a\s+total\s+"
+    r"shortfall\s+of\b")
+_REVENUE_CONTRIBUTION_RE = re.compile(
+    r"(?i)\b(?:that|which)\s+contributed\s+to\s+the\s+revenue\s+shortfall\b")
+_BARE_REVENUE_CONTRIBUTION_RE = re.compile(
+    r"(?i)\bcontributed\s+to\s+the\s+revenue\s+shortfall\b")
+_UNEXPLAINED_REMAINDER_RE = re.compile(
+    r"(?i)\bleaving\s+an\s+unexplained\s+remainder\b")
+# A percentage is only usable when the amount beside it is that percentage of
+# the grounded total. The explicit-actions replay said "12.5% ($15,000)" for a
+# 42,000 USD gap (15,000 is ~35.7%, not 12.5%); the amount may stay, the ratio
+# may not be rendered as fact.
+_RATIO_PAIR_RE = re.compile(
+    r"(?P<pct>\d+(?:\.\d+)?)\s*%\s*"
+    r"(?:of\s+(?:the\s+)?(?:(?:total|quarterly|revenue|stated|remaining|"
+    r"overall)\s+)*(?:shortfall|gap|total|revenue|amount)\s*)?"
+    r"\(?\s*(?P<amount>[$€£¥₹]?\s*\d[\d,]*(?:\.\d+)?)\s*"
+    r"(?P<unit>USD|CAD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR|CNY|"
+    r"HKD|SGD|SEK|NOK|DKK|PLN)?\s*\)?",
+    re.IGNORECASE)
+# A conflict section can present a percentage and the equivalent amount as
+# though two specialists disagreed. 50% of a 42,000 gap IS 21,000: the two
+# statements are one claim, not evidence of a conflict. Equivalence is only
+# certified when every component figure is anchored to its label and each
+# percentage resolves to a stated amount within rounding tolerance; an
+# unanchored figure or a mismatched value preserves the conflict.
+_CONFLICT_CLAIM_RE = re.compile(
+    r"(?i)\b(?:conflicts?|conflicting|disagree(?:s|d|ment|ments)?|"
+    r"differ(?:s|ed|ence|ences)?|inconsistent|contrast|whereas|unresolved)\b")
+# A conflict claim may be about estimates of the total rather than about the
+# component values. If every stated estimate equals the verified total, the
+# specialists agree on the number even when their component coverage differs;
+# only the "conflicting estimates" clause is replaced, and the coverage detail
+# (which is a genuine difference) is preserved.
+_CONFLICT_CLAIM_SENTENCE_RE = re.compile(
+    r"(?im)(?:^|(?<=[.!?])\s+)"
+    r"[^.!?\n]*\b(?:conflicts?|conflicting|disagree(?:s|d|ment|ments)?|"
+    r"differ(?:s|ed|ence|ences)?|inconsistent|contrast|whereas|unresolved)\b"
+    r"[^.!?\n]*[.!?:]?")
+_ESTIMATE_WORD_RE = re.compile(r"(?i)\bestimat\w*\b")
+_TOTAL_ESTIMATE_ROLE_RE = re.compile(
+    r"(?i)\b(?:total|gap|shortfall|variance|deficit|difference)\b")
+# A conflict claim needs two competing claims to be substantive. The role
+# patterns below group the amounts a conflicts section states for the total,
+# each named component, and the residual, so a section can be checked against
+# the authoritative figures instead of its own disagreement wording.
+_TOTAL_CONFLICT_ROLE_RE = _TOTAL_ESTIMATE_ROLE_RE
+_RESIDUAL_CONFLICT_ROLE_RE = re.compile(
+    r"(?i)\b(?:remaining|residual|remainder|unresolved|unexplained|"
+    r"short\s+by|leaving|excess)\b")
+# Only an explicit disagreement wording can be certified as a false conflict.
+# "Coverage differs" is a real limitation, not a claim that the specialists
+# contradict each other, and "unresolved" can describe the residual itself.
+_FALSE_CONFLICT_CLAIM_RE = re.compile(
+    r"(?i)\b(?:disagree\w*|conflicting|inconsistent|contrast|differ\w*)\b")
+_FALSE_CONFLICT_CLAIM_SENTENCE_RE = re.compile(
+    r"(?im)(?:^|(?<=[.!?])\s+)"
+    r"[^.!?\n]*\b(?:disagree\w*|conflicting|inconsistent|contrast|differ\w*)\b"
+    r"[^.!?\n]*[.!?:]?")
+_AGREEMENT_ALREADY_STATED_RE = re.compile(r"(?i)\bagree\w*\b")
+# When the total is a supplied baseline minus a supplied actual, the verified
+# gap is harness arithmetic. Prose that assigns that calculation to specialist
+# evidence contradicts the check's structured source; only contributor
+# membership can be conditional.
+_TOTAL_SOURCE_ATTRIBUTION_RE = re.compile(
+    r"(?i)\b(?:specialists?|analysts?|evidence|attributed|"
+    r"according\s+to)\b")
+_TOTAL_SOURCE_CALC_RE = re.compile(
+    r"(?i)\b(?:calculat\w*|comput\w*|deriv\w*|difference|subtract\w*|minus|"
+    r"qualified\s+calculation|conditional|unverified|"
+    r"not\s+harness\s+arithmetic)\b")
+# Residual references repeated in CONFLICTS RECONCILED and PROPOSED NEXT STEPS
+# must agree with the structured check. Only a phrase that presents an amount
+# as the remaining/residual quantity is rewritten; a genuine specialist
+# disagreement or an unrelated amount in the same section is left alone.
+_RESIDUAL_AMOUNT_TOKEN = (
+    r"(?:[$€£¥₹]\s*\d[\d,]*(?:\.\d+)?"
+    r"(?:\s*(?:USD|CAD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR|CNY|"
+    r"HKD|SGD|SEK|NOK|DKK|PLN))?"
+    r"|(?<![\d.])\d[\d,]*(?:\.\d+)?\s*"
+    r"(?:USD|CAD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR|CNY|"
+    r"HKD|SGD|SEK|NOK|DKK|PLN)\b)")
+_RESIDUAL_REFERENCE_RE = re.compile(
+    r"(?i)\b(?P<cue>remaining|residual|remainder|unresolved|unexplained|"
+    r"short\s+by|leaving)\b"
+    r"(?P<between>[^.!?\n]{0,80}?)"
+    r"(?P<amount>" + _RESIDUAL_AMOUNT_TOKEN + r")")
+_RESIDUAL_ROLE_RE = re.compile(
+    r"(?i)\b(?:total|gap|shortfall|variance|deficit|difference|residual|"
+    r"remainder|amount|balance|excess)\b")
+_SOURCE_RESIDUAL_CLAIM_RE = re.compile(
+    r"(?i)\b(?:specialists?|analysts?|sources?|finance|sales)\b"
+    r"[^.!?\n]{0,120}\b(?:says?|states?|reports?|estimates?|calculates?|"
+    r"attributes?|claims?)\b"
+    r"|\b(?:according\s+to|per)\s+(?:the\s+)?(?:specialists?|analysts?|"
+    r"finance|sales)\b")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_PERCENT_TOKEN_RE = re.compile(r"(?P<pct>\d+(?:\.\d+)?)\s*%")
+_AMOUNT_TOKEN_RE = re.compile(
+    r"(?i)(?P<symbol>[$€£¥₹])\s*(?P<symbol_amount>\d[\d,]*(?:\.\d+)?)|"
+    r"(?<![\d.])(?P<code_amount>\d[\d,]*(?:\.\d+)?)\s*"
+    r"(?P<code>USD|CAD|EUR|GBP|AUD|NZD|JPY|CHF|INR|MXN|BRL|ZAR|CNY|"
+    r"HKD|SGD|SEK|NOK|DKK|PLN)\b")
+# A conditional contributor calculation is grounded in scoped specialist
+# evidence, never in the requester's wording. A reply that says the request
+# declared the components (or the passive "attributed by the request") asserts
+# the opposite of the reconciliation's evidence level and must be rewritten.
+_REQUEST_ATTRIBUTION_PASSIVE_RE = re.compile(
+    r"(?i)\b(?:attributed|declared|supplied|identified|listed|named|stated)"
+    r"\s+by\s+the\s+(?:original\s+)?request\b")
+_REQUEST_ATTRIBUTION_ACTIVE_RE = re.compile(
+    r"(?i)\bthe\s+(?:original\s+)?request(?:'s)?\s+"
+    r"(?:attributes?|attributed|declares?|declared|states?|stated|supplies|"
+    r"supplied|identifies|identified|lists?|listed|names?|named)\s+"
+    r"(?P<target>[^.!?\n;]{0,100})")
+_COMPONENT_CLAIM_WORD_RE = re.compile(
+    r"(?i)\b(?:components?|contributors?|contributions?|subtotal|breakdown|"
+    r"attribution|shares?)\b")
+_TOTAL_ROLE_WORD_RE = re.compile(
+    r"(?i)\b(?:total|gap|shortfall|variance|overall|target|closed|baseline|"
+    r"actual|revenue)\b")
+# The evidence-level note appended by the attribution pass is not part of the
+# model's conflict prose. It repeats the subtotal/residual without component
+# labels, so analysing it as a claim would make every representational
+# equivalence look unanchored.
+_TRAILING_EVIDENCE_NOTE_RE = re.compile(
+    r"(?is)\n\s*\n\s*Evidence level: conditional\..*$")
 # A requested recommendation is deliverable work this synthesis may propose.
 # When proposals exist, a deliverables line for that same recommendation must
 # not be labelled missing merely because no specialist drafted it.
@@ -1174,6 +1460,104 @@ Return JSON matching the TaskAnalysis schema."""
             for item in successful)
 
     @staticmethod
+    def _bounded_evidence_text(value: Any, limit: int = _ACTION_EVIDENCE_MAX_CHARS) -> Optional[str]:
+        """Bound a typed dispatch/verification evidence string."""
+        if value is None or isinstance(value, (dict, list)):
+            return None
+        text = " ".join(str(value).split())
+        if not text:
+            return None
+        return text[:limit]
+
+    @classmethod
+    def _dispatch_evidence_from_value(cls, value: Any) -> Optional[Dict[str, Any]]:
+        """Read a top-level producer-owned dispatch stamp, or return ``None``.
+
+        A bare tool name/action or a bare boolean is never evidence. The
+        envelope must be a mapping that names its producer and carries a
+        positive dispatch marker. Refusal kinds stay negative even when the
+        requested tool name is retained. Tool output is deliberately NOT read
+        here: a tool can put arbitrary JSON in its own result, so only the
+        dispatcher's top-level stamp may prove execution.
+        """
+        if not isinstance(value, dict):
+            return None
+        producer = cls._bounded_evidence_text(value.get("producer"))
+        if producer not in _DISPATCH_EVIDENCE_PRODUCERS:
+            return None
+        kind = str(
+            value.get("verified_kind") or value.get("_verified_kind") or ""
+        ).strip().lower()
+        status = str(
+            value.get("status") or value.get("dispatch_status") or ""
+        ).strip().lower()
+        if kind in _DISPATCH_REFUSAL_KINDS:
+            return None
+        if status in _DISPATCH_REFUSAL_KINDS:
+            return None
+        if (
+            value.get("dispatched") is True
+            or value.get("executed") is True
+            or status in _DISPATCH_POSITIVE_STATUSES
+            or kind in _DISPATCHED_OUTCOME_KINDS
+        ):
+            return value
+        return None
+
+    @classmethod
+    def _top_level_dispatch_evidence(
+        cls, container: Any,
+    ) -> Optional[Dict[str, Any]]:
+        """Read a producer-owned dispatch stamp from a step/receipt mapping.
+
+        Only top-level keys written by the dispatcher are considered. Nested
+        ``output`` is tool-authored data and is deliberately never inspected.
+        If any retained envelope is explicitly non-positive (denied, refused,
+        not dispatched) the whole container is rejected, so a mixed/forged
+        pair cannot smuggle a positive claim past a negative one.
+        """
+        if not isinstance(container, dict):
+            return None
+        found: List[Dict[str, Any]] = []
+        for key in _DISPATCH_EVIDENCE_KEYS:
+            if key not in container:
+                continue
+            proof = cls._dispatch_evidence_from_value(container.get(key))
+            if proof is None:
+                return None
+            found.append(proof)
+        return found[0] if found else None
+
+    @classmethod
+    def _step_dispatch_evidence(cls, step: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return the producer's top-level dispatch proof retained on a step.
+
+        The step's ``output`` is tool-authored data and must never be able to
+        impersonate the dispatcher. Only a top-level envelope stamped by the
+        dispatch producer qualifies; an explicit negative envelope also wins
+        over any incidental successful-looking observation.
+        """
+        return cls._top_level_dispatch_evidence(step)
+
+    @staticmethod
+    def _producer_verification_detail(
+        step: Dict[str, Any],
+    ) -> tuple[str, Optional[str]]:
+        """Verification state + the producer's own evidence text."""
+        output = step.get("output")
+        if not isinstance(output, dict):
+            return "not_reported", None
+        verified = output.get("oracle_verified")
+        evidence = FleetAdmiral._bounded_evidence_text(
+            output.get("oracle_evidence")
+            or output.get("verification_evidence"))
+        if verified is True:
+            return "verified", evidence
+        if verified is False:
+            return "unverified", evidence
+        return "not_reported", None
+
+    @staticmethod
     def _producer_verification(step: Dict[str, Any]) -> str:
         """Verification state from typed producer-owned evidence only.
 
@@ -1184,15 +1568,35 @@ Return JSON matching the TaskAnalysis schema."""
         structured envelope the dispatch producer stamps is evidence. A string
         observation (or a dict without a stamped verdict) is ``not_reported``.
         """
-        output = step.get("output")
-        if not isinstance(output, dict):
-            return "not_reported"
-        verified = output.get("oracle_verified")
-        if verified is True:
-            return "verified"
-        if verified is False:
-            return "unverified"
-        return "not_reported"
+        return FleetAdmiral._producer_verification_detail(step)[0]
+
+    @classmethod
+    def _bounded_dispatch_evidence(
+        cls, evidence: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Keep only bounded, non-I/O dispatch metadata a consumer can trust."""
+        if evidence is True:
+            evidence = {"dispatched": True, "status": "dispatched"}
+        if not isinstance(evidence, dict):
+            return {"dispatched": True}
+        allowed = (
+            "producer", "dispatched", "status", "reason", "tool",
+            "operation_id", "execution_id", "dispatched_at", "verified_kind",
+            "oracle_stamped",
+        )
+        bounded: Dict[str, Any] = {"dispatched": True}
+        for key in allowed:
+            if key not in evidence:
+                continue
+            value = evidence.get(key)
+            if isinstance(value, bool):
+                bounded[key] = value
+            elif value is not None:
+                text = cls._bounded_evidence_text(value)
+                if text is not None:
+                    bounded[key] = text
+        bounded["dispatched"] = True
+        return bounded
 
     @classmethod
     def _recorded_action_receipts(
@@ -1206,13 +1610,15 @@ Return JSON matching the TaskAnalysis schema."""
     ) -> List[Dict[str, Any]]:
         """Extract bounded receipts for the tool invocations a specialist ran.
 
-        ``GenericAgent.execute`` returns ``steps``; a step's ``action`` is the
-        tool that was actually dispatched and its structured ``output`` may
-        carry the producer's typed verdict. A cached or recovered child does
-        not carry its steps, so an empty list means "no receipt retained" --
-        never "nothing ran". Verification comes only from the typed producer
-        stamp; observation text is never parsed. Raw arguments and observations
-        are not retained (and therefore cannot reach the synthesis prompt).
+        ``GenericAgent.execute`` returns ``steps``. A step's ``action`` is the
+        tool the model *requested*, not proof it ran: local allowlists,
+        governance/HITL, and operation-claim refusals all retain the name.
+        Only a producer-owned dispatch stamp (or an existing typed dispatched
+        outcome) becomes a receipt. A cached/recovered child does not carry
+        its steps, so an empty list means "no receipt retained" -- never
+        "nothing ran". Verification comes only from the typed producer stamp;
+        observation text is never parsed. Raw arguments and observations are
+        not retained (and therefore cannot reach the synthesis prompt).
         """
         if not isinstance(raw, dict):
             return []
@@ -1231,15 +1637,107 @@ Return JSON matching the TaskAnalysis schema."""
                 tool = action.strip()
             if not tool:
                 continue
-            receipts.append({
+            dispatch = cls._step_dispatch_evidence(step)
+            if dispatch is None:
+                # Requested/blocked/denied calls are not execution receipts,
+                # and a legacy step with no producer stamp cannot establish
+                # that the tool ran.
+                continue
+            verification, verification_evidence = (
+                cls._producer_verification_detail(step))
+            bounded = cls._bounded_dispatch_evidence(dispatch)
+            receipt = {
                 "agent_id": agent_id,
                 "agent_name": agent_name,
                 "domain": domain,
                 "execution_id": execution_id,
                 "tool": tool[:_ACTION_TOOL_MAX_CHARS],
-                "verification": cls._producer_verification(step),
-            })
+                "verification": verification,
+                "dispatched": True,
+                # Both names are retained for consumers already reading either
+                # shape; both are bounded typed metadata, never raw tool I/O.
+                "dispatch": dict(bounded),
+                "dispatch_evidence": dict(bounded),
+            }
+            if verification_evidence:
+                receipt["verification_evidence"] = verification_evidence
+            receipts.append(receipt)
         return receipts
+
+    @classmethod
+    def _validated_action_receipts(
+        cls, receipts: Any,
+    ) -> List[Dict[str, Any]]:
+        """Revalidate cached/recovered receipts before claiming execution.
+
+        Older chain caches copied a receipt's tool name and ``verification``
+        string without retaining (or re-checking) the producer's dispatch
+        stamp. Such a receipt cannot establish that anything ran, so it is
+        dropped. A cached ``verified`` verdict without its own evidence text is
+        downgraded to ``not_reported`` rather than replayed as independent
+        verification.
+        """
+        if not isinstance(receipts, (list, tuple)):
+            return []
+        validated: List[Dict[str, Any]] = []
+        for receipt in receipts[-_ACTION_RECEIPTS_MAX_ITEMS:]:
+            if not isinstance(receipt, dict):
+                continue
+            tool = str(receipt.get("tool") or "").strip()
+            if not tool:
+                continue
+            dispatch = cls._top_level_dispatch_evidence(receipt)
+            if dispatch is None:
+                continue
+            verification = str(
+                receipt.get("verification") or "not_reported").strip().lower()
+            if verification not in {
+                "verified", "unverified", "not_reported",
+            }:
+                verification = "not_reported"
+            verification_evidence = cls._bounded_evidence_text(
+                receipt.get("verification_evidence"))
+            if verification == "verified" and not verification_evidence:
+                verification = "not_reported"
+            bounded = cls._bounded_dispatch_evidence(dispatch)
+            item = {
+                "agent_id": str(receipt.get("agent_id") or ""),
+                "agent_name": str(receipt.get("agent_name") or ""),
+                "domain": str(receipt.get("domain") or ""),
+                "execution_id": str(receipt.get("execution_id") or ""),
+                "tool": tool[:_ACTION_TOOL_MAX_CHARS],
+                "verification": verification,
+                "dispatched": True,
+                "dispatch": dict(bounded),
+                "dispatch_evidence": dict(bounded),
+            }
+            if verification_evidence:
+                item["verification_evidence"] = verification_evidence
+            validated.append(item)
+        return validated
+
+    @staticmethod
+    def _without_execution_status_footer(text: Any) -> str:
+        """Drop the deterministic footer so a revalidated one can replace it."""
+        value = str(text or "")
+        marker = "\n\nExecution status: The final synthesis was read-only."
+        index = value.rfind(marker)
+        return value[:index] if index >= 0 else value
+
+    @classmethod
+    def _with_execution_status_footer(
+        cls, text: Any, receipts: List[Dict[str, Any]],
+    ) -> str:
+        """Return ``text`` whose execution-status footer matches ``receipts``.
+
+        Always rebuilt from the validated ledger (never patched in place), so
+        a replayed cache cannot keep a stale "independently verified" claim
+        after that verdict was downgraded.
+        """
+        return (
+            cls._without_execution_status_footer(text)
+            + cls._execution_status_footer(receipts)
+        )
 
     @classmethod
     def _execution_status_footer(
@@ -1305,7 +1803,10 @@ Return JSON matching the TaskAnalysis schema."""
         else:
             rendered = f"{amount:,.2f}".rstrip("0").rstrip(".")
         if currency:
-            rendered = f"{currency}{rendered}"
+            # A symbol hugs the amount ("$42,000"); an ISO code is a word
+            # ("USD 42,000").
+            joiner = "" if len(currency) == 1 else " "
+            rendered = f"{currency}{joiner}{rendered}"
         if unit:
             rendered = f"{rendered} {unit}".strip()
         return rendered
@@ -1323,10 +1824,11 @@ Return JSON matching the TaskAnalysis schema."""
         match = _SUPPLIED_FIGURES_CLAUSE.search(str(text or ""))
         if not match:
             return []
+        clause = match.group("clause")
         figures: List[Dict[str, Any]] = []
-        for index, segment_match in enumerate(
-                re.finditer(r"[^,;\n]+", match.group("clause"))):
-            segment = segment_match.group(0).strip()
+        for index, (segment_start, segment_end) in enumerate(
+                _figure_segment_spans(clause)):
+            segment = clause[segment_start:segment_end].strip()
             if not segment:
                 continue
             parsed = _FIGURE_SEGMENT.match(segment)
@@ -1352,20 +1854,30 @@ Return JSON matching the TaskAnalysis schema."""
                 "unit": (parsed.group("unit") or "").strip(),
                 # Clause-relative span, used only to keep an explicitly
                 # declared component group from absorbing later figures.
-                "_start": segment_match.start(),
-                "_end": segment_match.end(),
+                "_start": segment_start,
+                "_end": segment_end,
             })
             if len(figures) >= _RECONCILIATION_MAX_FIGURES:
                 break
         return figures
 
-    @staticmethod
-    def _figure_style(figure: Dict[str, Any]) -> tuple[str, str]:
-        """Comparable unit/currency identity (case-insensitive unit)."""
-        return (
-            str(figure.get("currency") or ""),
-            str(figure.get("unit") or "").strip().lower(),
-        )
+    @classmethod
+    def _figure_style(cls, figure: Dict[str, Any]) -> tuple[str, str]:
+        """Comparable unit/currency identity (case-insensitive unit).
+
+        A currency code written before or after the amount names the same
+        currency, so ``USD 42,000`` and ``42,000 USD`` are one style. A bare
+        symbol stays its own identity instead of being guessed into a code
+        (``$`` could be USD, CAD or AUD), which keeps the mixed-currency guard
+        conservative.
+        """
+        currency = str(figure.get("currency") or "").strip()
+        unit = str(figure.get("unit") or "").strip()
+        if not currency and unit.upper() in _CURRENCY_CODES:
+            currency, unit = unit.upper(), ""
+        elif currency.upper() in _CURRENCY_CODES:
+            currency = currency.upper()
+        return (currency, unit.lower())
 
     @classmethod
     def _explicit_total_and_components(
@@ -2084,6 +2596,12 @@ Return JSON matching the TaskAnalysis schema."""
                 f"{plain} {unit}", f"{compact} {unit}",
                 f"{currency}{plain} {unit}", f"{currency}{compact} {unit}",
             })
+            symbol = _CURRENCY_CODE_SYMBOLS.get(unit.strip().upper())
+            if symbol and not currency:
+                # "USD" was supplied as a suffix, but the model may render the
+                # same amount with the symbol prefix ("-$6,000"). Recognise it
+                # so a signed residual is checked rather than missed.
+                variants.update({f"{symbol}{plain}", f"{symbol}{compact}"})
         return {variant for variant in variants if variant}
 
     @classmethod
@@ -2154,12 +2672,404 @@ Return JSON matching the TaskAnalysis schema."""
             return True
         return _CONDITIONAL_QUALIFIER_RE.search(content or "") is None
 
+    @staticmethod
+    def _conditional_attribution_disclosed(text: str) -> bool:
+        """Whether a conditional calculation names its qualifier and basis."""
+        body = str(text or "")
+        return bool(
+            _CONDITIONAL_QUALIFIER_RE.search(body)
+            and _ATTRIBUTION_BASIS_RE.search(body))
+
+    @classmethod
+    def _request_declared_attribution_present(
+        cls, text: str, check: Dict[str, Any],
+    ) -> bool:
+        """Whether prose calls a specialist-only attribution request-declared.
+
+        ``check["conditional"]`` means contributor membership comes from scoped
+        specialist evidence, not the request's wording. Any clause that says
+        the request declared those components (or the passive "attributed by
+        the request") contradicts that evidence level. The check is
+        clause-scoped so a legitimate statement such as "the request supports
+        the 42,000 USD total" is never touched.
+        """
+        if not check.get("conditional"):
+            return False
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        for clause in _SENTENCE_SPLIT_RE.split(str(text or "")):
+            if not clause.strip():
+                continue
+            mentions_components = bool(
+                _COMPONENT_CLAIM_WORD_RE.search(clause)
+                or any(cls._label_mentioned(clause, label) for label in labels))
+            if not mentions_components:
+                continue
+            if _REQUEST_ATTRIBUTION_PASSIVE_RE.search(clause):
+                return True
+            if _REQUEST_ATTRIBUTION_ACTIVE_RE.search(clause):
+                return True
+        return False
+
+    @classmethod
+    def _rewrite_request_declared_attribution(
+        cls, body: str, check: Dict[str, Any],
+    ) -> str:
+        """Recast request-declared contributor language as specialist evidence.
+
+        The reconciliation's evidence level is authoritative. Only the
+        attribution relation is rewritten: labels, amounts, the grounded total
+        and any residual disclosure stay. A request statement about the total
+        (which the request really does support) is left alone because the
+        active form only fires when its object names a component and no
+        total/gap role word.
+        """
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        text = str(body or "")
+        if not check.get("conditional") or not labels or not text:
+            return text
+        text = _REQUEST_ATTRIBUTION_PASSIVE_RE.sub(
+            "attributed by scoped specialist evidence (not by the request)",
+            text)
+
+        def _active(match: re.Match) -> str:
+            target = match.group("target") or ""
+            if not any(cls._label_mentioned(target, label) for label in labels):
+                return match.group(0)
+            if _TOTAL_ROLE_WORD_RE.search(target):
+                return match.group(0)
+            return (
+                "scoped specialist evidence conditionally attributes "
+                + target.lstrip())
+
+        return _REQUEST_ATTRIBUTION_ACTIVE_RE.sub(_active, text)
+
+    @staticmethod
+    def _normalize_section_breaks(content: str) -> str:
+        """Put every recognised synthesis heading on its own paragraph.
+
+        A captured reply glued QUANTITATIVE RECONCILIATION onto the preceding
+        sentence, so section parsing never saw it and a second reconciliation
+        section was appended. Repairing the boundary keeps exactly one section
+        and preserves blank lines between sections. A heading glued to its own
+        body is split the same way.
+        """
+        text = str(content or "")
+        if not text:
+            return text
+        text = _BLANK_BEFORE_HEADING_COLON_RE.sub(r"\1:**", text)
+        text = _GLUED_HEADING_RE.sub("\n\n", text)
+        text = _GLUED_HEADING_BODY_RE.sub(
+            lambda match: match.group(1).rstrip() + "\n\n", text)
+        text = _SINGLE_NEWLINE_HEADING_RE.sub("\n\n", text)
+        return text
+
+    @classmethod
+    def _rewrite_definitive_attribution(
+        cls, body: str, check: Dict[str, Any],
+    ) -> str:
+        """Recast definitive contributor prose as conditional evidence.
+
+        Appending an evidence-level note left the original sentence intact, so
+        the reply still asserted in DIRECT ANSWER / CONFLICTS RECONCILED what
+        the arithmetic section called conditional. The substitutions below
+        replace only the attribution relation; labels, amounts, the verified
+        total, and any agreement/disagreement wording are retained.
+        """
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        text = str(body or "")
+        if not labels or not text:
+            return text
+        text = cls._rewrite_request_declared_attribution(text, check)
+
+        def _main_contributors(match: re.Match) -> str:
+            tail = match.group("tail") or ""
+            prefix = match.string[:match.start()].rstrip()
+            lead = "Scoped" if not prefix or prefix[-1] in ".!?" else "scoped"
+            return (
+                f"{lead} specialist evidence conditionally identifies the "
+                f"main contributors{tail} as")
+
+        text = _AGREE_MAIN_CONTRIBUTORS_RE.sub(
+            "agree on the conditional attribution, from scoped specialist "
+            "evidence, to", text)
+        text = _MAIN_CONTRIBUTORS_RE.sub(_main_contributors, text)
+        text = _ITS_ATTRIBUTION_RE.sub(
+            "its conditional attribution, from scoped specialist evidence, to",
+            text)
+        text = _COLLECTIVE_CONTRIBUTION_RE.sub(
+            "which conditionally total", text)
+        text = _REVENUE_CONTRIBUTION_RE.sub(
+            "that scoped specialist evidence conditionally associates with "
+            "the shortfall", text)
+        text = _BARE_REVENUE_CONTRIBUTION_RE.sub(
+            "is conditionally associated by scoped specialist evidence with "
+            "the shortfall", text)
+        text = _UNEXPLAINED_REMAINDER_RE.sub(
+            "leaving a conditional and unexplained remainder", text)
+        return text
+
+    @classmethod
+    def _strip_unsupported_ratios(
+        cls, content: str, checks: List[Dict[str, Any]],
+    ) -> tuple[str, bool]:
+        """Remove a percentage that is not the amount's share of the total.
+
+        The explicit-actions replay rendered "12.5% ($15,000)" against a
+        42,000 USD gap. The amount is evidence-grounded; the ratio is not, so
+        the ratio is dropped and the amount kept. A correct ratio such as
+        "50% ($21,000)" is left untouched.
+        """
+        text = str(content or "")
+        totals = [
+            check.get("total") for check in (checks or [])
+            if check.get("total") is not None]
+        if not text or not totals:
+            return text, False
+        changed = False
+
+        for total in totals:
+            total_value = Decimal(str(total))
+
+            def _replace(match: re.Match) -> str:
+                nonlocal changed
+                amount_text = match.group("amount").strip()
+                try:
+                    amount = Decimal(re.sub(r"[^\d.]", "", amount_text))
+                    percentage = Decimal(match.group("pct"))
+                except (InvalidOperation, ValueError):
+                    return match.group(0)
+                expected = total_value * percentage / Decimal(100)
+                tolerance = max(
+                    Decimal("0.01"), abs(amount) * Decimal("0.005"))
+                if abs(expected - amount) <= tolerance:
+                    return match.group(0)
+                changed = True
+                unit = (match.group("unit") or "").strip()
+                return amount_text + (f" {unit}" if unit else "")
+
+            text = _RATIO_PAIR_RE.sub(_replace, text)
+        return text, changed
+
+    @staticmethod
+    def _label_pattern(label: str) -> Optional[re.Pattern]:
+        """Boundary-aware matcher for a supplied figure label.
+
+        The last label word may carry a suffix ("churn" -> "churned deals");
+        earlier words must match exactly so "deals" alone never satisfies
+        "slipped deals".
+        """
+        tokens = [
+            token for token in _LABEL_WORD_RE.split(str(label or "").lower())
+            if token]
+        if not tokens:
+            return None
+        pattern = r"\b" + r"[\s\-]+".join(
+            re.escape(token) + (r"[a-z]*" if index == len(tokens) - 1 else "")
+            for index, token in enumerate(tokens)) + r"\b"
+        return re.compile(pattern)
+
+    @classmethod
+    def _label_mentioned(cls, text: str, label: str) -> bool:
+        """Whether ``label`` appears in ``text``, allowing final-word inflection.
+
+        The request says "churn"; the synthesis says "churned deals". The last
+        label word may therefore carry a suffix, while earlier words must match
+        exactly so "deals" alone never satisfies "slipped deals".
+        """
+        pattern = cls._label_pattern(label)
+        return bool(
+            pattern and pattern.search(str(text or "").lower()))
+
+    @classmethod
+    def _conditional_evidence_note(cls, check: Dict[str, Any]) -> str:
+        """Render the evidence level of a conditional contributor check.
+
+        The wording is derived only from the verified check, so the note can
+        never introduce a figure or relationship the reconciliation has not
+        already computed.
+        """
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        subtotal = cls._format_reconciled_value(
+            check.get("component_sum"), currency, unit)
+        note = (
+            "Evidence level: conditional. The contributor attribution"
+            + (f" ({', '.join(labels)})" if labels else "")
+            + " comes from scoped specialist evidence, not the request's "
+            "wording.")
+        residual = check.get("residual")
+        if residual is None:
+            return note
+        residual_value = cls._decimal(residual)
+        residual_text = cls._format_reconciled_value(
+            abs(residual_value), currency, unit)
+        if residual_value > 0:
+            note += (
+                f" Their subtotal is {subtotal} and the {residual_text} "
+                "residual is unexplained.")
+        elif residual_value < 0:
+            note += (
+                f" Their subtotal is {subtotal}, which exceeds the total by "
+                f"{residual_text}.")
+        else:
+            note += (
+                f" Their subtotal is {subtotal} and accounts for the total "
+                "exactly.")
+        return note
+
+    @classmethod
+    def _section_states_conditional_attribution(
+        cls, body: str, check: Dict[str, Any],
+    ) -> bool:
+        """Whether a prose section restates the conditional members as fact."""
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        if not labels or not _CONTRIBUTOR_CLAIM_RE.search(body or ""):
+            return False
+        return any(cls._label_mentioned(body, label) for label in labels)
+
+    @classmethod
+    def _qualify_conditional_attribution(
+        cls, content: str, checks: List[Dict[str, Any]],
+    ) -> tuple[str, bool]:
+        """Keep a conditional contributor evidence level across the response.
+
+        The reconciliation section already says that a contributor calculation
+        whose membership comes only from scoped specialist evidence is
+        conditional. DIRECT ANSWER, CONFLICTS RECONCILED and PROPOSED NEXT
+        STEPS can repeat that same attribution. Appending a note alone left the
+        original definitive clause intact, so each section's attribution
+        relation is recast as conditional evidence; the verified total,
+        labels, amounts, agreement/disagreement wording and proposed actions
+        remain. A request-attributed check (``conditional`` false) passes
+        through unchanged.
+        """
+        conditional_checks = [
+            check for check in (checks or [])
+            if check.get("conditional")
+            and check.get("component_sum") is not None]
+        if not conditional_checks:
+            return content, False
+        matches = list(_SYNTHESIS_SECTION_RE.finditer(content or ""))
+        if not matches:
+            return content, False
+
+        edits: List[tuple[int, int, str]] = []
+        for index, match in enumerate(matches):
+            name = match.group("name").upper()
+            is_prose = name.startswith(
+                ("DIRECT ANSWER", "CONFLICTS RECONCILED"))
+            is_proposal = name.startswith("PROPOSED NEXT STEPS")
+            if not (is_prose or is_proposal):
+                continue
+            section_end = (
+                matches[index + 1].start()
+                if index + 1 < len(matches) else len(content))
+            body = content[match.end():section_end]
+            applicable = [
+                check for check in conditional_checks
+                if cls._section_states_conditional_attribution(body, check)]
+            if not applicable:
+                continue
+
+            rewritten = body
+            for check in applicable:
+                rewritten = cls._rewrite_definitive_attribution(
+                    rewritten, check)
+            qualified = rewritten
+            if is_prose and not cls._conditional_attribution_disclosed(body):
+                note = " ".join(
+                    cls._conditional_evidence_note(check)
+                    for check in applicable)
+                qualified = rewritten.rstrip() + "\n\n" + note
+                # Keep the spacing the section renderer relies on so the next
+                # heading still starts a paragraph and is matched exactly once.
+                if rewritten.endswith("\n\n"):
+                    qualified += "\n\n"
+            if qualified != body:
+                edits.append((match.end(), section_end, qualified))
+
+        if not edits:
+            return content, False
+        # Splice from the end so earlier spans keep their offsets.
+        for start, end, replacement in reversed(edits):
+            content = content[:start] + replacement + content[end:]
+        return content, True
+
+    @classmethod
+    def _total_source_misattributed(
+        cls, body: str, check: Dict[str, Any],
+    ) -> bool:
+        """Whether prose assigns the verified total's arithmetic to evidence.
+
+        For a ``baseline_minus_actual`` check the baseline and actual come from
+        the requester's supplied figures, so the gap is harness arithmetic.
+        Only contributor membership can be conditional on specialist evidence.
+        A sentence that ties the baseline/actual/total calculation to a
+        specialist or evidence source contradicts that structured source.
+        """
+        if check.get("kind") != "baseline_minus_actual":
+            return False
+        baseline = str(check.get("baseline_label") or "")
+        actual = str(check.get("actual_label") or "")
+        if not baseline or not actual:
+            return False
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        for sentence in _SENTENCE_SPLIT_RE.split(str(body or "")):
+            lowered = sentence.lower()
+            if not (
+                _TOTAL_SOURCE_ATTRIBUTION_RE.search(lowered)
+                and _TOTAL_SOURCE_CALC_RE.search(lowered)
+            ):
+                continue
+            mentions_pair = bool(
+                re.search(r"\b" + re.escape(baseline.lower()) + r"\b", lowered)
+                or re.search(
+                    r"\b" + re.escape(actual.lower()) + r"\b", lowered)
+                or cls._reconciliation_amount_present(
+                    sentence, check.get("total"), currency, unit))
+            if not mentions_pair:
+                continue
+            if _COMPONENT_CLAIM_WORD_RE.search(lowered):
+                continue
+            if any(cls._label_mentioned(lowered, label) for label in labels):
+                continue
+            return True
+        return False
+
     @classmethod
     def _reconciliation_section_is_correct(
         cls, body: str, checks: List[Dict[str, Any]],
     ) -> bool:
         if _FALSE_COMPLETION_RE.search(body or ""):
             return False
+        for check in checks:
+            if cls._total_source_misattributed(body, check):
+                # The gap is request-grounded arithmetic; attributing its
+                # calculation to specialist evidence misstates the source.
+                return False
+            if (
+                check.get("conditional")
+                and check.get("component_sum") is not None
+            ):
+                if not cls._conditional_attribution_disclosed(body):
+                    # The amounts are right, but the section presents an
+                    # evidence-grounded subtotal/residual as harness fact.
+                    # Replace it with the deterministic conditional statement.
+                    return False
+                if cls._request_declared_attribution_present(body, check):
+                    # The evidence level is named, but the section still says
+                    # the request declared the components. Specialist-only
+                    # attribution is never request-declared.
+                    return False
         lowered = (body or "").lower()
         if not any(
                 word in lowered for word in (
@@ -2222,14 +3132,65 @@ Return JSON matching the TaskAnalysis schema."""
         content: str,
         contributor_evidence: Optional[str] = None,
     ) -> tuple[str, Dict[str, Any]]:
+        """Repair arithmetic and contradictions before the answer is rendered.
+
+        Reconciliation is made authoritative first: a conditional contributor
+        calculation must name its qualifier and attribution basis. A conflicts
+        section that says "no conflicts" and then describes a disagreement is
+        then made consistent with the evidence, and identical total estimates
+        are reported as agreement even when component coverage differs.
+        Residual references repeated in the conflicts disclosure and the
+        proposed actions are grounded in the computed check. Finally, the
+        conditional evidence level is carried into every prose section that
+        restates the attribution (and any definitive contributor clause inside
+        a proposal is recast), so the reply cannot assert as fact what the
+        reconciliation qualifies. All corrections are deterministic; none
+        invents a figure or a relationship.
+        """
+        original = content
+        content = cls._normalize_section_breaks(content)
+        reconciliation = cls._quantitative_reconciliation(
+            task, contributor_evidence=contributor_evidence)
+        checks = reconciliation.get("checks") or []
+        figures = reconciliation.get("figures") or []
+        corrected, metadata = cls._apply_reconciliation(
+            task, content, contributor_evidence=contributor_evidence)
+        if content != original:
+            metadata["corrected"] = True
+        corrected, ratio_corrected = cls._strip_unsupported_ratios(
+            corrected, checks)
+        if ratio_corrected:
+            metadata["corrected"] = True
+        corrected, conflict_corrected = cls._correct_conflicts_section(
+            corrected, checks, figures, contributor_evidence)
+        if conflict_corrected:
+            metadata["corrected"] = True
+        corrected, residual_grounded = cls._ground_residual_references(
+            corrected, checks, figures)
+        if residual_grounded:
+            metadata["corrected"] = True
+        corrected, attribution_qualified = cls._qualify_conditional_attribution(
+            corrected, checks)
+        if attribution_qualified:
+            metadata["corrected"] = True
+        return corrected, metadata
+
+    @classmethod
+    def _apply_reconciliation(
+        cls,
+        task: str,
+        content: str,
+        contributor_evidence: Optional[str] = None,
+    ) -> tuple[str, Dict[str, Any]]:
         """Keep a non-zero residual from being rendered as a complete breakdown.
 
         The model's prose is used when it already discloses the computed
-        residual. Otherwise the QUANTITATIVE RECONCILIATION section is replaced
-        with the harness arithmetic (or appended when absent), so a false
-        "breakdown is complete" claim cannot survive final rendering. With no
-        grounded check (unrelated figures, mixed units/currencies, ambiguous
-        totals) this is a no-op.
+        residual and, for a conditional calculation, the attribution basis.
+        Otherwise the QUANTITATIVE RECONCILIATION section is replaced with the
+        harness arithmetic (or appended when absent), so a false "breakdown is
+        complete" claim cannot survive final rendering. With no grounded check
+        (unrelated figures, mixed units/currencies, ambiguous totals) this is a
+        no-op.
 
         When the gap is verified but contributor membership is not, no subtotal
         or residual is asserted. A model section that claims completeness or
@@ -2257,6 +3218,12 @@ Return JSON matching the TaskAnalysis schema."""
         if not nonzero:
             problematic = _FALSE_COMPLETION_RE.search(content or "") is not None
             for check in checks:
+                if (
+                    check.get("conditional")
+                    and check.get("component_sum") is not None
+                    and not cls._conditional_attribution_disclosed(content or "")
+                ):
+                    problematic = True
                 conditional = check.get("conditional_calculation") or {}
                 if conditional.get("residual") is None:
                     continue
@@ -2324,6 +3291,769 @@ Return JSON matching the TaskAnalysis schema."""
         corrected = re.sub(r"\n{3,}", "\n\n", corrected).strip()
         metadata["corrected"] = True
         return corrected, metadata
+
+    @staticmethod
+    def _nearest_label(
+        anchors: List[tuple[int, int, str]], start: int, end: int,
+    ) -> Optional[str]:
+        """The component label a figure most plausibly belongs to.
+
+        Preceding labels win (English states the contributor before its
+        value); a label after the figure is used only when nothing precedes.
+        A figure with no label anchor is ambiguous and is never treated as
+        agreeing with anything.
+        """
+        preceding = [anchor for anchor in anchors if anchor[1] <= start]
+        if preceding:
+            return preceding[-1][2]
+        following = [anchor for anchor in anchors if anchor[0] >= end]
+        if following:
+            return following[0][2]
+        return None
+
+    @staticmethod
+    def _format_percentage(value: Any) -> str:
+        percentage = Decimal(str(value))
+        if percentage == percentage.to_integral_value():
+            return str(int(percentage))
+        return f"{percentage.normalize():f}"
+
+    @classmethod
+    def _component_representation_claims(
+        cls, body: str, check: Dict[str, Any],
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Group a conflict section's amounts and percentages by component.
+
+        Returns one entry per contributor label that carries a representation,
+        or ``None`` when the section cannot be certified as purely
+        representational: an unanchored figure, no label carrying both an
+        amount and a percentage, or two different values for one label. A
+        genuine disagreement (including swapped components) therefore keeps the
+        model's conflict text.
+        """
+        if check is None or check.get("total") is None:
+            return None
+        total = cls._decimal(check.get("total"))
+        if total == 0:
+            return None
+        labels = [str(label) for label in (check.get("component_labels") or [])]
+        if not labels:
+            return None
+        excluded = {abs(total)}
+        if check.get("residual") is not None:
+            excluded.add(abs(cls._decimal(check.get("residual"))))
+        for key in ("baseline", "actual"):
+            if check.get(key) is not None:
+                excluded.add(abs(cls._decimal(check.get(key))))
+        # A one-decimal percentage of a 42,000 gap rounds within ~21 USD.
+        tolerance = max(Decimal("1"), abs(total) * Decimal("0.0005"))
+
+        claims: Dict[str, Dict[str, List[Any]]] = {
+            label: {"amounts": [], "percentages": []} for label in labels}
+        any_representation = False
+        for sentence in _SENTENCE_SPLIT_RE.split(str(body or "")):
+            if not sentence.strip():
+                continue
+            lowered = sentence.lower()
+            anchors: List[tuple[int, int, str]] = []
+            for label in labels:
+                pattern = cls._label_pattern(label)
+                if pattern is None:
+                    continue
+                anchors.extend(
+                    (match.start(), match.end(), label)
+                    for match in pattern.finditer(lowered))
+            if not anchors:
+                if (_AMOUNT_TOKEN_RE.search(sentence)
+                        or _PERCENT_TOKEN_RE.search(sentence)):
+                    # A figure outside every component clause is unexplained
+                    # by the equivalence claim.
+                    return None
+                continue
+            anchors.sort()
+            for match in _AMOUNT_TOKEN_RE.finditer(sentence):
+                raw = (
+                    match.group("symbol_amount")
+                    or match.group("code_amount") or "").replace(",", "")
+                value = abs(cls._decimal(raw))
+                if value in excluded:
+                    continue
+                owner = cls._nearest_label(anchors, match.start(), match.end())
+                if owner is None:
+                    return None
+                claims[owner]["amounts"].append(value)
+                any_representation = True
+            for match in _PERCENT_TOKEN_RE.finditer(sentence):
+                percentage = cls._decimal(match.group("pct"))
+                resolved = total * percentage / Decimal(100)
+                owner = cls._nearest_label(anchors, match.start(), match.end())
+                if owner is None:
+                    return None
+                claims[owner]["percentages"].append((percentage, resolved))
+                any_representation = True
+        if not any_representation:
+            return None
+
+        result: List[Dict[str, Any]] = []
+        shared = False
+        for label in labels:
+            amounts = claims[label]["amounts"]
+            percentages = claims[label]["percentages"]
+            resolved_values = [resolved for _, resolved in percentages]
+            values = amounts + resolved_values
+            if not values:
+                continue
+            if any(
+                    abs(value - values[0]) > tolerance
+                    for value in values[1:]):
+                # Same component, different value: a real disagreement.
+                return None
+            if amounts and percentages:
+                # Show the amount, and the stated percentage that resolves to
+                # it; the pair is exactly the equivalence being certified.
+                percentage = next(
+                    (raw for raw, resolved in percentages
+                     if abs(resolved - amounts[0]) <= tolerance),
+                    None)
+                shared = True
+            else:
+                percentage = percentages[0][0] if percentages else None
+            result.append({
+                "label": label,
+                "amount": amounts[0] if amounts else resolved_values[0],
+                "percentage": percentage,
+            })
+        if not shared:
+            # Only one representation kind exists in the section; there is no
+            # evidence that the apparent conflict is merely notational.
+            return None
+        return result
+
+    @classmethod
+    def _total_estimates_agreement(
+        cls, body: str, check: Dict[str, Any],
+    ) -> Optional[str]:
+        """Replacement for a "conflicting estimates" claim that agrees on total.
+
+        ``check`` is authoritative for the total. The rewrite is only offered
+        when every amount stated as an estimate of the total/gap/shortfall
+        equals that total. A genuinely different total estimate (for example,
+        finance's 36,000 against sales' 42,000) returns ``None`` so the conflict
+        stays visible, and a no-conflict claim is never rewritten.
+        """
+        if check is None or check.get("total") is None:
+            return None
+        total = abs(cls._decimal(check.get("total")))
+        if total == 0:
+            return None
+        estimates: List[Decimal] = []
+        for sentence in _SENTENCE_SPLIT_RE.split(str(body or "")):
+            if not (
+                _ESTIMATE_WORD_RE.search(sentence)
+                and _TOTAL_ESTIMATE_ROLE_RE.search(sentence)
+            ):
+                continue
+            for match in _AMOUNT_TOKEN_RE.finditer(sentence):
+                raw = (
+                    match.group("symbol_amount")
+                    or match.group("code_amount") or "").replace(",", "")
+                if not raw:
+                    continue
+                try:
+                    estimates.append(abs(cls._decimal(raw)))
+                except InvalidOperation:
+                    continue
+        if not estimates:
+            return None
+        tolerance = max(Decimal("1"), total * Decimal("0.0005"))
+        if any(abs(value - total) > tolerance for value in estimates):
+            return None
+
+        claim = _CONFLICT_CLAIM_SENTENCE_RE.search(str(body or ""))
+        if claim is None:
+            return None
+        claim_text = claim.group(0)
+        if (
+            _NO_CONFLICT_CLAIM_RE.search(claim_text)
+            or not _ESTIMATE_WORD_RE.search(claim_text)
+            or not _TOTAL_ESTIMATE_ROLE_RE.search(claim_text)
+        ):
+            return None
+
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        total_text = cls._format_reconciled_value(
+            total, currency, unit)
+        baseline = check.get("baseline_label")
+        actual = check.get("actual_label")
+        basis = (
+            f" ({baseline} minus {actual})"
+            if baseline and actual else "")
+        return (
+            f"The specialists' identical {total_text} estimates agree on the "
+            f"total{basis}, even though their component coverage differs.")
+
+    @classmethod
+    def _equivalent_conflict_statement(
+        cls, check: Dict[str, Any], claims: List[Dict[str, Any]],
+    ) -> str:
+        """Agreement grounded in the computed total and the stated figures."""
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        total_text = cls._format_reconciled_value(
+            check.get("total"), currency, unit)
+        total_label = str(check.get("total_label") or "total")
+        shares = []
+        for claim in claims:
+            amount_text = cls._format_reconciled_value(
+                claim["amount"], currency, unit)
+            percentage = claim.get("percentage")
+            if percentage is None:
+                shares.append(f"{claim['label']}: {amount_text}")
+            else:
+                shares.append(
+                    f"{claim['label']}: {amount_text} "
+                    f"({cls._format_percentage(percentage)}% of the "
+                    f"{total_text} {total_label})")
+        statement = (
+            "No substantive conflict. The specialists' representations "
+            "agree: " + "; ".join(shares)
+            + ". Equivalent amounts and percentages are not a disagreement.")
+        residual = check.get("residual")
+        if residual is not None:
+            residual_value = cls._decimal(residual)
+            residual_text = cls._format_reconciled_value(
+                abs(residual_value), currency, unit)
+            if residual_value > 0:
+                statement += (
+                    f" The {residual_text} residual remains unexplained.")
+            elif residual_value < 0:
+                statement += (
+                    f" The named contributors exceed the total by "
+                    f"{residual_text}; that excess is not explained by the "
+                    "supplied figures.")
+            else:
+                statement += (
+                    " The named contributors account for the total exactly.")
+        if check.get("conditional"):
+            statement += (
+                " Attribution basis: scoped specialist evidence "
+                "(conditional; the request's wording does not attribute "
+                "these figures).")
+        return statement
+
+    @classmethod
+    def _conflict_amount_claims(
+        cls, text: str, check: Dict[str, Any],
+    ) -> Dict[str, List[Decimal]]:
+        """Group a disclosure's amounts by the role they quantify.
+
+        Roles are the verified total, each evidenced component label, and the
+        residual. A figure with no label and no role word is unattributed and
+        is deliberately ignored: it cannot establish either agreement or a
+        disagreement. Baseline/actual amounts are not competing totals, so
+        they are excluded.
+        """
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        claims: Dict[str, List[Decimal]] = {
+            "total": [], "residual": []}
+        claims.update({label: [] for label in labels})
+        excluded = set()
+        for key in ("baseline", "actual"):
+            if check.get(key) is not None:
+                try:
+                    excluded.add(abs(cls._decimal(check.get(key))))
+                except (InvalidOperation, TypeError):
+                    continue
+        for sentence in _SENTENCE_SPLIT_RE.split(str(text or "")):
+            if not sentence.strip():
+                continue
+            lowered = sentence.lower()
+            anchors: List[tuple[int, int, str]] = []
+            for label in labels:
+                pattern = cls._label_pattern(label)
+                if pattern is None:
+                    continue
+                anchors.extend(
+                    (match.start(), match.end(), label)
+                    for match in pattern.finditer(lowered))
+            anchors.sort()
+            role = None
+            if not anchors:
+                if _RESIDUAL_CONFLICT_ROLE_RE.search(lowered):
+                    role = "residual"
+                elif _TOTAL_CONFLICT_ROLE_RE.search(lowered):
+                    role = "total"
+            for match in _AMOUNT_TOKEN_RE.finditer(sentence):
+                raw = (
+                    match.group("symbol_amount")
+                    or match.group("code_amount") or "").replace(",", "")
+                if not raw:
+                    continue
+                try:
+                    value = abs(cls._decimal(raw))
+                except InvalidOperation:
+                    continue
+                if value in excluded:
+                    continue
+                owner = (
+                    cls._nearest_label(anchors, match.start(), match.end())
+                    if anchors else role)
+                if owner is None:
+                    continue
+                claims[owner].append(value)
+        return claims
+
+    @classmethod
+    def _conflict_values_opposed(
+        cls,
+        claims: Dict[str, List[Decimal]],
+        check: Dict[str, Any],
+        figures: Optional[List[Dict[str, Any]]] = None,
+    ) -> bool:
+        """Whether any role carries two genuinely different amounts.
+
+        Two representations of one value are not a disagreement, so the
+        comparison uses the same rounding tolerance as the arithmetic check.
+        A stated total or component amount that contradicts the authoritative
+        figure is also a real disagreement, not a rendering artefact.
+        """
+        total = abs(cls._decimal(check.get("total")))
+        tolerance = max(Decimal("1"), total * Decimal("0.0005"))
+        for values in claims.values():
+            if len(values) < 2:
+                continue
+            first = values[0]
+            if any(abs(value - first) > tolerance for value in values[1:]):
+                return True
+        total_claims = claims.get("total") or []
+        if any(abs(value - total) > tolerance for value in total_claims):
+            return True
+        authoritative = {}
+        for figure in figures or []:
+            label = str(figure.get("label") or "")
+            if not label:
+                continue
+            try:
+                authoritative[label] = abs(cls._decimal(figure.get("value")))
+            except (InvalidOperation, TypeError):
+                continue
+        for label, values in claims.items():
+            if label in ("total", "residual") or not values:
+                continue
+            expected = authoritative.get(label)
+            if expected is not None and any(
+                    abs(value - expected) > tolerance for value in values):
+                return True
+        return False
+
+    @classmethod
+    def _false_conflict_is_unsupported(
+        cls,
+        body: str,
+        check: Dict[str, Any],
+        figures: Optional[List[Dict[str, Any]]] = None,
+        contributor_evidence: Optional[str] = None,
+    ) -> bool:
+        """Whether a conflicts section claims a disagreement the evidence denies.
+
+        A disagreement needs competing values. This returns true only when the
+        section is about the verified figures/attribution, states a conflict,
+        and neither the section nor the retained specialist evidence contains
+        two different amounts for any role (or an amount contradicting the
+        authoritative figure). Qualitative, recommendation, and residual-only
+        disagreements are never certified as false: they either fail the role
+        gate or retain a distinct pair of amounts.
+        """
+        if not _FALSE_CONFLICT_CLAIM_RE.search(body or ""):
+            return False
+        if _AGREEMENT_ALREADY_STATED_RE.search(body or ""):
+            # The section already discloses agreement; rewriting it again
+            # would only churn the prose.
+            return False
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        if not labels:
+            return False
+        cleaned = _TRAILING_EVIDENCE_NOTE_RE.sub("", body or "")
+        if _RECOMMENDATION_DELIVERABLE_RE.search(cleaned):
+            # A recommendation conflict has no numeric role here; keep it.
+            return False
+        if not any(
+                cls._label_mentioned(cleaned, label) for label in labels):
+            return False
+        claims = cls._conflict_amount_claims(cleaned, check)
+        evidence_claims = cls._conflict_amount_claims(
+            contributor_evidence or "", check)
+        for role, values in evidence_claims.items():
+            claims.setdefault(role, []).extend(values)
+        if not any(claims.values()):
+            # No numeric claim at all: preserve the model's wording.
+            return False
+        return not cls._conflict_values_opposed(claims, check, figures)
+
+    @classmethod
+    def _agreement_conflict_statement(
+        cls, check: Dict[str, Any],
+    ) -> str:
+        """Grounded replacement for an unsupported conflict claim."""
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        total_text = cls._format_reconciled_value(
+            check.get("total"), currency, unit)
+        total_label = str(check.get("total_label") or "total")
+        baseline = check.get("baseline_label")
+        actual = check.get("actual_label")
+        basis = (
+            f" ({baseline} minus {actual})"
+            if baseline and actual else "")
+        labels = [
+            str(label) for label in (check.get("component_labels") or [])]
+        statement = (
+            f"The specialists agree on the {total_text} {total_label}{basis}")
+        if labels:
+            statement += (
+                f" and on the named contributors ({', '.join(labels)})")
+        statement += "."
+        if check.get("conditional"):
+            statement += " " + cls._conditional_evidence_note(check)
+            return statement
+        residual = check.get("residual")
+        if residual is not None:
+            residual_value = cls._decimal(residual)
+            residual_text = cls._format_reconciled_value(
+                abs(residual_value), currency, unit)
+            if residual_value > 0:
+                statement += (
+                    f" The {residual_text} residual remains unexplained, so "
+                    "the named contributors are not established as "
+                    "exhaustive.")
+            elif residual_value < 0:
+                statement += (
+                    f" The named contributors exceed the total by "
+                    f"{residual_text}; that excess is not explained by the "
+                    "supplied figures.")
+            else:
+                statement += (
+                    " The named contributors account for the total exactly.")
+        return statement
+
+    @classmethod
+    def _correct_conflicts_section(
+        cls,
+        content: str,
+        checks: List[Dict[str, Any]],
+        figures: Optional[List[Dict[str, Any]]] = None,
+        contributor_evidence: Optional[str] = None,
+    ) -> tuple[str, bool]:
+        """Make the conflicts disclosure consistent with the retained evidence.
+
+        Three rendering errors are repaired here, both deterministically:
+
+        * a section that claims "no conflicts" and then describes a
+          disagreement (the unsupported claim is replaced, the disagreement
+          detail is preserved);
+        * a section that calls equivalent amounts and percentages a conflict.
+          ``50% of a 42,000 gap`` and ``21,000`` are one claim, so a section
+          whose every component figure resolves to the same value is replaced
+          by the grounded agreement statement. A genuine disagreement -- a
+          different value for the same component, an unanchored figure, or a
+          different total -- is preserved verbatim;
+        * a section that claims a disagreement although neither it nor the
+          retained specialist evidence states two different values for any
+          role. The conflict wording is replaced by the grounded agreement
+          while the component coverage detail stays. Competing totals,
+          competing component amounts, recommendation differences, and
+          residual-only disputes keep the model's text.
+
+        When the request grounds a figure, its amount is kept in the section so
+        the disclosure is reconciled against evidence rather than left as an
+        unsupported tie. Explicit/withheld cases pass through.
+        """
+        matches = list(_SYNTHESIS_SECTION_RE.finditer(content or ""))
+        target = next(
+            ((index, match) for index, match in enumerate(matches)
+             if match.group("name").upper().startswith("CONFLICTS RECONCILED")),
+            None,
+        )
+        if target is None:
+            return content, False
+        index, match = target
+        section_end = (
+            matches[index + 1].start()
+            if index + 1 < len(matches) else len(content))
+        body = content[match.end():section_end]
+
+        total_agreement_rewritten = False
+        if len(checks) == 1:
+            agreement = cls._total_estimates_agreement(body, checks[0])
+            if agreement:
+                claim = _CONFLICT_CLAIM_SENTENCE_RE.search(body)
+                if claim is not None:
+                    rewritten = (
+                        body[:claim.start()] + agreement + body[claim.end():])
+                    if rewritten != body:
+                        body = rewritten
+                        total_agreement_rewritten = True
+
+        if (
+            not total_agreement_rewritten
+            and len(checks) == 1
+            and _CONFLICT_CLAIM_RE.search(body)
+        ):
+            claims = cls._component_representation_claims(
+                _TRAILING_EVIDENCE_NOTE_RE.sub("", body), checks[0])
+            if claims:
+                trailing = ""
+                if body.endswith("\n\n"):
+                    trailing = "\n\n"
+                elif body.endswith("\n"):
+                    trailing = "\n"
+                replacement = (
+                    cls._equivalent_conflict_statement(checks[0], claims))
+                return (
+                    content[:match.end()] + "\n\n" + replacement + trailing
+                    + content[section_end:],
+                    True,
+                )
+
+        if (
+            not total_agreement_rewritten
+            and len(checks) == 1
+            and cls._false_conflict_is_unsupported(
+                body, checks[0], figures, contributor_evidence)
+        ):
+            remaining = body
+            for claim in reversed(list(
+                    _FALSE_CONFLICT_CLAIM_SENTENCE_RE.finditer(body))):
+                remaining = remaining[:claim.start()] + remaining[claim.end():]
+            remaining = re.sub(r"[ \t]{2,}", " ", remaining)
+            remaining = re.sub(r"\n{3,}", "\n\n", remaining).strip()
+            trailing = ""
+            if body.endswith("\n\n"):
+                trailing = "\n\n"
+            elif body.endswith("\n"):
+                trailing = "\n"
+            replacement = cls._agreement_conflict_statement(checks[0])
+            if remaining:
+                separator = (
+                    "\n\n"
+                    if remaining.startswith(("-", "*", "•"))
+                    or re.search(r"(?:^|\n)\s*(?:-|\*|•)\s", remaining)
+                    else " ")
+                replacement += separator + remaining
+            return (
+                content[:match.end()] + "\n\n" + replacement + trailing
+                + content[section_end:],
+                True,
+            )
+
+        if not (
+            _NO_CONFLICT_CLAIM_RE.search(body)
+            and _CONFLICT_DISAGREEMENT_RE.search(body)
+        ):
+            if total_agreement_rewritten:
+                return (
+                    content[:match.end()] + body + content[section_end:],
+                    True,
+                )
+            return content, False
+
+        replacement = "The specialists disagree."
+        if re.search(r"(?i)\b(?:total\s+shortfall|shortfall\s+total)\b", body):
+            replacement = "The specialists disagree on the total shortfall."
+        elif re.search(r"(?i)\b(?:gap|variance|delta)\b", body):
+            replacement = "The specialists disagree on the gap."
+        corrected = _NO_CONFLICT_SENTENCE_RE.sub(
+            replacement, body, count=1)
+        if corrected == body:
+            corrected = _NO_CONFLICT_CLAIM_RE.sub(
+                "The specialists disagree", body, count=1)
+        # Keep the request-grounded figure in the disclosure without inventing
+        # a different disagreement. If the model already named it, leave it.
+        check = checks[0] if checks else None
+        if check is not None and check.get("total") is not None:
+            currency = str(check.get("currency") or "")
+            unit = str(check.get("unit") or "")
+            if not cls._reconciliation_amount_present(
+                    corrected, check.get("total"), currency, unit):
+                formatted = cls._format_reconciled_value(
+                    check.get("total"), currency, unit)
+                label = str(check.get("total_label") or "total")
+                baseline = check.get("baseline_label")
+                actual = check.get("actual_label")
+                basis = (
+                    f" ({baseline} minus {actual})"
+                    if baseline and actual else "")
+                corrected = corrected.rstrip() + (
+                    f" The original request supports the {formatted} "
+                    f"{label}{basis}.")
+        return (
+            content[:match.end()] + corrected + content[section_end:],
+            True,
+        )
+
+    @staticmethod
+    def _sentence_containing(text: str, start: int, end: int) -> str:
+        """The sentence around a span, used only to recognise attribution."""
+        left = max(
+            text.rfind(".", 0, start),
+            text.rfind("!", 0, start),
+            text.rfind("?", 0, start),
+            text.rfind("\n", 0, start),
+        )
+        right_positions = [
+            position for position in (
+                text.find(".", end),
+                text.find("!", end),
+                text.find("?", end),
+                text.find("\n", end),
+            ) if position != -1
+        ]
+        right = min(right_positions) if right_positions else len(text)
+        return text[left + 1:right + 1]
+
+    @staticmethod
+    def _residual_amount_matches_check(
+        amount_text: str, check: Dict[str, Any],
+    ) -> bool:
+        """Whether an amount's notation is the check's own currency/unit."""
+        unit = str(check.get("unit") or "").strip().upper()
+        currency = str(check.get("currency") or "").strip()
+        mentioned_codes = {
+            token.upper() for token in re.findall(r"[A-Za-z]{3}", amount_text)
+            if token.upper() in _CURRENCY_CODES}
+        if mentioned_codes and (
+                not unit or mentioned_codes != {unit}):
+            return False
+        symbols = re.findall(r"[$€£¥₹]", amount_text)
+        if symbols:
+            expected = _CURRENCY_CODE_SYMBOLS.get(unit)
+            if expected is None and len(currency) == 1:
+                expected = currency
+            if expected is None or symbols[0] != expected:
+                return False
+        return True
+
+    @classmethod
+    def _ground_residual_references(
+        cls,
+        content: str,
+        checks: List[Dict[str, Any]],
+        figures: Optional[List[Dict[str, Any]]] = None,
+    ) -> tuple[str, bool]:
+        """Make residual references agree with the structured check.
+
+        CONFLICTS RECONCILED and PROPOSED NEXT STEPS can repeat the model's own
+        residual after the authoritative QUANTITATIVE RECONCILIATION section
+        has computed a different one. Only a phrase that presents an amount as
+        the remaining/residual quantity is rewritten, and only to a positive
+        computed residual. A specialist-attributed residual (a genuine
+        disagreement), an amount that is one of the grounded figures, and an
+        unrelated amount in the same section are preserved.
+        """
+        if len(checks) != 1:
+            return content, False
+        check = checks[0]
+        residual = check.get("residual")
+        if residual is None:
+            return content, False
+        residual_value = cls._decimal(residual)
+        if residual_value <= 0:
+            # A negative remainder is an excess, not a "remaining shortfall";
+            # leave the prose to the authoritative reconciliation section.
+            return content, False
+        currency = str(check.get("currency") or "")
+        unit = str(check.get("unit") or "")
+        formatted = cls._format_reconciled_value(
+            residual_value, currency, unit)
+
+        grounded = {abs(residual_value)}
+        for key in ("total", "component_sum", "baseline", "actual"):
+            if check.get(key) is None:
+                continue
+            try:
+                grounded.add(abs(cls._decimal(check.get(key))))
+            except InvalidOperation:
+                continue
+        conditional = check.get("conditional_calculation") or {}
+        for key in ("component_sum", "residual"):
+            if conditional.get(key) is None:
+                continue
+            try:
+                grounded.add(abs(cls._decimal(conditional.get(key))))
+            except InvalidOperation:
+                continue
+        for figure in figures or []:
+            try:
+                grounded.add(abs(cls._decimal(figure.get("value"))))
+            except (InvalidOperation, TypeError):
+                continue
+
+        matches = list(_SYNTHESIS_SECTION_RE.finditer(content or ""))
+        section_spans: List[tuple[int, int]] = []
+        for index, match in enumerate(matches):
+            name = match.group("name").upper()
+            if not (
+                name.startswith("CONFLICTS RECONCILED")
+                or name.startswith("PROPOSED NEXT STEPS")
+            ):
+                continue
+            section_end = (
+                matches[index + 1].start()
+                if index + 1 < len(matches) else len(content))
+            section_spans.append((match.end(), section_end))
+
+        edits: List[tuple[int, int, str]] = []
+        for start, end in section_spans:
+            body = content[start:end]
+            replacements: List[tuple[int, int, str]] = []
+            for reference in _RESIDUAL_REFERENCE_RE.finditer(body):
+                amount_text = reference.group("amount")
+                raw = re.sub(r"[^\d.]", "", amount_text)
+                if not raw:
+                    continue
+                try:
+                    value = abs(cls._decimal(raw))
+                except InvalidOperation:
+                    continue
+                if value in grounded:
+                    continue
+                if not cls._residual_amount_matches_check(
+                        amount_text, check):
+                    continue
+                sentence = cls._sentence_containing(
+                    body, reference.start("amount"), reference.end("amount"))
+                if _SOURCE_RESIDUAL_CLAIM_RE.search(sentence):
+                    # An attributed residual is evidence of a disagreement,
+                    # not a rendering error.
+                    continue
+                cue = (reference.group("cue") or "").lower()
+                between = reference.group("between") or ""
+                tail = body[
+                    reference.end("amount"):reference.end("amount") + 60]
+                if not (
+                    cue in ("residual", "remainder")
+                    or _RESIDUAL_ROLE_RE.search(between)
+                    or _RESIDUAL_ROLE_RE.search(tail)
+                ):
+                    # "remaining training budget" is not the shortfall
+                    # residual; preserve it.
+                    continue
+                replacements.append((
+                    reference.start("amount"),
+                    reference.end("amount"),
+                    formatted,
+                ))
+            for ref_start, ref_end, replacement in reversed(replacements):
+                body = body[:ref_start] + replacement + body[ref_end:]
+            if body != content[start:end]:
+                edits.append((start, end, body))
+
+        for start, end, body in reversed(edits):
+            content = content[:start] + body + content[end:]
+        return content, bool(edits)
 
     @staticmethod
     def _has_concrete_proposals(body: str) -> bool:
@@ -2490,7 +4220,10 @@ Return JSON matching the TaskAnalysis schema."""
             "possible: a qualified calculation is still allowed when the "
             "request or evidence states how same-unit figures relate. Show "
             "its inputs and result, and label it a qualified calculation "
-            "rather than harness arithmetic. Never infer a relationship from "
+            "rather than harness arithmetic. When contributor membership is "
+            "conditional, keep that evidence level in every section that "
+            "restates the attribution, not only here. Never infer a "
+            "relationship from "
             "magnitude or ordering and never add, subtract, or convert across "
             "units or currencies. Use the harness arithmetic above when "
             "present; never substitute a different calculation.\n"
@@ -2765,7 +4498,35 @@ Return JSON matching the TaskAnalysis schema."""
             and cached.get("status") == "completed"
             and isinstance(cached.get("result"), dict)
         ):
+            # Deep copy: revalidation must never mutate the nested cache
+            # metadata in place. The shallow copy used to alias
+            # ``specialist_results`` items, so a replay rewrote the durable
+            # cached receipt/footer through the shared nested dicts.
             cached_result = dict(cached["result"])
+            stored_receipts = cached_result.get("recorded_actions")
+            validated_receipts = self._validated_action_receipts(
+                stored_receipts)
+            cached_result["recorded_actions"] = validated_receipts
+            # Revalidate the per-specialist copy too: a consumer that reads
+            # ``specialist_results`` must not see an unproven cached action.
+            cached_specialists = cached_result.get("specialist_results")
+            if isinstance(cached_specialists, list):
+                for item in cached_specialists:
+                    if isinstance(item, dict) and (
+                            "recorded_actions" in item):
+                        item["recorded_actions"] = (
+                            self._validated_action_receipts(
+                                item.get("recorded_actions")))
+            # A cached claim may no longer survive revalidation even when the
+            # ledger keeps its length (e.g. an unsupported ``verified``
+            # verdict downgraded to ``not_reported``). Compare the rebuilt
+            # text, not the list length, so the footer can never disagree
+            # with the receipts returned beside it.
+            if isinstance(cached_result.get("final_output"), str):
+                rebuilt_output = self._with_execution_status_footer(
+                    cached_result.get("final_output"), validated_receipts)
+                if rebuilt_output != cached_result.get("final_output"):
+                    cached_result["final_output"] = rebuilt_output
             cached_result["cached"] = True
             return cached_result
 
@@ -2919,11 +4680,11 @@ Return JSON matching the TaskAnalysis schema."""
                     # The durable claim proves this exact child already ran.
                     # Recover its actual output without a second dispatch and
                     # re-materialize the link/cache material.
-                    recovered_actions = (
-                        existing_result.get("recorded_actions")
-                        if isinstance(
-                            existing_result.get("recorded_actions"), list)
-                        else [])
+                    # Cached/recovered receipt JSON predates this contract
+                    # unless it carries the dispatch producer's stamp. Only
+                    # revalidated receipts may travel with recovered work.
+                    recovered_actions = self._validated_action_receipts(
+                        existing_result.get("recorded_actions"))
                     self._finish_specialist_link(
                         link, binding=binding, status="completed",
                         success=True, output_length=len(recovered),
@@ -3101,12 +4862,13 @@ Return JSON matching the TaskAnalysis schema."""
         # specialist can also have acted before failing, so this is taken from
         # results, not just the successful list. It stays empty when no receipt
         # was retained (e.g. a recovered child whose steps were not reloaded).
-        recorded_actions: List[Dict[str, Any]] = [
-            receipt
-            for item in results
-            for receipt in (item.get("recorded_actions") or [])
-            if isinstance(receipt, dict)
-        ]
+        recorded_actions: List[Dict[str, Any]] = (
+            self._validated_action_receipts([
+                receipt
+                for item in results
+                for receipt in (item.get("recorded_actions") or [])
+                if isinstance(receipt, dict)
+            ]))
         final_synthesis: Dict[str, Any] = {
             "attempted": False,
             "used": False,
