@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import importlib
+import io
 import itertools
 import json
 import logging
@@ -42,6 +43,7 @@ def get_byok_manager(*args, **kwargs):
 from core.cost_config import (
     BYOK_ENABLED_PLANS,
     MODEL_TIER_RESTRICTIONS,
+    get_llm_audio_cost,
     get_llm_cost)
 from core.llm.provider_rate_limits import get_provider_rate_tracker
 import core.database
@@ -1897,6 +1899,152 @@ def _dynamic_price_row_present(fetcher: Any, model: str) -> bool:
         # Cannot prove absence: treat the row as present so invalid material
         # is never silently replaced by a fallback or a free fact.
         return True
+
+
+def _configured_audio_cost(
+    fetcher: Any, model: str, audio_seconds: Optional[float],
+) -> Optional[float]:
+    """Configured USD cost for ``audio_seconds`` of TIME-billed audio.
+
+    Time is the quantity: a token estimate (or a byte length) is not a valid
+    substitute. In particular this never routes audio through the per-token
+    ``estimate_cost``: a token estimator multiplies a fabricated token count
+    and would price an audio attempt on a quantity the provider does not
+    bill. The same model-price catalog is reused: an explicit per-second (or
+    per-minute) rate wins, a present-but-unusable row is unknown (never masked
+    by a static/fallback price), and the static table is consulted only for
+    its exact documented model identity.
+    """
+    if audio_seconds is None or isinstance(audio_seconds, bool):
+        return None
+    try:
+        seconds = float(audio_seconds)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    if fetcher is None:
+        return _valid_cost(get_llm_audio_cost(model, seconds))
+
+    audio_estimate = getattr(fetcher, "estimate_audio_cost", None)
+    if callable(audio_estimate):
+        try:
+            cost = audio_estimate(model, seconds)
+        except Exception:
+            cost = None
+        if cost is not None:
+            return _valid_cost(cost)
+
+    price_probe = getattr(fetcher, "get_model_price", None)
+    if callable(price_probe):
+        try:
+            pricing = price_probe(model)
+        except Exception:
+            # Cannot prove absence: never replace an unreadable configured row
+            # with a fallback/free fact.
+            return None
+        if pricing is not None:
+            rate = DynamicPricingFetcher.audio_rate_per_second(pricing)
+            if rate is None:
+                return None
+            return _valid_cost(rate * seconds)
+
+    # No configured audio row is readable: only a static price for this exact
+    # model identity may fill the gap. Unknown stays unknown (None).
+    return _valid_cost(get_llm_audio_cost(model, seconds))
+
+
+def _positive_seconds(value: Any) -> Optional[float]:
+    """Finite positive duration in seconds, or ``None``.
+
+    Used for durations that are evidence of the billed quantity. Zero,
+    negatives, NaN/inf, bools and non-numerics are not durations.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    return seconds
+
+
+def _read_audio_payload(file: Any) -> tuple:
+    """Read audio bytes for duration probing without consuming the transport.
+
+    Returns ``(data, transport_file, filename)``. A seekable file-like object
+    is rewound to its original position; a non-seekable stream is replaced by
+    an equivalent ``BytesIO`` so the one physical dispatch still receives all
+    of the bytes. Unreadable/test objects yield ``(None, file, name)``.
+    """
+    name = getattr(file, "name", None)
+    if isinstance(file, (tuple, list)) and len(file) >= 2:
+        if isinstance(file[0], str):
+            name = file[0]
+        payload = file[1]
+        if isinstance(payload, (bytes, bytearray, memoryview)):
+            return bytes(payload), file, name
+    if isinstance(file, (bytes, bytearray, memoryview)):
+        return bytes(file), file, name
+
+    reader = getattr(file, "read", None)
+    if callable(reader):
+        position = None
+        try:
+            position = file.tell()
+        except Exception:
+            position = None
+        try:
+            payload = reader()
+        except Exception:
+            return None, file, name
+        if isinstance(payload, (bytes, bytearray, memoryview)):
+            data = bytes(payload)
+            if position is not None:
+                try:
+                    file.seek(position)
+                    return data, file, name
+                except Exception:
+                    pass
+            replacement = io.BytesIO(data)
+            if isinstance(name, str) and name:
+                try:
+                    replacement.name = name
+                except Exception:
+                    pass
+            return data, replacement, name
+        return None, file, name
+
+    if isinstance(file, (str, os.PathLike)):
+        try:
+            with open(file, "rb") as handle:
+                return handle.read(), file, os.fspath(file)
+        except Exception:
+            return None, file, name
+    return None, file, name
+
+
+def _audio_duration_from_response(response: Any) -> Optional[float]:
+    """Audio duration the provider reports for the completed call.
+
+    Trusted as the settlement quantity (post-dispatch) only: OpenAI's
+    ``verbose_json`` reports the duration it actually billed. It is never used
+    to shape the pre-dispatch reservation, and a missing/invalid value returns
+    ``None`` (explicit unknown liability) instead of a fabricated number.
+    """
+    for field in ("duration", "audio_duration"):
+        seconds = _positive_seconds(_response_field(response, field))
+        if seconds is not None:
+            return seconds
+    usage = _response_usage(response)
+    for field in ("duration", "audio_duration", "seconds"):
+        value = _response_field(usage, field) if usage is not None else None
+        seconds = _positive_seconds(value)
+        if seconds is not None:
+            return seconds
+    return None
 
 
 def _opencode_free_paid_fallback() -> dict:
@@ -11320,13 +11468,122 @@ class BYOKHandler:
         # Graceful degradation: best-ranked valid sample wins.
         return valid[0]
 
+    def _admit_transcription_attempt(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        audio_seconds: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> tuple:
+        """Durable pre-dispatch admission for ONE physical transcription call.
+
+        Transcription is billed by media TIME. The bound uses the duration
+        read from the actual audio container (never a byte length or a caller
+        hint that contradicts it) and the same TokenUsage reservation ledger
+        as every other paid attempt. Unknown duration or unknown/invalid price
+        is an explicit unknown bound: hard_stop refuses before any audio
+        leaves the process.
+
+        Enforcement is always on. A non-default tenant whose billing policy
+        cannot be resolved fails closed through the strict policy read, the
+        same as every other paid dispatch; an unresolvable scope is never
+        downgraded to an unenforced ledger row.
+        """
+        request_id = f"transcription-{uuid.uuid4().hex}"
+        attempt_id = f"{request_id}:1"
+        cost = _configured_audio_cost(
+            get_pricing_fetcher(), model, audio_seconds)
+        if cost is None:
+            bound = None
+        else:
+            try:
+                margin = float(
+                    os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
+            except (TypeError, ValueError):
+                margin = 1.25
+            if not math.isfinite(margin) or margin < 1.0:
+                margin = 1.25
+            bound = _valid_cost(cost * margin)
+        tenant_id = getattr(self, "tenant_id", None)
+        try:
+            from core.spend_aggregation_service import begin_llm_usage
+
+            begin_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=tenant_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+                reserved_cost_usd=bound,
+                enforce_budget=True,
+            )
+        except Exception as intent_err:
+            raise _AccountingBlockedError(
+                f"transcription admission refused for "
+                f"{provider_id}/{model} ({type(intent_err).__name__})"
+            ) from intent_err
+        return request_id, attempt_id, bound
+
+    def _settle_transcription_response(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        response: Any,
+        request_id: str,
+        attempt_id: str,
+        reserved_bound: Optional[float],
+        audio_seconds: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> None:
+        """Settle one transcription response under its exact attempt id.
+
+        The provider's reported ``duration`` wins; otherwise the duration read
+        from the submitted media is the actual billed quantity. No duration
+        means explicit unknown liability (the reservation is retained), never
+        a fabricated free/zero settlement. A genuine numeric-zero admission
+        bound remains authoritative free.
+        """
+        actual_seconds = _audio_duration_from_response(response)
+        if actual_seconds is None:
+            actual_seconds = audio_seconds
+        cost: Optional[float] = None
+        if actual_seconds is not None:
+            cost = _configured_audio_cost(
+                get_pricing_fetcher(), model, actual_seconds)
+        if reserved_bound == 0.0 and cost is None:
+            cost = 0.0
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error(
+                "LLM transcription settlement failed (%s)",
+                type(settle_err).__name__)
+
     async def generate_transcription(
         self,
         file: Any,
         model: str = "whisper-1",
         language: Optional[str] = None,
         prompt: Optional[str] = None,
-        response_format: str = "json"
+        response_format: str = "json",
+        duration_seconds: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Transcribe audio to text using OpenAI Whisper.
@@ -11351,6 +11608,27 @@ class BYOKHandler:
         if not client:
             raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
 
+        audio_bytes, transport_file, filename = _read_audio_payload(file)
+        measured_seconds = None
+        if audio_bytes:
+            from core.media_duration import media_duration_seconds
+
+            measured_seconds = media_duration_seconds(audio_bytes, filename)
+        # Billing evidence order: the submitted media bytes are authoritative
+        # for the pre-dispatch bound. A caller-supplied hint is accepted only
+        # when the payload could not be measured at all, and it can never
+        # override (i.e. shrink) a duration measured from the bytes.
+        duration_seconds = (
+            measured_seconds if measured_seconds is not None
+            else _positive_seconds(duration_seconds))
+
+        _tx_request_id, _tx_attempt_id, _tx_bound = (
+            self._admit_transcription_attempt(
+                provider_id=provider_id,
+                model=model,
+                audio_seconds=duration_seconds,
+            )
+        )
         try:
             # Use the underlying openai client if it's patched by instructor
             # or use it directly if it's a standard client
@@ -11358,10 +11636,19 @@ class BYOKHandler:
             
             response = await raw_client.audio.transcriptions.create(
                 model=model,
-                file=file,
+                file=transport_file,
                 language=language,
                 prompt=prompt,
                 response_format=response_format
+            )
+            self._settle_transcription_response(
+                provider_id=provider_id,
+                model=model,
+                response=response,
+                request_id=_tx_request_id,
+                attempt_id=_tx_attempt_id,
+                reserved_bound=_tx_bound,
+                audio_seconds=duration_seconds,
             )
             
             # Format response (handle both standard and raw response types)
@@ -11372,6 +11659,8 @@ class BYOKHandler:
                 "model": model,
                 "provider": provider_id
             }
+        except _AccountingBlockedError:
+            raise
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")
             raise
