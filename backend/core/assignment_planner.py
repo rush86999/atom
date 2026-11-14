@@ -192,6 +192,53 @@ def _source_step(
     )
 
 
+def _aggregate_sources_step(
+    sources: Sequence[Dict[str, Any]],
+    aggregate: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Aggregate the WHOLE accepted source scope as one calculation.
+
+    A calculation that names no source applies to every accepted source. The
+    alternative — silently aggregating the first source and merely reading the
+    rest — serves a partial total as if it were the requested one (the
+    2026-11-13 full-population workbook: 1,758.00 served where the 20 data
+    sheets total 34,533). Every binding is aggregated and combined by the
+    dataset.aggregate adapter, so a source that cannot be aggregated fails the
+    calculation with a named gap instead of being dropped.
+    """
+    bindings = [resource_binding(dict(source)) for source in sources]
+    file_names = {
+        str(source.get("original_file_name") or source.get("file_name") or "")
+        for source in sources
+    }
+    display_name = file_names.pop() if len(file_names) == 1 else ""
+    inputs: Dict[str, Any] = {
+        "resource_bindings": bindings,
+        "source_count": len(bindings),
+        "operation": str(aggregate.get("operation") or "sum").strip().lower(),
+    }
+    if aggregate.get("value_column"):
+        inputs["value_column"] = str(aggregate["value_column"])
+    if aggregate.get("filters") is not None:
+        inputs["filters"] = aggregate["filters"]
+    requires: List[str] = []
+    for source in sources:
+        for item in source.get("requires") or []:
+            text = str(item or "").strip()
+            if text and text not in requires:
+                requires.append(text)
+    return new_step(
+        step_id="source-1",
+        title=(f"Aggregate {display_name} across {len(bindings)} sources"
+               if display_name else f"Aggregate {len(bindings)} sources"),
+        operation_type="calculate",
+        adapter="dataset.aggregate",
+        inputs=inputs,
+        effect="local",
+        requires=requires,
+    )
+
+
 def _deliverable_step(
     deliverable: Dict[str, Any],
     *,
@@ -411,24 +458,40 @@ def plan_assignment(
         raise AssignmentPlanError(
             "a calculation cannot be both an expression and line items")
     aggregate_index = 0
+    aggregate_all_sources = False
     if aggregate is not None:
-        aggregate_index = max(0, int(calculation.get("source_index") or 0))
-        if aggregate_index >= len(sources or []):
-            raise AssignmentPlanError(
-                "the aggregate names a source that is not in the accepted "
-                "source scope")
-        if str((sources or [])[aggregate_index].get("representation")
-               or "") != "parquet_frame":
-            raise AssignmentPlanError(
-                "a connected aggregate requires a materialized Parquet "
-                "dataset; an authorized workbook is read as rows")
-    source_steps = [
-        _source_step(
-            dict(source), index + 1,
-            aggregate=aggregate if index == aggregate_index else None,
-        )
-        for index, source in enumerate(sources or [])
-    ]
+        requested_index = calculation.get("source_index")
+        # An aggregate that names no source addresses every accepted source.
+        # Picking index 0 for a multi-source request is the silent-partial bug
+        # this branch removes.
+        aggregate_all_sources = (
+            requested_index is None and len(sources or []) > 1)
+        if aggregate_all_sources:
+            aggregate_indexes = list(range(len(sources or [])))
+        else:
+            aggregate_index = max(0, int(requested_index or 0))
+            if aggregate_index >= len(sources or []):
+                raise AssignmentPlanError(
+                    "the aggregate names a source that is not in the accepted "
+                    "source scope")
+            aggregate_indexes = [aggregate_index]
+        for index in aggregate_indexes:
+            if str((sources or [])[index].get("representation")
+                   or "") != "parquet_frame":
+                raise AssignmentPlanError(
+                    "a connected aggregate requires a materialized Parquet "
+                    "dataset; an authorized workbook is read as rows")
+    if aggregate_all_sources:
+        source_steps = [_aggregate_sources_step(
+            [dict(source) for source in sources or []], aggregate)]
+    else:
+        source_steps = [
+            _source_step(
+                dict(source), index + 1,
+                aggregate=aggregate if index == aggregate_index else None,
+            )
+            for index, source in enumerate(sources or [])
+        ]
     source_ids = [step["step_id"] for step in source_steps]
     read_steps: List[Dict[str, Any]] = []
     read_ids: List[str] = []
