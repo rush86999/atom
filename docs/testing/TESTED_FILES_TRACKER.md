@@ -9854,3 +9854,23 @@ pid 11051, `git_commit a3aa31ba4`.
 - `backend/tests/test_fleet_final_synthesis.py` — re-contracted the bounded-evidence case to the new fallback (the old assertion expected `used=true` on cut prompt evidence).
 
 **Verification**: `test_fleet_final_synthesis.py` + `test_fleet_synthesis_truncation_contract.py` = 81 passed (scratch SQLite; no provider). Real retained-evidence readback on a COPY of `.../scratch/attempt-1/atom.db`: cached repair returned all three actions + the conditional $6,000 residual, second readback identical, 0 provider calls / 0 specialist dispatches. No live DB, credentials, push, or merge.
+
+**Follow-up repair (2026-11-14 root review)**: `_last_finish_reason` alone was
+shared mutable state — the accepted route stashed it before awaiting
+`_record_outcome_feedback`, so a concurrent call on the same handler could
+replace it and both consumers returned the same reason. `BYOKHandler` now
+writes the real provider reason into a caller-owned `finish_reason_sink` on
+every accepted route; `LLMService.generate_completion` passes one fresh sink
+per call and reads it, keeping `_last_finish_reason` only as the
+text-API/legacy fallback. The CI additions ledger now declares the new
+synthesis step so the immutable pre-parallel baseline stays untouched and the
+full 127-test lane contract passes. The text-shape backstop no longer uses a
+letters-only trailing token or treats evaluative words as continuation tokens:
+"Completed items: 2 of 2", "Risk: unlikely", "Recovery is likely", and "The
+slipped deals are more likely" are valid concise outputs; only an unbalanced
+bracket or a trailing function word is weak shape evidence, and an explicit
+provider reason always wins. Tests: the truncation contract adds valid
+negative twins, explicit `stop`/`length` precedence, and a joined
+positive/failure/unknown concurrency test against the actual
+`LLMService` consumer. No live provider request, credential/config read,
+push, or merge; scratch SQLite only.

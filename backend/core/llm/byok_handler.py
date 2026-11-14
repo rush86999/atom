@@ -3091,20 +3091,38 @@ class BYOKHandler:
                     return val.strip()
         return ""
 
-    def _stash_last_reasoning(self, response: Any) -> None:
+    def _stash_last_reasoning(
+        self,
+        response: Any,
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Stash the chain-of-thought and provider stop reason of the last
-        non-streaming completion onto ``self._last_reasoning`` /
-        ``self._last_finish_reason`` (same stash pattern as
-        _last_used_model). Best-effort: never raises."""
+        non-streaming completion.
+
+        ``self._last_reasoning`` / ``self._last_finish_reason`` are kept for
+        the backward-compatible text API, but they are shared mutable state:
+        a concurrent call on the same handler can overwrite them while this
+        call is still awaiting post-response work (observed for the fleet
+        synthesis consumer). Callers that need THIS call's provider metadata
+        pass a caller-owned ``finish_reason_sink`` mapping; it is written in
+        the same task as the accepted response, so concurrent calls cannot
+        read each other's stop reason. Best-effort: never raises.
+        """
+        finish_reason: Optional[str] = None
         try:
             choice = response.choices[0]
-            self._last_finish_reason = _response_field(
-                choice, "finish_reason")
+            finish_reason = _response_field(choice, "finish_reason")
+            self._last_finish_reason = finish_reason
             msg = choice.message
             self._last_reasoning = self._reasoning_from_message(msg) or None
         except Exception:
             self._last_finish_reason = None
             self._last_reasoning = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = finish_reason
+            except Exception:
+                pass
 
     @staticmethod
     def _record_auth_success(provider_id: str, model: str) -> None:
@@ -7135,6 +7153,10 @@ class BYOKHandler:
         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
         estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
         execution_id: Optional[str] = None,  # Optional server-owned execution attribution
+        # Caller-owned, per-call transport metadata sink. The accepted route
+        # writes ``finish_reason`` here. Optional and additive: callers that
+        # only consume the text API keep working unchanged.
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -7164,9 +7186,17 @@ class BYOKHandler:
 
         # Same staleness rule for the chain-of-thought and stop-reason
         # stashes: a call that produces no reasoning/stop reason must not
-        # inherit the previous call's.
+        # inherit the previous call's. The caller-owned sink is cleared in
+        # the calling task so a retained sink cannot show an older reason
+        # either; an accepted route below overwrites it with real provider
+        # metadata.
         self._last_reasoning = None
         self._last_finish_reason = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = None
+            except Exception:
+                pass
 
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
@@ -7752,7 +7782,7 @@ class BYOKHandler:
                     else:
                         _release_once()
                     self._capture_echoed_model(response)
-                    self._stash_last_reasoning(response)
+                    self._stash_last_reasoning(response, finish_reason_sink)
                     self._clear_model_cooldown(provider_id, model)
 
                     if not getattr(response, "choices", None):
@@ -8047,7 +8077,7 @@ class BYOKHandler:
                             response = await _to_thread_safe(
                                 client.chat.completions.create, **_t_kwargs)
                             self._capture_echoed_model(response)
-                            self._stash_last_reasoning(response)
+                            self._stash_last_reasoning(response, finish_reason_sink)
                             result = response.choices[0].message.content
                             if not _visible_content_missing(result):
                                 self._settle_physical_response(
@@ -8129,7 +8159,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_fb_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8264,7 +8294,7 @@ class BYOKHandler:
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
-                                    self._stash_last_reasoning(response)
+                                    self._stash_last_reasoning(response, finish_reason_sink)
                                     result = response.choices[0].message.content
                                     if _visible_content_missing(result):
                                         raise _EmptyCompletionError(
@@ -8371,7 +8401,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_paid_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8539,7 +8569,7 @@ class BYOKHandler:
                         response = await _to_thread_safe(
                             _client.chat.completions.create, **_sweep_kwargs)
                         self._capture_echoed_model(response)
-                        self._stash_last_reasoning(response)
+                        self._stash_last_reasoning(response, finish_reason_sink)
                         _sweep_result = response.choices[0].message.content
                         if _visible_content_missing(_sweep_result):
                             raise _EmptyCompletionError(

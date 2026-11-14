@@ -94,16 +94,21 @@ _SYNTHESIS_TRUNCATION_FINISH_REASONS = frozenset({
     "length", "max_tokens", "max_output_tokens",
     "model_context_window_exceeded",
 })
-# Backstop for providers/gateways that omit finish_reason: a completion whose
-# last word is a sentence-continuation token is treated as cut off. This is a
-# shape signal only; an explicit provider finish_reason always wins.
+# Backstop for providers/gateways that omit finish_reason: a completion that
+# ends on a function word which cannot grammatically end a sentence (article,
+# conjunction, preposition, auxiliary) is weak shape evidence of a cut. This
+# is NOT proof of output truncation; an explicit provider finish_reason always
+# wins, and evaluative endings ("likely", "unlikely", "more", "most", "next")
+# are deliberately excluded because "Risk: unlikely" is a valid concise
+# answer, not a model truncation.
 _SYNTHESIS_CONTINUATION_WORDS = frozenset({
-    "a", "an", "and", "are", "as", "at", "be", "because", "been", "but",
-    "by", "for", "from", "how", "if", "in", "include", "includes",
-    "including", "is", "likely", "more", "most", "next", "of", "on", "or",
-    "per", "such", "than", "that", "the", "then", "to", "unlikely", "using",
-    "via", "was", "were", "when", "where", "which", "while", "with",
-    "without",
+    "a", "an", "and", "are", "as", "at", "be", "because", "been", "being",
+    "but", "by", "can", "could", "did", "do", "does", "for", "from", "had",
+    "has", "have", "having", "how", "if", "in", "include", "includes",
+    "including", "into", "is", "may", "might", "must", "nor", "of", "on",
+    "or", "per", "shall", "should", "such", "than", "that", "the", "then",
+    "to", "under", "upon", "using", "via", "was", "were", "when", "where",
+    "whether", "which", "while", "will", "with", "without", "would",
 })
 
 # Specialist execution can include authorized tool actions. The fleet keeps a
@@ -4287,13 +4292,22 @@ Return JSON matching the TaskAnalysis schema."""
 
     @classmethod
     def _synthesis_text_looks_cut_off(cls, content: Any) -> bool:
-        """Best-effort shape check for a completion with no stop reason.
+        """Weak structural check for a completion with no stop reason.
 
         Only used when the provider did not report a ``finish_reason`` (older
-        wrappers, injected stubs). An explicit provider stop reason always
-        wins. A dangling last word that is a sentence-continuation token, or
-        an unbalanced bracket, is treated as cut off; normal terminal
-        punctuation is accepted.
+        wrappers, injected stubs); an explicit provider stop reason always
+        wins. Text shape is never treated as proof of truncation: a valid
+        concise answer can end on any word, and an evaluative ending such as
+        "Risk: unlikely" is not a cut. Only strong structural evidence is
+        reported here -- an unbalanced opening bracket, or a trailing
+        function word that cannot end a sentence ("... corrective actions
+        are", "... 2 of").
+
+        A numeric tail is significant: ``re.findall(r"[A-Za-z']+")`` used to
+        discard the final ``2`` in "Completed items: 2 of 2" and inspect the
+        preceding "of", falsely flagging a complete count as truncation. The
+        trailing token is therefore matched as a whole and only a lexical
+        word can be a continuation signal.
         """
         text = str(content or "").rstrip()
         if not text:
@@ -4303,10 +4317,12 @@ Return JSON matching the TaskAnalysis schema."""
         if text.count("(") > text.count(")") or \
                 text.count("[") > text.count("]"):
             return True
-        words = re.findall(r"[A-Za-z']+", text.splitlines()[-1].strip())
-        if not words:
+        match = re.search(r"([A-Za-z][A-Za-z']*)\s*$", text.splitlines()[-1])
+        if not match:
+            # A trailing number, symbol, or non-lexical token is not a
+            # dangling continuation word.
             return False
-        return words[-1].lower() in _SYNTHESIS_CONTINUATION_WORDS
+        return match.group(1).lower() in _SYNTHESIS_CONTINUATION_WORDS
 
     @classmethod
     def _raw_attributed_fallback(
@@ -4484,6 +4500,10 @@ Return JSON matching the TaskAnalysis schema."""
             metadata["provider"] = response.get("provider")
             metadata["usage"] = response.get("usage")
             finish_reason = response.get("finish_reason")
+            # A blank stop reason is "not reported", not a known reason that
+            # should suppress the weak shape backstop.
+            if isinstance(finish_reason, str) and not finish_reason.strip():
+                finish_reason = None
         else:
             content = ""
         metadata["finish_reason"] = finish_reason
@@ -4494,9 +4514,11 @@ Return JSON matching the TaskAnalysis schema."""
 
         # OUTPUT truncation is a provider fact (finish_reason), never inferred
         # from the INPUT-side ``evidence_truncated`` flag. When a gateway
-        # omits the stop reason, the text's own shape is a conservative
-        # backstop. Either way the partial editorial text is not presented as
-        # the business deliverable.
+        # omits the stop reason, only strong structural text evidence (a
+        # dangling function word or an unbalanced bracket) is a weak
+        # backstop; a valid concise ending is not relabelled as truncation.
+        # Either way the partial editorial text is not presented as the
+        # business deliverable.
         output_truncated = self._synthesis_finish_reason_truncated(
             finish_reason)
         if not output_truncated and finish_reason is None:

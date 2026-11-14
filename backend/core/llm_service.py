@@ -5,6 +5,7 @@ Provides a unified interface for LLM interactions across the platform,
 wrapping the advanced BYOKHandler infrastructure.
 """
 
+import inspect
 import json
 import logging
 import os
@@ -29,6 +30,27 @@ _QUERY_COMPLEXITY_BY_NAME = {
     "complex": QueryComplexity.COMPLEX,
     "advanced": QueryComplexity.ADVANCED,
 }
+
+
+_MISSING = object()
+
+
+def _accepts_keyword(fn: Any, name: str) -> bool:
+    """Whether ``fn`` can receive keyword ``name``.
+
+    Used for additive handler metadata: real BYOKHandler accepts the per-call
+    sink, while an older/test handler with a narrow signature keeps working
+    through the legacy attribute fallback instead of raising TypeError.
+    """
+    try:
+        parameters = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return True
+    if name in parameters:
+        return True
+    return any(
+        p.kind is inspect.Parameter.VAR_KEYWORD
+        for p in parameters.values())
 
 
 def _coerce_query_complexity(
@@ -778,6 +800,17 @@ class LLMService:
         # request down to 1000.
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        # Per-call transport metadata. The handler writes this call's real
+        # provider stop reason into the sink; the handler instance attribute
+        # remains for the text-only compatibility path, but it is shared
+        # mutable state and a concurrent call can overwrite it while THIS
+        # call is still awaiting post-response work. The sink is a distinct
+        # object per generate_completion call, so consumers never inherit a
+        # neighbour's finish_reason.
+        finish_reason_sink: Dict[str, Any] = {}
+        if _accepts_keyword(
+                handler.generate_response, "finish_reason_sink"):
+            kwargs["finish_reason_sink"] = finish_reason_sink
         response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
@@ -809,6 +842,14 @@ class LLMService:
         if used_provider is None:
             used_provider = self.get_provider(used_model).value
 
+        # The sink key is present when the handler understood the contract
+        # (including an explicit None = "provider reported no stop reason").
+        # Only a handler that ignored the sink falls back to the legacy
+        # shared attribute.
+        finish_reason = finish_reason_sink.get("finish_reason", _MISSING)
+        if finish_reason is _MISSING:
+            finish_reason = getattr(handler, "_last_finish_reason", None)
+
         return {
             "success": True,
             "content": response_text,
@@ -820,12 +861,14 @@ class LLMService:
             },
             "model": used_model,
             "provider": used_provider,
-            # Provider-native stop reason for this call ("stop", "length",
-            # "max_tokens", ...). The handler returns only text, so without
-            # this a caller cannot distinguish a naturally finished answer
-            # from one cut off at the output-token cap.
-            "finish_reason": getattr(
-                handler, "_last_finish_reason", None),
+            # Provider-native stop reason for THIS call ("stop", "length",
+            # "max_tokens", ...). Read from the call-local sink the handler
+            # wrote at the accepted response; fall back to the legacy
+            # handler attribute only when the handler ignored the sink. The
+            # handler returns only text, so without this a caller cannot
+            # distinguish a naturally finished answer from one cut off at
+            # the output-token cap.
+            "finish_reason": finish_reason,
             # Identity of this generation's outcome row (set by the handler
             # when it recorded one). Callers that judge the ASSEMBLED reply
             # afterwards — the figure-grounding and verification guards — pass

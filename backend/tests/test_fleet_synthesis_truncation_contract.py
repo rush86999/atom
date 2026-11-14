@@ -116,6 +116,19 @@ TRUNCATED_SYNTHESIS = (
     "the specialist's reasoning that slipped deals are more likely"
 )
 
+# Same live symptom, but with an unambiguous structural cut: the sentence
+# ends on an auxiliary verb. Used only to exercise the provider-omitted
+# ``finish_reason`` backstop; the live evaluative ending above is weak
+# evidence on its own and must not be relabelled as truncation.
+STRONG_CUT_SYNTHESIS = (
+    "## DIRECT ANSWER:\n"
+    "Quarterly revenue closed at $198,000 against a $240,000 target - a "
+    "$42,000 shortfall.\n\n"
+    "## PROPOSED NEXT STEPS (NOT EXECUTED):\n"
+    "1. **Prioritize slipped-deal recovery** - address the $15,000 first "
+    "because the specialist's reasoning is"
+)
+
 
 class FakeSpecialist:
     """Records dispatch and returns the controlled specialist finding."""
@@ -274,9 +287,9 @@ def test_output_truncated_synthesis_falls_back_to_complete_attributed_actions(
     assert len(FakeSpecialist.calls) == 1
 
 
-def test_missing_finish_reason_uses_text_shape_backstop(world):
+def test_missing_finish_reason_uses_only_strong_text_shape_backstop(world):
     _seed_chain(world)
-    llm = FakeLLM(content=TRUNCATED_SYNTHESIS, finish_reason=None)
+    llm = FakeLLM(content=STRONG_CUT_SYNTHESIS, finish_reason=None)
     result = _run(world, llm)
 
     synthesis = result["final_synthesis"]
@@ -290,6 +303,66 @@ def test_missing_finish_reason_uses_text_shape_backstop(world):
     assert FleetAdmiral._synthesis_finish_reason_truncated(
         "max_tokens") is True
     assert FleetAdmiral._synthesis_finish_reason_truncated("stop") is False
+
+
+@pytest.mark.parametrize("text", [
+    "Completed items: 2 of 2",
+    "Risk: unlikely",
+    "Recovery is likely",
+    "The slipped deals are more likely",
+    "3 of 5 items complete",
+    "Status: 2026-11-14",
+])
+def test_valid_concise_outputs_are_not_labelled_as_model_truncation(text):
+    """A text shape is weak evidence, never proof of a provider cut.
+
+    The literal outputs from the root negative probe are all valid, complete
+    answers. In particular the old letters-only tokenizer dropped the final
+    ``2`` in "2 of 2" and inspected the preceding "of", and evaluative words
+    such as "likely" were treated as sentence-continuation tokens.
+    """
+    assert FleetAdmiral._synthesis_text_looks_cut_off(text) is False
+
+
+@pytest.mark.parametrize("text", [
+    "The corrective actions are",
+    "Completed items: 2 of",
+    "Open the attached evidence (",
+])
+def test_strong_structural_clues_are_the_only_shape_backstop(text):
+    assert FleetAdmiral._synthesis_text_looks_cut_off(text) is True
+
+
+def test_explicit_stop_reason_wins_over_an_evaluative_ending(world):
+    """A known provider reason beats the weak text shape.
+
+    The live answer ended "slipped deals are more likely". That ending alone
+    is not evidence of a cut: with finish_reason="stop" the model's own fact
+    controls, so the editorial answer is used rather than replaced.
+    """
+    _seed_chain(world)
+    result = _run(world, FakeLLM(
+        content=TRUNCATED_SYNTHESIS, finish_reason="stop"))
+
+    synthesis = result["final_synthesis"]
+    assert synthesis["used"] is True
+    assert synthesis["reason"] is None
+    assert synthesis["output_truncated"] is False
+    assert synthesis["finish_reason"] == "stop"
+
+
+def test_explicit_length_reason_wins_over_complete_looking_text(world):
+    _seed_chain(world)
+    result = _run(world, FakeLLM(
+        content=COMPLETE_SYNTHESIS, finish_reason="length"))
+
+    synthesis = result["final_synthesis"]
+    assert synthesis["used"] is False
+    assert synthesis["reason"] == "output_truncated"
+    assert synthesis["output_truncated"] is True
+    assert synthesis["finish_reason"] == "length"
+    assert "## DIRECT ANSWER:" not in result["final_output"]
+    _assert_all_actions_grounded(result["final_output"])
 
 
 def test_evidence_truncated_is_distinct_from_output_truncation(world):
@@ -406,23 +479,52 @@ def test_legacy_cached_incomplete_synthesis_is_repaired_from_durable(world):
     assert durable["final_synthesis"]["used"] is False
 
 
-def test_byok_handler_stashes_provider_finish_reason():
+def _response(finish_reason, content="answer"):
+    return SimpleNamespace(choices=[SimpleNamespace(
+        finish_reason=finish_reason,
+        message=SimpleNamespace(content=content, reasoning_content=None),
+    )])
+
+
+def test_byok_handler_writes_the_call_local_finish_reason_sink():
     from core.llm.byok_handler import BYOKHandler
 
     handler = object.__new__(BYOKHandler)
     handler._last_finish_reason = None
     handler._last_reasoning = None
-    response = SimpleNamespace(choices=[SimpleNamespace(
-        finish_reason="max_tokens",
-        message=SimpleNamespace(content="cut", reasoning_content=None),
-    )])
-    handler._stash_last_reasoning(response)
+
+    first_sink = {}
+    second_sink = {}
+    handler._stash_last_reasoning(_response("stop"), first_sink)
+    # A concurrent call on the same shared handler overwrites the legacy
+    # attribute, but cannot touch the first call's sink.
+    handler._stash_last_reasoning(_response("max_tokens"), second_sink)
+
+    assert first_sink["finish_reason"] == "stop"
+    assert second_sink["finish_reason"] == "max_tokens"
     assert handler._last_finish_reason == "max_tokens"
+    assert first_sink is not second_sink
 
 
-def test_generate_completion_surfaces_finish_reason(monkeypatch):
+def _service_with_handler(monkeypatch, handler):
     from core.llm_service import LLMService
 
+    service = object.__new__(LLMService)
+    service._workspace_id = WORKSPACE
+    service._tenant_id = TENANT
+    service._db = None
+    service.continuous_learning = None
+    # No tokenizer construction is needed for this contract: the assertion is
+    # only that the handler's provider stop reason reaches the caller.
+    service.estimate_tokens = lambda *args, **kwargs: 5
+    monkeypatch.setattr(service, "_get_handler", lambda **kwargs: handler)
+    return service
+
+
+def test_generate_completion_surfaces_finish_reason_for_text_only_handler(
+        monkeypatch):
+    """Backward compatibility: a handler that only sets the legacy attribute
+    still works with the unchanged text API."""
     class Handler:
         workspace_id = WORKSPACE
         _last_used_model = "synthesis-model"
@@ -434,20 +536,95 @@ def test_generate_completion_surfaces_finish_reason(monkeypatch):
         async def generate_response(self, **kwargs):
             return "cut"
 
-    service = object.__new__(LLMService)
-    service._workspace_id = WORKSPACE
-    service._tenant_id = TENANT
-    service._db = None
-    service.continuous_learning = None
-    # No tokenizer construction is needed for this contract: the assertion is
-    # only that the handler's provider stop reason reaches the caller.
-    service.estimate_tokens = lambda *args, **kwargs: 5
-    monkeypatch.setattr(
-        service, "_get_handler", lambda **kwargs: Handler())
-
+    service = _service_with_handler(monkeypatch, Handler())
     result = asyncio.run(service.generate_completion(
         messages=[{"role": "user", "content": "hello"}],
         workspace_id=WORKSPACE, tenant_id=TENANT))
 
     assert result["success"] is True
     assert result["finish_reason"] == "length"
+
+
+def test_generate_completion_prefers_the_per_call_finish_reason_sink(
+        monkeypatch):
+    """The per-call sink beats a stale shared ``_last_finish_reason``."""
+    class Handler:
+        workspace_id = WORKSPACE
+        _last_used_model = "synthesis-model"
+        _last_used_provider = "synthesis-provider"
+        # Stale value from some other call on the shared handler.
+        _last_finish_reason = "stop"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+
+        async def generate_response(self, *, finish_reason_sink, **kwargs):
+            finish_reason_sink["finish_reason"] = "max_tokens"
+            return "cut"
+
+    service = _service_with_handler(monkeypatch, Handler())
+    result = asyncio.run(service.generate_completion(
+        messages=[{"role": "user", "content": "hello"}],
+        workspace_id=WORKSPACE, tenant_id=TENANT))
+
+    assert result["finish_reason"] == "max_tokens"
+
+
+def test_joined_concurrent_calls_never_share_finish_reason(monkeypatch):
+    """Positive/failure/unknown calls on ONE shared handler stay isolated.
+
+    The producer writes the genuine provider reason into the caller-owned
+    sink at the accepted response, exactly as BYOKHandler now does, and then
+    parks until all three calls have arrived. Each call overwrites the
+    handler's shared ``_last_finish_reason`` before any call returns, which
+    is the live interleaving (stash at the response, then await post-response
+    feedback before returning). Without per-call metadata the consumer would
+    read one neighbour's reason for every call.
+    """
+    expected = {"positive": "stop", "truncated": "length", "unknown": None}
+
+    class SharedProducer:
+        workspace_id = WORKSPACE
+        _last_used_model = "shared-model"
+        _last_used_provider = "shared-provider"
+        _last_feedback_decision_id = None
+        _last_reasoning = None
+        _last_finish_reason = None
+
+        def __init__(self):
+            self.arrived = 0
+            self.all_arrived = asyncio.Event()
+            self.sinks = []
+
+        async def generate_response(self, *, prompt, finish_reason_sink,
+                                    **kwargs):
+            reason = expected[prompt]
+            finish_reason_sink["finish_reason"] = reason
+            self.sinks.append(finish_reason_sink)
+            self._last_finish_reason = reason
+            self.arrived += 1
+            if self.arrived == len(expected):
+                self.all_arrived.set()
+            await self.all_arrived.wait()
+            return f"answer:{prompt}"
+
+    producer = SharedProducer()
+    service = _service_with_handler(monkeypatch, producer)
+
+    async def joined():
+        return await asyncio.gather(*(
+            service.generate_completion(
+                messages=[{"role": "user", "content": key}],
+                workspace_id=WORKSPACE, tenant_id=TENANT)
+            for key in expected
+        ))
+
+    results = asyncio.run(joined())
+
+    assert [result["finish_reason"] for result in results] == [
+        "stop", "length", None]
+    # Three distinct sink objects, one per consumer call.
+    assert len({id(sink) for sink in producer.sinks}) == 3
+    # The one shared attribute can match at most one result; it cannot serve
+    # the other two correctly, proving the results did not come from it.
+    shared = producer._last_finish_reason
+    assert sum(result["finish_reason"] == shared for result in results) <= 1

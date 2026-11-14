@@ -195,16 +195,22 @@ corrective actions. Two independent truncation axes were conflated:
 | Axis | Field | Meaning |
 |---|---|---|
 | INPUT | `final_synthesis.evidence_truncated` | The bounded synthesis prompt omitted specialist text. |
-| OUTPUT | `final_synthesis.finish_reason` / `output_truncated` | The provider stopped because the output-token cap was reached (or the text shape is cut when no stop reason was reported). |
+| OUTPUT | `final_synthesis.finish_reason` / `output_truncated` | The provider stopped because the output-token cap was reached. When no stop reason is reported, only strong structural text evidence is a weak backstop; text shape alone is never proof. |
 
 `evidence_truncated=true` is **not** evidence that the provider hit the 900
 token cap (the replay used 820 completion tokens).
 
 **Provider contract.** `BYOKHandler` has always known the provider stop reason
-but `generate_response` dropped it. It is now stashed on the handler
-(`_last_finish_reason`, cleared per call) and surfaced by
-`LLMService.generate_completion` as `finish_reason`. Truncation is detected
-from the provider vocabulary, not from the input flag:
+but `generate_response` dropped it. The accepted route now writes it into a
+caller-owned `finish_reason_sink` passed by `LLMService.generate_completion`
+(one fresh mapping per call), and the service surfaces real provider metadata
+as `finish_reason`. The legacy `_last_finish_reason` attribute is retained for
+the backward-compatible text API, but it is shared mutable state: a concurrent
+call on the same handler can overwrite it while this call awaits post-response
+feedback, so it is never the per-call source when the sink is available.
+Nothing is invented: no stop reason from the provider means `None`,
+`empty_synthesis`, or an error reason, never a fabricated `"stop"`. Truncation
+is detected from the provider vocabulary, not from the input flag:
 
 - OpenAI Chat Completions: `finish_reason="length"` means the maximum number of
   tokens specified in the request was reached
@@ -212,6 +218,18 @@ from the provider vocabulary, not from the input flag:
 - Anthropic Messages: `stop_reason="max_tokens"` means the response was cut at
   `max_tokens`, and `model_context_window_exceeded` is treated as truncated
   (<https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons>).
+
+**Text shape is weak evidence.** With no provider stop reason, only a
+structural clue is considered: an unbalanced opening bracket, or a trailing
+function word that cannot end a sentence (article, conjunction, preposition,
+auxiliary, e.g. "... corrective actions are" or "... 2 of"). Evaluative
+endings such as "Risk: unlikely", "Recovery is likely", and the live
+"... slipped deals are more likely" are **valid concise answers**, not model
+truncation; the old letters-only tokenizer also dropped the final number in
+"Completed items: 2 of 2" and inspected the preceding "of". A provider reason
+always wins over this weak shape signal: `stop` uses the text, `length`/
+`max_tokens` uses the durable fallback even when the text looks complete.
+There is no quantity or domain special case.
 
 **Deliverable rule.** The editorial synthesis is used only when the output was
 not truncated and the bounded prompt carried the complete specialist
@@ -238,5 +256,7 @@ the same text with zero synthesis calls and zero dispatches.
 
 Tests: `backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
 truncated / missing finish_reason / provider failure / evidence-vs-output /
-cached readback / legacy durable repair / wrapper propagation) plus the
-existing `tests/test_fleet_final_synthesis.py` contract.
+cached readback / legacy durable repair / wrapper propagation / valid concise
+negative twins / explicit-reason precedence / joined concurrent
+positive-failure-unknown isolation) plus the existing
+`tests/test_fleet_final_synthesis.py` contract.
