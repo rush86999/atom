@@ -29,7 +29,12 @@ from pydantic import BaseModel, Field
 from core.agent_fleet_service import AgentFleetService
 from core.recruitment_intelligence_service import RecruitmentIntelligenceService
 from core.llm_service import LLMService
-from core.models import AgentRegistry, DelegationChain, ChainLink
+from core.models import (
+    AgentExecution,
+    AgentRegistry,
+    ChainLink,
+    DelegationChain,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +129,62 @@ class FleetAdmiral:
         # Authenticated scope the cached recruitment service was built with.
         # None means "not built here" (an injected/preset instance).
         self._recruitment_scope: Optional[tuple] = None
+
+    def _scoped_root_execution_id(
+        self,
+        *,
+        execution_id: Optional[str],
+        tenant_id: str,
+        workspace_id: Optional[str],
+    ) -> Optional[str]:
+        """Return the persisted root execution id only when it is in scope.
+
+        ``DelegationChain.root_execution_id`` is the durable parent-to-chain
+        binding crash recovery uses to find the fleet a dead run started. It is
+        written here at creation from the execution row the caller actually
+        persisted -- never from a routing/audit id, a chain id, or a
+        caller-shaped UUID.
+
+        An id alone is not proof of ownership: linking a foreign execution
+        would make recovery fail another scope's fleet. Resolve the row and
+        refuse the link when a tenant/workspace is recorded on both sides and
+        disagrees. A missing scope on either side is not a disagreement
+        (older rows did not always record one), but an id with no persisted
+        row is not a valid binding at all.
+        """
+        if not execution_id:
+            return None
+        execution = (
+            self.db.query(AgentExecution)
+            .filter(AgentExecution.id == str(execution_id))
+            .first()
+        )
+        if execution is None:
+            logger.warning(
+                "[FleetAdmiral] Root execution %s not persisted; "
+                "fleet chain will not be linked", execution_id)
+            return None
+
+        chain_tenant = str(tenant_id or "").strip()
+        execution_tenant = str(execution.tenant_id or "").strip()
+        if chain_tenant and execution_tenant and chain_tenant != execution_tenant:
+            logger.warning(
+                "[FleetAdmiral] Root execution %s is outside the fleet tenant; "
+                "refusing cross-scope chain link", execution.id)
+            return None
+
+        chain_workspace = str(workspace_id or "").strip()
+        execution_workspace = str(execution.workspace_id or "").strip()
+        if (
+            chain_workspace and execution_workspace
+            and chain_workspace != execution_workspace
+        ):
+            logger.warning(
+                "[FleetAdmiral] Root execution %s is outside the fleet "
+                "workspace; refusing cross-scope chain link", execution.id)
+            return None
+
+        return str(execution.id)
 
     def _initialize_recruitment_intelligence(
         self,
@@ -257,6 +318,7 @@ Return JSON matching the TaskAnalysis schema."""
         root_agent_id: str = "atom_main",
         tenant_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
+        root_execution_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Analyze task, recruit specialist agents, and initialize fleet execution.
@@ -272,6 +334,11 @@ Return JSON matching the TaskAnalysis schema."""
             task: Task description
             user_id: User identifier (single-tenant deployment)
             root_agent_id: Root agent ID (default: atom_main)
+            root_execution_id: Exact persisted ``AgentExecution.id`` for the
+                governed run that owns this fleet. ``None`` preserves legacy
+                callers that do not have a durable execution (no link is
+                written). The id is validated against the chain's tenant and
+                workspace before it is persisted.
 
         Returns:
             Dict with:
@@ -282,6 +349,16 @@ Return JSON matching the TaskAnalysis schema."""
                 - recruitment_roster: List of recruited specialists
         """
         logger.info(f"[FleetAdmiral] Recruiting fleet for task: {task[:50]}...")
+
+        # The chain's tenant is the account boundary; ``user_id`` remains the
+        # legacy fallback for callers that never had a tenant. Resolve it once
+        # so the root-execution scope check and initialize_fleet cannot drift.
+        chain_tenant_id = tenant_id or user_id
+        linked_execution_id = self._scoped_root_execution_id(
+            execution_id=root_execution_id,
+            tenant_id=chain_tenant_id,
+            workspace_id=workspace_id,
+        )
 
         # Step 1: Analyze task requirements
         task_analysis = await self.analyze_task_requirements(
@@ -294,9 +371,10 @@ Return JSON matching the TaskAnalysis schema."""
 
         # Step 2: Initialize delegation chain (fleet)
         chain = self.fleet_service.initialize_fleet(
-            tenant_id=tenant_id or user_id,
+            tenant_id=chain_tenant_id,
             root_agent_id=root_agent_id,
             root_task=task,
+            root_execution_id=linked_execution_id,
             initial_metadata={
                 "task_analysis": task_analysis,
                 "recruitment_phase": "in_progress",

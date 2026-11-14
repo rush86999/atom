@@ -1130,7 +1130,9 @@ class AtomMetaAgent:
                         or "default"
                     )
                     _fleet_result = await self.route_with_governance(
-                        request, _fleet_intent, _fleet_user_id, agent_id="atom_main"
+                        request, _fleet_intent, _fleet_user_id,
+                        agent_id="atom_main",
+                        execution_id=execution_id,
                     )
                 except Exception as fleet_err:
                     logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
@@ -3708,7 +3710,8 @@ Provide your Mentorship Guidance:"""
         request: str,
         intent: IntentClassification,
         user_id: str,  # Changed from tenant_id
-        agent_id: str = "atom_main"
+        agent_id: str = "atom_main",
+        execution_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Route request with governance checks.
@@ -3721,6 +3724,10 @@ Provide your Mentorship Guidance:"""
             intent: Classified intent from IntentClassifier
             user_id: User UUID (single-tenant deployment)
             agent_id: Agent UUID (default: atom_main)
+            execution_id: Exact persisted ``AgentExecution.id`` bound to this
+                run. Forwarded to the TASK fleet so the chain carries the
+                durable parent link crash recovery needs. ``None`` keeps
+                callers without a durable execution working unchanged.
 
         Returns:
             Routing result with handler and status
@@ -3764,7 +3771,10 @@ Provide your Mentorship Guidance:"""
                 "governance_allowed": True
             }
         else:  # TASK
-            result = await self._route_to_task(request, user_id, agent_id)
+            result = await self._route_to_task(
+                request, user_id, agent_id,
+                execution_id=execution_id,
+            )
             return {
                 **result,
                 "decision_id": str(uuid.uuid4()),
@@ -3844,7 +3854,8 @@ Provide your Mentorship Guidance:"""
         self,
         request: str,
         user_id: str,  # Changed from tenant_id
-        agent_id: str = "atom_main"
+        agent_id: str = "atom_main",
+        execution_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Route TASK intent to FleetAdmiral for dynamic agent recruitment.
@@ -3853,6 +3864,8 @@ Provide your Mentorship Guidance:"""
             request: User's natural language request
             user_id: User UUID (single-tenant deployment)
             agent_id: Agent UUID
+            execution_id: Exact persisted ``AgentExecution.id`` for this run;
+                persisted on the fleet chain as its durable root link.
 
         Returns:
             Fleet recruitment result
@@ -3871,6 +3884,7 @@ Provide your Mentorship Guidance:"""
                 root_agent_id=agent_id,
                 tenant_id=getattr(self, "tenant_id", None),
                 workspace_id=getattr(self, "workspace_id", None),
+                root_execution_id=execution_id,
             )
 
             return {
