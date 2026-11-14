@@ -2044,6 +2044,7 @@ async def get_canvas_history(
 
 
 @router.get("/")
+@router.get("", include_in_schema=False)
 async def list_user_canvases(
     canvas_type: Optional[str] = None,
     include_deleted: bool = False,
