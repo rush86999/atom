@@ -209,6 +209,11 @@ class GenericAgent:
         "documents.cat",
         "documents.grep",
         "documents.read",
+        # Workspace-approved reviewed executable skills: discovery is
+        # metadata-only; invocation re-authorizes the exact reviewed
+        # artifact before the Docker sandbox (core/skill_actions.py).
+        "skills.list",
+        "skills.execute",
         # Others can be discovered
     ]
 
@@ -1602,6 +1607,22 @@ class GenericAgent:
                     .all()
                     if row[0]
                 }
+                executable_skill_names = set()
+                try:
+                    from core.skill_registry_service import SkillRegistryService
+
+                    executable_skill_names = {
+                        entry["name"]
+                        for entry in SkillRegistryService(db).list_invocable_skills(
+                            tenant_id=str(getattr(self, "tenant_id", "") or ""),
+                            workspace_id=str(workspace_id),
+                            agent_id=str(getattr(self, "id", "") or ""),
+                        )
+                    }
+                except Exception as exec_err:  # noqa: BLE001 - prompt only
+                    logger.debug(
+                        "workspace executable skill lookup skipped: %s",
+                        exec_err)
 
                 parts: List[str] = []
                 if blobs:
@@ -1612,6 +1633,13 @@ class GenericAgent:
                 if assigned_skill_names:
                     parts.append(
                         "WORKSPACE-ASSIGNED SKILLS: " + ", ".join(sorted(assigned_skill_names))
+                    )
+                if executable_skill_names:
+                    parts.append(
+                        "WORKSPACE EXECUTABLE SKILLS (invoke with the "
+                        "`skills.execute` tool; code is sandboxed and "
+                        "re-authorized at run time): "
+                        + ", ".join(sorted(executable_skill_names))
                     )
                 if not parts:
                     return ""
@@ -3587,6 +3615,16 @@ What is your next step?"""
             # dict (in-place mutation cannot rewrite authority) and never a
             # result-owned expected key.
             handler_context = dict(context or {})
+            # Server-owned identity for reviewed executable skills. The model
+            # never supplies this; args are a deep copy, so a tool argument
+            # cannot rewrite the employee/workspace the artifact is bound to.
+            handler_context["_skill_scope"] = {
+                "tenant_id": str(getattr(self, "tenant_id", "") or ""),
+                "workspace_id": str(
+                    getattr(self, "workspace_id", "") or ""),
+                "agent_id": str(getattr(self, "id", "") or ""),
+                "user_id": str((context or {}).get("user_id") or ""),
+            }
             # Prefer the durable claim id; otherwise carry only the trusted
             # runtime-context operation identity (never a model-authored
             # argument). An oracle-covered action needs it because the handler
