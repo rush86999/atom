@@ -932,7 +932,6 @@ jobs:
           docker image inspect python:3.11-slim > /dev/null
           python -m pytest \
             tests/test_reviewed_executable_skill.py \
-            tests/test_reviewed_executable_skill_agent_dispatch_docker.py \
             tests/test_reviewed_executable_service_restart.py \
             -q --tb=short --timeout=900 --timeout-method=thread
           # Truthful cleanup gate: the sandbox creates one skill_* container
@@ -992,6 +991,30 @@ jobs:
                   f"after restart: {record}")
           print(f"real-Docker acceptance receipt verified: {record_path}")
           PY
+
+      # Additive separate invocation: the joined ordinary-agent dispatch twin
+      # is deliberately NOT appended to the pre-existing acceptance command
+      # above, whose selected files and receipt contract stay byte-identical
+      # to the declared `ci_backend_docker_lane.json` entry. It needs its own
+      # scratch DB and must not race the single ATOM_ACCEPTANCE_OUTPUT writer.
+      - name: Run joined approved-skill agent dispatch Docker controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_executable_dispatch_docker.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_REQUIRE_DOCKER_SANDBOX: "1"
+        run: |
+          docker info > /dev/null
+          docker pull python:3.11-slim
+          docker image inspect python:3.11-slim > /dev/null
+          python -m pytest tests/test_reviewed_executable_skill_agent_dispatch_docker.py -q --tb=short --timeout=900 --timeout-method=thread
+          leftover=$(docker ps -a --filter "name=skill_" --format '{{.Names}}')
+          if [ -n "$leftover" ]; then
+            echo "sandbox containers leaked after the joined dispatch run:" >&2
+            echo "$leftover" >&2
+            exit 1
+          fi
 
       - name: Upload reviewed executable acceptance record
         if: always()
