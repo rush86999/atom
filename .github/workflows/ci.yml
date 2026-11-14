@@ -298,6 +298,24 @@ jobs:
         run: |
           python -m pytest tests/test_mem07_consolidated_chain.py tests/test_lead_mem07_natural_event.py tests/test_lead_mem07_real_prompt_chain.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Joined ordinary-agent dispatch for reviewed executable skills
+      # (additive): one public GenericAgent.execute run selects
+      # skills.execute with a deterministic model stub, the real action/MCP
+      # dispatch executes the approved artifact, the next decision answers
+      # from the actual observation, and a fresh session re-reads the durable
+      # exact receipt. Denials prove changed/revoked candidates, missing
+      # bindings, unassigned workspaces and hostile scope args are refused
+      # before the sandbox. Model decision is simulated; the Docker twin in
+      # backend-docker runs the same join against a real container.
+      - name: Run joined approved-skill agent dispatch controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_executable_dispatch.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_reviewed_executable_skill_agent_dispatch.py -q --tb=short --timeout=300 --timeout-method=thread
+
       # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
       # skips under pytest when AI fakes break provider resolution, so run the
       # exit-coded standalone harness for the real recall@k regression gate
@@ -872,6 +890,10 @@ jobs:
   # acceptance record (process A approves/applies, a NEW process B executes
   # through the ordinary POST /api/skills/execute route, then the durable
   # receipt is re-read from scratch SQLite after the service stopped).
+  # tests/test_reviewed_executable_skill_agent_dispatch_docker.py joins the
+  # same real-Docker path through one public GenericAgent.execute run; its
+  # model decision is a deterministic stub, and it fails (never skips) when
+  # Docker is unreachable. It does not write the shared acceptance record.
   # The Docker-leaf replay (tests/test_reviewed_executable_skill_docker.py)
   # also writes ATOM_ACCEPTANCE_OUTPUT, so it is deliberately NOT run in this
   # step: two writers would race over the single record path.
@@ -969,6 +991,30 @@ jobs:
                   f"after restart: {record}")
           print(f"real-Docker acceptance receipt verified: {record_path}")
           PY
+
+      # Additive separate invocation: the joined ordinary-agent dispatch twin
+      # is deliberately NOT appended to the pre-existing acceptance command
+      # above, whose selected files and receipt contract stay byte-identical
+      # to the declared `ci_backend_docker_lane.json` entry. It needs its own
+      # scratch DB and must not race the single ATOM_ACCEPTANCE_OUTPUT writer.
+      - name: Run joined approved-skill agent dispatch Docker controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_executable_dispatch_docker.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_REQUIRE_DOCKER_SANDBOX: "1"
+        run: |
+          docker info > /dev/null
+          docker pull python:3.11-slim
+          docker image inspect python:3.11-slim > /dev/null
+          python -m pytest tests/test_reviewed_executable_skill_agent_dispatch_docker.py -q --tb=short --timeout=900 --timeout-method=thread
+          leftover=$(docker ps -a --filter "name=skill_" --format '{{.Names}}')
+          if [ -n "$leftover" ]; then
+            echo "sandbox containers leaked after the joined dispatch run:" >&2
+            echo "$leftover" >&2
+            exit 1
+          fi
 
       - name: Upload reviewed executable acceptance record
         if: always()
