@@ -56,6 +56,55 @@ except Exception:  # pragma: no cover - defensive
 
 _SUCCESS_STATUSES = {"success", "objective_satisfied"}
 
+# Honest terminal output when the step budget runs out without a model answer.
+# The model's private reasoning is never promoted to the user-facing answer.
+_MAX_STEPS_WITHOUT_ANSWER = "Maximum steps reached without final answer."
+
+
+def _thought_only_recovery_note(step_number: int, max_steps: int) -> str:
+    """Deterministic next-turn instruction for a thought-only structured step.
+
+    A validated ReActStep may legally carry only ``thought``. When that happens
+    the loop cannot execute or finish anything, so the next model call must be
+    told exactly what the contract requires: a user-facing final answer or one
+    valid control field. This is guidance appended to the existing history —
+    it adds no step and no LLM call of its own.
+    """
+    return (
+        f"[NO CONTROL FIELD] Step {step_number} of {max_steps} contained "
+        "reasoning but no user-facing final answer and no action, actions, "
+        "or information_wait. Do not respond with reasoning alone. On this "
+        "next step you MUST provide final_answer with the complete "
+        "user-facing response, OR exactly one valid control field: action or "
+        "actions naming an advertised tool, or information_wait for a "
+        "required missing fact. A thought-only response does not complete a "
+        "step.\n")
+
+
+def _dispatch_denial_note(tool_name: str, observation: Any) -> str:
+    """Deterministic guidance for a tool the dispatch gates refused.
+
+    A capability/sandbox refusal is an authorization boundary, not a transient
+    tool error: retrying a differently-worded call can never succeed. The
+    generic ``[CRITIQUE] ... re-plan before retrying`` note left that
+    ambiguous, and Goal 13 specialists kept re-planning against a gate that
+    could not move. Returns "" for every other observation.
+    """
+    blocked_by = (
+        observation.get("blocked_by")
+        if isinstance(observation, dict) else None)
+    text = str(observation or "")
+    if blocked_by == "capability_gate":
+        reason = "not authorized for this agent at its current governance tier"
+    elif text.strip().lower().startswith("sandbox blocked"):
+        reason = "outside this run's sandbox tool policy"
+    else:
+        return ""
+    return (
+        f"[TOOL DENIED] '{tool_name}' is {reason}. It is not in AVAILABLE "
+        "TOOLS in a form this run can dispatch. Do not request it again; use "
+        "an advertised tool or answer from the information you already have.\n")
+
 
 class GenericAgent:
     """
@@ -131,6 +180,10 @@ class GenericAgent:
         # Maturity floor string (STUDENT < INTERN < SUPERVISED < AUTONOMOUS);
         # set once per execution run, None = unrestricted.
         self._run_maturity: Optional[str] = None
+        # Dispatch-authority predicate for the ADVERTISED tool surface
+        # (Goal 13). Set once per run from the same governance row + tier the
+        # P2/P9 dispatch gates use; None = no identity, legacy surface.
+        self._dispatch_tool_allowed: Optional[Any] = None
         # Actual provider/model that served this run's LLM calls, kept per
         # run so durable episode evidence reports what answered rather than
         # the caller alias ("auto") or an attempted-but-failed route.
@@ -292,6 +345,7 @@ class GenericAgent:
         # server-owned tier frozen by admission/dispatch, then let a current
         # canonical demotion (or revocation) narrow it. Never accept a
         # caller-supplied ``tier``/``tier_at_issuance`` as authority.
+        _tier_row = None
         try:
             from core.database import get_db_session as _get_db_session_local
             with _get_db_session_local() as _tier_db:
@@ -322,6 +376,30 @@ class GenericAgent:
             context["governance_tier_next_action"] = "review_agent_maturity"
         elif not context.get("governance_tier_restricted"):
             context.pop("governance_tier_next_action", None)
+
+        # Goal 13: the model may only be shown tools that BOTH dispatch gates
+        # (P2 capability + P9 sandbox whitelist) will admit for this exact
+        # governance row/tier. Advertising the refusal surface made restricted
+        # fleet specialists loop on mcp_tool_search / documents.* until the
+        # step budget expired with no final answer. The predicate narrows the
+        # ADVERTISEMENT only; the gates still run at dispatch.
+        self._dispatch_tool_allowed = None
+        if _tier_row is not None:
+            try:
+                from core.capability_resolver import (
+                    build_dispatch_tool_predicate,
+                )
+
+                self._dispatch_tool_allowed = build_dispatch_tool_predicate(
+                    _tier_row, tier=_tier)
+            except Exception as _surface_err:  # noqa: BLE001
+                # Never break planning over an advertisement optimization;
+                # an unresolved surface keeps the legacy catalog, and the
+                # dispatch gates still refuse anything unauthorized.
+                logger.debug(
+                    "dispatch tool-surface filter unavailable: %s",
+                    _surface_err)
+                self._dispatch_tool_allowed = None
 
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
@@ -523,6 +601,10 @@ class GenericAgent:
                     # only by a producer-owned denial envelope; a later model
                     # answer cannot clear it.
                     _terminal_denial: Optional[Dict[str, Any]] = None
+                    # True only when this step carried thought and no usable
+                    # control field (action/actions/final_answer/wait). Such a
+                    # step can never be treated as a finished answer.
+                    _thought_only_step = False
 
                     # AgentRadio — passive awareness (never raises, sub-ms):
                     # absorb @mentions from the team's lateral thread into
@@ -725,6 +807,10 @@ class GenericAgent:
                                     f"error: {str(pr['output'])[:200]}. Re-plan "
                                     f"before retrying.\n"
                                 )
+                            _denial_note = _dispatch_denial_note(
+                                p_tool, pr["output"])
+                            if _denial_note:
+                                execution_history += _denial_note
                             steps.append(p_record)
                         if _terminal_denial:
                             self._record_terminal_authority_denial(
@@ -866,6 +952,12 @@ class GenericAgent:
                                 f"[CRITIQUE] The action {tool_name} returned an error: "
                                 f"{str(observation)[:200]}. Re-plan before retrying.\n"
                             )
+                        # An authorization refusal cannot be retried into
+                        # success; say so deterministically (Goal 13).
+                        _denial_note = _dispatch_denial_note(
+                            tool_name, observation)
+                        if _denial_note:
+                            execution_history += _denial_note
 
                         # ── SupervisorAgent-style observation filter ─────────
                         # Additive + flag-gated + default OFF. Wrapped in
@@ -902,11 +994,27 @@ class GenericAgent:
                             await step_callback(step_record)
                         
                     else:
+                        # Structured step with a thought but no usable control
+                        # field. An unrecorded information_wait already got its
+                        # own deterministic note above; every other thought-only
+                        # step gets an explicit contract for the NEXT call.
+                        _wait_requested = (
+                            react_step.information_wait is not None)
+                        _thought_only_step = not _wait_requested
                         if current_step == max_steps:
-                            # If we hit max steps without an answer, the last thought might contain something
-                            final_answer = thought or "Maximum steps reached without final answer."
+                            # Budget exhausted with reasoning only: return an
+                            # honest terminal message. Private thought is not a
+                            # user-facing answer.
+                            final_answer = _MAX_STEPS_WITHOUT_ANSWER
                             status = "max_steps_exceeded"
-                            
+                            step_record["exhausted_without_answer"] = True
+                        elif _thought_only_step:
+                            _recovery_note = _thought_only_recovery_note(
+                                current_step, max_steps)
+                            execution_history += _recovery_note
+                            step_record["recovery_instruction"] = (
+                                _recovery_note)
+
                     steps.append(step_record)
 
                     if _terminal_denial:
@@ -932,7 +1040,12 @@ class GenericAgent:
                         "current_step": current_step,
                     }):
                         if not final_answer:
-                            final_answer = thought or "Objective satisfied."
+                            # Never promote a thought-only step's reasoning to
+                            # the user-facing answer (same contract as the
+                            # max-steps exhaustion path).
+                            final_answer = (
+                                "Objective satisfied." if _thought_only_step
+                                else (thought or "Objective satisfied."))
                         status = "objective_satisfied"
                         break
 
@@ -940,7 +1053,7 @@ class GenericAgent:
             await asyncio.wait_for(run_loop(), timeout=timeout_seconds)
 
             if not final_answer:
-                final_answer = "Maximum steps reached without final answer."
+                final_answer = _MAX_STEPS_WITHOUT_ANSWER
                 status = "max_steps_exceeded"
                 
         except asyncio.TimeoutError:
@@ -956,6 +1069,9 @@ class GenericAgent:
             # W5 (P5c): reset the per-run maturity cache (custom-action
             # discovery floor) so it never leaks across executions.
             self._run_maturity = None
+            # Goal 13: the advertised-surface predicate is per governance
+            # row/tier; a reused runner must not inherit another run's scope.
+            self._dispatch_tool_allowed = None
 
         # 2.5: Generate Reflection/Critique on failure (Phase 215)
         if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded", "stuck"]:
@@ -1573,13 +1689,30 @@ class GenericAgent:
                 unique_active_tools.append(t)
                 seen_tools.add(t["name"])
 
-        # Inject special "mcp_tool_search" if not present
-        if "mcp_tool_search" not in [t["name"] for t in unique_active_tools]:
+        # Goal 13: restrict the ADVERTISED catalog to what this run's dispatch
+        # gates will actually admit (P2 capability + P9 sandbox whitelist).
+        # None = no resolved identity (legacy behaviour, gates still apply at
+        # dispatch). Custom actions below are exempt: they are agent-scoped,
+        # registered per-agent, and dispatched locally before MCP/gates.
+        dispatch_allowed = getattr(self, "_dispatch_tool_allowed", None)
+
+        def _dispatchable(tool_name: str) -> bool:
+            return dispatch_allowed is None or bool(dispatch_allowed(tool_name))
+
+        unique_active_tools = [
+            t for t in unique_active_tools if _dispatchable(t["name"])
+        ]
+
+        # Inject special "mcp_tool_search" if not present AND dispatchable.
+        advertised_names = {t["name"] for t in unique_active_tools}
+        if "mcp_tool_search" not in advertised_names and _dispatchable(
+                "mcp_tool_search"):
              unique_active_tools.append({
                  "name": "mcp_tool_search",
                  "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
                  "parameters": {"query": "string"}
              })
+             advertised_names.add("mcp_tool_search")
 
         # W5 (P5c): agent-extensible tool surface — registered custom actions
         # join the available tools, maturity-gated (hidden when the agent's
@@ -1597,11 +1730,58 @@ class GenericAgent:
         # pointer — a hidden tool it can't see must at least be discoverable.
         from core.agent_tool_budget import render_tool_catalog
         tool_descriptions, hidden_tool_count = render_tool_catalog(unique_active_tools)
-        if hidden_tool_count:
+        if hidden_tool_count and "mcp_tool_search" in advertised_names:
             tool_descriptions += (
                 f"\n(+{hidden_tool_count} more tools exist but are not listed — "
                 "call mcp_tool_search with what you need to surface them.)"
             )
+
+        # Truthful surface contract: when nothing is dispatchable, say so and
+        # require an answer instead of inviting a tool call the platform will
+        # refuse (the Goal-13 max_steps_exceeded loop). The orchestration
+        # claims are only rendered when the tools they describe are actually
+        # dispatchable for this run.
+        _full_powers = dispatch_allowed is None or all(
+            _dispatchable(name) for name in (
+                "mcp_tool_search",
+                "save_business_fact",
+                "verify_citation",
+                "ingest_knowledge_from_text",
+                "create_record",
+                "update_record",
+            )
+        )
+        if unique_active_tools and _full_powers:
+            tool_surface_block = f"AVAILABLE TOOLS:\n{tool_descriptions}"
+            orchestration_block = """ORCHESTRATION POWERS:
+- You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
+- You can list and trigger automated workflows
+- You can spawn sub-specialty agents to help you
+- You can INGEST KNOWLEDGE from text and files (PDF, CSV, Excel) into Atom's long-term memory
+- You can SEARCH FORMULAS and business logic to ensure calculation accuracy
+- You can PUSH/CREATE/UPDATE data (leads, deals, tasks, invoices, tickets, orders, files) across ALL 46+ integrations in a granular way
+- You can DISCOVER connected integrations and SEARCH across all of them simultaneously
+- You can use 'create_record' and 'update_record' for universal granular manipulation of any connected system
+- **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
+"""
+        elif unique_active_tools:
+            tool_surface_block = f"AVAILABLE TOOLS:\n{tool_descriptions}"
+            orchestration_block = (
+                "ORCHESTRATION POWERS (limited to AVAILABLE TOOLS):\n"
+                "- Only the tools listed above can be called. Broader "
+                "integration/workflow/discovery powers are not authorized for "
+                "this agent at its current governance tier.\n"
+            )
+        else:
+            tool_surface_block = (
+                "AVAILABLE TOOLS: none.\n"
+                "No tool is authorized for this agent at its current "
+                "governance tier, so every tool call will be refused. Do NOT "
+                "emit action or actions. Put the complete answer in "
+                "final_answer from the request, the memory context above, and "
+                "your own reasoning; state your assumptions explicitly and "
+                "name any missing evidence as a blocker.")
+            orchestration_block = ""
         
         optimization = context.get("optimization", {})
         agent_model_tier = optimization.get("model") or "auto"
@@ -1731,8 +1911,7 @@ class GenericAgent:
 {utility_block}
 {bpe_block}
 {managed_guidance_block}
-AVAILABLE TOOLS:
-{tool_descriptions}
+{tool_surface_block}
 
 FORMAT: You must respond with structured output containing:
 - thought: Your reasoning about what to do next
@@ -1743,17 +1922,7 @@ FORMAT: You must respond with structured output containing:
 
 Only provide EITHER action OR actions OR final_answer OR information_wait, not multiple.
 
-ORCHESTRATION POWERS:
-- You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
-- You can list and trigger automated workflows
-- You can spawn sub-specialty agents to help you
-- You can INGEST KNOWLEDGE from text and files (PDF, CSV, Excel) into Atom's long-term memory
-- You can SEARCH FORMULAS and business logic to ensure calculation accuracy
-- You can PUSH/CREATE/UPDATE data (leads, deals, tasks, invoices, tickets, orders, files) across ALL 46+ integrations in a granular way
-- You can DISCOVER connected integrations and SEARCH across all of them simultaneously
-- You can use 'create_record' and 'update_record' for universal granular manipulation of any connected system
-- **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
-"""
+{orchestration_block}"""
         
         # R83 #3: append the datamarking preamble when active (idempotent;
         # off → prompt unchanged).
