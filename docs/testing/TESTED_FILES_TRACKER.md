@@ -9940,3 +9940,67 @@ retained `length`, and retained context-window stop, asserting no false
 provider-absence or model-cap literals and preserving every prior fallback
 control; truncation contract is 53 passed (was 49), and the combined 18-file
 gate is 503 passed (was 499) in one scratch run (no provider, no live DB).
+
+**Fifth follow-up (2026-11-14 live typed-completion failure)**: the shared
+BYOK -> `LLMService.generate_completion` seam still published a terminal
+failure as an accepted answer. In the bounded live replay the 1,400-token
+synthesis returned `finish_reason="length"` with no visible content (handler
+raised its internal empty-completion error, then exhausted the ladder), and
+the immediate 2,000-token variant made ZERO provider requests (the configured
+legacy `opencode` id was excluded by the installation provider policy) and
+returned "I couldn't generate a response — every configured provider failed.
+Last error: no provider attempted." Both were returned with
+`success=True`; the facade also inferred `provider="deepseek"` from the model
+name even though no provider answered. Fleet appended its quantitative block
+to the failure text as if it were a valid synthesis. This was NOT a cache
+provenance problem and NOT an A/B result: the second variant dispatched
+nothing.
+
+`BYOKHandler.generate_response` now writes a caller-owned `outcome_sink` on
+every terminal return (the six accepted routes write the REAL served
+provider/model; every failure writes `success=False` plus a typed reason and
+call-local diagnostics). `LLMService.generate_completion` returns the existing
+structured failure shape (`success=False`, zero usage, no served
+provider/model) with EMPTY `content`/`text`; the human message is `error` and
+the detail (retained attempt `finish_reason`, `last_error`, candidate count,
+routing state, enforcing policy) is `failure`. Top-level `finish_reason` stays
+`None` on failure, so a truncated/empty attempt cannot masquerade as an
+accepted reply. The legacy text API keeps its exact strings, and a
+narrow/unwritten sink keeps the historical success contract.
+
+The zero-attempt live shape is typed `policy_blocked` /
+`routing="provider_policy_excluded_all"` with `candidate_count=0`: BPC filters
+forbidden providers before ranking and both the cascade and the catalog sweep
+re-check the same policy before transport, so the policy is intentional and
+was not weakened. Other consumers audited: `_guarded_regen` now treats `success=False` as a failed regeneration (otherwise empty content would pass
+its acceptance and erase a good reply); the match-confidence tiebreaker
+records a breaker failure instead of a success; the Auto-Dev
+Memento/AlphaEvolve code proposers fall back to their existing failure/
+unchanged-base path instead of returning or persisting empty code. Consumers
+that already honored `success` (Fleet, operator loop, lux computer-use, NLU,
+PDF OCR) retain their branches; callers that ignored it now get honest empty
+content.
+
+Files: `backend/core/llm/byok_handler.py`,
+`backend/core/llm_service.py`, `backend/integrations/chat_orchestrator.py`,
+`backend/core/llm/match_confidence_tiebreaker.py`,
+`backend/core/auto_dev/memento_engine.py`,
+`backend/core/auto_dev/alpha_evolver_engine.py`,
+`backend/core/fleet_admiral.py` (no code change; existing success=False branch
+verified), `backend/tests/test_generate_completion_failure_contract.py` (NEW
+13 tests), `backend/tests/test_fleet_synthesis_truncation_contract.py`
+(structured provider-failure withholding + durable readback),
+`backend/tests/fixtures/ci_backend_additions.json` and
+`.github/workflows/ci.yml` (additive selector only),
+`docs/architecture/FLEET_ORCHESTRATION.md`. Focused scratch runs: new file 13
+passed; fleet synthesis + truncation contract 126 passed; immutable CI lane
+contract 127 passed; the single combined 19-file scratch gate (the declared
+18 files plus this failure-control file) is 517 passed. `test_memento_engine`
+20 passed; the Auto-Dev regression batches' 14 failures (8 in the isolated
+memento+w84c pair) reproduce identically on the untouched `016e8c780`
+worktree. Other pre-existing baseline failures:
+`tests/core/test_llm_service.py::TestLLMServiceInitialization::test_init_with_tenant`,
+`tests/unit/test_llm_service.py::TestWorkspaceAndTenantHandling::test_generate_uses_tenant_id`,
+`tests/test_provider_policy.py::test_vision_auxiliary_uses_allowed_provider`
+and the seven `tests/test_covpush_w64i_llm_service.py` audit tests reproduce
+identically on the untouched `016e8c780` worktree; not caused by this change.

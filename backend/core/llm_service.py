@@ -346,6 +346,64 @@ class LLMService:
             "finish_reason": None,
         }
 
+    def _completion_failure_result(self, outcome: Dict[str, Any],
+                                   model: str) -> Dict[str, Any]:
+        """Structured failure result for a terminal generation failure.
+
+        Mirrors the existing unresolved-scope refusal contract (``success``
+        False, no provider/model claim, zero usage) but keeps the legacy
+        text API's failure string OUT of ``content``/``text``: an error
+        message must never be accepted as an answer. Callers that want the
+        human-readable message read ``error``; structured callers read
+        ``failure``.
+
+        Identity is deliberately unknown: no provider served this call, and
+        inferring one from the model name would claim a route that never
+        answered. ``requested_model`` records only what the caller asked
+        for. Attempt diagnostics (last error, retained stop reason, whether
+        there were zero candidates) come from THIS call's outcome sink,
+        never shared handler state.
+        """
+        reason = str(outcome.get("reason") or "generation_failed")
+        message = str(
+            outcome.get("message") or "The LLM generation failed.")
+        diagnostics = outcome.get("diagnostics")
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
+        failure: Dict[str, Any] = {
+            "reason": reason,
+            "message": message,
+            "requested_model": model,
+            "provider": None,
+            "model": None,
+            "last_error": diagnostics.get("last_error"),
+            "last_error_type": diagnostics.get("last_error_type"),
+            # A retained attempt stop reason is ATTEMPT evidence. It is not
+            # the accepted reply's finish_reason, so it never appears at the
+            # result's top level.
+            "last_finish_reason": _normalize_finish_reason(
+                diagnostics.get("last_finish_reason")),
+        }
+        for key in ("candidate_count", "failed_providers",
+                    "credit_failed_providers", "routing", "policy"):
+            if key in diagnostics:
+                failure[key] = diagnostics[key]
+        logger.warning("LLM completion failed (%s): %s", reason, message)
+        return {
+            "success": False,
+            "content": "",
+            "text": "",
+            # No served route to report. The request alias and a provider
+            # guessed from the model name are not a served pair.
+            "model": None,
+            "provider": None,
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0,
+                      "total_tokens": 0},
+            "finish_reason": None,
+            "error": message,
+            "failure": failure,
+        }
+
     def _workspace_for_tenant(self, tenant_id: str):
         """The workspace a tenant owns, through the product's own
         tenant→workspace link.
@@ -839,6 +897,19 @@ class LLMService:
             handler.generate_response, "finish_reason_sink")
         if sink_passed:
             kwargs["finish_reason_sink"] = finish_reason_sink
+        # Per-call GENERATION OUTCOME metadata. ``generate_response`` keeps
+        # its legacy text contract, so a provider/policy/budget failure is
+        # otherwise indistinguishable from an accepted reply here — the
+        # 2026-11-14 live replay returned "every configured provider failed
+        # ... Last error: no provider attempted" as ``content`` with
+        # ``success=True``. The handler writes THIS call's outcome into the
+        # fresh mapping; an unwritten mapping means a legacy producer and
+        # keeps the historical success contract.
+        outcome_sink: Dict[str, Any] = {}
+        outcome_passed = _accepts_keyword(
+            handler.generate_response, "outcome_sink")
+        if outcome_passed:
+            kwargs["outcome_sink"] = outcome_sink
         response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
@@ -858,17 +929,40 @@ class LLMService:
             **kwargs
         )
 
+        # The handler's text API returns a human-readable failure string on
+        # every terminal failure path. The structured outcome is the only
+        # evidence that the call failed; when it says failure (or a
+        # sink-capable producer explicitly declared success but produced no
+        # text), this facade must not publish that string as an accepted
+        # answer. A sink that was passed but never written means a legacy
+        # producer: the historical success contract is preserved.
+        outcome_written = (
+            outcome_passed and isinstance(outcome_sink.get("success"), bool))
+        if outcome_written and outcome_sink.get("success") is False:
+            return self._completion_failure_result(outcome_sink, model)
+        if (outcome_written and outcome_sink.get("success") is True
+                and not str(response_text or "").strip()):
+            empty_outcome = dict(outcome_sink)
+            empty_outcome["reason"] = "empty_generation"
+            return self._completion_failure_result(empty_outcome, model)
+
         # Approximate token usage
         input_tokens = self.estimate_tokens(prompt + system_instruction, model)
         output_tokens = self.estimate_tokens(response_text, model)
 
         # Surface the concrete model/provider BPC actually selected (not the
-        # "auto" input). BYOKHandler stashes these before returning; fall back
-        # to the input model if the stash is empty (defensive).
-        used_model = getattr(handler, "_last_used_model", None) or model
-        used_provider = getattr(handler, "_last_used_provider", None)
-        if used_provider is None:
-            used_provider = self.get_provider(used_model).value
+        # "auto" input). When the producer reported THIS call's accepted
+        # identity, use only that call-local value — never the request alias
+        # or a shared handler attribute another concurrent call may have
+        # overwritten. Legacy producers keep the historical fallback.
+        if outcome_written and outcome_sink.get("success") is True:
+            used_model = outcome_sink.get("model")
+            used_provider = outcome_sink.get("provider")
+        else:
+            used_model = getattr(handler, "_last_used_model", None) or model
+            used_provider = getattr(handler, "_last_used_provider", None)
+            if used_provider is None:
+                used_provider = self.get_provider(used_model).value
 
         # Read THIS call's sink only. A handler that cannot receive the sink
         # (narrow legacy signature, non-introspectable callable) reports

@@ -313,7 +313,71 @@ remains provider-proven. This makes the retained live replay complete without
 a new provider call, and a restart readback returns the same text with zero
 synthesis calls and zero dispatches.
 
-Tests: `backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
+**Completion outcome contract (2026-11-14 live failure).**
+`generate_response` is a TEXT API: every terminal failure returns a
+human-readable string, and direct callers rely on that. `generate_completion`
+therefore could not tell an accepted answer from the failure text and returned
+`success=True` for both. The live 2,000-token replay exposed the worst case:
+Fleet's synthesis call made ZERO provider requests (the configured legacy
+`opencode` provider id was excluded by the installation provider policy), the
+handler returned "every configured provider failed. Last error: no provider
+attempted", and the facade published it as `content` with
+`success=True`/`provider="deepseek"` (the provider was inferred from the model
+name, although no provider answered). Fleet appended its quantitative block
+to that text as if it were a valid synthesis.
+
+The shared seam is a caller-owned `outcome_sink` (one fresh mapping per
+`generate_completion` call), written by `BYOKHandler.generate_response` on
+every terminal return:
+
+- the six accepted routes write `success=True` plus the REAL served
+  provider/model; `generate_completion` uses only that call-local identity on
+  success (never the request alias or a shared handler attribute);
+- every failure writes `success=False`, a typed `reason`
+  (`all_providers_failed`, `empty_generation`, `no_dispatchable_candidates`,
+  `policy_blocked`, `budget_exceeded`, `accounting_blocked`,
+  `no_providers_configured`, `trial_restricted`, `no_eligible_providers`,
+  `credit_exhausted`, `prompt_blocked`, `generation_error`), a truthful
+  message and attempt diagnostics (`last_error`, `last_error_type`,
+  `last_finish_reason`, `candidate_count`, `routing`, and the enforcing
+  policy's allowed set/revision when relevant);
+- `generate_completion` returns the existing structured failure shape
+  (`success=False`, zero usage, no served provider/model) with EMPTY
+  `content`/`text`; the human message is `error`, and the structured detail
+  is `failure`. A retained attempt `finish_reason` (e.g. `length` on an
+  empty generation) stays inside `failure.last_finish_reason`; the result's
+  top-level `finish_reason` is `None` because no reply was accepted;
+- the legacy text API keeps its exact strings for direct consumers. A
+  producer that cannot receive the sink, or accepts it and leaves it
+  unwritten, keeps the historical `success=True` contract (silence is
+  legacy, not a guessed failure).
+
+The zero-attempt 2,000 variant is an INTENTIONAL policy boundary, not a
+cache/availability bug: BPC filters forbidden providers before ranking, so the
+ranked pool is empty; the cascade and the last-resort catalog sweep both
+re-check the same policy before transport, so no provider is dispatched. The
+policy is not weakened and no cooldown/breaker was touched. The structured
+result now names that state (`policy_blocked`,
+`routing="provider_policy_excluded_all"`, `candidate_count=0`,
+`last_error=None`) instead of claiming every configured provider failed.
+
+Behavior change for other callers: consumers that previously treated the
+failure text as content now receive empty content and must read `success`
+(and optionally `error`). The chat orchestrator's bounded guard regeneration
+treats `success=False` as a failed regeneration so it keeps the already-good
+reply instead of replacing it with an empty one; the match-confidence
+tiebreaker records a circuit-breaker failure instead of a success. The
+Auto-Dev Memento/AlphaEvolve code proposers use their existing failure
+fallback instead of persisting/returning empty code. Consumers that already
+checked `success` (Fleet, operator loop, lux computer-use, NLU, PDF OCR) keep
+their existing failure branches.
+Tests:
+`backend/tests/test_generate_completion_failure_contract.py` (all providers
+failed / zero-attempt policy block / empty `length` generation / budget and
+accounting denial / pre-dispatch refusals / accepted identity + stop reason /
+legacy text-API and unwritten-sink compatibility / one shared handler with
+concurrent accepted, failed and empty calls); plus
+`backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
 truncated / missing finish_reason / provider failure / evidence-vs-output /
 cached readback / legacy durable repair / unproven-label relabel /
 cached twins for no retained reason, retained `stop`, retained `length`, and
@@ -322,5 +386,5 @@ wrapper propagation / valid concise and elliptical negative twins /
 complete label and particle-imperative negatives / explicit-reason precedence /
 potential concurrency twins for a real sink producer, a `**kwargs` wrapper that
 ignores the sink, a narrow legacy handler, and non-introspectable/positional-only
-callables / blank-reason normalization) plus the existing
-`tests/test_fleet_final_synthesis.py` contract.
+callables / blank-reason normalization / structured provider-failure
+withholding) plus the existing `tests/test_fleet_final_synthesis.py` contract.

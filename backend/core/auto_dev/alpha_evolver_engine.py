@@ -162,7 +162,15 @@ class AlphaEvolverEngine(BaseLearningEngine):
                 model="auto",
                 task_type="code",
             )
-            return self._strip_markdown_fences(response.get("content", base_code))
+            content = response.get("content") or ""
+            if response.get("success") is False or not str(content).strip():
+                # A provider/policy/budget failure now arrives with EMPTY
+                # content. Returning "" would silently replace the working
+                # base code with nothing; use the existing fallback path so
+                # the mutation keeps a reviewable source.
+                raise RuntimeError(
+                    str(response.get("error") or "LLM returned no code"))
+            return self._strip_markdown_fences(content)
         except Exception as e:
             logger.error(f"LLM mutation failed: {e}")
             return base_code + f"\n# Mutation failed: {e}"

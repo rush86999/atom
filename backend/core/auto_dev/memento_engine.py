@@ -239,7 +239,15 @@ class MementoEngine(BaseLearningEngine):
                 model="auto",
                 task_type="code",
             )
-            return self._strip_markdown_fences(response.get("content", ""))
+            content = response.get("content") or ""
+            if response.get("success") is False or not str(content).strip():
+                # A provider/policy/budget failure now arrives with EMPTY
+                # content. Persisting "" as generated skill code would create
+                # a permanently unusable candidate; use the existing failure
+                # path instead (it returns a recognizable comment marker).
+                raise RuntimeError(
+                    str(response.get("error") or "LLM returned no skill code"))
+            return self._strip_markdown_fences(content)
         except Exception as e:
             logger.error(f"Skill generation failed: {e}")
             return f"# Skill generation failed: {e}"

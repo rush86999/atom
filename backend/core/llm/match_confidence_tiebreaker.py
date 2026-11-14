@@ -281,6 +281,24 @@ async def break_tie(
         )
 
     # Parse
+    if isinstance(raw, dict) and raw.get("success") is False:
+        # The completion facade now reports provider/policy/budget failures
+        # explicitly (content is empty, the human message is in ``error``).
+        # Recording that as a circuit-breaker SUCCESS would hide a dead
+        # provider and let it keep winning later tiebreaks.
+        _circuit_breaker.record_failure()
+        _failure = raw.get("failure")
+        if not isinstance(_failure, dict):
+            _failure = {}
+        logger.warning(
+            "match_confidence tiebreaker provider failure (%s): %s",
+            _failure.get("reason") or "unknown",
+            str(raw.get("error") or "")[:120])
+        return TiebreakResult(
+            chosen_index=-1,
+            rationale="LLM provider failure — falling through to proposal",
+            used_llm=False,
+        )
     text = ""
     if isinstance(raw, dict):
         text = raw.get("text") or raw.get("content") or ""

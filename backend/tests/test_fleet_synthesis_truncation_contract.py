@@ -534,6 +534,79 @@ def test_provider_failure_uses_same_bounded_fallback_without_retry(world):
     assert len(FakeSpecialist.calls) == 1
 
 
+def test_structured_provider_failure_is_not_accepted_as_editorial_answer(world):
+    """The live 2026-11-14 shape at the Fleet boundary.
+
+    ``LLMService.generate_completion`` now returns ``success=False`` with
+    EMPTY content for a provider/policy/budget failure. Fleet must withhold
+    the editorial answer and use the complete attributed contributions --
+    never append a quantitative block to the failure text.
+    """
+    _seed_chain(world)
+
+    class StructuredFailureLLM:
+        def __init__(self):
+            self.calls = []
+
+        async def generate_completion(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "success": False,
+                "content": "",
+                "text": "",
+                "model": None,
+                "provider": None,
+                "finish_reason": None,
+                "error": (
+                    "The provider returned no visible content (last attempt "
+                    "finish_reason=length); no accepted reply was produced."),
+                "failure": {
+                    "reason": "empty_generation",
+                    "message": (
+                        "The provider returned no visible content (last "
+                        "attempt finish_reason=length); no accepted reply "
+                        "was produced."),
+                    "requested_model": "quality",
+                    "provider": None,
+                    "model": None,
+                    "last_error": "empty output",
+                    "last_error_type": "_EmptyCompletionError",
+                    "last_finish_reason": "length",
+                },
+            }
+
+    llm = StructuredFailureLLM()
+    result = _run(world, llm)
+
+    assert result["success"] is True
+    synthesis = result["final_synthesis"]
+    assert synthesis["used"] is False
+    assert synthesis["reason"] == "llm_refused"
+    # No fabricated served identity from the failure.
+    assert synthesis["model"] is None
+    assert synthesis["provider"] is None
+    assert synthesis["finish_reason"] is None
+    # The editorial answer is withheld and the failure text is not shown as
+    # a deliverable; the complete attributed evidence is.
+    assert "Final synthesis unavailable" in result["final_output"]
+    assert "no accepted reply was produced" not in result["final_output"]
+    _assert_all_actions_grounded(result["final_output"])
+    # One synthesis call, one specialist dispatch, no quantitative block
+    # appended as if the failure were a valid answer.
+    assert len(llm.calls) == 1
+    assert len(FakeSpecialist.calls) == 1
+
+    # The durable cached readback is the same answer, with zero new calls.
+    replay = _run(world, llm)
+    assert replay["cached"] is True
+    assert replay["final_output"] == result["final_output"]
+    assert replay["final_synthesis"]["used"] is False
+    assert replay["final_synthesis"]["reason"] == "llm_refused"
+    assert len(llm.calls) == 1
+    assert len(FakeSpecialist.calls) == 1
+
+
+
 def test_cached_readback_preserves_truncated_fallback_without_rerun(world):
     _seed_chain(world)
     llm = FakeLLM(content=TRUNCATED_SYNTHESIS, finish_reason="length")
