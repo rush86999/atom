@@ -1,5 +1,7 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Later verifier update:** the [November 14 follow-through](#10-verifier-follow-through-after-the-index-cut) records main through `05715907e` (#945), stream attribution (#946), ordinary executable-skill dispatch, and the later WorkDrive/fleet replays. The original index cut and historical rows below remain source-bound; read the addendum before treating “missing”, “draft”, or “current main” in those rows as the latest status.
+
 **Status: navigation and evidence reconciliation only. Not a new score, not a
 completion claim, and not a replacement for the original records.**
 
@@ -1073,3 +1075,114 @@ On the reviewed #943 head `5d1f11de4932292c45aa04b86c90d19fd8f634b1`, the real A
 The settled usage row has no `execution_id`, so this result does not close Goal 9 attribution. That gap has a separate implementation lane. The native UI chat journey remains open.
 
 At transcription candidate #932 `818bd0fd960d71549af160288e4bf5482e5918fb`, a real local `openai/whisper-tiny.en` model decoded WAV, MP3, M4A, OGG and WebM and returned the expected text through LLMService/VoiceService only with a harness-injected local compatible client. The normal no-key configuration still has no supported local speech provider; its fallback reports transcription unavailable. The controlled billing suite passed 21 tests. Local calls priced at OpenAI's list rate are not remote billing evidence. No OpenAI key or cloud speech request was used. Evidence: `/private/tmp/atom-local-transcription-report.md` and `/private/tmp/atom-local-transcription-evidence/` (private local artifacts). This records a verified decoder and service-boundary result plus an unresolved configuration gap, not full local transcription readiness.
+
+## 10. Verifier follow-through after the index cut
+
+This addendum records evidence inspected by the root verifier after the
+original index cut. Main is verified through
+`05715907e6a79d6bd0916edd442cfc729b584e05` (#945). It does not re-score
+any of the 143 claims or declare any whole goal complete. Original failures,
+source identities and historical totals above remain unchanged.
+
+### Merged mechanisms
+
+| Delivery | Main identity | Independent evidence and limit |
+|---|---|---|
+| #946 streamed chat attribution | `a50ddd2e797a4b358b71c14ba706c3c99ccdf043` | Four public-boundary success, failure, fallback and concurrency controls passed. All 12 changed files match the reviewed head `3825ff49db02c843190e936a0234fb9d66452d0e`. Streamed physical attempts carry their execution identity and tenant/workspace scope. Non-streaming regeneration attribution remains outside this delivery. |
+| #945 ordinary reviewed executable-skill dispatch | `05715907e6a79d6bd0916edd442cfc729b584e05` | `skills.list` and `skills.execute` use the normal GenericAgent loop, metadata-only discovery, current review/digest/assignment checks and server-owned scope before sandbox dispatch. Root tested the prospective combined main tree: 146 tests passed (15 dispatch, 4 attribution, 127 CI-contract), and the merged full tree exactly equals qualified tree `a83721f4e080197de93c4f716891ef0e1d90e147`. |
+
+The skill controls use a controlled model decision and scanner. Real Docker
+execution and service-restart receipts were inspected at runtime source
+`d6fc54648`; the later `b56f33cc6` repair concerns CI selection. This establishes
+ordinary dispatch through the actual agent loop, not unrestricted unfamiliar
+skill quality or autonomous skill graduation. See
+[reviewed executable skill dispatch](../architecture/REVIEWED_EXECUTABLE_SKILL_DISPATCH.md).
+
+### WorkDrive: current-source provenance, delayed delivery
+
+A fresh authenticated replay ran on clean source
+`a868435fdcc7be66753366362d7542cc1082ce84`, using the owner's exact authorized
+resource and newly downloaded bytes. The workbook changed from the prior
+trust anchor: 13,478,317 bytes, SHA-256
+`200df04558aecffffd2141c41436a3bcb4468c1fcacb8d3e54fe098612e4990d`.
+No workbook content or credentials are included here.
+
+- **59/64 total checks passed.** All 17 strict provenance checks passed,
+  with the canonical direct-source proof bound to the downloaded bytes,
+  resource, execution and returned answer; no materialized fallback.
+- Eight structured outcomes covered 46 sheets: three found, three absent,
+  two ambiguous. Retry delivery passed 7/7, reused the saved result and did
+  not reread the workbook.
+- Five immediate-delivery shape checks failed. Turns 1 and 2 acknowledged
+  pending work; turn 3 delivered the durable result after the 25-second
+  interactive window. This is not a synchronous direct-delivery pass.
+- Zero model calls; four authorized WorkDrive downloads and nine chat POSTs.
+  The existing grant worked; no new consent was needed.
+
+The old and new runs used different workbook bytes. Unchanged read-path
+source does not isolate the cause of the timing difference from environment
+or workload effects. This replay is bounded authenticated integration
+proof, not the complete browser upload/search/export/delete lifecycle.
+
+Retained private report: `/private/tmp/atom-workdrive-main-replay-report.md`.
+Receipts: `/private/tmp/atom-620-main-replay.l7rhbN/`, including sanitized
+evidence and identity snapshots. These are local evidence pointers, not
+repository artifacts or proof that every later main revision was replayed.
+
+### Fleet: real delegation, incomplete deliverable
+
+The bounded live replay at `a868435fd` made five physical OpenCode Go
+DeepSeek Flash requests (including one rejected `logprobs` request), completed
+one in-scope specialist chain and excluded a same-capability specialist in
+another tenant/workspace. Successful provider responses echoed
+`deepseek-v4.1-flash`. A separate backend process recovered the same durable
+result without another provider request; authenticated HTTP trace readback
+also succeeded after restart.
+
+**The final answer was incomplete and is not accepted for quality.** The
+specialist supplied all three corrective actions, but the synthesized reply
+ended mid-action. `evidence_truncated` describes the input slice; it does not
+prove output truncation. The original provider finish reason was discarded,
+so the 900-token cap alone is not an established root cause. The successful
+child execution also retained a null completion timestamp.
+
+This was the production chat-orchestrator boundary with declared fleet,
+NLU, protocol, model and catalogue pins, not an ordinary browser journey.
+The unpublished follow-up candidate is not main and remains unaccepted:
+root's concurrent legacy-producer counterprobe still observes shared
+finish-reason contamination. No live success is inferred from its unit tests.
+
+Retained private report:
+`/private/tmp/atom-fleet-main-readiness-report.md`; original transport,
+restart and result evidence:
+`/private/tmp/atom-fleet-main-readiness-evidence-20261114/`. Preserve the
+report's later finish-reason correction when reading its earlier wording.
+
+### Transcription: integration tested, PR not yet merged
+
+PR #932 head `603a3ee616362a6a1f511d4e3e9ac0c19ef4df4a` integrates
+main `05715907e`. A joint scratch-DB suite passed **360 tests in 173.50s**
+covering Whisper attempts, budget admission/settlement controls, stream
+attribution, executable skills and CI contracts. Qualified tree:
+`ac1812c71421636eff2e604c8a226b317e55db4a`. Fresh hosted checks were still
+running at this update; earlier-head greens do not qualify this head.
+
+The local transcription replay used real Whisper `tiny.en` across five
+media formats through a harness-injected compatible client. It does not
+prove a supported shipped local-STT configuration or remote OpenAI billed
+settlement. The chained-media undercount negative is retained alongside the
+candidate's repaired-duration evidence.
+
+Retained private reports: `/private/tmp/atom-whisper-current-main-report.md`
+and `/private/tmp/atom-local-transcription-report.md`; root joint log:
+`/private/tmp/atom-root-932-union.log`.
+
+### Remaining gates remain open
+
+The Goal 10 elapsed wait is not due before
+**2026-11-16T06:42:25.414033Z**. No early resume is acceptance. Native menu bar
+UI chat, native mobile device use, the full document/Canvas families,
+unfamiliar substantive judgment, measured multi-model quality and
+performance, broader operations and owner-deferred profile breadth remain
+subject to the open boundaries above. Historical **111/123**, the original
+**143 claims / 18 goals**, and **`app_complete: false`** are unchanged.
