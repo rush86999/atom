@@ -18,9 +18,9 @@ the generic community-skill execution path.
 Real: approval/apply routes, candidate/Skill/SkillExecution rows, workspace
 assignment, the ordinary execute route, and the durable receipt.
 Simulated: the LLM security scanner (deterministic LOW) and the Docker sandbox
-(deterministic in-process stand-in that runs the same wrapper); Docker is not
-reachable in this environment, so the host-container replay remains the
-separate ``test_reviewed_executable_skill_docker.py`` lane.
+(deterministic in-process stand-in that runs the same wrapper).  The real
+``skill_*`` container proof remains the separate
+``test_reviewed_executable_skill_docker.py`` / service-restart lane.
 """
 from __future__ import annotations
 
