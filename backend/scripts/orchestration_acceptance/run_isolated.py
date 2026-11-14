@@ -1300,7 +1300,83 @@ def _install_dotenv_isolation(world: Path) -> Dict[str, Any]:
 
 def launch_server(port: int, world: Path, provider_shim: bool = False,
                   reuse_run_dir: Optional[Path] = None,
-                  shim_port: int = SHIM_PORT) -> subprocess.Popen:
+                  shim_port: int = SHIM_PORT,
+                  provider_endpoint: Optional[str] = None,
+                  provider_base_url_env: Optional[str] = None,
+                  provider_api_key_env: Optional[str] = None,
+                  provider_api_key: Optional[str] = None,
+                  provider_catalog: Optional[Dict[str, Any]] = None,
+                  ) -> subprocess.Popen:
+    """Launch the sandboxed backend for one world.
+
+    ``provider_endpoint`` (OPT-IN, default ``None``) points the product's
+    EXISTING OpenAI-compatible provider adapter at a loopback endpoint instead
+    of enabling the recorded-response shim. The adapter seam is the one the
+    product already owns: an env-overridable base URL plus an env key, e.g.
+    ``OPENCODE_BASE_URL`` / ``OPENCODE_API_KEY`` for ``opencode-go``. No
+    product code changes and no new adapter are involved.
+
+    When supplied, all of ``provider_base_url_env``, ``provider_api_key_env``,
+    ``provider_api_key`` and ``provider_catalog`` are required, and the key
+    MUST be the relay placeholder (:class:`live_model_relay.validate_dummy_key`)
+    -- this launcher never carries, reads or forwards an operator credential.
+    The endpoint host is validated as loopback and its port is added to the
+    seatbelt profile so the sandbox stays "server + one local endpoint and
+    nothing else". Every argument defaults to ``None``, so all existing callers
+    are byte-for-byte unaffected.
+    """
+    provider_record: Optional[Dict[str, Any]] = None
+    provider_port: Optional[int] = None
+    if provider_endpoint is not None:
+        if provider_shim:
+            raise RuntimeError(
+                "provider_endpoint and provider_shim are mutually exclusive; "
+                "choose one provider transport")
+        missing = [
+            name for name, value in (
+                ("provider_base_url_env", provider_base_url_env),
+                ("provider_api_key_env", provider_api_key_env),
+                ("provider_api_key", provider_api_key),
+                ("provider_catalog", provider_catalog),
+            ) if not value
+        ]
+        if missing:
+            raise RuntimeError(
+                "provider_endpoint requires " + ", ".join(missing))
+        from urllib.parse import urlsplit
+
+        from scripts.orchestration_acceptance import live_model_relay
+
+        parts = urlsplit(str(provider_endpoint))
+        if parts.scheme != "http" or (parts.hostname or "").lower() not in (
+                live_model_relay.LOOPBACK_HOSTS):
+            raise RuntimeError(
+                "provider_endpoint must be a loopback http endpoint; the "
+                f"sandboxed server may only reach one local provider "
+                f"endpoint, got {provider_endpoint!r}")
+        provider_port = parts.port
+        if provider_port is None or provider_port == port:
+            raise RuntimeError(
+                "provider_endpoint must name its own explicit port (distinct "
+                f"from the server port {port})")
+        live_model_relay.validate_dummy_key(str(provider_api_key))
+        advertised = {
+            str(provider): [str(model) for model in models]
+            for provider, models in dict(provider_catalog).items()
+        }
+        if not advertised or not all(advertised.values()):
+            raise RuntimeError(
+                "provider_catalog must advertise at least one model per "
+                "provider")
+        provider_record = {
+            "base_url_env": str(provider_base_url_env),
+            "base_url": str(provider_endpoint),
+            "key_env": str(provider_api_key_env),
+            "key_kind": "run-scoped relay placeholder (not a credential)",
+            "key_present": True,
+            "port": int(provider_port),
+            "advertised_models": advertised,
+        }
     # FRESH DATABASE DIRECTORY PER RUN (work order step 6): each launch gets
     # its own data directory seeded from the world fixture; the farm's data
     # symlink is re-pointed at it. Never delete WAL/SHM beside a live DB -
@@ -1330,7 +1406,12 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     launch_server.last_proc = None  # set by the caller after Popen
     farm = world / "backend_root"
     profile = world / "local_only.sb"
-    profile.write_text(_sandbox_profile(port, extra_ports=(shim_port,) if provider_shim else ()))
+    extra_ports: Tuple[int, ...] = ()
+    if provider_shim:
+        extra_ports += (shim_port,)
+    if provider_port is not None:
+        extra_ports += (int(provider_port),)
+    profile.write_text(_sandbox_profile(port, extra_ports=extra_ports))
     env = {k: os.environ[k] for k in SERVER_ENV_WHITELIST if k in os.environ}
     if "SECRET_KEY" not in env:
         # Ephemeral per-run signing key — not a credential: generated here,
@@ -1446,6 +1527,35 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
             # the widened `ollama` entry below is the actual change (there is no
             # catalog-merge env hook -- only ATOM_PROVIDER_MODEL_CATALOG_PATH).
         })
+    if provider_record is not None:
+        # OPT-IN LIVE-REPLAY LANE (relay transport). The product dispatches
+        # through its EXISTING env-addressable adapter seam -- no shim lanes and
+        # no second provider route, so "only the pinned model served this run"
+        # is structural rather than an assertion. The catalog advertises ONLY
+        # the pinned provider/model, and the endpoint is the relay's loopback
+        # URL (already in the seatbelt profile above).
+        catalog_path = world / "provider_catalog.json"
+        now = time.time()
+        catalog_path.write_text(json.dumps({"providers": {
+            provider: {
+                "served": models,
+                "verified_at": now, "last_attempt_at": now,
+                "consecutive_failures": 0,
+            } for provider, models in provider_record["advertised_models"].items()
+        }}))
+        env.update({
+            str(provider_base_url_env): str(provider_endpoint),
+            str(provider_api_key_env): str(provider_api_key),
+            "ATOM_PROVIDER_MODEL_CATALOG_PATH": str(catalog_path),
+        })
+        provider_record["catalog_path"] = str(catalog_path)
+        # A real operator credential must never arrive here; validate_dummy_key
+        # already refused anything that is not a relay placeholder, and the
+        # runner's own environment is not mutated.
+        provider_record["injected_into_server_env"] = [
+            str(provider_base_url_env), str(provider_api_key_env),
+            "ATOM_PROVIDER_MODEL_CATALOG_PATH",
+        ]
     import httpx as _hx0
     try:
         _pre = _hx0.get(f"http://127.0.0.1:{port}/api/health", timeout=2, trust_env=False)
@@ -1486,6 +1596,10 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
         "expected_cwd": str((world / "backend_root").resolve()),
         "dotenv_isolation": dotenv_isolation,
     }
+    if provider_record is not None:
+        # Recorded so a run can prove WHICH provider transport it used and that
+        # the server held only a run-scoped placeholder (never a credential).
+        descriptor["provider_endpoint"] = dict(provider_record)
     deadline = time.time() + 240
     while time.time() < deadline:
         if proc.poll() is not None:
@@ -3661,6 +3775,241 @@ def launch_shim(script_path: Path, port: int = SHIM_PORT, capture: Optional[Path
             time.sleep(0.5)
     proc.kill()
     raise RuntimeError("provider shim did not start")
+
+
+def _refuse_if_port_held(port: int, label: str) -> None:
+    """Fail loud when a port is already served, never silently reuse it.
+
+    A stale relay answers the readiness probe just as well as ours (same class
+    as the leaked provider_shim incident on F03), so the refusal happens before
+    any process is started and names the holder.
+    """
+    import socket
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        probe.bind(("127.0.0.1", int(port)))
+    except OSError as exc:
+        holder = ""
+        try:
+            import subprocess as _sp
+            out = _sp.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                          capture_output=True, text=True, timeout=10).stdout.split()
+            holder = f" (held by pid {', '.join(out)})" if out else ""
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"{label} port :{port} is already in use{holder}. A stale process "
+            f"would answer the readiness probe and serve this run; kill the "
+            f"holder, then re-run.") from exc
+    finally:
+        probe.close()
+
+
+#: Credential-shaped environment names that must not be inherited by the
+#: relay process. The relay does not read the environment at all; scrubbing is
+#: defense in depth so an operator's provider key cannot be discovered by a
+#: later change or a crash dump. The live credential travels on stdin only.
+RELAY_CREDENTIAL_ENV_NAMES = (
+    "OPENCODE_API_KEY", "OPENCODE_GO_API_KEY",
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY",
+    "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY",
+    "AZURE_OPENAI_API_KEY", "MISTRAL_API_KEY", "COHERE_API_KEY",
+)
+
+
+def _relay_subprocess_env() -> Dict[str, str]:
+    """The parent environment minus every known provider credential."""
+    return {
+        key: value for key, value in os.environ.items()
+        if key not in RELAY_CREDENTIAL_ENV_NAMES
+    }
+
+
+def _relay_command(
+        port: int, *, upstream_base_url: str, run_token: str,
+        ledger_path: Path, model: str, provider: str,
+        limits: Dict[str, Any], api_key_stdin: bool) -> List[str]:
+    """Build the relay argv. A credential is NEVER an argument."""
+    cmd = [
+        str(VENV_PY),
+        str(BACKEND / "scripts" / "orchestration_acceptance" / "live_model_relay.py"),
+        "--port", str(port),
+        "--run-token", str(run_token),
+        "--upstream-base-url", upstream_base_url,
+        "--model", model,
+        "--provider", provider,
+        "--ledger", str(ledger_path),
+        "--max-model-calls", str(int(limits["max_model_calls"])),
+        "--max-spend-usd", str(float(limits["max_spend_usd"])),
+        "--max-output-tokens", str(int(limits["max_output_tokens"])),
+        "--input-usd-per-1m", str(float(limits["input_usd_per_1m"])),
+        "--output-usd-per-1m", str(float(limits["output_usd_per_1m"])),
+        "--call-timeout-s", str(float(limits.get("call_timeout_s", 60.0))),
+        "--max-wall-clock-s", str(float(limits.get("max_wall_clock_s", 1800.0))),
+    ]
+    if api_key_stdin:
+        cmd.append("--upstream-api-key-stdin")
+    return cmd
+
+
+def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
+                      ledger_path: Path, model: Optional[str] = None,
+                      provider: Optional[str] = None,
+                      limits: Optional[Dict[str, Any]] = None,
+                      log_path: Optional[Path] = None,
+                      upstream_api_key: Optional[str] = None,
+                      ) -> subprocess.Popen:
+    """Start the loopback model relay for the OPT-IN live-replay lane.
+
+    Mirrors :func:`launch_shim`: pre-bind refusal, readiness probe, ``atexit``
+    reaper. The difference is the transport -- the relay forwards
+    ``chat/completions`` to an OpenAI-compatible upstream, so the ONLY call
+    path is observable and bounded.
+
+    ``upstream_api_key`` is the caller-supplied credential seam. It is REQUIRED
+    for the fixed trusted live destination and REFUSED for a loopback synthetic
+    endpoint. The key is written to the relay's stdin and nothing else: not
+    argv, not the environment (which is scrubbed of provider keys), not a file,
+    never the ledger.
+    """
+    from scripts.orchestration_acceptance import live_model_relay as relay_mod
+
+    pinned_model = str(model or relay_mod.PIN_MODEL)
+    pinned_provider = str(provider or relay_mod.PIN_PROVIDER)
+    if pinned_model != relay_mod.PIN_MODEL:
+        raise RuntimeError(
+            f"this lane is pinned to {relay_mod.PIN_MODEL!r}; refusing "
+            f"{pinned_model!r}")
+    upstream = relay_mod.validate_upstream_base_url(
+        upstream_base_url, allow_live=True)
+    kind = relay_mod.upstream_kind(upstream)
+    live = kind == relay_mod.UPSTREAM_KIND_LIVE
+    if live and not str(upstream_api_key or "").strip():
+        raise RuntimeError(
+            "the trusted live destination requires a caller-supplied "
+            "credential (upstream_api_key)")
+    if live:
+        try:
+            relay_mod.validate_credential(str(upstream_api_key))
+        except ValueError as exc:
+            raise RuntimeError(f"invalid live credential: {exc}") from exc
+    if not live and upstream_api_key is not None:
+        raise RuntimeError(
+            "refusing to send a credential to a loopback synthetic upstream")
+    caps = dict(limits or {})
+    for required in ("max_model_calls", "max_spend_usd", "max_output_tokens",
+                     "input_usd_per_1m", "output_usd_per_1m"):
+        if required not in caps:
+            raise RuntimeError(f"relay limits missing {required!r}")
+    if caps["max_model_calls"] < 1:
+        raise RuntimeError("relay max_model_calls must be at least 1")
+
+    _refuse_if_port_held(port, "live relay")
+
+    ledger = Path(ledger_path)
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    cmd = _relay_command(
+        port, upstream_base_url=upstream, run_token=str(run_token),
+        ledger_path=ledger, model=pinned_model, provider=pinned_provider,
+        limits=caps, api_key_stdin=live)
+    launcher_log = None
+    if log_path is not None:
+        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+        launcher_log = open(log_path, "ab")
+    try:
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE if live else subprocess.DEVNULL,
+            stdout=launcher_log or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            env=_relay_subprocess_env())
+        if live:
+            # The only place the credential exists in the child: one line on
+            # stdin, then the pipe closes.
+            try:
+                proc.stdin.write((str(upstream_api_key) + "\n").encode())
+                proc.stdin.flush()
+                proc.stdin.close()
+            except (BrokenPipeError, OSError) as exc:
+                proc.kill()
+                raise RuntimeError(
+                    "live relay closed its credential pipe before accepting "
+                    "the caller-supplied key") from exc
+    finally:
+        if launcher_log is not None:
+            launcher_log.close()
+
+    def _reap(p: subprocess.Popen = proc) -> None:
+        try:
+            if p.poll() is not None:
+                return
+            p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait(timeout=5)
+        except Exception:
+            pass
+
+    import atexit
+
+    atexit.register(_reap)
+    import httpx
+
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        try:
+            response = httpx.get(f"http://127.0.0.1:{port}/livez",
+                                 timeout=2, trust_env=False)
+            if response.status_code == 200:
+                state = response.json() or {}
+                if str(state.get("model") or "") != pinned_model:
+                    proc.kill()
+                    raise RuntimeError(
+                        "live relay on :%s serves model %r, not the pinned %r "
+                        "-- a stale relay would silently serve this run"
+                        % (port, state.get("model"), pinned_model))
+                if str(state.get("upstream_base_url") or "") != upstream:
+                    proc.kill()
+                    raise RuntimeError(
+                        "live relay on :%s forwards to %r, not %r"
+                        % (port, state.get("upstream_base_url"), upstream))
+                if str(state.get("upstream_kind") or "") != kind:
+                    proc.kill()
+                    raise RuntimeError(
+                        "live relay on :%s is kind %r, not %r"
+                        % (port, state.get("upstream_kind"), kind))
+                launch_live_relay.last_state = state
+                print(f"[relay] serving on :{port} "
+                      f"({pinned_provider}/{pinned_model} -> {upstream})")
+                return proc
+        except RuntimeError:
+            raise
+        except Exception:
+            time.sleep(0.5)
+    proc.kill()
+    raise RuntimeError("live model relay did not start")
+
+
+def fetch_relay_ledger(port: int) -> Dict[str, Any]:
+    """Read the relay's bounded ledger (evidence, read-only)."""
+    import httpx
+
+    try:
+        response = httpx.get(f"http://127.0.0.1:{port}/ledger",
+                             timeout=5, trust_env=False)
+        response.raise_for_status()
+        body = response.json()
+    except Exception as exc:  # noqa: BLE001 - evidence records the gap
+        return {"available": False, "error": f"{type(exc).__name__}: {exc}",
+                "entries": [], "budget": {}}
+    return {
+        "available": True,
+        "budget": body.get("budget") or {},
+        "entries": body.get("entries") or [],
+    }
 
 
 async def fetch_shim_log(port: int = SHIM_PORT) -> Dict[str, Any]:

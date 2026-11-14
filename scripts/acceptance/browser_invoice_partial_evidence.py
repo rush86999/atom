@@ -41,6 +41,28 @@ seeded by the harness.
 
 The default ``--preflight`` path validates the partial/complete fixture and the
 authored loopback completions without creating a world or launching anything.
+
+OPT-IN REPLAY LANE (``--live-flash``)
+-------------------------------------
+
+A second, explicitly opt-in mode keeps every browser step, upload identity
+check, durable read and assertion above, then replaces the authored shim with a
+loopback relay (``backend/scripts/orchestration_acceptance/live_model_relay.py``)
+in front of an OpenAI-compatible upstream. It requires ``--execute``, ``--out``,
+``ATOM_LIVE_REPLAY_ACK=spend`` and ``--live-upstream-url``; it pins exactly one
+Flash route (``opencode-go:deepseek-v4.1-flash``), takes prices from the
+existing catalog table (never a guess), and the relay reserves each physical
+call's slot and worst-case spend BEFORE dispatch.
+
+The upstream is either the loopback synthetic shim (default evidence) or the
+ONE fixed trusted live destination ``https://opencode.ai/zen/v1``. The live
+destination is selected by supplying that URL plus ``--live-credential-stdin``:
+the operator pipes the key on stdin, the driver forwards it to the relay on the
+relay's stdin, and the key is never put in argv, the environment, evidence or a
+ledger. The relay reads no environment variable and no auth file. Redirects and
+retries are disabled; a 3xx/5xx is one bounded physical call, not a retry
+loop. See ``scripts/acceptance/README_LIVE_INVOICE_REPLAY.md`` for the operator
+command and for what each mode claims.
 """
 from __future__ import annotations
 
@@ -111,6 +133,454 @@ LABELS = {
         "a synthetic completed row or a hand-authored reconciliation result",
     ],
 }
+
+
+# ---------------------------------------------------------------------------
+# OPT-IN live-replay lane (relay transport; synthetic or trusted live upstream)
+# ---------------------------------------------------------------------------
+# The default episode above is unchanged: authored shim responses, the same
+# assertions, the same report kind. This lane only exists behind --live-flash
+# plus a second opt-in, and it keeps every deterministic production fact.
+#
+# PIN: one Flash model, no fallback. The relay refuses any other identifier
+# before dispatch, the product catalog advertises only this pair, and the
+# driver asserts both -- so "served pin == requested pin" is structural.
+LIVE_PROVIDER = "opencode-go"
+LIVE_MODEL = "deepseek-v4.1-flash"
+LIVE_PIN = f"{LIVE_PROVIDER}:{LIVE_MODEL}"
+#: Second opt-in. Chosen as an env acks so a stray flag in a wrapper script
+#: cannot start the lane on its own.
+LIVE_ACK_ENV = "ATOM_LIVE_REPLAY_ACK"
+LIVE_ACK_VALUE = "spend"
+LIVE_DEFAULT_RELAY_PORT = 8117
+LIVE_DEFAULTS: Dict[str, Any] = {
+    "max_model_calls": 12,
+    "max_output_tokens": 1200,
+    "max_spend_usd": 0.50,
+    "call_timeout_s": 60.0,
+    "max_wall_clock_s": 1800.0,
+}
+#: Limit name -> driver argument attribute. The two timing limits keep the
+#: ``live_`` prefix on the CLI so a flag cannot be mistaken for the shim lane.
+LIVE_LIMIT_ARGS = {
+    "max_model_calls": "max_model_calls",
+    "max_output_tokens": "max_output_tokens",
+    "max_spend_usd": "max_spend_usd",
+    "call_timeout_s": "live_call_timeout_s",
+    "max_wall_clock_s": "max_wall_clock_s",
+}
+#: Adapter-name fragments that would mean the episode reached a delivery/send
+#: surface. The replay claim is "read, calculate, reconcile" only.
+LIVE_FORBIDDEN_ADAPTER_TOKENS = (
+    "send", "email", "outlook", "smtp", "webhook", "gmail", "slack")
+LIVE_LABELS = {
+    "model_decisions": (
+        "RELAYED TRANSPORT (SYNTHETIC UPSTREAM): the sandboxed server's only "
+        "provider endpoint is the loopback live_model_relay, and the relay "
+        "forwards chat/completions to a loopback synthetic upstream. No live "
+        "provider dispatch, credential, account, send or spend is used."),
+    "transport": (
+        "Only the provider response is relayed; source upload/read, the "
+        "structured consumer, wait settlement, invoice reconciliation, "
+        "verification and persistence run in production code."),
+    "not_claimed": [
+        "served live model output or model/provider quality",
+        "a live provider call, credential, account, send, spend or download",
+        "general model judgment or prompt quality",
+        "a synthetic completed row or a hand-authored reconciliation result",
+    ],
+}
+LIVE_TRUSTED_LABELS = {
+    "model_decisions": (
+        "LIVE PROVIDER TRANSPORT (SYNTHETIC INVOICE): the sandboxed server's "
+        "only provider endpoint is the loopback live_model_relay, which "
+        "forwards bounded chat/completions calls to the fixed opencode-go "
+        "destination https://opencode.ai/zen/v1 using the caller-supplied key. "
+        "The key is read from operator stdin only and is never recorded."),
+    "transport": (
+        "Only the provider call is live; the invoice fixture, source "
+        "upload/read, the structured consumer, wait settlement, invoice "
+        "reconciliation, verification and persistence remain the same "
+        "deterministic production path as the synthetic lane."),
+    "not_claimed": [
+        "model/provider quality beyond this one pinned Flash route",
+        "a live provider account, send, download or any external side effect",
+        "general model judgment or prompt quality",
+        "a synthetic completed row or a hand-authored reconciliation result",
+    ],
+}
+
+
+def _live_labels(live: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if live is not None and live.get("upstream_kind") == "trusted_live":
+        return LIVE_TRUSTED_LABELS
+    return LIVE_LABELS
+
+
+def _live_requested(args: argparse.Namespace) -> bool:
+    """True when ANY live flag was supplied (so partial configs fail loud)."""
+    return any((
+        bool(getattr(args, "live_flash", False)),
+        bool(str(getattr(args, "live_upstream_url", "") or "").strip()),
+        getattr(args, "relay_port", None) is not None,
+        bool(getattr(args, "live_credential_stdin", False)),
+        *[getattr(args, attribute, None) is not None
+          for attribute in LIVE_LIMIT_ARGS.values()],
+    ))
+
+
+def _read_live_credential() -> str:
+    """Read the caller-supplied live key from operator stdin (never echoed).
+
+    This is the ONLY credential read in the harness. It never opens an auth
+    file, ``.env`` or the environment. A TTY uses ``getpass`` so the key is not
+    echoed; a pipe is read as one line. The value lives in memory just long
+    enough to hand it to the relay process's stdin.
+    """
+    import getpass
+
+    if sys.stdin.isatty():
+        value = getpass.getpass("OpenCode Go API key (stdin, not echoed): ")
+    else:
+        value = sys.stdin.readline()
+    key = str(value or "").rstrip("\r\n")
+    if not key.strip():
+        raise PreflightError(
+            "--live-credential-stdin was set but no key arrived on stdin")
+    if any(character.isspace() for character in key):
+        raise PreflightError(
+            "the live credential contains whitespace; refusing it")
+    if len(key) > 4096:
+        raise PreflightError("the live credential is unreasonably long")
+    return key
+
+
+def _live_config(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
+    """Validate the live refusal matrix; return a redacted config or ``None``.
+
+    Raises :class:`PreflightError` for every incomplete or unsafe combination.
+    No credential is read here: the config records only the seam name. The
+    operator's key is read once, later, from stdin by ``_run_scenario``.
+    """
+    if not getattr(args, "live_flash", False):
+        if _live_requested(args):
+            raise PreflightError(
+                "live flags require --live-flash; refusing to let a partial "
+                "live configuration change the default scripted episode")
+        return None
+    if not getattr(args, "execute", False):
+        raise PreflightError("--live-flash requires --execute")
+    if not getattr(args, "out", ""):
+        raise PreflightError("--live-flash requires --out")
+    if os.environ.get(LIVE_ACK_ENV) != LIVE_ACK_VALUE:
+        raise PreflightError(
+            f"--live-flash requires the second opt-in {LIVE_ACK_ENV}="
+            f"{LIVE_ACK_VALUE}")
+
+    world = _world_path(args.world)
+    if world.exists():
+        raise PreflightError(
+            f"world {world} already exists; the live episode requires a fresh "
+            "scratch world (nothing is rebuilt or deleted)")
+
+    upstream_raw = str(getattr(args, "live_upstream_url", "") or "").strip()
+    if not upstream_raw:
+        raise PreflightError("--live-flash requires --live-upstream-url")
+    from scripts.orchestration_acceptance import live_model_relay
+
+    try:
+        upstream = live_model_relay.validate_upstream_base_url(
+            upstream_raw, allow_live=True)
+    except ValueError as exc:
+        raise PreflightError(str(exc)) from exc
+    kind = live_model_relay.upstream_kind(upstream)
+    credential_stdin = bool(getattr(args, "live_credential_stdin", False))
+    if kind == live_model_relay.UPSTREAM_KIND_LIVE and not credential_stdin:
+        raise PreflightError(
+            "--live-upstream-url selects the trusted live destination; it "
+            "requires --live-credential-stdin so the key is supplied by the "
+            "caller and never discovered from an environment or auth file")
+    if kind != live_model_relay.UPSTREAM_KIND_LIVE and credential_stdin:
+        raise PreflightError(
+            "--live-credential-stdin is only valid with the fixed trusted live "
+            "destination; refusing to send a credential to a synthetic "
+            "loopback upstream")
+
+    from core.llm.opencode_catalog import OPCODE_KNOWN_PRICES
+
+    prices = OPCODE_KNOWN_PRICES.get(LIVE_MODEL)
+    if not prices:
+        raise PreflightError(
+            f"the pinned model {LIVE_MODEL!r} has no catalog price; refusing "
+            "to guess a spend basis")
+    input_price, output_price = float(prices[0]), float(prices[1])
+    if input_price < 0 or output_price < 0:
+        raise PreflightError("catalog prices must be non-negative")
+
+    relay_port = int(getattr(args, "relay_port", None)
+                     or LIVE_DEFAULT_RELAY_PORT)
+    if relay_port in (args.backend_port, args.frontend_port):
+        raise PreflightError(
+            f"relay port {relay_port} collides with the server/frontend ports")
+    if not D3._port_free(relay_port):
+        raise PreflightError(f"relay port {relay_port} is already in use")
+
+    limits: Dict[str, Any] = {}
+    for name, default in LIVE_DEFAULTS.items():
+        supplied = getattr(args, LIVE_LIMIT_ARGS[name], None)
+        value = default if supplied is None else supplied
+        flag = "--" + LIVE_LIMIT_ARGS[name].replace("_", "-")
+        if name in ("max_model_calls", "max_output_tokens"):
+            value = int(value)
+            if value < 1:
+                raise PreflightError(f"{flag} must be >= 1")
+        else:
+            value = float(value)
+            if value <= 0:
+                raise PreflightError(f"{flag} must be > 0")
+        limits[name] = value
+    limits["input_usd_per_1m"] = input_price
+    limits["output_usd_per_1m"] = output_price
+
+    import secrets as _secrets
+
+    run_token = _secrets.token_urlsafe(18)
+    live_transport = kind == live_model_relay.UPSTREAM_KIND_LIVE
+    return {
+        "mode": "live_flash",
+        "provider": LIVE_PROVIDER,
+        "model": LIVE_MODEL,
+        "pin": LIVE_PIN,
+        "upstream_base_url": upstream,
+        "upstream_kind": kind,
+        "live_upstream_enabled": live_transport,
+        "credential_seam": "operator_stdin" if live_transport else None,
+        "relay_port": relay_port,
+        "relay_run_token": run_token,
+        "relay_url": f"http://127.0.0.1:{relay_port}/v1/{run_token}",
+        "relay_ledger_path": str(world / "live_relay_ledger.jsonl"),
+        "relay_log_path": str(world / "live_relay.log"),
+        "dummy_key": live_model_relay.RELAY_DUMMY_KEY,
+        "provider_catalog": {LIVE_PROVIDER: [LIVE_MODEL]},
+        "limits": limits,
+        "pricing": {
+            "source": "core.llm.opencode_catalog.OPCODE_KNOWN_PRICES",
+            "input_usd_per_1m": input_price,
+            "output_usd_per_1m": output_price,
+        },
+        "credential_source": (
+            "operator-supplied on stdin to the relay process only; the relay "
+            "reads no environment variable or auth file and the key is never "
+            "recorded"
+            if live_transport else
+            "none: the relay holds no credential and the sandboxed server gets "
+            "only a run-scoped relay placeholder"),
+    }
+
+
+def _live_question_ok(question: Any) -> bool:
+    """A live model's own invoice question, scoped to the invoice.
+
+    The scripted lane keeps its literal ``INVOICE in ...`` requirement; a live
+    model may word the question differently, so this accepts any non-empty open
+    question that is scoped to the invoice role or names the invoice/PO. The
+    exact text is recorded by the caller -- prose is evidence, never a pass
+    criterion on its own.
+    """
+    if not isinstance(question, dict):
+        return False
+    text = str(question.get("question") or "").strip()
+    if not text:
+        return False
+    scoped = " ".join(str(question.get(key) or "") for key in (
+        "concept", "missing_role", "role", "operation")).lower()
+    if "invoice" in scoped:
+        return True
+    roles = question.get("missing_roles") or question.get("roles") or []
+    if isinstance(roles, (list, tuple)) and any(
+            "invoice" in str(role).lower() for role in roles):
+        return True
+    blob = json.dumps(question, default=str).lower()
+    return "invoice" in blob or INVOICE.lower() in blob or PO.lower() in blob
+
+
+def _forbidden_adapters(assignment: Dict[str, Any]) -> List[str]:
+    """Adapter names that would mean the episode reached a send/delivery path."""
+    found: List[str] = []
+    for step in assignment.get("steps") or []:
+        adapter = str((step or {}).get("adapter") or "").lower()
+        if adapter and any(token in adapter
+                           for token in LIVE_FORBIDDEN_ADAPTER_TOKENS):
+            found.append(adapter)
+    return sorted(set(found))
+
+
+def _credential_row_violations(db_path: Path) -> List[str]:
+    """Reuse the rig's own scrub detector against THIS run's scratch DB."""
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        return list(D3.R.verify_scrubbed(con))
+    finally:
+        con.close()
+
+
+def _contains_secret(text: str) -> bool:
+    """Best-effort secret scan for evidence (product redactor + local shapes)."""
+    import re
+
+    blob = str(text)
+    try:
+        from core.secrets_redactor import check_for_secrets
+
+        if check_for_secrets(blob).get("has_secrets"):
+            return True
+    except Exception:  # noqa: BLE001 - probe is best-effort
+        pass
+    return bool(re.search(r"sk-[A-Za-z0-9_\-]{8,}|Bearer\s+\S{8,}", blob))
+
+
+def _record_live_ledger(scenario: Dict[str, Any],
+                        live: Dict[str, Any],
+                        ledger: Dict[str, Any]) -> None:
+    """Project the relay's bounded ledger into the scenario evidence."""
+    budget = ledger.get("budget") or {}
+    entries = ledger.get("entries") or []
+    served_models = {
+        str(entry.get("served_model"))
+        for entry in entries if entry.get("served_model")}
+    live_section = scenario.setdefault("live", {})
+    live_section["relay_available"] = ledger.get("available") is True
+    live_section["served_pin"] = (
+        f"{live['provider']}:{served_models.pop()}"
+        if len(served_models) == 1 else None)
+    live_section["totals"] = {
+        "calls": int(budget.get("calls_started") or 0),
+        "input_tokens": int(budget.get("input_tokens") or 0),
+        "output_tokens": int(budget.get("output_tokens") or 0),
+        "cost_usd": round(float(budget.get("charged_usd") or 0.0), 9),
+        "usage_unknown_calls": int(budget.get("usage_unknown_calls") or 0),
+    }
+    live_section["budget"] = budget
+    live_section["models_probes"] = int(budget.get("models_probes") or 0)
+    live_section["episodes"] = 1
+    scenario["relay_ledger"] = entries
+
+
+def _live_budget_exhausted(ledger: Dict[str, Any]) -> bool:
+    """True only for the relay's BUDGET refusals (not a foreign model probe)."""
+    budget = ledger.get("budget") or {}
+    refusals = budget.get("refusals") or {}
+    return any(int(refusals.get(reason) or 0) > 0
+               for reason in ("call_cap", "spend_cap", "wall_clock"))
+
+
+#: Ledger keys that would mean a prompt/completion body was persisted. The
+#: relay records metadata only; these names fail closed if a future change
+#: starts writing content.
+LEDGER_CONTENT_KEYS = frozenset({
+    "response_head", "response_body", "content", "message", "messages",
+    "prompt", "completion", "text", "choices", "prompt_text",
+})
+#: Ledger keys that would mean a credential/header was persisted.
+LEDGER_CREDENTIAL_KEYS = frozenset({
+    "api_key", "authorization", "credential", "bearer", "token",
+    "credential_fingerprint",
+})
+
+
+def _ledger_keys_present(entries: List[Dict[str, Any]],
+                         forbidden: frozenset) -> List[str]:
+    found: set = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        found.update(key for key in entry if str(key).lower() in forbidden)
+    return sorted(found)
+
+
+def _assert_live_episode(scenario: Dict[str, Any], live: Dict[str, Any],
+                         step: Any, assignment: Dict[str, Any],
+                         *, db_path: Path) -> None:
+    """Bounded-call and isolation assertions for the live relay lane.
+
+    Deterministic production facts (upload identity, open/closed question, one
+    ``invoice.reconcile`` of 140.25, reload visibility) are asserted by the same
+    steps in both modes. This adds what ONLY the relay can prove: the pin that
+    was requested is the pin that served every call, the caps held, every call
+    was one chat completion, the transport class matches the configured
+    upstream, and neither model content nor a credential entered the ledger.
+    """
+    ledger = D3.R.fetch_relay_ledger(live["relay_port"])
+    _record_live_ledger(scenario, live, ledger)
+    budget = ledger.get("budget") or {}
+    entries = ledger.get("entries") or []
+    limits = live["limits"]
+    served_models = {
+        str(entry.get("served_model"))
+        for entry in entries if entry.get("served_model")}
+    outbound = _forbidden_adapters(assignment)
+    credential_rows = _credential_row_violations(db_path)
+    secret_in_ledger = _contains_secret(json.dumps(entries, default=str))
+    content_keys = _ledger_keys_present(entries, LEDGER_CONTENT_KEYS)
+    credential_keys = _ledger_keys_present(entries, LEDGER_CREDENTIAL_KEYS)
+    scenario["live"]["secrets_recorded"] = bool(secret_in_ledger)
+    scenario["live"]["model_content_recorded"] = bool(content_keys)
+    scenario["live"]["credential_fields_recorded"] = bool(credential_keys)
+    scenario["live"]["external_accounts"] = False
+    fixtures = scenario.get("fixtures") or {}
+    checks = {
+        "relay_available": ledger.get("available") is True,
+        "at_least_one_model_call": len(entries) >= 1,
+        "calls_within_cap": (
+            int(budget.get("calls_started") or 0)
+            <= int(limits["max_model_calls"])),
+        "spend_within_cap": (
+            float(budget.get("charged_usd") or 0.0)
+            <= float(limits["max_spend_usd"]) + 1e-9),
+        "no_unsettled_reservation": (
+            abs(float(budget.get("reserved_usd") or 0.0)) < 1e-9),
+        "every_call_is_chat_completions": all(
+            entry.get("operation") == "chat.completions" for entry in entries),
+        "requested_pin_only": all(
+            entry.get("requested_model") == live["model"] for entry in entries),
+        "served_pin_only": served_models == {live["model"]},
+        "served_pin_equals_requested": (
+            scenario["live"].get("served_pin") == live["pin"]),
+        "every_call_succeeded": all(
+            int(entry.get("status") or 0) == 200 for entry in entries),
+        "usage_measured": all(
+            entry.get("usage_unknown") is False for entry in entries),
+        "no_budget_refusal": not _live_budget_exhausted(ledger),
+        "no_foreign_model_attempt": (
+            int((budget.get("refusals") or {}).get(
+                "model_not_pinned") or 0) == 0),
+        "transport_state_matches": (
+            budget.get("upstream_kind") == live["upstream_kind"]
+            and budget.get("live_upstream_enabled")
+            is live["live_upstream_enabled"]),
+        "ledger_file_present": Path(live["relay_ledger_path"]).is_file(),
+        "no_secret_in_ledger": not secret_in_ledger,
+        "no_model_content_in_ledger": not content_keys,
+        "no_credential_fields_in_ledger": not credential_keys,
+        "no_outbound_or_send_adapter": not outbound,
+        "no_connector_credential_rows": not credential_rows,
+        "synthetic_fixture_only": (
+            fixtures.get("expected_total") == EXPECTED_TOTAL
+            and str((fixtures.get("po") or {}).get("po_id") or "") == PO
+            and str((fixtures.get("complete") or {}).get("invoice_id") or "")
+            == INVOICE),
+    }
+    step("live_relay_bounded_and_pinned", checks, details={
+        "served_pin": scenario["live"].get("served_pin"),
+        "upstream_kind": live["upstream_kind"],
+        "totals": scenario["live"].get("totals"),
+        "refusals": budget.get("refusals"),
+        "forbidden_adapters": outbound,
+        "credential_row_violations": credential_rows,
+        "ledger_content_keys": content_keys,
+        "ledger_credential_keys": credential_keys,
+        "episodes": 1,
+    })
 
 
 def _load_d3():
@@ -661,7 +1131,8 @@ def _upload_and_select(
     }
 
 
-def _run_scenario(args: argparse.Namespace) -> int:
+def _run_scenario(args: argparse.Namespace,
+                  live: Optional[Dict[str, Any]] = None) -> int:
     if not args.out:
         print("[execute] --out is required", file=sys.stderr)
         return 2
@@ -672,9 +1143,29 @@ def _run_scenario(args: argparse.Namespace) -> int:
         "kind": "browser_invoice_partial_evidence_scenario",
         "status": "running",
         "started_at": _now(),
-        "labels": LABELS,
+        "labels": _live_labels(live) if live is not None else LABELS,
         "steps": [],
     }
+    if live is not None:
+        scenario["mode"] = live["mode"]
+        scenario["live"] = {
+            "requested_pin": live["pin"],
+            "served_pin": None,
+            "upstream_base_url": live["upstream_base_url"],
+            "upstream_kind": live["upstream_kind"],
+            "live_upstream_enabled": live["live_upstream_enabled"],
+            "credential_source": live["credential_source"],
+            "credential_seam": live.get("credential_seam"),
+            "pricing": live["pricing"],
+            "limits": live["limits"],
+            "totals": {"calls": 0, "input_tokens": 0, "output_tokens": 0,
+                       "cost_usd": 0.0},
+            "secrets_recorded": False,
+            "model_content_recorded": False,
+            "credential_fields_recorded": False,
+            "synthetic_data": True,
+            "external_accounts": False,
+        }
     cleanups: List[Any] = []
 
     def step(name: str, checks: Dict[str, Any],
@@ -692,7 +1183,16 @@ def _run_scenario(args: argparse.Namespace) -> int:
     try:
         stack = D3._prepare_execute_environment(args)
         scenario["driver_environment"] = stack
-        scenario["preflight"] = D3._check_execute_ready(args)
+        if live is not None:
+            # The relay port replaces the shim port as the provider endpoint
+            # this episode will use; the shim port is not part of a live run.
+            scenario["preflight"] = D3._check_execute_ready(args, ports={
+                args.backend_port: "backend",
+                args.frontend_port: "frontend",
+                live["relay_port"]: "live relay",
+            })
+        else:
+            scenario["preflight"] = D3._check_execute_ready(args)
         source = D3._source_probe(args.expect_source_sha)
         _write_json(out / "source.json", source)
         if args.expect_source_sha and source.get("matches_expected") is not True:
@@ -732,32 +1232,80 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 f"localhost:{args.frontend_port}"),
             "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS": "1",
             "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT": str(fixture_root),
-            "ATOM_EMPLOYEE_PROVIDER_MODEL": "openai:gpt-4o-mini",
+            "ATOM_EMPLOYEE_PROVIDER_MODEL": (
+                live["pin"] if live is not None else "openai:gpt-4o-mini"),
         })
 
-        shim_path = world / "invoice_partial_shim.json"
-        _write_json(shim_path, _shim_doc())
-        shim_capture = world / "invoice_partial_shim_capture.jsonl"
-        os.environ["SHIM_CAPTURE_MESSAGES"] = "1"
-        shim = D3.R.launch_shim(
-            shim_path, args.shim_port, capture=shim_capture)
-        cleanups.append(shim)
+        shim_capture: Optional[Path] = None
+        relay_state: Dict[str, Any] = {}
+        if live is None:
+            shim_path = world / "invoice_partial_shim.json"
+            _write_json(shim_path, _shim_doc())
+            shim_capture = world / "invoice_partial_shim_capture.jsonl"
+            os.environ["SHIM_CAPTURE_MESSAGES"] = "1"
+            shim = D3.R.launch_shim(
+                shim_path, args.shim_port, capture=shim_capture)
+            cleanups.append(shim)
 
-        backend = D3.R.launch_server(
-            args.backend_port, world, provider_shim=True,
-            shim_port=args.shim_port)
+            backend = D3.R.launch_server(
+                args.backend_port, world, provider_shim=True,
+                shim_port=args.shim_port)
+        else:
+            # OPT-IN live replay: the ONLY provider endpoint is the loopback
+            # relay, which forwards to the configured upstream and bounds every
+            # physical call before dispatch. The server gets the existing
+            # env-addressable adapter seam plus a run-scoped placeholder key.
+            # The real key, when the trusted live destination is used, travels
+            # operator stdin -> this process -> relay stdin and nowhere else.
+            relay_api_key = (
+                _read_live_credential()
+                if live.get("credential_seam") == "operator_stdin" else None)
+            relay = D3.R.launch_live_relay(
+                live["relay_port"],
+                upstream_base_url=live["upstream_base_url"],
+                run_token=live["relay_run_token"],
+                ledger_path=Path(live["relay_ledger_path"]),
+                model=live["model"],
+                provider=live["provider"],
+                limits=live["limits"],
+                log_path=Path(live["relay_log_path"]),
+                upstream_api_key=relay_api_key,
+            )
+            scenario["live"]["credential_present"] = bool(relay_api_key)
+            relay_api_key = None
+            cleanups.append(relay)
+            relay_state = dict(
+                getattr(D3.R.launch_live_relay, "last_state", {}) or {})
+            backend = D3.R.launch_server(
+                args.backend_port, world,
+                provider_endpoint=live["relay_url"],
+                provider_base_url_env="OPENCODE_BASE_URL",
+                provider_api_key_env="OPENCODE_API_KEY",
+                provider_api_key=live["dummy_key"],
+                provider_catalog=live["provider_catalog"])
         cleanups.append(backend)
         run_dir = D3.R.launch_server.last_run_dir
         db_path = run_dir / "data" / "atom.db"
         descriptor = dict(D3.R.launch_server.descriptor)
         health = D3._health(args.backend_port)
-        scenario["stack"] = {
+        stack_record: Dict[str, Any] = {
             "world": str(world), "run_dir": str(run_dir),
             "db_path": str(db_path), "backend_port": args.backend_port,
-            "frontend_port": args.frontend_port, "shim_port": args.shim_port,
-            "descriptor": descriptor, "health": health,
-            "shim_capture": str(shim_capture),
+            "frontend_port": args.frontend_port,
         }
+        if live is None:
+            stack_record["shim_port"] = args.shim_port
+        stack_record["descriptor"] = descriptor
+        stack_record["health"] = health
+        if live is None:
+            stack_record["shim_capture"] = str(shim_capture)
+        else:
+            stack_record.update({
+                "relay_port": live["relay_port"],
+                "relay_ledger": live["relay_ledger_path"],
+                "relay_livez": relay_state,
+            })
+        scenario["stack"] = stack_record
         step("backend_isolated_scratch", {
             "health_ok": health.get("status") in (
                 None, "healthy", "degraded", "ok"),
@@ -770,6 +1318,62 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 BACKEND / "data" / "atom.db").resolve(),
         }, details={"descriptor": descriptor,
                     "health_identity": health.get("identity")})
+
+        if live is not None:
+            manifest_doc = build.get("manifest_doc") or {}
+            fixture_source = manifest_doc.get("fixture_source") or {}
+            profile_text = ""
+            profile_path = world / "local_only.sb"
+            if profile_path.is_file():
+                profile_text = profile_path.read_text(encoding="utf-8")
+            provider_endpoint = descriptor.get("provider_endpoint") or {}
+            live_checks = {
+                "pin_forwarded_to_server": (
+                    os.environ.get("ATOM_EMPLOYEE_PROVIDER_MODEL") == live["pin"]),
+                "relay_is_the_only_provider_endpoint": (
+                    str(provider_endpoint.get("base_url") or "")
+                    == live["relay_url"]),
+                "adapter_seam_is_existing": (
+                    provider_endpoint.get("base_url_env") == "OPENCODE_BASE_URL"
+                    and provider_endpoint.get("key_env") == "OPENCODE_API_KEY"),
+                "catalog_advertises_only_the_pin": (
+                    provider_endpoint.get("advertised_models")
+                    == live["provider_catalog"]),
+                "server_key_is_a_placeholder": (
+                    "placeholder" in str(
+                        provider_endpoint.get("key_kind") or "")),
+                "credential_seam_is_caller_stdin": (
+                    live["upstream_kind"] != "trusted_live"
+                    or (live.get("credential_seam") == "operator_stdin"
+                        and scenario["live"].get("credential_present") is True
+                        and live["upstream_base_url"]
+                        == "https://opencode.ai/zen/v1")),
+                "no_secondary_provider_route": (
+                    list(provider_endpoint.get("injected_into_server_env") or [])
+                    == ["OPENCODE_BASE_URL", "OPENCODE_API_KEY",
+                        "ATOM_PROVIDER_MODEL_CATALOG_PATH"]),
+                "sandbox_allows_relay_port_only": (
+                    f"localhost:{live['relay_port']}" in profile_text
+                    and profile_text.count("(allow network-outbound") == 2
+                    and "(deny network*)" in profile_text),
+                "fixture_is_api_seeded": (
+                    fixture_source.get("mode") == "api-seeded-fixture"
+                    and fixture_source.get("explicit") is False),
+                "db_is_run_db": db_path.resolve() != (
+                    BACKEND / "data" / "atom.db").resolve(),
+                "world_is_scratch": (
+                    world.resolve() != (BACKEND / "data").resolve()
+                    and str(world.resolve()).startswith(
+                        str(_world_path("").resolve()))),
+            }
+            scenario["live"]["transport"] = {
+                "provider_endpoint": provider_endpoint,
+                "fixture_source": fixture_source,
+                "sandbox_profile": str(profile_path),
+            }
+            step("live_pin_and_scratch_isolation", live_checks,
+                 details={"provider_endpoint": provider_endpoint,
+                          "fixture_source": fixture_source})
 
         password, password_meta = D3._password_for_run(
             args, world, db_path, run_dir)
@@ -813,7 +1417,9 @@ def _run_scenario(args: argparse.Namespace) -> int:
             scenario["initial_question"] = waiting[0]
             step("partial_fixture_before_invoice", {
                 "question_open": bool(waiting),
-                "question_names_invoice": INVOICE in json.dumps(waiting[0]),
+                "question_names_invoice": (
+                    INVOICE in json.dumps(waiting[0])
+                    if live is None else _live_question_ok(waiting[0])),
                 "no_reconciliation_yet": not _reconciliations(
                     _durable_assignment(db_path, run_id)),
             }, details={"question": waiting[0]})
@@ -1051,18 +1657,35 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 D3._screenshot(page, out, "04_result_after_reload.png")
                 browser.close()
 
-            shim_state = D3._shim_snapshot(args.shim_port)
-            scenario["shim"] = {
-                "calls": shim_state.get("calls"),
-                "available": shim_state.get("available"),
-                "capture": str(shim_capture),
-            }
+            if live is None:
+                shim_state = D3._shim_snapshot(args.shim_port)
+                scenario["shim"] = {
+                    "calls": shim_state.get("calls"),
+                    "available": shim_state.get("available"),
+                    "capture": str(shim_capture),
+                }
+            else:
+                _assert_live_episode(
+                    scenario, live, step,
+                    _durable_assignment(db_path, run_id), db_path=db_path)
+
             scenario["status"] = "passed"
             scenario["finished_at"] = _now()
             return 0
     except Exception as exc:  # noqa: BLE001 - failure is evidence
         scenario["status"] = "failed"
         scenario["error"] = f"{type(exc).__name__}: {exc}"
+        if live is not None:
+            # Budget exhaustion is a legitimate negative (no retry): record it
+            # as its own status instead of pretending the model misbehaved.
+            try:
+                ledger = D3.R.fetch_relay_ledger(live["relay_port"])
+                _record_live_ledger(scenario, live, ledger)
+                if _live_budget_exhausted(ledger):
+                    scenario["status"] = "failed_budget"
+            except Exception as ledger_exc:  # noqa: BLE001 - evidence gap
+                scenario["live"]["ledger_error"] = (
+                    f"{type(ledger_exc).__name__}: {ledger_exc}")
         scenario["finished_at"] = _now()
         print(f"[FAIL] {scenario['error']}", file=sys.stderr)
         return 1
@@ -1091,14 +1714,41 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--admin-password-file", default="")
     ap.add_argument("--provision-admin-password", action="store_true")
     ap.add_argument("--headed", action="store_true")
+    # OPT-IN live-replay lane. Every flag defaults to "not supplied" so a live
+    # flag inside a wrapper script fails loud instead of half-configuring a run.
+    ap.add_argument(
+        "--live-flash", action="store_true",
+        help="opt in to the relay-transport episode (requires --execute, "
+             "--out, %s=spend and --live-upstream-url)" % LIVE_ACK_ENV)
+    ap.add_argument(
+        "--live-upstream-url", default="",
+        help="OpenAI-compatible upstream base url for the relay: a loopback "
+             "synthetic endpoint, or the fixed trusted live destination "
+             "https://opencode.ai/zen/v1 (which also requires "
+             "--live-credential-stdin)")
+    ap.add_argument(
+        "--live-credential-stdin", action="store_true",
+        help="read the live provider key from operator stdin and pass it to "
+             "the relay on its stdin; never read from env, .env or auth files")
+    ap.add_argument("--relay-port", type=int, default=None)
+    ap.add_argument("--max-model-calls", type=int, default=None)
+    ap.add_argument("--max-output-tokens", type=int, default=None)
+    ap.add_argument("--max-spend-usd", type=float, default=None)
+    ap.add_argument("--live-call-timeout-s", type=float, default=None)
+    ap.add_argument("--max-wall-clock-s", type=float, default=None)
     args = ap.parse_args(argv)
     if args.preflight and args.execute:
         ap.error("choose --preflight or --execute")
     if not args.preflight and not args.execute:
         args.preflight = True
+    try:
+        live = _live_config(args)
+    except PreflightError as exc:
+        print(f"[preflight] {exc}", file=sys.stderr)
+        return 2
     if args.preflight:
         return _run_preflight(args)
-    return _run_scenario(args)
+    return _run_scenario(args, live)
 
 
 if __name__ == "__main__":
