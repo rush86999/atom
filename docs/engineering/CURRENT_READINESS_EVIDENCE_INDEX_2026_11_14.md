@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Later verifier update:** the [November 14 follow-through](#10-verifier-follow-through-after-the-index-cut) records main through `05715907e` (#945), stream attribution (#946), ordinary executable-skill dispatch, and the later WorkDrive/fleet replays. The original index cut and historical rows below remain source-bound; read the addendum before treating “missing”, “draft”, or “current main” in those rows as the latest status.
+> **Latest verifier update:** [the later November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) records main through `3a52ecb0d` (#947), merged transcription (#932), the verified document/Canvas and native-chat journeys, and the still-open fleet quality gate. The [earlier follow-through](#10-verifier-follow-through-after-the-index-cut) and original rows remain historical, source-bound records; read the latest addendum before treating their “missing”, “draft”, or “current main” wording as current status.
 
 **Status: navigation and evidence reconciliation only. Not a new score, not a
 completion claim, and not a replacement for the original records.**
@@ -1186,3 +1186,164 @@ unfamiliar substantive judgment, measured multi-model quality and
 performance, broader operations and owner-deferred profile breadth remain
 subject to the open boundaries above. Historical **111/123**, the original
 **143 claims / 18 goals**, and **`app_complete: false`** are unchanged.
+
+## 11. Later verifier reconciliation — merged transcription and bounded UI journeys
+
+**Evidence cut: 2026-11-14, 21:10 UTC.** GitHub main was independently
+re-read as `3a52ecb0d9fa8b21337889137d23a9daeae64836`, tree
+`40c0d7e0179b2707fef03f8116dd8998cac3dadd`. The verifier reconciled retained
+reports and its independent checks locally; no report packet was sent to an
+additional model worker. The journeys below predate this evidence cut; the
+documentation update itself adds no further product run. Private receipts
+are not included in the repository and cannot be independently checked by
+public readers from these summaries alone. Historical **143 claims / 18 goals**, **111/123
+(90.2%)**, and **`app_complete: false`** remain unchanged.
+
+### Merged source after the earlier cut
+
+- **#932 delivered the transcription repair and merged** as
+  `ab14eb391480b7d493e158cac887d40e2fcc2242`.
+  Its full tree exactly matches the joint-qualified
+  `ac1812c71421636eff2e604c8a226b317e55db4a`; the root's 360-test evidence
+  above therefore applies to the merged content. All 14 exact-head hosted
+  checks passed. The owner authorized bypassing only the separate-person
+  review requirement; no CI or security failure was bypassed.
+- **#947 merged** as `3a52ecb0d9fa8b21337889137d23a9daeae64836`, after
+  all 14 checks passed under the same bounded review authorization. Its
+  documentation-only change does not imply another runtime replay.
+- The real local Whisper decoder evidence still uses a harness-injected
+  compatible client. Neither a shipped local-STT setting nor remote OpenAI
+  billing was verified by the merge. The earlier configuration limit remains.
+
+Private merge/check receipt: `/private/tmp/atom-qualified-pr-merge-result.json`.
+
+### Ordinary documents: actual upload, export, deletion and restart
+
+The accepted runs use the frozen archive of `05715907e`, not a fresh server
+built from every later main revision. Its health response reports source
+`unknown`; process/cwd/world binding and independently checked source hashes
+establish the archive identity. This limitation must accompany the results.
+
+| Boundary | Accepted evidence | Limit |
+|---|---|---|
+| Preseeded browser journey | Signed-in list/open/UI export/delete; authenticated search API; reload and new-process absence; scoped SQL/vector/lexical revocation. A peer record's shared materialized file remains correctly available. Root verified artifact/harness and ten source hashes. | Two document records were preseeded; this run proves neither upload nor unshared-file unlink. |
+| Real public API upload | An authenticated multipart TXT upload from an empty document store exercised parsing, local FastEmbed, SQL/vector writes and the materialized file. Read/search/export matched the uploaded bytes. One unshared deletion revoked the record and unlinked its file; a new backend process retained absence. Root verified 24 artifact hashes, eight source hashes and the read-only DB/file outcome. | API-only, default workspace; not browser upload, other formats or cross-tenant acceptance. Earlier harness failures remain retained. |
+| Real browser file input | The actual Documents file input and React multipart path uploaded a synthetic 208-byte TXT file. The new card/detail/export matched those bytes. One UI deletion unlinked the unshared file; reload and a new backend/fresh browser retained empty list/search and detail/export 404. Root verified four receipt hashes, ten source hashes and the pass-through upload observer. | Chromium did not expose the multipart body size; a pass-through XHR observer and received/exported byte hashes bind the upload. Default workspace only. No separate Documents search input exists; search evidence is the authenticated API. |
+
+These runs used local cached FastEmbed and no remote model requests. They
+close the specific missing upload and unshared-file boundaries without
+promoting TXT/default-workspace evidence to every document family or Goal 3.
+
+Private reports: `/private/tmp/atom-doc-current-browser-report.md`,
+`/private/tmp/atom-document-upload-public-report.md`, and
+`/private/tmp/atom-document-ui-upload-report.md`.
+
+### Canvas: accepted document-family D2, not all Canvas families
+
+At clean frozen main `ab14eb391`, a fresh real browser journey exercised
+create → edit → save → reload → DOCX export → delete → new backend process →
+restore → reopen → second export. **112/112 mandatory checks passed**, with
+27/27 fresh pre-lock checks and 28/28 checks under the run's own maintenance
+lock. All 100 original execute checks were retained, with 12 added. Both
+DOCX files had identical 36,730-byte content, correct save/restore audit
+binding and the expected markers; root independently checked their bytes
+and headers. No product source was edited and no provider was called.
+
+Root subsequently found that the browser-event classifier admitted some
+wrong-method and foreign-canvas negatives. A stricter method/own-canvas
+classifier passed **24 independently rerun unit controls**, including the
+wrong-method and foreign-canvas negatives. Root independently
+re-adjudicated all **51 retained sanitized events**: zero classification
+changes, zero unexpected events. It also verified the original receipt and
+manifest fingerprints, 11 artifact hashes and 17 source hashes. This is
+**post-hoc adjudication of the same browser run**, not another browser run
+or another 112 checks. The 15-second post-recovery WebSocket grace is an
+explicit measurement limit, not general reconnection/co-editing proof.
+
+The earlier 98-pass/2-fail/1-missing receipt and old #924 failed gate remain
+unchanged. The clean #931 replacement had merged; no #924 security failure
+was waived. Accepted scope is the document-family lifecycle above, not all
+Canvas families, co-editing, KVM or whole Goal 5.
+
+Private reports: `/private/tmp/atom-canvas-d2-qualification-report.md`,
+`/private/tmp/atom-d2-strict-classifier-report.md`; independent root receipt:
+`/private/tmp/atom-root-d2-strict-verification.json`. Historical raw browser
+records remain private; only sanitized evidence was used for adjudication.
+
+### Native chat and the release-profile boundary
+
+The actual bundled menu bar UI at source `5d1f11de4`, pinned binary SHA-256
+`5d32077ccc383e3c314fb3986bddfddd29583b9e6010a623d303affa6ddab5cd`,
+completed native sign-in → textarea/send → displayed real response → logout.
+One physical request served `deepseek-v4.1-flash` through OpenCode Go. Root
+checked the native
+DOM timeline, request ledger and artifact hashes. Native files were unchanged
+through `05715907e`, but the replay's backend is the older source: this is not
+a fresh current-main backend run or streamed/multi-turn acceptance. The null
+usage execution identity observed there predates #946; it is not evidence
+of a current-main attribution regression.
+
+The shipped `core` profile explicitly disables Tasks, Boards and command
+centres/Projects. Real signed-in navigation showed the declared release-scope
+gates, including after backend restart. Root verified 24 artifact hashes and
+20 source hashes. This is **blocked by release profile**, not a successful
+create/edit/move/delete journey. No deferred surface was force-enabled.
+
+Private reports: `/private/tmp/atom-menubar-native-chat-report.md` and
+`/private/tmp/atom-tasks-boards-current-report.md`.
+
+### Fleet repair candidate: safe failure verified, synthesis quality still open
+
+As of this cut, **#948 is open, not merged**, at
+`16e5b101a2dedf1687f05b8139b6d6015286e129`, tree
+`1909ce78cc60be7865a8c60ba0373ec7ef1d959c`. It includes main `3a52ecb0d`.
+The candidate preserves call-local stop/outcome metadata, withholds failed
+or incomplete synthesis, and repairs known-incomplete cached answers from
+durable specialist evidence without redispatch. The shared facade separates
+terminal failure details from answer text; audited regeneration, tiebreaker
+and code-proposer callers use their safe failure paths. Legacy text callers
+retain their existing contract. Unknown metadata is not provider-limit proof.
+
+- The shared-failure repair at `1693a6872` passed 517 worker tests and 266
+  independent root tests. The final follow-up passed a 268-test root focus
+  run; after its final test-only amendment, all 15 failure controls passed
+  independently again and runtime source was verified unchanged.
+- A cold, guarded real request at `16e5b101a` used actual wire output limit
+  2,000 and served `deepseek-v4.1-flash` with HTTP 200, but no visible content
+  before `finish_reason=length`. Atom correctly rejected synthesis and
+  returned the full attributed retained specialist findings. This is a
+  helper-boundary test over retained synthetic evidence, not a new whole
+  task, successful synthesis-quality pass or proof of a better output cap.
+- The earlier same-process 2,000 variant made zero physical requests, so it
+  is not a valid output-budget comparison. Its exact no-dispatch cause is
+  unconfirmed; policy exclusion is only a reproduced negative control.
+- Earlier fresh-process cached readbacks returned the complete retained
+  findings identically with zero provider requests or specialist reruns.
+- All three owner-authorized physical verification requests were consumed.
+  No further live request is covered by that authorization. Failure-result
+  usage zeros are a facade placeholder, not evidence of zero provider billing.
+
+Fresh hosted CI was still running at this cut; security, boot, Docker build,
+frontend and installation checks had passed. All 14 exact-head checks and
+the review requirement must clear before merge. The earlier review-only
+bypass authorization covered #932/#947, not #948. The original incomplete
+live answer remains a negative; no general model-quality acceptance follows.
+
+Private reports: `/private/tmp/atom-typed-completion-failure-report.md`,
+`/private/tmp/atom-root-fleet-final-cold-u3mybtzv/result.json`, and
+`/private/tmp/atom-root-fleet-final-verification.md`. The last report concerns
+the earlier cached/readback source; it is not substituted for the final cold
+request. Physical-call ledger:
+`/private/tmp/brennan-brief/FLEET_LIVE_REQUEST_BUDGET_2026_11_14.json`.
+
+### Remaining original scope
+
+The Goal 10 elapsed wait is still not due before
+**2026-11-16T06:42:25.414033Z**. Unfamiliar substantive judgment, measured
+quality across genuinely distinct capable models, fresh build identity,
+broader document/Canvas families and collaboration, native mobile device
+use, broader operations/PostgreSQL/performance and owner-deferred profile
+breadth remain open. Local aliases named `o4-mini`, `atom-preview` and
+`llama3.1:8b` were observed to share one Llama 8B digest; aliases are not
+independent model-quality evidence. No claim score, goal identity or overall
+completion state changes in this reconciliation.
