@@ -22,12 +22,18 @@ These tests lock the replacement contract:
     delivers the complete attributed specialist evidence;
   * a gateway that omits finish_reason is caught by the conservative text-shape
     backstop (the live answer ended on a continuation word);
+  * text shape is only ever *suspicion*: it withholds the editorial answer as an
+    unverified ending and never claims the provider hit an output limit, since
+    the same ending completes a label or particle imperative ("Device status:
+    on", "Count me in", "Carry on");
   * input ``evidence_truncated`` stays a separate flag from output truncation;
   * provider failure uses the same one-call, no-retry fallback;
   * the durable result and a cached readback preserve the complete answer and
     the truncation disclosure without a second synthesis or specialist rerun;
   * a legacy cached ``used=True + evidence_truncated=True`` result is repaired
-    from its own durable specialist results with zero provider calls.
+    from its own durable specialist results with zero provider calls, and a
+    legacy fallback that claimed an output limit without a provider stop reason
+    is relabelled as an unverified ending.
 
 No provider, network, live DB, or credential is used.
 """
@@ -258,6 +264,8 @@ def test_complete_synthesis_is_used_and_grounds_all_requested_actions(world):
     assert synthesis["reason"] is None
     assert synthesis["evidence_truncated"] is False
     assert synthesis["output_truncated"] is False
+    assert synthesis["output_ending_unverified"] is False
+    assert synthesis["truncation_evidence"] is None
     assert synthesis["finish_reason"] == "stop"
     assert "Fleet synthesis" in result["final_output"]
     _assert_all_actions_grounded(result["final_output"])
@@ -279,6 +287,8 @@ def test_output_truncated_synthesis_falls_back_to_complete_attributed_actions(
     # INPUT evidence was complete; only the provider output was cut.
     assert synthesis["evidence_truncated"] is False
     assert synthesis["finish_reason"] == "length"
+    assert synthesis["truncation_evidence"] == "provider_finish_reason"
+    assert synthesis["output_ending_unverified"] is False
     # The cut editorial text is not shown as the deliverable.
     assert "Prioritize slipped-deal recovery" not in result["final_output"]
     assert "cut off at the model's output limit" in result["final_output"]
@@ -295,15 +305,63 @@ def test_missing_finish_reason_uses_only_strong_text_shape_backstop(world):
 
     synthesis = result["final_synthesis"]
     assert synthesis["used"] is False
-    assert synthesis["reason"] == "output_truncated"
-    assert synthesis["output_truncated"] is True
+    # Shape is suspicion, not provider proof of an output limit.
+    assert synthesis["reason"] == "output_ending_unverified"
+    assert synthesis["output_truncated"] is False
+    assert synthesis["output_ending_unverified"] is True
+    assert synthesis["truncation_evidence"] == "text_shape"
     assert synthesis["finish_reason"] is None
+    assert "cut off at the model's output limit" not in result["final_output"]
+    assert "could not be verified as complete" in result["final_output"]
     _assert_all_actions_grounded(result["final_output"])
     # Both provider vocabularies are recognized when they ARE reported.
     assert FleetAdmiral._synthesis_finish_reason_truncated("length") is True
     assert FleetAdmiral._synthesis_finish_reason_truncated(
         "max_tokens") is True
     assert FleetAdmiral._synthesis_finish_reason_truncated("stop") is False
+
+
+@pytest.mark.parametrize("text", [
+    # Complete status label and particle imperatives. These end on words that
+    # can also be dangling continuations ("on", "in"), so the shape heuristic
+    # must not escalate them to a provider-confirmed output-limit claim.
+    "Device status: on",
+    "Count me in",
+    "Carry on",
+])
+def test_complete_labels_are_not_reported_as_proven_cuts(world, text):
+    _seed_chain(world)
+    result = _run(world, FakeLLM(content=text, finish_reason=None))
+
+    synthesis = result["final_synthesis"]
+    # The cautious fallback is preserved when a weak shape concern exists,
+    # but the disclosure never asserts a truncation fact the provider did not
+    # report.
+    assert synthesis["used"] is False
+    assert synthesis["output_truncated"] is False
+    assert synthesis["truncation_evidence"] == "text_shape"
+    assert synthesis["reason"] != "output_truncated"
+    assert "output limit" not in result["final_output"]
+    assert "cut off" not in result["final_output"]
+    assert "could not be verified as complete" in result["final_output"]
+    _assert_all_actions_grounded(result["final_output"])
+
+
+def test_unverified_ending_with_a_real_dangling_clause_is_not_proven_cut(world):
+    """The real incomplete shape still withholds the text, but only as
+    suspicion -- no stop reason was reported, so no output limit is a fact."""
+    _seed_chain(world)
+    result = _run(world, FakeLLM(
+        content=STRONG_CUT_SYNTHESIS, finish_reason="   "))
+
+    synthesis = result["final_synthesis"]
+    assert synthesis["finish_reason"] is None
+    assert synthesis["used"] is False
+    assert synthesis["output_truncated"] is False
+    assert synthesis["output_ending_unverified"] is True
+    assert synthesis["reason"] == "output_ending_unverified"
+    assert "cut off at the model's output limit" not in result["final_output"]
+    _assert_all_actions_grounded(result["final_output"])
 
 
 @pytest.mark.parametrize("text", [
@@ -381,14 +439,17 @@ def test_explicit_length_reason_wins_over_complete_looking_text(world):
     assert synthesis["used"] is False
     assert synthesis["reason"] == "output_truncated"
     assert synthesis["output_truncated"] is True
+    assert synthesis["output_ending_unverified"] is False
+    assert synthesis["truncation_evidence"] == "provider_finish_reason"
     assert synthesis["finish_reason"] == "length"
     assert "## DIRECT ANSWER:" not in result["final_output"]
+    assert "cut off at the model's output limit" in result["final_output"]
     _assert_all_actions_grounded(result["final_output"])
 
 
 def test_blank_finish_reason_normalizes_to_none_and_keeps_shape_backstop(world):
     """A blank provider reason is unknown, not a reason that suppresses the
-    missing-metadata backstop."""
+    missing-metadata backstop -- and it is still not proof of a cut."""
     _seed_chain(world)
     result = _run(world, FakeLLM(
         content=STRONG_CUT_SYNTHESIS, finish_reason="   "))
@@ -396,8 +457,10 @@ def test_blank_finish_reason_normalizes_to_none_and_keeps_shape_backstop(world):
     synthesis = result["final_synthesis"]
     assert synthesis["finish_reason"] is None
     assert synthesis["used"] is False
-    assert synthesis["reason"] == "output_truncated"
-    assert synthesis["output_truncated"] is True
+    assert synthesis["reason"] == "output_ending_unverified"
+    assert synthesis["output_truncated"] is False
+    assert synthesis["output_ending_unverified"] is True
+    assert synthesis["truncation_evidence"] == "text_shape"
     _assert_all_actions_grounded(result["final_output"])
 
 
@@ -529,6 +592,85 @@ def test_legacy_cached_incomplete_synthesis_is_repaired_from_durable(world):
     assert durable["final_output"] == repaired["final_output"]
     assert durable["final_synthesis"]["used"] is False
 
+
+def test_legacy_unproven_output_limit_claim_is_relabelled_on_readback(world):
+    """The counterprobe shape: no provider stop reason, yet the fallback said
+    "cut off at the model's output limit". That fact was never recorded, so a
+    durable readback must relabel it as an unverified ending -- from the same
+    durable specialist results, with zero synthesis calls and zero dispatches.
+    """
+    _seed_chain(world)
+    first = _run(world, FakeLLM())
+    assert first["final_synthesis"]["used"] is True
+
+    db = world()
+    try:
+        chain = db.query(DelegationChain).filter(
+            DelegationChain.id == "chain-truncation").one()
+        metadata = dict(chain.metadata_json or {})
+        cached = dict(metadata["specialist_execution"])
+        result = dict(cached["result"])
+        result["final_output"] = (
+            "Final synthesis was cut off at the model's output limit; the "
+            "complete attributed specialist contributions follow (not "
+            "independently verified).\nSpecialist contributions:\n"
+            "- Sales Analyst (sales): " + SPECIALIST_OUTPUT)
+        result["final_synthesis"] = {
+            **result["final_synthesis"],
+            "used": False,
+            "reason": "output_truncated",
+            "evidence_truncated": False,
+            "output_truncated": True,
+            "finish_reason": None,
+        }
+        cached["result"] = result
+        metadata["specialist_execution"] = cached
+        chain.metadata_json = metadata
+        db.commit()
+    finally:
+        db.close()
+
+    llm = FakeLLM(error=AssertionError("synthesis must not run on cache hit"))
+    repaired = _run(world, llm)
+
+    synthesis = repaired["final_synthesis"]
+    assert repaired["cached"] is True
+    assert synthesis["used"] is False
+    assert synthesis["repaired_from_durable"] is True
+    # The old claim is not a fact any provider ever reported.
+    assert synthesis["reason"] == "output_ending_unverified"
+    assert synthesis["output_truncated"] is False
+    assert synthesis["output_ending_unverified"] is True
+    assert synthesis["truncation_evidence"] == "text_shape"
+    assert "cut off at the model's output limit" not in (
+        repaired["final_output"])
+    assert "could not be verified as complete" in repaired["final_output"]
+    _assert_all_actions_grounded(repaired["final_output"])
+    assert len(llm.calls) == 0
+    assert len(FakeSpecialist.calls) == 1
+    # The relabelled answer is durable, so this is not a one-read illusion.
+    durable = _durable_result(world)
+    assert durable["final_output"] == repaired["final_output"]
+    assert durable["final_synthesis"]["reason"] == "output_ending_unverified"
+    assert durable["final_synthesis"]["output_truncated"] is False
+
+
+def test_cached_provider_proven_truncation_keeps_its_proven_label(world):
+    """A retained provider ``length`` is still proof after a readback, so the
+    repair must not downgrade it to an unverified ending."""
+    _seed_chain(world)
+    first = _run(world, FakeLLM(
+        content=COMPLETE_SYNTHESIS, finish_reason="length"))
+    assert first["final_synthesis"]["reason"] == "output_truncated"
+
+    repaired = _run(world, FakeLLM(
+        error=AssertionError("synthesis must not run on cache hit")))
+    synthesis = repaired["final_synthesis"]
+    assert repaired["cached"] is True
+    assert synthesis["reason"] == "output_truncated"
+    assert synthesis["output_truncated"] is True
+    assert synthesis["truncation_evidence"] == "provider_finish_reason"
+    assert "cut off at the model's output limit" in repaired["final_output"]
 
 def _response(finish_reason, content="answer"):
     return SimpleNamespace(choices=[SimpleNamespace(

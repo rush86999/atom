@@ -9893,3 +9893,27 @@ concurrent twins for a real sink producer, a sink-ignoring `**kwargs` wrapper,
 a narrow legacy handler, a non-introspectable callable, and a positional-only
 sink name, plus blank-reason normalization and elliptical negatives; selection
 is 115 passed (scratch SQLite, no provider).
+
+**Third follow-up (2026-11-14 root shape-truthfulness counterprobe)**: the
+missing-`finish_reason` shape backstop still escalated a weak text signal to a
+provider fact. With the production `FleetAdmiral` output "Device status: on"
+(`finish_reason=None`), metadata read `output_truncated=true` /
+`reason="output_truncated"` and the user reply said the answer "was cut off at
+the model's output limit" -- but no provider reported a length stop, and a
+trailing "on"/"in" can complete a status label or particle imperative. The
+proof seam is now explicit: `output_truncated`/`reason="output_truncated"` are
+provider-proven only (`truncation_evidence="provider_finish_reason"`); the
+missing-stop-reason backstop reports `output_ending_unverified` /
+`truncation_evidence="text_shape"` and still uses the complete attributed
+fallback, but its disclosure says the ending could not be verified as complete
+instead of claiming an output limit. Explicit `stop` still wins, a missing
+`None`/blank reason stays unknown, and a provider `length` still rejects a
+complete-looking text. The same distinction survives durable readback: a
+cached result that claimed `output_truncated=true` without a retained provider
+reason is relabelled from its own `specialist_results`, while a retained
+`length`/`max_tokens` stays proven -- both with zero synthesis calls and zero
+dispatches. Tests add complete label/particle negatives ("Device status: on",
+"Count me in", "Carry on"), a real dangling-clause case that must stay
+unproven, the counterprobe-shaped legacy relabel, and a proven-label readback
+twin; truncation contract is 49 passed, with `test_fleet_final_synthesis.py`
+121 passed in one scratch run (no provider, no live DB).

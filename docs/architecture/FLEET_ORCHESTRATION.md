@@ -195,7 +195,9 @@ corrective actions. Two independent truncation axes were conflated:
 | Axis | Field | Meaning |
 |---|---|---|
 | INPUT | `final_synthesis.evidence_truncated` | The bounded synthesis prompt omitted specialist text. |
-| OUTPUT | `final_synthesis.finish_reason` / `output_truncated` | The provider stopped because the output-token cap was reached. When no stop reason is reported, only strong structural text evidence is a weak backstop; text shape alone is never proof. |
+| OUTPUT (proven) | `final_synthesis.finish_reason` / `output_truncated` | The provider reported the output-token cap (`length` / `max_tokens` / `model_context_window_exceeded`). Only this is proof. |
+| OUTPUT (suspected) | `final_synthesis.output_ending_unverified` | No stop reason was reported and the text shape is weak evidence of a cut. This is suspicion, never a provider fact. |
+| PROVENANCE | `final_synthesis.truncation_evidence` | `provider_finish_reason`, `text_shape`, or `None`. |
 
 `evidence_truncated=true` is **not** evidence that the provider hit the 900
 token cap (the replay used 820 completion tokens).
@@ -241,6 +243,31 @@ always wins over this weak shape signal: `stop` uses the text, `length`/
 `max_tokens` uses the durable fallback even when the text looks complete.
 There is no quantity or domain special case.
 
+**Proof is not the same as suspicion (2026-11-14 root counterprobe).** The
+same shape can complete a status label or a particle imperative ("Device
+status: on", "Count me in", "Carry on"). With `finish_reason=None` the old
+code escalated that shape to `output_truncated=true` and told the user the
+answer "was cut off at the model's output limit" -- a provider fact no one
+reported. The two outcomes are now separate:
+
+- `output_truncated=true` + `reason="output_truncated"` +
+  `truncation_evidence="provider_finish_reason"` only when the provider
+  reported a truncating stop reason;
+- `output_ending_unverified=true` + `reason="output_ending_unverified"` +
+  `truncation_evidence="text_shape"` for the missing-stop-reason backstop.
+  The cautious fallback is unchanged (the editorial text is still withheld),
+  but the disclosure says the ending could not be verified as complete
+  instead of asserting an output limit;
+- an explicit non-truncating reason (`stop`), a missing `None` reason with no
+  shape concern, and a blank reason that normalizes to `None` all leave the
+  editorial text usable; a blank reason still arms the shape backstop.
+
+`reason` therefore never overstates proof, and the same distinction survives
+a cached readback: a durable result that claimed `output_truncated=true`
+without a retained provider reason is relabelled `output_ending_unverified`
+from its own `specialist_results`, while a retained `length`/`max_tokens`
+stays proven. Both repairs take zero synthesis calls and zero dispatches.
+
 **Deliverable rule.** The editorial synthesis is used only when the output was
 not truncated and the bounded prompt carried the complete specialist
 evidence. Otherwise the existing durable raw-contribution fallback is used:
@@ -248,7 +275,8 @@ full attributed specialist outputs + deterministic quantitative
 reconciliation (including a non-zero residual) + the execution-status footer.
 No extra provider call is made and no specialist is re-dispatched, so there is
 no unpriced retry and no duplicate work. `final_synthesis.used=false` with
-`reason="output_truncated"` or `"evidence_truncated"` records why.
+`reason="output_truncated"`, `"output_ending_unverified"`, or
+`"evidence_truncated"` records why.
 
 **Budget.** The synthesis remains one bounded read-only call:
 `_SYNTHESIS_MAX_OUTPUT_TOKENS=1400` (up from 900; the five required sections
@@ -260,15 +288,19 @@ cannot dominate the prompt.
 
 **Durable readback.** A cached result written before output truncation was
 tracked (`used=true` + `evidence_truncated=true`) is repaired on read from its
-own durable `specialist_results`, then persisted. This makes the retained live
-replay complete without a new provider call, and a restart readback returns
-the same text with zero synthesis calls and zero dispatches.
+own durable `specialist_results`, then persisted. A cached result that claimed
+`output_truncated=true` without a retained provider stop reason is relabelled
+`output_ending_unverified` the same way; a retained `length`/`max_tokens`
+remains provider-proven. This makes the retained live replay complete without
+a new provider call, and a restart readback returns the same text with zero
+synthesis calls and zero dispatches.
 
 Tests: `backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
 truncated / missing finish_reason / provider failure / evidence-vs-output /
-cached readback / legacy durable repair / wrapper propagation / valid concise
-and elliptical negative twins / explicit-reason precedence / potential
-concurrency twins for a real sink producer, a `**kwargs` wrapper that ignores
-the sink, a narrow legacy handler, and non-introspectable/positional-only
+cached readback / legacy durable repair / unproven-label relabel /
+wrapper propagation / valid concise and elliptical negative twins /
+complete label and particle-imperative negatives / explicit-reason precedence /
+potential concurrency twins for a real sink producer, a `**kwargs` wrapper that
+ignores the sink, a narrow legacy handler, and non-introspectable/positional-only
 callables / blank-reason normalization) plus the existing
 `tests/test_fleet_final_synthesis.py` contract.
