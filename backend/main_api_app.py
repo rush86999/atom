@@ -609,12 +609,17 @@ async def lifespan(app: FastAPI):
         from core.execution_recovery import reconcile_orphaned_executions
 
         recovery = reconcile_orphaned_executions()
-        if recovery.get("workflow_recovered") or recovery.get("agent_recovered"):
+        if (recovery.get("workflow_recovered")
+                or recovery.get("agent_recovered")
+                or recovery.get("fleet_chains_recovered")):
             logger.info(
-                "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s)",
+                "Startup recovery summary: %(wf)s workflow(s), %(ag)s agent(s), "
+                "%(ch)s fleet chain(s), %(lk)s chain link(s)",
                 {
                     "wf": recovery.get("workflow_recovered", 0),
                     "ag": recovery.get("agent_recovered", 0),
+                    "ch": recovery.get("fleet_chains_recovered", 0),
+                    "lk": recovery.get("fleet_links_reconciled", 0),
                 },
             )
     except Exception as e:
