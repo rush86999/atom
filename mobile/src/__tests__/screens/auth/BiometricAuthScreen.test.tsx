@@ -148,6 +148,48 @@ const { BiometricAuthScreen } = require('../../../screens/auth/BiometricAuthScre
         expect(getByText(/Authenticate to Access Atom/)).toBeTruthy();
       });
     });
+
+    it('should not reset the one-shot timer when the screen rerenders during the delay', async () => {
+      const { rerender, queryByText } = render(
+        <BiometricAuthScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      // Wait until availability resolves (the auto-trigger timer is scheduled
+      // in the effect that runs after this render) but before the 500ms delay.
+      await waitFor(() => {
+        expect(queryByText(/to sign in/)).toBeTruthy();
+      });
+      expect(mockAuthenticateWithBiometric).not.toHaveBeenCalled();
+
+      // A re-render while the timer is pending must not cancel/reschedule it.
+      rerender(
+        <BiometricAuthScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(
+        () => {
+          expect(mockAuthenticateWithBiometric).toHaveBeenCalledTimes(1);
+        },
+        { timeout: 2000 }
+      );
+    });
+
+    it('should cancel the pending auto-trigger prompt on unmount', async () => {
+      const { unmount, queryByText } = render(
+        <BiometricAuthScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      // Ensure the availability effect has scheduled the 500ms prompt.
+      await waitFor(() => {
+        expect(queryByText(/to sign in/)).toBeTruthy();
+      });
+      expect(mockAuthenticateWithBiometric).not.toHaveBeenCalled();
+
+      unmount();
+
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(mockAuthenticateWithBiometric).not.toHaveBeenCalled();
+    });
   });
 
   // ============================================================================

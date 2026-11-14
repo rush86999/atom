@@ -251,11 +251,11 @@ describe('CanvasChart Component', () => {
         <CanvasChart data={mockLineData} onPointPress={mockOnPointPress} {...touchProps} />
       );
 
-      const voronoiContainer = getByTestId('victory-voronoi-container');
-      const events = voronoiContainer.props.events;
+      const line = getByTestId('victory-line');
+      const events = line.props.events;
 
       expect(events).toBeDefined();
-      expect(events[0].onChildPress).toBeDefined();
+      expect(events[0].eventHandlers.onClick).toBeDefined();
     });
 
     test('should show tooltip on point press', () => {
@@ -267,11 +267,11 @@ describe('CanvasChart Component', () => {
       expect(() => getByTestId('tooltip')).toThrow();
 
       // Simulate point press
-      const voronoiContainer = getByTestId('victory-voronoi-container');
-      const onChildPress = voronoiContainer.props.events[0].onChildPress;
+      const line = getByTestId('victory-line');
+      const onClick = line.props.events[0].eventHandlers.onClick;
 
       act(() => {
-        onChildPress({ x: 'Jan', y: 100 }, { x: 'Jan', y: 100, label: 'January' });
+        onClick({}, { x: 'Jan', y: 100, label: 'January' });
       });
 
       // Tooltip should now be visible
@@ -284,11 +284,11 @@ describe('CanvasChart Component', () => {
         <CanvasChart data={mockLineData} {...touchProps} />
       );
 
-      const voronoiContainer = getByTestId('victory-voronoi-container');
-      const onChildPress = voronoiContainer.props.events[0].onChildPress;
+      const line = getByTestId('victory-line');
+      const onClick = line.props.events[0].eventHandlers.onClick;
 
       act(() => {
-        onChildPress({ x: 'Jan', y: 100 }, { x: 'Jan', y: 100, label: 'January' });
+        onClick({}, { x: 'Jan', y: 100, label: 'January' });
       });
 
       expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);

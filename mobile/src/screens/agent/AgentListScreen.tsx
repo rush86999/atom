@@ -18,7 +18,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Icon, MD3Colors } from 'react-native-paper';
 import { agentService } from '../../services/agentService';
-import { Agent, AgentMaturity, AgentFilters, AgentCapability } from '../../types/agent';
+import { Agent, AgentMaturity, AgentStatus, AgentFilters, AgentCapability } from '../../types/agent';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +33,7 @@ export function AgentListScreen() {
 
   // Filters
   const [maturityFilter, setMaturityFilter] = useState<AgentMaturity | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'online' | 'offline'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<AgentStatus | 'ALL'>('ALL');
   const [capabilityFilter, setCapabilityFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'last_execution'>('name');
   const [showFilters, setShowFilters] = useState(false);
@@ -266,7 +266,9 @@ export function AgentListScreen() {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Icon source="magnify" size={20} color="#999" style={styles.searchIcon} />
+        <View style={styles.searchIcon}>
+          <Icon source="magnify" size={20} color="#999" />
+        </View>
         <TextInput
           style={styles.searchInput}
           placeholder="Search agents by name, description, or capability..."
@@ -328,11 +330,11 @@ export function AgentListScreen() {
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Status</Text>
             <View style={styles.filterChips}>
-              {renderFilterChip('Online', 'online', statusFilter === 'online', () =>
-                setStatusFilter('online')
+              {renderFilterChip('Online', AgentStatus.ONLINE, statusFilter === AgentStatus.ONLINE, () =>
+                setStatusFilter(AgentStatus.ONLINE)
               )}
-              {renderFilterChip('Offline', 'offline', statusFilter === 'offline', () =>
-                setStatusFilter('offline')
+              {renderFilterChip('Offline', AgentStatus.OFFLINE, statusFilter === AgentStatus.OFFLINE, () =>
+                setStatusFilter(AgentStatus.OFFLINE)
               )}
               {renderFilterChip('All', 'ALL', statusFilter === 'ALL', () =>
                 setStatusFilter('ALL')

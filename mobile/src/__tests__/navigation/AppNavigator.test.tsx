@@ -20,7 +20,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { mockAllScreens, SCREEN_TEST_IDS } from '../helpers/navigationMocks.tsx';
+import { mockAllScreens, SCREEN_TEST_IDS } from '../helpers/navigationMocks';
 
 // Mock all screens with functional components (must run before AppNavigator loads)
 mockAllScreens();

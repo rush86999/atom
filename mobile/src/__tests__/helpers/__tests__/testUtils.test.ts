@@ -235,7 +235,7 @@ describe('testUtils', () => {
       const platforms: Array<'ios' | 'android'> = [];
 
       await testEachPlatform(async (platform) => {
-        platforms.push(Platform.OS);
+        platforms.push(platform);
       });
 
       expect(platforms).toEqual(['ios', 'android']);
@@ -349,17 +349,27 @@ describe('testUtils', () => {
       expect(androidResult).toBe('Android Value');
     });
 
-    it('should walk the fallback chain when the platform key is absent', () => {
+    it('should match React Native Platform.select key-presence semantics', () => {
       mockPlatform('ios');
 
-      // spec[platform] missing, then spec.ios missing -> spec.android
-      expect(Platform.select({ android: 'Android Value' })).toBe('Android Value');
-      // spec.android missing -> spec.default
-      expect(Platform.select({ default: 'Default Value' })).toBe('Default Value');
+      // No ios/native key -> default; other platforms are never a fallback
+      expect(Platform.select({ android: 'Android Value' })).toBeUndefined();
+      expect(
+        Platform.select({ android: 'Android Value', default: 'Default Value' })
+      ).toBe('Default Value');
       // everything missing -> undefined
       expect(Platform.select({})).toBeUndefined();
-      // spec.native reached when spec.default missing
-      expect(Platform.select({ native: 'Native Value' })).toBe('Native Value');
+      // spec.native reached when the platform key and default are missing
+      expect(
+        Platform.select({ native: 'Native Value', default: 'Default Value' })
+      ).toBe('Native Value');
+
+      // Key presence decides the branch: explicit values (including
+      // null/undefined) do not fall through to another key.
+      expect(Platform.select({ ios: null, android: 'Android Value' })).toBeNull();
+      expect(
+        Platform.select({ ios: undefined, default: 'Default Value' })
+      ).toBeUndefined();
     });
   });
 

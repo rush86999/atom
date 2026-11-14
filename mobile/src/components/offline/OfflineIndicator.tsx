@@ -47,6 +47,9 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     pendingCount: 0,
     syncInProgress: false,
     consecutiveFailures: 0,
+    currentOperation: '',
+    syncProgress: 0,
+    cancelled: false,
   });
   const [isVisible, setIsVisible] = useState(false);
   const [isOnline, setIsOnline] = useState(true);

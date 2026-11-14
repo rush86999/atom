@@ -74,9 +74,11 @@ export const waitForAsync = async (
   callback: () => void,
   timeout: number = 3000
 ): Promise<void> => {
-  // Runtime import to avoid platform-specific dependency issues
-  // Works with both @testing-library/react and @testing-library/react-native
-  const { waitFor } = await import('@testing-library/react');
+  // Runtime import to avoid platform-specific dependency issues.
+  // The module name is kept in a variable so TypeScript does not require the
+  // web testing-library types in mobile/desktop builds that never call this.
+  const testingLibraryModule = '@testing-library/react';
+  const { waitFor } = await import(testingLibraryModule);
 
   await waitFor(callback, { timeout });
 };
