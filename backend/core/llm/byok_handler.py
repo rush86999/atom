@@ -838,6 +838,76 @@ class _StreamInactivityError(RuntimeError):
     replaying it."""
 
 
+def _record_generation_outcome(
+    sink: Optional[Dict[str, Any]],
+    *,
+    success: bool,
+    reason: Optional[str] = None,
+    message: Optional[str] = None,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Write THIS call's outcome into a caller-owned mapping.
+
+    ``generate_response`` keeps its legacy text return for direct callers, so
+    a failure is otherwise only recognizable by matching an error prefix in
+    the returned string. The completion facade needs an explicit outcome: a
+    provider/policy/budget error must never become ``content`` with
+    ``success=True``. The sink is a fresh dict per
+    ``LLMService.generate_completion`` call, so concurrent calls on the shared
+    handler cannot read each other's status, served identity or diagnostics.
+
+    ``provider``/``model`` on a failure are deliberately absent: no provider
+    served the call, and guessing one from a model string would claim a
+    transport pair that never answered. Best-effort: never raises.
+    """
+    if sink is None:
+        return
+    try:
+        sink.clear()
+        sink["success"] = bool(success)
+        sink["reason"] = reason
+        sink["message"] = message
+        sink["provider"] = provider
+        sink["model"] = model
+        sink["diagnostics"] = dict(diagnostics or {})
+    except Exception:  # noqa: BLE001 — metadata must never gate generation
+        pass
+
+
+def _accepted_text_return(
+    sink: Optional[Dict[str, Any]],
+    text: str,
+    provider: Optional[str],
+    model: Optional[str],
+) -> str:
+    """Record an accepted route and return its text (legacy API unchanged)."""
+    _record_generation_outcome(
+        sink, success=True, provider=provider, model=model)
+    return text
+
+
+def _failed_text_return(
+    sink: Optional[Dict[str, Any]],
+    reason: str,
+    text: str,
+    *,
+    message: Optional[str] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Record a terminal failure and return the legacy failure text.
+
+    The text still goes back to direct ``generate_response`` consumers (the
+    text API's contract), but the structured outcome says failure so
+    ``generate_completion`` never publishes it as an answer.
+    """
+    _record_generation_outcome(
+        sink, success=False, reason=reason, message=message or text,
+        diagnostics=diagnostics)
+    return text
+
+
 @dataclass
 class _StreamRequestState:
     """Call-owned retry state shared by every nested streaming path.
@@ -2375,6 +2445,12 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        # Provider-native stop reason for the last completed non-streaming
+        # call ("stop"/"length"/"max_tokens"/...). generate_response returns
+        # only text, so callers that assemble a deliverable (fleet final
+        # synthesis) read this to distinguish a natural stop from an output
+        # that was cut off at the token cap. Cleared per call.
+        self._last_finish_reason: Optional[str] = None
         #: ``routing_result_id`` of the most recently recorded outcome row —
         #: the generation identity a later corrective verdict attaches to.
         self._last_feedback_decision_id: Optional[str] = None
@@ -3233,15 +3309,41 @@ class BYOKHandler:
                     return val.strip()
         return ""
 
-    def _stash_last_reasoning(self, response: Any) -> None:
-        """Stash the chain-of-thought of the last non-streaming completion
-        onto ``self._last_reasoning`` (same stash pattern as
-        _last_used_model). Best-effort: never raises."""
+    def _stash_last_reasoning(
+        self,
+        response: Any,
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Stash the chain-of-thought and provider stop reason of the last
+        non-streaming completion.
+
+        ``self._last_reasoning`` / ``self._last_finish_reason`` are kept for
+        the backward-compatible text API, but they are shared mutable state:
+        a concurrent call on the same handler can overwrite them while this
+        call is still awaiting post-response work (observed for the fleet
+        synthesis consumer). ``LLMService.generate_completion`` therefore
+        never reads the shared stop reason; it passes a caller-owned
+        ``finish_reason_sink`` mapping, and this method writes THIS call's
+        real provider reason there in the same task as the accepted response.
+        Concurrent calls cannot read each other's stop reason, and a sink
+        that is never written stays unknown (``None``). Best-effort: never
+        raises.
+        """
+        finish_reason: Optional[str] = None
         try:
-            msg = response.choices[0].message
+            choice = response.choices[0]
+            finish_reason = _response_field(choice, "finish_reason")
+            self._last_finish_reason = finish_reason
+            msg = choice.message
             self._last_reasoning = self._reasoning_from_message(msg) or None
         except Exception:
+            self._last_finish_reason = None
             self._last_reasoning = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = finish_reason
+            except Exception:
+                pass
 
     @staticmethod
     def _record_auth_success(provider_id: str, model: str) -> None:
@@ -7274,6 +7376,19 @@ class BYOKHandler:
         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
         estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
         execution_id: Optional[str] = None,  # Optional server-owned execution attribution
+        # Caller-owned, per-call transport metadata sink. The accepted route
+        # writes ``finish_reason`` here. Optional and additive: callers that
+        # only consume the text API keep working unchanged.
+        finish_reason_sink: Optional[Dict[str, Any]] = None,
+        # Caller-owned, per-call GENERATION OUTCOME sink. Every terminal
+        # return writes ``success`` plus a typed ``reason`` (and diagnostics
+        # for failures); the accepted routes write the real served
+        # provider/model. ``LLMService.generate_completion`` passes one fresh
+        # mapping per call and uses it to distinguish an accepted reply from
+        # a provider/policy/budget failure whose text used to be returned
+        # with ``success=True``. Optional and additive, so the legacy text
+        # API keeps working unchanged.
+        outcome_sink: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -7301,19 +7416,40 @@ class BYOKHandler:
         except Exception:
             pass
 
-        # Same staleness rule for the chain-of-thought stash: a call that
-        # produces no reasoning must not inherit the previous call's.
+        # Same staleness rule for the chain-of-thought and stop-reason
+        # stashes: a call that produces no reasoning/stop reason must not
+        # inherit the previous call's. The caller-owned sink is cleared in
+        # the calling task so a retained sink cannot show an older reason
+        # either; an accepted route below overwrites it with real provider
+        # metadata.
         self._last_reasoning = None
+        self._last_finish_reason = None
+        if finish_reason_sink is not None:
+            try:
+                finish_reason_sink["finish_reason"] = None
+            except Exception:
+                pass
+        # A retained outcome mapping must never leak a previous call's
+        # success/reason/identity into this one. The sink is normally fresh
+        # per call, but clearing here makes "unwritten" mean unknown even for
+        # a reused mapping.
+        if outcome_sink is not None:
+            try:
+                outcome_sink.clear()
+            except Exception:
+                pass
 
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
-            return "Trial Expired: Your free trial has ended. Please upgrade your plan in settings to continue using AI agents."
+            return _failed_text_return(
+                outcome_sink, "trial_restricted",
+                "Trial Expired: Your free trial has ended. Please upgrade your plan in settings to continue using AI agents.")
         if not self.clients:
             if task_type == "agentic":
                 # FOR DEMO: Return a mock JSON that continues the agentic loop
                 if "Check my inbox" in prompt or "analyze" in prompt.lower() or "market" in prompt.lower():
-                    return json.dumps({
+                    _demo_text = json.dumps({
                         "thought": "The user wants a full end-to-end machinery quote and client analysis. I will start by performing the market analysis.",
                         "plan_update": ["Perform market analysis for brennan.ca", "Read inbound emails", "Calculate quote and save to Excel", "Update CRM", "Send final email with meeting invite"],
                         "action": "perform_market_analysis",
@@ -7321,17 +7457,33 @@ class BYOKHandler:
                         "log": "> Starting Market Analysis for Brennan.ca...",
                         "deliverable": None
                     })
-                return json.dumps({
+                    return _failed_text_return(
+                        outcome_sink, "no_providers_configured",
+                        _demo_text,
+                        message=(
+                            "No LLM provider is configured; a scripted agentic "
+                            "demo response was returned instead."))
+                _demo_text = json.dumps({
                     "thought": "LLM not initialized, but running in agentic demo mode.",
                     "action": "DONE",
                     "log": "AI Employee Demo Mode active (No API Keys found)."
                 })
-            return "LLM Client not initialized (No API Keys configured)."
+                return _failed_text_return(
+                    outcome_sink, "no_providers_configured",
+                    _demo_text,
+                    message=(
+                        "No LLM provider is configured; a scripted agentic "
+                        "demo response was returned instead."))
+            return _failed_text_return(
+                outcome_sink, "no_providers_configured",
+                "LLM Client not initialized (No API Keys configured).")
         
         # --- Budget Enforcement (Phase 56) ---
         if llm_usage_tracker.is_budget_exceeded(self.workspace_id):
             logger.warning(f"AI Generation Blocked: Budget exceeded for workspace {self.workspace_id}")
-            return "🚨 BUDGET EXCEEDED: Your AI usage has reached 100% of your limit. Please increase your budget in Settings to continue."
+            return _failed_text_return(
+                outcome_sink, "budget_exceeded",
+                "🚨 BUDGET EXCEEDED: Your AI usage has reached 100% of your limit. Please increase your budget in Settings to continue.")
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
@@ -7628,9 +7780,18 @@ class BYOKHandler:
                         turn_index=turn_index,
                     )
                 except NoProvidersConfiguredError:
-                    return (
+                    return _failed_text_return(
+                        outcome_sink, "no_eligible_providers",
                         "No eligible LLM providers found for your current "
-                        "plan.")
+                        "plan.",
+                        diagnostics={
+                            "candidate_count": 0,
+                            "failed_providers": [],
+                            "last_error": None,
+                            "last_error_type": None,
+                            "last_finish_reason": None,
+                            "routing": "empty_ranked_pool",
+                        })
                 options = [(_fb_provider, _fb_model)]
                 logger.warning(
                     "[routing] ranked pool empty — using the absolute "
@@ -7645,7 +7806,16 @@ class BYOKHandler:
                 options[0][1] if options else "",
             )
             if _taint_block:
-                return _taint_block
+                return _failed_text_return(
+                    outcome_sink, "prompt_blocked", _taint_block,
+                    diagnostics={
+                        "candidate_count": len(options),
+                        "failed_providers": [],
+                        "last_error": None,
+                        "last_error_type": None,
+                        "last_finish_reason": None,
+                        "routing": "prompt_taint_gate",
+                    })
 
             last_error = None
             primary_provider = options[0][0] if options else None
@@ -7889,7 +8059,7 @@ class BYOKHandler:
                     else:
                         _release_once()
                     self._capture_echoed_model(response)
-                    self._stash_last_reasoning(response)
+                    self._stash_last_reasoning(response, finish_reason_sink)
                     self._clear_model_cooldown(provider_id, model)
 
                     if not getattr(response, "choices", None):
@@ -8117,7 +8287,8 @@ class BYOKHandler:
                     # attempted one.
                     set_served_route(provider_id, model)
 
-                    return result
+                    return _accepted_text_return(
+                        outcome_sink, result, provider_id, model)
 
                 except Exception as attempt_err:
                     if isinstance(attempt_err, _AccountingBlockedError):
@@ -8184,7 +8355,7 @@ class BYOKHandler:
                             response = await _to_thread_safe(
                                 client.chat.completions.create, **_t_kwargs)
                             self._capture_echoed_model(response)
-                            self._stash_last_reasoning(response)
+                            self._stash_last_reasoning(response, finish_reason_sink)
                             result = response.choices[0].message.content
                             if not _visible_content_missing(result):
                                 self._settle_physical_response(
@@ -8203,7 +8374,8 @@ class BYOKHandler:
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
                                 set_served_route(provider_id, model)
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id, model)
                         except _AccountingBlockedError:
                             raise
                         except Exception as _temp_retry_err:
@@ -8266,7 +8438,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_fb_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8291,7 +8463,9 @@ class BYOKHandler:
                                 logger.info(
                                     f"Fallback succeeded: {provider_id}/{fallback_model}"
                                 )
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id,
+                                    fallback_model)
                             except _AccountingBlockedError:
                                 raise
                             except Exception as fb_err:
@@ -8401,7 +8575,7 @@ class BYOKHandler:
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
-                                    self._stash_last_reasoning(response)
+                                    self._stash_last_reasoning(response, finish_reason_sink)
                                     result = response.choices[0].message.content
                                     if _visible_content_missing(result):
                                         raise _EmptyCompletionError(
@@ -8447,7 +8621,9 @@ class BYOKHandler:
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
                                     set_served_route(provider_id, model)
-                                    return result
+                                    return _accepted_text_return(
+                                        outcome_sink, result, provider_id,
+                                        model)
                                 except _AccountingBlockedError:
                                     raise
                                 except Exception as retry_err:
@@ -8508,7 +8684,7 @@ class BYOKHandler:
                                     client.chat.completions.create,
                                     **_paid_kwargs)
                                 self._capture_echoed_model(response)
-                                self._stash_last_reasoning(response)
+                                self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -8553,7 +8729,9 @@ class BYOKHandler:
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
                                 set_served_route(provider_id, paid_model)
-                                return result
+                                return _accepted_text_return(
+                                    outcome_sink, result, provider_id,
+                                    paid_model)
                             except _AccountingBlockedError:
                                 raise
                             except Exception as paid_err:
@@ -8676,6 +8854,7 @@ class BYOKHandler:
                         response = await _to_thread_safe(
                             _client.chat.completions.create, **_sweep_kwargs)
                         self._capture_echoed_model(response)
+                        self._stash_last_reasoning(response, finish_reason_sink)
                         _sweep_result = response.choices[0].message.content
                         if _visible_content_missing(_sweep_result):
                             raise _EmptyCompletionError(
@@ -8699,7 +8878,8 @@ class BYOKHandler:
                         self._last_used_model = _sm
                         self._last_used_provider = _sp
                         set_served_route(_sp, _sm)
-                        return _sweep_result
+                        return _accepted_text_return(
+                            outcome_sink, _sweep_result, _sp, _sm)
                     except Exception as _sweep_attempt_err:
                         logger.warning(
                             f"completion ladder sweep attempt failed for "
@@ -8707,6 +8887,69 @@ class BYOKHandler:
                         last_error = _sweep_attempt_err
                 logger.error(
                     f"completion ladder sweep exhausted; all fallbacks failed")
+
+            # CALL-LOCAL FAILURE DIAGNOSTICS (2026-11-14). Compute the typed
+            # reason and retained attempt evidence BEFORE building any
+            # fallback text, so the completion facade can return a structured
+            # failure instead of the text as an answer. ``last_error`` and
+            # ``failed_providers`` are locals of this call; the stop reason is
+            # read from the caller-owned sink, never the shared
+            # ``_last_finish_reason`` attribute another concurrent call may
+            # have overwritten.
+            _last_attempt_finish_reason = None
+            if finish_reason_sink is not None:
+                _raw_attempt_reason = finish_reason_sink.get("finish_reason")
+                if isinstance(_raw_attempt_reason, str):
+                    _last_attempt_finish_reason = (
+                        _raw_attempt_reason.strip().lower() or None)
+            _policy = getattr(self, "provider_policy", None)
+            _failure_reason = "all_providers_failed"
+            _failure_routing = "ranked_candidates_exhausted"
+            if isinstance(last_error, _EmptyCompletionError):
+                _failure_reason = "empty_generation"
+            if last_error is None and not failed_providers:
+                # ZERO provider attempts with no retained error. Two routing
+                # shapes produce this: the ranked pool was empty, or the
+                # ranked pool had candidates that were all filtered out
+                # before dispatch (cooldown, catalog admission, policy,
+                # in-flight claim). The retained live evidence cannot
+                # distinguish the filters that produced the observed run, so
+                # name the ROUTING state and never invent a cause. The old
+                # text claimed "every configured provider failed" with
+                # "Last error: None".
+                _failure_reason = "no_dispatchable_candidates"
+                _failure_routing = (
+                    "empty_ranked_pool" if not options
+                    else "all_candidates_skipped")
+                if (_policy is not None
+                        and getattr(_policy, "enforced", False)
+                        and self.clients
+                        and not any(
+                            _policy.allows_provider(p)
+                            for p in self.clients)):
+                    # One REPRODUCIBLE zero-attempt control, not a claim
+                    # about the observed live run: an enforcing policy that
+                    # allows none of the configured providers. The policy is
+                    # never weakened to force a dispatch.
+                    _failure_reason = "policy_blocked"
+                    _failure_routing = "provider_policy_excluded_all"
+            _failure_diagnostics = {
+                "candidate_count": len(options),
+                "failed_providers": sorted(failed_providers),
+                "last_error": (
+                    str(last_error)[:500] if last_error else None),
+                "last_error_type": (
+                    type(last_error).__name__ if last_error else None),
+                "last_finish_reason": _last_attempt_finish_reason,
+                "routing": _failure_routing,
+            }
+            if _policy is not None and getattr(_policy, "enforced", False):
+                _failure_diagnostics["policy"] = {
+                    "mode": getattr(_policy, "mode", None),
+                    "allowed_providers": sorted(
+                        getattr(_policy, "allowed_providers", []) or []),
+                    "revision": getattr(_policy, "revision", None),
+                }
 
             # TRUTHFUL FALLBACK (2026-09-21): the generic "check your API key"
             # text misattributed a temperature-rejection (400) and — worse —
@@ -8732,41 +8975,118 @@ class BYOKHandler:
                     p for p in self.clients.keys()
                     if p not in _credit_failed_providers
                     and not self._provider_cooldown_active(p))
+                _credit_diagnostics = {
+                    "candidate_count": len(options),
+                    "failed_providers": sorted(failed_providers),
+                    "credit_failed_providers": sorted(
+                        _credit_failed_providers),
+                    "last_error": (
+                        str(last_error)[:500] if last_error else None),
+                    "last_error_type": (
+                        type(last_error).__name__ if last_error else None),
+                    "last_finish_reason": _last_attempt_finish_reason,
+                    "routing": (
+                        "ranked_candidates_exhausted" if options
+                        else "empty_ranked_pool"),
+                }
                 if _untried:
-                    return (
+                    _credit_text = (
                         "I couldn't generate a response — the providers "
                         f"this answer tried ({_names}) are out of credits. "
                         f"Healthy providers ({', '.join(_untried)}) were "
                         "reached by the fallback sweep but could not serve "
                         f"this request either. Last provider error: "
                         f"{str(last_error or '')[:160]}")
-                return (
+                    return _failed_text_return(
+                        outcome_sink, "credit_exhausted", _credit_text,
+                        diagnostics=_credit_diagnostics)
+                _credit_text = (
                     "I couldn't generate a response — every configured "
                     f"provider is out of credits ({_names}). The last "
                     f"provider error: {str(last_error or '')[:160]} Top up "
                     "the provider balances in Settings → Providers, then "
                     "ask again — retrying without a top-up will fail the "
                     "same way.")
+                return _failed_text_return(
+                    outcome_sink, "credit_exhausted", _credit_text,
+                    diagnostics=_credit_diagnostics)
             _cause = str(last_error or "no provider attempted")[:200]
-            return (
+            _failure_text = (
                 "I couldn't generate a response — every configured provider "
                 f"failed. Last error: {_cause}. Check provider status or "
                 "credentials in Settings and try again.")
+            # The legacy text above stays for direct generate_response
+            # consumers. The STRUCTURED failure message must describe what
+            # actually happened: "every configured provider failed" is false
+            # when the policy excluded every provider before dispatch.
+            _failure_message = _failure_text
+            if _failure_reason == "policy_blocked":
+                _allowed = ", ".join(
+                    _failure_diagnostics.get("policy", {}).get(
+                        "allowed_providers") or []) or "none"
+                _failure_message = (
+                    "No provider was attempted: the installation provider "
+                    f"policy excludes every configured provider (allowed: "
+                    f"{_allowed}; revision "
+                    f"{_failure_diagnostics.get('policy', {}).get('revision')}). "
+                    "No provider was called.")
+            elif _failure_reason == "no_dispatchable_candidates":
+                # The structured message must describe THIS routing state.
+                # Saying "the ranked pool was empty" was false whenever
+                # candidates existed and every one was filtered out before
+                # dispatch. The retained metadata does not identify which
+                # filter skipped a candidate, so say filtered/unknown rather
+                # than inventing cooldown, catalog, or policy as the cause.
+                if _failure_routing == "all_candidates_skipped":
+                    _failure_message = (
+                        f"No provider was attempted: the ranked pool had "
+                        f"{len(options)} candidate(s), but every candidate "
+                        "was filtered out before dispatch (the exact skip "
+                        "cause was not retained). No provider was called.")
+                else:
+                    _failure_message = (
+                        "No provider was attempted: routing produced no "
+                        "dispatchable ranked candidate (the ranked pool was "
+                        "empty). No provider was called.")
+            elif _failure_reason == "empty_generation":
+                _reason_suffix = (
+                    f" (last attempt finish_reason={_last_attempt_finish_reason})"
+                    if _last_attempt_finish_reason else "")
+                _failure_message = (
+                    "The provider returned no visible content"
+                    f"{_reason_suffix}; no accepted reply was produced. "
+                    f"Last error: {_cause}.")
+            return _failed_text_return(
+                outcome_sink, _failure_reason, _failure_text,
+                message=_failure_message,
+                diagnostics=_failure_diagnostics)
 
         except _AccountingBlockedError as accounting_err:
             logger.error(
                 "LLM generation blocked by accounting refusal: %s",
                 accounting_err)
-            return (
+            _accounting_text = (
                 "I couldn't generate a response — this request could not be "
                 "authorized against the configured budget/pricing (unknown "
                 "or invalid model price, or the budget ledger is "
                 "unavailable). Check the model pricing and budget "
                 "configuration, then retry.")
+            return _failed_text_return(
+                outcome_sink, "accounting_blocked", _accounting_text,
+                diagnostics={
+                    "last_error": str(accounting_err)[:500],
+                    "last_error_type": type(accounting_err).__name__,
+                })
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             logger.error(f"LLM Generation failed: {e}", exc_info=True)
-            return "I'm sorry, an error occurred while generating a response. Please try again."
+            return _failed_text_return(
+                outcome_sink, "generation_error",
+                "I'm sorry, an error occurred while generating a response. Please try again.",
+                diagnostics={
+                    "last_error": str(e)[:500],
+                    "last_error_type": type(e).__name__,
+                })
 
     async def _record_outcome_feedback(
         self,

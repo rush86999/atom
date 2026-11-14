@@ -9839,3 +9839,194 @@ pid 11051, `git_commit a3aa31ba4`.
 **Files**: `backend/core/oracle/postcondition_verifiers.py` (requires exact committed `WorkflowExecution` + definition readiness + frozen input digest + frozen `_atom_execution_scope`; fresh-session read; refuses a result id that contradicts the frozen server-owned operation identity), `backend/core/oracle/request_expectations.py` (freezes workflow id + input digest), `backend/integrations/mcp_service.py` (freezes caller scope into execution inputs/context and binds the execution run key to the server-owned operation identity), `backend/core/generic_agent.py` (timeout verify-before-retry reconstructs `execution_id` from the frozen operation identity; oracle-covered actions with no proof stay uncertain with no automatic retry), `backend/core/atom_meta_agent.py` (direct dispatch freezes caller scope and requires committed execution readback before reporting success), docs updated.
 
 **Verification**: `tests/core/test_oracle_trigger_workflow_execution_binding.py` (20, real scratch SQLite: commit-then-lost-response, no duplicate, unproven/foreign proof refusal, forged-result-id refusal, MCP operation-identity binding, meta-agent direct readback and readback-failure no-retry) + `tests/core/test_oracle_and_two_tier_confidence.py` + `test_covpush_w31_generic_agent.py` + `test_covpush_w36_oracle_vfs.py` + `test_oracle_connected_mutations.py` + `test_oracle_effect_families.py` + `test_oracle_registry_verification_gap.py` + the `test_covpush_w98_gaps_a.py` meta-agent trigger branch = 170 passed. Request-expectations/radio/BPE batch 66 passed; round69 trigger MCP gate 6 passed. Scratch SQLite only; no live DB/provider/push/commit. Pre-existing unrelated failures reproduced at clean base `5b563a38d`: 2 in `test_covpush_regtrio.py` (VFS provider registration/legacy docs path) and 2 in `test_round69_async_unguarded_surfaces.py` scheduler-node assertions.
+
+## Session 2026-11-14 — fleet final synthesis: distinguish input vs output truncation
+
+**Why**: the live Goal 13 replay's user-visible answer was cut off mid-action ("... slipped deals are more likely") while `status=success`; the specialist's durable output had all three corrective actions. The replay blamed `evidence_truncated=true` (a 900 output-token cap), but that flag is INPUT-side (the 2,000-char per-contribution prompt slice) and the call used 820 completion tokens. The provider's `finish_reason` was dropped by the text-only `generate_response` wrapper, so output truncation could not be seen at all.
+
+**Files**:
+- `backend/core/llm/byok_handler.py` — stash the provider `finish_reason` per non-streaming call (`_last_finish_reason`, cleared at call start, set on every accepted route incl. the completion-ladder sweep).
+- `backend/core/llm_service.py` — `generate_completion` surfaces `finish_reason` (and returns `None` on the unresolved-scope refusal).
+- `backend/core/fleet_admiral.py` — output truncation is detected from `finish_reason=length/max_tokens/model_context_window_exceeded`, with a conservative text-shape backstop only when no stop reason was reported; input `evidence_truncated` stays a separate flag. Either truncation uses the existing durable raw-contribution fallback (full attributed outputs + deterministic reconciliation + footer) with no extra provider call and no specialist re-dispatch. The synthesis call is still one bounded read-only pass: 1,400 output tokens (was 900) and a 6,000-char per-contribution cap inside the unchanged 10,000-char total budget (was 2,000). A cached result with the old `used=true + evidence_truncated=true` shape is repaired from its own durable `specialist_results` and persisted, so a restart readback is complete with zero calls.
+- `docs/architecture/FLEET_ORCHESTRATION.md` — completion contract + official OpenAI/Anthropic stop-reason citations.
+- `.github/workflows/ci.yml` — additive CI step (existing test-selection lists untouched).
+- `backend/tests/test_fleet_synthesis_truncation_contract.py` — NEW 9 tests: complete, `finish_reason=length`, missing finish_reason + cut shape, input vs output distinction, provider failure no-retry, cached readback no-rerun, legacy durable repair, handler stash, service propagation.
+- `backend/tests/test_fleet_final_synthesis.py` — re-contracted the bounded-evidence case to the new fallback (the old assertion expected `used=true` on cut prompt evidence).
+
+**Verification**: `test_fleet_final_synthesis.py` + `test_fleet_synthesis_truncation_contract.py` = 81 passed (scratch SQLite; no provider). Real retained-evidence readback on a COPY of `.../scratch/attempt-1/atom.db`: cached repair returned all three actions + the conditional $6,000 residual, second readback identical, 0 provider calls / 0 specialist dispatches. No live DB, credentials, push, or merge.
+
+**Follow-up repair (2026-11-14 root review)**: `_last_finish_reason` alone was
+shared mutable state — the accepted route stashed it before awaiting
+`_record_outcome_feedback`, so a concurrent call on the same handler could
+replace it and both consumers returned the same reason. `BYOKHandler` now
+writes the real provider reason into a caller-owned `finish_reason_sink` on
+every accepted route; `LLMService.generate_completion` passes one fresh sink
+per call and reads it, keeping `_last_finish_reason` only as the
+text-API/legacy fallback. The CI additions ledger now declares the new
+synthesis step so the immutable pre-parallel baseline stays untouched and the
+full 127-test lane contract passes. The text-shape backstop no longer uses a
+letters-only trailing token or treats evaluative words as continuation tokens:
+"Completed items: 2 of 2", "Risk: unlikely", "Recovery is likely", and "The
+slipped deals are more likely" are valid concise outputs; only an unbalanced
+bracket or a trailing function word is weak shape evidence, and an explicit
+provider reason always wins. Tests: the truncation contract adds valid
+negative twins, explicit `stop`/`length` precedence, and a joined
+positive/failure/unknown concurrency test against the actual
+`LLMService` consumer. No live provider request, credential/config read,
+push, or merge; scratch SQLite only.
+
+**Second follow-up (2026-11-14 root metadata probe)**: the residual
+`_MISSING` fallback still let an unwritten call-local sink borrow a
+neighbouring call's shared attribute (a `**kwargs` wrapper swallows the sink;
+the root counterprobe observed `["length","length"]` instead of
+`[null,null]`). `generate_completion` now never consults
+`_last_finish_reason`: a sink is passed only when `_accepts_keyword` proves the
+producer can receive it, and an unwritten/unavailable sink is unknown
+(`None`). `_accepts_keyword` now fails closed when `inspect.signature` raises
+and treats a POSITIONAL_ONLY parameter as not keyword-capable, so additive
+dispatch cannot raise TypeError on a C-backed/exotic callable. The shared
+result boundary normalizes stop reasons (trim + lowercase; blank/missing →
+`None`), which keeps the fleet's missing-metadata shape backstop armed.
+Elliptical answers ending in auxiliaries/copulas ("It should.", "Ownership:
+the platform team does.") are no longer shape-truncation evidence. Tests add
+concurrent twins for a real sink producer, a sink-ignoring `**kwargs` wrapper,
+a narrow legacy handler, a non-introspectable callable, and a positional-only
+sink name, plus blank-reason normalization and elliptical negatives; selection
+is 115 passed (scratch SQLite, no provider).
+
+**Third follow-up (2026-11-14 root shape-truthfulness counterprobe)**: the
+missing-`finish_reason` shape backstop still escalated a weak text signal to a
+provider fact. With the production `FleetAdmiral` output "Device status: on"
+(`finish_reason=None`), metadata read `output_truncated=true` /
+`reason="output_truncated"` and the user reply said the answer "was cut off at
+the model's output limit" -- but no provider reported a length stop, and a
+trailing "on"/"in" can complete a status label or particle imperative. The
+proof seam is now explicit: `output_truncated`/`reason="output_truncated"` are
+provider-proven only (`truncation_evidence="provider_finish_reason"`); the
+missing-stop-reason backstop reports `output_ending_unverified` /
+`truncation_evidence="text_shape"` and still uses the complete attributed
+fallback, but its disclosure says the ending could not be verified as complete
+instead of claiming an output limit. Explicit `stop` still wins, a missing
+`None`/blank reason stays unknown, and a provider `length` still rejects a
+complete-looking text. The same distinction survives durable readback: a
+cached result that claimed `output_truncated=true` without a retained provider
+reason is relabelled from its own `specialist_results`, while a retained
+`length`/`max_tokens` stays proven -- both with zero synthesis calls and zero
+dispatches. Tests add complete label/particle negatives ("Device status: on",
+"Count me in", "Carry on"), a real dangling-clause case that must stay
+unproven, the counterprobe-shaped legacy relabel, and a proven-label readback
+twin; truncation contract is 49 passed, with `test_fleet_final_synthesis.py`
+121 passed in one scratch run (no provider, no live DB).
+
+**Fourth follow-up (2026-11-14 cached-disclosure counterprobe)**: the durable
+repair still asserted causes the record could not support. A legacy cached
+`{used:false, output_truncated:true}` fallback with a retained `stop` was
+relabelled `output_ending_unverified` / `truncation_evidence="text_shape"` and
+told the user "the provider reported no stop reason" -- but the record retains
+`stop`, and no text shape was retained to observe. The same shape with no
+retained reason is unknown, not proof the provider omitted one (a legacy
+adapter may have dropped it). Repair now uses only the retained basis:
+no reason survived -> `output_ending_unverified` with
+`truncation_evidence="legacy_record_unverified"`; a retained non-truncating
+reason -> `reason="cached_output_claim_unproven"` with neither a cut nor an
+unverified-ending claim; retained `length`/`max_tokens`/
+`model_context_window_exceeded` stays provider-proven. Because a
+context-window stop is not the request's output cap, the provider-proven reply
+now says "cut off at a limit the provider reported" instead of "the model's
+output limit", and the unverified-ending reply no longer claims the provider
+reported no reason. All repairs remain zero-synthesis-call, zero-dispatch and
+persist identically. Tests add cached twins for no reason, retained `stop`,
+retained `length`, and retained context-window stop, asserting no false
+provider-absence or model-cap literals and preserving every prior fallback
+control; truncation contract is 53 passed (was 49), and the combined 18-file
+gate is 503 passed (was 499) in one scratch run (no provider, no live DB).
+
+**Fifth follow-up (2026-11-14 live typed-completion failure)**: the shared
+BYOK -> `LLMService.generate_completion` seam still published a terminal
+failure as an accepted answer. In the bounded live replay the 1,400-token
+synthesis returned `finish_reason="length"` with no visible content (handler
+raised its internal empty-completion error, then exhausted the ladder), and
+the immediate 2,000-token variant made ZERO provider requests and
+returned "I couldn't generate a response — every configured provider failed.
+Last error: no provider attempted." Both were returned with
+`success=True`; the facade also inferred `provider="deepseek"` from the model
+name even though no provider answered. Fleet appended its quantitative block
+to the failure text as if it were a valid synthesis. This was NOT a cache
+provenance problem and NOT an A/B result: the second variant dispatched
+nothing.
+
+`BYOKHandler.generate_response` now writes a caller-owned `outcome_sink` on
+every terminal return (the six accepted routes write the REAL served
+provider/model; every failure writes `success=False` plus a typed reason and
+call-local diagnostics). `LLMService.generate_completion` returns the existing
+structured failure shape (`success=False`, zero usage, no served
+provider/model) with EMPTY `content`/`text`; the human message is `error` and
+the detail (retained attempt `finish_reason`, `last_error`, candidate count,
+routing state, enforcing policy) is `failure`. Top-level `finish_reason` stays
+`None` on failure, so a truncated/empty attempt cannot masquerade as an
+accepted reply. The legacy text API keeps its exact strings, and a
+narrow/unwritten sink keeps the historical success contract.
+
+The EXACT routing cause of the live zero-attempt call is UNCONFIRMED: the
+retained runtime policy row was not inspected; empty ranked pool, cooldown or
+catalog skips, and all-candidates-skipped all leave `last_error=None`; and the
+first call in the same process did dispatch and was served. An installing
+policy that allows none of the configured providers is a REPRODUCIBLE negative
+control (`policy_blocked` / `routing="provider_policy_excluded_all"`,
+`candidate_count=0`), not a live-cause claim: BPC filters forbidden providers
+before ranking and both the cascade and the catalog sweep re-check the same
+policy before transport, so the policy is intentional and was not weakened.
+Other zero-attempt routing is `no_dispatchable_candidates` with
+`routing="empty_ranked_pool"` or `"all_candidates_skipped"`, and its message is
+derived from that routing state (filtered/unknown for skipped candidates)
+rather than claiming a provider failure. The failure result's zero `usage` is
+the facade's legacy placeholder, not proof that no physical provider request
+was billed. Other consumers audited: `_guarded_regen` now treats `success=False` as a failed regeneration (otherwise empty content would pass
+its acceptance and erase a good reply); the match-confidence tiebreaker
+records a breaker failure instead of a success; the Auto-Dev
+Memento/AlphaEvolve code proposers fall back to their existing failure/
+unchanged-base path instead of returning or persisting empty code. Consumers
+that already honored `success` (Fleet, operator loop, lux computer-use, NLU,
+PDF OCR) retain their branches; callers that ignored it now get honest empty
+content.
+
+Files: `backend/core/llm/byok_handler.py`,
+`backend/core/llm_service.py`, `backend/integrations/chat_orchestrator.py`,
+`backend/core/llm/match_confidence_tiebreaker.py`,
+`backend/core/auto_dev/memento_engine.py`,
+`backend/core/auto_dev/alpha_evolver_engine.py`,
+`backend/core/fleet_admiral.py` (no code change; existing success=False branch
+verified), `backend/tests/test_generate_completion_failure_contract.py`
+(15 tests after the follow-up; 13 initial + 2 zero-attempt routing shapes),
+`backend/tests/test_fleet_synthesis_truncation_contract.py`
+(structured provider-failure withholding + durable readback),
+`backend/tests/fixtures/ci_backend_additions.json` and
+`.github/workflows/ci.yml` (additive selector only),
+`docs/architecture/FLEET_ORCHESTRATION.md`. Focused scratch runs: new file 13
+passed; fleet synthesis + truncation contract 126 passed; immutable CI lane
+contract 127 passed; the single combined 19-file scratch gate (the declared
+18 files plus this failure-control file) is 517 passed. `test_memento_engine`
+20 passed; the Auto-Dev regression batches' 14 failures (8 in the isolated
+memento+w84c pair) reproduce identically on the untouched `016e8c780`
+worktree. Other pre-existing baseline failures:
+`tests/core/test_llm_service.py::TestLLMServiceInitialization::test_init_with_tenant`,
+`tests/unit/test_llm_service.py::TestWorkspaceAndTenantHandling::test_generate_uses_tenant_id`,
+`tests/test_provider_policy.py::test_vision_auxiliary_uses_allowed_provider`
+and the seven `tests/test_covpush_w64i_llm_service.py` audit tests reproduce
+identically on the untouched `016e8c780` worktree; not caused by this change.
+
+**Truthfulness follow-up to the fifth entry (2026-11-14)**: the exact live
+zero-attempt cause was restated as UNCONFIRMED (see above), and the
+`no_dispatchable_candidates` message now follows the actual routing state
+instead of always claiming an empty ranked pool. `routing="empty_ranked_pool"`
+says the pool was empty; `routing="all_candidates_skipped"` says candidates
+existed but were filtered out and the exact skip cause was not retained (no
+invented cooldown/catalog/policy reason, no invented provider failure). Two
+negative tests use the real `BYOKHandler` + `LLMService.generate_completion`
+with zero transports for both shapes; the policy-block control is unchanged.
+The failure result's zero `usage` is documented as the facade legacy
+placeholder, not proof of no physical/provider billing; no ledger change. The
+follow-up runs are new failure contract **15 passed**, fleet synthesis +
+truncation **126 passed**, CI lane contract **127 passed**. The prior
+**517** combined-gate and root **266** focused results remain scoped to the
+initial `1693a6872` delivery; they were not rerun or re-attributed here.
