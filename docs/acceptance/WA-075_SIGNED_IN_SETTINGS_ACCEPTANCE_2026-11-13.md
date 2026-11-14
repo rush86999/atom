@@ -1,19 +1,27 @@
 # WA-075 — Signed-in settings acceptance
 
-**Status: harness implemented and replayed on the isolated scratch world
-(2026-11-13).** The five tabs ran against a pinned scratch backend/frontend;
-25 checks passed, 2 capabilities are genuinely absent in this build (sessions
+**Status: superseded — 29/29 checks pass on clean
+`a53b56fdc32bd1447a7fe5285efee8f1be20a409` (2026-11-14).** The harness was
+implemented and first replayed on the isolated scratch world on 2026-11-13:
+25 checks passed, 2 capabilities were genuinely absent in that build (sessions
 list, 2FA enable/disable routing), and 1 derived check was skipped because
-there is no session row to revoke. Exit `3` — no failures, but the tab set is
-not complete. Evidence is kept outside the repository (private); this document
-records the method, the observed results and the non-claims, not the raw
-capture.
+there was no session row to revoke — exit `3`. After the 2FA routing fix, the
+same-day re-run passed 27 checks with the Sessions gap still open — exit `3`.
+The superseding capture (run `wa075-20261114070119-89e3cb`) passed all 29
+checks with no `missing` or `skipped` entries; see §8. The 2026-11-13 sections
+are retained as history. Evidence is kept outside the repository (private);
+this document records the method, the observed results and the non-claims, not
+the raw capture.
 
 Ledger item (unchanged by this document — both ledgers are generated):
 
 > `WA-075 · platform · Open Account/AI/Sessions/Routing/Local Models settings ·
 > partial · No setting was saved and reloaded. · Save and restore one
 > preference per tab.`
+
+The 2026-11-14 result in §8 — every tab saved and restored a preference — is
+the evidence that resolves the `partial` reason; the generated ledger row is
+not edited here.
 
 ---
 
@@ -409,7 +417,48 @@ restored; the worktree's pre-existing `.next/dev` was left untouched. Putting
 the `next dev` cache on the portable drive needs a `next.config.js` change and
 was **not** attempted here (the file is under review in PR 920).
 
-## 8. Teardown / recovery
+## 8. Superseding result (2026-11-14): 29/29
+
+This is the current result; it supersedes §6 and §7, which remain as history
+for their earlier source states.
+
+| Field | Value |
+|---|---|
+| Source | clean `a53b56fdc32bd1447a7fe5285efee8f1be20a409` (`Ground fleet reports in specialist and dispatch evidence (#935)`) |
+| Run id | `wa075-20261114070119-89e3cb` |
+| Checks | **29 of 29 pass** — 0 fail, 0 missing, 0 skipped; exit `0` by the §1 contract |
+| API traffic | **409** API requests recorded by the driver |
+| External traffic | **0** external browser requests observed by the driver |
+| 2FA | full setup → enable → reload → disable round trip passed |
+| Stack | isolated macOS backend/frontend with the repaired pinned LanceDB 0.38.0 overlay |
+
+On the same 29-check inventory as §7, every check passed, including the
+Sessions `missing`/`skipped` pair that was the last blocker there. This meets
+the closing condition stated at the end of §6: no `missing` and no `skipped`
+entries remain.
+
+Why the last gap closed: `d253602f1` ("Connect Settings Active Sessions to
+durable revocation", #923) is in this source and is the session inventory and
+revocation work; `6c567d284`, which made the 2FA round trip reachable for §7,
+is also in it.
+
+Stack notes:
+
+- Same isolated shape as §6/§7: loopback scratch backend and frontend, scratch
+  world, health identity verified before any setting was read or changed, and
+  provider credentials blanked.
+- The pinned LanceDB 0.38.0 overlay was repaired for this run. That is part of
+  the run environment, not a change to the source under test.
+- The 409 API requests all stayed within the scratch origins; zero external
+  browser requests were observed, and the `.invalid` disposable provider was
+  never contacted.
+
+Scope of this addition: summary metadata only. No raw network bodies,
+screenshots, per-request payloads, credentials, bearer tokens, TOTP/2FA
+secrets, or account identifiers are recorded here. §6 and §7 are unedited
+history and do not describe the current result.
+
+## 9. Teardown / recovery
 
 - Stop the launcher's processes (`backend.pid` / `frontend.pid` under the
   world) and confirm the ports are free; never kill unrelated processes.
