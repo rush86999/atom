@@ -797,6 +797,7 @@ jobs:
             tests/test_oracle_effect_families.py \
             tests/test_oracle_connected_mutations.py \
             tests/test_assignment_executor.py \
+            tests/test_assignment_multi_source_total.py \
             tests/test_generic_oracle_mutation_contract.py \
             tests/test_lead_shopify_authorized_material.py \
             tests/test_oracle_shopify_product_authorized_material.py \
