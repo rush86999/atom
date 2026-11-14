@@ -308,6 +308,16 @@ class TestEmbeddings:
 
 
 class TestTranscription:
+    @pytest.fixture(autouse=True)
+    def _scratch_billing(self, monkeypatch, tmp_path):
+        """Transcription is a paid dispatch: give the synthetic tenant a real
+        policy in a scratch store instead of relaxing admission."""
+        from tests._scratch_billing import install_scratch_billing
+
+        install_scratch_billing(
+            monkeypatch, tmp_path, tenant_id="tenant", workspace_id="ws1",
+            limit=0.0, mode="soft_stop")
+
     async def test_transcription_success(self):
         client = Mock()
         raw = Mock()
