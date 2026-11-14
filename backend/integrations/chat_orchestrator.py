@@ -28598,6 +28598,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         provider_id=_s_prov,
                         temperature=0.7,
                         max_tokens=_reply_max_tokens,
+                        agent_id=agent_id,
+                        execution_id=execution_id,
                         reasoning_sink=_reasoning_sink,
                         fallback_routes=_fb_routes,
                         # MEASURED input size: without it the streaming path
