@@ -64,11 +64,15 @@ function App() {
   const handleLogout = async () => {
     try {
       await invoke("logout");
+    } catch (error) {
+      // Native logout clears in-memory state even when Keychain cleanup fails.
+      // The UI must fail closed as well instead of leaving an authenticated
+      // session on screen.
+      console.error("Logout failed:", error);
+    } finally {
       setToken(null);
       setUser(null);
       setAuthState({ isAuthenticated: false, isLoading: false });
-    } catch (error) {
-      console.error("Logout failed:", error);
     }
   };
 

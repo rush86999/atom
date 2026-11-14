@@ -67,6 +67,20 @@ describe("LoginScreen", () => {
     });
   });
 
+  test("accepts a structured native challenge rejection", async () => {
+    const onLogin = jest.fn().mockRejectedValueOnce({
+      twoFactorRequired: true,
+      message: "Two-factor authentication required",
+    });
+    render(<LoginScreen onLogin={onLogin} />);
+
+    fillCredentials();
+    await submitCredentials();
+
+    expect(screen.getByTestId("two-factor-prompt")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password")).toBeNull();
+  });
+
   test("shows an invalid-code error, clears the field and allows a retry", async () => {
     const onLogin = jest
       .fn()

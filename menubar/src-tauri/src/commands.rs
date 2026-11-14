@@ -1,7 +1,10 @@
 use crate::config;
+use crate::session::{
+    clear_saved_session, restore_saved_session, HttpSessionValidator, KeychainSessionStore,
+    RestoreOutcome, SavedSession, SessionStore, SessionUser,
+};
 use crate::AppState;
 use crate::UserSession;
-use keyring::Entry;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -161,6 +164,13 @@ pub async fn login(
     totp_code: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<LoginSession, String> {
+    let _guard = state.session_lock.lock().await;
+
+    // Resolve the base once and use it for both the request and the saved
+    // session binding, so a token can never be recorded against an origin that
+    // did not actually issue it.
+    let base_url = config::http_base_url()?;
+    let backend_origin = config::http_origin(&base_url)?;
     let client = Client::new();
 
     let request = LoginRequest {
@@ -171,7 +181,7 @@ pub async fn login(
     };
 
     let response = client
-        .post(config::api_url("/api/menubar/auth/login")?)
+        .post(config::join_api_url(&base_url, "/api/menubar/auth/login"))
         .json(&request)
         .send()
         .await
@@ -209,19 +219,40 @@ pub async fn login(
     let user = login_response.user.ok_or("No user data received")?;
     let device_id = login_response.device_id.ok_or("No device ID received")?;
 
-    // Store token securely in keychain
-    let entry = Entry::new(SERVICE_NAME, &email)
-        .map_err(|e| format!("Keychain error: {}", e))?;
-    entry
-        .set_password(&token)
-        .map_err(|e| format!("Failed to store token: {}", e))?;
+    let saved = SavedSession {
+        token: token.clone(),
+        user: SessionUser {
+            id: user.id.clone(),
+            email: user.email.clone(),
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+        },
+        device_id: device_id.clone(),
+        backend_origin,
+    };
+
+    // Persist before exposing the authenticated state. A Keychain failure keeps
+    // the user on the sign-in screen, matching the previous fail-closed login
+    // behavior; no in-memory session is created without durable storage.
+    let store = KeychainSessionStore::new(SERVICE_NAME);
+    store
+        .save(&saved)
+        .map_err(|e| format!("Failed to persist session: {e}"))?;
+
+    // Sessions written before this restoration support stored their token under
+    // the submitted email while the server response can canonicalize it. Retire
+    // that legacy entry once the new record is durable so no stale credential
+    // survives the account transition.
+    if email != user.email {
+        let _ = store.delete_token(&email);
+    }
 
     // Update app state
     *state.auth_token.lock().unwrap() = Some(token.clone());
     *state.user_session.lock().unwrap() = Some(UserSession {
         token: token.clone(),
         user_id: user.id.clone(),
-        email: email.clone(),
+        email: user.email.clone(),
         device_id: device_id.clone(),
     });
 
@@ -232,41 +263,130 @@ pub async fn login(
     })
 }
 
+/// Return the current in-memory session, if both halves are present.
+fn current_session(state: &AppState) -> Option<SessionInfo> {
+    let token = state.auth_token.lock().unwrap().clone()?;
+    let session = state.user_session.lock().unwrap().clone()?;
+
+    Some(SessionInfo {
+        token,
+        user: User {
+            id: session.user_id,
+            email: session.email,
+            first_name: "".to_string(),
+            last_name: "".to_string(),
+        },
+    })
+}
+
 #[tauri::command]
 pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
-    // Get session info before clearing
-    let session_opt = state.user_session.lock().unwrap().clone();
-    if let Some(session) = session_opt {
-        // Remove token from keychain
-        let entry = Entry::new(SERVICE_NAME, &session.email)
-            .map_err(|e| format!("Keychain error: {}", e))?;
-        entry
-            .delete_credential()
-            .map_err(|e| format!("Failed to delete token: {}", e))?;
-    }
+    let _guard = state.session_lock.lock().await;
 
-    // Clear app state
+    // Get session info before clearing so a missing/corrupted record cannot
+    // orphan the per-email token.
+    let session_opt = state.user_session.lock().unwrap().clone();
+    let cleanup = clear_saved_session(
+        &KeychainSessionStore::new(SERVICE_NAME),
+        session_opt.as_ref().map(|session| session.email.as_str()),
+    );
+
+    // Clear app state regardless of Keychain cleanup outcome. The record is
+    // deleted before the token, so even a partial cleanup cannot be restored;
+    // keeping the UI authenticated after a logout request would fail open.
     *state.auth_token.lock().unwrap() = None;
     *state.user_session.lock().unwrap() = None;
 
-    Ok(())
+    cleanup.map_err(|error| {
+        eprintln!("Menu bar logout cleanup failed: {error}");
+        format!(
+            "Signed out locally, but the saved credential could not be completely removed: {error}"
+        )
+    })
 }
 
 #[tauri::command]
 pub async fn get_session(state: State<'_, AppState>) -> Result<SessionInfo, String> {
-    let token = state.auth_token.lock().unwrap().clone()
-        .ok_or("Not authenticated")?;
-    let session = state.user_session.lock().unwrap().clone()
-        .ok_or("No session found")?;
+    let _guard = state.session_lock.lock().await;
 
-    let user = User {
-        id: session.user_id,
-        email: session.email,
-        first_name: "".to_string(),
-        last_name: "".to_string(),
+    if let Some(session) = current_session(&state) {
+        return Ok(session);
+    }
+
+    // A half-populated in-memory state can never authenticate anything. Drop it
+    // before attempting a durable restore so it cannot mask the saved session.
+    let has_partial_state = state.auth_token.lock().unwrap().is_some()
+        || state.user_session.lock().unwrap().is_some();
+    if has_partial_state {
+        *state.auth_token.lock().unwrap() = None;
+        *state.user_session.lock().unwrap() = None;
+    }
+
+    // The session is bound to the native effective HTTP origin: the same
+    // environment override / default that every native command uses. An invalid
+    // override fails closed here instead of falling back to localhost. The
+    // frontend's Settings URL only affects direct webview fetches; it is not
+    // the origin that issued a native token.
+    let base_url = match config::http_base_url() {
+        Ok(base_url) => base_url,
+        Err(error) => {
+            eprintln!("Menu bar session restore failed closed: {error}");
+            return Err("Not authenticated".to_string());
+        }
+    };
+    let backend_origin = match config::http_origin(&base_url) {
+        Ok(origin) => origin,
+        Err(error) => {
+            eprintln!("Menu bar session restore failed closed: {error}");
+            return Err("Not authenticated".to_string());
+        }
     };
 
-    Ok(SessionInfo { token, user })
+    let validator = match HttpSessionValidator::new(base_url) {
+        Ok(validator) => validator,
+        Err(error) => {
+            eprintln!("Menu bar session restore failed closed: {error}");
+            return Err("Not authenticated".to_string());
+        }
+    };
+
+    let outcome = restore_saved_session(
+        &KeychainSessionStore::new(SERVICE_NAME),
+        &backend_origin,
+        &validator,
+    )
+    .await;
+
+    match outcome {
+        RestoreOutcome::Restored(saved) => {
+            let user = User {
+                id: saved.user.id.clone(),
+                email: saved.user.email.clone(),
+                first_name: saved.user.first_name.clone(),
+                last_name: saved.user.last_name.clone(),
+            };
+
+            *state.auth_token.lock().unwrap() = Some(saved.token.clone());
+            *state.user_session.lock().unwrap() = Some(UserSession {
+                token: saved.token.clone(),
+                user_id: saved.user.id,
+                email: saved.user.email,
+                device_id: saved.device_id,
+            });
+
+            Ok(SessionInfo {
+                token: saved.token,
+                user,
+            })
+        }
+        RestoreOutcome::Absent => Err("Not authenticated".to_string()),
+        RestoreOutcome::FailedClosed { cleared, detail } => {
+            eprintln!(
+                "Menu bar session restore failed closed (cleared={cleared}): {detail}"
+            );
+            Err("Not authenticated".to_string())
+        }
+    }
 }
 
 #[tauri::command]

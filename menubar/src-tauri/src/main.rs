@@ -10,6 +10,7 @@ mod autolaunch;
 mod notifications;
 mod helpers;
 mod platform_specific;
+mod session;
 
 use autolaunch::*;
 use commands::*;
@@ -27,6 +28,9 @@ use tauri::{
 struct AppState {
     auth_token: Mutex<Option<String>>,
     user_session: Mutex<Option<UserSession>>,
+    /// Serializes login, logout and session restoration so a restore cannot
+    /// race a sign-out (or a second restore) and re-create cleared state.
+    session_lock: tokio::sync::Mutex<()>,
 }
 
 #[derive(Clone)]
@@ -43,6 +47,7 @@ async fn main() {
     let app_state = AppState {
         auth_token: Mutex::new(None),
         user_session: Mutex::new(None),
+        session_lock: tokio::sync::Mutex::new(()),
     };
 
     tauri::Builder::default()

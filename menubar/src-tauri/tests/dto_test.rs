@@ -13,6 +13,9 @@ use std::sync::Mutex;
 #[path = "../src/config.rs"]
 mod config;
 
+#[path = "../src/session.rs"]
+mod session;
+
 #[derive(Clone)]
 struct UserSession {
     token: String,
@@ -24,6 +27,7 @@ struct UserSession {
 struct AppState {
     auth_token: Mutex<Option<String>>,
     user_session: Mutex<Option<UserSession>>,
+    session_lock: tokio::sync::Mutex<()>,
 }
 
 #[path = "../src/commands.rs"]
@@ -230,8 +234,7 @@ mod tests {
     fn test_login_error_stays_a_plain_string() {
         // The concurrent frontend worker surfaces Tauri's rejection payload
         // directly, so the error channel must stay a bare string.
-        let result: Result<LoginSession, String> =
-            Err("Invalid email or password".to_string());
+        let result: Result<LoginSession, String> = Err("Invalid email or password".to_string());
 
         let error = result.expect_err("expected a login failure");
         let json = serde_json::to_value(&error).expect("Failed to serialize");

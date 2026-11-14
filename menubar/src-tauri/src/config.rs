@@ -156,6 +156,28 @@ pub fn resolve_websocket_url(
     Ok(parsed.as_str().trim_end_matches('/').to_string())
 }
 
+/// Canonical origin (`scheme://host[:port]`) for a backend base URL.
+///
+/// A persisted session is bound to this value. It deliberately excludes the
+/// path prefix: a token is only meaningful for the origin that issued it, while
+/// a deployment can move its API prefix without becoming a different trust
+/// boundary. The host is normalized by `url`, so case, default ports and IPv6
+/// spelling cannot produce a false match. An invalid base is an error; it must
+/// never be treated as "the same origin".
+pub fn http_origin(raw: &str) -> Result<String, String> {
+    if raw.trim().is_empty() {
+        return Err("backend URL must be a non-empty http(s) URL".to_string());
+    }
+    let normalized = resolve_http_base_url(Some(raw))?;
+    let parsed = Url::parse(&normalized)
+        .map_err(|_| "backend URL must be a valid absolute URL".to_string())?;
+    let origin = parsed.origin();
+    if !origin.is_tuple() {
+        return Err("backend URL must have an http(s) origin".to_string());
+    }
+    Ok(origin.ascii_serialization())
+}
+
 /// Join an absolute API path onto a backend base.
 pub fn join_api_url(base: &str, path: &str) -> String {
     let base = base.trim_end_matches('/');
@@ -440,6 +462,53 @@ mod tests {
             join_api_url("http://127.0.0.1:8123", "api/menubar/status"),
             "http://127.0.0.1:8123/api/menubar/status"
         );
+    }
+
+    #[test]
+    fn normalizes_backend_origin_for_session_binding() {
+        assert_eq!(
+            http_origin("http://127.0.0.1:8123/prefix/").unwrap(),
+            "http://127.0.0.1:8123"
+        );
+        assert_eq!(
+            http_origin("HTTP://LocalHost:8000").unwrap(),
+            "http://localhost:8000"
+        );
+        assert_eq!(
+            http_origin("https://Atom.Example/api").unwrap(),
+            "https://atom.example"
+        );
+        assert_eq!(
+            http_origin("http://[::1]:8123").unwrap(),
+            "http://[::1]:8123"
+        );
+    }
+
+    #[test]
+    fn distinct_backend_origins_never_compare_equal() {
+        let loopback = http_origin("http://127.0.0.1:8123").unwrap();
+        for other in [
+            "http://127.0.0.1:8124",
+            "https://127.0.0.1:8123",
+            "http://localhost:8123",
+            "https://atom.example",
+        ] {
+            assert_ne!(loopback, http_origin(other).unwrap());
+        }
+    }
+
+    #[test]
+    fn invalid_backend_origin_is_an_error_not_a_default() {
+        for raw in [
+            "",
+            "   ",
+            "ws://127.0.0.1:8123",
+            "http://user:secret@127.0.0.1:8123",
+            "http://127.0.0.1:8123?token=x",
+            "not a url",
+        ] {
+            assert!(http_origin(raw).is_err(), "{raw} must not resolve");
+        }
     }
 
     #[test]
