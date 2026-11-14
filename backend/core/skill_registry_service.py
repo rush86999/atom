@@ -360,6 +360,172 @@ class SkillRegistryService:
         config = self._json_object(linked.config)
         return bool(config.get("reviewed_executable"))
 
+    def _invocable_executable_entry(
+        self,
+        execution: SkillExecution,
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        agent_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Describe one agent-invocable reviewed executable skill or None.
+
+        Discovery metadata only, but it must not advertise a stale or revoked
+        artifact: before returning an entry this runs the SAME read-only
+        authorization the execution path uses (candidate promoted + current
+        material digest, review revision/digest, linked ``Skill`` code/type,
+        registry binding and workspace assignment).  ``_authorize_reviewed_executable``
+        performs no writes, creates no ``SkillExecution`` row and never touches
+        Docker.  ``execute_skill`` still re-runs it immediately before the
+        sandbox, so a change between listing and dispatch cannot execute.
+        """
+        if execution is None:
+            return None
+        if str(execution.skill_source or "") != "community":
+            return None
+        if str(execution.status or "") != "Active":
+            return None
+        if not bool(execution.sandbox_enabled):
+            return None
+
+        params = self._json_object(execution.input_params)
+        binding = params.get("reviewed_executable")
+        if not isinstance(binding, dict) or not binding:
+            return None
+        if (str(binding.get("tenant_id") or "") != str(tenant_id or "")
+                or str(binding.get("workspace_id") or "")
+                != str(workspace_id or "")
+                or str(binding.get("agent_id") or "") != str(agent_id or "")):
+            return None
+
+        from core.models import Skill
+
+        linked_skill_id = str(execution.skill_id or "")
+        linked = (
+            self.db.query(Skill)
+            .filter(Skill.id == linked_skill_id)
+            .first()
+        )
+        if linked is None or str(linked.type or "") != "script":
+            return None
+
+        skill = self.get_skill(str(execution.id))
+        if skill is None:
+            return None
+        try:
+            self._authorize_reviewed_executable(
+                skill,
+                binding,
+                tenant_id=str(tenant_id),
+                workspace_id=str(workspace_id),
+                agent_id=str(agent_id),
+            )
+        except ValueError:
+            # Changed candidate/code, revoked review, missing binding or a
+            # removed workspace assignment: not currently invocable.
+            return None
+
+        metadata = self._json_object(params.get("skill_metadata"))
+        description = str(
+            metadata.get("description")
+            or linked.description
+            or ""
+        ).strip()
+        name = str(linked.name or "").strip()
+        registry_name = str(params.get("skill_name") or "").strip()
+        if not name:
+            return None
+        return {
+            "skill_id": str(execution.id),
+            "name": name,
+            "registry_name": registry_name,
+            "description": description[:500],
+            "runtime": "docker",
+            "tool": "skills.execute",
+            "review_revision": binding.get("review_revision"),
+            "review_digest": str(binding.get("review_digest") or ""),
+        }
+
+    def list_invocable_skills(
+        self,
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        agent_id: str,
+    ) -> List[Dict[str, Any]]:
+        """List reviewed executable skills this employee may invoke now.
+
+        Scope is the exact reviewed binding: tenant, workspace and employee.
+        A skill unassigned from the workspace, demoted from ``Active``, edited
+        after review, or bound to another employee is omitted.  Never raises
+        for a single malformed row.
+        """
+        if not tenant_id or not workspace_id or not agent_id:
+            return []
+        rows = (
+            self.db.query(SkillExecution)
+            .filter(
+                SkillExecution.skill_source == "community",
+                SkillExecution.status == "Active",
+                SkillExecution.tenant_id == str(tenant_id),
+                SkillExecution.workspace_id == str(workspace_id),
+                SkillExecution.sandbox_enabled.is_(True),
+            )
+            .order_by(SkillExecution.created_at.desc())
+            .all()
+        )
+        entries: List[Dict[str, Any]] = []
+        for row in rows:
+            try:
+                entry = self._invocable_executable_entry(
+                    row,
+                    tenant_id=str(tenant_id),
+                    workspace_id=str(workspace_id),
+                    agent_id=str(agent_id),
+                )
+            except Exception as exc:  # noqa: BLE001 - one bad row is omitted
+                logger.debug("invocable skill row skipped: %s", exc)
+                continue
+            if entry is not None:
+                entries.append(entry)
+        entries.sort(key=lambda item: item["name"])
+        return entries
+
+    def resolve_invocable_skill(
+        self,
+        identifier: str,
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        agent_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve a model-supplied skill name to one authorized entry.
+
+        Accepts the workspace ``Skill.name`` (``summarize_values_r1``), the
+        registered package name (``summarize_values``) or the durable
+        registry execution id.  Ambiguous identifiers are refused rather than
+        guessed.
+        """
+        wanted = str(identifier or "").strip().casefold()
+        if not wanted:
+            return None
+        matches = [
+            entry
+            for entry in self.list_invocable_skills(
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+            )
+            if wanted in {
+                str(entry.get("name") or "").casefold(),
+                str(entry.get("registry_name") or "").casefold(),
+                str(entry.get("skill_id") or "").casefold(),
+            }
+        ]
+        if len(matches) != 1:
+            return None
+        return matches[0]
+
     async def execute_skill(
         self,
         skill_id: str,
@@ -799,6 +965,21 @@ class SkillRegistryService:
             raise ValueError(
                 "reviewed_executable_artifact_changed: linked Skill binding "
                 "differs from the registry binding")
+
+        from core.models import workspace_skills
+
+        assigned = (
+            self.db.query(workspace_skills.c.skill_id)
+            .filter(
+                workspace_skills.c.workspace_id == str(workspace_id),
+                workspace_skills.c.skill_id == linked_skill_id,
+            )
+            .first()
+        )
+        if assigned is None:
+            raise ValueError(
+                "reviewed_executable_workspace_mismatch: linked Skill is not "
+                "assigned to the authenticated workspace")
 
         return verify_executable_artifact(
             binding=binding,

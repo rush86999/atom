@@ -1222,6 +1222,7 @@ class LLMService:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         db = None,
         reasoning_sink: Optional[Dict[str, Any]] = None,
         fallback_models: Optional[List[str]] = None,
@@ -1244,6 +1245,9 @@ class LLMService:
             temperature: Sampling temperature (0.0-1.0)
             max_tokens: Maximum tokens to generate
             agent_id: Optional agent ID for governance tracking
+            execution_id: Optional server-owned AgentExecution id. Threaded
+                to every physical stream attempt so the durable usage ledger
+                attributes actual provider usage to the turn that caused it.
             db: Optional database session for governance tracking
 
         Yields:
@@ -1298,6 +1302,7 @@ class LLMService:
             temperature=temperature,
             max_tokens=max_tokens,
             agent_id=agent_id,
+            execution_id=execution_id,
             db=db,
             reasoning_sink=reasoning_sink,
             fallback_models=fallback_models,

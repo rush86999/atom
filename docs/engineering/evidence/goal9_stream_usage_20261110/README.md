@@ -55,6 +55,36 @@ ledger and the SAME attempt identity.
 Scratch SQLite + doubled transport only; no live provider/model/pricing
 fetch/DB/credential/spend/send/deploy.
 
+## Turn attribution on every physical stream attempt
+
+A streamed turn can own an `AgentExecution` (menu-bar quick chat, the web chat
+orchestrator, the `/api/atom-agent/chat/stream` endpoint, and
+`agent_execution_service.execute_agent_chat`). That execution id is now an
+explicit argument through `LLMService.stream_completion` and
+`BYOKHandler.stream_completion`, and every physical attempt in the ladder —
+initial provider, reasoning-budget retry, self-heal retry, OpenCode free→paid
+sibling, ranked-route hop, and catalogue sweep — records it on its own durable
+`TokenUsage` row at admission AND settlement.
+
+- The id is passed as a call argument, never resolved from process-global
+  state: two concurrent turns cannot overwrite each other's attribution.
+- Callers without an execution id pass `None` (no invented identity).
+- The authenticated workspace and tenant travel as TWO identifiers. The old
+  `tenant_id=workspace_id` collapse in `execute_agent_chat` treated a real
+  workspace id as a tenant and could not resolve its own provider scope; the
+  same service now also runs its governance check against that authenticated
+  pair.
+- Attribution never creates a second ledger and never estimates tokens into
+  `TokenUsage`: provider-supplied usage remains authoritative, absent usage
+  stays explicit unknown liability, and `tokens_total`/`len(text)//4` remains a
+  UI-only progress value.
+
+Evidence: the accepted menu-bar run had `AgentExecution dc682899…` completed
+and `TokenUsage` settled at 79 input / 7 output / $3.21e-05 with
+`execution_id=NULL`. After this repair the same public route settles the row
+under the execution id returned to the client, with the authenticated
+tenant/workspace pair.
+
 ## Not claimed
 
 - Providers that never supply usage remain unknown by design; the

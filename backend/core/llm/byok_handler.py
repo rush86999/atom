@@ -5052,6 +5052,7 @@ class BYOKHandler:
         attempt_id: str,
         reserved_bound: Optional[float],
         agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         usage: Any = None,
     ) -> None:
         """Settle a successful stream attempt: actual when usage is supplied.
@@ -5095,6 +5096,7 @@ class BYOKHandler:
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
                 tenant_id=getattr(self, "tenant_id", None),
+                execution_id=execution_id,
                 request_id=request_id,
                 attempt_id=attempt_id,
             )
@@ -11938,6 +11940,7 @@ class BYOKHandler:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
         db = None,
         task_type: Optional[str] = "chat",
         extra_kwargs: Optional[Dict[str, Any]] = None,
@@ -11961,6 +11964,10 @@ class BYOKHandler:
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             agent_id: Optional agent ID for governance tracking
+            execution_id: Optional server-owned AgentExecution id. Every
+                physical attempt (initial, self-heal, paid sibling, ranked
+                route hop, sweep) records it on its own durable usage row;
+                absent means the caller has no execution to attribute.
             db: Optional database session for governance tracking
             extra_kwargs: Extra kwargs forwarded to the provider stream call
                 (e.g. ``stop``/``top_p`` — previously silently dropped, so the
@@ -12245,6 +12252,7 @@ class BYOKHandler:
                         messages=messages,
                         max_output_tokens=_attempt_max_tokens,
                         agent_id=agent_id,
+                        execution_id=execution_id,
                         extra_kwargs={
                             k: v for k, v in create_kwargs.items()
                             if k not in ("messages", "model")
@@ -12418,6 +12426,7 @@ class BYOKHandler:
                     attempt_id=_stream_attempt_id,
                     reserved_bound=_stream_attempt_bound,
                     agent_id=agent_id,
+                    execution_id=execution_id,
                     usage=_stream_usage,
                 )
 
@@ -12575,6 +12584,7 @@ class BYOKHandler:
                                         heal_result.patched_kwargs.get(
                                             "max_tokens") or max_tokens),
                                     agent_id=agent_id,
+                                    execution_id=execution_id,
                                     extra_kwargs={
                                         k: v for k, v in
                                         heal_result.patched_kwargs.items()
@@ -12648,6 +12658,7 @@ class BYOKHandler:
                                     attempt_id=_heal_attempt_id,
                                     reserved_bound=_heal_bound,
                                     agent_id=agent_id,
+                                    execution_id=execution_id,
                                     usage=_stream_usage,
                                 )
                                 return
@@ -12713,6 +12724,7 @@ class BYOKHandler:
                                     retry_kwargs.get("max_tokens")
                                     or _DEFAULT_COMPLETION_MAX_TOKENS),
                                 agent_id=agent_id,
+                                execution_id=execution_id,
                                 extra_kwargs={
                                     k: v for k, v in retry_kwargs.items()
                                     if k not in ("messages", "model")
@@ -12778,6 +12790,7 @@ class BYOKHandler:
                                 attempt_id=_paid_attempt_id,
                                 reserved_bound=_paid_bound,
                                 agent_id=agent_id,
+                                execution_id=execution_id,
                                 usage=_stream_usage,
                             )
                             return
@@ -12896,6 +12909,7 @@ class BYOKHandler:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 agent_id=agent_id,
+                execution_id=execution_id,
                 db=db,
                 task_type=task_type,
                 extra_kwargs=extra_kwargs,
@@ -12979,6 +12993,7 @@ class BYOKHandler:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     agent_id=agent_id,
+                    execution_id=execution_id,
                     db=db,
                     task_type=task_type,
                     extra_kwargs=extra_kwargs,
