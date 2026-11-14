@@ -9,8 +9,9 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { CameraScreen } from '../../../screens/device/CameraScreen';
+import { getActiveCameraCapture } from '../../../services/cameraCaptureRegistry';
 
-// Mock expo-camera with a renderable CameraView and controllable
+// Mock expo-camera with a renderable Camera component and controllable
 // permission hook (jest.mock factories may only reference `mock*` variables)
 const mockPermissionState = { value: { granted: true, canAskAgain: true } };
 const mockRequestPermission = jest.fn().mockResolvedValue({ granted: true });
@@ -18,12 +19,17 @@ const mockRequestPermission = jest.fn().mockResolvedValue({ granted: true });
 jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const CameraView = React.forwardRef((props: any, ref: any) => {
+  const Camera = React.forwardRef((props: any, ref: any) => {
     return React.createElement(View, { ...props, ref, testID: 'camera-view' });
   });
+  Camera.useCameraPermissions = () => [
+    mockPermissionState.value,
+    mockRequestPermission,
+  ];
   return {
-    CameraView,
-    useCameraPermissions: () => [mockPermissionState.value, mockRequestPermission],
+    Camera,
+    CameraType: { front: 'front', back: 'back' },
+    FlashMode: { on: 'on', off: 'off', auto: 'auto', torch: 'torch' },
   };
 });
 
@@ -67,14 +73,14 @@ describe('CameraScreen', () => {
 
   describe('Permission Flow', () => {
     it('requests permission automatically when not granted', () => {
-      mockPermissionState.value = { granted: false };
+      mockPermissionState.value = { granted: false, canAskAgain: false };
       renderScreen();
 
       expect(mockRequestPermission).toHaveBeenCalled();
     });
 
     it('renders permission required UI when denied', () => {
-      mockPermissionState.value = { granted: false };
+      mockPermissionState.value = { granted: false, canAskAgain: false };
       renderScreen();
 
       expect(getByText('Camera Permission Required')).toBeTruthy();
@@ -89,6 +95,18 @@ describe('CameraScreen', () => {
 
       expect(getByText('PICTURE')).toBeTruthy();
       expect(screen.getByTestId('camera-view')).toBeTruthy();
+    });
+
+    it('registers the mounted preview for background capture and clears it on unmount', () => {
+      const { unmount } = renderScreen();
+
+      act(() => {
+        screen.getByTestId('camera-view').props.onCameraReady?.();
+      });
+      expect(getActiveCameraCapture()).not.toBeNull();
+
+      unmount();
+      expect(getActiveCameraCapture()).toBeNull();
     });
   });
 
@@ -184,11 +202,11 @@ describe('CameraScreen', () => {
       expect(getByText('BARCODE')).toBeTruthy();
       expect(getByText('Align QR code or barcode within frame')).toBeTruthy();
 
-      // Fire the onBarcodeScanned callback passed to CameraView
+      // Fire the onBarCodeScanned callback passed to CameraView
       const cameraView = screen.getByTestId('camera-view');
       const props = cameraView.props;
-      expect(props.barcodeScannerSettings).toBeDefined();
-      props.onBarcodeScanned({ data: 'QR-DATA-123', type: 'qr' });
+      expect(props.barCodeScannerSettings).toBeDefined();
+      props.onBarCodeScanned({ data: 'QR-DATA-123', type: 'qr' });
 
       await waitFor(() => {
         expect(mockNavigation.navigate).toHaveBeenCalledWith('BarcodeResult', {

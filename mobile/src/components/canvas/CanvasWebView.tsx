@@ -338,7 +338,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
       },
 
       async loadCanvas() {
-        const response = await fetch('${API_BASE}/api/canvas/${this.canvasId}?platform=mobile', {
+        const response = await fetch('\${API_BASE}/api/canvas/\${this.canvasId}?platform=mobile', {
           headers: {
             'Authorization': \`Bearer \${this.token}\`,
             'Content-Type': 'application/json'
@@ -822,7 +822,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
         startInLoadingState={true}
         scalesPageToFit={true}
         style={[styles.webView, { opacity: loading || error ? 0 : 1 }]}
-        renderLoading={() => null}
+        renderLoading={() => <View />}
         originWhitelist={['*']}
         mixedContentMode="compatibility"
         thirdPartyCookiesEnabled={false}

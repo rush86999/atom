@@ -301,8 +301,9 @@ describe('Location Component', () => {
 
     const Alert = require('react-native').Alert;
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
-      if (buttons && buttons[1] && buttons[1].onPress) {
-        buttons[1].onPress();
+      const alertButtons = buttons as Array<{ onPress?: () => void }> | undefined;
+      if (alertButtons && alertButtons[1] && alertButtons[1].onPress) {
+        alertButtons[1].onPress();
       }
     });
 

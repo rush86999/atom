@@ -111,12 +111,12 @@ describe('agentDeviceBridge', () => {
 
     // Default mock implementations
     mockCameraService.isAvailable.mockResolvedValue(true);
-    mockCameraService.requestPermissions.mockResolvedValue(true);
+    mockCameraService.requestPermissions.mockResolvedValue('granted');
     mockCameraService.pickImage.mockResolvedValue([
-      { uri: 'file://image1.jpg', width: 1920, height: 1080 },
+      { uri: 'file://image1.jpg', type: 'photo', width: 1920, height: 1080 },
     ]);
 
-    mockLocationService.requestPermissions.mockResolvedValue(true);
+    mockLocationService.requestPermissions.mockResolvedValue('granted');
     mockLocationService.getCurrentLocation.mockResolvedValue({
       latitude: 37.7749,
       longitude: -122.4194,
@@ -129,13 +129,9 @@ describe('agentDeviceBridge', () => {
     mockLocationService.startTracking.mockResolvedValue(true);
     mockLocationService.stopTracking.mockResolvedValue(undefined);
     mockLocationService.calculateDistance.mockReturnValue(1000);
-    mockLocationService.reverseGeocode.mockResolvedValue({
-      street: '123 Main St',
-      city: 'San Francisco',
-      state: 'CA',
-      country: 'USA',
-      postalCode: '94102',
-    });
+    mockLocationService.reverseGeocode.mockResolvedValue(
+      '123 Main St, San Francisco, CA, 94102'
+    );
 
     mockNotificationService.sendLocalNotification.mockResolvedValue(undefined);
     mockNotificationService.scheduleNotification.mockResolvedValue('notif-123');
@@ -143,8 +139,8 @@ describe('agentDeviceBridge', () => {
 
     mockBiometricService.isAvailable.mockResolvedValue(true);
     mockBiometricService.isEnrolled.mockResolvedValue(true);
-    mockBiometricService.getBiometricType.mockResolvedValue('face');
-    mockBiometricService.authenticate.mockResolvedValue({ success: true, warning: undefined });
+    mockBiometricService.getBiometricType.mockResolvedValue('facial');
+    mockBiometricService.authenticate.mockResolvedValue({ success: true });
 
     mockAsyncStorage.getItem.mockResolvedValue(null);
     mockAsyncStorage.setItem.mockResolvedValue(undefined);

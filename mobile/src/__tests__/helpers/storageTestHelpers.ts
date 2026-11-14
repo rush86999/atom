@@ -69,7 +69,7 @@ interface DeviceState {
  * @param tokens - Partial secure store state to mock
  */
 export const mockSecureStoreState = async (tokens: Partial<SecureStoreState>): Promise<void> => {
-  const mocks = {
+  const mocks: Record<string, string | null> = {
     atom_access_token: tokens.atom_access_token || null,
     atom_refresh_token: tokens.atom_refresh_token || null,
     atom_token_expiry: tokens.atom_token_expiry || null,
@@ -83,7 +83,7 @@ export const mockSecureStoreState = async (tokens: Partial<SecureStoreState>): P
 
   // Mock setItemAsync to update internal state
   (SecureStore.setItemAsync as jest.Mock).mockImplementation(async (key: string, value: string) => {
-    (mocks as any)[key] = value;
+    mocks[key] = value;
     return Promise.resolve(undefined);
   });
 

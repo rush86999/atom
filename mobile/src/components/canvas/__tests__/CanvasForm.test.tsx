@@ -9,7 +9,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act, screen } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { CanvasForm } from '../CanvasForm';
-import { FormField, FormData } from '../../types/canvas';
+import { FormField, FormData } from '../../../types/canvas';
 
 // Mock dependencies
 jest.mock('react-native-paper', () => {

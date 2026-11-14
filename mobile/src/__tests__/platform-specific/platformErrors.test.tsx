@@ -107,9 +107,9 @@ describe('Platform Errors - Feature Unavailable', () => {
 
   test('should handle camera unavailable', async () => {
     await testEachPlatform(async (platform) => {
-      (Camera.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+      (Camera.Camera.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
-      const isAvailable = await Camera.isAvailableAsync();
+      const isAvailable = await Camera.Camera.isAvailableAsync();
 
       expect(isAvailable).toBe(false);
       // Show error: "Camera not available on this device"
@@ -147,7 +147,8 @@ describe('Platform Errors - Platform Capabilities', () => {
     });
 
     // Old Android might not support safe areas
-    const supportsSafeAreas = Platform.Version >= 21; // Android 5.0+ supports safe areas
+    const supportsSafeAreas =
+      typeof Platform.Version === 'number' && Platform.Version >= 21; // Android 5.0+ supports safe areas
 
     if (!supportsSafeAreas) {
       // Use manual padding instead
@@ -165,7 +166,8 @@ describe('Platform Errors - Platform Capabilities', () => {
     });
 
     // API 26+ required for notification channels
-    const needsChannels = Platform.Version >= 26;
+    const needsChannels =
+      typeof Platform.Version === 'number' && Platform.Version >= 26;
 
     if (!needsChannels) {
       // Don't create channels on older Android

@@ -38,7 +38,7 @@ interface WebSocketContextType {
     agentId: string,
     message: string,
     sessionId: string,
-    callbacks: {
+    callbacks?: {
       onChunk: (chunk: { token: string; metadata?: any }) => void;
       onComplete: () => void;
       onError: (error: string) => void;
@@ -67,7 +67,7 @@ const ROOM_KEY_PREFIX = 'socket_room_';
  * WebSocketProvider Component
  */
 export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isAuthenticated, getAccessToken } = useAuth();
+  const { isAuthenticated } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -89,7 +89,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
    * Get current access token
    */
   const getToken = async (): Promise<string | null> => {
-    // This would come from AuthContext, but for now we'll use a placeholder
     try {
       return await secureGet('atom_access_token');
     } catch (error) {
@@ -375,7 +374,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     agentId: string,
     message: string,
     sessionId: string,
-    callbacks: {
+    callbacks?: {
       onChunk: (chunk: { token: string; metadata?: any }) => void;
       onComplete: () => void;
       onError: (error: string) => void;
@@ -383,8 +382,11 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   ) => {
     const streamId = `${sessionId}_${Date.now()}`;
 
-    // Store callbacks
-    streamCallbacksRef.current.set(streamId, callbacks);
+    // Store callbacks when the caller wants direct stream events. Callers that
+    // subscribe separately (e.g. AgentChatScreen) can omit them.
+    if (callbacks) {
+      streamCallbacksRef.current.set(streamId, callbacks);
+    }
 
     if (socketRef.current?.connected) {
       socketRef.current.emit('agent:streaming_chat', {
@@ -397,7 +399,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     } else {
       // Queue for later send
       pendingMessagesRef.current.push({ agentId, message, sessionId });
-      callbacks.onError('Not connected');
+      callbacks?.onError('Not connected');
     }
 
     // Return unsubscribe function

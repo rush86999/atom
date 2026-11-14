@@ -163,7 +163,8 @@ export const CanvasGestures: React.FC<CanvasGesturesProps> = ({
 
     // Store initial touch for multi-touch gestures
     if (numberOfTouches > 0) {
-      const touchArray = Array.from(touches).map(t => ({
+      const typedTouches = touches as Array<{ pageX: number; pageY: number }>;
+      const touchArray = Array.from(typedTouches).map(t => ({
         x: t.pageX,
         y: t.pageY,
         time: Date.now(),

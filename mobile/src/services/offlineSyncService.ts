@@ -144,6 +144,31 @@ class OfflineSyncService {
   private storageQuota: StorageQuota;
   private cancelRequested: boolean = false;
 
+  constructor() {
+    this.qualityMetrics = {
+      totalSyncs: 0,
+      successfulSyncs: 0,
+      failedSyncs: 0,
+      conflictRate: 0,
+      avgSyncDuration: 0,
+      avgBytesTransferred: 0,
+      lastQualityCheck: new Date(),
+    };
+    this.storageQuota = {
+      usedBytes: 0,
+      maxBytes: STORAGE_QUOTA_BYTES,
+      warningThreshold: WARNING_THRESHOLD,
+      enforcementThreshold: ENFORCEMENT_THRESHOLD,
+      breakdown: {
+        agents: 0,
+        workflows: 0,
+        canvases: 0,
+        episodes: 0,
+        other: 0,
+      },
+    };
+  }
+
   /**
    * Initialize the sync service
    */
@@ -613,7 +638,7 @@ class OfflineSyncService {
 
       // Check for conflict by comparing timestamps
       const localTimestamp = new Date(action.createdAt);
-      const response = await apiService.get(`/api/canvas/${canvasId}`);
+      const response = await apiService.get<{ updated_at: string }>(`/api/canvas/${canvasId}`);
 
       if (response.success && response.data) {
         const serverTimestamp = new Date(response.data.updated_at);
@@ -685,7 +710,7 @@ class OfflineSyncService {
 
       // Check for conflict by comparing timestamps
       const localTimestamp = new Date(action.createdAt);
-      const response = await apiService.get(`/api/canvas/${canvasId}`);
+      const response = await apiService.get<{ updated_at: string }>(`/api/canvas/${canvasId}`);
 
       if (response.success && response.data) {
         const serverTimestamp = new Date(response.data.updated_at);
@@ -895,8 +920,9 @@ class OfflineSyncService {
     await this.updateSyncState({ pendingCount: 0 });
   }
 
-  // Private helper methods
-
+  /**
+   * Read the persisted offline queue.
+   */
   private async getQueue(): Promise<OfflineAction[]> {
     const queueData = await mmkvStorage.getString('offline_queue' as StorageKey);
     if (!queueData) return [];
@@ -918,6 +944,9 @@ class OfflineSyncService {
     }
   }
 
+  /**
+   * Persist the offline queue.
+   */
   private async saveQueue(queue: OfflineAction[]): Promise<void> {
     await mmkvStorage.setString('offline_queue' as StorageKey, JSON.stringify(queue));
   }

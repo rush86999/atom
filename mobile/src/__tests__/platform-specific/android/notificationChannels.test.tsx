@@ -308,11 +308,14 @@ describe('Android Notification Channels - Presentation', () => {
   test('should present notification with channel ID', async () => {
     (Notifications.presentNotificationAsync as jest.Mock).mockResolvedValue('notification-id');
 
-    await Notifications.presentNotificationAsync({
+    const content: Notifications.NotificationContentInput & {
+      channelId?: string;
+    } = {
       title: 'Test Notification',
       body: 'Test body',
       channelId: 'default-channel', // Required for Android Oreo+
-    });
+    };
+    await Notifications.presentNotificationAsync(content);
 
     expect(Notifications.presentNotificationAsync).toHaveBeenCalledWith(
       expect.objectContaining({

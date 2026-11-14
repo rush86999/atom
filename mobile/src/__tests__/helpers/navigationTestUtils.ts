@@ -312,10 +312,14 @@ export const buildDeepLinkURLFromParams = (
  * ```
  */
 export const isRouteInParamList = (
-  paramListName: keyof typeof PARAM_LIST_DEFINITIONS,
+  paramListName: string,
   routeName: string
 ): boolean => {
-  const paramList = PARAM_LIST_DEFINITIONS[paramListName];
+  const definitions = PARAM_LIST_DEFINITIONS as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const paramList = definitions[paramListName];
   return !!(paramList && routeName in paramList);
 };
 
@@ -339,17 +343,23 @@ export const isRouteInParamList = (
  * ```
  */
 export const getRequiredParams = (
-  paramListName: keyof typeof PARAM_LIST_DEFINITIONS,
+  paramListName: string,
   routeName: string
 ): string[] => {
-  const paramList = PARAM_LIST_DEFINITIONS[paramListName];
+  const definitions = PARAM_LIST_DEFINITIONS as Record<
+    string,
+    Record<string, Record<string, { required?: boolean }>>
+  >;
+  const paramList = definitions[paramListName];
   if (!paramList || !(routeName in paramList)) {
     return [];
   }
 
-  const routeDef = paramList[routeName];
+  const routeDef = paramList?.[routeName];
+  if (!routeDef) return [];
+
   return Object.entries(routeDef)
-    .filter(([_, spec]) => spec.required)
+    .filter(([, spec]) => spec.required)
     .map(([key]) => key);
 };
 

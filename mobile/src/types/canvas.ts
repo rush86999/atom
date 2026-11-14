@@ -58,20 +58,36 @@ export interface ChartData {
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'email' | 'password' | 'select' | 'multiselect' | 'checkbox' | 'textarea';
-  required: boolean;
+  type:
+    | 'text'
+    | 'number'
+    | 'email'
+    | 'password'
+    | 'select'
+    | 'multiselect'
+    | 'checkbox'
+    | 'textarea'
+    | 'phone'
+    | 'date'
+    | 'time'
+    | 'file'
+    | 'toggle';
+  required?: boolean;
   options?: string[];
+  accept?: string;
   default_value?: any;
   placeholder?: string;
   validation?: {
     min?: number;
     max?: number;
     pattern?: string;
+    message?: string;
   };
 }
 
 // Form data
 export interface FormData {
+  id?: string;
   title: string;
   description?: string;
   fields: FormField[];

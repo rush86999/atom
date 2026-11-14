@@ -26,9 +26,10 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera, CameraType, FlashMode as ExpoFlashMode } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { cameraService, CameraMode, FlashMode, CapturedMedia } from '../../services/cameraService';
+import { registerActiveCameraCapture } from '../../services/cameraCaptureRegistry';
 
 interface CameraScreenProps {
   navigation: any;
@@ -42,8 +43,8 @@ interface CameraScreenProps {
 }
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route }) => {
-  const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<Camera>(null);
+  const [permission, requestPermission] = Camera.useCameraPermissions();
 
   // Camera state
   const [facing, setFacing] = useState<'back' | 'front'>('back');
@@ -59,6 +60,22 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
   useEffect(() => {
     cameraService.setCameraMode(mode);
   }, [mode]);
+
+  // Expose the mounted preview to background services (deviceSocket) while
+  // this screen is active. Permission is already granted at this point — the
+  // screen renders the permission overlay otherwise.
+  useEffect(() => {
+    return () => {
+      registerActiveCameraCapture(null);
+    };
+  }, []);
+
+  const handleCameraReady = () => {
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    registerActiveCameraCapture((options) => camera.takePictureAsync(options));
+  };
 
   // Request permission if not granted
   useEffect(() => {
@@ -143,24 +160,37 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
     }
   };
 
+  const cameraFlashMode = (): ExpoFlashMode => {
+    switch (flash) {
+      case 'on':
+        return ExpoFlashMode.on;
+      case 'auto':
+        return ExpoFlashMode.auto;
+      case 'torch':
+        return ExpoFlashMode.torch;
+      default:
+        return ExpoFlashMode.off;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <CameraView
+      <Camera
         ref={cameraRef}
         style={styles.camera}
-        facing={facing}
-        flash={flash}
-        mode={mode === 'barcode' ? 'picture' : undefined}
-        barcodeScannerSettings={
+        onCameraReady={handleCameraReady}
+        type={facing === 'front' ? CameraType.front : CameraType.back}
+        flashMode={cameraFlashMode()}
+        barCodeScannerSettings={
           mode === 'barcode'
             ? {
-                barcodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
+                barCodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
               }
             : undefined
         }
-        onBarcodeScanned={
+        onBarCodeScanned={
           mode === 'barcode'
             ? ({ data }) => {
                 navigation.navigate('BarcodeResult', { data });
@@ -230,7 +260,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
             </Text>
           </View>
         )}
-      </CameraView>
+      </Camera>
     </View>
   );
 };

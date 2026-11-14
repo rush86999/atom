@@ -150,8 +150,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result: BiometricResult = await biometricService.authenticate();
@@ -169,8 +167,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result = await biometricService.authenticate();
@@ -186,8 +182,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Authentication failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       const result = await biometricService.authenticate();
@@ -204,8 +199,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'not_enrolled', message: 'Not enrolled' },
-        warning: undefined,
+        error: 'not_enrolled',
       });
 
       const result = await biometricService.authenticate();
@@ -222,15 +216,13 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       const result = await biometricService.authenticate();
 
       expect(result.success).toBe(false);
-      // The error message from the mock is returned as-is for unknown codes
-      expect(result.error).toBe('Failed');
+      expect(result.error).toBe('Authentication failed');
     });
 
     test('should support cancel fallback', async () => {
@@ -241,8 +233,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'user_cancel', message: 'Cancelled' },
-        warning: undefined,
+        error: 'user_cancel',
       });
 
       const result = await biometricService.authenticate();
@@ -259,8 +250,6 @@ describe('BiometricService', () => {
       ]);
       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       await biometricService.authenticate({
@@ -288,8 +277,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result = await biometricService.authenticate();
@@ -353,8 +340,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       // Attempt 5 failed authentications
@@ -375,8 +361,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       // Trigger lockout
@@ -399,8 +384,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       // Trigger lockout
@@ -423,8 +407,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
 
       // Fail 3 times
@@ -447,8 +430,7 @@ describe('BiometricService', () => {
       // Fail 3 times
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
       for (let i = 0; i < 3; i++) {
         await biometricService.authenticate();
@@ -457,8 +439,6 @@ describe('BiometricService', () => {
       // Succeed on 4th attempt
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
       await biometricService.authenticate();
 
@@ -480,8 +460,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       // Mock SecureStore to capture the token storage
@@ -774,8 +752,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
     });
 
@@ -852,8 +829,7 @@ describe('BiometricService', () => {
       async (code, expectedAttemptError, expectedMessagePart) => {
         jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
           success: false,
-          error: { code, message: 'raw' },
-          warning: undefined,
+          error: code,
         });
 
         const result = await biometricService.authenticate();
@@ -896,8 +872,6 @@ describe('BiometricService', () => {
     test('should forward all authentication options', async () => {
       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       await biometricService.authenticate({
@@ -929,8 +903,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
-        warning: undefined,
+        error: 'authentication_failed',
       });
     });
 
