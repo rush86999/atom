@@ -8,6 +8,11 @@
 
 For the current setup entry point, start with the [main README](../README.md).
 The historical first-use snapshot is `successor-first-use-2026-11-01`.
+For current readiness evidence, use the
+[2026-11-14 readiness evidence index](engineering/CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md).
+It covers all 18 canonical goals and all 143 original claims, preserves the
+historical 111/123 result and lists the remaining user-boundary gates; it is
+not a claim that the app is complete.
 The accepted milestone covers **111/123 frozen functional claims** in documented
 local/controlled configurations. Historical evidence and later correctness fixes
 remain separately identified in the [successor notes](acceptance/SUCCESSOR_RELEASE_2026-11-01.md).
