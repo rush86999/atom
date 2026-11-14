@@ -23,6 +23,34 @@ from core.continuous_learning_service import ContinuousLearningService
 logger = logging.getLogger(__name__)
 
 
+_QUERY_COMPLEXITY_BY_NAME = {
+    "simple": QueryComplexity.SIMPLE,
+    "moderate": QueryComplexity.MODERATE,
+    "complex": QueryComplexity.COMPLEX,
+    "advanced": QueryComplexity.ADVANCED,
+}
+
+
+def _coerce_query_complexity(
+    complexity: Union[str, QueryComplexity]
+) -> QueryComplexity:
+    """Normalize a routing complexity input to ``QueryComplexity``.
+
+    Callers legitimately pass either the documented lowercase string
+    (``"simple"``..``"advanced"``) or the enum returned by
+    ``analyze_query_complexity``. Unknown values keep the historical
+    fallback to ``QueryComplexity.MODERATE``.
+    """
+    if isinstance(complexity, QueryComplexity):
+        return complexity
+
+    value = getattr(complexity, "value", complexity)
+    if isinstance(value, str):
+        return _QUERY_COMPLEXITY_BY_NAME.get(
+            value.lower(), QueryComplexity.MODERATE)
+    return QueryComplexity.MODERATE
+
+
 class LLMProvider(str, Enum):
     """Supported LLM providers"""
     OPENAI = "openai"
@@ -1027,7 +1055,7 @@ class LLMService:
 
     def get_optimal_provider(
         self,
-        complexity: str = "moderate",
+        complexity: Union[str, QueryComplexity] = "moderate",
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         tenant_plan: str = "free",
@@ -1040,7 +1068,9 @@ class LLMService:
         Get the optimal provider and model for a given complexity level.
         
         Args:
-            complexity: Query complexity level
+            complexity: Query complexity level — lowercase string or
+                ``QueryComplexity`` enum (as returned by
+                ``analyze_query_complexity``)
             task_type: Optional task type hint
             prefer_cost: Whether to prefer cost over quality
             tenant_plan: Tenant plan for model restrictions
@@ -1049,14 +1079,7 @@ class LLMService:
             requires_structured: Whether model must support structured output
             turn_index: Interaction turn (0 = creation, 1+ = reuse)
         """
-        # Map complexity string to QueryComplexity enum
-        complexity_map = {
-            "simple": QueryComplexity.SIMPLE,
-            "moderate": QueryComplexity.MODERATE,
-            "complex": QueryComplexity.COMPLEX,
-            "advanced": QueryComplexity.ADVANCED
-        }
-        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+        complexity_enum = _coerce_query_complexity(complexity)
 
         result = self.handler.get_optimal_provider(
             complexity=complexity_enum,
@@ -1072,7 +1095,7 @@ class LLMService:
 
     def get_ranked_providers(
         self,
-        complexity: str = "moderate",
+        complexity: Union[str, QueryComplexity] = "moderate",
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         tenant_plan: str = "free",
@@ -1083,14 +1106,7 @@ class LLMService:
         cognitive_tier: Optional[str] = None,
         turn_index: int = 0
     ) -> List[tuple[str, str]]:
-        # Map complexity string to QueryComplexity enum
-        complexity_map = {
-            "simple": QueryComplexity.SIMPLE,
-            "moderate": QueryComplexity.MODERATE,
-            "complex": QueryComplexity.COMPLEX,
-            "advanced": QueryComplexity.ADVANCED
-        }
-        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+        complexity_enum = _coerce_query_complexity(complexity)
 
         # Map cognitive_tier string to CognitiveTier enum if provided
         cognitive_tier_enum = None
