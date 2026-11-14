@@ -184,3 +184,59 @@ that point → auto-revoke → override cleared → shadow again.
 `POST .../run-now`, `POST .../approve`, `POST .../reject` (all admin-gated,
 403 otherwise); `GET /api/v1/fleet/automation/status` + `/health/fleet-router`
 are public read-only.
+
+## Final synthesis completion contract (2026-11-14)
+
+The live Goal 13 replay returned a user-visible answer that stopped
+mid-action ("... slipped deals are more likely") while the fleet reported
+`status=success`; the specialist's durable output contained all three
+corrective actions. Two independent truncation axes were conflated:
+
+| Axis | Field | Meaning |
+|---|---|---|
+| INPUT | `final_synthesis.evidence_truncated` | The bounded synthesis prompt omitted specialist text. |
+| OUTPUT | `final_synthesis.finish_reason` / `output_truncated` | The provider stopped because the output-token cap was reached (or the text shape is cut when no stop reason was reported). |
+
+`evidence_truncated=true` is **not** evidence that the provider hit the 900
+token cap (the replay used 820 completion tokens).
+
+**Provider contract.** `BYOKHandler` has always known the provider stop reason
+but `generate_response` dropped it. It is now stashed on the handler
+(`_last_finish_reason`, cleared per call) and surfaced by
+`LLMService.generate_completion` as `finish_reason`. Truncation is detected
+from the provider vocabulary, not from the input flag:
+
+- OpenAI Chat Completions: `finish_reason="length"` means the maximum number of
+  tokens specified in the request was reached
+  (<https://platform.openai.com/docs/api-reference/chat/object>).
+- Anthropic Messages: `stop_reason="max_tokens"` means the response was cut at
+  `max_tokens`, and `model_context_window_exceeded` is treated as truncated
+  (<https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons>).
+
+**Deliverable rule.** The editorial synthesis is used only when the output was
+not truncated and the bounded prompt carried the complete specialist
+evidence. Otherwise the existing durable raw-contribution fallback is used:
+full attributed specialist outputs + deterministic quantitative
+reconciliation (including a non-zero residual) + the execution-status footer.
+No extra provider call is made and no specialist is re-dispatched, so there is
+no unpriced retry and no duplicate work. `final_synthesis.used=false` with
+`reason="output_truncated"` or `"evidence_truncated"` records why.
+
+**Budget.** The synthesis remains one bounded read-only call:
+`_SYNTHESIS_MAX_OUTPUT_TOKENS=1400` (up from 900; the five required sections
+plus a 3-action list did not fit) and a shared
+`_SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS=10000` budget with a 6,000-char
+per-contribution ceiling (up from 2,000, which cut the replay's action list
+after item 1). The evidence budget is unchanged, so a large roster still
+cannot dominate the prompt.
+
+**Durable readback.** A cached result written before output truncation was
+tracked (`used=true` + `evidence_truncated=true`) is repaired on read from its
+own durable `specialist_results`, then persisted. This makes the retained live
+replay complete without a new provider call, and a restart readback returns
+the same text with zero synthesis calls and zero dispatches.
+
+Tests: `backend/tests/test_fleet_synthesis_truncation_contract.py` (complete /
+truncated / missing finish_reason / provider failure / evidence-vs-output /
+cached readback / legacy durable repair / wrapper propagation) plus the
+existing `tests/test_fleet_final_synthesis.py` contract.

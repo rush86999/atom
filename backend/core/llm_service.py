@@ -292,6 +292,8 @@ class LLMService:
             },
             "usage": {"prompt_tokens": 0, "completion_tokens": 0,
                       "total_tokens": 0},
+            # Provider stop reason is unknown because no provider ran.
+            "finish_reason": None,
         }
 
     def _workspace_for_tenant(self, tenant_id: str):
@@ -818,6 +820,12 @@ class LLMService:
             },
             "model": used_model,
             "provider": used_provider,
+            # Provider-native stop reason for this call ("stop", "length",
+            # "max_tokens", ...). The handler returns only text, so without
+            # this a caller cannot distinguish a naturally finished answer
+            # from one cut off at the output-token cap.
+            "finish_reason": getattr(
+                handler, "_last_finish_reason", None),
             # Identity of this generation's outcome row (set by the handler
             # when it recorded one). Callers that judge the ASSEMBLED reply
             # afterwards — the figure-grounding and verification guards — pass

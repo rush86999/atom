@@ -361,11 +361,11 @@ def test_synthesis_uses_request_and_attributed_results(world):
     assert durable["final_synthesis"]["used"] is True
 
 
-def test_synthesis_evidence_is_bounded_and_truncation_is_disclosed(world):
+def test_synthesis_evidence_is_bounded_and_truncation_falls_back(world):
     _seed_chain(world)
     FakeSpecialist.outputs = {
-        "spec-finance": "f" * 6000,
-        "spec-sales": "s" * 6000,
+        "spec-finance": "f" * 7000,
+        "spec-sales": "s" * 7000,
     }
     llm = FakeLLM()
     result = _run(world, llm)
@@ -373,15 +373,26 @@ def test_synthesis_evidence_is_bounded_and_truncation_is_disclosed(world):
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
     # Per-contribution cap means the raw outputs cannot dominate the prompt.
-    assert "f" * 2100 not in prompt
-    assert "s" * 2100 not in prompt
+    assert "f" * 5100 not in prompt
+    assert "s" * 5100 not in prompt
     assert "[truncated]" in prompt
     # Whole prompt remains bounded (evidence + request + instructions).
-    assert len(prompt) < 18000
+    assert len(prompt) < 22000
+    # INPUT truncation is reported separately from provider OUTPUT truncation.
     assert result["final_synthesis"]["evidence_truncated"] is True
-    # The durable specialist records still carry the complete output.
-    assert result["specialist_results"][0]["output"] == "f" * 6000
-    assert result["specialist_results"][1]["output"] == "s" * 6000
+    assert result["final_synthesis"]["output_truncated"] is False
+    # The editorial pass cannot prove a complete deliverable from bounded
+    # evidence, so the durable full contributions are used instead.
+    assert result["final_synthesis"]["used"] is False
+    assert result["final_synthesis"]["reason"] == "evidence_truncated"
+    assert "complete attributed specialist contributions" in (
+        result["final_output"])
+    # The durable specialist records (and the user-visible answer) carry the
+    # complete output, not the 5,000-char prompt slice.
+    assert result["specialist_results"][0]["output"] == "f" * 7000
+    assert result["specialist_results"][1]["output"] == "s" * 7000
+    assert "f" * 7000 in result["final_output"]
+    assert "s" * 7000 in result["final_output"]
 
 
 @pytest.mark.parametrize(

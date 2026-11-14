@@ -75,13 +75,36 @@ _SPECIALIST_INSTRUCTION = (
 # attributable; the completion cap bounds spend. The call never receives tool
 # definitions, and the synthesis is rendered as commentary -- it cannot consume
 # a specialist result, create an execution, or claim that an action ran.
-_SYNTHESIS_MAX_OUTPUT_TOKENS = 900
+_SYNTHESIS_MAX_OUTPUT_TOKENS = 1400
 _SYNTHESIS_TIMEOUT_SECONDS = 45.0
 _SYNTHESIS_REQUEST_MAX_CHARS = 4000
-_SYNTHESIS_CONTRIBUTION_MAX_CHARS = 2000
+# Per-contribution ceiling never exceeds the shared evidence budget. The
+# previous 2,000-char cap cut a normal 3-action specialist finding mid-list
+# even though the whole finding fit the budget: the editor then reported the
+# missing actions as an evidence gap instead of delivering them.
+_SYNTHESIS_CONTRIBUTION_MAX_CHARS = 6000
 _SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS = 10000
 _SYNTHESIS_MIN_CONTRIBUTION_CHARS = 600
 _SYNTHESIS_FAILURE_MAX_CHARS = 300
+# Provider stop reasons that mean the completion is NOT the model's finished
+# answer. OpenAI uses "length"; Anthropic uses "max_tokens" (and treats
+# "model_context_window_exceeded" as truncated). The values are normalized
+# case-insensitively so a gateway may relay either vocabulary.
+_SYNTHESIS_TRUNCATION_FINISH_REASONS = frozenset({
+    "length", "max_tokens", "max_output_tokens",
+    "model_context_window_exceeded",
+})
+# Backstop for providers/gateways that omit finish_reason: a completion whose
+# last word is a sentence-continuation token is treated as cut off. This is a
+# shape signal only; an explicit provider finish_reason always wins.
+_SYNTHESIS_CONTINUATION_WORDS = frozenset({
+    "a", "an", "and", "are", "as", "at", "be", "because", "been", "but",
+    "by", "for", "from", "how", "if", "in", "include", "includes",
+    "including", "is", "likely", "more", "most", "next", "of", "on", "or",
+    "per", "such", "than", "that", "the", "then", "to", "unlikely", "using",
+    "via", "was", "were", "when", "where", "which", "while", "with",
+    "without",
+})
 
 # Specialist execution can include authorized tool actions. The fleet keeps a
 # bounded receipt for each recorded invocation (tool plus the producer's typed
@@ -4249,6 +4272,119 @@ Return JSON matching the TaskAnalysis schema."""
         )
         return prompt, truncated
 
+    @staticmethod
+    def _synthesis_finish_reason_truncated(finish_reason: Any) -> bool:
+        """Whether a provider stop reason means the output was cut off.
+
+        OpenAI's Chat Completions contract defines ``finish_reason="length"``
+        as "the maximum number of tokens specified in the request was
+        reached"; the Anthropic Messages API uses ``stop_reason="max_tokens"``
+        and explicitly says to treat ``model_context_window_exceeded`` as
+        truncated. Gateways may relay either vocabulary, so both are honored.
+        """
+        return str(finish_reason or "").strip().lower() in (
+            _SYNTHESIS_TRUNCATION_FINISH_REASONS)
+
+    @classmethod
+    def _synthesis_text_looks_cut_off(cls, content: Any) -> bool:
+        """Best-effort shape check for a completion with no stop reason.
+
+        Only used when the provider did not report a ``finish_reason`` (older
+        wrappers, injected stubs). An explicit provider stop reason always
+        wins. A dangling last word that is a sentence-continuation token, or
+        an unbalanced bracket, is treated as cut off; normal terminal
+        punctuation is accepted.
+        """
+        text = str(content or "").rstrip()
+        if not text:
+            return False
+        if text[-1] in ".!?…\"'`)]}":
+            return False
+        if text.count("(") > text.count(")") or \
+                text.count("[") > text.count("]"):
+            return True
+        words = re.findall(r"[A-Za-z']+", text.splitlines()[-1].strip())
+        if not words:
+            return False
+        return words[-1].lower() in _SYNTHESIS_CONTINUATION_WORDS
+
+    @classmethod
+    def _raw_attributed_fallback(
+        cls,
+        task: str,
+        successful: List[Dict[str, Any]],
+        failed: List[Dict[str, Any]],
+        recorded_actions: List[Dict[str, Any]],
+        *,
+        reason: Optional[str] = None,
+    ) -> str:
+        """The durable, complete answer when the editorial pass cannot be used.
+
+        The specialists' own outputs are the evidence and stay attributed.
+        Nothing is re-run and no provider is called: this is the existing
+        raw-contribution fallback, with a reason-specific disclosure so a
+        truncated editorial pass is never mistaken for a complete one.
+        """
+        if reason == "output_truncated":
+            prefix = (
+                "Final synthesis was cut off at the model's output limit; "
+                "the complete attributed specialist contributions follow "
+                "(not independently verified).")
+        elif reason == "evidence_truncated":
+            prefix = (
+                "Final synthesis was not used because the bounded evidence "
+                "omitted specialist content; the complete attributed "
+                "specialist contributions follow (not independently "
+                "verified).")
+        else:
+            prefix = (
+                "Final synthesis unavailable; raw specialist contributions "
+                "follow (not independently verified).")
+        lines = [
+            f"- {item['agent_name']} ({item['domain']}): {item['output']}"
+            for item in successful
+        ]
+        final_output = prefix + "\nSpecialist contributions:\n" + "\n".join(
+            lines)
+        checks = cls._quantitative_reconciliation(
+            task,
+            contributor_evidence=cls._scoped_contributor_evidence(
+                successful)).get("checks") or []
+        if checks:
+            final_output += (
+                "\n\n" + cls._deterministic_reconciliation_block(checks))
+        if failed:
+            final_output += (
+                "\n\nNot completed:\n"
+                + "\n".join(
+                    f"- {item['agent_name']} ({item['domain']}): "
+                    f"{item['error'] or item['status']}"
+                    for item in failed))
+        final_output += cls._execution_status_footer(recorded_actions)
+        return final_output
+
+    @classmethod
+    def _cached_synthesis_needs_repair(
+        cls, result: Dict[str, Any],
+    ) -> bool:
+        """Whether a durable cached answer carries a known-incomplete synthesis.
+
+        Older durable results can have ``used=True`` together with the input
+        ``evidence_truncated`` flag (and no output-truncation metadata). The
+        cached readback must not keep presenting that cut answer as complete;
+        it can rebuild the complete attributed answer from the same durable
+        specialist results without a synthesis or specialist re-dispatch.
+        """
+        synthesis = result.get("final_synthesis")
+        if not isinstance(synthesis, dict) or not synthesis.get("used"):
+            return False
+        if synthesis.get("output_truncated") is True:
+            return True
+        if synthesis.get("evidence_truncated") is True:
+            return True
+        return cls._synthesis_finish_reason_truncated(
+            synthesis.get("finish_reason"))
+
     async def _synthesize_final_output(
         self,
         *,
@@ -4276,7 +4412,12 @@ Return JSON matching the TaskAnalysis schema."""
             "model": None,
             "provider": None,
             "max_output_tokens": _SYNTHESIS_MAX_OUTPUT_TOKENS,
+            # INPUT-side flag: the bounded prompt omitted specialist text.
             "evidence_truncated": False,
+            # OUTPUT-side flags: the provider stopped at the token cap, or
+            # (when no stop reason was reported) the text's shape is cut.
+            "finish_reason": None,
+            "output_truncated": False,
             "recorded_action_count": len(recorded_actions or []),
             "recommendations_relabelled": False,
             "reconciliation": {
@@ -4324,6 +4465,7 @@ Return JSON matching the TaskAnalysis schema."""
                 type(exc).__name__)
             return None, metadata
 
+        finish_reason: Optional[str] = None
         if isinstance(response, str):
             content = response.strip()
         elif isinstance(response, dict):
@@ -4341,11 +4483,41 @@ Return JSON matching the TaskAnalysis schema."""
             metadata["model"] = response.get("model")
             metadata["provider"] = response.get("provider")
             metadata["usage"] = response.get("usage")
+            finish_reason = response.get("finish_reason")
         else:
             content = ""
+        metadata["finish_reason"] = finish_reason
 
         if not content:
             metadata["reason"] = "empty_synthesis"
+            return None, metadata
+
+        # OUTPUT truncation is a provider fact (finish_reason), never inferred
+        # from the INPUT-side ``evidence_truncated`` flag. When a gateway
+        # omits the stop reason, the text's own shape is a conservative
+        # backstop. Either way the partial editorial text is not presented as
+        # the business deliverable.
+        output_truncated = self._synthesis_finish_reason_truncated(
+            finish_reason)
+        if not output_truncated and finish_reason is None:
+            output_truncated = self._synthesis_text_looks_cut_off(content)
+        metadata["output_truncated"] = bool(output_truncated)
+        if output_truncated:
+            metadata["reason"] = "output_truncated"
+            logger.warning(
+                "[FleetAdmiral] final synthesis output truncated "
+                "(finish_reason=%s); using complete attributed contributions",
+                finish_reason)
+            return None, metadata
+
+        # If the bounded prompt itself omitted specialist text, the editorial
+        # pass cannot prove the requested deliverables are complete. Use the
+        # durable full contributions instead of a silently short answer.
+        if evidence_truncated:
+            metadata["reason"] = "evidence_truncated"
+            logger.warning(
+                "[FleetAdmiral] final synthesis evidence truncated; using "
+                "complete attributed contributions")
             return None, metadata
 
         content, relabelled = self._correct_recommendation_deliverables(
@@ -4517,6 +4689,59 @@ Return JSON matching the TaskAnalysis schema."""
                         item["recorded_actions"] = (
                             self._validated_action_receipts(
                                 item.get("recorded_actions")))
+            # A durable answer written before output-truncation was tracked
+            # may still say ``used=True`` while its evidence was bounded (the
+            # live Goal 13 replay did exactly that). Repair it from the SAME
+            # durable specialist results: zero synthesis calls, zero
+            # specialist re-dispatch, and the complete attributed answer is
+            # persisted for every later readback.
+            if self._cached_synthesis_needs_repair(cached_result):
+                synthesis = dict(cached_result.get("final_synthesis") or {})
+                reason = (
+                    "output_truncated"
+                    if synthesis.get("output_truncated") is True
+                    or self._synthesis_finish_reason_truncated(
+                        synthesis.get("finish_reason"))
+                    else "evidence_truncated")
+                cached_specialists = [
+                    item for item in (cached_result.get("specialist_results")
+                                      or [])
+                    if isinstance(item, dict)
+                ]
+                cached_successful = [
+                    item for item in cached_specialists
+                    if item.get("status") == "success" and item.get("output")
+                ]
+                cached_failed = [
+                    item for item in cached_specialists
+                    if item.get("status") in (
+                        "failed", "missing", "scope_mismatch",
+                        "capability_mismatch", "unavailable")
+                ]
+                cached_result["final_output"] = self._raw_attributed_fallback(
+                    task, cached_successful, cached_failed,
+                    validated_receipts, reason=reason)
+                synthesis["used"] = False
+                synthesis["reason"] = reason
+                synthesis["repaired_from_durable"] = True
+                synthesis.setdefault("finish_reason", None)
+                synthesis.setdefault(
+                    "output_truncated", reason == "output_truncated")
+                cached_result["final_synthesis"] = synthesis
+                # Persist the repaired durable result (not just the return
+                # value) so a later process reads the same complete answer.
+                # Deep-copy BEFORE assignment: mutating the nested dict in
+                # place and then assigning an equal-value dict is invisible to
+                # SQLAlchemy's JSON change tracking (the readback kept the cut
+                # legacy text while the caller saw the repaired copy).
+                persisted_metadata = copy.deepcopy(metadata)
+                persisted_execution = persisted_metadata.get(
+                    "specialist_execution")
+                if isinstance(persisted_execution, dict):
+                    persisted_execution["result"] = copy.deepcopy(
+                        cached_result)
+                    chain.metadata_json = persisted_metadata
+                    self.db.commit()
             # A cached claim may no longer survive revalidation even when the
             # ledger keeps its length (e.g. an unsupported ``verified``
             # verdict downgraded to ``not_reported``). Compare the rebuilt
@@ -4878,6 +5103,8 @@ Return JSON matching the TaskAnalysis schema."""
             "provider": None,
             "max_output_tokens": _SYNTHESIS_MAX_OUTPUT_TOKENS,
             "evidence_truncated": False,
+            "finish_reason": None,
+            "output_truncated": False,
             "recorded_action_count": len(recorded_actions),
             "recommendations_relabelled": False,
             "reconciliation": {
@@ -4917,36 +5144,23 @@ Return JSON matching the TaskAnalysis schema."""
                     "not independently verified):\n"
                     + synthesis_content
                 )
+                if failed_notes:
+                    final_output += "\n\nNot completed:\n" + failed_notes
+
+                # Deterministic execution status: the synthesis was read-only,
+                # and only receipts retained from specialist execution are
+                # reported as actions. Everything else remains a proposal.
+                final_output += self._execution_status_footer(
+                    recorded_actions)
             else:
-                lines = [
-                    f"- {item['agent_name']} ({item['domain']}): "
-                    f"{item['output']}"
-                    for item in successful
-                ]
-                final_output = (
-                    "Final synthesis unavailable; raw specialist "
-                    "contributions follow (not independently verified).\n"
-                    "Specialist contributions:\n"
-                    + "\n".join(lines)
-                )
-                # Even without an editorial pass, never hide a computed
-                # residual behind the raw fallback.
-                checks = self._quantitative_reconciliation(
-                    task,
-                    contributor_evidence=self._scoped_contributor_evidence(
-                        successful)).get("checks") or []
-                if checks:
-                    final_output += (
-                        "\n\n"
-                        + self._deterministic_reconciliation_block(checks))
-
-            if failed_notes:
-                final_output += "\n\nNot completed:\n" + failed_notes
-
-            # Deterministic execution status: the synthesis was read-only, and
-            # only receipts retained from specialist execution are reported as
-            # actions. Everything else remains a proposal.
-            final_output += self._execution_status_footer(recorded_actions)
+                # The durable raw evidence is the complete, attributed answer
+                # when the editorial pass was cut off at the output cap, when
+                # the bounded evidence omitted specialist text, or when the
+                # provider was unavailable. No extra provider call is made and
+                # no specialist is re-dispatched.
+                final_output = self._raw_attributed_fallback(
+                    task, successful, failed, recorded_actions,
+                    reason=final_synthesis.get("reason"))
         elif cancelled:
             partial = [
                 f"- {item['agent_name']} ({item['domain']}): {item['output']}"

@@ -2227,6 +2227,12 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        # Provider-native stop reason for the last completed non-streaming
+        # call ("stop"/"length"/"max_tokens"/...). generate_response returns
+        # only text, so callers that assemble a deliverable (fleet final
+        # synthesis) read this to distinguish a natural stop from an output
+        # that was cut off at the token cap. Cleared per call.
+        self._last_finish_reason: Optional[str] = None
         #: ``routing_result_id`` of the most recently recorded outcome row —
         #: the generation identity a later corrective verdict attaches to.
         self._last_feedback_decision_id: Optional[str] = None
@@ -3086,13 +3092,18 @@ class BYOKHandler:
         return ""
 
     def _stash_last_reasoning(self, response: Any) -> None:
-        """Stash the chain-of-thought of the last non-streaming completion
-        onto ``self._last_reasoning`` (same stash pattern as
+        """Stash the chain-of-thought and provider stop reason of the last
+        non-streaming completion onto ``self._last_reasoning`` /
+        ``self._last_finish_reason`` (same stash pattern as
         _last_used_model). Best-effort: never raises."""
         try:
-            msg = response.choices[0].message
+            choice = response.choices[0]
+            self._last_finish_reason = _response_field(
+                choice, "finish_reason")
+            msg = choice.message
             self._last_reasoning = self._reasoning_from_message(msg) or None
         except Exception:
+            self._last_finish_reason = None
             self._last_reasoning = None
 
     @staticmethod
@@ -7151,9 +7162,11 @@ class BYOKHandler:
         except Exception:
             pass
 
-        # Same staleness rule for the chain-of-thought stash: a call that
-        # produces no reasoning must not inherit the previous call's.
+        # Same staleness rule for the chain-of-thought and stop-reason
+        # stashes: a call that produces no reasoning/stop reason must not
+        # inherit the previous call's.
         self._last_reasoning = None
+        self._last_finish_reason = None
 
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
@@ -8526,6 +8539,7 @@ class BYOKHandler:
                         response = await _to_thread_safe(
                             _client.chat.completions.create, **_sweep_kwargs)
                         self._capture_echoed_model(response)
+                        self._stash_last_reasoning(response)
                         _sweep_result = response.choices[0].message.content
                         if _visible_content_missing(_sweep_result):
                             raise _EmptyCompletionError(
