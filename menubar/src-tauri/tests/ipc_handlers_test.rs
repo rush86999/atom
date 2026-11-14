@@ -12,6 +12,8 @@
  */
 
 // Self-contained test - no imports from main crate needed
+#[cfg(test)]
+mod tests {
     // Note: These are integration tests that would typically require
     // the full Tauri runtime. For unit testing, we test the logic
     // that would be used in IPC handlers.
@@ -26,7 +28,7 @@
         pub data: String,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct MockResponse {
         pub success: bool,
         pub data: Option<String>,

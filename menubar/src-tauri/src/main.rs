@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod config;
 mod menu;
 mod websocket;
 mod hotkeys;
@@ -53,6 +54,7 @@ async fn main() {
             get_connection_status,
             get_recent_items,
             quick_chat,
+            get_backend_config,
             show_window,
             hide_window,
             get_hotkeys,

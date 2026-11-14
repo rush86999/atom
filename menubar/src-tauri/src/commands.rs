@@ -1,3 +1,4 @@
+use crate::config;
 use crate::AppState;
 use crate::UserSession;
 use keyring::Entry;
@@ -5,7 +6,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-const API_BASE_URL: &str = "http://localhost:8000"; // Configure as needed
 const SERVICE_NAME: &str = "AtomMenuBar";
 
 // ============================================================================
@@ -25,6 +25,10 @@ pub struct LoginRequest {
     pub email: String,
     pub password: String,
     pub device_name: String,
+    /// Second-factor code supplied on the retry after the server reports that
+    /// 2FA is required. Omitted entirely on the first attempt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub totp_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,6 +38,32 @@ pub struct LoginResponse {
     pub device_id: Option<String>,
     pub user: Option<User>,
     pub error: Option<String>,
+    /// True when the password was accepted but a TOTP retry is required.
+    #[serde(default)]
+    pub two_factor_required: Option<bool>,
+}
+
+/// Successful sign-in payload sent to the webview.
+///
+/// Tauri serializes a tuple return as a JSON array, so the fields are named
+/// here to match what `App.tsx` reads (`result.token`, `result.user`,
+/// `result.device_id`).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginSession {
+    pub token: String,
+    pub user: User,
+    pub device_id: String,
+}
+
+/// Restored session payload sent to the webview.
+///
+/// Named for the same reason as [`LoginSession`]: the frontend reads
+/// `session.token` / `session.user`, and `device_id` is only part of a fresh
+/// sign-in response.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub token: String,
+    pub user: User,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,39 +115,94 @@ pub struct QuickChatResponse {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BackendConfig {
+    pub http_base_url: String,
+    pub websocket_url: String,
+    /// `environment` when a loopback/isolation override was supplied,
+    /// otherwise `default`.
+    pub http_base_url_source: String,
+}
+
 // ============================================================================
 // Commands
 // ============================================================================
+
+/// Extract a human-readable message from an error body.
+///
+/// The shared middleware returns ``{"error": {"type", "message"}}`` for CSRF
+/// and rate-limit refusals, FastAPI returns ``{"detail": ...}``, and the
+/// companion sign-in handler returns ``{"error": "..."}``. All three shapes
+/// are handled so a refused sign-in never degrades into a parse error.
+pub(crate) fn login_error_message(body: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(body).ok()?;
+    for key in ["error", "detail", "message"] {
+        if let Some(candidate) = value.get(key) {
+            if let Some(message) = candidate.as_str() {
+                if !message.trim().is_empty() {
+                    return Some(message.to_string());
+                }
+            }
+            if let Some(message) = candidate.get("message").and_then(|m| m.as_str()) {
+                if !message.trim().is_empty() {
+                    return Some(message.to_string());
+                }
+            }
+        }
+    }
+    None
+}
 
 #[tauri::command]
 pub async fn login(
     email: String,
     password: String,
     device_name: String,
+    totp_code: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(String, User, String), String> {
+) -> Result<LoginSession, String> {
     let client = Client::new();
 
     let request = LoginRequest {
         email: email.clone(),
         password,
         device_name,
+        totp_code,
     };
 
     let response = client
-        .post(&format!("{}/api/menubar/auth/login", API_BASE_URL))
+        .post(config::api_url("/api/menubar/auth/login")?)
         .json(&request)
         .send()
         .await
         .map_err(|e| format!("Failed to connect to server: {}", e))?;
 
-    let login_response: LoginResponse = response
-        .json()
+    let status = response.status();
+    let body = response
+        .text()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    let login_response: LoginResponse = match serde_json::from_str(&body) {
+        Ok(parsed) => parsed,
+        Err(parse_error) => {
+            return Err(login_error_message(&body).unwrap_or_else(|| {
+                format!(
+                    "Login failed (HTTP {}): {}",
+                    status.as_u16(),
+                    parse_error
+                )
+            }));
+        }
+    };
 
     if !login_response.success {
-        return Err(login_response.error.unwrap_or_else(|| "Login failed".to_string()));
+        let fallback = if login_response.two_factor_required.unwrap_or(false) {
+            "Two-factor authentication required".to_string()
+        } else {
+            format!("Login failed (HTTP {})", status.as_u16())
+        };
+        return Err(login_response.error.unwrap_or(fallback));
     }
 
     let token = login_response.access_token.ok_or("No token received")?;
@@ -140,7 +225,11 @@ pub async fn login(
         device_id: device_id.clone(),
     });
 
-    Ok((token, user, device_id))
+    Ok(LoginSession {
+        token,
+        user,
+        device_id,
+    })
 }
 
 #[tauri::command]
@@ -164,7 +253,7 @@ pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_session(state: State<'_, AppState>) -> Result<(String, User), String> {
+pub async fn get_session(state: State<'_, AppState>) -> Result<SessionInfo, String> {
     let token = state.auth_token.lock().unwrap().clone()
         .ok_or("Not authenticated")?;
     let session = state.user_session.lock().unwrap().clone()
@@ -177,7 +266,7 @@ pub async fn get_session(state: State<'_, AppState>) -> Result<(String, User), S
         last_name: "".to_string(),
     };
 
-    Ok((token, user))
+    Ok(SessionInfo { token, user })
 }
 
 #[tauri::command]
@@ -196,7 +285,7 @@ pub async fn get_connection_status(
 
     let client = Client::new();
     let response = client
-        .get(&format!("{}/api/menubar/status", API_BASE_URL))
+        .get(config::api_url("/api/menubar/status")?)
         .header("Authorization", format!("Bearer {}", token))
         .header("X-Device-ID", device_id.unwrap_or_else(|| "".to_string()))
         .send()
@@ -218,7 +307,7 @@ pub async fn get_recent_items(
 ) -> Result<RecentItemsResponse, String> {
     let client = Client::new();
     let response = client
-        .get(&format!("{}/api/menubar/recent", API_BASE_URL))
+        .get(config::api_url("/api/menubar/recent")?)
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await
@@ -251,7 +340,7 @@ pub async fn quick_chat(
     let device_id = session.as_ref().map(|s| s.device_id.clone());
 
     let mut request_builder = client
-        .post(&format!("{}/api/menubar/quick/chat", API_BASE_URL))
+        .post(config::api_url("/api/menubar/quick/chat")?)
         .header("Authorization", format!("Bearer {}", token))
         .json(&request);
 
@@ -270,6 +359,26 @@ pub async fn quick_chat(
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
     Ok(chat_response)
+}
+
+/// Resolve the backend endpoints used by this process.
+///
+/// Frontend requests consume this so a native `ATOM_BACKEND_URL` override
+/// (for an isolated loopback verification backend on another port) also
+/// applies to direct browser-side fetches. The default remains
+/// `http://localhost:8000`.
+///
+/// An explicit but invalid override (HTTP or WebSocket) is returned as an
+/// error. The frontend must not fall back to the localhost default in that
+/// case, because the operator asked for a different endpoint.
+#[tauri::command]
+pub fn get_backend_config() -> Result<BackendConfig, String> {
+    let endpoints = config::resolve_endpoints()?;
+    Ok(BackendConfig {
+        http_base_url: endpoints.http_base_url,
+        websocket_url: endpoints.websocket_url,
+        http_base_url_source: endpoints.source.as_str().to_string(),
+    })
 }
 
 #[tauri::command]

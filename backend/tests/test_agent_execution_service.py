@@ -8,6 +8,7 @@ governance integration, WebSocket streaming, and persistence.
 import pytest
 import asyncio
 from datetime import datetime
+from types import SimpleNamespace
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from sqlalchemy.orm import Session
 
@@ -863,3 +864,166 @@ class TestFeatureFlags:
 
                             # Should bypass all governance checks
                             assert result["success"] == True
+
+
+# ==================== PROVIDER TERMINAL FAILURE ====================
+
+#: The exact frame core/llm/byok_handler.stream_completion yields once every
+#: provider/route is exhausted. It is a terminal status, not assistant output.
+PROVIDER_FAILURE_ENVELOPE = (
+    "\n\n[Error: All LLM providers failed. Please check your API key "
+    "configuration and try again.]"
+)
+
+
+def _terminal_failure_agent():
+    return SimpleNamespace(
+        id="agent-terminal",
+        name="Terminal Failure Agent",
+        description="Agent under test",
+        category="general",
+        type="standard",
+        confidence_score=0.9,
+    )
+
+
+async def _run_with_chunks(chunks, *, stream=False, execution_row=None):
+    """Run execute_agent_chat against a scripted provider stream.
+
+    Only the provider boundary and the external services are doubled; the real
+    orchestration (message building, dispatch, accumulation, persistence and
+    audit branches) runs.
+    """
+    agent = _terminal_failure_agent()
+    resolver = AsyncMock()
+    resolver.resolve_agent_for_request.return_value = (agent, {"tier": "INTERN"})
+    governance = MagicMock()
+    governance.can_perform_action.return_value = {"allowed": True, "reason": ""}
+
+    llm = MagicMock()
+    llm.analyze_query_complexity.return_value = "simple"
+    llm.get_optimal_provider.return_value = ("openai", "gpt-4o-mini")
+
+    async def _gen(*_args, **_kwargs):
+        for chunk in chunks:
+            yield chunk
+
+    llm.stream_completion = _gen
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = execution_row
+
+    history = MagicMock()
+    session_manager = MagicMock()
+    session_manager.create_session.return_value = "sess-terminal"
+
+    manager = MagicMock()
+    manager.broadcast = AsyncMock()
+    manager.STREAMING_UPDATE = "streaming:update"
+    manager.STREAMING_COMPLETE = "streaming:complete"
+    manager.STREAMING_ERROR = "streaming:error"
+
+    with patch("core.agent_execution_service.SessionLocal", return_value=db), \
+         patch("core.agent_execution_service.AgentContextResolver", return_value=resolver), \
+         patch("core.agent_execution_service.AgentGovernanceService", return_value=governance), \
+         patch("core.agent_execution_service.LLMService", return_value=llm), \
+         patch("core.agent_execution_service.ws_manager", manager), \
+         patch("core.agent_execution_service.get_chat_history_manager", return_value=history), \
+         patch("core.agent_execution_service.get_chat_session_manager", return_value=session_manager), \
+         patch("core.agent_execution_service.trigger_episode_creation"):
+        result = await execute_agent_chat(
+            agent_id=agent.id,
+            message="Hello",
+            user_id="user-terminal",
+            stream=stream,
+        )
+
+    frames = [call.args[1] for call in manager.broadcast.call_args_list]
+    return result, {"db": db, "history": history, "frames": frames}
+
+
+class TestProviderTerminalFailure:
+    """A streamed provider-exhaustion envelope must never be a success reply."""
+
+    @pytest.mark.asyncio
+    async def test_terminal_error_envelope_is_not_success(self):
+        execution_row = SimpleNamespace(
+            status="running",
+            error_message=None,
+            completed_at=None,
+            result_summary=None,
+            metadata_json={},
+        )
+        result, env = await _run_with_chunks(
+            [PROVIDER_FAILURE_ENVELOPE], execution_row=execution_row
+        )
+
+        assert result["success"] is False
+        assert result["error"] == "Agent chat execution failed"
+        assert result["response"] is None
+
+        # Nothing from the envelope was persisted as an assistant reply.
+        history_calls = env["history"].add_message.call_args_list
+        assert history_calls == []
+
+        # The audit row records a FAILURE with the generic marker, never the
+        # envelope and never a completed status.
+        assert execution_row.status == "failed"
+        assert execution_row.error_message == "Agent chat execution failed"
+        assert execution_row.result_summary is None
+
+    @pytest.mark.asyncio
+    async def test_terminal_envelope_split_across_frames_is_detected(self):
+        result, _env = await _run_with_chunks(
+            ["\n\n[Err", "or: All LLM providers failed.]"]
+        )
+        assert result["success"] is False
+        assert result["response"] is None
+
+    @pytest.mark.asyncio
+    async def test_streaming_failure_emits_structured_error_not_content(self):
+        result, env = await _run_with_chunks(
+            [PROVIDER_FAILURE_ENVELOPE], stream=True
+        )
+
+        assert result["success"] is False
+        frames = env["frames"]
+
+        error_frames = [f for f in frames if f["type"] == "streaming:error"]
+        assert len(error_frames) == 1
+        assert error_frames[0]["id"] == result["message_id"]
+        assert error_frames[0]["error"] == "Agent chat execution failed"
+        assert error_frames[0]["partial"] is False
+
+        # The envelope is never broadcast as a delta or a completion body.
+        assert all(
+            PROVIDER_FAILURE_ENVELOPE not in str(f.get("delta", ""))
+            and PROVIDER_FAILURE_ENVELOPE not in str(f.get("content", ""))
+            for f in frames
+        )
+        assert [f for f in frames if f["type"] == "streaming:update"] == []
+
+        # The legacy panel still receives a terminal frame it understands.
+        completes = [f for f in frames if f["type"] == "streaming:complete"]
+        assert len(completes) == 1
+        assert completes[0]["content"] == ""
+        assert completes[0]["metadata"]["error"] is True
+
+    @pytest.mark.asyncio
+    async def test_error_text_quoted_inside_a_real_answer_is_preserved(self):
+        chunks = [
+            "Here is the provider log:\n",
+            PROVIDER_FAILURE_ENVELOPE,
+            "\nThat is the exact frame it emitted.",
+        ]
+        result, _env = await _run_with_chunks(chunks)
+
+        assert result["success"] is True
+        assert result["response"] == "".join(chunks)
+
+    @pytest.mark.asyncio
+    async def test_incomplete_envelope_prefix_at_stream_end_is_delivered(self):
+        result, _env = await _run_with_chunks(["\n", "Hello"])
+
+        assert result["success"] is True
+        assert result["response"] == "\nHello"

@@ -33,11 +33,23 @@ function App() {
     }
   };
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (
+    email: string,
+    password: string,
+    totpCode?: string
+  ) => {
     try {
       const result = await invoke<{ token: string; user: User; device_id: string }>(
         "login",
-        { email, password, deviceName: "MenuBar" }
+        {
+          email,
+          password,
+          deviceName: "MenuBar",
+          // Always include the key so the native Option<String> receives an
+          // explicit null (None). LoginRequest still omits totp_code from the
+          // HTTP body, so password-only requests are unchanged.
+          totpCode: totpCode ?? null,
+        }
       );
 
       setToken(result.token);

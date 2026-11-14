@@ -2178,6 +2178,18 @@ try:
 except Exception as e:  # pragma: no cover - boot resilience
     logger.error(f"Failed to mount audit trail router: {e}")
 
+# Menu bar companion HTTP surface — required by menubar/src-tauri/src/commands.rs
+# (login, connection status, recent agents/canvases, quick chat). The router
+# was deleted in 8bf4e3237 because it had never been mounted; its replacement
+# reuses the shared auth/governance/execution services. The router declares its
+# own /api/menubar prefix, so include it BARE. WebSocket stays separate.
+try:
+    from api.menubar_routes import router as menubar_router
+    app.include_router(menubar_router, tags=["menubar"])
+    logger.info("✓ Menu bar companion API mounted at /api/menubar")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount menu bar companion router: {e}")
+
 # Nav stub routes — endpoints for sidebar nav items that had no backend
 # endpoint (tasks, support tickets, communication analytics, integration health).
 nav_stub_router = safe_import_router("api.nav_stub_routes")

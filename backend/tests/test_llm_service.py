@@ -128,6 +128,31 @@ class TestGetOptimalProvider(TestLLMServiceProviderSelection):
             assert call_args.kwargs['complexity'] == expected_enum, \
                 f"Complexity '{complexity}' should map to {expected_enum}"
 
+    def test_get_optimal_provider_accepts_query_complexity_enum(
+        self, llm_service, mock_handler
+    ):
+        """The enum returned by analyze_query_complexity routes unchanged.
+
+        Regression: agent chat passed QueryComplexity straight into
+        get_optimal_provider, which called .lower() on it and raised
+        AttributeError instead of selecting a provider.
+        """
+        for complexity in QueryComplexity:
+            mock_handler.get_optimal_provider.reset_mock()
+            llm_service.get_optimal_provider(complexity=complexity)
+
+            call_args = mock_handler.get_optimal_provider.call_args
+            assert call_args.kwargs['complexity'] is complexity
+
+    def test_get_optimal_provider_string_contract_is_case_insensitive(
+        self, llm_service, mock_handler
+    ):
+        """The documented string contract still accepts mixed case."""
+        llm_service.get_optimal_provider(complexity="COMPLEX")
+
+        call_args = mock_handler.get_optimal_provider.call_args
+        assert call_args.kwargs['complexity'] == QueryComplexity.COMPLEX
+
     def test_get_optimal_provider_with_tools(self, llm_service, mock_handler):
         """Verify requires_tools filtering works"""
         llm_service.get_optimal_provider(requires_tools=True)
@@ -183,6 +208,17 @@ class TestGetRankedProviders(TestLLMServiceProviderSelection):
         provider, model = providers[0]
         assert provider == "anthropic"
         assert model == "claude-3-5-sonnet"
+
+    def test_get_ranked_providers_accepts_query_complexity_enum(
+        self, llm_service, mock_handler
+    ):
+        """Enum complexity must rank the same as its string form."""
+        for complexity in QueryComplexity:
+            mock_handler.get_ranked_providers.reset_mock()
+            llm_service.get_ranked_providers(complexity=complexity)
+
+            call_args = mock_handler.get_ranked_providers.call_args
+            assert call_args.kwargs['complexity'] is complexity
 
     def test_get_ranked_providers_with_cache_aware(self, llm_service, mock_handler):
         """Verify token count affects ranking"""

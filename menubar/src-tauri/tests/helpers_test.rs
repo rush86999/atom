@@ -6,10 +6,17 @@
 //! - OS detection helpers (macOS, Windows, Linux)
 //! - String helpers (truncate, sanitize filename, unique ID)
 
+// `atom-menubar` is a binary-only Tauri crate, so an integration test cannot
+// import `helpers` from it. Compile the production module into this test crate
+// so the assertions below exercise the real implementations.
+#[path = "../src/helpers.rs"]
+mod helpers;
+
 #[cfg(test)]
 mod tests {
     // Note: These tests are written to be run with: cargo test --test helpers_test
     // The helper functions are in src/helpers.rs
+    use crate::helpers;
 
     #[test]
     fn test_join_paths() {
@@ -22,7 +29,7 @@ mod tests {
         assert!(result.to_string_lossy().contains("single"));
 
         // Test empty segments
-        let result = helpers::join_paths(&[]]);
+        let result = helpers::join_paths(&[]);
         assert_eq!(result.to_string_lossy(), "");
     }
 
@@ -37,9 +44,10 @@ mod tests {
         assert_eq!(helpers::get_file_extension("test"), None);
         assert_eq!(helpers::get_file_extension("test."), None);
 
-        // Test hidden files (Unix-style)
+        // Test hidden files (Unix-style): a leading dot marks the whole name as
+        // hidden, not an extension (matches `helpers.rs`'s own unit test).
         assert_eq!(helpers::get_file_extension(".hidden"), None);
-        assert_eq!(helpers::get_file_extension(".gitignore"), Some("gitignore".to_string()));
+        assert_eq!(helpers::get_file_extension(".gitignore"), None);
 
         // Test multiple extensions
         assert_eq!(helpers::get_file_extension("archive.tar.gz"), Some("gz".to_string()));
@@ -125,7 +133,7 @@ mod tests {
         assert_eq!(helpers::sanitize_filename("file\\name.txt"), "file_name.txt");
 
         // Test invalid characters
-        assert_eq!(helpers::sanitize_filename('file"name|.txt'), "file_name_.txt");
+        assert_eq!(helpers::sanitize_filename("file\"name|.txt"), "file_name_.txt");
         assert_eq!(helpers::sanitize_filename("file*name?.txt"), "file_name_.txt");
 
         // Test valid filename (unchanged)
