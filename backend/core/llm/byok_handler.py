@@ -11608,6 +11608,30 @@ class BYOKHandler:
         if not client:
             raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
 
+        # ONE physical request per admission. The clients built by
+        # `_initialize_clients` already carry `max_retries=0`, but a runtime
+        # injected/compatible client (the supported local-verification path
+        # points an SDK client at a local server) keeps the SDK default of 2
+        # retries: a hidden retry is a second billed wire call that this
+        # single reservation does not cover. Any client that declares a
+        # positive numeric retry budget must be reduced to zero before audio
+        # leaves the process, or the dispatch is refused.
+        raw_client = getattr(client, "client", client)
+        retry_budget = getattr(raw_client, "max_retries", None)
+        if (isinstance(retry_budget, int) and not isinstance(retry_budget, bool)
+                and retry_budget > 0):
+            disable_retries = getattr(raw_client, "with_options", None)
+            if not callable(disable_retries):
+                raise ValueError(
+                    "Transcription transport retries cannot be disabled; "
+                    "audio was not sent.")
+            try:
+                raw_client = disable_retries(max_retries=_SDK_MAX_RETRIES)
+            except Exception as retry_err:
+                raise ValueError(
+                    "Transcription transport retries cannot be disabled; "
+                    "audio was not sent.") from retry_err
+
         audio_bytes, transport_file, filename = _read_audio_payload(file)
         measured_seconds = None
         if audio_bytes:
@@ -11632,8 +11656,6 @@ class BYOKHandler:
         try:
             # Use the underlying openai client if it's patched by instructor
             # or use it directly if it's a standard client
-            raw_client = getattr(client, "client", client)
-            
             response = await raw_client.audio.transcriptions.create(
                 model=model,
                 file=transport_file,
