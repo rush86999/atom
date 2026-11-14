@@ -13,6 +13,7 @@
 import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deviceSocketService } from '../../services/deviceSocket';
+import { registerActiveCameraCapture } from '../../services/cameraCaptureRegistry';
 import { resetAllMocks } from '../helpers/mockExpoModules';
 
 // Captured Socket.IO event handlers keyed by event name
@@ -125,9 +126,14 @@ const command = (command: string, params: Record<string, any> = {}, commandId = 
 });
 
 describe('deviceSocketService', () => {
+  const captureMock = jest.fn();
+
   beforeEach(async () => {
     jest.clearAllMocks();
     eventHandlers.clear();
+    registerActiveCameraCapture(null);
+    captureMock.mockReset();
+    registerActiveCameraCapture(captureMock);
 
     // Reset ALL expo module mocks to their defaults — implementations set in
     // one test (denied permissions, rejected captures, …) otherwise leak
@@ -402,7 +408,7 @@ describe('deviceSocketService', () => {
 
   describe('Command Handling', () => {
     test('should execute camera_snap and send the photo result', async () => {
-      mockCamera().takePictureAsync.mockResolvedValue({
+      captureMock.mockResolvedValue({
         uri: 'file:///photo.jpg',
         base64: 'aGVsbG8=',
         width: 1920,
@@ -445,7 +451,7 @@ describe('deviceSocketService', () => {
     });
 
     test('should report camera capture failures', async () => {
-      mockCamera().takePictureAsync.mockRejectedValue(new Error('camera busy'));
+      captureMock.mockRejectedValue(new Error('camera busy'));
 
       await deviceSocketService.connect();
       fire('connect');
@@ -456,8 +462,25 @@ describe('deviceSocketService', () => {
       expect(result).toMatchObject({ type: 'result', success: false, error: 'camera busy' });
     });
 
+    test('should return an explicit failure when no camera preview is registered', async () => {
+      registerActiveCameraCapture(null);
+
+      await deviceSocketService.connect();
+      fire('connect');
+
+      await fireMessage(command('camera_snap'));
+
+      const result = mockSocket.emit.mock.calls.at(-1)?.[1];
+      expect(result).toMatchObject({
+        type: 'result',
+        command_id: 'cmd-1',
+        success: false,
+        error: 'Camera capture requires an active camera preview',
+      });
+    });
+
     test('should save the photo when save_path is provided', async () => {
-      mockCamera().takePictureAsync.mockResolvedValue({
+      captureMock.mockResolvedValue({
         uri: 'file:///photo.jpg',
         base64: 'aGVsbG8=',
         width: 100,
@@ -648,7 +671,7 @@ describe('deviceSocketService', () => {
 
   describe('Result Delivery', () => {
     test('should queue results while disconnected and flush them after registration', async () => {
-      mockCamera().takePictureAsync.mockResolvedValue({
+      captureMock.mockResolvedValue({
         uri: 'file:///photo.jpg',
         base64: 'aGVsbG8=',
         width: 100,
@@ -689,7 +712,7 @@ describe('deviceSocketService', () => {
     });
 
     test('should cap the number of queued results while disconnected', async () => {
-      mockCamera().takePictureAsync.mockResolvedValue({
+      captureMock.mockResolvedValue({
         uri: 'file:///photo.jpg',
         base64: 'aGVsbG8=',
         width: 100,

@@ -102,7 +102,10 @@ jest.mock('react-native-paper', () => ({
 }));
 
 // Mock chatService
-const mockGetConversationList = jest.fn(() =>
+const mockGetConversationList = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [number?, number?]
+>(() =>
   Promise.resolve({
     success: true,
     data: [
@@ -128,19 +131,28 @@ const mockGetConversationList = jest.fn(() =>
   })
 );
 
-const mockArchiveSession = jest.fn(() =>
+const mockArchiveSession = jest.fn<
+  Promise<{ success: boolean; error?: string }>,
+  [string]
+>(() =>
   Promise.resolve({
     success: true,
   })
 );
 
-const mockDeleteSession = jest.fn(() =>
+const mockDeleteSession = jest.fn<
+  Promise<{ success: boolean; error?: string }>,
+  [string]
+>(() =>
   Promise.resolve({
     success: true,
   })
 );
 
-const mockMarkAsRead = jest.fn(() =>
+const mockMarkAsRead = jest.fn<
+  Promise<{ success: boolean; error?: string }>,
+  [string]
+>(() =>
   Promise.resolve({
     success: true,
   })

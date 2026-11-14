@@ -151,7 +151,7 @@ describe('workflowService', () => {
       mockApiService.post.mockResolvedValue(errorResponse('Workflow is inactive'));
 
       await expect(
-        triggerWorkflow({ workflow_id: 'wf-1', input: {} })
+        triggerWorkflow({ workflow_id: 'wf-1', parameters: {} })
       ).rejects.toThrow('Workflow is inactive');
     });
   });

@@ -65,6 +65,35 @@ jest.mock('expo-av', () => ({
     requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
     setAudioModeAsync: jest.fn(() => Promise.resolve()),
     RECORDING_OPTIONS_PRESET_HIGH_QUALITY: {},
+    RecordingOptionsPresets: {
+      // Mirrors expo-av's Audio.RecordingOptionsPresets.HIGH_QUALITY
+      HIGH_QUALITY: {
+        isMeteringEnabled: true,
+        android: {
+          extension: '.m4a',
+          outputFormat: 2,
+          audioEncoder: 3,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: 'aac ',
+          audioQuality: 127,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 128000,
+        },
+      },
+    },
     Recording: jest.fn(() => ({
       prepareToRecordAsync: jest.fn(() => Promise.resolve()),
       startAsync: jest.fn(() => Promise.resolve()),
@@ -362,7 +391,7 @@ describe('MessageInput', () => {
     });
 
     it('should stop recording when button is pressed again', async () => {
-      const { getByTestId, waitForElementToBeRemoved } = render(
+      const { getByTestId, queryByTestId } = render(
         <MessageInput onSend={mockOnSend} />
       );
 

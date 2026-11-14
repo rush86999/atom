@@ -11,7 +11,12 @@ import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
 import { SettingsScreen } from '../../../screens/settings/SettingsScreen';
 
 // Mock contexts
-const mockAuthContext = {
+const mockAuthContext: {
+  user: { id: string; email: string | null; name: string };
+  logout: jest.Mock;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+} = {
   user: {
     id: 'user-123',
     email: 'test@example.com',

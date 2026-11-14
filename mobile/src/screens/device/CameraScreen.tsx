@@ -26,9 +26,15 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  Camera,
+  CameraType,
+  FlashMode as ExpoFlashMode,
+  PermissionStatus,
+} from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { cameraService, CameraMode, FlashMode, CapturedMedia } from '../../services/cameraService';
+import { registerActiveCameraCapture, isActiveCameraCapture, CameraCaptureFn } from '../../services/cameraCaptureRegistry';
 
 interface CameraScreenProps {
   navigation: any;
@@ -42,14 +48,25 @@ interface CameraScreenProps {
 }
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route }) => {
-  const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<Camera>(null);
+  const [permission, requestPermission] = Camera.useCameraPermissions();
 
   // Camera state
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
   const [mode, setMode] = useState<CameraMode>(route.params?.mode || 'picture');
   const [isCapturing, setIsCapturing] = useState(false);
+
+  // Background capture is only valid while this screen owns the visible,
+  // ready preview. Navigating to CameraResult blurs (but does not unmount)
+  // this screen, so navigation focus must gate the registry explicitly.
+  const [isFocused, setIsFocused] = useState(
+    () => navigation?.isFocused?.() ?? true
+  );
+  // A ref mirrors focus synchronously so an in-flight capture can re-check it
+  // after awaiting permission, without waiting for a re-render.
+  const isFocusedRef = useRef(isFocused);
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
 
   // Captured photos
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedMedia[]>([]);
@@ -59,6 +76,86 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
   useEffect(() => {
     cameraService.setCameraMode(mode);
   }, [mode]);
+
+  useEffect(() => {
+    if (typeof navigation?.addListener !== 'function') {
+      return;
+    }
+
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      isFocusedRef.current = true;
+      setIsFocused(true);
+    });
+    const unsubscribeBlur = navigation.addListener('blur', () => {
+      isFocusedRef.current = false;
+      setIsFocused(false);
+    });
+
+    return () => {
+      unsubscribeFocus?.();
+      unsubscribeBlur?.();
+    };
+  }, [navigation]);
+
+  const permissionGranted = permission?.granted === true;
+
+  // The preview can only become ready while it is rendered, which requires
+  // permission. Drop readiness when permission is lost so a later grant waits
+  // for onCameraReady instead of exposing a stale ref.
+  useEffect(() => {
+    if (!permissionGranted) {
+      setIsPreviewReady(false);
+    }
+  }, [permissionGranted]);
+
+  // Expose the mounted preview to background services (deviceSocket) only
+  // while it is focused, ready, and permission is still granted. The release
+  // returned by the registry is owned by this effect, so blur/unmount here
+  // cannot clear another screen's registration.
+  useEffect(() => {
+    const camera = cameraRef.current;
+    if (!permissionGranted || !isFocused || !isPreviewReady || !camera) {
+      return;
+    }
+
+    const captureFn: CameraCaptureFn = async (options) => {
+      // Capture must start on the visible preview, and permission can change
+      // while the OS request is in flight.
+      if (!isFocusedRef.current) {
+        throw new Error('Camera preview is not focused');
+      }
+      if (cameraRef.current !== camera) {
+        throw new Error('Camera preview is no longer available');
+      }
+
+      const { status } = await Camera.getCameraPermissionsAsync();
+
+      // The await above yields: the screen may have blurred, unmounted, or
+      // been replaced by a newer preview. Re-validate before driving the ref
+      // captured by this (possibly stale) registration.
+      if (status !== PermissionStatus.GRANTED) {
+        throw new Error('Camera permission not granted');
+      }
+      if (!isActiveCameraCapture(captureFn)) {
+        throw new Error('Camera preview is no longer active');
+      }
+      if (!isFocusedRef.current) {
+        throw new Error('Camera preview is not focused');
+      }
+      if (cameraRef.current !== camera) {
+        throw new Error('Camera preview is no longer available');
+      }
+
+      return camera.takePictureAsync(options);
+    };
+
+    return registerActiveCameraCapture(captureFn);
+  }, [permissionGranted, isFocused, isPreviewReady]);
+
+  const handleCameraReady = () => {
+    if (!cameraRef.current) return;
+    setIsPreviewReady(true);
+  };
 
   // Request permission if not granted
   useEffect(() => {
@@ -143,24 +240,37 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
     }
   };
 
+  const cameraFlashMode = (): ExpoFlashMode => {
+    switch (flash) {
+      case 'on':
+        return ExpoFlashMode.on;
+      case 'auto':
+        return ExpoFlashMode.auto;
+      case 'torch':
+        return ExpoFlashMode.torch;
+      default:
+        return ExpoFlashMode.off;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <CameraView
+      <Camera
         ref={cameraRef}
         style={styles.camera}
-        facing={facing}
-        flash={flash}
-        mode={mode === 'barcode' ? 'picture' : undefined}
-        barcodeScannerSettings={
+        onCameraReady={handleCameraReady}
+        type={facing === 'front' ? CameraType.front : CameraType.back}
+        flashMode={cameraFlashMode()}
+        barCodeScannerSettings={
           mode === 'barcode'
             ? {
-                barcodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
+                barCodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
               }
             : undefined
         }
-        onBarcodeScanned={
+        onBarCodeScanned={
           mode === 'barcode'
             ? ({ data }) => {
                 navigation.navigate('BarcodeResult', { data });
@@ -230,7 +340,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
             </Text>
           </View>
         )}
-      </CameraView>
+      </Camera>
     </View>
   );
 };

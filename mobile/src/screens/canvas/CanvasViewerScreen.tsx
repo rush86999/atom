@@ -20,6 +20,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { IconButton, Badge, useTheme } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import NetInfo from '@react-native-community/netinfo';
@@ -43,6 +44,10 @@ type RouteParams = {
 };
 
 const { width, height } = Dimensions.get('window');
+
+type CanvasViewerNavigation = NativeStackNavigationProp<
+  { CanvasViewer: { canvasId: string } } & Record<string, object | undefined>
+>;
 
 // Canvas types rendered as full-page HTML in a WebView rather than as native
 // component blocks (chart/sheet/terminal types render natively).
@@ -74,7 +79,7 @@ interface CanvasMetadata {
 
 export function CanvasViewerScreen() {
   const route = useRoute<RouteProp<RouteParams, 'CanvasViewer'>>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<CanvasViewerNavigation>();
   const theme = useTheme();
 
   const { canvasId, canvasType, sessionId, agentId } = route.params;
@@ -164,7 +169,10 @@ export function CanvasViewerScreen() {
   /**
    * Load cached canvas
    */
-  const loadCachedCanvas = async () => {
+  const loadCachedCanvas = async (): Promise<{
+    data: unknown;
+    metadata: CanvasMetadata;
+  } | null> => {
     try {
       // Could use AsyncStorage here
       return null;
@@ -230,15 +238,11 @@ export function CanvasViewerScreen() {
 
   // Network monitoring
   useEffect(() => {
+    // NetInfoSubscription is itself the unsubscribe callback.
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? true);
     });
-    // addEventListener returns a subscription object ({ remove }), not a
-    // function — wrap it so React gets a proper cleanup and the listener is
-    // actually removed on unmount.
-    return () => {
-      unsubscribe?.remove?.();
-    };
+    return unsubscribe;
   }, []);
 
   // Load canvas on mount

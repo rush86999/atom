@@ -269,7 +269,7 @@ export function setMockAppState(state: string) {
 // Appearance Mocks
 // ============================================================================
 
-let mockColorScheme = 'light';
+let mockColorScheme: 'light' | 'dark' | null = 'light';
 
 export const Appearance = {
   getColorScheme: jest.fn(() => mockColorScheme),

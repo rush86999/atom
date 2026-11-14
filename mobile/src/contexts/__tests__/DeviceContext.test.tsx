@@ -20,6 +20,9 @@ import { Alert } from 'react-native';
 // Mocks
 global.fetch = jest.fn();
 
+// Auth context captured by the shared ContextCapture helper below.
+let authValue: any;
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),

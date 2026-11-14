@@ -22,7 +22,10 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock agentService
-const mockGetAgents = jest.fn(() =>
+const mockGetAgents = jest.fn<
+  Promise<{ success: boolean; data?: any; error?: string }>,
+  [Record<string, unknown>]
+>(() =>
   Promise.resolve({
     success: true,
     data: [
@@ -949,7 +952,7 @@ describe('AgentListScreen', () => {
       const closeIcon = screen.UNSAFE_getAllByType('Icon' as any).find(
         (el: any) => el.props.source === 'close'
       );
-      fireEvent.press(closeIcon);
+      if (closeIcon) fireEvent.press(closeIcon);
 
       await waitFor(() => {
         expect(screen.queryByText('Test Agent 2')).toBeTruthy();

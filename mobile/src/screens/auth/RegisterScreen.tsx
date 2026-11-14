@@ -77,6 +77,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
     email?: boolean;
     password?: boolean;
     confirmPassword?: boolean;
+    terms?: boolean;
   }>({});
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     level: 'weak',
@@ -267,7 +268,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const openPrivacyPolicy = async () => {
     try {
       await WebBrowser.openBrowserAsync(`${API_BASE_URL}/privacy`, {
-        prefersEphemeralWebBrowserSession: false,
         toolbarColor: '#2196F3',
       });
     } catch (error) {

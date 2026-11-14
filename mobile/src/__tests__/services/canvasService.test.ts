@@ -10,11 +10,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NetInfo } from '@react-native-community/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 import { canvasService } from '../../services/canvasService';
 
-// The global netinfo mock (jest.setup) only exports default/fetch/etc. — it
-// omits the `NetInfo` named export that canvasService imports. Provide it.
+// Provide a stateful NetInfo default export for the cache/offline tests.
 jest.mock('@react-native-community/netinfo', () => {
   const fetch = jest.fn().mockResolvedValue({
     isConnected: true,
