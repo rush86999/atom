@@ -26,11 +26,22 @@ jest.mock('expo-camera', () => {
     React.createElement(View, { ...props, ref, testID: 'camera' })
   );
   Camera.useCameraPermissions = useCameraPermissions;
+  Camera.getCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+    expires: 'never',
+  });
   return {
     Camera,
     useCameraPermissions,
     CameraType: { front: 'front', back: 'back' },
     FlashMode: { on: 'on', off: 'off', auto: 'auto', torch: 'torch' },
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
+    },
   };
 });
 

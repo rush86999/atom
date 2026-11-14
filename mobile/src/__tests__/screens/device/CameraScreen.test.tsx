@@ -9,33 +9,70 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { CameraScreen } from '../../../screens/device/CameraScreen';
-import { getActiveCameraCapture } from '../../../services/cameraCaptureRegistry';
+import {
+  getActiveCameraCapture,
+  registerActiveCameraCapture,
+} from '../../../services/cameraCaptureRegistry';
 
 // Mock expo-camera with a renderable Camera component and controllable
 // permission hook (jest.mock factories may only reference `mock*` variables)
 const mockPermissionState = { value: { granted: true, canAskAgain: true } };
 const mockRequestPermission = jest.fn().mockResolvedValue({ granted: true });
+const mockTakePicture = jest.fn();
+const mockGetCameraPermissions = jest.fn().mockResolvedValue({
+  status: 'granted',
+  granted: true,
+  canAskAgain: true,
+  expires: 'never',
+});
 
 jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
   const Camera = React.forwardRef((props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({ takePictureAsync: mockTakePicture }), []);
     return React.createElement(View, { ...props, ref, testID: 'camera-view' });
   });
   Camera.useCameraPermissions = () => [
     mockPermissionState.value,
     mockRequestPermission,
   ];
+  Camera.getCameraPermissionsAsync = (...args: any[]) =>
+    mockGetCameraPermissions(...args);
   return {
     Camera,
     CameraType: { front: 'front', back: 'back' },
     FlashMode: { on: 'on', off: 'off', auto: 'auto', torch: 'torch' },
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
+    },
   };
 });
+
+type NavigationListener = () => void;
+
+const mockNavigationListeners = new Map<string, Set<NavigationListener>>();
+
+const emitNavigationEvent = (event: string) => {
+  const listeners = mockNavigationListeners.get(event);
+  if (!listeners) return;
+  Array.from(listeners).forEach((listener) => listener());
+};
 
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
+  isFocused: jest.fn(() => true),
+  addListener: jest.fn((event: string, listener: NavigationListener) => {
+    const listeners = mockNavigationListeners.get(event) ?? new Set();
+    listeners.add(listener);
+    mockNavigationListeners.set(event, listeners);
+    return () => {
+      listeners.delete(listener);
+    };
+  }),
 };
 
 // Mock cameraService
@@ -63,10 +100,40 @@ function renderScreen(route: any = defaultRoute) {
   return render(<CameraScreen navigation={mockNavigation} route={route} />);
 }
 
+function markPreviewReady() {
+  act(() => {
+    screen.getByTestId('camera-view').props.onCameraReady?.();
+  });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+const grantedPermission = {
+  status: 'granted',
+  granted: true,
+  canAskAgain: true,
+  expires: 'never',
+};
+
 describe('CameraScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    registerActiveCameraCapture(null);
+    mockNavigationListeners.clear();
     mockPermissionState.value = { granted: true, canAskAgain: true };
+    mockGetCameraPermissions.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+    });
+    mockTakePicture.mockResolvedValue(mockPhoto);
     cameraService.takePicture.mockResolvedValue(mockPhoto);
     cameraService.cycleFlash.mockReturnValue('on');
   });
@@ -100,13 +167,168 @@ describe('CameraScreen', () => {
     it('registers the mounted preview for background capture and clears it on unmount', () => {
       const { unmount } = renderScreen();
 
-      act(() => {
-        screen.getByTestId('camera-view').props.onCameraReady?.();
-      });
+      markPreviewReady();
       expect(getActiveCameraCapture()).not.toBeNull();
 
       unmount();
       expect(getActiveCameraCapture()).toBeNull();
+    });
+  });
+
+  describe('Background capture lifecycle', () => {
+    it('does not expose capture before the preview is ready', () => {
+      renderScreen();
+
+      expect(getActiveCameraCapture()).toBeNull();
+    });
+
+    it('withdraws capture when the screen blurs and restores it on focus', () => {
+      renderScreen();
+      markPreviewReady();
+      expect(getActiveCameraCapture()).not.toBeNull();
+
+      act(() => {
+        emitNavigationEvent('blur');
+      });
+      expect(getActiveCameraCapture()).toBeNull();
+
+      act(() => {
+        emitNavigationEvent('focus');
+      });
+      expect(getActiveCameraCapture()).not.toBeNull();
+    });
+
+    it('clears capture when permission is revoked while the screen stays mounted', () => {
+      const view = renderScreen();
+      markPreviewReady();
+      expect(getActiveCameraCapture()).not.toBeNull();
+
+      mockPermissionState.value = { granted: false, canAskAgain: false };
+      view.rerender(
+        <CameraScreen navigation={mockNavigation} route={defaultRoute} />
+      );
+
+      expect(screen.getByText('Camera Permission Required')).toBeTruthy();
+      expect(getActiveCameraCapture()).toBeNull();
+    });
+
+    it('rejects capture if permission is revoked after registration', async () => {
+      renderScreen();
+      markPreviewReady();
+
+      const capture = getActiveCameraCapture();
+      expect(capture).not.toBeNull();
+
+      mockGetCameraPermissions.mockResolvedValueOnce({
+        status: 'denied',
+        granted: false,
+        canAskAgain: false,
+        expires: 'never',
+      });
+
+      await expect(capture!({ quality: 0.5 })).rejects.toThrow(
+        'Camera permission not granted'
+      );
+      expect(mockTakePicture).not.toHaveBeenCalled();
+    });
+
+    it('delegates to the ready preview while permission remains granted', async () => {
+      renderScreen();
+      markPreviewReady();
+
+      const capture = getActiveCameraCapture();
+      expect(capture).not.toBeNull();
+
+      await expect(
+        capture!({ quality: 0.5, base64: true })
+      ).resolves.toBe(mockPhoto);
+      expect(mockTakePicture).toHaveBeenCalledWith({
+        quality: 0.5,
+        base64: true,
+      });
+    });
+
+    it('does not capture when the screen blurs while permission is resolving', async () => {
+      renderScreen();
+      markPreviewReady();
+
+      const permission = deferred<typeof grantedPermission>();
+      mockGetCameraPermissions.mockReturnValueOnce(permission.promise);
+
+      const capture = getActiveCameraCapture();
+      expect(capture).not.toBeNull();
+
+      const outcome = capture!({ quality: 0.5 }).then(
+        () => 'resolved',
+        (error: Error) => error.message
+      );
+
+      act(() => {
+        emitNavigationEvent('blur');
+      });
+      expect(getActiveCameraCapture()).toBeNull();
+
+      await act(async () => {
+        permission.resolve(grantedPermission);
+        await expect(outcome).resolves.toBe('Camera preview is no longer active');
+      });
+      expect(mockTakePicture).not.toHaveBeenCalled();
+    });
+
+    it('does not capture when a newer preview registers while permission is resolving', async () => {
+      renderScreen();
+      markPreviewReady();
+
+      const permission = deferred<typeof grantedPermission>();
+      mockGetCameraPermissions.mockReturnValueOnce(permission.promise);
+
+      const capture = getActiveCameraCapture();
+      expect(capture).not.toBeNull();
+
+      const outcome = capture!({ quality: 0.5 }).then(
+        () => 'resolved',
+        (error: Error) => error.message
+      );
+
+      const replacement = jest.fn().mockResolvedValue(mockPhoto);
+      act(() => {
+        registerActiveCameraCapture(replacement);
+      });
+
+      await act(async () => {
+        permission.resolve(grantedPermission);
+        await expect(outcome).resolves.toBe('Camera preview is no longer active');
+      });
+      expect(mockTakePicture).not.toHaveBeenCalled();
+      expect(getActiveCameraCapture()).toBe(replacement);
+    });
+
+    it('does not capture when the preview is withdrawn while permission is resolving', async () => {
+      const view = renderScreen();
+      markPreviewReady();
+
+      const permission = deferred<typeof grantedPermission>();
+      mockGetCameraPermissions.mockReturnValueOnce(permission.promise);
+
+      const capture = getActiveCameraCapture();
+      expect(capture).not.toBeNull();
+
+      const outcome = capture!({ quality: 0.5 }).then(
+        () => 'resolved',
+        (error: Error) => error.message
+      );
+
+      mockPermissionState.value = { granted: false, canAskAgain: false };
+      view.rerender(
+        <CameraScreen navigation={mockNavigation} route={defaultRoute} />
+      );
+      expect(getActiveCameraCapture()).toBeNull();
+
+      await act(async () => {
+        permission.resolve(grantedPermission);
+        await expect(outcome).resolves.toBe('Camera preview is no longer active');
+      });
+      expect(mockTakePicture).not.toHaveBeenCalled();
     });
   });
 
