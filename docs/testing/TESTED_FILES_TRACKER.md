@@ -9946,8 +9946,7 @@ BYOK -> `LLMService.generate_completion` seam still published a terminal
 failure as an accepted answer. In the bounded live replay the 1,400-token
 synthesis returned `finish_reason="length"` with no visible content (handler
 raised its internal empty-completion error, then exhausted the ladder), and
-the immediate 2,000-token variant made ZERO provider requests (the configured
-legacy `opencode` id was excluded by the installation provider policy) and
+the immediate 2,000-token variant made ZERO provider requests and
 returned "I couldn't generate a response — every configured provider failed.
 Last error: no provider attempted." Both were returned with
 `success=True`; the facade also inferred `provider="deepseek"` from the model
@@ -9968,11 +9967,21 @@ routing state, enforcing policy) is `failure`. Top-level `finish_reason` stays
 accepted reply. The legacy text API keeps its exact strings, and a
 narrow/unwritten sink keeps the historical success contract.
 
-The zero-attempt live shape is typed `policy_blocked` /
-`routing="provider_policy_excluded_all"` with `candidate_count=0`: BPC filters
-forbidden providers before ranking and both the cascade and the catalog sweep
-re-check the same policy before transport, so the policy is intentional and
-was not weakened. Other consumers audited: `_guarded_regen` now treats `success=False` as a failed regeneration (otherwise empty content would pass
+The EXACT routing cause of the live zero-attempt call is UNCONFIRMED: the
+retained runtime policy row was not inspected; empty ranked pool, cooldown or
+catalog skips, and all-candidates-skipped all leave `last_error=None`; and the
+first call in the same process did dispatch and was served. An installing
+policy that allows none of the configured providers is a REPRODUCIBLE negative
+control (`policy_blocked` / `routing="provider_policy_excluded_all"`,
+`candidate_count=0`), not a live-cause claim: BPC filters forbidden providers
+before ranking and both the cascade and the catalog sweep re-check the same
+policy before transport, so the policy is intentional and was not weakened.
+Other zero-attempt routing is `no_dispatchable_candidates` with
+`routing="empty_ranked_pool"` or `"all_candidates_skipped"`, and its message is
+derived from that routing state (filtered/unknown for skipped candidates)
+rather than claiming a provider failure. The failure result's zero `usage` is
+the facade's legacy placeholder, not proof that no physical provider request
+was billed. Other consumers audited: `_guarded_regen` now treats `success=False` as a failed regeneration (otherwise empty content would pass
 its acceptance and erase a good reply); the match-confidence tiebreaker
 records a breaker failure instead of a success; the Auto-Dev
 Memento/AlphaEvolve code proposers fall back to their existing failure/
@@ -9987,8 +9996,9 @@ Files: `backend/core/llm/byok_handler.py`,
 `backend/core/auto_dev/memento_engine.py`,
 `backend/core/auto_dev/alpha_evolver_engine.py`,
 `backend/core/fleet_admiral.py` (no code change; existing success=False branch
-verified), `backend/tests/test_generate_completion_failure_contract.py` (NEW
-13 tests), `backend/tests/test_fleet_synthesis_truncation_contract.py`
+verified), `backend/tests/test_generate_completion_failure_contract.py`
+(15 tests after the follow-up; 13 initial + 2 zero-attempt routing shapes),
+`backend/tests/test_fleet_synthesis_truncation_contract.py`
 (structured provider-failure withholding + durable readback),
 `backend/tests/fixtures/ci_backend_additions.json` and
 `.github/workflows/ci.yml` (additive selector only),
@@ -10004,3 +10014,19 @@ worktree. Other pre-existing baseline failures:
 `tests/test_provider_policy.py::test_vision_auxiliary_uses_allowed_provider`
 and the seven `tests/test_covpush_w64i_llm_service.py` audit tests reproduce
 identically on the untouched `016e8c780` worktree; not caused by this change.
+
+**Truthfulness follow-up to the fifth entry (2026-11-14)**: the exact live
+zero-attempt cause was restated as UNCONFIRMED (see above), and the
+`no_dispatchable_candidates` message now follows the actual routing state
+instead of always claiming an empty ranked pool. `routing="empty_ranked_pool"`
+says the pool was empty; `routing="all_candidates_skipped"` says candidates
+existed but were filtered out and the exact skip cause was not retained (no
+invented cooldown/catalog/policy reason, no invented provider failure). Two
+negative tests use the real `BYOKHandler` + `LLMService.generate_completion`
+with zero transports for both shapes; the policy-block control is unchanged.
+The failure result's zero `usage` is documented as the facade legacy
+placeholder, not proof of no physical/provider billing; no ledger change. The
+follow-up runs are new failure contract **15 passed**, fleet synthesis +
+truncation **126 passed**, CI lane contract **127 passed**. The prior
+**517** combined-gate and root **266** focused results remain scoped to the
+initial `1693a6872` delivery; they were not rerun or re-attributed here.

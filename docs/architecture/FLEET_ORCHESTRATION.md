@@ -318,13 +318,21 @@ synthesis calls and zero dispatches.
 human-readable string, and direct callers rely on that. `generate_completion`
 therefore could not tell an accepted answer from the failure text and returned
 `success=True` for both. The live 2,000-token replay exposed the worst case:
-Fleet's synthesis call made ZERO provider requests (the configured legacy
-`opencode` provider id was excluded by the installation provider policy), the
-handler returned "every configured provider failed. Last error: no provider
-attempted", and the facade published it as `content` with
+Fleet's synthesis call made ZERO provider requests, the handler returned
+"every configured provider failed. Last error: no provider attempted", and
+the facade published it as `content` with
 `success=True`/`provider="deepseek"` (the provider was inferred from the model
 name, although no provider answered). Fleet appended its quantitative block
 to that text as if it were a valid synthesis.
+
+The EXACT routing cause of that zero-attempt call is **UNCONFIRMED**. The
+retained live runtime policy row was never inspected, and an empty ranked pool
+(policy, capability, catalog, or window filters), a cooldown/catalog skip, and
+"all candidates skipped" all leave `last_error=None`. The first call in the
+same process did dispatch and was served, so a process-wide policy exclusion
+alone does not explain why the second call differed. This is not evidence for
+any one filter, and the routing, policy, cooldown, and breaker behavior was
+not weakened to manufacture a live reproduction.
 
 The shared seam is a caller-owned `outcome_sink` (one fresh mapping per
 `generate_completion` call), written by `BYOKHandler.generate_response` on
@@ -352,14 +360,24 @@ every terminal return:
   unwritten, keeps the historical `success=True` contract (silence is
   legacy, not a guessed failure).
 
-The zero-attempt 2,000 variant is an INTENTIONAL policy boundary, not a
-cache/availability bug: BPC filters forbidden providers before ranking, so the
-ranked pool is empty; the cascade and the last-resort catalog sweep both
-re-check the same policy before transport, so no provider is dispatched. The
-policy is not weakened and no cooldown/breaker was touched. The structured
-result now names that state (`policy_blocked`,
-`routing="provider_policy_excluded_all"`, `candidate_count=0`,
-`last_error=None`) instead of claiming every configured provider failed.
+A zero-attempt result is NOT a provider failure: nothing was dispatched, so
+"every configured provider failed" is false. The structured result names the
+ROUTING state instead:
+
+- `no_dispatchable_candidates` with `routing="empty_ranked_pool"` when routing
+  produced no ranked candidate; the message says the pool was empty;
+- `no_dispatchable_candidates` with `routing="all_candidates_skipped"` when
+  candidates existed but every one was filtered out before dispatch. The
+  retained metadata does not identify WHICH filter skipped them, so the
+  message says filtered/unknown and never invents cooldown, catalog, or policy
+  as the cause;
+- one REPRODUCIBLE zero-attempt control -- an installing policy that allows
+  none of the configured providers -- is typed `policy_blocked` /
+  `routing="provider_policy_excluded_all"` with `candidate_count=0` and
+  `last_error=None`. BPC filters before ranking and the cascade plus the
+  last-resort catalog sweep re-check the same policy before transport, so no
+  provider is dispatched. The policy is not weakened and no cooldown/breaker
+  was touched. This control is NOT evidence of the observed live cause.
 
 Behavior change for other callers: consumers that previously treated the
 failure text as content now receive empty content and must read `success`

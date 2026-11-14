@@ -2,8 +2,7 @@
 
 Live boundary (2026-11-14, root negative probe): the bounded synthesis called
 ``LLMService.generate_completion`` with a 2,000-token budget. The BYOK ladder
-made ZERO provider requests (the configured gateway id was excluded by the
-installation provider policy), so ``generate_response`` returned its legacy
+made ZERO provider requests, so ``generate_response`` returned its legacy
 text "I couldn't generate a response — every configured provider failed. Last
 error: no provider attempted." ``generate_completion`` unconditionally
 returned ``success=True`` with that text as ``content`` (and inferred
@@ -13,6 +12,17 @@ variant hit the same seam differently: the provider answered
 ``finish_reason="length"`` with no visible content, the handler raised its
 empty-completion error internally, and the facade still published the failure
 text as an accepted reply.
+
+The EXACT routing cause of the live zero-attempt call is UNCONFIRMED. The
+retained live runtime policy row was never inspected, and an empty ranked
+pool, a cooldown/catalog skip, and "all candidates skipped" all leave
+``last_error=None``. The first call in the same process actually dispatched
+(and was served), so a process-wide policy exclusion alone does not explain
+the second call's difference. The policy-block test below is therefore a
+REPRODUCIBLE NEGATIVE CONTROL for one zero-attempt path, not evidence of what
+happened live. The zero-attempt tests cover both routing shapes -- an empty
+ranked pool and a nonempty pool whose candidates were all filtered out -- and
+never assert a skip reason the retained metadata does not contain.
 
 These tests lock the replacement contract at the shared BYOK ->
 ``LLMService.generate_completion`` seam:
@@ -270,11 +280,13 @@ def test_empty_length_generation_is_not_an_accepted_reply():
 
 
 def test_zero_attempt_policy_block_is_not_success_and_invents_no_route():
-    """The live 2,000-token variant: zero provider requests.
+    """A reproducible policy-exclusion control: zero provider requests.
 
-    Ranking applies the installation provider policy before BPC, so the
-    legacy provider id is filtered out and the cascade + sweep both have
-    nothing to dispatch. The old facade called that an answer.
+    This is ONE zero-attempt path, not a claim about the observed live run
+    (the retained live policy row was not inspected). Ranking applies the
+    installation policy before BPC, so a configured provider outside the
+    allowed set is filtered out and cascade + sweep both have nothing to
+    dispatch. The old facade called that an answer.
     """
     client = _RaisingClient()
     policy = ProviderPolicy(
@@ -304,6 +316,70 @@ def test_zero_attempt_policy_block_is_not_success_and_invents_no_route():
     assert "No provider was attempted" in result["error"]
     assert "policy" in result["error"]
     assert "deepseek" in result["error"]
+
+
+def test_zero_attempt_empty_ranked_pool_names_the_empty_pool(monkeypatch):
+    """A zero-attempt call whose ranking produced no candidates.
+
+    No provider is dispatchable, so the message must state that routing
+    produced an empty pool -- and must not claim that any provider failed.
+    The catalog sweep is pinned to an empty served set so the test cannot
+    depend on local catalog data.
+    """
+    import core.llm.model_route_registry as registry
+
+    monkeypatch.setattr(
+        registry, "get_provider_model_catalog",
+        lambda: SimpleNamespace(served=lambda _provider: []))
+    client = _RaisingClient()
+    handler = _handler({"p": client}, ranked=[])
+
+    result = asyncio.run(_service(handler).generate_completion(
+        messages=[{"role": "user", "content": "synthesize this"}],
+        max_tokens=2000))
+
+    _assert_failure(result, "no_dispatchable_candidates")
+    assert client.completions.calls == 0
+    failure = result["failure"]
+    assert failure["candidate_count"] == 0
+    assert failure["last_error"] is None
+    assert failure["last_error_type"] is None
+    assert failure["routing"] == "empty_ranked_pool"
+    assert "ranked pool was empty" in result["error"]
+    assert "every configured provider failed" not in result["error"]
+    assert "filtered out before dispatch" not in result["error"]
+
+
+def test_zero_attempt_all_candidates_skipped_does_not_claim_empty_pool():
+    """A nonempty ranked pool whose candidates were all filtered out.
+
+    A model cooldown is one reproducible filter. The retained outcome
+    metadata records only ``all_candidates_skipped`` -- not WHICH filter
+    skipped the candidate -- so the message must say filtered/unknown and
+    must not invent "ranked pool empty", cooldown, or a provider failure.
+    """
+    client = _RaisingClient()
+    handler = _handler({"p": client}, ranked=[("p", "m")])
+    handler._model_cooldown_active = lambda *args, **kwargs: True
+
+    result = asyncio.run(_service(handler).generate_completion(
+        messages=[{"role": "user", "content": "synthesize this"}],
+        max_tokens=2000))
+
+    _assert_failure(result, "no_dispatchable_candidates")
+    assert client.completions.calls == 0
+    failure = result["failure"]
+    assert failure["candidate_count"] == 1
+    assert failure["last_error"] is None
+    assert failure["last_error_type"] is None
+    assert failure["routing"] == "all_candidates_skipped"
+    assert "ranked pool had 1 candidate(s)" in result["error"]
+    assert "filtered out before dispatch" in result["error"]
+    assert "exact skip cause was not retained" in result["error"]
+    assert "ranked pool was empty" not in result["error"]
+    assert "every configured provider failed" not in result["error"]
+    assert "cooldown" not in result["error"].lower()
+    assert "policy" not in result["error"].lower()
 
 
 def test_budget_denial_is_a_structured_failure_with_zero_calls():

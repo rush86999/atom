@@ -535,7 +535,7 @@ def test_provider_failure_uses_same_bounded_fallback_without_retry(world):
 
 
 def test_structured_provider_failure_is_not_accepted_as_editorial_answer(world):
-    """The live 2026-11-14 shape at the Fleet boundary.
+    """A live 2026-11-14 failure shape at the Fleet boundary.
 
     ``LLMService.generate_completion`` now returns ``success=False`` with
     EMPTY content for a provider/policy/budget failure. Fleet must withhold

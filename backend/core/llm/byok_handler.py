@@ -8908,12 +8908,15 @@ class BYOKHandler:
             if isinstance(last_error, _EmptyCompletionError):
                 _failure_reason = "empty_generation"
             if last_error is None and not failed_providers:
-                # ZERO provider attempts. This is the live 2026-11-14 shape:
-                # the ranked pool was empty (the configured gateway id was
-                # excluded by the installation provider policy), the cascade
-                # loop and sweep both had nothing to dispatch, and the old
+                # ZERO provider attempts with no retained error. Two routing
+                # shapes produce this: the ranked pool was empty, or the
+                # ranked pool had candidates that were all filtered out
+                # before dispatch (cooldown, catalog admission, policy,
+                # in-flight claim). The retained live evidence cannot
+                # distinguish the filters that produced the observed run, so
+                # name the ROUTING state and never invent a cause. The old
                 # text claimed "every configured provider failed" with
-                # "Last error: None". Name the actual routing state instead.
+                # "Last error: None".
                 _failure_reason = "no_dispatchable_candidates"
                 _failure_routing = (
                     "empty_ranked_pool" if not options
@@ -8924,6 +8927,10 @@ class BYOKHandler:
                         and not any(
                             _policy.allows_provider(p)
                             for p in self.clients)):
+                    # One REPRODUCIBLE zero-attempt control, not a claim
+                    # about the observed live run: an enforcing policy that
+                    # allows none of the configured providers. The policy is
+                    # never weakened to force a dispatch.
                     _failure_reason = "policy_blocked"
                     _failure_routing = "provider_policy_excluded_all"
             _failure_diagnostics = {
@@ -9024,10 +9031,23 @@ class BYOKHandler:
                     f"{_failure_diagnostics.get('policy', {}).get('revision')}). "
                     "No provider was called.")
             elif _failure_reason == "no_dispatchable_candidates":
-                _failure_message = (
-                    "No provider was attempted: the ranked candidate pool "
-                    "was empty after routing, capability and policy "
-                    "filtering. No provider was called.")
+                # The structured message must describe THIS routing state.
+                # Saying "the ranked pool was empty" was false whenever
+                # candidates existed and every one was filtered out before
+                # dispatch. The retained metadata does not identify which
+                # filter skipped a candidate, so say filtered/unknown rather
+                # than inventing cooldown, catalog, or policy as the cause.
+                if _failure_routing == "all_candidates_skipped":
+                    _failure_message = (
+                        f"No provider was attempted: the ranked pool had "
+                        f"{len(options)} candidate(s), but every candidate "
+                        "was filtered out before dispatch (the exact skip "
+                        "cause was not retained). No provider was called.")
+                else:
+                    _failure_message = (
+                        "No provider was attempted: routing produced no "
+                        "dispatchable ranked candidate (the ranked pool was "
+                        "empty). No provider was called.")
             elif _failure_reason == "empty_generation":
                 _reason_suffix = (
                     f" (last attempt finish_reason={_last_attempt_finish_reason})"

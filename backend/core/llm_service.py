@@ -363,6 +363,11 @@ class LLMService:
         for. Attempt diagnostics (last error, retained stop reason, whether
         there were zero candidates) come from THIS call's outcome sink,
         never shared handler state.
+
+        ``usage`` is a facade legacy placeholder (the unresolved-scope
+        refusal has always reported zeros), not a billing or ledger
+        statement: a physical provider request may have been made and billed
+        before the failure (for example an empty ``length`` generation).
         """
         reason = str(outcome.get("reason") or "generation_failed")
         message = str(
@@ -397,6 +402,10 @@ class LLMService:
             # guessed from the model name are not a served pair.
             "model": None,
             "provider": None,
+            # Legacy facade placeholder, NOT proof that no physical/provider
+            # request was billed. The unresolved-scope refusal shape has
+            # always reported zeros; the durable usage ledger (fed by BYOK
+            # admission/settlement) remains the billing authority.
             "usage": {"prompt_tokens": 0, "completion_tokens": 0,
                       "total_tokens": 0},
             "finish_reason": None,
