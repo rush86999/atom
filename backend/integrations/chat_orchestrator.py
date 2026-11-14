@@ -23189,6 +23189,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 chain cells so it passed the "no missing cells" acceptance).
                 Error-shaped content is therefore treated as a failed
                 regeneration — None, so every arm keeps the original reply.
+                ``LLMService.generate_completion`` now also returns an
+                explicit ``success=False`` failure (with EMPTY content) for
+                provider/policy/budget failures; an empty-but-non-error
+                content would otherwise pass the acceptance checks and wipe
+                the usable reply, so the structured status is checked first.
                 """
                 _left = _remaining_budget(_plan_t0, _turn_budget)
                 if _left <= 0:
@@ -23205,12 +23210,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "shipping the current reply"
                     )
                     return None
-                if isinstance(_out, dict) and _is_llm_error_text(
-                        _out.get("content")):
+                if isinstance(_out, dict) and (
+                        _out.get("success") is False
+                        or _is_llm_error_text(_out.get("content"))):
                     logger.warning(
                         "guard regeneration produced a provider error, not "
                         "an answer — shipping the current reply (%s)",
-                        str(_out.get("content"))[:120])
+                        str(_out.get("error") or _out.get("content"))[:120])
                     return None
                 return _out
 
