@@ -171,3 +171,33 @@ def test_binding_removed_artifact_is_denied_before_invocation(
     assert "reviewed_executable_not_approved" in response.text
     assert _TripwireSandbox.calls == []
     assert db.query(SkillExecution).count() == before
+
+
+def test_linked_skill_binding_removed_is_denied_before_invocation(
+        review_env, monkeypatch):
+    """The two durable approval copies must agree; a missing one fails closed."""
+    from core.models import Skill
+
+    candidate = _pending_candidate(review_env, name="linked_binding_removed")
+    _approved, applied = _approve_and_apply(review_env, candidate)
+
+    db = review_env["db"]
+    skill = db.query(Skill).filter(Skill.id == applied["skill_id"]).one()
+    config = dict(skill.config or {})
+    assert config.pop("reviewed_executable", None)
+    skill.config = config
+    db.commit()
+    before = db.query(SkillExecution).count()
+
+    monkeypatch.setattr(
+        "core.skill_registry_service.HazardSandbox", _TripwireSandbox)
+    client = _skill_client(db, review_env["tenant"], review_env["workspace"])
+    response = client.post("/api/skills/execute", json={
+        "skill_id": applied["registry_execution_id"],
+        "inputs": SYNTHETIC_INPUTS,
+        "agent_id": review_env["agent"].id,
+    })
+    assert response.status_code == 409, response.text
+    assert "reviewed_executable_not_approved" in response.text
+    assert _TripwireSandbox.calls == []
+    assert db.query(SkillExecution).count() == before
