@@ -178,6 +178,27 @@ def _bind_canvas(probe, *, canvas_id, owner_id, file_path, canvas_type="sheets")
     return canvas
 
 
+def _bind_canvas_to_content(
+    probe, *, canvas_id, owner_id, content, canvas_type="sheets",
+):
+    """Insert a Canvas row with an exact (possibly legacy/alias) binding."""
+    session = probe.Session()
+    try:
+        canvas = _canvas(
+            session, canvas_id=canvas_id, owner_id=owner_id,
+            content=dict(content), canvas_type=canvas_type,
+        )
+        _audit(
+            session, canvas_id=canvas_id, action_type="create",
+            user_id=owner_id, canvas_type=canvas_type,
+            details={"content": dict(content), "title": "bound"},
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=3),
+        )
+    finally:
+        session.close()
+    return canvas
+
+
 def _tombstone(probe, *, canvas_id, owner_id, canvas_type="sheets"):
     """Append the canonical delete tombstone exactly as delete_canvas does."""
     session = probe.Session()
@@ -502,6 +523,259 @@ class TestRestoreAndHistory:
         assert sync.status_code == 200, sync.text
         assert _audit_count(probe, cid) > before
         assert openpyxl.load_workbook(path)["Sheet1"]["A1"].value == 33
+
+
+# ---------------------------------------------------------------------------
+# Binding resolution must be COMPLETE (no serialized-JSON/name prefilter)
+# ---------------------------------------------------------------------------
+class TestCompleteBindingResolution:
+    """A real canonical binding is never excluded by encoding or alias form.
+
+    Observed 2026-11-14: SQLite stores JSON with ``ensure_ascii`` escapes, so
+    the old text-``LIKE`` candidate filter missed ``résumé.xlsx`` after the
+    canvas was deleted and ``GET /excel`` kept returning 200. Legacy relative
+    and symlink aliases fail the same filter for a different reason: the
+    stored string differs from the request even though ``_office_path_key``
+    resolves both to one real target.
+    """
+
+    def test_unicode_filename_binding_is_found_and_refused_when_deleted(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids
+
+        path = _make_xlsx(office_root / "résumé.xlsx")
+        cid = "canvas-unicode-binding"
+        _bind_canvas(probe, canvas_id=cid, owner_id=owner.id, file_path=path)
+
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+        live = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert live.status_code == 200, live.text
+        assert live.json()["value"] == 12
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+        formula = office_client.get(
+            f"{OFFICE_PREFIX}/excel/formula-result",
+            params={"file_path": str(path), "cell_path": "/Sheet1/C1"},
+        )
+        assert formula.status_code == 404, formula.text
+        write = office_client.post(
+            f"{OFFICE_PREFIX}/excel",
+            json={
+                "file_path": str(path), "cell_path": "/Sheet1/A1",
+                "value": 999,
+            },
+        )
+        assert write.status_code == 404, write.text
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_legacy_relative_binding_is_a_real_binding(
+        self, office_client, probe, owner, tmp_path, monkeypatch,
+    ):
+        """A CWD-relative legacy binding resolves to the same real target."""
+        from api.office_routes import _bound_canvas_ids
+
+        office_dir = tmp_path / "data" / "office"
+        office_dir.mkdir(parents=True)
+        monkeypatch.setenv("ATOM_OFFICE_DIR", str(office_dir))
+        monkeypatch.chdir(tmp_path)
+
+        path = _make_xlsx(office_dir / "legacy-relative.xlsx")
+        legacy = "data/office/legacy-relative.xlsx"
+        cid = "canvas-legacy-relative"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"office_file": legacy, "format": "xlsx"},
+        )
+
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+        live_read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert live_read.status_code == 200, live_read.text
+        live_download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        )
+        assert live_download.status_code == 200, live_download.text
+        assert live_download.content == path.read_bytes()
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+
+        dead_read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert dead_read.status_code == 404, dead_read.text
+        dead_download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        )
+        assert dead_download.status_code == 404, dead_download.text
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_symlink_alias_binding_resolves_to_real_target(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids
+
+        real = _make_xlsx(office_root / "real-target.xlsx")
+        alias = office_root / "alias-name.xlsx"
+        alias.symlink_to(real)
+
+        cid = "canvas-symlink-alias"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"office_file": str(alias), "format": "xlsx"},
+        )
+
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(real)) == [cid]
+        finally:
+            session.close()
+
+        live = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(real), "cell_path": "/Sheet1/A1"},
+        )
+        assert live.status_code == 200, live.text
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(real)
+        before_audit = _audit_count(probe, cid)
+
+        dead = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(real), "cell_path": "/Sheet1/A1"},
+        )
+        assert dead.status_code == 404, dead.text
+        dead_write = office_client.post(
+            f"{OFFICE_PREFIX}/excel",
+            json={
+                "file_path": str(real), "cell_path": "/Sheet1/A1",
+                "value": 999,
+            },
+        )
+        assert dead_write.status_code == 404, dead_write.text
+        assert _sha(real) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_unicode_and_alias_bindings_count_as_live_when_any_is_live(
+        self, office_client, probe, owner, office_root,
+    ):
+        """A deleted alias binding must not shadow a live canonical binding."""
+        real = _make_xlsx(office_root / "partagé.xlsx")
+        alias = office_root / "shared-alias.xlsx"
+        alias.symlink_to(real)
+
+        deleted_cid = "canvas-shared-unicode-deleted"
+        live_cid = "canvas-shared-alias-live"
+        _bind_canvas_to_content(
+            probe, canvas_id=deleted_cid, owner_id=owner.id,
+            content={"office_file": str(real), "format": "xlsx"},
+        )
+        _bind_canvas_to_content(
+            probe, canvas_id=live_cid, owner_id=owner.id,
+            content={"office_file": str(alias), "format": "xlsx"},
+        )
+        _tombstone(probe, canvas_id=deleted_cid, owner_id=owner.id)
+
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(real), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 200, read.text
+        assert read.json()["value"] == 12
+
+    def test_unbound_unicode_file_stays_available(
+        self, office_client, owner, office_root,
+    ):
+        """No binding means no lifecycle to enforce — new/legacy files work."""
+        path = _make_xlsx(office_root / "unbound-résumé.xlsx", value=5)
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 200, read.text
+        assert read.json()["value"] == 5
+
+    def test_binding_projection_ignores_non_mapping_content(
+        self, probe, owner, office_root,
+    ):
+        """The projection is total: odd JSON shapes cannot hide a binding."""
+        from api.office_routes import _bound_canvas_ids
+
+        path = _make_xlsx(office_root / "shape-š.xlsx")
+        cid = "canvas-shape-unicode"
+        _bind_canvas(probe, canvas_id=cid, owner_id=owner.id, file_path=path)
+        session = probe.Session()
+        try:
+            # Unrelated rows with list/string/scalar content are real legacy
+            # shapes seen in the world; they must not abort the projection.
+            for other_id, content in (
+                ("canvas-list-content", ["résumé.xlsx"]),
+                ("canvas-string-content", "office_file"),
+                ("canvas-scalar-content", 42),
+            ):
+                _canvas(
+                    session, canvas_id=other_id, owner_id=owner.id,
+                    content=content,
+                )
+            session.commit()
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+
+class TestBindingLookupFailsClosed:
+    def test_db_error_on_binding_lookup_refuses_path_only_read(
+        self, office_client, probe, owner, office_root,
+    ):
+        """A DB failure is "cannot prove live" — refuse, never allow."""
+        from core.models import Canvas
+
+        path = _make_xlsx(office_root / "db-error.xlsx")
+        cid = "canvas-db-error"
+        _bind_canvas(probe, canvas_id=cid, owner_id=owner.id, file_path=path)
+        before_sha = _sha(path)
+
+        # Simulate a real DB error after the request path is validated.
+        Canvas.__table__.drop(bind=probe.engine)
+
+        response = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert response.status_code == 503, response.text
+        assert response.json()["detail"] == "File binding lookup unavailable"
+        assert _sha(path) == before_sha
 
 
 # ---------------------------------------------------------------------------

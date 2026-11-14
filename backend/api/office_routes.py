@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.office_service import OfficeService, _validate_office_path
-from core.office_sync_service import OfficeSyncService
+from core.office_sync_service import OfficeSyncService, _office_path_key
 from core.auth import get_current_user, User
 from core.deployment_audience import require_pilot_user, validate_audience_config
 
@@ -137,13 +137,29 @@ def _check_file_access(
     # Until then, team is the only resolution — no denial is reachable.
     return
 
+
+def _content_binding_keys(content: Any) -> set:
+    """Normalized binding keys stored on one canvas.
+
+    The single definition of "this canvas is bound to that file", shared by
+    the download binding check, sync-update and the path-only tombstone
+    resolver. ``_office_path_key`` is what makes a legacy CWD-relative or
+    symlinked alias compare equal to the contained absolute request path;
+    raw string equality silently rejects those real canonical bindings.
+    """
+    data = content if isinstance(content, dict) else {}
+    return {
+        _office_path_key(data.get("office_file")),
+        _office_path_key(data.get("file_path")),
+    }
+
+
 def _require_file_binding(db: Session, canvas_id: str, file_path: str) -> None:
     from core.models import Canvas
 
     row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
     content = dict(row.content or {}) if row is not None else {}
-    bound = {str(content.get("office_file") or ""), str(content.get("file_path") or "")}
-    if _require_office_path(file_path) not in bound:
+    if _office_path_key(_require_office_path(file_path)) not in _content_binding_keys(content):
         raise HTTPException(status_code=403, detail="File is not bound to this canvas")
 
 
@@ -172,38 +188,49 @@ def _bound_canvas_ids(db: Session, file_path: str) -> List[str]:
 
     Path-only office endpoints (``/excel``, ``/word``, ``/pptx``) carry no
     canvas id at all, so the tombstone gate has to resolve the bindings
-    first. Candidate rows are narrowed with a portable text ``LIKE`` on the
-    unique stored file name and then compared through ``_office_path_key``
-    (the absolute/legacy-relative equivalence the sync service already uses).
-    An unbound file has no ids and is unaffected — that keeps legitimate new
-    uploads and legacy manual files working.
+    first. This resolution must be COMPLETE: a candidate filter that misses a
+    real binding makes a deleted artifact readable (fail-open).
+
+    Do not pre-filter on the serialized JSON text. JSON text is dialect
+    encoded — SQLite's serializer escapes non-ASCII, so ``résumé.xlsx`` is
+    stored as ``r\\u00e9sum\\u00e9.xlsx`` and a substring match on the raw
+    name returns no candidate at all (observed 2026-11-14: after the canvas
+    tombstone, ``GET /excel`` still returned 200 for a Unicode-named
+    workbook, and this helper returned ``[]``). Symlinked/legacy relative
+    aliases have the same problem from the other direction: the stored name
+    differs from the request while ``_office_path_key`` resolves both to the
+    same real target.
+
+    Instead project ONLY the two binding values through portable SQLAlchemy
+    JSON expressions (``JSON_EXTRACT`` on SQLite, ``->>`` on PostgreSQL) and
+    normalize every actual binding in Python. JSON path extraction decodes
+    the stored value in both dialects, never loads the rest of the workbook
+    payload, and has no name/row-count heuristic that could silently exclude
+    a binding. Unbound files resolve to no ids and stay available, preserving
+    legitimate new uploads and legacy manual files.
     """
-    from sqlalchemy import String, cast
+    from sqlalchemy import select
 
     from core.models import Canvas
-    from core.office_sync_service import _office_path_key
 
     resolved = _require_office_path(file_path)
     key = _office_path_key(resolved)
     if not key:
         return []
-    name = Path(resolved).name
-    if not name:
-        return []
-    rows = (
-        db.query(Canvas)
-        .filter(cast(Canvas.content, String).contains(name))
-        .all()
+
+    binding_projection = select(
+        Canvas.id,
+        Canvas.content["office_file"].as_string(),
+        Canvas.content["file_path"].as_string(),
     )
     ids: List[str] = []
-    for row in rows:
-        content = row.content if isinstance(row.content, dict) else {}
+    for canvas_id, office_file, content_file_path in db.execute(binding_projection):
         bound = {
-            _office_path_key(content.get("office_file")),
-            _office_path_key(content.get("file_path")),
+            _office_path_key(office_file),
+            _office_path_key(content_file_path),
         }
         if key in bound:
-            ids.append(str(row.id))
+            ids.append(str(canvas_id))
     return ids
 
 
@@ -215,12 +242,24 @@ def _require_live_office_file(db: Session, file_path: str) -> None:
     any live canvas is bound to it (or it is re-presented, which creates a
     fresh canvas) and after the canonical undelete. Unbound files are allowed
     so the plain "upload a file, no canvas" surface keeps working.
+
+    A binding-lookup failure is NOT "unbound": refuse (503) rather than let a
+    path-only operation through on an unverifiable lifecycle.
     """
+    from sqlalchemy.exc import SQLAlchemyError
+
     from tools.canvas_crud_tool import deleted_canvas_ids
 
-    bound = _bound_canvas_ids(db, file_path)
-    if bound and len(deleted_canvas_ids(db, bound)) == len(bound):
-        raise HTTPException(status_code=404, detail="File is not available")
+    try:
+        bound = _bound_canvas_ids(db, file_path)
+        if bound and len(deleted_canvas_ids(db, bound)) == len(bound):
+            raise HTTPException(status_code=404, detail="File is not available")
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Office file binding lookup failed; refusing path-only operation")
+        raise HTTPException(
+            status_code=503, detail="File binding lookup unavailable",
+        ) from exc
 
 
 def _require_canvas_owner(db: Session, canvas_id: str, user: User) -> None:
@@ -401,11 +440,10 @@ def download_office_file(
     row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
     content = dict(row.content or {}) if row is not None else {}
     exports = content.get("capability_exports") or []
-    bound = {
-        str(content.get("office_file") or ""),
-        str(content.get("file_path") or ""),
-    }
-    if contained not in bound and contained not in {str(p) for p in exports}:
+    binding_key = _office_path_key(contained)
+    is_bound = binding_key in _content_binding_keys(content)
+    is_export = str(contained) in {str(p) for p in exports}
+    if not is_bound and not is_export:
         raise HTTPException(status_code=403, detail="File is not bound to this canvas")
     path = Path(contained)
     if not path.is_file():
