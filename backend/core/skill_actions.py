@@ -14,7 +14,10 @@ Design (matches mature harness practice):
   (https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview);
   the generated code never enters a prompt;
 * ``skills.list`` reports only entries whose exact review binding, linked
-  ``Skill`` row, workspace assignment, tenant and employee all still match;
+  ``Skill`` row, workspace assignment, tenant and employee still match, and
+  for which the same read-only artifact authorization (current candidate and
+  registered-code digests, review revision/digest) still passes; a changed or
+  revoked artifact is never advertised as currently approved;
 * ``skills.execute`` resolves the model-supplied NAME again at dispatch time
   and delegates to ``SkillRegistryService.execute_skill``, which authorizes
   the full artifact before creating an execution row or touching Docker.

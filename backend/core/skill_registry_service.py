@@ -370,11 +370,14 @@ class SkillRegistryService:
     ) -> Optional[Dict[str, Any]]:
         """Describe one agent-invocable reviewed executable skill or None.
 
-        This is discovery metadata only.  It re-reads the durable approval
-        binding, the linked ``Skill`` row and the workspace assignment so a
-        stale or tampered registry row is never advertised as callable.  The
-        execution path still re-runs the full authorization in
-        ``execute_skill`` before the sandbox is touched.
+        Discovery metadata only, but it must not advertise a stale or revoked
+        artifact: before returning an entry this runs the SAME read-only
+        authorization the execution path uses (candidate promoted + current
+        material digest, review revision/digest, linked ``Skill`` code/type,
+        registry binding and workspace assignment).  ``_authorize_reviewed_executable``
+        performs no writes, creates no ``SkillExecution`` row and never touches
+        Docker.  ``execute_skill`` still re-runs it immediately before the
+        sandbox, so a change between listing and dispatch cannot execute.
         """
         if execution is None:
             return None
@@ -395,7 +398,7 @@ class SkillRegistryService:
                 or str(binding.get("agent_id") or "") != str(agent_id or "")):
             return None
 
-        from core.models import Skill, workspace_skills
+        from core.models import Skill
 
         linked_skill_id = str(execution.skill_id or "")
         linked = (
@@ -406,24 +409,20 @@ class SkillRegistryService:
         if linked is None or str(linked.type or "") != "script":
             return None
 
-        linked_binding = self._json_object(linked.config).get(
-            "reviewed_executable")
-        if not isinstance(linked_binding, dict) or not linked_binding:
+        skill = self.get_skill(str(execution.id))
+        if skill is None:
             return None
-        from core.reviewed_executable import canonical_json
-
-        if canonical_json(linked_binding) != canonical_json(binding):
-            return None
-
-        assigned = (
-            self.db.query(workspace_skills.c.skill_id)
-            .filter(
-                workspace_skills.c.workspace_id == str(workspace_id),
-                workspace_skills.c.skill_id == linked_skill_id,
+        try:
+            self._authorize_reviewed_executable(
+                skill,
+                binding,
+                tenant_id=str(tenant_id),
+                workspace_id=str(workspace_id),
+                agent_id=str(agent_id),
             )
-            .first()
-        )
-        if assigned is None:
+        except ValueError:
+            # Changed candidate/code, revoked review, missing binding or a
+            # removed workspace assignment: not currently invocable.
             return None
 
         metadata = self._json_object(params.get("skill_metadata"))
@@ -966,6 +965,21 @@ class SkillRegistryService:
             raise ValueError(
                 "reviewed_executable_artifact_changed: linked Skill binding "
                 "differs from the registry binding")
+
+        from core.models import workspace_skills
+
+        assigned = (
+            self.db.query(workspace_skills.c.skill_id)
+            .filter(
+                workspace_skills.c.workspace_id == str(workspace_id),
+                workspace_skills.c.skill_id == linked_skill_id,
+            )
+            .first()
+        )
+        if assigned is None:
+            raise ValueError(
+                "reviewed_executable_workspace_mismatch: linked Skill is not "
+                "assigned to the authenticated workspace")
 
         return verify_executable_artifact(
             binding=binding,
