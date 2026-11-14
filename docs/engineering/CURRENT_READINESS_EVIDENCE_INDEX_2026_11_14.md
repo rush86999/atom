@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Latest verifier update:** [the later November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) records main through `3a52ecb0d` (#947), merged transcription, the verified document/Canvas and native-chat journeys, and the still-open fleet quality gate. The [earlier follow-through](#10-verifier-follow-through-after-the-index-cut) and original rows remain historical, source-bound records; read the latest addendum before treating their “missing”, “draft”, or “current main” wording as current status.
+> **Latest verifier update:** [the later November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) records main through `3a52ecb0d` (#947), merged transcription (#932), the verified document/Canvas and native-chat journeys, and the still-open fleet quality gate. The [earlier follow-through](#10-verifier-follow-through-after-the-index-cut) and original rows remain historical, source-bound records; read the latest addendum before treating their “missing”, “draft”, or “current main” wording as current status.
 
 **Status: navigation and evidence reconciliation only. Not a new score, not a
 completion claim, and not a replacement for the original records.**
@@ -1193,13 +1193,16 @@ subject to the open boundaries above. Historical **111/123**, the original
 re-read as `3a52ecb0d9fa8b21337889137d23a9daeae64836`, tree
 `40c0d7e0179b2707fef03f8116dd8998cac3dadd`. The verifier reconciled retained
 reports and its independent checks locally; no report packet was sent to an
-additional model worker for this documentation update. No new product run is
-implied by this addendum. Historical **143 claims / 18 goals**, **111/123
+additional model worker. The journeys below predate this evidence cut; the
+documentation update itself adds no further product run. Private receipts
+are not included in the repository and cannot be independently checked by
+public readers from these summaries alone. Historical **143 claims / 18 goals**, **111/123
 (90.2%)**, and **`app_complete: false`** remain unchanged.
 
 ### Merged source after the earlier cut
 
-- **#932 merged** as `ab14eb391480b7d493e158cac887d40e2fcc2242`.
+- **#932 delivered the transcription repair and merged** as
+  `ab14eb391480b7d493e158cac887d40e2fcc2242`.
   Its full tree exactly matches the joint-qualified
   `ac1812c71421636eff2e604c8a226b317e55db4a`; the root's 360-test evidence
   above therefore applies to the merged content. All 14 exact-head hosted
@@ -1248,7 +1251,8 @@ and headers. No product source was edited and no provider was called.
 
 Root subsequently found that the browser-event classifier admitted some
 wrong-method and foreign-canvas negatives. A stricter method/own-canvas
-classifier passed **24 independent negative unit tests**. Root independently
+classifier passed **24 independently rerun unit controls**, including the
+wrong-method and foreign-canvas negatives. Root independently
 re-adjudicated all **51 retained sanitized events**: zero classification
 changes, zero unexpected events. It also verified the original receipt and
 manifest fingerprints, 11 artifact hashes and 17 source hashes. This is
@@ -1271,7 +1275,8 @@ records remain private; only sanitized evidence was used for adjudication.
 The actual bundled menu bar UI at source `5d1f11de4`, pinned binary SHA-256
 `5d32077ccc383e3c314fb3986bddfddd29583b9e6010a623d303affa6ddab5cd`,
 completed native sign-in → textarea/send → displayed real response → logout.
-One physical Go DeepSeek Flash request was served. Root checked the native
+One physical request served `deepseek-v4.1-flash` through OpenCode Go. Root
+checked the native
 DOM timeline, request ledger and artifact hashes. Native files were unchanged
 through `05715907e`, but the replay's backend is the older source: this is not
 a fresh current-main backend run or streamed/multi-turn acceptance. The null
@@ -1303,7 +1308,7 @@ retain their existing contract. Unknown metadata is not provider-limit proof.
   independent root tests. The final follow-up passed a 268-test root focus
   run; after its final test-only amendment, all 15 failure controls passed
   independently again and runtime source was verified unchanged.
-- A cold, guarded real request at final source used actual wire output limit
+- A cold, guarded real request at `16e5b101a` used actual wire output limit
   2,000 and served `deepseek-v4.1-flash` with HTTP 200, but no visible content
   before `finish_reason=length`. Atom correctly rejected synthesis and
   returned the full attributed retained specialist findings. This is a
