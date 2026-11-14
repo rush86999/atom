@@ -779,6 +779,377 @@ class TestBindingLookupFailsClosed:
 
 
 # ---------------------------------------------------------------------------
+# Capability exports are recognized READ bindings for lifecycle purposes
+# ---------------------------------------------------------------------------
+class TestCapabilityExportBindings:
+    """A saved capability export is a recognized binding, but never a primary
+    edit binding.
+
+    ``core.canvas_capability_service.export_operation`` writes a saved XLSX
+    target under ``ATOM_OFFICE_DIR`` and appends it to
+    ``content["capability_exports"]``; ``download_office_file`` explicitly
+    authorizes those paths. The path-only tombstone gate must resolve the
+    same inventory, or a deleted export stays readable as "unbound" — the
+    real negative observed at the previous head. Sync-update must keep
+    requiring the primary ``office_file``/``file_path`` binding.
+    """
+
+    def test_export_only_binding_is_gated_after_tombstone(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids
+
+        path = _make_xlsx(office_root / "capability-export.xlsx")
+        cid = "canvas-export-only"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": [str(path)]},
+        )
+
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+        active_download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        )
+        assert active_download.status_code == 200, active_download.text
+        active_read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert active_read.status_code == 200, active_read.text
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+
+        download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        )
+        assert download.status_code == 404, download.text
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+        formula = office_client.get(
+            f"{OFFICE_PREFIX}/excel/formula-result",
+            params={"file_path": str(path), "cell_path": "/Sheet1/C1"},
+        )
+        assert formula.status_code == 404, formula.text
+        write = office_client.post(
+            f"{OFFICE_PREFIX}/excel",
+            json={
+                "file_path": str(path), "cell_path": "/Sheet1/A1",
+                "value": 999,
+            },
+        )
+        assert write.status_code == 404, write.text
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_export_only_is_readable_but_not_primary_editable(
+        self, office_client, probe, owner, office_root,
+    ):
+        """Exported READ reference must not become a sync-update binding."""
+        path = _make_xlsx(office_root / "export-read-only.xlsx")
+        cid = "canvas-export-read-only"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": [str(path)]},
+        )
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        ).status_code == 200
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        ).status_code == 200
+
+        sync = office_client.post(
+            f"{OFFICE_PREFIX}/sync-update",
+            json={
+                "canvas_id": cid, "file_path": str(path), "user_id": "forged",
+                "edit_type": "cell",
+                "data": {"cell_path": "/Sheet1/A1", "value": 777},
+            },
+        )
+        assert sync.status_code == 403, sync.text
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_unicode_export_path_is_gated(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids
+
+        path = _make_xlsx(office_root / "résumé-export.xlsx")
+        cid = "canvas-export-unicode"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": [str(path)]},
+        )
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        ).status_code == 200
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+        write = office_client.post(
+            f"{OFFICE_PREFIX}/excel",
+            json={
+                "file_path": str(path), "cell_path": "/Sheet1/A1",
+                "value": 999,
+            },
+        )
+        assert write.status_code == 404, write.text
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_symlink_export_alias_is_gated(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids
+
+        real = _make_xlsx(office_root / "export-real.xlsx")
+        alias = office_root / "export-alias.xlsx"
+        alias.symlink_to(real)
+        cid = "canvas-export-alias"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": [str(alias)]},
+        )
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(real)) == [cid]
+        finally:
+            session.close()
+
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(real), "cell_path": "/Sheet1/A1"},
+        ).status_code == 200
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(real)
+        before_audit = _audit_count(probe, cid)
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(real), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+        assert _sha(real) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+    def test_shared_live_primary_or_export_binding_keeps_file_available(
+        self, office_client, probe, owner, office_root,
+    ):
+        # Deleted export + live primary: the primary keeps it live.
+        primary_file = _make_xlsx(office_root / "shared-primary.xlsx")
+        deleted_export_cid = "canvas-shared-deleted-export"
+        live_primary_cid = "canvas-shared-live-primary"
+        _bind_canvas_to_content(
+            probe, canvas_id=deleted_export_cid, owner_id=owner.id,
+            content={"capability_exports": [str(primary_file)]},
+        )
+        _bind_canvas(probe, canvas_id=live_primary_cid, owner_id=owner.id,
+                     file_path=primary_file)
+        _tombstone(probe, canvas_id=deleted_export_cid, owner_id=owner.id)
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(primary_file), "cell_path": "/Sheet1/A1"},
+        ).status_code == 200
+
+        # Deleted primary + live export: the export keeps it live too.
+        export_file = _make_xlsx(office_root / "shared-export.xlsx")
+        deleted_primary_cid = "canvas-shared-deleted-primary"
+        live_export_cid = "canvas-shared-live-export"
+        _bind_canvas(probe, canvas_id=deleted_primary_cid, owner_id=owner.id,
+                     file_path=export_file)
+        _bind_canvas_to_content(
+            probe, canvas_id=live_export_cid, owner_id=owner.id,
+            content={"capability_exports": [str(export_file)]},
+        )
+        _tombstone(probe, canvas_id=deleted_primary_cid, owner_id=owner.id)
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(export_file), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 200, read.text
+        download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(export_file), "canvas_id": live_export_cid},
+        )
+        assert download.status_code == 200, download.text
+
+    def test_restore_reopens_export_only_boundary(
+        self, app_client, office_client, probe, owner, office_root,
+        quiet_office_side_effects,
+    ):
+        path = _make_xlsx(office_root / "export-restored.xlsx")
+        cid = "canvas-export-restore"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": [str(path)]},
+        )
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        ).status_code == 404
+
+        restored = app_client.client.post(f"/api/canvas/{cid}/undelete")
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["success"] is True
+
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 200, read.text
+        download = office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        )
+        assert download.status_code == 200, download.text
+
+        # Restore reopens READ access; it does not promote the export to a
+        # primary edit binding.
+        sync = office_client.post(
+            f"{OFFICE_PREFIX}/sync-update",
+            json={
+                "canvas_id": cid, "file_path": str(path), "user_id": "x",
+                "edit_type": "cell",
+                "data": {"cell_path": "/Sheet1/A1", "value": 33},
+            },
+        )
+        assert sync.status_code == 403, sync.text
+
+    def test_export_array_is_complete_not_first_n(
+        self, office_client, probe, owner, office_root,
+    ):
+        """The target at index 0 must be resolved; no reader-side slice."""
+        from api.office_routes import _bound_canvas_ids
+
+        path = _make_xlsx(office_root / "export-first-of-many.xlsx")
+        exports = [str(path)] + [
+            str(office_root / f"other-export-{index}.xlsx")
+            for index in range(1, 13)
+        ]
+        cid = "canvas-export-first"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={"capability_exports": exports},
+        )
+        session = probe.Session()
+        try:
+            assert _bound_canvas_ids(session, str(path)) == [cid]
+        finally:
+            session.close()
+
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+
+    def test_malformed_export_shapes_do_not_hide_string_members(
+        self, office_client, probe, owner, office_root,
+    ):
+        from api.office_routes import _bound_canvas_ids, _export_keys_from_value
+
+        path = _make_xlsx(office_root / "export-malformed.xlsx")
+
+        # Non-string members beside a real reference must not hide it.
+        junk_cid = "canvas-export-junk-members"
+        _bind_canvas_to_content(
+            probe, canvas_id=junk_cid, owner_id=owner.id,
+            content={"capability_exports": [None, 7, {"path": "x"}, "", str(path)]},
+        )
+        # A legacy bare-string value is one reference, not invisible.
+        bare_cid = "canvas-export-bare-string"
+        _bind_canvas_to_content(
+            probe, canvas_id=bare_cid, owner_id=owner.id,
+            content={"capability_exports": str(path)},
+        )
+        session = probe.Session()
+        try:
+            assert set(_bound_canvas_ids(session, str(path))) == {
+                junk_cid, bare_cid}
+            assert _export_keys_from_value(None) == set()
+            assert _export_keys_from_value([None, 3, "", " "]) == set()
+            for shape in (42, {"path": str(path)}, [["nested"]]):
+                # Malformed shapes are not invented references and must not
+                # raise; valid string members are what count.
+                _export_keys_from_value(shape)
+        finally:
+            session.close()
+
+        _tombstone(probe, canvas_id=junk_cid, owner_id=owner.id)
+        _tombstone(probe, canvas_id=bare_cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audits = {
+            cid: _audit_count(probe, cid) for cid in (junk_cid, bare_cid)}
+        read = office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        )
+        assert read.status_code == 404, read.text
+        assert _sha(path) == before_sha
+        assert {cid: _audit_count(probe, cid) for cid in before_audits} == before_audits
+
+    def test_primary_and_export_on_same_canvas_refuse_after_tombstone(
+        self, office_client, probe, owner, office_root,
+    ):
+        path = _make_xlsx(office_root / "primary-and-export.xlsx")
+        cid = "canvas-primary-and-export"
+        _bind_canvas_to_content(
+            probe, canvas_id=cid, owner_id=owner.id,
+            content={
+                "office_file": str(path),
+                "capability_exports": [str(path)],
+                "format": "xlsx",
+            },
+        )
+        _tombstone(probe, canvas_id=cid, owner_id=owner.id)
+        before_sha = _sha(path)
+        before_audit = _audit_count(probe, cid)
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/excel",
+            params={"file_path": str(path), "cell_path": "/Sheet1/A1"},
+        ).status_code == 404
+        assert office_client.get(
+            f"{OFFICE_PREFIX}/download",
+            params={"file_path": str(path), "canvas_id": cid},
+        ).status_code == 404
+        assert _sha(path) == before_sha
+        assert _audit_count(probe, cid) == before_audit
+
+
+# ---------------------------------------------------------------------------
 # Shared guard across DOCX / XLSX / PPTX (not a download-only fix)
 # ---------------------------------------------------------------------------
 class TestSharedFormatGuard:

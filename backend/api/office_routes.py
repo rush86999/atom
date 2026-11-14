@@ -139,19 +139,58 @@ def _check_file_access(
 
 
 def _content_binding_keys(content: Any) -> set:
-    """Normalized binding keys stored on one canvas.
+    """Normalized PRIMARY binding keys stored on one canvas.
 
-    The single definition of "this canvas is bound to that file", shared by
-    the download binding check, sync-update and the path-only tombstone
-    resolver. ``_office_path_key`` is what makes a legacy CWD-relative or
-    symlinked alias compare equal to the contained absolute request path;
-    raw string equality silently rejects those real canonical bindings.
+    The single definition of "this canvas is bound to that file" for the
+    PRIMARY editable artifact, shared by the download primary check,
+    sync-update and the path-only tombstone resolver. ``_office_path_key`` is
+    what makes a legacy CWD-relative or symlinked alias compare equal to the
+    contained absolute request path; raw string equality silently rejects
+    those real canonical bindings.
+
+    This intentionally does NOT include ``capability_exports``. An export is
+    a read artifact, not a primary editable ``office_file``; sync-update must
+    keep requiring the primary binding.
     """
     data = content if isinstance(content, dict) else {}
     return {
         _office_path_key(data.get("office_file")),
         _office_path_key(data.get("file_path")),
     }
+
+
+def _export_keys_from_value(raw: Any) -> set:
+    """Normalized READ-only export references from ``capability_exports``.
+
+    ``core.canvas_capability_service.export_operation`` writes saved XLSX
+    targets under ``ATOM_OFFICE_DIR`` into ``content["capability_exports"]``
+    (a JSON array of strings, writer-capped to the newest 10), and
+    ``download_office_file`` authorizes exactly those paths. They are part of
+    the complete recognized-binding inventory for lifecycle (tombstone) and
+    download-read decisions, but they are not primary edit bindings.
+
+    Shape handling is deliberately tolerant but not inventive: a bare string
+    (legacy single reference) counts as one; a list/tuple/set contributes its
+    string members; any other shape contributes nothing. Non-string members
+    are ignored without hiding the string members beside them.
+    """
+    if isinstance(raw, str):
+        candidates = [raw]
+    elif isinstance(raw, (list, tuple, set)):
+        candidates = list(raw)
+    else:
+        return set()
+    keys = {_office_path_key(item) for item in candidates
+            if isinstance(item, str)}
+    keys.discard("")
+    return keys
+
+
+def _content_export_keys(content: Any) -> set:
+    """``capability_exports`` references stored on one canvas."""
+    if not isinstance(content, dict):
+        return set()
+    return _export_keys_from_value(content.get("capability_exports"))
 
 
 def _require_file_binding(db: Session, canvas_id: str, file_path: str) -> None:
@@ -184,12 +223,24 @@ def _require_canvas_active(db: Session, canvas_id: str) -> None:
 
 
 def _bound_canvas_ids(db: Session, file_path: str) -> List[str]:
-    """Canvas ids whose persisted binding names exactly this office file.
+    """Canvas ids with any RECOGNIZED binding to this office file.
 
     Path-only office endpoints (``/excel``, ``/word``, ``/pptx``) carry no
     canvas id at all, so the tombstone gate has to resolve the bindings
     first. This resolution must be COMPLETE: a candidate filter that misses a
     real binding makes a deleted artifact readable (fail-open).
+
+    Recognized binding inventory (traced through the consumers/writers):
+
+    * primary ``content["office_file"]`` / ``content["file_path"]`` — written
+      by upload/present/chat-draft/drive and required by sync-update;
+    * read-only ``content["capability_exports"]`` — written by
+      ``canvas_capability_service.export_operation`` and explicitly authorized
+      by ``download_office_file``.
+
+    Both are lifecycle bindings: after a tombstone, path-only reads/writes
+    refuse whether the file is primary or export-only. Only the primary keys
+    remain editable through sync-update (see ``_content_binding_keys``).
 
     Do not pre-filter on the serialized JSON text. JSON text is dialect
     encoded — SQLite's serializer escapes non-ASCII, so ``résumé.xlsx`` is
@@ -201,10 +252,10 @@ def _bound_canvas_ids(db: Session, file_path: str) -> List[str]:
     differs from the request while ``_office_path_key`` resolves both to the
     same real target.
 
-    Instead project ONLY the two binding values through portable SQLAlchemy
-    JSON expressions (``JSON_EXTRACT`` on SQLite, ``->>`` on PostgreSQL) and
+    Instead project ONLY the binding values through portable SQLAlchemy JSON
+    expressions (``JSON_EXTRACT`` on SQLite, ``->>``/``->`` on PostgreSQL) and
     normalize every actual binding in Python. JSON path extraction decodes
-    the stored value in both dialects, never loads the rest of the workbook
+    the stored values in both dialects, never loads the rest of the workbook
     payload, and has no name/row-count heuristic that could silently exclude
     a binding. Unbound files resolve to no ids and stay available, preserving
     legitimate new uploads and legacy manual files.
@@ -222,14 +273,15 @@ def _bound_canvas_ids(db: Session, file_path: str) -> List[str]:
         Canvas.id,
         Canvas.content["office_file"].as_string(),
         Canvas.content["file_path"].as_string(),
+        Canvas.content["capability_exports"],
     )
     ids: List[str] = []
-    for canvas_id, office_file, content_file_path in db.execute(binding_projection):
-        bound = {
+    for canvas_id, office_file, content_file_path, exports in db.execute(binding_projection):
+        primary = {
             _office_path_key(office_file),
             _office_path_key(content_file_path),
         }
-        if key in bound:
+        if key in primary or key in _export_keys_from_value(exports):
             ids.append(str(canvas_id))
     return ids
 
@@ -439,11 +491,10 @@ def download_office_file(
 
     row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
     content = dict(row.content or {}) if row is not None else {}
-    exports = content.get("capability_exports") or []
     binding_key = _office_path_key(contained)
-    is_bound = binding_key in _content_binding_keys(content)
-    is_export = str(contained) in {str(p) for p in exports}
-    if not is_bound and not is_export:
+    is_primary = binding_key in _content_binding_keys(content)
+    is_export = binding_key in _content_export_keys(content)
+    if not is_primary and not is_export:
         raise HTTPException(status_code=403, detail="File is not bound to this canvas")
     path = Path(contained)
     if not path.is_file():
