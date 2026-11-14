@@ -70,6 +70,11 @@ class QuoteCalculationRequest(BaseModel):
     currency: str = Field(min_length=1, max_length=20)
     freight: MoneyTerm
     tax: TaxTerm = Field(default_factory=lambda: TaxTerm(basis="none"))
+    #: Already-applied document reads whose discount terms govern this quote.
+    #: Omit to let the compiler consider every accepted document read. The
+    #: compiler extracts the rate/scope from the document text; the model never
+    #: supplies a discount value.
+    discount_evidence_steps: List[str] = Field(default_factory=list)
     evidence: List[EvidenceRef] = Field(default_factory=list)
     reason: str = Field(default="", max_length=800)
 
@@ -142,7 +147,11 @@ def work_request_schemas() -> List[Dict[str, Any]]:
             "operation": "quote_calculation",
             "description": (
                 "Compute exact quote lines and total from one accepted source "
-                "read plus taught/authorized currency, freight and tax terms."),
+                "read plus taught/authorized currency, freight and tax terms. "
+                "Explicit discount terms stated by accepted document evidence "
+                "are extracted by the compiler; never supply a discount rate. "
+                "Optionally name the accepted document step ids that govern "
+                "the discount."),
             "schema": QuoteCalculationRequest.model_json_schema(),
         },
         {
