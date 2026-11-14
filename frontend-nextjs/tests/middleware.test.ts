@@ -88,6 +88,23 @@ afterAll(() => {
   }
 });
 
+describe('middleware matcher excludes the bundled editor build', () => {
+  test('monaco assets are served like _next/static, not behind the login redirect', () => {
+    const { config } = require('../middleware');
+    const matcher = config.matcher[0];
+    // The negative lookahead must name monaco/ so `/monaco/vs/loader.js` never
+    // reaches auth admission; otherwise the canvas editor cannot load under an
+    // expired session and every asset fetch bounces to /login.
+    expect(matcher).toContain('monaco/');
+    // Next anchors the matcher to the full path; mirror that here (an
+    // unanchored RegExp could match a later "/" inside the asset path).
+    const re = new RegExp(`^${matcher}$`);
+    expect(re.test('/monaco/vs/loader.js')).toBe(false);
+    expect(re.test('/monaco/vs/assets/editor.worker.js')).toBe(false);
+    expect(re.test('/canvas/abc')).toBe(true);
+  });
+});
+
 describe('auth middleware callbackUrl', () => {
   test('preserves an internal protected path and query as a relative target', async () => {
     const response = await middleware(

@@ -20,6 +20,11 @@ import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Play, Save, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { configureLocalMonaco } from "@/lib/monaco-local";
+
+// Module scope, before React mounts the editor (the loader initializes in the
+// Editor's own effect).
+configureLocalMonaco();
 
 interface CanvasLogicPanelProps {
   canvasId: string;
