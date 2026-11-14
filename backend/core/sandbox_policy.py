@@ -101,6 +101,10 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         # matches the registered maturity_required="STUDENT" metadata.
         "operator_get_status",
         "operator_get_screenshot",
+        # Reviewed executable skill discovery is metadata-only. Execution
+        # (`skills.execute`) starts at INTERN with the other code-bearing
+        # actions; both are still re-authorized by SkillRegistryService.
+        "skills.list",
     ),
     "intern": (
         "canvas_render",
@@ -116,6 +120,12 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "draft_response",
         "operator_get_status",
         "operator_get_screenshot",
+        # Workspace-approved reviewed executable skills. This floor entry is
+        # only the P9 transport gate: the artifact must still match its exact
+        # review binding, tenant/workspace/employee and current digests, and
+        # runs in the reviewed Docker sandbox with no host fallback.
+        "skills.list",
+        "skills.execute",
     ),
     "supervised": (
         "canvas_render",
@@ -148,6 +158,9 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "operator_stop_task",
         "operator_get_status",
         "operator_get_screenshot",
+        # Cumulative with the INTERN floor (this tuple is listed explicitly).
+        "skills.list",
+        "skills.execute",
     ),
     "autonomous": (
         # AUTONOMOUS gets the full tool surface; blast radius is bounded by

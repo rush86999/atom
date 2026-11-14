@@ -2635,6 +2635,14 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     }
 
 
+# Agent-facing reviewed-executable skill actions (``skills.list`` /
+# ``skills.execute``). Imported after the decorator/registry are defined;
+# SkillRegistryService/reviewed_executable imports stay inside the handlers.
+try:  # pragma: no cover - import wiring
+    from core import skill_actions as _skill_actions  # noqa: F401
+except Exception as _skill_actions_error:  # noqa: BLE001
+    logger.warning("Skill actions not registered: %s", _skill_actions_error)
+
 # Connected business actions (provider reads + draft/write actions).
 # Imported after the decorator/registry are defined; provider imports inside
 # the module are lazy so this does not load every integration at startup.

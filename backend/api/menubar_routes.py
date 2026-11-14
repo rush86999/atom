@@ -903,6 +903,7 @@ async def quick_chat(
             user_id=str(current_user.id),
             session_id=payload.session_id,
             workspace_id=workspace_id,
+            tenant_id=tenant_id,
             stream=False,  # companion uses request/response; WS is separate
         )
     except Exception as exc:  # noqa: BLE001 — observed, audited, not leaked
