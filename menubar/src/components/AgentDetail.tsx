@@ -1,4 +1,8 @@
 import { useState } from "react";
+import {
+  DEFAULT_BACKEND_HTTP_URL,
+  readStoredServerUrl,
+} from "../config";
 
 interface AgentDetailProps {
   agentId: string;
@@ -13,6 +17,8 @@ interface AgentDetailProps {
     duration: number;
     success: boolean;
   }>;
+  /** Active resolved endpoint; falls back to the stored/default endpoint. */
+  serverUrl?: string;
   onClose: () => void;
   onQuickChat?: (message: string, agentId: string) => void;
 }
@@ -25,6 +31,7 @@ export default function AgentDetail({
   confidenceScore,
   capabilities,
   recentExecutions,
+  serverUrl,
   onClose,
   onQuickChat,
 }: AgentDetailProps) {
@@ -372,7 +379,7 @@ export default function AgentDetail({
           <div style={{ marginTop: "16px", textAlign: "center" }}>
             <button
               onClick={() => {
-                const base = (localStorage.getItem("atom_server_url") || "").replace(/\/$/, "");
+                const base = serverUrl || readStoredServerUrl() || DEFAULT_BACKEND_HTTP_URL;
                 const url = `${base}/agents/${agentId}/episodes`;
                 window.open(url, "_blank");
               }}

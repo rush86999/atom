@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { normalizeServerUrl } from "../config";
 
 interface PendingApproval {
   approval_id?: string;
@@ -36,7 +37,7 @@ export default function ApprovalsPanel({
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const base = (serverUrl || "http://localhost:8000").replace(/\/$/, "");
+  const base = normalizeServerUrl(serverUrl);
 
   const load = useCallback(async () => {
     setLoading(true);

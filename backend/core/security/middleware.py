@@ -311,6 +311,14 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         ]:
             return await call_next(request)
 
+        # Credential-exchange endpoints outside the /api/auth/ namespace.
+        # The menu bar companion signs in before any bearer exists and the
+        # handler issues its own token, exactly like /api/auth/login. Keep
+        # this an EXACT path match (never a /api/menubar/ prefix): every other
+        # companion route keeps the normal CSRF check.
+        if request.url.path.rstrip("/") in {"/api/menubar/auth/login"}:
+            return await call_next(request)
+
         # Bypass CSRF validation during pytest execution. pytest sets
         # PYTEST_CURRENT_TEST (not PYTEST_VERSION) for `python -m pytest`
         # runs, so match the same-file _is_pytest detection (see below and
