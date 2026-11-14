@@ -180,7 +180,10 @@ class FleetAdmiral:
     async def analyze_task_requirements(
         self,
         task: str,
-        user_id: str  # Changed from tenant_id
+        user_id: str,  # Changed from tenant_id
+        *,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Analyze task to determine complexity and required capabilities.
@@ -188,6 +191,11 @@ class FleetAdmiral:
         Args:
             task: Task description
             user_id: User identifier (single-tenant deployment)
+            workspace_id: Authenticated workspace for this turn. Forwarded to
+                LLMService so structured routing/attribution happens under the
+                requesting scope, not the service's own default.
+            tenant_id: Account binding for the same scope. ``None`` leaves the
+                service's own scope resolution in charge (never coerced).
 
         Returns:
             Dict with:
@@ -216,7 +224,11 @@ Return JSON matching the TaskAnalysis schema."""
                 system_instruction="You are an expert at task decomposition and multi-agent orchestration.",
                 response_model=TaskAnalysis,
                 temperature=0.3,
-                user_id=user_id  # Changed from tenant_id
+                user_id=user_id,  # acting user: personalization/audit attribution
+                # Authenticated scope, forwarded as supported parameters so
+                # routing and attribution follow the requesting workspace.
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
             )
 
             return {
@@ -272,7 +284,12 @@ Return JSON matching the TaskAnalysis schema."""
         logger.info(f"[FleetAdmiral] Recruiting fleet for task: {task[:50]}...")
 
         # Step 1: Analyze task requirements
-        task_analysis = await self.analyze_task_requirements(task, user_id)
+        task_analysis = await self.analyze_task_requirements(
+            task,
+            user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+        )
         logger.info(f"[FleetAdmiral] Task analysis: {task_analysis}")
 
         # Step 2: Initialize delegation chain (fleet)

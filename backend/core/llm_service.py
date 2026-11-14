@@ -600,7 +600,13 @@ class LLMService:
         """Simple text generation interface."""
         # Personalization
         agent_id = kwargs.get("agent_id")
-        user_id = kwargs.get("user_id")
+        # ``user_id`` is SERVICE-level attribution: it feeds personalization
+        # above and (on the self-consistency path) the audit row. The handler
+        # has no such parameter, so it must be POPPED, not forwarded — a bare
+        # ``kwargs.get`` left it in the passthrough and every call naming an
+        # acting user raised "unexpected keyword argument 'user_id'". Same
+        # contract as ``generate_structured_response`` below.
+        user_id = kwargs.pop("user_id", None)
         # Tenant and workspace stay separate: the handler is selected by
         # BOTH identifiers (a tenant-only caller resolves the tenant's
         # own workspace inside _get_handler — the tenant id never
@@ -818,7 +824,19 @@ class LLMService:
 
         # Personalization
         agent_id = kwargs.get("agent_id")
-        user_id = kwargs.get("user_id")
+        # ``user_id`` is SERVICE-level attribution: it feeds personalization
+        # here and the voter's audit row on the self-consistency path. The
+        # handler's structured signature has no ``user_id`` parameter, so it
+        # must be POPPED before the passthrough below. Leaving it in raised
+        # "BYOKHandler.generate_structured_response() got an unexpected
+        # keyword argument 'user_id'" for every fleet call naming an acting
+        # user; both call sites swallow exceptions into fallbacks, so the
+        # only symptom was degraded output (Goal 13 probe: task analysis fell
+        # back to "LLM analysis failed..." and recruitment to keyword
+        # matching). Attribution is preserved through the supported
+        # mechanisms: personalization/audit here, agent_id/chain_id forwarded,
+        # workspace_id/tenant_id scope the handler selection above.
+        user_id = kwargs.pop("user_id", None)
         explicit_temperature = kwargs.pop("temperature", None)
         if agent_id and self.continuous_learning:
             params = self.continuous_learning.get_personalized_parameters(
