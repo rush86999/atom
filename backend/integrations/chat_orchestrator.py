@@ -30479,6 +30479,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         tenant_id=current_request_scope()["tenant_id"],
                         agent_id=agent_id,
                         enforce=(_vpm == "enforce"),
+                        user_context=message,
                     ))
                     if _verdict.get("ran"):
                         logger.info(
@@ -30570,6 +30571,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     tenant_id=current_request_scope()["tenant_id"],
                                     agent_id=agent_id,
                                     enforce=True,
+                                    user_context=message,
                                 ))
                                 if not _verdict2.get("ran") or not _verdict2.get("grounded"):
                                     _content += (

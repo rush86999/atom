@@ -50,20 +50,28 @@ class VerifyVerdict(BaseModel):
 
 
 JUDGE_SYSTEM = (
-    "You are a strict grounding verifier. You are given RESEARCH CONTEXT "
-    "(evidence retrieved by tools) and an ANSWER written from it. Decide "
-    "whether every factual claim in the ANSWER is supported by the CONTEXT. "
-    "Rules: opinions and recommendations about what to emphasize are NOT "
-    "factual claims — only verify factual assertions (companies, people, "
-    "numbers, events, capabilities). Mark grounded=true unless you can name "
-    "specific claims the CONTEXT does not support. Be conservative: "
-    "unsupported means the context contradicts or plainly lacks the claim. "
-    "Be terse: return the verdict JSON without long reasoning — a verdict "
-    "that runs out of tokens mid-analysis counts as no verdict at all."
+    "You are a strict grounding verifier. You are given a CURRENT USER "
+    "REQUEST (user-provided context; NOT independently verified), RETRIEVED "
+    "EVIDENCE (tool results), and an ANSWER written this turn. Decide whether "
+    "every factual claim in the ANSWER is supported by the supplied context. "
+    "Rules: a factual assertion the user supplied in the current request may "
+    "support an answer that restates it, but questions, instructions and "
+    "requests are NOT factual evidence; do not treat user assertions as "
+    "independently verified external truth. Opinions and recommendations "
+    "about what to emphasize are NOT factual claims — only verify factual "
+    "assertions (companies, people, numbers, events, capabilities). Mark "
+    "grounded=true unless you can name specific claims the supplied context "
+    "does not support. Be conservative: unsupported means the context "
+    "contradicts or plainly lacks the claim. Be terse: return the verdict "
+    "JSON without long reasoning — a verdict that runs out of tokens "
+    "mid-analysis counts as no verdict at all."
 )
 
 JUDGE_PROMPT_TEMPLATE = (
-    "RESEARCH CONTEXT (retrieved evidence):\n{context}\n\n"
+    "CURRENT USER REQUEST (user-provided context; not independently "
+    "verified; questions/instructions are NOT factual evidence):\n"
+    "{user_context}\n\n"
+    "RETRIEVED EVIDENCE (tool results):\n{evidence}\n\n"
     "ANSWER TO VERIFY:\n{answer}\n\n"
     "Return the grounding verdict."
 )
@@ -140,6 +148,7 @@ async def verify_reply(
     samples: int = 3,
     agent_id: str | None = None,
     enforce: bool = False,
+    user_context: str | None = None,
 ) -> Dict[str, Any]:
     """Judge an answer against its evidence with a VOTING panel.
 
@@ -188,9 +197,15 @@ async def verify_reply(
         # samples) — a judge that never reaches its verdict is vote noise.
         # The panel only runs on mission-critical/complex turns, so the
         # extra headroom is cheap; judges that finish early stop anyway.
+        _user_context = str(user_context or "").strip()
+        if not _user_context:
+            _user_context = "(none provided)"
+        else:
+            _user_context = _user_context[:2000]
         vote_kwargs = dict(
             prompt=JUDGE_PROMPT_TEMPLATE.format(
-                context=evidence[:6000], answer=answer[:4000]
+                user_context=_user_context, evidence=evidence[:6000],
+                answer=answer[:4000]
             ),
             response_model=VerifyVerdict,
             temperature=0.0,
