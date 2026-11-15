@@ -37,8 +37,10 @@ move a store.
 
 ## Legacy adoption (startup only)
 
-A root launch before this fix may have written `<repo>/jobs.sqlite`. At
-backend startup, immediately before the scheduler opens its store,
+A root launch before this fix may have written `<repo>/jobs.sqlite`. Stop
+all legacy backend/scheduler writers before adoption. Sidecar checks detect
+observed transactions; they are not a process-exclusivity lock. At backend
+startup, immediately before the scheduler opens its store,
 `core.scheduler_store.reconcile_scheduler_job_store` runs:
 
 * canonical absent, legacy regular file present, unambiguous → the legacy
@@ -58,8 +60,15 @@ backend startup, immediately before the scheduler opens its store,
   made.
 * legacy has `-wal`/`-shm`/`-journal` sidecars (uncheckpointed / still open) →
   adoption is refused; stop the old backend and let SQLite checkpoint/close it
-  first. The sidecars are checked again after the temp copy, before install, so
-  a writer that opens the store mid-adoption cannot be silently abandoned.
+  first. The sidecars are checked again after the temp copy, before install,
+  to refuse newly observed writer activity. This does not replace stopping
+  all legacy writers before adoption.
+
+After an automatic adoption, the original remains at the legacy path. Verify
+the adopted jobs, stop the backend, and archive that original outside the
+known store paths before the next startup. Otherwise both files are present
+and the next startup deliberately refuses the conflict; it does not silently
+ignore the preserved legacy copy.
 
 Reconciliation never runs from configuration import or from ordinary
 `SchedulerConfig` construction. `core/scheduler_store.py` also exposes
@@ -83,6 +92,24 @@ If both files exist, startup refuses to choose. Decide deliberately:
 This is intentionally a one-file reconciliation, not a migration framework.
 Historical job ids that were written under the old root launch are preserved
 in the legacy file for audit; they are not silently merged.
+
+## Shared SQLite target and backup safety
+
+The main database test-safety guard and backup/fingerprint service use
+`core.local_paths.resolve_sqlite_file_path`. It follows SQLAlchemy's actual
+SQLite connection arguments, then SQLite's URI parsing and decoding. It does
+not substitute an intended raw-URL filename for the file the engine opens.
+This matters for encoded `#`, `?` and `%` characters and URI query parameters.
+Named-memory databases are excluded only when the actual connection uses
+memory; a plain SQLite URL with an ignored `mode=memory` query can still be a
+disk file. Relative explicit `file:` URIs retain SQLite's CWD semantics;
+use an absolute URL when the configured location must be stable.
+
+`core.db_safety` consumes the same resolved target. Its read-only URI builder
+percent-encodes filesystem paths, so filename characters cannot swallow
+`mode=ro` or open a different writable sibling. Existing SQLite backup,
+integrity/count verification and failure-preserves-old-snapshots behavior
+remain in place. Engine URLs are not rewritten by this target resolver.
 
 ## Refused-store availability
 
