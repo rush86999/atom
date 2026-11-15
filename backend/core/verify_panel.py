@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import Any, Dict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.hallucination_config import (
     is_sc_fanout_enabled,
@@ -43,10 +43,28 @@ def is_high_stakes_turn(complexity_value: Any, mission_critical: bool) -> bool:
 
 
 class VerifyVerdict(BaseModel):
-    """One judge sample's verdict on an answer vs its evidence."""
-    grounded: bool = True
-    unsupported_claims: list[str] = []
+    """One judge sample's verdict on an answer vs its evidence.
+
+    ``grounded`` is REQUIRED and strictly boolean: an absent, empty, null or
+    coercible value is not an explicit decision. A contradictory
+    ``grounded=true`` with named unsupported claims fails closed. Unavailable
+    verdicts must reach the existing ran=False/no-valid-vote path, never a
+    successful grounding vote or an invented false judgment.
+    """
+    model_config = ConfigDict(hide_input_in_errors=True)
+
+    grounded: bool = Field(
+        ..., strict=True,
+        description="Explicit boolean grounding decision for this sample")
+    unsupported_claims: list[str] = Field(default_factory=list)
     note: str = ""
+
+    @model_validator(mode="after")
+    def _grounding_consistency(self):
+        if self.grounded and self.unsupported_claims:
+            raise ValueError(
+                "grounded=true must not list unsupported claims")
+        return self
 
 
 JUDGE_SYSTEM = (
