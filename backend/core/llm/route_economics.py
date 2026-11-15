@@ -56,6 +56,23 @@ def route_key(provider: Any, model: Any) -> Tuple[str, str]:
     return str(provider or "").strip(), str(model or "").strip()
 
 
+def _provider_identity(value: Any) -> str:
+    """Existing registry provider normalization, or "" when unavailable."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        from core.llm.registry.transformers import normalize_provider
+
+        return str(normalize_provider(text) or "").strip().lower()
+    except Exception:  # noqa: BLE001 — no provider identity, no quote
+        return text.casefold()
+
+
+def _model_identity(value: Any) -> str:
+    return str(value or "").strip().casefold()
+
+
 def _valid_cost(value: Any) -> Optional[float]:
     if value is None or isinstance(value, bool):
         return None
@@ -117,8 +134,25 @@ def normalize_economics(
     if not isinstance(raw, Mapping):
         return unknown_economics(route_provider, route_model,
                                  reason="cost_unknown")
-    route_provider = str(raw.get("provider") or route_provider).strip()
-    route_model = str(raw.get("model") or route_model).strip()
+    raw_provider = str(raw.get("provider") or "").strip()
+    raw_model = str(raw.get("model") or "").strip()
+    # Cost identity is atomic. When the caller asks about a specific route,
+    # a body naming a different provider/model is not that route's cost, even
+    # if the mapping key matched. Missing body members may use the exact
+    # requested key (the trusted internal mapping contract).
+    if route_provider and raw_provider and (
+            _provider_identity(raw_provider)
+            != _provider_identity(route_provider)):
+        return unknown_economics(
+            route_provider, route_model,
+            reason="route_identity_mismatch", basis="identity_mismatch")
+    if route_model and raw_model and (
+            _model_identity(raw_model) != _model_identity(route_model)):
+        return unknown_economics(
+            route_provider, route_model,
+            reason="route_identity_mismatch", basis="identity_mismatch")
+    route_provider = route_provider or raw_provider
+    route_model = route_model or raw_model
     state = str(raw.get("state") or "").strip().lower()
     reason = str(raw.get("reason") or "").strip() or None
     basis = str(raw.get("basis") or "").strip() or "unknown"
@@ -243,6 +277,23 @@ def resolve_configured_economics(
                 basis="subscription_list_price_not_charge",
                 input_tokens=input_tokens, output_tokens=output_tokens)
             continue
+        pricing_provider = str(
+            pricing.get("litellm_provider") or "").strip()
+        if not pricing_provider:
+            resolved[(provider, model)] = unknown_economics(
+                provider, model,
+                reason="provider_price_unbound",
+                basis="configured_per_token_estimate",
+                input_tokens=input_tokens, output_tokens=output_tokens)
+            continue
+        if (_provider_identity(pricing_provider)
+                != _provider_identity(provider)):
+            resolved[(provider, model)] = unknown_economics(
+                provider, model,
+                reason="provider_price_mismatch",
+                basis="configured_per_token_estimate",
+                input_tokens=input_tokens, output_tokens=output_tokens)
+            continue
         try:
             cost = pricing_fetcher.estimate_cost(
                 model, input_tokens, output_tokens)
@@ -335,36 +386,6 @@ def economics_for_route(
     return unknown_economics(key[0], key[1], reason="cost_unknown")
 
 
-def _quality_value(candidate: Mapping[str, Any]) -> float:
-    try:
-        quality = float(candidate.get("quality") or 0.0)
-    except (TypeError, ValueError):
-        return 0.0
-    return quality * 100.0 if quality <= 1.0 else quality
-
-
-def _rank_key(
-    candidate: Mapping[str, Any],
-    preference: str,
-) -> Tuple[Any, ...]:
-    known = candidate.get("cost_state") == KNOWN
-    quality = _quality_value(candidate)
-    order = int(candidate.get("evidence_order") or 0)
-    if known:
-        cost = float(candidate.get("effective_cost") or 0.0)
-        latency = float(candidate.get("latency_ms") or 0.0)
-        if preference == "quality":
-            return (-quality, 0, cost, latency, order)
-        if preference == "balanced":
-            return (0, cost + latency * 1e-6, -quality, order)
-        return (0, cost, latency, -quality, order)
-    # Unknown cost is never free. All-unknown sets keep the comparator's
-    # evidence order instead of inventing a price-based order.
-    if preference == "quality":
-        return (-quality, 1, 0.0, 0.0, order)
-    return (1, 0.0, 0.0, 0.0, order)
-
-
 def rank_with_profile(
     profile: Any,
     candidates: Sequence[Mapping[str, Any]],
@@ -372,10 +393,12 @@ def rank_with_profile(
     evidence: Optional[Mapping[str, Mapping[str, Any]]] = None,
     preference: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Filter through the existing profile, then order with known economics.
+    """Filter through the existing profile, then expose the economic trace.
 
-    The profile remains the eligibility/quarantine/quality authority. Its
-    ``ranked`` output is re-ordered only across already eligible candidates.
+    The shared preference implementation lives in
+    :func:`core.llm.capability_profiles.select_profile_candidates`; this
+    module only supplies explicit known/unknown cost state and the audit
+    summary. The profile remains the eligibility/quarantine/quality authority.
     """
     from core.llm.capability_profiles import select_profile_candidates
 
@@ -398,31 +421,13 @@ def rank_with_profile(
     mode = str(preference or getattr(profile, "preference", "economy"))
     selection = select_profile_candidates(
         profile, prepared, evidence=evidence or {}, preference=mode)
-    if selection.get("outcome") != "selected":
-        selection["economics"] = {
-            "preference": mode,
-            "known_routes": [],
-            "unknown_routes": [
-                {
-                    "provider": candidate.get("provider"),
-                    "model": candidate.get("model"),
-                    "reason": candidate.get("cost_reason"),
-                }
-                for candidate in prepared
-                if candidate.get("cost_state") != KNOWN
-            ],
-            "selection_basis": "no_profile_eligible_candidate",
-        }
-        return selection
     ranked = list(selection.get("ranked") or [])
-    ranked.sort(key=lambda candidate: _rank_key(candidate, mode))
-    for candidate in ranked:
-        if candidate.get("cost_state") != KNOWN:
-            candidate["effective_cost"] = None
-    selection["ranked"] = ranked
     known = [c for c in ranked if c.get("cost_state") == KNOWN]
     unknown = [c for c in ranked if c.get("cost_state") != KNOWN]
-    if mode == "quality":
+    if selection.get("outcome") != "selected":
+        basis = "no_profile_eligible_candidate"
+        reason = selection.get("selection_reason")
+    elif mode == "quality":
         basis = "quality_preference_known_cost_tiebreak"
         reason = "explicit quality preference among eligible routes"
     elif known and unknown:

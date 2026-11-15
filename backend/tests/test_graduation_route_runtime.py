@@ -1991,6 +1991,7 @@ def test_configured_economics_keeps_subscription_cost_unknown():
             return {
                 "gpt-paid": {
                     "source": "litellm",
+                    "litellm_provider": "openai",
                     "input_cost_per_token": 1e-6,
                     "output_cost_per_token": 2e-6,
                 },
@@ -2036,6 +2037,111 @@ def test_configured_economics_keeps_subscription_cost_unknown():
     assert economics[("opencode-go", "gpt-go-litellm")]["reason"] == (
         "subscription_cost_unknown")
     assert economics[("openai", "gpt-missing")]["state"] == UNKNOWN
+
+
+def test_configured_price_must_be_bound_to_the_candidate_provider():
+    """Root identity negative: model-only lookup is not a provider quote."""
+    from core.dynamic_pricing_fetcher import DynamicPricingFetcher
+    from core.llm.route_economics import (
+        KNOWN, UNKNOWN, resolve_configured_economics,
+    )
+
+    fetcher = DynamicPricingFetcher.__new__(DynamicPricingFetcher)
+    fetcher.pricing_cache = {
+        "shared-model": {
+            "source": "litellm",
+            "litellm_provider": "remote-provider",
+            "input_cost_per_token": 1e-6,
+            "output_cost_per_token": 2e-6,
+        },
+        "unbound-model": {
+            "source": "litellm",
+            "input_cost_per_token": 1e-6,
+            "output_cost_per_token": 2e-6,
+        },
+        "alias-model": {
+            "source": "litellm",
+            "litellm_provider": "openai",
+            "input_cost_per_token": 1e-6,
+            "output_cost_per_token": 2e-6,
+        },
+    }
+    routes = [
+        {"provider": "other-provider", "model": "shared-model"},
+        {"provider": "remote-provider", "model": "shared-model"},
+        {"provider": "remote-provider", "model": "unbound-model"},
+        {"provider": "gpt", "model": "alias-model"},
+    ]
+    economics = resolve_configured_economics(
+        routes,
+        task_text="held-out repeat task",
+        input_tokens=100,
+        output_tokens=100,
+        pricing_fetcher=fetcher,
+    )
+    # A model row owned by remote-provider is not a quote for other-provider.
+    wrong = economics[("other-provider", "shared-model")]
+    assert wrong["state"] == UNKNOWN
+    assert wrong["reason"] == "provider_price_mismatch"
+    assert wrong["cost"] is None
+    # The exact provider binding (and the existing gpt->openai alias contract)
+    # is a positive twin.
+    right = economics[("remote-provider", "shared-model")]
+    assert right["state"] == KNOWN
+    assert right["cost"] == 0.0003
+    assert economics[("gpt", "alias-model")]["state"] == KNOWN
+    # Missing catalog provider identity is ambiguous, never a quote.
+    unbound = economics[("remote-provider", "unbound-model")]
+    assert unbound["state"] == UNKNOWN
+    assert unbound["reason"] == "provider_price_unbound"
+
+
+def test_economics_sidecar_identity_is_atomic():
+    """Root identity negative: a foreign body cannot attach to key A."""
+    from core.llm.route_economics import (
+        KNOWN, UNKNOWN, economics_for_route,
+    )
+
+    foreign = {
+        ("provider-a", "model-a"): {
+            "provider": "provider-b",
+            "model": "model-b",
+            "state": "known",
+            "cost": 0.0,
+        },
+    }
+    result = economics_for_route(foreign, "provider-a", "model-a")
+    assert result["state"] == UNKNOWN
+    assert result["provider"] == "provider-a"
+    assert result["model"] == "model-a"
+    assert result["reason"] == "route_identity_mismatch"
+    assert result["cost"] is None
+
+    missing_identity = {
+        ("provider-a", "model-a"): {
+            "state": "known",
+            "cost": 1.0,
+        },
+    }
+    positive = economics_for_route(
+        missing_identity, "provider-a", "model-a")
+    assert positive["state"] == KNOWN
+    assert positive["provider"] == "provider-a"
+    assert positive["model"] == "model-a"
+    assert positive["cost"] == 1.0
+
+    wrong_model = {
+        ("provider-a", "model-a"): {
+            "provider": "provider-a",
+            "model": "model-b",
+            "state": "known",
+            "cost": 1.0,
+        },
+    }
+    mismatch = economics_for_route(
+        wrong_model, "provider-a", "model-a")
+    assert mismatch["state"] == UNKNOWN
+    assert mismatch["reason"] == "route_identity_mismatch"
 
 
 def test_ordinary_assignment_resolver_binds_economy_route_and_marker(
