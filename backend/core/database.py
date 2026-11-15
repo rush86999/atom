@@ -58,38 +58,54 @@ def _anchor_sqlite_url(url: str) -> str:
     ``sqlite:///./data/atom.db`` is CWD-relative in SQLAlchemy: launching
     uvicorn from the repo root vs backend/ silently pointed at two different
     databases. Anchoring reproduces the backend/-launch location from any
-    CWD. Absolute paths, ``:memory:`` and non-SQLite URLs pass through
-    untouched.
+    CWD. Absolute paths, ``:memory:``, ``file:`` URIs and non-SQLite URLs
+    pass through untouched. The shared implementation also anchors the
+    scheduler's SQLAlchemy job store (``core.local_paths.anchor_sqlite_url``).
     """
-    if not url or not url.startswith("sqlite"):
-        return url
-    scheme, sep, rest = url.partition(":///")
-    if not sep:
-        return url
-    path = rest
-    query = ""
-    if "?" in path:
-        path, query = path.split("?", 1)
-        query = "?" + query
-    if not path or path.startswith(("/", ":")):
-        return url
-    anchored = os.path.normpath(os.path.join(_DATABASE_BACKEND_DIR, path))
-    return f"{scheme}:///{anchored}{query}"
+    from core.local_paths import anchor_sqlite_url
+
+    return anchor_sqlite_url(url, _DATABASE_BACKEND_DIR)
 
 
 def _targets_live_dev_db(url: str) -> bool:
-    """True when a SQLite URL resolves to a LIVE dev database file —
-    ``backend/dev.db`` (this module's development fallback) or
-    ``backend/data/atom.db`` (the application data store). The 2026-09-04
-    incident wiped the latter from a stray test run."""
-    if not url or not url.startswith("sqlite"):
+    """True when a SQLite URL actually resolves to a LIVE dev database file.
+
+    Protected targets are exactly ``backend/dev.db`` (development fallback)
+    and ``backend/data/atom.db`` (application data store). The 2026-09-04
+    incident wiped the latter from a stray pytest run.
+
+    Resolution is shared with ``resolve_sqlite_file_path`` and therefore uses
+    SQLAlchemy's actual URL/connect-arg semantics: plain/driver SQLite,
+    backend-anchored relative paths, URI-mode file: values (percent-decoded,
+    case-insensitive), named memory/in-memory non-files, and non-SQLite URLs.
+    Malformed SQLite URLs fail closed (treated as a protected target), so a
+    malformed URL can never bypass the pytest/live-DB guard.
+    """
+    if (not url or not isinstance(url, str)
+            or not url.lower().startswith("sqlite")):
         return False
-    path = _anchor_sqlite_url(url).partition(":///")[2].split("?", 1)[0]
-    dev_paths = (
+    try:
+        from core.local_paths import resolve_sqlite_file_path
+
+        candidate = resolve_sqlite_file_path(
+            url, _DATABASE_BACKEND_DIR)
+    except Exception:
+        return True
+    if not candidate:
+        return False
+
+    from pathlib import Path
+
+    live_targets = [
         os.path.join(_DATABASE_BACKEND_DIR, "dev.db"),
         os.path.join(_DATABASE_BACKEND_DIR, "data", "atom.db"),
-    )
-    return os.path.normpath(path) in (os.path.normpath(p) for p in dev_paths)
+    ]
+    try:
+        live_resolved = {Path(target).resolve(strict=False)
+                         for target in live_targets}
+    except OSError:
+        live_resolved = set()
+    return Path(candidate).resolve(strict=False) in live_resolved
 
 
 def get_database_url():
