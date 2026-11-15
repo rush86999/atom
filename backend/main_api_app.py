@@ -196,6 +196,8 @@ try:
     from fastapi.openapi.utils import get_openapi
     from fastapi.responses import JSONResponse
 
+    from core.scheduler_store import SchedulerStoreUnavailable
+
     startup_logger.info("✓ FastAPI imports successful")
 except Exception as e:
     startup_logger.error(f"✗ Failed to import FastAPI: {e}")
@@ -772,10 +774,42 @@ async def lifespan(app: FastAPI):
             from ai.workflow_scheduler import workflow_scheduler
 
             if not qstash_init_skip:
+                # Adopt a legacy repo-root jobs.sqlite into the canonical
+                # backend store BEFORE APScheduler opens it. This is the
+                # startup-only reconciliation; config construction/import
+                # never moves files. Conflicts/ambiguous sources are refused
+                # and leave both files untouched for an operator decision.
+                from core.scheduler_store import (
+                    mark_scheduler_store_ready,
+                    reconcile_and_mark_scheduler_store,
+                )
+
+                # A Redis job store is authoritative; never reconcile the
+                # unused SQLite URL in that deployment. The helper publishes
+                # the shared ready/failed state for every other store.
+                if getattr(workflow_scheduler, "using_redis_jobstore", False):
+                    mark_scheduler_store_ready()
+                else:
+                    _sched_recon = reconcile_and_mark_scheduler_store(
+                        workflow_scheduler.job_store_url)
+                    if _sched_recon.get("status") == "adopted":
+                        logger.warning(
+                            "✓ Scheduler job store adopted from legacy location: "
+                            f"{_sched_recon.get('legacy_path')} -> "
+                            f"{_sched_recon.get('canonical_path')}")
                 # workflow_scheduler.start() is synchronous — awaiting None
                 # raises TypeError, which was silently swallowed. Call directly.
                 workflow_scheduler.start()
         except Exception as exc:
+            if not qstash_init_skip:
+                from core.scheduler_store import (
+                    mark_scheduler_store_failed,
+                    scheduler_store_state,
+                )
+
+                if scheduler_store_state().get("ready") is not False:
+                    mark_scheduler_store_failed(
+                        f"workflow scheduler failed to start: {exc}")
             logger.warning(f"Workflow scheduler failed to start: {exc}")
 
         # 2. Start Agent Scheduler
@@ -1563,6 +1597,28 @@ try:
             return JSONResponse(status_code=503, content=health_status)
 
         return health_status
+
+    @app.exception_handler(SchedulerStoreUnavailable)
+    async def scheduler_store_unavailable_handler(
+            request: Request, exc: SchedulerStoreUnavailable):
+        """Known-unsafe scheduler storage is a 503 with a generic message.
+
+        The detailed reason (paths, conflict/adoption diagnostics) stays in
+        the server log; it is not reflected to an ordinary caller.
+        """
+        logger.error(
+            "Scheduler storage unavailable on %s: %s", request.url.path, exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    "Scheduling is temporarily unavailable because the "
+                    "server's scheduler storage could not be verified. "
+                    "Please try again later or contact an administrator."
+                ),
+                "code": "SCHEDULER_STORE_UNAVAILABLE",
+            },
+        )
 
     # Global exception handler - ensures all errors return JSON, never HTML
     @app.exception_handler(Exception)

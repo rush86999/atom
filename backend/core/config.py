@@ -75,7 +75,13 @@ class RedisConfig:
 
 @dataclass
 class SchedulerConfig:
-    """Workflow scheduler configuration"""
+    """Workflow scheduler configuration.
+
+    ``job_store_url`` is the configured input. Relative SQLite file URLs are
+    anchored to the documented backend launch root when the scheduler is
+    constructed (``core.scheduler_store.resolve_scheduler_job_store_url``),
+    so the effective store does not depend on the launch CWD.
+    """
     job_store_type: str = "sqlalchemy" # sqlalchemy, redis
     job_store_url: str = "sqlite:///jobs.sqlite"
     misfire_grace_time: int = 3600
