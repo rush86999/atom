@@ -15,6 +15,11 @@ Components:
 - contextvar carrier for the per-call resolved ID (set by byok_handler right
   after each successful provider call; read by outcome feedback and agent-loop
   provenance stamping).
+- :func:`capture_model_provenance` — durable provenance from the accepted
+  runtime result (or the call-local served route). It retains actual accepted
+  ``requested_max_tokens``/``effective_max_tokens`` when the result reports
+  them; missing means unknown and is never filled from a request, alias, or
+  handler default.
 - :class:`ModelDriftDetector` — baseline map keyed ``(provider_id,
   requested_model) -> resolved`` persisted to a JSON state file. Fires a
   :class:`DriftEvent` when the echo changes under a stable requested key.
@@ -510,7 +515,28 @@ _PROVENANCE_KEYS = (
     "provider", "model", "requested_provider", "requested_model",
     "resolved_model", "routing_result_id", "mode", "fallback", "source",
     "serving_models", "unattributed_calls",
+    "requested_max_tokens", "effective_max_tokens",
 )
+
+#: Optional completion-budget evidence. Values are accepted only from the
+#: accepted runtime result / its already-captured provenance object, never
+#: from a caller request, alias, or handler default. Positive ints only:
+#: booleans, strings, floats, zero and negatives are unknown, not coerced.
+_INT_PROVENANCE_KEYS = frozenset({
+    "requested_max_tokens", "effective_max_tokens",
+})
+
+
+def _positive_int(value: Any) -> Optional[int]:
+    """An actual reported positive integer, or None when unknown.
+
+    Do not coerce strings/floats/bools here: those are not proof of the value
+    the transport accepted, and a caller-supplied ``max_tokens`` string must
+    never be relabelled as runtime evidence.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if value > 0 else None
 
 
 def _identity(value: Any) -> Optional[str]:
@@ -607,6 +633,11 @@ def provenance_from_metadata(metadata: Any) -> Dict[str, Any]:
                 unattributed = _unattributed_calls(nested.get(key))
                 if unattributed is not None:
                     out[key] = unattributed
+                continue
+            if key in _INT_PROVENANCE_KEYS:
+                value = _positive_int(nested.get(key))
+                if value is not None:
+                    out[key] = value
                 continue
             value = _identity(nested.get(key))
             if value is not None:
@@ -793,6 +824,20 @@ def capture_model_provenance(
         payload.get("unattributed_calls"), nested.get("unattributed_calls"))
     if unattributed is not None:
         provenance["unattributed_calls"] = unattributed
+
+    # Completion-budget evidence from THIS accepted runtime result. Read only
+    # the result's own fields / its already-captured provenance; never route
+    # attribution, a caller request, an alias, or a handler default. Absent
+    # means unknown and stays absent. A terminal failure result is not an
+    # accepted transport and may not claim a budget even if a caller attached
+    # one.
+    if payload.get("success") is not False:
+        for key in _INT_PROVENANCE_KEYS:
+            value = _positive_int(payload.get(key))
+            if value is None:
+                value = _positive_int(nested.get(key))
+            if value is not None:
+                provenance[key] = value
 
     fallback = _fallback_flag(
         payload, nested, requested_provider, requested_model, provider, model)

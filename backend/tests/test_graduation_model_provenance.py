@@ -37,6 +37,7 @@ from core.llm import byok_handler
 from core.agent_graduation_service import list_qualification_evidence_bundles
 from core.episode_service import EpisodeService
 from core.generic_agent import GenericAgent
+from core.llm_service import LLMService
 from core.models import AgentEpisode, AgentExecution, AgentRegistry
 from tests.acceptance.fixtures import world  # noqa: F401 — fixture re-export
 
@@ -153,6 +154,10 @@ def test_direct_recording_persists_actual_provider_and_model(world, monkeypatch)
                 {"provider": "auto", "model": "auto"},  # alias: dropped
             ],
             "unattributed_calls": 1,
+            # Actual accepted transport budget evidence rides with the
+            # runtime result and must survive the durable round-trip too.
+            "requested_max_tokens": 6400,
+            "effective_max_tokens": 3072,
         },
         execution_id,
     )
@@ -170,6 +175,8 @@ def test_direct_recording_persists_actual_provider_and_model(world, monkeypatch)
             {"provider": "openai", "model": "gpt-5.4-2026-03"},
         ]
         assert provenance["unattributed_calls"] == 1
+        assert provenance["requested_max_tokens"] == 6400
+        assert provenance["effective_max_tokens"] == 3072
         assert metadata["provider"] == "openai"
         assert metadata["model"] == "gpt-5.4-2026-03"
 
@@ -182,6 +189,8 @@ def test_direct_recording_persists_actual_provider_and_model(world, monkeypatch)
     assert item["model_provenance"]["serving_models"] == [
         {"provider": "openai", "model": "gpt-5.4-2026-03"},
     ]
+    assert item["model_provenance"]["requested_max_tokens"] == 6400
+    assert item["model_provenance"]["effective_max_tokens"] == 3072
     assert item["provider"] == "openai"
     assert item["model"] == "gpt-5.4-2026-03"
 
@@ -693,6 +702,158 @@ def test_durable_round_trip_preserves_attribution_source(monkeypatch):
     )
     assert recaptured["provider"] == "deepseek"
     assert recaptured["source"] == "route_attribution"
+
+
+def test_capture_preserves_reported_completion_budget():
+    """Actual accepted requested/effective caps survive the canonical capture.
+
+    The values are deliberately neutral (not a model-specific 8k floor): the
+    contract is that a runtime-reported positive integer is retained exactly,
+    and a missing value stays unknown.
+    """
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    })
+    assert provenance["provider"] == "provider-a"
+    assert provenance["model"] == "model-a"
+    assert provenance["requested_max_tokens"] == 6400
+    assert provenance["effective_max_tokens"] == 3072
+    assert provenance["source"] == "runtime_result"
+
+    round_trip = model_provenance.provenance_from_metadata({
+        "model_provenance": provenance,
+    })
+    assert round_trip["requested_max_tokens"] == 6400
+    assert round_trip["effective_max_tokens"] == 3072
+
+
+def test_execution_provenance_retains_reported_completion_budget(world):
+    """The actual GenericAgent durable-provenance producer keeps the caps."""
+    agent = _agent(world)
+    provenance = agent._execution_model_provenance({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    })
+    assert provenance["provider"] == "provider-a"
+    assert provenance["model"] == "model-a"
+    assert provenance["requested_max_tokens"] == 6400
+    assert provenance["effective_max_tokens"] == 3072
+
+
+def test_captured_completion_budget_survives_result_re_capture():
+    captured = model_provenance.capture_model_provenance(
+        {
+            "provider": "provider-a",
+            "model": "model-a",
+            "requested_max_tokens": 6400,
+            "effective_max_tokens": 3072,
+        },
+        include_route_attribution=False,
+    )
+    recaptured = model_provenance.capture_model_provenance(
+        {"model_provenance": captured},
+        include_route_attribution=False,
+    )
+    assert recaptured["requested_max_tokens"] == 6400
+    assert recaptured["effective_max_tokens"] == 3072
+    assert recaptured["source"] == "runtime_result"
+
+
+@pytest.mark.parametrize(
+    "value", ["6400", True, False, 0, -1, 6400.0, None],
+)
+def test_capture_does_not_coerce_or_invent_completion_budget(value):
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": value,
+        "effective_max_tokens": value,
+    })
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_capture_does_not_copy_request_params_as_runtime_budget():
+    """``max_tokens``/temperature/reasoning effort are request hints, not
+    accepted transport evidence; they must never become provenance."""
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "provider-a",
+        "model": "model-a",
+        "max_tokens": 6400,
+        "temperature": 0.2,
+        "reasoning_effort": "high",
+    })
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_provenance_metadata_does_not_read_toplevel_budget_claims():
+    nested = model_provenance.provenance_from_metadata({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+        "model_provenance": {
+            "provider": "provider-a",
+            "model": "model-a",
+        },
+    })
+    assert "requested_max_tokens" not in nested
+    assert "effective_max_tokens" not in nested
+
+    legacy = model_provenance.provenance_from_metadata({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    })
+    assert "requested_max_tokens" not in legacy
+    assert "effective_max_tokens" not in legacy
+
+
+def test_refused_transport_result_has_no_completion_budget_evidence():
+    service = object.__new__(LLMService)
+    failure = service._completion_failure_result(
+        {"reason": "provider_exception"}, "auto")
+    provenance = model_provenance.capture_model_provenance(
+        failure, include_route_attribution=False)
+    assert provenance == {}
+
+
+def test_failed_result_cannot_claim_completion_budget():
+    provenance = model_provenance.capture_model_provenance({
+        "success": False,
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    }, include_route_attribution=False)
+    assert provenance["provider"] == "provider-a"
+    assert provenance["model"] == "model-a"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_completion_budget_evidence_is_call_local():
+    first = model_provenance.capture_model_provenance({
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    })
+    second = model_provenance.capture_model_provenance({
+        "provider": "provider-b",
+        "model": "model-b",
+    })
+    assert first["requested_max_tokens"] == 6400
+    assert first["effective_max_tokens"] == 3072
+    assert "requested_max_tokens" not in second
+    assert "effective_max_tokens" not in second
 
 
 def test_runtime_result_identity_wins_over_stale_route_attribution(
