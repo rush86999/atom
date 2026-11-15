@@ -1269,30 +1269,86 @@ class AtomMetaAgent:
                         # unknown point. It may have failed BEFORE admission
                         # (nothing dispatched) or AFTER task analysis, model
                         # spend, chain initialization or recruitment. Do not
-                        # claim zero work. Recover the exact chain only from
-                        # the existing durable root-execution link; otherwise
-                        # leave it unknown. Never delete, retry or compensate.
+                        # claim zero work. A root-execution string alone is
+                        # not account authority: recover a chain only when the
+                        # owned AgentExecution row and the chain agree on the
+                        # authenticated tenant/workspace/root agent. Otherwise
+                        # the chain and the preparation state stay unknown.
+                        # Never delete, retry or compensate any row.
                         _recovered_chain_id = None
+                        _preparation_started = None
                         try:
                             with SessionLocal() as _recovery_db:
-                                _recovered_chain = (
+                                _owned_execution = (
+                                    _recovery_db.query(AgentExecution)
+                                    .filter(AgentExecution.id == execution_id)
+                                    .first()
+                                )
+                                _scope_tenant = (
+                                    str(_owned_execution.tenant_id)
+                                    if _owned_execution is not None
+                                    and _owned_execution.tenant_id else None
+                                ) or (
+                                    str(self.tenant_id)
+                                    if isinstance(getattr(self, "tenant_id", None), str)
+                                    and self.tenant_id else None
+                                )
+                                _scope_workspace = (
+                                    str(_owned_execution.workspace_id)
+                                    if _owned_execution is not None
+                                    and _owned_execution.workspace_id else None
+                                ) or (
+                                    str(self.workspace_id)
+                                    if isinstance(getattr(self, "workspace_id", None), str)
+                                    and self.workspace_id else None
+                                )
+                                _chain_query = (
                                     _recovery_db.query(DelegationChain)
                                     .filter(DelegationChain.root_execution_id
                                             == execution_id)
-                                    .order_by(DelegationChain.started_at.desc())
-                                    .first()
+                                    .filter(DelegationChain.root_agent_id
+                                            == "atom_main")
                                 )
-                                if _recovered_chain is not None:
-                                    _recovered_chain_id = _recovered_chain.id
+                                if _scope_tenant:
+                                    _chain_query = _chain_query.filter(
+                                        DelegationChain.tenant_id == _scope_tenant)
+                                for _candidate in _chain_query.order_by(
+                                        DelegationChain.started_at.desc()).all():
+                                    _candidate_meta = (
+                                        _candidate.metadata_json
+                                        if isinstance(_candidate.metadata_json, dict)
+                                        else {})
+                                    _candidate_workspace = _candidate_meta.get(
+                                        "workspace_id")
+                                    if (
+                                        _candidate_workspace is not None
+                                        and _scope_workspace is not None
+                                        and str(_candidate_workspace)
+                                        != _scope_workspace
+                                    ):
+                                        continue
+                                    _recovered_chain_id = _candidate.id
+                                    _preparation_started = True
+                                    break
                         except Exception:
                             _recovered_chain_id = None
-                        _fleet_error_text = (
-                            "The governed task did not complete. Some "
-                            "preparation may already have started, and no "
-                            "further automatic work will run. The exact "
-                            "progress is unknown; review the durable run "
-                            "before retrying."
-                        )
+                            _preparation_started = None
+                        if _recovered_chain_id:
+                            _fleet_error_text = (
+                                "The governed task did not complete. A fleet "
+                                "preparation chain was found for this run, so "
+                                "some preparation may already have started. "
+                                "No further automatic work will run; the exact "
+                                "progress is unknown, so review the durable run "
+                                "before retrying."
+                            )
+                        else:
+                            _fleet_error_text = (
+                                "The governed task did not complete. No "
+                                "further automatic work will run. Preparation "
+                                "status is unknown; review the durable run "
+                                "before retrying."
+                            )
                         _fleet_failure_payload = {
                             "execution_id": execution_id,
                             "route": "TASK",
@@ -1311,9 +1367,11 @@ class AtomMetaAgent:
                             "specialists_count": None,
                             "chain_id": _recovered_chain_id,
                             "chain_recovered": bool(_recovered_chain_id),
+                            "preparation_started": _preparation_started,
+                            "preparation_status": (
+                                "started" if _recovered_chain_id else "unknown"),
                             "enforced": True,
                             "execution_attempted": True,
-                            "preparation_started": True,
                         }
                         try:
                             _fleet_audit_id = record_fleet_decision(

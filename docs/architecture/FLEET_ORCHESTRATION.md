@@ -465,14 +465,18 @@ conflated:
 - **Post-admission interruption (partial/unknown).** An arbitrary exception
   while routing can occur after task analysis, model spend, chain
   initialization or recruitment. The result is `status=partial`,
-  `outcome=partial_unknown`, `execution_attempted=True`, and the exact chain
-  only when it can be recovered from the durable
-  `DelegationChain.root_execution_id` link. Counts that are not known stay
-  unknown (`specialists_count=None`); nothing is deleted, retried,
-  compensated or replayed. The plain public message says some preparation may
-  already have started and that no further automatic work will run. The
-  uncertainty is persisted on the failed `AgentExecution` so a rerun cannot
-  read the run as zero or rolled back.
+  `outcome=partial_unknown`, `execution_attempted=True`. A chain is recovered
+  only when the owned `AgentExecution` row and the chain agree on the
+  authenticated tenant, workspace (when the chain records one) and
+  `root_agent_id=atom_main`; a matching `root_execution_id` string alone is
+  not account authority, and a cross-tenant or explicit workspace/root-agent
+  mismatch leaves the chain unknown. `preparation_started` is `True` only with
+  that reliable chain witness; otherwise it is `None`/unknown (governance can
+  fail before admission) and the public message says preparation status is
+  unknown. Counts that are not known stay unknown (`specialists_count=None`);
+  nothing is deleted, retried, compensated or replayed. The uncertainty is
+  persisted on the failed `AgentExecution` so a rerun cannot read the run as
+  zero or rolled back.
 - **Completion text contract.** `AtomMetaAgent` text helpers accept only
   string `content`/legacy `text`. A dict/list/bool/number is a typed
   `invalid_completion_content` failure, never stringified into an answer;

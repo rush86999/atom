@@ -252,7 +252,9 @@ async def test_governance_unavailable_fails_closed(scratch, monkeypatch):
     assert data["failure_reason"] == "fleet_routing_interrupted"
     assert data["execution_attempted"] is True
     assert data["specialists_count"] is None
-    assert "Some preparation may already have started" in data["final_output"]
+    assert "Preparation status is unknown" in data["final_output"]
+    assert data["preparation_started"] is None
+    assert data["preparation_status"] == "unknown"
     assert "RuntimeError" not in data["final_output"]
     assert "No task, recruitment, specialist or tool work" not in data["final_output"]
     dispatch.assert_not_awaited()
@@ -380,7 +382,9 @@ async def test_partial_preparation_after_real_chain_is_truthful(
     assert data["chain_id"] == prepared[0]
     assert data["chain_recovered"] is True
     assert data["specialists_count"] is None
-    assert "Some preparation may already have started" in data["final_output"]
+    assert "some preparation may already have started" in data["final_output"]
+    assert data["preparation_started"] is True
+    assert data["preparation_status"] == "started"
     assert "RuntimeError" not in data["final_output"]
     assert "synthetic interruption" not in data["final_output"]
     assert "No task, recruitment, specialist or tool work" not in data["final_output"]
@@ -391,7 +395,7 @@ async def test_partial_preparation_after_real_chain_is_truthful(
         execution = db.query(AgentExecution).one()
         assert execution.status == "failed"
         assert "partial_unknown" in (execution.error_message or "")
-        assert "Some preparation may already have started" in (
+        assert "some preparation may already have started" in (
             execution.result_summary or "")
     assert fake.completion_calls == []
 
@@ -418,3 +422,110 @@ def test_completion_text_outcome_rejects_non_string_content():
     typed = {"reason": "provider_unavailable", "message": "unavailable"}
     assert _completion_text_outcome(
         {"success": False, "failure": typed}) == (None, typed)
+
+
+def _foreign_chain_case(scratch, monkeypatch, *, tenant_id, workspace_id,
+                        root_agent_id="atom_main", chain_id):
+    """Create one non-owned chain sharing the run id, then raise."""
+    from core.models import DelegationChain
+
+    fake = CanonicalFakeLLM()
+    agent = _make_agent(scratch, fake, monkeypatch=monkeypatch)
+    _force_one_off(monkeypatch)
+
+    async def route(request, intent, user_id, agent_id="atom_main",
+                    execution_id=None):
+        with scratch["Session"]() as db:
+            db.add(DelegationChain(
+                id=chain_id, tenant_id=tenant_id,
+                root_agent_id=root_agent_id, root_execution_id=execution_id,
+                root_task="foreign-fixture",
+                metadata_json={"workspace_id": workspace_id},
+            ))
+            db.commit()
+        raise RuntimeError("synthetic route unavailable")
+
+    agent.route_with_governance = route
+    agent.queen = MagicMock()
+    agent.queen.generate_blueprint = AsyncMock(
+        side_effect=AssertionError("no fallback"))
+    monkeypatch.setattr(scratch["ama"], "AtomMetaAgent",
+                        lambda *a, **k: agent)
+    return agent
+
+
+@pytest.mark.asyncio
+async def test_foreign_tenant_chain_is_not_recovered(scratch, monkeypatch):
+    from api.agent_routes import AtomExecuteRequest, execute_atom
+    from core.models import DelegationChain
+
+    _foreign_chain_case(
+        scratch, monkeypatch, tenant_id="tenant-other",
+        workspace_id="ws-other", chain_id="foreign-tenant-chain")
+    data = (await execute_atom(
+        AtomExecuteRequest(request=TASK), user=scratch["user"]))["data"]
+
+    assert data["status"] == "partial"
+    assert data["chain_id"] is None
+    assert data["chain_recovered"] is False
+    assert data["preparation_started"] is None
+    assert data["preparation_status"] == "unknown"
+    assert "Preparation status is unknown" in data["final_output"]
+    with scratch["Session"]() as db:
+        assert db.query(DelegationChain).filter(
+            DelegationChain.id == "foreign-tenant-chain").count() == 1
+
+
+@pytest.mark.asyncio
+async def test_mismatched_workspace_chain_is_not_recovered(scratch, monkeypatch):
+    from api.agent_routes import AtomExecuteRequest, execute_atom
+
+    _foreign_chain_case(
+        scratch, monkeypatch, tenant_id="tenant-1",
+        workspace_id="ws-other", chain_id="foreign-workspace-chain")
+    data = (await execute_atom(
+        AtomExecuteRequest(request=TASK), user=scratch["user"]))["data"]
+    assert data["chain_id"] is None
+    assert data["preparation_started"] is None
+
+
+@pytest.mark.asyncio
+async def test_mismatched_root_agent_chain_is_not_recovered(scratch,
+                                                            monkeypatch):
+    from api.agent_routes import AtomExecuteRequest, execute_atom
+
+    _foreign_chain_case(
+        scratch, monkeypatch, tenant_id="tenant-1", workspace_id="ws-1",
+        root_agent_id="other_root", chain_id="foreign-root-chain")
+    data = (await execute_atom(
+        AtomExecuteRequest(request=TASK), user=scratch["user"]))["data"]
+    assert data["chain_id"] is None
+    assert data["preparation_started"] is None
+
+
+@pytest.mark.asyncio
+async def test_no_chain_witness_leaves_preparation_unknown(scratch,
+                                                           monkeypatch):
+    from api.agent_routes import AtomExecuteRequest, execute_atom
+
+    fake = CanonicalFakeLLM()
+    agent = _make_agent(scratch, fake, monkeypatch=monkeypatch)
+    _force_one_off(monkeypatch)
+
+    async def route(request, intent, user_id, agent_id="atom_main",
+                    execution_id=None):
+        raise RuntimeError("synthetic route unavailable before admission")
+
+    agent.route_with_governance = route
+    agent.queen = MagicMock()
+    agent.queen.generate_blueprint = AsyncMock(
+        side_effect=AssertionError("no fallback"))
+    monkeypatch.setattr(scratch["ama"], "AtomMetaAgent",
+                        lambda *a, **k: agent)
+    data = (await execute_atom(
+        AtomExecuteRequest(request=TASK), user=scratch["user"]))["data"]
+
+    assert data["execution_attempted"] is True
+    assert data["chain_id"] is None
+    assert data["preparation_started"] is None
+    assert data["preparation_status"] == "unknown"
