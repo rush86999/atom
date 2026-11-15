@@ -60,3 +60,12 @@ def test_go_client_headers_and_no_retries(handler):
     headers = {k.lower(): v for k, v in dict(client.default_headers).items()}
     assert headers.get("user-agent") == "atom-agent/1.0"
     assert headers.get("x-opencode-session") == "atom-default"
+
+
+def test_settings_label_explains_shared_override_and_both_defaults():
+    from core.settings_catalog import find_spec
+    spec = find_spec("OPENCODE_BASE_URL")
+    text = str(spec.description or "")
+    assert "Go" in text and "Zen" in text
+    assert "override" in text.lower()
+    assert "inference/go/openai/v1" in text

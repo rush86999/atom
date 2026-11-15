@@ -117,7 +117,11 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     S("ANTHROPIC_API_KEY", "", C_LLM, "Anthropic API key", secret=True),
     S("MINIMAX_API_KEY", "", C_LLM, "MiniMax API key", secret=True),
     S("OPENCODE_API_KEY", "", C_LLM, "OpenCode Go gateway key (canonical env name)", secret=True),
-    S("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1", C_LLM, "OpenCode Go base URL"),
+    S(
+        "OPENCODE_BASE_URL", "https://opencode.ai/zen/v1", C_LLM,
+        "OpenCode Go/Zen gateway base URL override (explicit; unset uses "
+        "provider defaults: Go=https://opencode.ai/inference/go/openai/v1, "
+        "Zen=https://opencode.ai/zen/v1)"),
     I("OPENCODE_RPM", 60, C_LLM, "OpenCode requests/min ceiling (routing headroom)"),
     I("OPENCODE_TPM", 2000000, C_LLM, "OpenCode tokens/min ceiling"),
     I("OPENCODE_MAX_CONTEXT", 200000, C_LLM, "Gateway context cap (clamps candidates)"),
