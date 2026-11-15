@@ -780,27 +780,23 @@ async def lifespan(app: FastAPI):
                 # never moves files. Conflicts/ambiguous sources are refused
                 # and leave both files untouched for an operator decision.
                 from core.scheduler_store import (
-                    SchedulerStoreConflict,
-                    mark_scheduler_store_failed,
                     mark_scheduler_store_ready,
-                    reconcile_scheduler_job_store,
+                    reconcile_and_mark_scheduler_store,
                 )
 
-                try:
-                    # A Redis job store is authoritative; never reconcile the
-                    # unused SQLite URL in that deployment.
-                    if not getattr(workflow_scheduler, "using_redis_jobstore", False):
-                        _sched_recon = reconcile_scheduler_job_store(
-                            workflow_scheduler.job_store_url)
-                        if _sched_recon.get("status") == "adopted":
-                            logger.warning(
-                                "✓ Scheduler job store adopted from legacy location: "
-                                f"{_sched_recon.get('legacy_path')} -> "
-                                f"{_sched_recon.get('canonical_path')}")
+                # A Redis job store is authoritative; never reconcile the
+                # unused SQLite URL in that deployment. The helper publishes
+                # the shared ready/failed state for every other store.
+                if getattr(workflow_scheduler, "using_redis_jobstore", False):
                     mark_scheduler_store_ready()
-                except SchedulerStoreConflict as exc:
-                    mark_scheduler_store_failed(str(exc))
-                    raise
+                else:
+                    _sched_recon = reconcile_and_mark_scheduler_store(
+                        workflow_scheduler.job_store_url)
+                    if _sched_recon.get("status") == "adopted":
+                        logger.warning(
+                            "✓ Scheduler job store adopted from legacy location: "
+                            f"{_sched_recon.get('legacy_path')} -> "
+                            f"{_sched_recon.get('canonical_path')}")
                 # workflow_scheduler.start() is synchronous — awaiting None
                 # raises TypeError, which was silently swallowed. Call directly.
                 workflow_scheduler.start()

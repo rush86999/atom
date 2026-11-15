@@ -476,6 +476,27 @@ def test_unverified_state_keeps_legitimate_pre_start_component_use():
     store.require_scheduler_store_ready()  # no raise
 
 
+def test_startup_helper_marks_ready_on_success_and_failed_on_refusal(tmp_path):
+    backend = tmp_path / SYNTH_BACKEND
+    backend.mkdir()
+    result = store.reconcile_and_mark_scheduler_store(
+        "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert result["status"] == "fresh"
+    assert store.scheduler_store_state()["ready"] is True
+
+    store.reset_scheduler_store_state()
+    canonical = backend / "jobs.sqlite"
+    canonical.write_bytes(b"canonical")
+    (tmp_path / "jobs.sqlite").write_bytes(b"legacy")
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_and_mark_scheduler_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert store.scheduler_store_state()["ready"] is False
+    assert "both canonical" in store.scheduler_store_state()["reason"]
+    assert canonical.read_bytes() == b"canonical"
+    assert (tmp_path / "jobs.sqlite").read_bytes() == b"legacy"
+
+
 def test_schedule_endpoint_does_not_swallow_unsafe_storage(tmp_path, monkeypatch):
     monkeypatch.setenv("SCHEDULER_JOB_STORE_TYPE", "sqlalchemy")
     monkeypatch.setenv(

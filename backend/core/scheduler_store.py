@@ -301,6 +301,29 @@ def reconcile_scheduler_job_store(
             pass
 
 
+def reconcile_and_mark_scheduler_store(
+    url: Optional[str] = None, *,
+    root: Path | str | None = None,
+    legacy_root: Path | str | None = None,
+) -> Dict[str, Any]:
+    """Startup helper: reconcile then publish shared ready/failed state.
+
+    Any refusal (conflict, ambiguous/WAL source, unsupported atomic install,
+    copy failure) marks the process state failed before re-raising, so the
+    scheduler methods and their consumers cannot acknowledge RAM-only jobs or
+    present an empty store as authoritative. A successful no-op/adoption
+    marks the store ready. Never called from config construction/import.
+    """
+    try:
+        result = reconcile_scheduler_job_store(
+            url, root=root, legacy_root=legacy_root)
+    except Exception as exc:
+        mark_scheduler_store_failed(str(exc))
+        raise
+    mark_scheduler_store_ready()
+    return result
+
+
 def scheduler_job_store_status(
     url: Optional[str] = None, *,
     root: Path | str | None = None,
