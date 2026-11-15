@@ -400,6 +400,20 @@ async def test_partial_preparation_after_real_chain_is_truthful(
     assert fake.completion_calls == []
 
 
+def test_private_completion_helper_delegates_to_shared_module():
+    """Atom keeps one parsing implementation: the shared pure helper."""
+    from core.atom_meta_agent import _completion_text_outcome
+    from core.llm.completion_outcome import completion_text_outcome
+
+    for sample in (
+            {"success": True, "content": "  shared  "},
+            {"success": True, "content": {"error": "not text"}},
+            {"success": False, "failure": {"reason": "provider_down"}},
+            None,
+    ):
+        assert _completion_text_outcome(sample) == completion_text_outcome(sample)
+
+
 def test_completion_text_outcome_rejects_non_string_content():
     from core.atom_meta_agent import _completion_text_outcome
 

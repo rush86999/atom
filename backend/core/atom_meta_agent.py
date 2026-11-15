@@ -20,6 +20,7 @@ from core.models import (
     ChainLink, DelegationChain,
 )
 from core.database import SessionLocal
+from core.llm.completion_outcome import completion_text_outcome
 import traceback
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
@@ -441,47 +442,14 @@ def _governance_scope(owner: Any) -> tuple[str, Optional[str]]:
 def _completion_text_outcome(
     result: Any,
 ) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Split a canonical ``LLMService.generate_completion`` result.
+    """Compatibility wrapper for the shared pure text-outcome contract.
 
-    The canonical completion result is a mapping with ``success``. A failure
-    must never be published as an answer: this returns ``(None, failure)`` for
-    an explicit failure or an empty generation, and ``(text, None)`` only for
-    accepted text. The failure mapping keeps the producer's typed reason and
-    diagnostics; the raw error string is never used as content.
+    The single parsing implementation lives in
+    :mod:`core.llm.completion_outcome`. This name remains because existing
+    Atom callers and tests import it; delegating here keeps the behavior from
+    drifting into two implementations.
     """
-    if not isinstance(result, dict):
-        return None, {
-            "reason": "invalid_completion_result",
-            "message": "LLM completion returned no result object",
-        }
-    if result.get("success") is False:
-        failure = result.get("failure")
-        if not isinstance(failure, dict):
-            failure = {
-                "reason": "generation_failed",
-                "message": str(result.get("error") or "LLM generation failed"),
-            }
-        return None, failure
-    # Accepted text must be a real string. A dict/list/bool/number here is a
-    # malformed producer result (the historical bug stringified
-    # ``{"error": ...}`` into an "answer"); it is a typed invalid result, not
-    # text. Prefer ``content`` when present, falling back to legacy ``text``
-    # only when content is absent/None.
-    raw_content = result.get("content")
-    if raw_content is None:
-        raw_content = result.get("text")
-    if not isinstance(raw_content, str):
-        return None, {
-            "reason": "invalid_completion_content",
-            "message": "LLM completion content is not text",
-        }
-    text = raw_content.strip()
-    if not text:
-        return None, {
-            "reason": "empty_generation",
-            "message": "LLM generation returned no text",
-        }
-    return text, None
+    return completion_text_outcome(result)
 
 
 def _governance_denied_payload(
