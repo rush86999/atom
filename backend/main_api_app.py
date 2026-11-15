@@ -772,6 +772,23 @@ async def lifespan(app: FastAPI):
             from ai.workflow_scheduler import workflow_scheduler
 
             if not qstash_init_skip:
+                # Adopt a legacy repo-root jobs.sqlite into the canonical
+                # backend store BEFORE APScheduler opens it. This is the
+                # startup-only reconciliation; config construction/import
+                # never moves files. Conflicts are logged CRITICAL and leave
+                # both files untouched for an operator decision.
+                from core.scheduler_store import reconcile_scheduler_job_store
+
+                # A Redis job store is authoritative; never reconcile the
+                # unused SQLite URL in that deployment.
+                if not getattr(workflow_scheduler, "using_redis_jobstore", False):
+                    _sched_recon = reconcile_scheduler_job_store(
+                        workflow_scheduler.job_store_url)
+                    if _sched_recon.get("status") == "adopted":
+                        logger.warning(
+                            "✓ Scheduler job store adopted from legacy location: "
+                            f"{_sched_recon.get('legacy_path')} -> "
+                            f"{_sched_recon.get('canonical_path')}")
                 # workflow_scheduler.start() is synchronous — awaiting None
                 # raises TypeError, which was silently swallowed. Call directly.
                 workflow_scheduler.start()

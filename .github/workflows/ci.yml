@@ -333,6 +333,23 @@ jobs:
         run: |
           python -m pytest tests/test_office_canvas_tombstone_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # The scheduler default sqlite:///jobs.sqlite is CWD-relative in
+      # SQLAlchemy: a repo-root launch and a backend/ launch used two
+      # different APScheduler stores. The resolver now anchors the default
+      # (and relative overrides) to backend/jobs.sqlite; startup reconciles a
+      # legacy root store only when the canonical file is absent, copies it
+      # byte-identically, never clobbers, and refuses ambiguous sources.
+      # These controls run actual scheduler persistence from two fresh
+      # processes/CWDs plus absent/adopt/conflict/no-clobber cases.
+      - name: Run scheduler job-store anchoring and legacy adoption controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_scheduler_store_anchoring.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_scheduler_store_anchoring.py -q --tb=short --timeout=300 --timeout-method=thread
+
       # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
       # skips under pytest when AI fakes break provider resolution, so run the
       # exit-coded standalone harness for the real recall@k regression gate

@@ -58,23 +58,13 @@ def _anchor_sqlite_url(url: str) -> str:
     ``sqlite:///./data/atom.db`` is CWD-relative in SQLAlchemy: launching
     uvicorn from the repo root vs backend/ silently pointed at two different
     databases. Anchoring reproduces the backend/-launch location from any
-    CWD. Absolute paths, ``:memory:`` and non-SQLite URLs pass through
-    untouched.
+    CWD. Absolute paths, ``:memory:``, ``file:`` URIs and non-SQLite URLs
+    pass through untouched. The shared implementation also anchors the
+    scheduler's SQLAlchemy job store (``core.local_paths.anchor_sqlite_url``).
     """
-    if not url or not url.startswith("sqlite"):
-        return url
-    scheme, sep, rest = url.partition(":///")
-    if not sep:
-        return url
-    path = rest
-    query = ""
-    if "?" in path:
-        path, query = path.split("?", 1)
-        query = "?" + query
-    if not path or path.startswith(("/", ":")):
-        return url
-    anchored = os.path.normpath(os.path.join(_DATABASE_BACKEND_DIR, path))
-    return f"{scheme}:///{anchored}{query}"
+    from core.local_paths import anchor_sqlite_url
+
+    return anchor_sqlite_url(url, _DATABASE_BACKEND_DIR)
 
 
 def _targets_live_dev_db(url: str) -> bool:

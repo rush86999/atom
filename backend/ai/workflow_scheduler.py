@@ -9,6 +9,8 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from core.scheduler_store import resolve_scheduler_job_store_url
+
 logger = logging.getLogger(__name__)
 
 class WorkflowScheduler:
@@ -20,8 +22,16 @@ class WorkflowScheduler:
     def __init__(self, db_url: Optional[str] = None):
         from core.config import get_config
         self.config = get_config()
-        
+
+        # The default config value is a relative SQLite URL. Anchor it to the
+        # documented backend launch root so a repo-root launch and a backend/
+        # launch share ONE job store (core.scheduler_store).
+        self.requested_job_store_url = db_url or self.config.scheduler.job_store_url
+        self.job_store_url = resolve_scheduler_job_store_url(
+            self.requested_job_store_url)
+
         jobstores = {}
+        self.using_redis_jobstore = False
         
         # Use configured job store
         if self.config.scheduler.job_store_type == 'redis' and self.config.redis.enabled:
@@ -33,13 +43,13 @@ class WorkflowScheduler:
                     db=self.config.redis.db,
                     password=self.config.redis.password
                 )
+                self.using_redis_jobstore = True
                 logger.info("WorkflowScheduler using RedisJobStore")
             except Exception as e:
                 logger.warning(f"Failed to initialize RedisJobStore: {e}. Falling back to SQLAlchemy.")
-                jobstores['default'] = SQLAlchemyJobStore(url=db_url or self.config.scheduler.job_store_url)
+                jobstores['default'] = SQLAlchemyJobStore(url=self.job_store_url)
         else:
-            job_store_url = db_url or self.config.scheduler.job_store_url
-            jobstores['default'] = SQLAlchemyJobStore(url=job_store_url)
+            jobstores['default'] = SQLAlchemyJobStore(url=self.job_store_url)
             logger.info(f"WorkflowScheduler using SQLAlchemyJobStore")
 
         self.scheduler = AsyncIOScheduler(
