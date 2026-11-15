@@ -139,6 +139,123 @@ describe('PdfFileCanvas', () => {
     clickSpy.mockRestore();
   });
 
+  it('exports the acknowledged saved version while websocket props lag', async () => {
+    const createObjectURL = jest.fn(() => 'blob:pdf-download');
+    Object.defineProperty(window.URL, 'createObjectURL', { configurable: true, value: createObjectURL });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { configurable: true, value: jest.fn() });
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    // The parent prop stays at the OLD hash A; only applyPageOps returns B.
+    mockApi.applyPageOps.mockResolvedValue({
+      state: makeState({ file: { hash: 'b'.repeat(64), page_count: 3, size_bytes: 2048, filename: 'Q3 quote.pdf' } }),
+    });
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await screen.findByText(/Saved — version bbbbbbbb committed/);
+    mockApi.fetchPdfBytes.mockClear();
+
+    fireEvent.click(screen.getByTestId('canvas-pdf-download'));
+
+    await waitFor(() => expect(mockApi.fetchPdfBytes)
+      .toHaveBeenCalledWith('c1', 'b'.repeat(64)));
+    expect(mockApi.fetchPdfBytes).not.toHaveBeenCalledWith('c1', 'a'.repeat(64));
+    clickSpy.mockRestore();
+  });
+
+  it('a second save with stale props uses the acknowledged version as its base', async () => {
+    mockApi.applyPageOps
+      .mockResolvedValueOnce({
+        state: makeState({ file: { hash: 'b'.repeat(64), page_count: 3, size_bytes: 2048, filename: 'Q3 quote.pdf' } }),
+      })
+      .mockResolvedValueOnce({
+        state: makeState({ file: { hash: 'c'.repeat(64), page_count: 3, size_bytes: 3072, filename: 'Q3 quote.pdf' } }),
+      });
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await screen.findByText(/Saved — version bbbbbbbb committed/);
+
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await screen.findByText(/Saved — version cccccccc committed/);
+
+    expect(mockApi.applyPageOps).toHaveBeenNthCalledWith(
+      2, 'c1',
+      [
+        { src_index: 0, rotation: 90 },
+        { src_index: 1, rotation: 0 },
+        { src_index: 2, rotation: 0 },
+      ],
+      'b'.repeat(64),
+    );
+  });
+
+  it('pending page edits cannot silently download the last saved bytes', async () => {
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    mockApi.fetchPdfBytes.mockClear();
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+
+    const download = screen.getByTestId('canvas-pdf-download');
+    expect(download).toBeDisabled();
+    expect(download).toHaveAttribute('title', expect.stringMatching(/Save your page changes/));
+    fireEvent.click(download);
+    expect(mockApi.fetchPdfBytes).not.toHaveBeenCalled();
+  });
+
+  it('download is disabled while a save is in flight and uses the acknowledged hash after it settles', async () => {
+    let resolveOps: (value: any) => void = () => {};
+    mockApi.applyPageOps.mockReturnValue(new Promise((resolve) => { resolveOps = resolve; }));
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+
+    const download = screen.getByTestId('canvas-pdf-download');
+    await waitFor(() => expect(download).toBeDisabled());
+    expect(download).toHaveAttribute('title', expect.stringMatching(/Saving/));
+
+    mockApi.fetchPdfBytes.mockClear();
+    resolveOps({
+      state: makeState({ file: { hash: 'b'.repeat(64), page_count: 3, size_bytes: 2048, filename: 'Q3 quote.pdf' } }),
+    });
+    await screen.findByText(/Saved — version bbbbbbbb committed/);
+    await waitFor(() => expect(download).toBeEnabled());
+    fireEvent.click(download);
+    await waitFor(() => expect(mockApi.fetchPdfBytes)
+      .toHaveBeenCalledWith('c1', 'b'.repeat(64)));
+  });
+
+  it('a failed save does not advance the download version and keeps the edit pending', async () => {
+    mockApi.applyPageOps.mockRejectedValue({
+      response: { data: { error: { message: 'version conflict: reload and retry' } } },
+    });
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    mockApi.fetchPdfBytes.mockClear();
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await waitFor(() =>
+      expect(screen.getByTestId('canvas-pdf-error')).toHaveTextContent(/version conflict/));
+
+    const download = screen.getByTestId('canvas-pdf-download');
+    expect(download).toBeDisabled();
+    fireEvent.click(download);
+    expect(mockApi.fetchPdfBytes).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Saved — version/)).not.toBeInTheDocument();
+
+    // Undo returns the working map to the acknowledged version: download is
+    // available again and still targets the original hash A.
+    fireEvent.click(screen.getByTestId('canvas-pdf-undo'));
+    await waitFor(() => expect(download).toBeEnabled());
+    fireEvent.click(download);
+    await waitFor(() => expect(mockApi.fetchPdfBytes)
+      .toHaveBeenCalledWith('c1', 'a'.repeat(64)));
+  });
+
   it('surfaces a version conflict when the server refuses a stale save', async () => {
     mockApi.applyPageOps.mockRejectedValue({
       response: { data: { error: { message: 'version conflict: the document changed since it was loaded — reload and retry' } } },

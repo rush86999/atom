@@ -52,6 +52,14 @@ import { pdfWorkerSrc } from "@/lib/pdf-worker-src";
 
 type PdfjsDoc = { numPages: number; getPage: (n: number) => Promise<any> };
 
+/** Structural page-map equality (order, source index, absolute rotation). */
+function samePageMap(a: PdfPageSpec[], b: PdfPageSpec[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((page, index) => page.src_index === b[index].src_index
+        && page.rotation === b[index].rotation);
+}
+
+
 export function PdfFileCanvas({
     canvasId,
     data,
@@ -62,6 +70,12 @@ export function PdfFileCanvas({
     const serverState = useMemo<PdfCanvasState | null>(() => unwrapPdfState(data), [data]);
     const [doc, setDoc] = useState<PdfjsDoc | null>(null);
     const [pageMap, setPageMap] = useState<PdfPageSpec[]>([]);
+    // The page map that belongs to `bytesHash` (the last acknowledged version
+    // whose bytes are actually rendered). Pending edits are pageMap != this,
+    // not pageMap != the WebSocket prop: after a save the props can lag one
+    // frame behind, and comparing against them falsely marked the just-saved
+    // version dirty (which later blocked/advanced the wrong export).
+    const [committedPageMap, setCommittedPageMap] = useState<PdfPageSpec[]>([]);
     const [history, setHistory] = useState<PdfPageSpec[][]>([]);
     const [bytesHash, setBytesHash] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -89,12 +103,25 @@ export function PdfFileCanvas({
     const renderTokenRef = useRef(0);
 
     const dirty = useMemo(
-        () =>
-            pageMap.length > 0 &&
-            (pageMap.length !== (serverState?.file.page_count ?? 0) ||
-                pageMap.some((p, i) => p.src_index !== i || p.rotation !== 0)),
-        [pageMap, serverState]
+        () => !samePageMap(pageMap, committedPageMap),
+        [pageMap, committedPageMap]
     );
+
+    // Why the visible Download cannot run right now. A clean canvas exports
+    // the last acknowledged version (`bytesHash`), which is also the version
+    // whose bytes are rendered; a pending/failed/in-flight edit must never
+    // silently fall back to an older prop hash. The message is the control's
+    // title + aria-label, so the refusal is explicit rather than silent.
+    const downloadBlockedReason = useMemo(() => {
+        if (loading) return "Loading the current PDF version…";
+        if (!bytesHash) return "The current PDF version is not loaded yet";
+        if (saving) return "Saving — download after the save is confirmed";
+        if (dirty) return "Save your page changes before downloading "
+            + "(Download exports the last saved version)";
+        if (busyOp) return "Another PDF operation is in progress — try again "
+            + "when it finishes";
+        return null;
+    }, [loading, bytesHash, saving, dirty, busyOp]);
 
     // Load (or reload after a committed version) the bytes and rebase the
     // working page map onto them.
@@ -134,7 +161,10 @@ export function PdfFileCanvas({
                 renderTokenRef.current += 1;
                 setDoc(loaded);
                 setBytesHash(hash);
-                setPageMap(Array.from({ length: loaded.numPages }, (_, i) => ({ src_index: i, rotation: 0 })));
+                const nextMap = Array.from({ length: loaded.numPages },
+                    (_, i) => ({ src_index: i, rotation: 0 }));
+                setPageMap(nextMap);
+                setCommittedPageMap(nextMap);
                 setHistory([]);
             } catch (e: any) {
                 setError(describeError(e, "Could not load the PDF file"));
@@ -182,11 +212,15 @@ export function PdfFileCanvas({
         });
 
     const save = async () => {
-        if (!canvasId || !serverState || !dirty) return;
+        if (!canvasId || !serverState || !bytesHash || !dirty) return;
         setSaving(true);
         setError(null);
         try {
-            const res = await applyPageOps(canvasId, pageMap, serverState.file.hash);
+            // Use the acknowledged/rendered version as the optimistic base,
+            // not the WebSocket prop: after a save whose frame has not arrived
+            // yet the prop still points at the previous version, and a second
+            // save against it would be refused as a false conflict.
+            const res = await applyPageOps(canvasId, pageMap, bytesHash);
             // The WS canvas:update also refreshes `data`; load immediately so
             // the viewer never shows stale bytes between frames.
             await loadBytes(res.state.file.hash);
@@ -198,16 +232,18 @@ export function PdfFileCanvas({
         }
     };
 
-    // Native PDF download through the shipped file endpoint. The viewer
-    // already streams these exact bytes for pdf.js; this exposes the same
-    // current version to the user as a real .pdf (the sibling Office canvases
-    // have always had a visible Download control, the PDF family did not).
+    // Native PDF download through the shipped file endpoint. Export the
+    // version whose bytes are currently acknowledged/rendered (`bytesHash`),
+    // never the WebSocket prop: after an acknowledged Save the props can lag
+    // and the prop would export the previous version. Pending/saving/loading
+    // states are refused above with an explicit Save-first message.
     const downloadPdf = async () => {
-        if (!canvasId || !serverState) return;
+        if (!canvasId || !serverState || !bytesHash) return;
+        if (downloadBlockedReason) return;
         setBusyOp("download");
         setError(null);
         try {
-            const blob = await fetchPdfBytes(canvasId, serverState.file.hash);
+            const blob = await fetchPdfBytes(canvasId, bytesHash);
             const bytes = blob instanceof Blob ? blob : new Blob([blob]);
             const filename = (serverState.file.filename || "document.pdf")
                 .replace(/[\\/:*?"<>|\r\n]+/g, "_")
@@ -230,7 +266,8 @@ export function PdfFileCanvas({
         }
     };
 
-    const mergeFile = async (file: File) => {        if (!canvasId) return;
+    const mergeFile = async (file: File) => {
+        if (!canvasId) return;
         setSaving(true);
         setError(null);
         try {
@@ -314,11 +351,11 @@ export function PdfFileCanvas({
     };
 
     const saveForm = async () => {
-        if (!canvasId || !serverState) return;
+        if (!canvasId || !serverState || !bytesHash) return;
         setSaving(true);
         setError(null);
         try {
-            const res = await setFormFields(canvasId, formFieldsState || {}, serverState.file.hash);
+            const res = await setFormFields(canvasId, formFieldsState || {}, bytesHash);
             await loadBytes(res.state.file.hash);
             setNotice({ text: "Form values saved as a new version" });
         } catch (e: any) {
@@ -495,9 +532,10 @@ export function PdfFileCanvas({
                 </span>
                 <button
                     onClick={() => void downloadPdf()}
-                    disabled={busyOp === "download"}
+                    disabled={downloadBlockedReason !== null}
                     className="flex items-center gap-1 px-2 py-1 rounded border hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-40"
-                    title="Download the current PDF file"
+                    title={downloadBlockedReason || "Download the current PDF file"}
+                    aria-label={downloadBlockedReason || "Download the current PDF file"}
                     data-testid="canvas-pdf-download"
                 >
                     {busyOp === "download" ? (
