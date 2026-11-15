@@ -21,3 +21,11 @@ which the existing client already sends (`atom-agent/1.0`,
 
 This is a configuration/default repair. It does not prove live authentication,
 served model identity, quality or billing.
+
+## Settings/UI note
+
+`OPENCODE_BASE_URL` is an **explicit shared override** for both provider ids,
+not the Go product default. The Settings catalog keeps its existing default
+value unchanged to avoid silently rerouting the Zen id; when the setting is
+unset, each provider uses its own default above. The label/help now names the
+override and both defaults so the two products are not conflated.
