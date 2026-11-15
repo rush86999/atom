@@ -112,6 +112,33 @@ describe('PdfFileCanvas', () => {
     expect(save).toBeEnabled(); // rotation ops remain pending
   });
 
+  it('downloads the current PDF through the visible Download control', async () => {
+    const createObjectURL = jest.fn(() => 'blob:pdf-download');
+    const revokeObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true, value: createObjectURL,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true, value: revokeObjectURL,
+    });
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    mockApi.fetchPdfBytes.mockClear();
+
+    fireEvent.click(screen.getByTestId('canvas-pdf-download'));
+
+    await waitFor(() => expect(mockApi.fetchPdfBytes).toHaveBeenCalledWith(
+      'c1', 'a'.repeat(64)));
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('canvas-pdf-notice'))
+      .toHaveTextContent('Downloaded Q3 quote.pdf');
+    clickSpy.mockRestore();
+  });
+
   it('surfaces a version conflict when the server refuses a stale save', async () => {
     mockApi.applyPageOps.mockRejectedValue({
       response: { data: { error: { message: 'version conflict: the document changed since it was loaded — reload and retry' } } },

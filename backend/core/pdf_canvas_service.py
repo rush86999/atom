@@ -62,9 +62,29 @@ class PdfCanvasService:
 
     def _require_owner(self, canvas_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """The canvas's latest state + owner check in one query pass. Returns
-        None-shaped errors the way canvas_email_service does."""
+        None-shaped errors the way canvas_email_service does.
+
+        Ownership and lifecycle are SEPARATE gates: the owner check says WHO
+        may act; the shared active-canvas gate says whether the canvas still
+        exists. ``delete_canvas`` is append-only (the newest CanvasAudit row is
+        the tombstone and ``Canvas.status`` stays active), so without the
+        lifecycle gate every PDF byte read/mutation — the file stream, extract
+        text, page ops, form/redact/sign, attach — kept serving a canvas the
+        user deleted (the same class PR #950 closed for Office files).
+        ``restore_deleted_canvas`` appends past the tombstone, after which the
+        same canvas is readable again with no ownership change.
+        """
         if self._canvas_owner_id(canvas_id) != user_id:
             return {"success": False, "error": "Not the canvas owner"}
+        # Ownership is the first gate (a stranger learns nothing about the
+        # tombstone). Reuse the canonical adapter rather than a PDF-only
+        # "deleted" convention; imported lazily to avoid a module cycle.
+        from core.canvas_authority import CanvasAuthorityError, require_canvas_active
+
+        try:
+            require_canvas_active(self.db, str(canvas_id))
+        except CanvasAuthorityError:
+            return {"success": False, "error": "PDF canvas not found"}
         audit = self._latest_pdf_audit(canvas_id)
         if not audit:
             return {"success": False, "error": "PDF canvas not found"}

@@ -5,6 +5,7 @@ import {
     AlertCircle,
     ArrowDown,
     ArrowUp,
+    Download,
     FileOutput,
     Loader2,
     RotateCcw,
@@ -197,8 +198,39 @@ export function PdfFileCanvas({
         }
     };
 
-    const mergeFile = async (file: File) => {
-        if (!canvasId) return;
+    // Native PDF download through the shipped file endpoint. The viewer
+    // already streams these exact bytes for pdf.js; this exposes the same
+    // current version to the user as a real .pdf (the sibling Office canvases
+    // have always had a visible Download control, the PDF family did not).
+    const downloadPdf = async () => {
+        if (!canvasId || !serverState) return;
+        setBusyOp("download");
+        setError(null);
+        try {
+            const blob = await fetchPdfBytes(canvasId, serverState.file.hash);
+            const bytes = blob instanceof Blob ? blob : new Blob([blob]);
+            const filename = (serverState.file.filename || "document.pdf")
+                .replace(/[\\/:*?"<>|\r\n]+/g, "_")
+                .slice(0, 160) || "document.pdf";
+            const url = window.URL.createObjectURL(
+                new Blob([bytes], { type: "application/pdf" }));
+            const link = window.document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.rel = "noopener";
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            setNotice({ text: `Downloaded ${filename}` });
+        } catch (e: any) {
+            setError(describeError(e, "Download failed"));
+        } finally {
+            setBusyOp(null);
+        }
+    };
+
+    const mergeFile = async (file: File) => {        if (!canvasId) return;
         setSaving(true);
         setError(null);
         try {
@@ -461,6 +493,20 @@ export function PdfFileCanvas({
                 <span className="text-[10px] text-zinc-400">
                     {pageMap.length || serverState.file.page_count} pages
                 </span>
+                <button
+                    onClick={() => void downloadPdf()}
+                    disabled={busyOp === "download"}
+                    className="flex items-center gap-1 px-2 py-1 rounded border hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-40"
+                    title="Download the current PDF file"
+                    data-testid="canvas-pdf-download"
+                >
+                    {busyOp === "download" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                        <Download className="h-3 w-3" />
+                    )}
+                    Download
+                </button>
                 {/* lifecycle moves (human authority; agent approvals propose) */}
                 {lifecycle === "drafting" && (
                     <button
