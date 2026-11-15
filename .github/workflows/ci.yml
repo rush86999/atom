@@ -207,14 +207,6 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_nav_stub_task_crud.py tests/test_web_projects_durable_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run admitted governance tier and BPE actor controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_governance_tier.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py tests/test_graduation_authority_boundary.py tests/test_governance_graduation_integration.py tests/test_graduation_readiness_tenant_scoping.py tests/test_graduation_readiness_gap_evidence.py tests/test_agent_graduation_service.py tests/test_agent_graduation.py tests/test_graduation_evidence_scope.py tests/test_graduation_exam_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run board owner and atomic-authority controls
         env:
           TESTING: "1"
@@ -231,14 +223,6 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_lead_goal_reads_workspace_scope.py tests/test_goal_utility_target.py -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run stored-document export authority controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_document_export.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_office_path_launch_anchor.py tests/test_round53_office_sync_path_containment.py tests/core/services/test_office_service.py tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_document_delete_truth.py tests/test_document_joined_lifecycle.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run document browser prerequisite controls
         env:
           TESTING: "1"
@@ -514,6 +498,24 @@ jobs:
         run: |
           python -m pytest tests/test_fleet_final_synthesis.py tests/test_fleet_synthesis_truncation_contract.py tests/test_generate_completion_failure_contract.py tests/unit/test_fleet_denial_llm_contract.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      - name: Run chat terminal outcome controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_chat_terminal_outcome.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/unit/test_chat_terminal_outcome_contract.py tests/unit/test_chat_cancelled_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run advisor completion contract controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_advisor_completion.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/unit/test_advisor_completion_contract.py tests/test_auto_dev/test_advisor_service.py tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationServiceIntegration::test_advisor_generates_guidance -q --tb=short --timeout=300 --timeout-method=thread
+
       - name: Run canonical web password-recovery controls
         env:
           TESTING: '1'
@@ -521,16 +523,6 @@ jobs:
           SECRET_KEY: ci-test-secret-key
           ENVIRONMENT: development
         run: 'python -m pytest tests/test_web_password_recovery_contract.py tests/test_bughunt_auth.py tests/test_covpush_w75_auth_endpoints.py tests/test_round56_password_recovery_rate_limit.py tests/test_round18_integration_security.py::TestAuthEndpointsDoNotLogResetLink -q --tb=short --timeout=300 --timeout-method=thread
-
-          '
-
-      - name: Run credential-bound session controls
-        env:
-          TESTING: '1'
-          DATABASE_URL: sqlite:///test_ci_recovery_sessions.db
-          SECRET_KEY: ci-test-secret-key
-          ENVIRONMENT: development
-        run: 'python -m pytest tests/test_logout_durable_session_contract.py tests/test_credential_bound_session_contract.py tests/test_round60_mobile_auth_user_status.py tests/api/test_sso_oidc_routes.py tests/unit/security/test_jwt_validation.py tests/unit/test_enterprise_auth_service.py tests/test_enterprise_auth_service.py -q --tb=short --timeout=300 --timeout-method=thread
 
           '
 
@@ -551,6 +543,49 @@ jobs:
           SECRET_KEY: ci-test-secret-key
           ENVIRONMENT: development
         run: 'python -m pytest tests/test_canvas_legacy_update_contract.py tests/test_canvas_updates.py tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance tests/test_oracle_direct_canvas_writes.py -q --tb=short --timeout=300 --timeout-method=thread
+
+          '
+
+
+  backend-core-extra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run admitted governance tier and BPE actor controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_governance_tier.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py tests/test_graduation_authority_boundary.py tests/test_governance_graduation_integration.py tests/test_graduation_readiness_tenant_scoping.py tests/test_graduation_readiness_gap_evidence.py tests/test_agent_graduation_service.py tests/test_agent_graduation.py tests/test_graduation_evidence_scope.py tests/test_graduation_exam_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run stored-document export authority controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_document_export.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_office_path_launch_anchor.py tests/test_round53_office_sync_path_containment.py tests/core/services/test_office_service.py tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_document_delete_truth.py tests/test_document_joined_lifecycle.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run credential-bound session controls
+        env:
+          TESTING: '1'
+          DATABASE_URL: sqlite:///test_ci_recovery_sessions.db
+          SECRET_KEY: ci-test-secret-key
+          ENVIRONMENT: development
+        run: 'python -m pytest tests/test_logout_durable_session_contract.py tests/test_credential_bound_session_contract.py tests/test_round60_mobile_auth_user_status.py tests/api/test_sso_oidc_routes.py tests/unit/security/test_jwt_validation.py tests/unit/test_enterprise_auth_service.py tests/test_enterprise_auth_service.py -q --tb=short --timeout=300 --timeout-method=thread
 
           '
 
@@ -907,6 +942,7 @@ jobs:
         run: |
           python -m pytest tests/test_mem07_prompt_skill_process_restart.py tests/test_mem07_served_prompt_skill_process_restart.py -q --tb=short --timeout=300 --timeout-method=thread
 
+
   backend-oracle:
     runs-on: ubuntu-latest
     defaults:
@@ -1144,17 +1180,18 @@ jobs:
           if-no-files-found: error
 
   backend-tests:
-    needs: [backend-core, backend-oracle, backend-docker]
+    needs: [backend-core, backend-core-extra, backend-oracle, backend-docker]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Require every backend lane to succeed
         env:
           ATOM_CI_CORE_RESULT: ${{ needs.backend-core.result }}
+          ATOM_CI_CORE_EXTRA_RESULT: ${{ needs.backend-core-extra.result }}
           ATOM_CI_ORACLE_RESULT: ${{ needs.backend-oracle.result }}
           ATOM_CI_DOCKER_RESULT: ${{ needs.backend-docker.result }}
         run: |
-          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ] || [ "$ATOM_CI_DOCKER_RESULT" != "success" ]; then
+          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_CORE_EXTRA_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ] || [ "$ATOM_CI_DOCKER_RESULT" != "success" ]; then
             echo "A required backend lane did not succeed."
             exit 1
           fi

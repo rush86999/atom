@@ -100,6 +100,7 @@ class TestAdvisorServiceCoverage:
             AdvisorService(db, llm_service=llm).generate_guidance(tenant_id="t-ai")
         )
         assert result["message"] == "AI advice"
+        assert result["guidance_source"] == "model"
 
     def test_ai_guidance_llm_error_falls_back(self, db):
         from core.auto_dev.advisor_service import AdvisorService
@@ -139,9 +140,9 @@ class TestAdvisorServiceCoverage:
         result = asyncio.run(
             AdvisorService(db, llm_service=llm).generate_guidance(tenant_id="t-miss")
         )
-        assert result["message"] == (
-            "Evolution is progressing. Continue monitoring signals."
-        )
+        assert "Strong results" in result["message"]
+        assert result["guidance_source"] == "heuristic_fallback"
+        assert result["fallback_reason"] == "invalid_completion_content"
 
     def test_heuristic_moderate_progress(self):
         from core.auto_dev.advisor_service import AdvisorService

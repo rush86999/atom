@@ -18569,18 +18569,24 @@ class ChatOrchestrator:
                             feature_responses = await asyncio.wait_for(
                                 self._route_to_features(
                                     message, intent_analysis, session, context,
-                                    evidence_requirement=_feature_req),
+                                    evidence_requirement=_feature_req,
+                                    turn_id=_execution_id),
                                 timeout=_features_left,
                             )
                     except asyncio.TimeoutError:
-                        # A timed-out handler yields no partial dict (the method
-                        # returns once), so the answer falls back to the template
-                        # + the deadline note below. Side effects are not at risk:
-                        # these handlers are read-only lookups.
+                        # A timed-out handler yields no partial dict. Lookups are
+                        # read-only, but an ADMITTED AGENT route is not: its owned
+                        # Atom run may have started and then been cancelled by
+                        # the deadline. Report that uncertainty honestly.
+                        _attempt_response = self._admitted_agent_deadline_response(
+                            session, _execution_id)
+                        feature_responses = (
+                            {FeatureType.AGENT: _attempt_response}
+                            if _attempt_response else {})
                         logger.warning(
                             f"[deadline] feature routing timed out after "
-                            f"{_features_left:.1f}s — continuing without it")
-                        feature_responses = {}
+                            f"{_features_left:.1f}s — "
+                            f"{'admitted agent attempt retained' if _attempt_response else 'no admitted agent attempt'}")
 
             # 4. If AI gave a real response, use it; otherwise use template
             #    Carry model/provider through so the UI can surface which model
@@ -19192,8 +19198,28 @@ class ChatOrchestrator:
             if (_fb_outcome and _fb_outcome.get("state") == "unconfirmed"
                     and str(used_model or "") == "calc-lane"):
                 _fb_outcome["state"] = "partial"
-            _fb_failed = bool(_fb_outcome and _fb_outcome.get(
-                "state") in ("failed", "unconfirmed"))
+            # An admitted feature route can return a terminal failure/denial/
+            # partial outcome while ``success`` is False. It owns the turn:
+            # propagate it honestly instead of shipping success over a failed
+            # agent execution or launching a duplicate task. Both this inline
+            # envelope and _generate_coordinated_response use the same helper.
+            _terminal_outcome = self._terminal_feature_outcome(feature_responses)
+            if _terminal_outcome:
+                combined_data = {
+                    **combined_data,
+                    "terminal_outcome": {
+                        key: _terminal_outcome.get(key) for key in
+                        ("state", "failure_reason", "execution_id", "chain_id")
+                    },
+                    "agent_execution_id": _terminal_outcome.get("execution_id"),
+                    "chain_id": _terminal_outcome.get("chain_id"),
+                }
+            _terminal_feature_state = (
+                _terminal_outcome.get("state") if _terminal_outcome else None)
+            _fb_failed = bool(
+                (_fb_outcome and _fb_outcome.get(
+                    "state") in ("failed", "unconfirmed"))
+                or _terminal_outcome is not None)
 
             response = {
                 "success": (
@@ -19218,7 +19244,9 @@ class ChatOrchestrator:
                 # OUTCOME FIELD (owner work order): the record-resolved
                 # state rides the envelope AND the persisted metadata so
                 # text, machine status, and history agree.
-                "outcome": _fb_outcome.get("state") if _fb_outcome else None,
+                "outcome": (
+                    _fb_outcome.get("state") if _fb_outcome
+                    else _terminal_feature_state),
                 # the verified-satisfied receipt rides data so the
                 # finalizer's genuine-no-op escape can see it
                 ** (
@@ -19238,7 +19266,9 @@ class ChatOrchestrator:
                 "error_code": (
                     _FALLBACK_OUTCOME_ERROR_CODES.get(
                         _fb_outcome.get("state"))
-                    if _fb_failed else None),
+                    if _fb_failed and _fb_outcome
+                    else _terminal_outcome.get("error_code")
+                    if _terminal_outcome else None),
                 "deterministic_delivery": bool(
                     (ai_response or {}).get("deterministic_delivery")
                 ),
@@ -19253,6 +19283,10 @@ class ChatOrchestrator:
                 response["error_code"] = "budget_exceeded"
                 response["failure_reason"] = budget_failure.get("failure_reason")
                 response["recovery_url"] = "/settings/billing"
+            elif _terminal_outcome is not None:
+                response["failure_reason"] = (
+                    _terminal_outcome.get("failure_reason")
+                    or response.get("error_code"))
             if locals().get("_llm_provider_failed"):
                 # Mirrors the no_llm_provider convention so the client
                 # renders a distinct retry/top-up UI and the turn counts
@@ -34916,6 +34950,57 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return {"retrieval": "none",
                 "presentation": {"style": style, "field": field}}
 
+    @staticmethod
+    def _clear_agent_attempt(session, execution_id, turn_id) -> None:
+        """Remove only THIS attempt's admission state for the current turn."""
+        if not isinstance(session, dict):
+            return
+        attempts = session.get("_agent_attempts")
+        if not isinstance(attempts, dict) or not turn_id:
+            return
+        attempt = attempts.get(turn_id)
+        if (isinstance(attempt, dict)
+                and attempt.get("execution_id") == execution_id):
+            attempts.pop(turn_id, None)
+            if not attempts:
+                session.pop("_agent_attempts", None)
+
+    def _admitted_agent_deadline_response(
+        self, session: Dict[str, Any], turn_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Truthful partial outcome for an admitted agent run at the deadline."""
+        if not isinstance(session, dict):
+            return None
+        # The CALLER's server-local turn id is the authority, never the
+        # session's latest value (an overlapping turn may have replaced it).
+        if not isinstance(turn_id, str) or not turn_id:
+            return None
+        attempts = session.get("_agent_attempts")
+        if not isinstance(attempts, dict):
+            return None
+        attempt = attempts.get(turn_id)
+        if not isinstance(attempt, dict):
+            return None
+        attempt_id = attempt.get("execution_id")
+        if not attempt_id:
+            return None
+        attempts.pop(turn_id, None)
+        if not attempts:
+            session.pop("_agent_attempts", None)
+        return {
+            "success": False, "handled": True, "terminal": True,
+            "outcome": "partial",
+            "error_code": "agent_execution_interrupted",
+            "failure_reason": "agent_execution_interrupted",
+            "execution_id": attempt_id,
+            "chain_id": None,
+            "message": (
+                "The agent run did not finish before the turn deadline. Some "
+                "preparation may have occurred; no further automatic work "
+                "will run and the exact progress is unknown."),
+            "feature": "agent",
+        }
+
     async def _route_to_features(
         self,
         message: str,
@@ -34923,6 +35008,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session: Dict,
         context: Optional[Dict],
         evidence_requirement: Optional[Dict[str, Any]] = None,
+        turn_id: Optional[str] = None,
     ) -> Dict[FeatureType, Any]:
         """Route message to appropriate feature handlers.
 
@@ -35020,13 +35106,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if feature_type in self.feature_handlers:
                 try:
                     logger.info(f"Executing handler for {feature_type}")
+                    handler_context = (
+                        {**(context or {}), "_server_turn_id": turn_id}
+                        if turn_id else context)
                     response = await self.feature_handlers[feature_type](
-                        message, intent_analysis, session, context
+                        message, intent_analysis, session, handler_context
                     )
-                    if response and response.get("success"):
+                    # A handler may accept the route and still end in a
+                    # terminal failure/denial/partial outcome. ``handled``
+                    # means the route was admitted and owns the turn; its
+                    # honest outcome is propagated, not discarded into a
+                    # second agent/tool dispatch. Handlers without that
+                    # marker keep the established success-only semantics.
+                    if response and (
+                            response.get("success")
+                            or response.get("handled")):
                         feature_responses[feature_type] = response
                         handled = True
-                        logger.info(f"Handler {feature_type} succeeded")
+                        logger.info(f"Handler {feature_type} handled")
                     else:
                         logger.info(f"Handler {feature_type} returned failure/empty")
                 except Exception as e:
@@ -35079,6 +35176,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 
         return feature_responses
 
+    @staticmethod
+    def _terminal_feature_outcome(
+        feature_responses: Dict[FeatureType, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve the first admitted feature's terminal failure/denial/partial.
+
+        This is the shared policy for both response builders. Only responses
+        that explicitly carry ``handled=True`` own the turn; a plain
+        ``success=False`` without that marker keeps the existing recoverable/
+        fallback semantics.
+        """
+        for response in feature_responses.values():
+            if (isinstance(response, dict)
+                    and response.get("handled")
+                    and response.get("success") is False):
+                state = str(response.get("outcome") or "failed")
+                if state not in ("failed", "denied", "partial"):
+                    state = "failed"
+                return {
+                    "state": state,
+                    "error_code": (
+                        response.get("error_code")
+                        or response.get("failure_reason")
+                        or "agent_execution_failed"),
+                    "failure_reason": (
+                        response.get("failure_reason")
+                        or response.get("error_code")),
+                    "execution_id": response.get("execution_id"),
+                    "chain_id": response.get("chain_id"),
+                    "message": response.get("message"),
+                }
+        return None
+
     def _generate_coordinated_response(
         self,
         message: str,
@@ -35121,8 +35251,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if outcome.get("state") != "completed":
                 main_message = _fallback_outcome_text(outcome)
 
+        terminal = self._terminal_feature_outcome(feature_responses)
+        if terminal:
+            combined_data = {
+                **combined_data,
+                "terminal_outcome": {
+                    key: terminal.get(key) for key in
+                    ("state", "failure_reason", "execution_id", "chain_id")
+                },
+                "agent_execution_id": terminal.get("execution_id"),
+                "chain_id": terminal.get("chain_id"),
+            }
         _coordinated_failed = bool(
-            outcome and outcome.get("state") in ("failed", "unconfirmed"))
+            (outcome and outcome.get("state") in ("failed", "unconfirmed"))
+            or terminal is not None)
 
         return {
             "success": not _coordinated_failed,
@@ -35130,10 +35272,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "session_id": session["id"],
             "intent": intent_analysis["primary_intent"].value,
             "confidence": intent_analysis["confidence"],
-            "outcome": outcome.get("state") if outcome else None,
+            "outcome": (
+                outcome.get("state") if outcome
+                else (terminal["state"] if terminal else None)),
             "error_code": (
                 _FALLBACK_OUTCOME_ERROR_CODES.get(outcome.get("state"))
-                if _coordinated_failed else None),
+                if _coordinated_failed and outcome
+                else (terminal.get("error_code") if terminal else None)),
+            "failure_reason": (
+                terminal.get("failure_reason") if terminal else None),
             "data": combined_data,
             "suggested_actions": suggested_actions[:5],  # Limit to top 5
             "ui_updates": ui_updates,
@@ -35156,7 +35303,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # Check if Agent handled the request (e.g. fallback or direct request)
         if FeatureType.AGENT in feature_responses:
             agent_resp = feature_responses[FeatureType.AGENT]
-            if agent_resp.get("success") and agent_resp.get("message"):
+            if agent_resp.get("message"):
                 return agent_resp["message"]
                 
         intent = intent_analysis["primary_intent"]
@@ -39483,6 +39630,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         Route request to Atom Meta-Agent for complex/agent-based processing.
         Atom will analyze the request, spawn specialty agents if needed, and coordinate response.
         """
+        entered_atom = False
         try:
             from core.atom_meta_agent import AgentTriggerMode
             from core.atom_meta_agent import get_atom_agent as _default_agent
@@ -39556,12 +39704,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             await self._emit_agent_status(session_id, "atom_main", None, "running")
 
+            # Execute through Atom with a SERVER-generated run identity so a
+            # chat deadline/cancellation can refer to the exact owned attempt
+            # without trusting any client-supplied id.
+            import uuid as _uuid
+            server_execution_id = str(_uuid.uuid4())
+            turn_id = (
+                (context or {}).get("_server_turn_id")
+                if isinstance(context, dict) else None)
+            if not isinstance(turn_id, str) or not turn_id:
+                turn_id = (
+                    session.get("_current_execution_id")
+                    if isinstance(session, dict) else None)
+            if isinstance(session, dict) and turn_id:
+                session.setdefault("_agent_attempts", {})[turn_id] = {
+                    "turn_id": turn_id,
+                    "execution_id": server_execution_id,
+                }
             # Execute through Atom
+            entered_atom = True
             result = await atom.execute(
                 request=message,
                 context=execute_context,
                 trigger_mode=AgentTriggerMode.MANUAL,
                 step_callback=step_callback,
+                execution_id=server_execution_id,
             )
             execution_id = result.get("execution_id") or seen_execution["id"]
             
@@ -39570,18 +39737,52 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # status was silently swallowed here, so no structured signal could
             # reach the HTTP layer (the user saw a normal assistant bubble).
             failure_reason = result.get("failure_reason")
+            result_status = str(result.get("status") or "").strip().lower()
+            result_outcome = str(result.get("outcome") or "").strip().lower()
+            if not failure_reason and result.get("success") is False:
+                failure_reason = result_status or "agent_execution_failed"
+            if failure_reason:
+                if result_outcome == "partial_unknown" or result_status == "partial":
+                    outcome = "partial"
+                elif result_status == "denied":
+                    outcome = "denied"
+                else:
+                    outcome = "failed"
+                status = (
+                    "budget_exceeded"
+                    if failure_reason == "budget_exceeded"
+                    or result_status == "budget_exceeded"
+                    else "failed")
+            else:
+                outcome = "success"
+                status = "success"
             await self._emit_agent_status(
                 session_id,
                 "atom_main",
                 execution_id,
                 "failed" if failure_reason else "success",
             )
+            self._clear_agent_attempt(
+                session, server_execution_id, turn_id)
             return {
-                "status": "budget_exceeded" if failure_reason else "success",
+                "status": status,
                 "success": not failure_reason,
-                "error_code": "budget_exceeded" if failure_reason else None,
-                "failure_reason": failure_reason,
-                "message": result.get("final_output"),
+                "error_code": (
+                    "budget_exceeded" if status == "budget_exceeded"
+                    else (failure_reason or None)),
+                "failure_reason": failure_reason or None,
+                # The Atom route was admitted and returned a terminal
+                # result. ``handled`` keeps the feature loop from starting a
+                # second agent/tool dispatch; the honest outcome is the turn.
+                "handled": True,
+                "terminal": True,
+                "outcome": outcome,
+                "execution_id": execution_id,
+                "chain_id": result.get("chain_id"),
+                "message": result.get("final_output") or (
+                    "The agent route completed without a final answer."
+                    if not failure_reason
+                    else "The agent route did not complete."),
                 "actions_taken": result.get("actions_executed", []),
                 "spawned_agent": result.get("spawned_agent"),
                 "feature": "agent",
@@ -39595,6 +39796,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
             except Exception:
                 pass
+            self._clear_agent_attempt(
+                session, locals().get("server_execution_id"),
+                locals().get("turn_id"))
+            if entered_atom:
+                # The exception happened after Atom.execute was entered, so
+                # work/preparation may exist. Keep it an admitted terminal
+                # partial outcome: no fallback task, no retry, no invented
+                # zero-work or cross-user recovery claim. The execution id is
+                # only the callback-observed id (unknown if none was seen).
+                return {
+                    "status": "partial",
+                    "success": False,
+                    "handled": True,
+                    "terminal": True,
+                    "outcome": "partial",
+                    "error_code": "agent_execution_interrupted",
+                    "failure_reason": "agent_execution_interrupted",
+                    "execution_id": seen_execution["id"],
+                    "chain_id": None,
+                    "message": (
+                        "The agent run did not complete after it started. "
+                        "Some preparation may already have occurred; no "
+                        "further automatic work will run and its exact "
+                        "progress is unknown."),
+                    "feature": "agent",
+                }
             return {
                 "status": "error",
                 "error": "agent_request_failed",

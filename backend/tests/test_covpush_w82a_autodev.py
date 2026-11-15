@@ -119,7 +119,11 @@ class TestAdvisorService:
         llm.generate_completion.assert_awaited_once()
         kwargs = llm.generate_completion.await_args.kwargs
         assert kwargs["temperature"] == 0.5
-        assert "t-adv" in kwargs["user_prompt"]
+        assert kwargs["tenant_id"] == "t-adv"
+        assert kwargs["messages"][0]["role"] == "system"
+        assert kwargs["messages"][1]["role"] == "user"
+        assert "t-adv" in kwargs["messages"][1]["content"]
+        assert result["guidance_source"] == "model"
 
     def test_generate_guidance_llm_empty_content_default(self, db):
         _seed_advisor_data(db, n_mutations=1, n_passed=1)
@@ -127,7 +131,9 @@ class TestAdvisorService:
         llm.generate_completion = AsyncMock(return_value={"tokens": 7})
         svc = _make_advisor(db, llm_service=llm)
         result = asyncio.run(svc.generate_guidance(tenant_id="t-adv"))
-        assert result["message"] == "Evolution is progressing. Continue monitoring signals."
+        assert "Strong results" in result["message"]
+        assert result["guidance_source"] == "heuristic_fallback"
+        assert result["fallback_reason"] == "invalid_completion_content"
 
     def test_generate_guidance_llm_exception_falls_back(self, db):
         _seed_advisor_data(db, n_mutations=3, n_passed=1, n_failed=2)
