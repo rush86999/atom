@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from core.auto_dev.models import ToolMutation, WorkflowVariant
+from core.llm.completion_outcome import completion_text_outcome
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ class AdvisorService:
                     "Start by triggering a tool mutation to see Auto-Dev in action."
                 ),
                 "readiness_score": 0,
+                "guidance_source": "no_data",
             }
 
         # 3. Prepare data summary
@@ -104,23 +106,45 @@ class AdvisorService:
             ),
         }
 
-        # 4. Generate AI guidance if LLM is available
+        # 4. Generate AI guidance if LLM is available. A missing, failed,
+        # empty or malformed model result is never published as advice: the
+        # declared heuristic guidance is used and labelled as a fallback.
+        fallback_reason = None
         if llm:
-            message = await self._generate_ai_guidance(llm, tenant_id, data_summary)
+            message, failure = await self._generate_ai_guidance(
+                llm, tenant_id, data_summary)
+            if message is None:
+                fallback_reason = str(
+                    (failure or {}).get("reason") or "model_unavailable")
+                message = self._generate_heuristic_guidance(data_summary)
+                guidance_source = "heuristic_fallback"
+            else:
+                guidance_source = "model"
         else:
             message = self._generate_heuristic_guidance(data_summary)
+            guidance_source = "heuristic_fallback"
+            fallback_reason = "no_llm"
 
-        return {
+        result = {
             "status": "success",
             "message": message,
             "data_summary": data_summary,
             "readiness_score": min(100, int(data_summary["passed_mutations"] * 20)),
+            "guidance_source": guidance_source,
         }
+        if fallback_reason:
+            result["fallback_reason"] = fallback_reason
+        return result
 
     async def _generate_ai_guidance(
         self, llm: Any, tenant_id: str, data_summary: dict
-    ) -> str:
-        """Generate AI-powered guidance using LLM."""
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        """Generate AI-powered guidance using the canonical completion API.
+
+        Returns ``(accepted_text, None)`` or ``(None, typed_failure)``. The
+        caller labels the heuristic fallback explicitly; a failed or
+        malformed completion never becomes model advice.
+        """
         system_prompt = (
             "You are the Auto-Dev Research Advisor. "
             "Analyze the provided mutation/fitness data and give concise, "
@@ -138,18 +162,26 @@ class AdvisorService:
         )
 
         try:
-            response = await llm.generate_completion(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
+            completion = await llm.generate_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
                 temperature=0.5,
-            )
-            return response.get(
-                "content",
-                "Evolution is progressing. Continue monitoring signals.",
+                tenant_id=tenant_id,
             )
         except Exception as e:
             logger.error(f"Failed to generate AI guidance: {e}")
-            return self._generate_heuristic_guidance(data_summary)
+            return None, {
+                "reason": "llm_call_failed",
+                "message": type(e).__name__,
+            }
+        text, failure = completion_text_outcome(completion)
+        if text is None:
+            logger.warning(
+                "AI guidance was not accepted (%s); using heuristic fallback",
+                (failure or {}).get("reason"))
+        return text, failure
 
     def _generate_heuristic_guidance(self, data_summary: dict) -> str:
         """Fallback guidance when LLM is unavailable."""
