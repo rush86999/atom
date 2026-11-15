@@ -246,15 +246,21 @@ async def test_governance_unavailable_fails_closed(scratch, monkeypatch):
         AtomExecuteRequest(request=TASK), user=scratch["user"])
     data = response["data"]
 
-    assert data["status"] == "failed"
+    assert data["status"] == "partial"
     assert data["success"] is False
-    assert data["failure_reason"] == "fleet_routing_error"
-    assert data["specialists_count"] == 0
-    assert "No task, recruitment, specialist or tool work" in data["final_output"]
+    assert data["outcome"] == "partial_unknown"
+    assert data["failure_reason"] == "fleet_routing_interrupted"
+    assert data["execution_attempted"] is True
+    assert data["specialists_count"] is None
+    assert "Some preparation may already have started" in data["final_output"]
+    assert "RuntimeError" not in data["final_output"]
+    assert "No task, recruitment, specialist or tool work" not in data["final_output"]
     dispatch.assert_not_awaited()
     assert fake.completion_calls == []
     with scratch["Session"]() as db:
-        assert db.query(AgentExecution).one().status == "failed"
+        execution = db.query(AgentExecution).one()
+        assert execution.status == "failed"
+        assert "partial_unknown" in (execution.error_message or "")
 
 
 @pytest.mark.asyncio
@@ -331,3 +337,84 @@ async def test_guidance_failure_is_deterministic(scratch, monkeypatch):
     assert "remains blocked" in text
     assert fake.completion_calls
     assert "provider unavailable" not in text
+
+
+@pytest.mark.asyncio
+async def test_partial_preparation_after_real_chain_is_truthful(
+        scratch, monkeypatch):
+    """A routing exception after a real committed chain is not "zero work"."""
+    from api.agent_routes import AtomExecuteRequest, execute_atom
+    from core.agent_fleet_service import AgentFleetService
+    from core.models import DelegationChain
+
+    fake = CanonicalFakeLLM()
+    agent = _make_agent(scratch, fake, monkeypatch=monkeypatch)
+    _force_one_off(monkeypatch)
+    prepared: list[str] = []
+
+    async def partial_route(request, intent, user_id, agent_id="atom_main",
+                            execution_id=None):
+        with scratch["Session"]() as db:
+            chain = AgentFleetService(db).initialize_fleet(
+                tenant_id="tenant-1", root_agent_id="atom_main",
+                root_task=request, root_execution_id=execution_id)
+            prepared.append(chain.id)
+        raise RuntimeError("synthetic interruption after initialization")
+
+    agent.route_with_governance = partial_route
+    agent._execute_fleet_specialists = AsyncMock(
+        side_effect=AssertionError("must not dispatch"))
+    agent.queen = MagicMock()
+    agent.queen.generate_blueprint = AsyncMock(
+        side_effect=AssertionError("must not fall back to Queen"))
+    monkeypatch.setattr(scratch["ama"], "AtomMetaAgent",
+                        lambda *a, **k: agent)
+
+    response = await execute_atom(
+        AtomExecuteRequest(request=TASK), user=scratch["user"])
+    data = response["data"]
+
+    assert data["status"] == "partial"
+    assert data["outcome"] == "partial_unknown"
+    assert data["execution_attempted"] is True
+    assert data["chain_id"] == prepared[0]
+    assert data["chain_recovered"] is True
+    assert data["specialists_count"] is None
+    assert "Some preparation may already have started" in data["final_output"]
+    assert "RuntimeError" not in data["final_output"]
+    assert "synthetic interruption" not in data["final_output"]
+    assert "No task, recruitment, specialist or tool work" not in data["final_output"]
+
+    with scratch["Session"]() as db:
+        assert db.query(DelegationChain).filter(
+            DelegationChain.id == prepared[0]).count() == 1
+        execution = db.query(AgentExecution).one()
+        assert execution.status == "failed"
+        assert "partial_unknown" in (execution.error_message or "")
+        assert "Some preparation may already have started" in (
+            execution.result_summary or "")
+    assert fake.completion_calls == []
+
+
+def test_completion_text_outcome_rejects_non_string_content():
+    from core.atom_meta_agent import _completion_text_outcome
+
+    for bad in ({"error": "synthetic-not-an-answer"}, ["x"], True, 7, 1.5):
+        text, failure = _completion_text_outcome(
+            {"success": True, "content": bad})
+        assert text is None
+        assert failure["reason"] == "invalid_completion_content"
+
+    # Both canonical text keys as strings: accepted, content preferred.
+    assert _completion_text_outcome(
+        {"success": True, "content": "a", "text": "b"}) == ("a", None)
+    # Legacy text-only string is still accepted.
+    assert _completion_text_outcome(
+        {"success": True, "text": "b"}) == ("b", None)
+    # Whitespace-only is an empty generation, not text.
+    assert _completion_text_outcome(
+        {"success": True, "content": "  "})[1]["reason"] == "empty_generation"
+    # A typed failure is preserved verbatim.
+    typed = {"reason": "provider_unavailable", "message": "unavailable"}
+    assert _completion_text_outcome(
+        {"success": False, "failure": typed}) == (None, typed)

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from core.models import (
     AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, NEW_AGENT_CONFIDENCE,
     Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
-    ChainLink,
+    ChainLink, DelegationChain,
 )
 from core.database import SessionLocal
 import traceback
@@ -462,10 +462,20 @@ def _completion_text_outcome(
                 "message": str(result.get("error") or "LLM generation failed"),
             }
         return None, failure
-    content = result.get("content")
-    if content is None:
-        content = result.get("text")
-    text = str(content or "").strip()
+    # Accepted text must be a real string. A dict/list/bool/number here is a
+    # malformed producer result (the historical bug stringified
+    # ``{"error": ...}`` into an "answer"); it is a typed invalid result, not
+    # text. Prefer ``content`` when present, falling back to legacy ``text``
+    # only when content is absent/None.
+    raw_content = result.get("content")
+    if raw_content is None:
+        raw_content = result.get("text")
+    if not isinstance(raw_content, str):
+        return None, {
+            "reason": "invalid_completion_content",
+            "message": "LLM completion content is not text",
+        }
+    text = raw_content.strip()
     if not text:
         return None, {
             "reason": "empty_generation",
@@ -1255,34 +1265,55 @@ class AtomMetaAgent:
                         from core.fleet_orchestration.fleet_routing_stats import (
                             record_fleet_decision,
                         )
-                        # Enforced governance/fleet routing failed. Falling
-                        # through to Queen→ReAct would execute a task the
-                        # governed path refused to admit, so terminate with a
-                        # truthful failure instead. No model/tool work is
-                        # started here.
+                        # Enforced governance/fleet routing raised at an
+                        # unknown point. It may have failed BEFORE admission
+                        # (nothing dispatched) or AFTER task analysis, model
+                        # spend, chain initialization or recruitment. Do not
+                        # claim zero work. Recover the exact chain only from
+                        # the existing durable root-execution link; otherwise
+                        # leave it unknown. Never delete, retry or compensate.
+                        _recovered_chain_id = None
+                        try:
+                            with SessionLocal() as _recovery_db:
+                                _recovered_chain = (
+                                    _recovery_db.query(DelegationChain)
+                                    .filter(DelegationChain.root_execution_id
+                                            == execution_id)
+                                    .order_by(DelegationChain.started_at.desc())
+                                    .first()
+                                )
+                                if _recovered_chain is not None:
+                                    _recovered_chain_id = _recovered_chain.id
+                        except Exception:
+                            _recovered_chain_id = None
                         _fleet_error_text = (
-                            "The governed task could not be started because "
-                            f"fleet routing failed ({type(fleet_err).__name__}). "
-                            "No task, recruitment, specialist or tool work was "
-                            "started."
+                            "The governed task did not complete. Some "
+                            "preparation may already have started, and no "
+                            "further automatic work will run. The exact "
+                            "progress is unknown; review the durable run "
+                            "before retrying."
                         )
                         _fleet_failure_payload = {
                             "execution_id": execution_id,
                             "route": "TASK",
                             "handler": "FleetAdmiral",
-                            "status": "failed",
+                            "status": "partial",
                             "success": False,
-                            "error": type(fleet_err).__name__,
-                            "failure_reason": "fleet_routing_error",
+                            "outcome": "partial_unknown",
+                            "partial": True,
+                            "error": "fleet_routing_interrupted",
+                            "failure_reason": "fleet_routing_interrupted",
                             "failure_mode": "fleet_routing",
                             "final_output": _fleet_error_text,
                             "response": _fleet_error_text,
                             "actions_executed": [],
                             "specialist_results": [],
-                            "specialists_count": 0,
-                            "chain_id": None,
+                            "specialists_count": None,
+                            "chain_id": _recovered_chain_id,
+                            "chain_recovered": bool(_recovered_chain_id),
                             "enforced": True,
-                            "execution_attempted": False,
+                            "execution_attempted": True,
+                            "preparation_started": True,
                         }
                         try:
                             _fleet_audit_id = record_fleet_decision(
@@ -1291,12 +1322,12 @@ class AtomMetaAgent:
                                 tenant_id=tenant_id,
                                 agent_id="atom_main",
                                 request=request,
-                                chain_id=None,
-                                specialists_count=0,
+                                chain_id=_recovered_chain_id,
+                                specialists_count=None,
                                 roster=[],
                                 recruitment_succeeded=False,
                                 enforced=True,
-                                error=str(fleet_err)[:500],
+                                error="fleet_routing_interrupted",
                             )
                         except Exception:
                             _fleet_audit_id = None
@@ -1312,7 +1343,10 @@ class AtomMetaAgent:
                             context=context,
                             fleet_audit_id=_fleet_audit_id,
                             fleet_success=False,
-                            fleet_error=str(fleet_err)[:500],
+                            fleet_error=(
+                                "partial_unknown: governed fleet routing "
+                                "interrupted; some preparation may have "
+                                "started"),
                         )
                         return _fleet_failure_payload
                     logger.warning(

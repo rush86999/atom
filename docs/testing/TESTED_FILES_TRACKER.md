@@ -10030,3 +10030,15 @@ follow-up runs are new failure contract **15 passed**, fleet synthesis +
 truncation **126 passed**, CI lane contract **127 passed**. The prior
 **517** combined-gate and root **266** focused results remain scoped to the
 initial `1693a6872` delivery; they were not rerun or re-attributed here.
+
+**Fleet denial + canonical LLM contract (2026-11-15, `3c9119ed` + follow-up)**:
+`tests/unit/test_fleet_denial_llm_contract.py` is now selected by the existing
+CI "fleet final synthesis completion controls" step. It drives the real
+`execute_atom` controller and real `AtomMetaAgent.execute` logic with a
+canonical-only fake LLM (no `generate_response`): pre-admission governance
+denial is terminal/zero-dispatch; a routing exception after a real
+`AgentFleetService.initialize_fleet` chain is truthful `partial/unknown`
+(chain recovered from the durable root-execution link, uncertainty persisted,
+no Queen/retry/cleanup); non-string accepted content is a typed invalid result,
+not stringified text. Focused suite 6 pass; fleet/LLM-failure/physical-attempt
+regressions 266 pass/14 skip. No live provider/quality claim.
