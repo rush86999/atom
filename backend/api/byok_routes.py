@@ -627,9 +627,9 @@ class BYOKManager:
             AIProviderConfig(
                 id="opencode-go",
                 name="OpenCode Go",
-                description="OpenCode Go subscription — flat-rate access to the Zen model catalog (~90% cheaper than direct APIs).",
+                description="OpenCode Go subscription via the Go OpenAI-compatible endpoint (one key; explicit OPENCODE_BASE_URL overrides).",
                 api_key_env_var="OPENCODE_API_KEY",
-                base_url="https://opencode.ai/zen/v1",
+                base_url="https://opencode.ai/inference/go/openai/v1",
                 supported_tasks=["code", "general", "chat", "reasoning"],
                 cost_per_token=0.0,  # Subscription: ~$0 marginal per token
                 model="deepseek-v4.1-flash",
