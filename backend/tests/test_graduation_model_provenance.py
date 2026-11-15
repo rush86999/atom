@@ -730,6 +730,208 @@ def test_capture_preserves_reported_completion_budget():
     assert round_trip["effective_max_tokens"] == 3072
 
 
+def test_stale_nested_different_pair_caps_are_not_attached():
+    """Root counter case 1: a flat current pair must not inherit caps from a
+    stale nested different-generation pair."""
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "model_provenance": {
+            "provider": "old-provider",
+            "model": "old-model",
+            "requested_max_tokens": 8000,
+            "effective_max_tokens": 6000,
+        },
+    }, include_route_attribution=False)
+    assert provenance["provider"] == "current-provider"
+    assert provenance["model"] == "current-model"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_same_pair_stale_nested_caps_do_not_complete_partial_current():
+    """Root counter case 2: a partial current cap must not mix with stale
+    nested values even when the provider/model pair is identical. The pair
+    alone is not generation identity."""
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "requested_max_tokens": 2000,
+        "model_provenance": {
+            "provider": "current-provider",
+            "model": "current-model",
+            "requested_max_tokens": 8000,
+            "effective_max_tokens": 6000,
+        },
+    }, include_route_attribution=False)
+    assert provenance["provider"] == "current-provider"
+    assert provenance["model"] == "current-model"
+    assert provenance["requested_max_tokens"] == 2000
+    assert "effective_max_tokens" not in provenance
+
+
+def test_partial_runtime_identity_does_not_inherit_route_caps(monkeypatch):
+    """A complete route identity wins over a partial runtime result, but the
+    route must not inherit caps from that different partial runtime source."""
+    monkeypatch.setattr(
+        model_provenance,
+        "get_route_attribution",
+        lambda: {
+            "served_route": {
+                "provider": "route-provider",
+                "model": "route-model",
+            },
+            "requested_route": None,
+            "resolved_model": None,
+            "routing_result_id": None,
+            "mode": "unpinned",
+        },
+    )
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "partial-provider",
+        "requested_max_tokens": 2000,
+        "effective_max_tokens": 1000,
+        "model_provenance": {
+            "provider": "nested-provider",
+            "model": "nested-model",
+            "requested_max_tokens": 8000,
+            "effective_max_tokens": 6000,
+            "source": "runtime_result",
+        },
+    })
+    assert provenance["provider"] == "route-provider"
+    assert provenance["model"] == "route-model"
+    assert provenance["source"] == "route_attribution"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_stale_generation_id_does_not_fill_current_cap():
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "requested_max_tokens": 2000,
+        "routing_result_id": "generation-current",
+        "model_provenance": {
+            "provider": "current-provider",
+            "model": "current-model",
+            "effective_max_tokens": 6000,
+            "routing_result_id": "generation-old",
+            "source": "runtime_result",
+        },
+    }, include_route_attribution=False)
+    assert provenance["requested_max_tokens"] == 2000
+    assert "effective_max_tokens" not in provenance
+
+
+def test_matching_generation_id_can_fill_missing_current_cap():
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "requested_max_tokens": 2000,
+        "routing_result_id": "generation-1",
+        "model_provenance": {
+            "provider": "current-provider",
+            "model": "current-model",
+            "effective_max_tokens": 2000,
+            "routing_result_id": "generation-1",
+            "source": "runtime_result",
+        },
+    }, include_route_attribution=False)
+    assert provenance["requested_max_tokens"] == 2000
+    assert provenance["effective_max_tokens"] == 2000
+
+
+def test_matching_generation_id_requires_same_pair():
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "routing_result_id": "generation-1",
+        "model_provenance": {
+            "provider": "old-provider",
+            "model": "old-model",
+            "requested_max_tokens": 8000,
+            "effective_max_tokens": 6000,
+            "routing_result_id": "generation-1",
+            "source": "runtime_result",
+        },
+    }, include_route_attribution=False)
+    assert provenance["provider"] == "current-provider"
+    assert provenance["model"] == "current-model"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+def test_partial_flat_cap_stays_partial_without_generation_binding():
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "requested_max_tokens": 2000,
+    }, include_route_attribution=False)
+    assert provenance["requested_max_tokens"] == 2000
+    assert "effective_max_tokens" not in provenance
+
+
+def test_stale_nested_source_label_does_not_relabel_flat_result():
+    provenance = model_provenance.capture_model_provenance({
+        "provider": "current-provider",
+        "model": "current-model",
+        "model_provenance": {
+            "provider": "old-provider",
+            "model": "old-model",
+            "source": "route_attribution",
+        },
+    }, include_route_attribution=False)
+    assert provenance["provider"] == "current-provider"
+    assert provenance["model"] == "current-model"
+    assert provenance["source"] == "runtime_result"
+
+
+def test_route_attribution_never_supplies_caps(monkeypatch):
+    monkeypatch.setattr(
+        model_provenance,
+        "get_route_attribution",
+        lambda: {
+            "served_route": {
+                "provider": "route-provider",
+                "model": "route-model",
+            },
+            "requested_route": None,
+            "resolved_model": None,
+            "routing_result_id": None,
+            "mode": "unpinned",
+        },
+    )
+    provenance = model_provenance.capture_model_provenance({
+        "requested_max_tokens": 2000,
+        "effective_max_tokens": 1000,
+    })
+    assert provenance["provider"] == "route-provider"
+    assert provenance["model"] == "route-model"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
+@pytest.mark.parametrize("nested_source", [None, "route_attribution"])
+def test_nested_only_caps_require_runtime_result_source(nested_source):
+    nested = {
+        "provider": "provider-a",
+        "model": "model-a",
+        "requested_max_tokens": 6400,
+        "effective_max_tokens": 3072,
+    }
+    if nested_source is not None:
+        nested["source"] = nested_source
+    provenance = model_provenance.capture_model_provenance(
+        {"model_provenance": nested},
+        include_route_attribution=False,
+    )
+    assert provenance["provider"] == "provider-a"
+    assert provenance["model"] == "model-a"
+    assert "requested_max_tokens" not in provenance
+    assert "effective_max_tokens" not in provenance
+
+
 def test_execution_provenance_retains_reported_completion_budget(world):
     """The actual GenericAgent durable-provenance producer keeps the caps."""
     agent = _agent(world)
