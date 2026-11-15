@@ -395,8 +395,9 @@ class TestBlueprintHealer:
 
     @pytest.mark.asyncio
     async def test_heal_blueprint_success_with_fence(self, healer, blueprint):
-        healer.llm.generate_response = AsyncMock(
-            return_value='```json\n[{"id": "n2", "name": "fixed"}]\n```'
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True,
+                          "content": '```json\n[{"id": "n2", "name": "fixed"}]\n```'}
         )
         healed = await healer.heal_blueprint(blueprint, "n1", "timeout")
         assert healed["nodes"] == [{"id": "n2", "name": "fixed"}]
@@ -406,26 +407,30 @@ class TestBlueprintHealer:
 
     @pytest.mark.asyncio
     async def test_heal_blueprint_success_plain_json(self, healer, blueprint):
-        healer.llm.generate_response = AsyncMock(return_value='[{"id": "n2"}]')
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": '[{"id": "n2"}]'})
         healed = await healer.heal_blueprint(blueprint, "n1", "err")
         assert healed["nodes"] == [{"id": "n2"}]
         assert healed["status"] == "healed"
 
     @pytest.mark.asyncio
     async def test_heal_blueprint_empty_content_returns_original(self, healer, blueprint):
-        healer.llm.generate_response = AsyncMock(return_value="")
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": ""})
         healed = await healer.heal_blueprint(blueprint, "n1", "err")
         assert healed is blueprint
 
     @pytest.mark.asyncio
     async def test_heal_blueprint_invalid_json_returns_original(self, healer, blueprint):
-        healer.llm.generate_response = AsyncMock(return_value="not json at all")
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": "not json at all"})
         healed = await healer.heal_blueprint(blueprint, "n1", "err")
         assert healed is blueprint
 
     @pytest.mark.asyncio
     async def test_heal_blueprint_llm_raises_returns_original(self, healer, blueprint):
-        healer.llm.generate_response = AsyncMock(side_effect=RuntimeError("llm down"))
+        healer.llm.generate_completion = AsyncMock(
+            side_effect=RuntimeError("llm down"))
         healed = await healer.heal_blueprint(blueprint, "n1", "err")
         assert healed is blueprint
 
@@ -436,7 +441,9 @@ class TestBlueprintHealer:
 
     @pytest.mark.asyncio
     async def test_summarize_healing_as_directive_success(self, healer):
-        healer.llm.generate_response = AsyncMock(return_value="Always add a search node.")
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True,
+                          "content": "Always add a search node."})
         directive = await healer.summarize_healing_as_directive(
             {"name": "n1", "type": "tool"}, [{"id": "n2"}], "boom"
         )
@@ -444,13 +451,15 @@ class TestBlueprintHealer:
 
     @pytest.mark.asyncio
     async def test_summarize_healing_as_directive_empty_fallback(self, healer):
-        healer.llm.generate_response = AsyncMock(return_value="")
+        healer.llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": ""})
         directive = await healer.summarize_healing_as_directive({"name": "n1"}, [], "e")
         assert directive == "Improve architectural robustness for the failing node type."
 
     @pytest.mark.asyncio
     async def test_summarize_healing_as_directive_exception_fallback(self, healer):
-        healer.llm.generate_response = AsyncMock(side_effect=RuntimeError("down"))
+        healer.llm.generate_completion = AsyncMock(
+            side_effect=RuntimeError("down"))
         directive = await healer.summarize_healing_as_directive({"name": "n1"}, [], "e")
         assert directive == "Refine dependencies for failed node types."
 

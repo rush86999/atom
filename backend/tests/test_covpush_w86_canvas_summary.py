@@ -24,6 +24,10 @@ from core.canvas_presentation_summary import (
 )
 
 
+def _ok(content=None):
+    return {"success": True, "content": "" if content is None else content}
+
+
 @pytest.fixture()
 def service():
     with patch("core.service_factory.ServiceFactory.get_llm_service",
@@ -58,26 +62,26 @@ def test_async_cache_hit_skips_llm(service):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(return_value="cached summary")
     fake_cache.set = AsyncMock()
-    service.llm.generate_response = AsyncMock(return_value="should not run")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("should not run"))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {"data": [1, 2]}, tenant_id="t1"
         ))
     assert result == "cached summary"
-    service.llm.generate_response.assert_not_awaited()
+    service.llm.generate_completion.assert_not_awaited()
 
 
 def test_sync_cache_hit_skips_llm(service):
     fake_cache = MagicMock()
     fake_cache.get.return_value = "sync cached"
     fake_cache.set.return_value = None
-    service.llm.generate_response = AsyncMock(return_value="should not run")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("should not run"))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {"data": [1, 2]}, tenant_id="t1"
         ))
     assert result == "sync cached"
-    service.llm.generate_response.assert_not_awaited()
+    service.llm.generate_completion.assert_not_awaited()
 
 
 def test_cache_get_failure_warns_and_falls_through(service, caplog):
@@ -85,7 +89,7 @@ def test_cache_get_failure_warns_and_falls_through(service, caplog):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(side_effect=RuntimeError("redis down"))
     fake_cache.set = AsyncMock()
-    service.llm.generate_response = AsyncMock(return_value="llm summary")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("llm summary"))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         with caplog.at_level(logging.WARNING, logger="core.canvas_presentation_summary"):
             result = asyncio.run(service.generate_presentation_summary(
@@ -93,11 +97,11 @@ def test_cache_get_failure_warns_and_falls_through(service, caplog):
             ))
     assert result == "llm summary"
     assert "Cache get failed" in caplog.text
-    service.llm.generate_response.assert_awaited_once()
+    service.llm.generate_completion.assert_awaited_once()
 
 
 def test_no_cache_module_available(service):
-    service.llm.generate_response = AsyncMock(return_value="no cache summary")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("no cache summary"))
     with patch("builtins.__import__", side_effect=_import_raiser("core.cache")):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {"data": [1, 2]}, tenant_id="t1"
@@ -106,7 +110,7 @@ def test_no_cache_module_available(service):
 
 
 def test_use_cache_false_skips_cache(service):
-    service.llm.generate_response = AsyncMock(return_value="fresh")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("fresh"))
     fake_cache = MagicMock()
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
@@ -124,14 +128,14 @@ def test_llm_generation_and_async_cache_set(service):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(return_value=None)
     fake_cache.set = AsyncMock()
-    service.llm.generate_response = AsyncMock(return_value="  The user is reconciling invoices.  ")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("  The user is reconciling invoices.  "))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {"rows": 10}, tenant_id="t1"
         ))
     assert result == "The user is reconciling invoices."
     # LLM called with the sheets prompt + state
-    _, kwargs = service.llm.generate_response.await_args
+    _, kwargs = service.llm.generate_completion.await_args
     assert kwargs["tenant_id"] == "t1"
     assert kwargs["max_tokens"] == 150
     user_msg = kwargs["messages"][1]["content"]
@@ -148,7 +152,7 @@ def test_llm_generation_sync_cache_set(service):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(return_value=None)
     fake_cache.set = MagicMock(return_value=None)
-    service.llm.generate_response = AsyncMock(return_value="sync set summary")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("sync set summary"))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {}, tenant_id="t1"
@@ -162,7 +166,7 @@ def test_llm_generation_cache_set_failure_warns(service, caplog):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(return_value=None)
     fake_cache.set = AsyncMock(side_effect=RuntimeError("set failed"))
-    service.llm.generate_response = AsyncMock(return_value="summary still returned")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("summary still returned"))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         with caplog.at_level(logging.WARNING, logger="core.canvas_presentation_summary"):
             result = asyncio.run(service.generate_presentation_summary(
@@ -174,7 +178,7 @@ def test_llm_generation_cache_set_failure_warns(service, caplog):
 
 def test_llm_failure_falls_back_to_generic_summary(service, caplog):
     import logging
-    service.llm.generate_response = AsyncMock(side_effect=RuntimeError("llm outage"))
+    service.llm.generate_completion = AsyncMock(side_effect=RuntimeError("llm outage"))
     with patch("builtins.__import__", side_effect=_import_raiser("core.cache")):
         with caplog.at_level(logging.ERROR, logger="core.canvas_presentation_summary"):
             result = asyncio.run(service.generate_presentation_summary(
@@ -188,7 +192,7 @@ def test_llm_empty_response_not_cached(service):
     fake_cache = MagicMock()
     fake_cache.get = AsyncMock(return_value=None)
     fake_cache.set = AsyncMock()
-    service.llm.generate_response = AsyncMock(return_value=None)
+    service.llm.generate_completion = AsyncMock(return_value=_ok(None))
     with patch.dict(sys.modules, _cache_module(fake_cache)):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "sheets", {}, tenant_id="t1"
@@ -198,18 +202,18 @@ def test_llm_empty_response_not_cached(service):
 
 
 def test_unknown_canvas_type_uses_generic_prompt(service):
-    service.llm.generate_response = AsyncMock(return_value="generic summary")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("generic summary"))
     with patch("builtins.__import__", side_effect=_import_raiser("core.cache")):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "hologram", {}, tenant_id="t1"
         ))
     assert result == "generic summary"
-    user_msg = service.llm.generate_response.await_args.kwargs["messages"][1]["content"]
+    user_msg = service.llm.generate_completion.await_args.kwargs["messages"][1]["content"]
     assert "Analyze this canvas" in user_msg  # generic prompt
 
 
 def test_empty_canvas_state_generates_summary(service):
-    service.llm.generate_response = AsyncMock(return_value="Empty canvas")
+    service.llm.generate_completion = AsyncMock(return_value=_ok("Empty canvas"))
     with patch("builtins.__import__", side_effect=_import_raiser("core.cache")):
         result = asyncio.run(service.generate_presentation_summary(
             "c1", "docs", {}, tenant_id="t1"

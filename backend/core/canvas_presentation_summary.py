@@ -6,6 +6,7 @@ Summaries capture business context, intent, and key information.
 """
 
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
+from core.llm.completion_outcome import completion_text_outcome
 import json
 import hashlib
 from typing import Optional, Dict, Any
@@ -151,19 +152,29 @@ Provide a 1-2 sentence semantic summary capturing:
 
 Summary:"""
 
-        # Generate summary using LLM
+        # Generate summary using the canonical typed completion facade.
         try:
-            content = await self.llm.generate_response(
-                tenant_id=tenant_id,
+            completion = await self.llm.generate_completion(
                 messages=[
                     {'role': 'system', 'content': 'You are an AI assistant that provides concise semantic summaries of canvas state.'},
                     {'role': 'user', 'content': full_prompt}
                 ],
+                tenant_id=tenant_id,
                 max_tokens=150,
                 temperature=0.3
             )
-
-            summary = (content or "").strip()
+            summary, failure = completion_text_outcome(completion)
+            if failure is not None:
+                if failure.get("reason") == "empty_generation":
+                    # Preserve the existing empty-input contract: no summary
+                    # and no cache entry, rather than a fabricated one.
+                    return ""
+                logger.error(
+                    "Failed to generate LLM summary for canvas %s: %s",
+                    canvas_id, failure.get("reason"))
+                return (
+                    f"{canvas_type.capitalize()} canvas with "
+                    f"{len(canvas_state)} state elements")
 
             # Cache the summary with 1-hour TTL
             if use_cache and summary and has_cache:
