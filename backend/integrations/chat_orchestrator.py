@@ -19192,8 +19192,27 @@ class ChatOrchestrator:
             if (_fb_outcome and _fb_outcome.get("state") == "unconfirmed"
                     and str(used_model or "") == "calc-lane"):
                 _fb_outcome["state"] = "partial"
-            _fb_failed = bool(_fb_outcome and _fb_outcome.get(
-                "state") in ("failed", "unconfirmed"))
+            # An admitted feature route can return a terminal failure/denial/
+            # partial outcome while ``success`` is False. It owns the turn:
+            # propagate it honestly instead of shipping success over a failed
+            # agent execution or launching a duplicate task.
+            _terminal_feature_failure = None
+            for _resp in feature_responses.values():
+                if (isinstance(_resp, dict) and _resp.get("handled")
+                        and _resp.get("success") is False):
+                    _terminal_feature_failure = _resp
+                    break
+            _terminal_feature_state = None
+            if _terminal_feature_failure is not None:
+                _terminal_feature_state = str(
+                    _terminal_feature_failure.get("outcome") or "failed")
+                if _terminal_feature_state not in (
+                        "failed", "denied", "partial"):
+                    _terminal_feature_state = "failed"
+            _fb_failed = bool(
+                (_fb_outcome and _fb_outcome.get(
+                    "state") in ("failed", "unconfirmed"))
+                or _terminal_feature_failure is not None)
 
             response = {
                 "success": (
@@ -19218,7 +19237,9 @@ class ChatOrchestrator:
                 # OUTCOME FIELD (owner work order): the record-resolved
                 # state rides the envelope AND the persisted metadata so
                 # text, machine status, and history agree.
-                "outcome": _fb_outcome.get("state") if _fb_outcome else None,
+                "outcome": (
+                    _fb_outcome.get("state") if _fb_outcome
+                    else _terminal_feature_state),
                 # the verified-satisfied receipt rides data so the
                 # finalizer's genuine-no-op escape can see it
                 ** (
@@ -19238,7 +19259,12 @@ class ChatOrchestrator:
                 "error_code": (
                     _FALLBACK_OUTCOME_ERROR_CODES.get(
                         _fb_outcome.get("state"))
-                    if _fb_failed else None),
+                    if _fb_failed and _fb_outcome
+                    else (
+                        _terminal_feature_failure.get("error_code")
+                        or _terminal_feature_failure.get("failure_reason")
+                        or "agent_execution_failed")
+                    if _terminal_feature_failure else None),
                 "deterministic_delivery": bool(
                     (ai_response or {}).get("deterministic_delivery")
                 ),
@@ -19253,6 +19279,10 @@ class ChatOrchestrator:
                 response["error_code"] = "budget_exceeded"
                 response["failure_reason"] = budget_failure.get("failure_reason")
                 response["recovery_url"] = "/settings/billing"
+            elif _terminal_feature_failure is not None:
+                response["failure_reason"] = (
+                    _terminal_feature_failure.get("failure_reason")
+                    or response.get("error_code"))
             if locals().get("_llm_provider_failed"):
                 # Mirrors the no_llm_provider convention so the client
                 # renders a distinct retry/top-up UI and the turn counts
@@ -35023,10 +35053,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     response = await self.feature_handlers[feature_type](
                         message, intent_analysis, session, context
                     )
-                    if response and response.get("success"):
+                    # A handler may accept the route and still end in a
+                    # terminal failure/denial/partial outcome. ``handled``
+                    # means the route was admitted and owns the turn; its
+                    # honest outcome is propagated, not discarded into a
+                    # second agent/tool dispatch. Handlers without that
+                    # marker keep the established success-only semantics.
+                    if response and (
+                            response.get("success")
+                            or response.get("handled")):
                         feature_responses[feature_type] = response
                         handled = True
-                        logger.info(f"Handler {feature_type} succeeded")
+                        logger.info(f"Handler {feature_type} handled")
                     else:
                         logger.info(f"Handler {feature_type} returned failure/empty")
                 except Exception as e:
@@ -35156,7 +35194,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # Check if Agent handled the request (e.g. fallback or direct request)
         if FeatureType.AGENT in feature_responses:
             agent_resp = feature_responses[FeatureType.AGENT]
-            if agent_resp.get("success") and agent_resp.get("message"):
+            if agent_resp.get("message"):
                 return agent_resp["message"]
                 
         intent = intent_analysis["primary_intent"]
@@ -39570,6 +39608,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # status was silently swallowed here, so no structured signal could
             # reach the HTTP layer (the user saw a normal assistant bubble).
             failure_reason = result.get("failure_reason")
+            result_status = str(result.get("status") or "").strip().lower()
+            result_outcome = str(result.get("outcome") or "").strip().lower()
+            if not failure_reason and result.get("success") is False:
+                failure_reason = result_status or "agent_execution_failed"
+            if failure_reason:
+                if result_outcome == "partial_unknown" or result_status == "partial":
+                    outcome = "partial"
+                elif result_status == "denied":
+                    outcome = "denied"
+                else:
+                    outcome = "failed"
+                status = (
+                    "budget_exceeded"
+                    if failure_reason == "budget_exceeded"
+                    or result_status == "budget_exceeded"
+                    else "failed")
+            else:
+                outcome = "success"
+                status = "success"
             await self._emit_agent_status(
                 session_id,
                 "atom_main",
@@ -39577,11 +39634,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "failed" if failure_reason else "success",
             )
             return {
-                "status": "budget_exceeded" if failure_reason else "success",
+                "status": status,
                 "success": not failure_reason,
-                "error_code": "budget_exceeded" if failure_reason else None,
-                "failure_reason": failure_reason,
-                "message": result.get("final_output"),
+                "error_code": (
+                    "budget_exceeded" if status == "budget_exceeded"
+                    else (failure_reason or None)),
+                "failure_reason": failure_reason or None,
+                # The Atom route was admitted and returned a terminal
+                # result. ``handled`` keeps the feature loop from starting a
+                # second agent/tool dispatch; the honest outcome is the turn.
+                "handled": True,
+                "terminal": True,
+                "outcome": outcome,
+                "execution_id": execution_id,
+                "chain_id": result.get("chain_id"),
+                "message": result.get("final_output") or (
+                    "The agent route completed without a final answer."
+                    if not failure_reason
+                    else "The agent route did not complete."),
                 "actions_taken": result.get("actions_executed", []),
                 "spawned_agent": result.get("spawned_agent"),
                 "feature": "agent",
