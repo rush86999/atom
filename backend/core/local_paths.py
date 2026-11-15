@@ -39,7 +39,8 @@ def anchor_sqlite_url(value: str, backend_root: Path | str | None = None) -> str
     The normalization is deliberately the one already used by
     ``core.database.get_database_url``; no second URL parser is invented.
     """
-    if not value or not isinstance(value, str) or not value.startswith("sqlite"):
+    if (not value or not isinstance(value, str)
+            or not value.lower().startswith("sqlite")):
         return value
     scheme, sep, rest = value.partition(":///")
     if not sep:

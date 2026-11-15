@@ -92,6 +92,9 @@ def test_plain_and_uri_live_targets_are_guarded(guard_functions):
         "sqlite:///data/atom.db",             # relative, backend-anchored
         "sqlite:///./data/atom.db",
         "sqlite:///dev.db",
+        f"SQLITE:///{backend}/data/atom.db",
+        f"SQLITE:///file:{backend}/data/atom.db?uri=true",
+        "Sqlite+PySQLite:///./data/atom.db",
     ]
     for url in targets:
         assert guarded(url) is True, url

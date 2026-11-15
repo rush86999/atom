@@ -88,7 +88,8 @@ def _targets_live_dev_db(url: str) -> bool:
     Unparseable SQLite URLs fail closed (treated as a protected target) so a
     malformed URL can never bypass the pytest/live-DB guard.
     """
-    if not url or not isinstance(url, str) or not url.startswith("sqlite"):
+    if (not url or not isinstance(url, str)
+            or not url.lower().startswith("sqlite")):
         return False
 
     anchored = _anchor_sqlite_url(url)
@@ -98,7 +99,7 @@ def _targets_live_dev_db(url: str) -> bool:
         parsed = make_url(anchored)
     except Exception:
         return True
-    if parsed.get_backend_name() != "sqlite":
+    if str(parsed.get_backend_name()).lower() != "sqlite":
         return False
 
     try:
