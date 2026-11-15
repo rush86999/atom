@@ -18599,7 +18599,9 @@ class ChatOrchestrator:
                     reply_claims_canvas_change,
                 )
 
-                main_message = ai_response["content"]
+                (main_message, ai_response, used_model, used_provider,
+                 _agent_done) = self._initial_turn_carrier(
+                    ai_response, feature_responses)
 
                 # VERIFIED-FIELD NARRATION GUARD (L2 narration defect,
                 # 2026-10-19): when this turn compared a typed field on
@@ -18829,8 +18831,9 @@ class ChatOrchestrator:
                                 "review_result", "review_contract",
                                 "review_summary"):
                             ai_response.pop(_review_key, None)
-                used_model = ai_response.get("model")
-                used_provider = ai_response.get("provider")
+                if _agent_done is None:
+                    used_model = ai_response.get("model")
+                    used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
                 # next turn in the same session prefers it (sticky routing).
                 # Evidence: vLLM #1439, Vercel, LLM Gateway all recommend
@@ -35294,6 +35297,45 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "timestamp": datetime.now().isoformat()
         }
 
+    def _initial_turn_carrier(self, ai_response: Dict[str, Any],
+                              feature_responses: Dict[FeatureType, Any]):
+        """Pick the initial answer/carrier before later honesty gates.
+
+        Returns (main_message, ai_response, used_model, used_provider,
+        agent_done). A completed fleet result replaces the fast reply and its
+        carrier; unknown fleet identity stays unknown.
+        """
+        main_message = ai_response["content"]
+        agent_done = self._completed_agent_message(feature_responses)
+        used_model = None
+        used_provider = None
+        if agent_done is not None:
+            main_message = agent_done["message"]
+            used_model = agent_done.get("model") or None
+            used_provider = agent_done.get("provider") or None
+            ai_response = {"content": main_message, "success": True}
+        return (main_message, ai_response, used_model, used_provider,
+                agent_done)
+
+    @staticmethod
+    def _completed_agent_message(feature_responses: Dict[FeatureType, Any]):
+        """Return a completed/terminal AGENT response, or None.
+
+        Only an admitted, successful, terminal agent result may replace the
+        direct chat reply. Failed/denied/partial responses keep their own
+        truthful path; no-fleet turns keep the fast reply.
+        """
+        if not isinstance(feature_responses, dict):
+            return None
+        response = feature_responses.get(FeatureType.AGENT)
+        if (isinstance(response, dict)
+                and response.get("success") is True
+                and response.get("handled") is True
+                and response.get("terminal") is True
+                and str(response.get("message") or "").strip()):
+            return response
+        return None
+
     def _generate_main_message(
         self,
         message: str,
@@ -39781,6 +39823,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "outcome": outcome,
                 "execution_id": execution_id,
                 "chain_id": result.get("chain_id"),
+                "model": result.get("model"),
+                "provider": result.get("provider"),
                 "message": result.get("final_output") or (
                     "The agent route completed without a final answer."
                     if not failure_reason

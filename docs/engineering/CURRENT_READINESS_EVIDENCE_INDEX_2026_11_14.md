@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Latest merge cut:** main `519d06ef3` through #958, including #957; see [the merged chat and CI checkpoint](#16-merged-chat-repairs-and-observed-ci-timing). Historical scores remain unchanged.
+> **Latest merge cut:** main `c3eade3c1` through #959; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
 >
 > **Latest verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
@@ -1708,3 +1708,60 @@ being investigated separately. No real provider request was made. These results
 qualify the current-request prompt boundary only; successful, fully healthy
 fresh fleet completion and final synthesis delivery still need qualification.
 Historical 111/123 and the original 143 claims / 18 goals remain unchanged.
+
+
+## 18. Completed fleet answer and explicit verdict follow-through
+
+Main `c3eade3c1e25ecd74dd867c75abf64ff85b5489b` (tree
+`21f6630874e43070a5bbe47f39a30a7e9228f871`) includes #959 after all 15
+exact-head checks succeeded. Its separate post-merge CI `43742046709` and
+Docker `43742046626` also succeeded. The owner’s running dirty checkout has
+not been upgraded by these repository merges.
+
+Qualified candidate runtime `a2b7059c702c196a29f61d61dabc5ead9fdb0003`
+(tree `127a8dd124cc1576346f01d40e4b827ec2ca776a`) addresses two observed
+handoff/validation defects:
+
+- A completed recruited-agent result was saved internally while chat delivered
+  the earlier direct reply. The final answer now replaces that reply and its
+  stale metadata. Full content reaches the response and bound assistant row;
+  the outer execution retains its existing 500-character summary limit.
+- `VerifyVerdict` previously accepted `{}` as grounded and accepted a positive
+  verdict with named unsupported claims. It now requires an explicit strict
+  boolean and rejects contradictions. Invalid samples follow the existing
+  verification-unavailable path. Rendered validation errors omit input values;
+  structured error objects are not claimed to be automatically redacted.
+
+Unknown final model/provider identity stays unknown, rather than borrowing the
+initial reply’s route or inventing a fleet model. The handoff reuses completed
+work rather than generating another answer; existing verifier retry/adaptive
+budget rules remain in place. The existing chat CI step includes both new regression files while
+preserving every previous workflow/ledger byte except the appended selectors.
+Root independently ran **865 checks in 94.72 seconds** with outbound network
+denied, including panel, context, cancellation, advisor, synthesis and CI
+contracts.
+
+A new isolated normal-startup HTTP case passed **all 43 assertions** at that
+exact runtime. The complete 1,214-character attributed synthesis reached chat,
+matched the committed assistant content after server shutdown, and matched the
+outer execution’s 500-character summary prefix. Both specialists, their two
+links, the chain and outer/Atom executions completed; no running execution
+remained. All **14 local scripted-provider requests returned 200**, with zero
+rejections under the explicit 16-admission limit. The actual judge wire schema
+required `grounded`; API model/provider were honestly null. Source, producer,
+config and controls were frozen before execution and unchanged afterward;
+owned processes and ports were confirmed stopped.
+
+Earlier failed cases remain failures: the 12-request guard overrun and test
+provider role/schema mistakes were diagnosed from actual captured requests.
+Before this run, root independently replayed all 21 retained synthetic request
+bodies through the actual in-memory handler and checked stage, domain, schema
+and response protocol. No previous result was relabelled.
+
+This is one controlled synthetic finance/sales case with two seeded INTERN
+specialists, explicit fleet enable/enforcement flags, cached embedding assets
+and a loopback provider. It proves protocol, final-result delivery and durable
+binding at that scope. It does not prove real model quality, priced usage,
+default first-run routing, agent creation/graduation, UI rendering, or whole-app
+completion. No real provider credential/request was used. Historical 111/123
+and all 143 claims / 18 goals remain unchanged.
