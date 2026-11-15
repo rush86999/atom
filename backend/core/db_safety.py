@@ -64,16 +64,19 @@ _COUNT_TABLES = ("users", "agent_registry", "canvases")
 
 
 def live_db_path() -> Optional[str]:
-    """The dev sqlite file this install resolves to (None for non-sqlite)."""
+    """The dev sqlite file this install resolves to (None for no-file DBs).
+
+    Uses the same SQLAlchemy target resolver as the live-DB pytest guard, so
+    ``sqlite:///file:...?...uri=true`` (percent-encoded, driver variants,
+    uppercase) maps to the real file rather than a non-filesystem
+    ``file:/...?mode=...`` string. In-memory/named-memory/non-SQLite or a
+    malformed URL yields None (backup skipped) — never a guessed path.
+    """
     try:
         from core.database import DATABASE_URL
+        from core.local_paths import resolve_sqlite_file_path
 
-        if not DATABASE_URL or "sqlite" not in DATABASE_URL:
-            return None
-        path = DATABASE_URL.split("sqlite:///", 1)[-1]
-        if not path or path == ":memory:":
-            return None
-        return path
+        return resolve_sqlite_file_path(DATABASE_URL)
     except Exception:
         return None
 
@@ -127,7 +130,9 @@ def _open_source_ro(db_path: str) -> Tuple[sqlite3.Connection, str]:
     (08:27, 09:01, 09:27) and every one of them was swallowed at DEBUG, which
     left three 0-byte files in backups/ that each looked like a snapshot.
     """
-    uri = f"file:{db_path}?mode=ro"
+    from core.local_paths import sqlite_readonly_uri
+
+    uri = sqlite_readonly_uri(db_path)
     try:
         return sqlite3.connect(uri, uri=True), "mode=ro"
     except sqlite3.Error as e:
@@ -182,7 +187,9 @@ def _verify_snapshot(path: str, expect_counts: Optional[Dict[str, int]] = None) 
     size = os.path.getsize(path)
     if size <= 0:
         raise RuntimeError(f"snapshot is empty ({size} bytes): {path}")
-    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    from core.local_paths import sqlite_readonly_uri
+
+    con = sqlite3.connect(sqlite_readonly_uri(path), uri=True)
     try:
         row = con.execute("PRAGMA integrity_check").fetchone()
         if not row or row[0] != "ok":

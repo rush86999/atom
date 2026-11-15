@@ -58,3 +58,83 @@ def anchor_sqlite_url(value: str, backend_root: Path | str | None = None) -> str
     root = Path(backend_root) if backend_root is not None else _BACKEND_ROOT
     anchored = os.path.abspath(os.path.normpath(os.path.join(str(root), path)))
     return f"{scheme}:///{anchored}{query}"
+
+
+def sqlite_readonly_uri(path: str | os.PathLike) -> str:
+    """Build a SQLite read-only ``file:`` URI for an actual filesystem path.
+
+    SQLite interprets ``?`` and ``#`` in a URI as query/fragment separators,
+    and percent-decodes the path. Interpolating a filesystem path directly
+    (``file:{path}?mode=ro``) therefore breaks for names containing ``#``,
+    ``?`` or ``%`` — the ``mode=ro`` query can be dropped and a different
+    writable sibling file opened. Percent-encode the absolute path with
+    ``quote(..., safe="/")`` so SQLite decodes back to the exact file.
+    """
+    absolute = os.path.abspath(os.fspath(path))
+    from urllib.parse import quote
+
+    return f"file:{quote(absolute, safe='/')}?mode=ro"
+
+
+def resolve_sqlite_file_path(
+    value: str, backend_root: Path | str | None = None,
+) -> str | None:
+    """Actual filesystem path a SQLAlchemy SQLite URL opens, or None.
+
+    Shared by the live-DB pytest guard (``core.database``) and the backup /
+    fingerprint consumer (``core.db_safety``). It does not prefix-split the
+    URL: SQLAlchemy parses the driver/query, URI-mode filenames are
+    percent-decoded **after** URI parsing (so an encoded ``#``/``?``/``%``
+    stays part of the filename), and relative non-URI paths use the same
+    backend anchor as the rest of the DB layer. Returns None for non-SQLite
+    and in-memory / named-memory URLs; raises ValueError for a malformed
+    SQLite URL so live-data guards can fail closed.
+    """
+    if (not value or not isinstance(value, str)
+            or not value.lower().startswith("sqlite")):
+        return None
+    anchored = anchor_sqlite_url(value, backend_root)
+    try:
+        from sqlalchemy.engine import make_url
+
+        parsed = make_url(anchored)
+    except Exception as exc:
+        raise ValueError(f"unparseable SQLite URL: {exc}") from exc
+    if str(parsed.get_backend_name()).lower() != "sqlite":
+        return None
+
+    # Use the raw URL database segment, not ``parsed.database``: SQLAlchemy
+    # percent-decodes the latter before creating connect args, which turns an
+    # encoded ``%23`` into a literal ``#`` and loses the rest of the filename
+    # to URI-fragment parsing.
+    scheme, sep, rest = anchored.partition(":///")
+    if not sep:
+        return None
+    raw_database, _, raw_query = rest.partition("?")
+    if not raw_database:
+        return None
+    from urllib.parse import parse_qs
+
+    query = parse_qs(raw_query, keep_blank_values=True)
+
+    def _first(name: str) -> str:
+        values = query.get(name) or [""]
+        return str(values[0]).strip().lower()
+
+    if _first("mode") == "memory":
+        return None
+    uri_mode = _first("uri") in {"1", "true", "yes", "on"}
+    if raw_database == ":memory:":
+        return None
+    if raw_database.lower().startswith("file:"):
+        if uri_mode:
+            from urllib.parse import unquote, urlsplit
+
+            candidate = unquote(urlsplit(raw_database).path)
+        else:
+            candidate = raw_database
+    else:
+        candidate = raw_database
+    if not candidate or candidate == ":memory:":
+        return None
+    return str(Path(candidate).resolve(strict=False))
