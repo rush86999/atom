@@ -118,6 +118,122 @@ def test_ownership_is_enforced(svc):
     assert svc.attach_to_email(cid, OTHER)["success"] is False
 
 
+def _append_tombstone(db, canvas_id: str, *, user_id: str = USER) -> CanvasAudit:
+    """Append the canonical delete row (what ``delete_canvas`` writes).
+
+    The delete path is append-only; ``Canvas.status`` deliberately stays
+    ``active``, so the newest CanvasAudit row is the tombstone the shared
+    ``deleted_canvas_ids`` authority reads.
+    """
+    import uuid
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import desc
+
+    latest = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(desc(CanvasAudit.created_at))
+        .first()
+    )
+    created_at = datetime.now(timezone.utc)
+    if latest is not None and latest.created_at is not None:
+        prior = latest.created_at
+        if prior.tzinfo is None:
+            prior = prior.replace(tzinfo=timezone.utc)
+        created_at = max(created_at, prior + timedelta(microseconds=1))
+    row = CanvasAudit(
+        id=str(uuid.uuid4()),
+        created_at=created_at,
+        tenant_id="default",
+        user_id=user_id,
+        canvas_id=canvas_id,
+        canvas_type="pdf",
+        action_type="delete",
+        details_json={
+            "canvas_type": "pdf",
+            "prior_audit_id": latest.id if latest is not None else None,
+        },
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def _append_restore(db, canvas_id: str, state: dict, *, user_id: str = USER) -> CanvasAudit:
+    """Append the canonical restore row carrying the pre-delete content."""
+    import uuid
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import desc
+
+    latest = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(desc(CanvasAudit.created_at))
+        .first()
+    )
+    created_at = datetime.now(timezone.utc)
+    if latest is not None and latest.created_at is not None:
+        prior = latest.created_at
+        if prior.tzinfo is None:
+            prior = prior.replace(tzinfo=timezone.utc)
+        created_at = max(created_at, prior + timedelta(microseconds=1))
+    row = CanvasAudit(
+        id=str(uuid.uuid4()),
+        created_at=created_at,
+        tenant_id="default",
+        user_id=user_id,
+        canvas_id=canvas_id,
+        canvas_type="pdf",
+        action_type="restore",
+        details_json={"canvas_type": "pdf", "content": state},
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def test_deleted_canvas_closes_every_pdf_service_boundary(svc):
+    """The canonical tombstone gates reads AND mutations, not just the route.
+
+    Without the shared ``require_canvas_active`` gate the latest-audit state
+    lookup happened to 400 on the tombstone row, so a future state-shape
+    change could silently re-open a deleted artifact. The gate makes the
+    lifecycle refusal explicit and survives restore (append past tombstone).
+    """
+    created = svc.create_pdf_canvas(
+        USER, filename="synthetic.pdf", content_bytes=_make_pdf("Synthetic title", pages=1))
+    cid = created["canvas_id"]
+    state = created["state"]
+    original = svc.get_bytes(cid, USER)
+    assert original is not None and original["hash"] == state["file"]["hash"]
+
+    _append_tombstone(svc.db, cid)
+
+    # Files, state, extraction and every mutation refuse without touching bytes.
+    assert svc.get_bytes(cid, USER) is None
+    assert svc.get_state(cid, USER)["success"] is False
+    assert svc.extract_text(cid, USER)["success"] is False
+    assert svc.apply_page_ops(cid, USER, [{"src_index": 0, "rotation": 90}])["success"] is False
+    assert svc.merge_upload(cid, USER, "extra.pdf", _make_pdf("extra"))["success"] is False
+    assert svc.attach_to_email(cid, USER)["success"] is False
+    # Ownership stays the first gate: a stranger still gets the owner refusal.
+    assert svc.get_bytes(cid, OTHER) is None
+
+    # The stored blob is untouched and restore (append past the tombstone)
+    # reopens the same canvas/version byte-for-byte.
+    _append_restore(svc.db, cid, state)
+    restored = svc.get_bytes(cid, USER)
+    assert restored is not None
+    assert restored["hash"] == state["file"]["hash"]
+    assert restored["bytes"] == original["bytes"]
+    assert svc.get_state(cid, USER)["success"] is True
+    assert svc.apply_page_ops(
+        cid, USER, [{"src_index": 0, "rotation": 90}],
+        base_hash=state["file"]["hash"])["success"] is True
+
+
 def test_merge_upload_and_extract_text(svc):
     created = svc.create_pdf_canvas(USER, content_bytes=_make_pdf("base", pages=1))
     cid = created["canvas_id"]

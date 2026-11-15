@@ -5,6 +5,7 @@ import {
     AlertCircle,
     ArrowDown,
     ArrowUp,
+    Download,
     FileOutput,
     Loader2,
     RotateCcw,
@@ -51,6 +52,20 @@ import { pdfWorkerSrc } from "@/lib/pdf-worker-src";
 
 type PdfjsDoc = { numPages: number; getPage: (n: number) => Promise<any> };
 
+/** Structural page-map equality (order, source index, absolute rotation). */
+function samePageMap(a: PdfPageSpec[], b: PdfPageSpec[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((page, index) => page.src_index === b[index].src_index
+        && page.rotation === b[index].rotation);
+}
+
+/** Normalize an angle to 0/90/180/270. */
+function normalizeRotation(value: number): number {
+    const angle = Number(value) || 0;
+    return ((angle % 360) + 360) % 360;
+}
+
+
 export function PdfFileCanvas({
     canvasId,
     data,
@@ -61,6 +76,12 @@ export function PdfFileCanvas({
     const serverState = useMemo<PdfCanvasState | null>(() => unwrapPdfState(data), [data]);
     const [doc, setDoc] = useState<PdfjsDoc | null>(null);
     const [pageMap, setPageMap] = useState<PdfPageSpec[]>([]);
+    // The page map that belongs to `bytesHash` (the last acknowledged version
+    // whose bytes are actually rendered). Pending edits are pageMap != this,
+    // not pageMap != the WebSocket prop: after a save the props can lag one
+    // frame behind, and comparing against them falsely marked the just-saved
+    // version dirty (which later blocked/advanced the wrong export).
+    const [committedPageMap, setCommittedPageMap] = useState<PdfPageSpec[]>([]);
     const [history, setHistory] = useState<PdfPageSpec[][]>([]);
     const [bytesHash, setBytesHash] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -88,12 +109,25 @@ export function PdfFileCanvas({
     const renderTokenRef = useRef(0);
 
     const dirty = useMemo(
-        () =>
-            pageMap.length > 0 &&
-            (pageMap.length !== (serverState?.file.page_count ?? 0) ||
-                pageMap.some((p, i) => p.src_index !== i || p.rotation !== 0)),
-        [pageMap, serverState]
+        () => !samePageMap(pageMap, committedPageMap),
+        [pageMap, committedPageMap]
     );
+
+    // Why the visible Download cannot run right now. A clean canvas exports
+    // the last acknowledged version (`bytesHash`), which is also the version
+    // whose bytes are rendered; a pending/failed/in-flight edit must never
+    // silently fall back to an older prop hash. The message is the control's
+    // title + aria-label, so the refusal is explicit rather than silent.
+    const downloadBlockedReason = useMemo(() => {
+        if (loading) return "Loading the current PDF version…";
+        if (!bytesHash) return "The current PDF version is not loaded yet";
+        if (saving) return "Saving — download after the save is confirmed";
+        if (dirty) return "Save your page changes before downloading "
+            + "(Download exports the last saved version)";
+        if (busyOp) return "Another PDF operation is in progress — try again "
+            + "when it finishes";
+        return null;
+    }, [loading, bytesHash, saving, dirty, busyOp]);
 
     // Load (or reload after a committed version) the bytes and rebase the
     // working page map onto them.
@@ -133,7 +167,10 @@ export function PdfFileCanvas({
                 renderTokenRef.current += 1;
                 setDoc(loaded);
                 setBytesHash(hash);
-                setPageMap(Array.from({ length: loaded.numPages }, (_, i) => ({ src_index: i, rotation: 0 })));
+                const nextMap = Array.from({ length: loaded.numPages },
+                    (_, i) => ({ src_index: i, rotation: 0 }));
+                setPageMap(nextMap);
+                setCommittedPageMap(nextMap);
                 setHistory([]);
             } catch (e: any) {
                 setError(describeError(e, "Could not load the PDF file"));
@@ -181,11 +218,25 @@ export function PdfFileCanvas({
         });
 
     const save = async () => {
-        if (!canvasId || !serverState || !dirty) return;
+        if (!canvasId || !serverState || !bytesHash || !doc || !dirty) return;
         setSaving(true);
         setError(null);
         try {
-            const res = await applyPageOps(canvasId, pageMap, serverState.file.hash);
+            // The page map holds the pending delta shown to the user; the
+            // backend's build_pages() interprets `rotation` as the ABSOLUTE
+            // angle of the source page (delta = rotation - current). Send the
+            // effective absolute angle so rotating a 90° page back to 0° saves
+            // 0°, not another 270° turn. The optimistic base remains the
+            // acknowledged/rendered hash, never a lagging WebSocket prop.
+            const committedPages = await Promise.all(pageMap.map(async (spec) => {
+                const page = await doc.getPage(spec.src_index + 1);
+                const intrinsic = normalizeRotation(Number(page.rotate) || 0);
+                return {
+                    src_index: spec.src_index,
+                    rotation: normalizeRotation(intrinsic + spec.rotation),
+                };
+            }));
+            const res = await applyPageOps(canvasId, committedPages, bytesHash);
             // The WS canvas:update also refreshes `data`; load immediately so
             // the viewer never shows stale bytes between frames.
             await loadBytes(res.state.file.hash);
@@ -194,6 +245,40 @@ export function PdfFileCanvas({
             setError(describeError(e, "Save failed"));
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Native PDF download through the shipped file endpoint. Export the
+    // version whose bytes are currently acknowledged/rendered (`bytesHash`),
+    // never the WebSocket prop: after an acknowledged Save the props can lag
+    // and the prop would export the previous version. Pending/saving/loading
+    // states are refused above with an explicit Save-first message.
+    const downloadPdf = async () => {
+        if (!canvasId || !serverState || !bytesHash) return;
+        if (downloadBlockedReason) return;
+        setBusyOp("download");
+        setError(null);
+        try {
+            const blob = await fetchPdfBytes(canvasId, bytesHash);
+            const bytes = blob instanceof Blob ? blob : new Blob([blob]);
+            const filename = (serverState.file.filename || "document.pdf")
+                .replace(/[\\/:*?"<>|\r\n]+/g, "_")
+                .slice(0, 160) || "document.pdf";
+            const url = window.URL.createObjectURL(
+                new Blob([bytes], { type: "application/pdf" }));
+            const link = window.document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.rel = "noopener";
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            setNotice({ text: `Downloaded ${filename}` });
+        } catch (e: any) {
+            setError(describeError(e, "Download failed"));
+        } finally {
+            setBusyOp(null);
         }
     };
 
@@ -282,11 +367,11 @@ export function PdfFileCanvas({
     };
 
     const saveForm = async () => {
-        if (!canvasId || !serverState) return;
+        if (!canvasId || !serverState || !bytesHash) return;
         setSaving(true);
         setError(null);
         try {
-            const res = await setFormFields(canvasId, formFieldsState || {}, serverState.file.hash);
+            const res = await setFormFields(canvasId, formFieldsState || {}, bytesHash);
             await loadBytes(res.state.file.hash);
             setNotice({ text: "Form values saved as a new version" });
         } catch (e: any) {
@@ -408,10 +493,19 @@ export function PdfFileCanvas({
                 if (!canvasEl || cancelled) continue;
                 try {
                     const page = await doc.getPage(pageMap[i].src_index + 1);
-                    const base = page.getViewport({ scale: 1 });
+                    // pdf.js `getViewport({rotation})` OVERRIDES the page's
+                    // intrinsic /Rotate. The page map is the local pending
+                    // delta, so the displayed angle is intrinsic + pending;
+                    // using the same effective angle for fit-width sizing and
+                    // rendering keeps landscape/portrait honest. Saving sends
+                    // this effective absolute angle (below), which is what the
+                    // backend's relative `build_pages` delta expects.
+                    const intrinsic = normalizeRotation(Number(page.rotate) || 0);
+                    const effective = normalizeRotation(intrinsic + pageMap[i].rotation);
+                    const base = page.getViewport({ scale: 1, rotation: effective });
                     const containerWidth = canvasEl.parentElement?.clientWidth || 640;
                     const scale = Math.max(0.2, Math.min(2, (containerWidth - 8) / base.width));
-                    const viewport = page.getViewport({ scale, rotation: pageMap[i].rotation });
+                    const viewport = page.getViewport({ scale, rotation: effective });
                     canvasEl.width = Math.floor(viewport.width);
                     canvasEl.height = Math.floor(viewport.height);
                     const ctx = canvasEl.getContext("2d");
@@ -461,6 +555,21 @@ export function PdfFileCanvas({
                 <span className="text-[10px] text-zinc-400">
                     {pageMap.length || serverState.file.page_count} pages
                 </span>
+                <button
+                    onClick={() => void downloadPdf()}
+                    disabled={downloadBlockedReason !== null}
+                    className="flex items-center gap-1 px-2 py-1 rounded border hover:bg-zinc-100 dark:hover:bg-white/10 disabled:opacity-40"
+                    title={downloadBlockedReason || "Download the current PDF file"}
+                    aria-label={downloadBlockedReason || "Download the current PDF file"}
+                    data-testid="canvas-pdf-download"
+                >
+                    {busyOp === "download" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                        <Download className="h-3 w-3" />
+                    )}
+                    Download
+                </button>
                 {/* lifecycle moves (human authority; agent approvals propose) */}
                 {lifecycle === "drafting" && (
                     <button
