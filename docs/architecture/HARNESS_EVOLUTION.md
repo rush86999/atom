@@ -160,3 +160,33 @@ Atom prioritizes **safety** (governance, rollback, maturity tiers) over raw opti
 - **AST-level mutation operators** — dropped. [Wang et al. 2025](https://arxiv.org/html/2406.09843v5): LLM mutation outperforms AST operators (77.4% vs 41.6%). AlphaEvolve uses LLM-driven mutation, not AST operators.
 - **Crossover operator** — deferred. Requires population genetics infrastructure.
 - **Model-layer evolution** (fine-tuning) — out of scope for the harness layer.
+
+
+### Durable completion-limit evidence (2026-11-15)
+
+The canonical model-provenance recorder now retains positive integer
+`requested_max_tokens` and `effective_max_tokens` when an accepted runtime
+result actually reports them. The existing execution, episode and qualification
+bundle paths preserve these optional fields. Missing values remain unknown;
+requests, handler defaults and route attribution do not supply them. A partial
+current result cannot inherit a stale nested limit or complete its serving
+identity from another response. Nested-only canonical captures round-trip; a
+wrapper may fill a missing limit only with a matching explicit generation ID
+and complete serving identity. Failed results do not acquire accepted limits.
+
+Root reproduced stale limits from both a different model and an older response
+on the same model, preserved the negative evidence, and reran those exact cases
+against source `33ad3702c`. Both pass. Independent related tests: **232 passed
+in 96.34 seconds**, using an isolated scratch database with no live provider
+requests. The initial root run failed because its scratch parent directory was
+missing; that setup failure is retained separately.
+
+This is a branch implementation pending merge. Recording these fields does
+not make them part of the benchmark comparison or signed qualification
+identity. It does not establish a minimum output allowance, prove capability
+on unfamiliar tasks, or expose limits on structured paths that do not report
+them. Existing provider/model, dataset, rubric and workload checks remain in
+force. Broader capability comparison and structured-path telemetry remain
+open. Evidence: `/private/tmp/atom-root-model-runtime-stale-nested-negative.json`,
+`/private/tmp/atom-root-model-runtime-stale-nested-fixed.json` and
+`/private/tmp/atom-root-runtime-qualification-tests-retry.log`.
