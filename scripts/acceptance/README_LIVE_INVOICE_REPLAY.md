@@ -1,5 +1,14 @@
 # Opt-in invoice replay lane (`--live-flash`)
 
+> **Status of this lane (2026-11-14):** the relay transport, refusal matrix,
+> caps, redaction and evidence assertions are covered by offline tests and a
+> loopback synthetic upstream. **No episode has been accepted against the live
+> provider.** A `trusted_live` run remains UNVERIFIED until an operator run
+> produces `scenario.json` with `live.upstream_kind: trusted_live`,
+> `live.live_upstream_enabled: true` and a passing
+> `live_relay_bounded_and_pinned` step. Nothing in this document is evidence
+> that the live route has run.
+
 The signed-in invoice driver
 (`scripts/acceptance/browser_invoice_partial_evidence.py`) defaults to the
 scripted episode: authored completions from
@@ -153,6 +162,10 @@ non-fixed destination), the lane fails closed rather than falling back to the
 shim or to a stored credential.
 
 ## Notes for future changes
+
+For a live evidence run, pass `--expect-source-sha <sha>` (the reviewed commit):
+the driver then refuses a checkout whose HEAD does not match, so the spend is
+bound to the source that was reviewed rather than to whatever is checked out.
 
 `live_model_relay.validate_upstream_base_url(..., allow_live=True)` is the
 single destination gate; `HttpUpstream` is the single credential consumer. Any
