@@ -92,8 +92,10 @@ failed state. `WorkflowScheduler.schedule_workflow*`, `list_jobs`,
 `remove_schedule`/`remove_job` and `reschedule_system_pipelines` consult the
 shared `require_scheduler_store_ready()` guard, so every consumer refuses
 instead of acknowledging an in-memory job or an empty authoritative list. The
-served schedule/list/remove routes translate that exception to HTTP 503; the
-chat scheduling handler returns `success: false`.
+served schedule/list/remove routes translate that exception to HTTP 503 with a
+generic actionable `detail` and stable `code=SCHEDULER_STORE_UNAVAILABLE`; the
+detailed conflict/adoption reason stays in the server log, not the caller
+response. The chat scheduling handler returns `success: false`.
 
 ## References
 

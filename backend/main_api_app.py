@@ -1601,13 +1601,21 @@ try:
     @app.exception_handler(SchedulerStoreUnavailable)
     async def scheduler_store_unavailable_handler(
             request: Request, exc: SchedulerStoreUnavailable):
-        """Known-unsafe scheduler storage is a 503, never an empty success."""
+        """Known-unsafe scheduler storage is a 503 with a generic message.
+
+        The detailed reason (paths, conflict/adoption diagnostics) stays in
+        the server log; it is not reflected to an ordinary caller.
+        """
         logger.error(
             "Scheduler storage unavailable on %s: %s", request.url.path, exc)
         return JSONResponse(
             status_code=503,
             content={
-                "detail": str(exc),
+                "detail": (
+                    "Scheduling is temporarily unavailable because the "
+                    "server's scheduler storage could not be verified. "
+                    "Please try again later or contact an administrator."
+                ),
                 "code": "SCHEDULER_STORE_UNAVAILABLE",
             },
         )

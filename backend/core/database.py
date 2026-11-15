@@ -68,18 +68,89 @@ def _anchor_sqlite_url(url: str) -> str:
 
 
 def _targets_live_dev_db(url: str) -> bool:
-    """True when a SQLite URL resolves to a LIVE dev database file —
-    ``backend/dev.db`` (this module's development fallback) or
-    ``backend/data/atom.db`` (the application data store). The 2026-09-04
-    incident wiped the latter from a stray test run."""
-    if not url or not url.startswith("sqlite"):
+    """True when a SQLite URL actually resolves to a LIVE dev database file.
+
+    Protected targets are exactly ``backend/dev.db`` (development fallback)
+    and ``backend/data/atom.db`` (application data store). The 2026-09-04
+    incident wiped the latter from a stray pytest run.
+
+    Resolution uses SQLAlchemy's own URL/connect-arg semantics, not a
+    basename regex or raw string slicing:
+
+    * plain SQLite, ``sqlite+pysqlite``/``sqlite+aiosqlite`` and relative paths
+      (anchored to backend/ like the rest of the DB layer);
+    * SQLite ``file:`` URIs **only when SQLAlchemy actually enables URI mode**
+      (``uri=true``), with percent-encoding decoded; named-memory URIs
+      (``mode=memory`` / ``file::memory:``) and ``:memory:`` are not files;
+    * absolute scratch URIs, PostgreSQL and other non-SQLite URLs pass through
+      as non-targets.
+
+    Unparseable SQLite URLs fail closed (treated as a protected target) so a
+    malformed URL can never bypass the pytest/live-DB guard.
+    """
+    if not url or not isinstance(url, str) or not url.startswith("sqlite"):
         return False
-    path = _anchor_sqlite_url(url).partition(":///")[2].split("?", 1)[0]
-    dev_paths = (
+
+    anchored = _anchor_sqlite_url(url)
+    try:
+        from sqlalchemy.engine import make_url
+
+        parsed = make_url(anchored)
+    except Exception:
+        return True
+    if parsed.get_backend_name() != "sqlite":
+        return False
+
+    try:
+        from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
+
+        connect_args, connect_kwargs = (
+            SQLiteDialect_pysqlite().create_connect_args(parsed))
+    except Exception:
+        return True
+    filename = str(connect_args[0]) if connect_args else ""
+    if not filename or filename == ":memory:":
+        return False
+    if str(parsed.query.get("mode") or connect_kwargs.get("mode") or "").lower() == "memory":
+        return False
+
+    if filename.startswith("file:") and connect_kwargs.get("uri"):
+        from urllib.parse import unquote, urlsplit
+
+        uri_path = unquote(urlsplit(filename).path)
+        candidate = uri_path
+    else:
+        candidate = filename
+    if not candidate or candidate == ":memory:":
+        return False
+
+    from pathlib import Path
+
+    live_targets = [
         os.path.join(_DATABASE_BACKEND_DIR, "dev.db"),
         os.path.join(_DATABASE_BACKEND_DIR, "data", "atom.db"),
-    )
-    return os.path.normpath(path) in (os.path.normpath(p) for p in dev_paths)
+    ]
+    try:
+        live_resolved = {Path(target).resolve(strict=False)
+                         for target in live_targets}
+    except OSError:
+        live_resolved = set()
+
+    candidates = [Path(candidate)]
+    if not Path(candidate).is_absolute():
+        candidates = [
+            Path(_DATABASE_BACKEND_DIR) / candidate,
+            Path.cwd() / candidate,
+        ]
+    for path in candidates:
+        try:
+            if path.resolve(strict=False) in live_resolved:
+                return True
+        except OSError:
+            if os.path.normpath(str(path)) in {
+                    os.path.normpath(target) for target in live_targets}:
+                return True
+    return False
 
 
 def get_database_url():
