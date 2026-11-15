@@ -59,6 +59,12 @@ function samePageMap(a: PdfPageSpec[], b: PdfPageSpec[]): boolean {
         && page.rotation === b[index].rotation);
 }
 
+/** Normalize an angle to 0/90/180/270. */
+function normalizeRotation(value: number): number {
+    const angle = Number(value) || 0;
+    return ((angle % 360) + 360) % 360;
+}
+
 
 export function PdfFileCanvas({
     canvasId,
@@ -212,15 +218,25 @@ export function PdfFileCanvas({
         });
 
     const save = async () => {
-        if (!canvasId || !serverState || !bytesHash || !dirty) return;
+        if (!canvasId || !serverState || !bytesHash || !doc || !dirty) return;
         setSaving(true);
         setError(null);
         try {
-            // Use the acknowledged/rendered version as the optimistic base,
-            // not the WebSocket prop: after a save whose frame has not arrived
-            // yet the prop still points at the previous version, and a second
-            // save against it would be refused as a false conflict.
-            const res = await applyPageOps(canvasId, pageMap, bytesHash);
+            // The page map holds the pending delta shown to the user; the
+            // backend's build_pages() interprets `rotation` as the ABSOLUTE
+            // angle of the source page (delta = rotation - current). Send the
+            // effective absolute angle so rotating a 90° page back to 0° saves
+            // 0°, not another 270° turn. The optimistic base remains the
+            // acknowledged/rendered hash, never a lagging WebSocket prop.
+            const committedPages = await Promise.all(pageMap.map(async (spec) => {
+                const page = await doc.getPage(spec.src_index + 1);
+                const intrinsic = normalizeRotation(Number(page.rotate) || 0);
+                return {
+                    src_index: spec.src_index,
+                    rotation: normalizeRotation(intrinsic + spec.rotation),
+                };
+            }));
+            const res = await applyPageOps(canvasId, committedPages, bytesHash);
             // The WS canvas:update also refreshes `data`; load immediately so
             // the viewer never shows stale bytes between frames.
             await loadBytes(res.state.file.hash);
@@ -477,10 +493,19 @@ export function PdfFileCanvas({
                 if (!canvasEl || cancelled) continue;
                 try {
                     const page = await doc.getPage(pageMap[i].src_index + 1);
-                    const base = page.getViewport({ scale: 1 });
+                    // pdf.js `getViewport({rotation})` OVERRIDES the page's
+                    // intrinsic /Rotate. The page map is the local pending
+                    // delta, so the displayed angle is intrinsic + pending;
+                    // using the same effective angle for fit-width sizing and
+                    // rendering keeps landscape/portrait honest. Saving sends
+                    // this effective absolute angle (below), which is what the
+                    // backend's relative `build_pages` delta expects.
+                    const intrinsic = normalizeRotation(Number(page.rotate) || 0);
+                    const effective = normalizeRotation(intrinsic + pageMap[i].rotation);
+                    const base = page.getViewport({ scale: 1, rotation: effective });
                     const containerWidth = canvasEl.parentElement?.clientWidth || 640;
                     const scale = Math.max(0.2, Math.min(2, (containerWidth - 8) / base.width));
-                    const viewport = page.getViewport({ scale, rotation: pageMap[i].rotation });
+                    const viewport = page.getViewport({ scale, rotation: effective });
                     canvasEl.width = Math.floor(viewport.width);
                     canvasEl.height = Math.floor(viewport.height);
                     const ctx = canvasEl.getContext("2d");

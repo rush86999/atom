@@ -36,19 +36,29 @@ jest.mock('@/lib/pdf-canvas-api', () => ({
   unwrapPdfState: jest.requireActual('@/lib/pdf-canvas-api').unwrapPdfState,
 }));
 
-jest.mock('pdfjs-dist', () => ({
-  __esModule: true,
-  GlobalWorkerOptions: {},
-  getDocument: () => ({
-    promise: Promise.resolve({
-      numPages: 3,
-      getPage: async () => ({
-        getViewport: ({ scale }: any) => ({ width: 612 * scale, height: 792 * scale }),
-        render: () => ({ promise: Promise.resolve() }),
+jest.mock('pdfjs-dist', () => {
+  const state = { rotate: 0 };
+  const viewport = jest.fn(({ scale, rotation = 0 }: any) => ({
+    width: (rotation % 180 ? 792 : 612) * scale,
+    height: (rotation % 180 ? 612 : 792) * scale,
+  }));
+  return {
+    __esModule: true,
+    GlobalWorkerOptions: {},
+    __state: state,
+    __viewport: viewport,
+    getDocument: () => ({
+      promise: Promise.resolve({
+        numPages: 3,
+        getPage: async () => ({
+          get rotate() { return state.rotate; },
+          getViewport: viewport,
+          render: () => ({ promise: Promise.resolve() }),
+        }),
       }),
     }),
-  }),
-}));
+  };
+});
 
 import { PdfFileCanvas } from '../PdfFileCanvas';
 import type { PdfCanvasState } from '@/lib/pdf-canvas-api';
@@ -64,6 +74,19 @@ function makeState(overrides: Partial<PdfCanvasState> = {}): PdfCanvasState {
 }
 
 jest.mock('@/lib/pdf-worker-src', () => ({ pdfWorkerSrc: () => '' }));
+
+beforeEach(() => {
+  const pdfjsMock = jest.requireMock('pdfjs-dist') as any;
+  pdfjsMock.__state.rotate = 0;
+  // jest.config has resetMocks: true, which strips the factory's viewport
+  // implementation before each test. Re-install the rectangular-viewport
+  // geometry here so intrinsic/pending rotation is measurable.
+  pdfjsMock.__viewport.mockReset();
+  pdfjsMock.__viewport.mockImplementation(({ scale, rotation = 0 }: any) => ({
+    width: (rotation % 180 ? 792 : 612) * scale,
+    height: (rotation % 180 ? 612 : 792) * scale,
+  }));
+});
 
 describe('PdfFileCanvas', () => {
   beforeEach(() => {
@@ -315,6 +338,80 @@ describe('PdfFileCanvas', () => {
     expect(screen.getByTestId('canvas-pdf-delete-0')).toBeDisabled();
     expect(screen.getByTestId('canvas-pdf-reopen')).toBeInTheDocument();
     expect(screen.queryByTestId('canvas-pdf-approve')).not.toBeInTheDocument();
+  });
+});
+
+describe('PdfFileCanvas rotation composition', () => {
+  const pdfjs = () => jest.requireMock('pdfjs-dist') as any;
+  const renderedAt = (rotation: number) => pdfjs().__viewport.mock.calls.some(
+    ([options]: any[]) => options && options.rotation === rotation && options.scale !== 1,
+  );
+  // The render pass is an effect that runs after the slot commit and awaits
+  // page.getPage(); flush one macrotask so the viewport spy sees it.
+  const flushRender = () => new Promise((resolve) => setTimeout(resolve, 700));
+
+  beforeEach(() => {
+    mockApi.fetchPdfBytes.mockResolvedValue(new Blob([new Uint8Array([1, 2, 3])]));
+  });
+
+  it('keeps an intrinsic 90 page at 90 when there is no pending edit', async () => {
+    pdfjs().__state.rotate = 90;
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    await flushRender();
+    expect(renderedAt(90)).toBe(true);
+  });
+
+  it('composes an intrinsic 90 page with a pending right rotation to 180', async () => {
+    pdfjs().__state.rotate = 90;
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    pdfjs().__viewport.mockClear();
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    await flushRender();
+    expect(renderedAt(180)).toBe(true);
+  });
+
+  it('leaves an ordinary 0 page unchanged and renders a right rotation at 90', async () => {
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    await flushRender();
+    expect(renderedAt(0)).toBe(true);
+    pdfjs().__viewport.mockClear();
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    await flushRender();
+    expect(renderedAt(90)).toBe(true);
+  });
+
+  it('keeps a reloaded saved 90 page at 90 after the save reload', async () => {
+    pdfjs().__state.rotate = 90;
+    mockApi.applyPageOps.mockResolvedValue({
+      state: makeState({ file: { hash: 'b'.repeat(64), page_count: 3, size_bytes: 2048, filename: 'Q3 quote.pdf' } }),
+    });
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-right-0'));
+    pdfjs().__viewport.mockClear();
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await screen.findByText(/Saved — version bbbbbbbb committed/);
+    await flushRender();
+    expect(renderedAt(90)).toBe(true);
+  });
+
+  it('saves the effective absolute angle when rotating a 90 page left to 0', async () => {
+    pdfjs().__state.rotate = 90;
+    mockApi.applyPageOps.mockResolvedValue({
+      state: makeState({ file: { hash: 'b'.repeat(64), page_count: 3, size_bytes: 2048, filename: 'Q3 quote.pdf' } }),
+    });
+    render(<PdfFileCanvas canvasId="c1" data={makeState()} />);
+    await screen.findByTestId('canvas-pdf-page-2');
+    fireEvent.click(screen.getByTestId('canvas-pdf-rotate-left-0'));
+    fireEvent.click(screen.getByTestId('canvas-pdf-save'));
+    await waitFor(() => expect(mockApi.applyPageOps).toHaveBeenCalledWith('c1', [
+      { src_index: 0, rotation: 0 },
+      { src_index: 1, rotation: 90 },
+      { src_index: 2, rotation: 90 },
+    ], 'a'.repeat(64)));
   });
 });
 
