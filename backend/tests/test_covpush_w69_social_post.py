@@ -54,6 +54,10 @@ def _agent(name="Test Agent"):
     return SimpleNamespace(name=name, workspace_id="ws-1", tenant_id="t1")
 
 
+def _ok(content):
+    return {"success": True, "content": content, "text": content}
+
+
 def _llm_patch(return_value):
     """Patch ServiceFactory.get_llm_service (lazily imported by the property)."""
     return patch(
@@ -147,36 +151,36 @@ class TestGenerateFromOperation:
 
     def test_llm_success(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="Just finished the report!")
+        llm.generate_completion = AsyncMock(return_value=_ok("Just finished the report!"))
         with _llm_patch(llm):
             post = asyncio.run(generator.generate_from_operation(_tracker(), _agent()))
         assert post == "Just finished the report!"
-        kwargs = llm.generate_response.call_args[1]
+        kwargs = llm.generate_completion.call_args[1]
         assert kwargs["workspace_id"] == "ws-1"
         assert kwargs["tenant_id"] == "t1"
         assert kwargs["temperature"] == 0.7
 
     def test_llm_success_agent_defaults(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="ok")
+        llm.generate_completion = AsyncMock(return_value=_ok("ok"))
         plain_agent = SimpleNamespace(name="no-ctx")
         with _llm_patch(llm):
             post = asyncio.run(generator.generate_from_operation(_tracker(), plain_agent))
         assert post == "ok"
-        kwargs = llm.generate_response.call_args[1]
+        kwargs = llm.generate_completion.call_args[1]
         assert kwargs["workspace_id"] == "default"
         assert kwargs["tenant_id"] == "default"
 
     def test_llm_timeout_falls_back_to_template(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=asyncio.TimeoutError())
+        llm.generate_completion = AsyncMock(side_effect=asyncio.TimeoutError())
         with _llm_patch(llm):
             post = asyncio.run(generator.generate_from_operation(_tracker(), _agent()))
         assert "workflow_execute" in post
 
     def test_llm_error_falls_back_to_template(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=RuntimeError("api down"))
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("api down"))
         with _llm_patch(llm):
             post = asyncio.run(generator.generate_from_operation(_tracker(), _agent()))
         assert "workflow_execute" in post
@@ -190,14 +194,14 @@ class TestGenerateWithLlm:
 
     def test_short_content(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="short post")
+        llm.generate_completion = AsyncMock(return_value=_ok("short post"))
         with _llm_patch(llm):
             post = asyncio.run(generator._generate_with_llm(_tracker(), _agent()))
         assert post == "short post"
 
     def test_long_content_truncated(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="x" * 300)
+        llm.generate_completion = AsyncMock(return_value=_ok("x" * 300))
         with _llm_patch(llm):
             post = asyncio.run(generator._generate_with_llm(_tracker(), _agent()))
         assert len(post) == 280
@@ -205,14 +209,14 @@ class TestGenerateWithLlm:
 
     def test_timeout_re_raised(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=asyncio.TimeoutError())
+        llm.generate_completion = AsyncMock(side_effect=asyncio.TimeoutError())
         with _llm_patch(llm):
             with pytest.raises(asyncio.TimeoutError):
                 asyncio.run(generator._generate_with_llm(_tracker(), _agent()))
 
     def test_generic_error_re_raised(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=RuntimeError("boom"))
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("boom"))
         with _llm_patch(llm):
             with pytest.raises(RuntimeError, match="boom"):
                 asyncio.run(generator._generate_with_llm(_tracker(), _agent()))
@@ -277,7 +281,7 @@ class TestEpisodeContext:
 
     def test_episodes_with_llm(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="Similar to before, I did it again!")
+        llm.generate_completion = AsyncMock(return_value=_ok("Similar to before, I did it again!"))
         with _llm_patch(llm), patch(
             "core.episode_retrieval_service.EpisodeRetrievalService"
         ) as ers:
@@ -292,7 +296,7 @@ class TestEpisodeContext:
         assert out["mentioned_episode_ids"] == ["ep-7"]
         assert out["metadata"]["episode_count"] == 1
         assert out["metadata"]["generated_with_context"] is True
-        assert "Similar to past experiences" in llm.generate_response.call_args[1]["prompt"]
+        assert "Similar to past experiences" in llm.generate_completion.call_args[1]["messages"][1]["content"]
 
     def test_retrieve_episodes_no_db(self, generator):
         assert asyncio.run(generator._retrieve_relevant_episodes("a1", {}, 3, None)) == []
@@ -338,23 +342,23 @@ class TestEpisodeContext:
 
     def test_generate_with_context_success(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="post with context")
+        llm.generate_completion = AsyncMock(return_value=_ok("post with context"))
         with _llm_patch(llm):
             out = asyncio.run(generator._generate_with_llm_and_context({"operation_type": "t"}, "ctx"))
         assert out == "post with context"
-        assert "Similar to when I" in llm.generate_response.call_args[1]["system_prompt"]
-        assert "ctx" in llm.generate_response.call_args[1]["prompt"]
+        assert "Similar to when I" in llm.generate_completion.call_args[1]["messages"][0]["content"]
+        assert "ctx" in llm.generate_completion.call_args[1]["messages"][1]["content"]
 
     def test_generate_with_context_truncated(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="x" * 300)
+        llm.generate_completion = AsyncMock(return_value=_ok("x" * 300))
         with _llm_patch(llm):
             out = asyncio.run(generator._generate_with_llm_and_context({"operation_type": "t"}, "ctx"))
         assert len(out) == 280
 
     def test_generate_with_context_timeout_falls_back(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=asyncio.TimeoutError())
+        llm.generate_completion = AsyncMock(side_effect=asyncio.TimeoutError())
         with _llm_patch(llm):
             out = asyncio.run(generator._generate_with_llm_and_context(
                 {"operation_type": "workflow_execute", "status": "completed",
@@ -363,7 +367,7 @@ class TestEpisodeContext:
 
     def test_generate_with_context_error_falls_back(self, generator):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=RuntimeError("boom"))
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("boom"))
         with _llm_patch(llm):
             out = asyncio.run(generator._generate_with_llm_and_context(
                 {"operation_type": "workflow_execute", "status": "completed",
