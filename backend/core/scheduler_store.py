@@ -242,7 +242,8 @@ def reconcile_scheduler_job_store(
     # A live/uncheckpointed SQLite store may keep recent transactions in
     # -wal/-shm sidecars. Copying only the main file would silently lose
     # them; require the old process to be stopped and checkpointed first.
-    sidecars = [Path(str(legacy) + suffix) for suffix in ("-wal", "-shm")]
+    sidecars = [Path(str(legacy) + suffix)
+                for suffix in ("-wal", "-shm", "-journal")]
     present_sidecars = [str(path) for path in sidecars
                         if path.exists() or path.is_symlink()]
     if present_sidecars:
@@ -267,6 +268,16 @@ def reconcile_scheduler_job_store(
             _conflict(
                 f"legacy scheduler store {legacy} changed while being copied; "
                 "no adoption was installed")
+        # Close the writer race: a writer may have opened the store after the
+        # pre-copy sidecar check. Never install a snapshot while a journal/WAL
+        # is active.
+        post_sidecars = [str(path) for path in sidecars
+                         if path.exists() or path.is_symlink()]
+        if post_sidecars:
+            _conflict(
+                f"legacy scheduler store {legacy} became active during "
+                f"adoption (sidecar(s) {post_sidecars}); no canonical file "
+                "was published")
         try:
             # Exclusive hardlink is the only install primitive used: it is
             # atomic and cannot clobber a concurrent canonical file. There is

@@ -56,8 +56,10 @@ backend startup, immediately before the scheduler opens its store,
 * legacy exists as a symlink, directory or other non-regular file → startup
   refuses adoption with a CRITICAL log (`SchedulerStoreConflict`); no guess is
   made.
-* legacy has `-wal`/`-shm` sidecars (uncheckpointed / still open) → adoption
-  is refused; stop the old backend and let SQLite checkpoint/close it first.
+* legacy has `-wal`/`-shm`/`-journal` sidecars (uncheckpointed / still open) →
+  adoption is refused; stop the old backend and let SQLite checkpoint/close it
+  first. The sidecars are checked again after the temp copy, before install, so
+  a writer that opens the store mid-adoption cannot be silently abandoned.
 
 Reconciliation never runs from configuration import or from ordinary
 `SchedulerConfig` construction. `core/scheduler_store.py` also exposes
