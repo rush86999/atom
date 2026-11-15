@@ -605,12 +605,29 @@ def test_generate_response_selfheal_gets_own_intent(
     assert len({r.request_id for r in rows}) == 1
 
 
+@pytest.mark.parametrize("pricing,window,expected", [
+    ({"max_output_tokens": 4096}, 128000, 4096),
+    ({}, 4096, 4096),
+    ({"max_output_tokens": 16000}, 4096, 4096),
+    ({}, None, None),
+])
+def test_route_output_cap_uses_the_smallest_known_limit(
+        monkeypatch, pricing, window, expected):
+    handler = object.__new__(BYOKHandler)
+    monkeypatch.setattr(
+        "core.dynamic_pricing_fetcher.get_pricing_fetcher",
+        lambda: SimpleNamespace(pricing_cache={"m": pricing}))
+    handler._route_context_window = lambda provider_id, model: window
+
+    assert handler._route_output_cap("p", "m") == expected
+
+
 @pytest.mark.parametrize("window,expected", [
     (4096, 4096),      # known route limit wins over the larger request
     (128000, 8000),    # a larger window never raises the caller's cap
     (None, 8000),      # unknown window leaves the provider as the judge
 ])
-def test_generate_response_bounds_output_cap_to_route_window(
+def test_generate_response_bounds_output_cap_to_route_limit(
         host, monkeypatch, tmp_path, window, expected):
     """One admitted attempt: the wire cap and reservation see the same bound."""
     _seed(host, spend=0.0)
@@ -628,7 +645,7 @@ def test_generate_response_bounds_output_cap_to_route_window(
         sync={"openai": client})
     handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
         [("openai", "gpt-4o")])
-    handler._route_context_window = lambda provider_id, model: window
+    handler._route_output_cap = lambda provider_id, model: window
 
     result = asyncio.run(handler.generate_response(
         "hello", model_type="gpt-4o", max_tokens=8000))
@@ -654,7 +671,7 @@ def test_generate_response_hard_stop_refuses_cap_before_dispatch(
         sync={"openai": client})
     handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
         [("openai", "gpt-4o")])
-    handler._route_context_window = lambda provider_id, model: None
+    handler._route_output_cap = lambda provider_id, model: None
 
     refused = asyncio.run(handler.generate_response(
         "hello", model_type="gpt-4o", max_tokens=8000))

@@ -2509,6 +2509,30 @@ class BYOKHandler:
                          provider_id, model, exc)
             return None
 
+    def _route_output_cap(self, provider_id: str, model: str) -> Optional[int]:
+        """Known output/context ceiling for a route, or ``None`` when unknown.
+
+        Prefers the model catalogue's explicit ``max_output_tokens`` when it is
+        present and positive, then the effective context window. Both are
+        existing local pricing metadata (no discovery/network call here); the
+        smaller known number wins so the cap is never above a declared limit.
+        """
+        caps = []
+        try:
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
+            pricing = (get_pricing_fetcher().pricing_cache or {}).get(model) or {}
+            output_cap = pricing.get("max_output_tokens") or 0
+            if output_cap and int(output_cap) > 0:
+                caps.append(int(output_cap))
+        except Exception as exc:  # noqa: BLE001 — measurement, not a gate
+            logger.debug("output cap lookup failed for %s/%s: %s",
+                         provider_id, model, exc)
+        window = self._route_context_window(provider_id, model)
+        if window and window > 0:
+            caps.append(int(window))
+        return min(caps) if caps else None
+
     def _bounded_completion_cap(
         self, provider_id: str, model: str, requested: Optional[int],
     ) -> Optional[int]:
@@ -2516,7 +2540,7 @@ class BYOKHandler:
 
         The output cap and the prompt share one provider/model context window,
         so a requested ceiling larger than the whole window cannot be honoured.
-        This clamp only ever LOWERS the caller's value: an unknown window is
+        This clamp only ever LOWERS the caller's value: an unknown limit is
         left alone (the provider remains the judge), and a smaller explicit
         caller cap is never raised. The admission/reservation path reads the
         returned value, so the authorized bound matches the wire request.
@@ -2527,13 +2551,13 @@ class BYOKHandler:
             return requested
         if requested_int <= 0:
             return requested
-        window = self._route_context_window(provider_id, model)
-        if not window or window <= 0 or requested_int <= window:
+        cap = self._route_output_cap(provider_id, model)
+        if not cap or cap <= 0 or requested_int <= cap:
             return requested_int
         logger.info(
             "Clamping completion cap for %s/%s from %d to its %d-token "
-            "context window", provider_id, model, requested_int, window)
-        return int(window)
+            "output/context limit", provider_id, model, requested_int, cap)
+        return int(cap)
 
     def _explicit_primary_requested(
         self, provider_id: Any, model: Any = None,

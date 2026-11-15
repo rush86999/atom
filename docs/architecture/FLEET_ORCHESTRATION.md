@@ -306,9 +306,10 @@ ceiling is now a purpose-scoped, validated setting instead of a hardcoded
 answer still stops naturally and is settled at the provider's actual usage.
 The setting is configurable, never raised silently. The BYOK non-streaming
 route applies one further lowering clamp immediately before transport: a known
-provider/model context window caps the requested output budget, and the
-admission/reservation path receives that same effective value, so the wire
-request and the authorized bound agree. Unknown windows are left alone (the
+declared model output limit (`max_output_tokens`) or provider/model context
+window caps the requested output budget, whichever known limit is smaller, and
+the admission/reservation path receives that same effective value, so the wire
+request and the authorized bound agree. Unknown limits are left alone (the
 provider remains the judge) and a smaller explicit cap is never raised.
 `final_synthesis` exposes `requested_max_output_tokens`,
 `effective_max_output_tokens`, and, when the transport reports it,
