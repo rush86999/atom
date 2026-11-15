@@ -171,7 +171,7 @@ acceptance status are separately scoped. The requested base was `b4370d0d4`;
 | #940 | `760997df8` | Hosted CI selection of workbook aggregation regressions | 4 | `test_assignment_multi_source_total.py` selected in backend CI; no product behavior change. |
 | #941 | `935a890e7` | Root mobile CI workflow and mobile test/typecheck repairs | 16, 18 | Hosted mobile job passed 133 suites / 4,327 tests / 2 skipped at `3a0efed9c`; native device journey remains open. |
 | #942 | `d08892617` | Preserve query complexity across provider selection | 2, 13 | Merged `llm_service.py` and regression test; controlled provider selection only; no live multi-model quality claim. |
-| #937 | `b4370d0d4` | Enforce approval for reviewed executable skills | 6 | Approves/denies the exact reviewed artifact before sandbox dispatch. Both merged files are byte-identical to reviewed head `1387b7dd1`. Automatic model-invoked skill dispatch remains open. |
+| #937 | `b4370d0d4` | Enforce approval for reviewed executable skills | 6 | Approves/denies the exact reviewed artifact before sandbox dispatch. Both merged files are byte-identical to reviewed head `1387b7dd1`. Automatic model-invoked skill dispatch remained open at #937; **resolved by #945** (ordinary `skills.list`/`skills.execute` loop; see the addendum). |
 
 Note on review/CI: the handoff records exact-head checks and an authorized
 review-only bypass for several merges. This index does **not** re-query GitHub
@@ -388,20 +388,34 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   before sandbox dispatch when the exact reviewed artifact/approval binding is
   missing. The ordinary agent can consume an approved skill through the
   ordinary execute route with a simulated sandbox; real Docker restart
-  coverage exists separately. **Automatic model-invoked skill execution is not
-  implemented/qualified and is owned by another worker.**
+  coverage exists separately. **Superseded by the #945 addendum below:**
+  `skills.list` and `skills.execute` are now model-callable through the
+  ordinary `GenericAgent` loop. The merged mechanism is verified with a
+  deterministic decision stub, not a live-model competence claim; real-Docker
+  positive evidence remains source-bound to `d6fc54648`.
 - **Exact sources:** `#918` `bb1e2b3f3`; `#925` `ad6ecbd5d`; `#937`
   `b4370d0d4` (files byte-identical to `1387b7dd1`);
+  `#945` `05715907e` (ordinary `skills.list`/`skills.execute` loop, 15
+  dispatch controls + 4 attribution + 127 CI-contract checks at the current
+  base); `backend/tests/test_reviewed_executable_skill_agent_dispatch.py`;
   `backend/tests/test_reviewed_executable_agent_consumption.py` (four controls:
   fresh-session consumption, unreviewed pending denial, registry-binding
   removal denial, linked-Skill-binding removal denial);
   `backend/tests/test_reviewed_executable_skill_docker.py`;
   `retained-private` `/private/tmp/atom-937-root-review.log` (22 scratch
   tests per handoff).
-- **Remaining user-boundary acceptance:** an approved executable skill invoked
-  automatically by the ordinary agent loop (not just the API execute route),
-  with a denial twin before sandbox dispatch. That worker is in
-  `/private/tmp/atom-approved-skill-dispatch` and is not duplicated here.
+- **Current-base executable evidence (2026-11-15, `9de6ef33f`):**
+  `test_reviewed_executable_skill_agent_dispatch.py` 15 passed (including one
+  joined ordinary public `GenericAgent.execute` run and pre-dispatch denial
+  twins with zero sandbox leaf calls); `test_reviewed_executable_agent_consumption.py`
+  4 passed; `test_ci_backend_lane_contract.py` 127 passed. The model decision
+  in the joined run is a deterministic stub, not a served-model quality claim.
+- **Remaining user-boundary acceptance:** the ordinary-loop mechanism and
+  pre-dispatch denial twins are merged in `#945` and exercised with a
+  deterministic model decision; no mechanism gap remains. Independent
+  real-model selection quality, fresh real-Docker evidence at this source and
+  unfamiliar skill quality are separate, bounded evidence questions and are not
+  promoted by the deterministic controls.
 - **Preserved negatives:** generated-code promotion was recorded as
   unimplemented before `#918`; `#937` is a defensive approval gate, not
   automatic invocation; earlier exploratory probes without assertions are not
@@ -816,8 +830,11 @@ completion percentage.
 | `MEM-07` | Self-evolution / Memento/AlphaEvolver | unverified | accepted-bounded | bounded | `#751` `4590560d7` finite local chain; no served/general repair. |
 
 **Goal 6 post-audit note (not a claim promotion):** `#918`, `#925` and `#937`
-add a reviewed-executable skill path. `#937` is a defensive approval gate, not
-automatic model-invoked execution. See Goal 6 above for exact sources.
+add a reviewed-executable skill path. `#937` is a defensive approval gate;
+`#945` adds the ordinary `skills.list`/`skills.execute` loop, so the mechanism
+is now model-callable through the normal agent loop. The joined proof uses a
+deterministic decision stub, not a served-model quality claim. See Goal 6 above
+and the addendum for exact sources.
 
 ### 5.8 Goal 7 — 6 claims
 
@@ -980,7 +997,7 @@ reassignment; other workers own the lanes noted.
 | 1 | **Goal 10 elapsed wait** | Durable wait persisted at 06:42:25.414033Z on 2026-11-14; worker stopped; resume gate refuses until **2026-11-16T06:42:25.414033Z**. Source head `2f2b376a0`. | Actual resume on/after the gate, same job/execution/wait identity, no model continuation/task effect before the answer, then a verified outcome. Do not run early or force the gate. |
 | 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
-| 4 | **Goal 6 automatic skill invocation** | `#937` approval gate merged; ordinary execute route tested; **no model-callable skill execution tool**. Another worker owns the auto-invoke lane. | An approved executable skill invoked by the ordinary agent loop, with a pre-dispatch denial twin for an unapproved/changed artifact. Do not duplicate the worker. |
+| 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
@@ -1024,7 +1041,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 | Goal 10 48-hour resume | **not due / not run** | Gate is `2026-11-16T06:42:25.414033Z`; no resume report. |
 | Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
 | Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
-| Goal 6 automatic skill invocation | **missing** | #937 approval gate is not auto-invocation; other worker active. |
+| Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop `skills.list`/`skills.execute` with deterministic joined and denial controls; live-model competence and fresh real-Docker evidence at this source remain separate, unclaimed limits. |
 | Goal 16 native menu bar live chat | **missing** | Native login/session/2FA and public-API live Go chat verified on the reviewed `#943` source; native UI chat pending. |
 | Goal 16 native mobile device journey | **missing** | Hosted CI/Jest passed; no supported simulator/device native journey. |
 | Goal 17 measurement | **missing** | No declared environment/workload/sample; cache-only benchmark is narrower. |
