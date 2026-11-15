@@ -1696,5 +1696,15 @@ against main exposed missing test-provider stages; their failures are retained.
 The latest captured request reached the real grounding panel without the
 user-supplied facts, but its test provider rejected that stage, so it produced
 no actual model verdict. No additional live-provider allowance was used or
-created. Successful fresh fleet completion still requires separate qualification.
+created. A later fresh HTTP case at candidate `631ac8d96` confirmed the exact current
+user task in the actual grounding-judge request, separate from retrieved
+evidence. The API returned 200/success, both specialists and the chain completed,
+and the visible answer matched its bound durable assistant row. The strict
+campaign nevertheless remains **FAILED**: it received 13 local requests under
+a 12-admission guard, rejecting one; a background durable-fact request was also
+misclassified by the test provider. Its completed internal synthesis differed
+from the initial answer shown by chat, so final synthesized-answer delivery is
+being investigated separately. No real provider request was made. These results
+qualify the current-request prompt boundary only; successful, fully healthy
+fresh fleet completion and final synthesis delivery still need qualification.
 Historical 111/123 and the original 143 claims / 18 goals remain unchanged.
