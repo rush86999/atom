@@ -27,6 +27,7 @@ from tools.canvas_crud_tool import (
     active_canvas_actor,
     canvas_lifecycle_scope_error,
     claim_canvas_actor,
+    deleted_canvas_ids,
 )
 
 
@@ -86,6 +87,31 @@ def require_active_actor(db: Any, user_id: Optional[str]) -> Dict[str, Any]:
         "effective_tenant_id": effective_tenant,
         "effective_workspace_id": effective_workspace,
     }
+
+
+def require_canvas_active(db: Any, canvas_id: str) -> None:
+    """Refuse a tombstoned canvas at any canvas-scoped boundary.
+
+    Active state is deliberately a SEPARATE gate from ownership. Ownership
+    answers "may this caller act on this canvas"; this answers "does the
+    canvas still exist". ``delete_canvas`` is append-only, so a deleted
+    canvas keeps ``Canvas.status == "active"`` and is identified only by the
+    newest row of its audit trail (``deleted_canvas_ids``). The existing
+    undelete path appends a restore row past that tombstone: the same canvas
+    is active again with no ownership change, so callers that run this gate
+    must never be the thing that makes restore impossible.
+
+    Every boundary that can serve, mutate, re-bind or re-open a canvas-bound
+    artifact calls this after its ownership check. It does not resolve the
+    caller, so the refusal carries no information beyond "absent" and cannot
+    become a foreign-canvas existence oracle.
+    """
+    if deleted_canvas_ids(db, [str(canvas_id)]):
+        raise CanvasAuthorityError(
+            f"Canvas {canvas_id} not found",
+            status_code=404,
+            code="CANVAS_DELETED",
+        )
 
 
 def require_canvas_read(

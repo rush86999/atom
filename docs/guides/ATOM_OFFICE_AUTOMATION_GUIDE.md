@@ -112,10 +112,12 @@ sessions.
 
 ### Capabilities
 
-- **Full CRUD** on canvases (read, list, update, delete). New canvases are
-  created by agents from chat — the index page explains this and surfaces any
-  canvas an agent has presented.
-- **Seven canvas types**: `sheets`, `email`, `docs`, `coding`, `terminal`,
+- **Full CRUD** on canvases (read, list, update, delete and restore). The
+  gallery's **New canvas** control creates a blank document. Attach an agent
+  and use the canvas file input to bind an Office file; uploading an XLSX
+  opens the spreadsheet editor on that same canvas. Agents can also create
+  and present canvases from chat.
+- **Canvas types include** `sheets`, `email`, `docs`, `coding`, `terminal`,
   `orchestration`, and `generic` (charts live inside `generic`).
 - **Side chat panel** ("Agent Co-Editor") for live co-editing: user messages go
   out over HTTP with the current canvas context injected, and agent edits stream
@@ -133,12 +135,30 @@ but interoperating systems**:
 - **Office automation** (`/api/v1/office/...`) is **file-backed**: `/present`
   opens a canvas for a `.docx`/`.xlsx`/`.pptx` on disk and `/sync-update` writes
   edits back to that file. The **file is the source of truth**.
-- **Standalone `/canvas` workspace** (`/api/canvas/...`) is **database-backed**:
-  the append-only `CanvasAudit` table is the source of truth, with no filesystem
-  binding.
+- **Standalone `/canvas` workspace** (`/api/canvas/...`) has a database-backed
+  record and append-only `CanvasAudit` history. A blank document stores its
+  content there. Binding an Office file adopts the file-backed editor and
+  sync flow above; the record retains its file binding and structured snapshot.
 
 Both broadcast the same `canvas:update` WebSocket event. Office-file updates
 deliver on **both** `canvas:{canvas_id}` (page-scoped subscribers) and
 `user:{user_id}` channels, so a canvas presented in chat also appears in the
 `/canvas` list and can be opened standalone — where the same editable
 OfficeFileCanvas renders from the persisted `Canvas.content` snapshot.
+
+### Deleted canvases and Office access
+
+Deleting a canvas hides it from the default gallery and refuses its bound
+Office downloads and updates with HTTP 404. **Show deleted** exposes the
+restore control; restoring the canvas reopens its Office access. Files remain
+available for restoration rather than being physically removed by canvas deletion.
+
+Path-only Office reads and writes also return 404 when every recognized canvas
+binding for that file is deleted. These bindings include the primary Office
+file and generated capability exports. A file with another active binding
+remains usable, as do legitimate unbound uploads. A binding-lookup failure
+returns 503 rather than treating the file as unbound.
+
+An export reference permits download but does not make that export the canvas's
+primary editable file for `sync-update`. Explicitly presenting a file without
+a canvas ID may create a new canvas; it does not undelete the old one.
