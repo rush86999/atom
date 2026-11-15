@@ -321,7 +321,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_reviewed_executable_skill_agent_dispatch.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_reviewed_executable_skill_agent_dispatch.py tests/test_goal6_ordinary_skill_join.py tests/test_goal6_skill_maturity_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # Office boundaries must honour the canonical canvas tombstone. The
       # observed failure: after the user deleted the canvas, GET

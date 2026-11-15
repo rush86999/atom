@@ -1770,3 +1770,8 @@ and all 143 claims / 18 goals remain unchanged.
 ## Ordinary API-created agent review and promotion — November 15 follow-through
 
 [Controlled review/promotion regression](ORDINARY_AGENT_REVIEW_PROMOTION_2026_11_15.md) adds the ordinary custom-agent creation boundary before the existing qualification review and promotion routes. It checks exact receipt/reviewer/evidence identity and fresh-session persistence, plus unqualified and foreign-scope denial twins. Synthetic training/evidence rows remain fixtures: this does not qualify ordinary training producers, learned capability, live model quality, skills consumption, restart or UI. No historical claim score or full-goal completion changes.
+
+
+## Scoped skill maturity and ordinary-agent consumption — November 15 follow-through
+
+[Scoped maturity and joined skill regression](SCOPED_SKILL_MATURITY_2026_11_15.md) covers the actual skills API and normal agent loop after ordinary creation and reviewed promotion. Scope-bearing execution now looks up the employee in that scope; unscoped legacy callers keep their existing governance path. The known STUDENT denial remains 400 with an explanatory message. Synthetic training/model/scanner/sandbox fixtures remain explicit; no learned capability, training producer, live quality, restart, Docker or UI completion is implied.
