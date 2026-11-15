@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import tempfile
 import threading
@@ -417,10 +418,48 @@ def _quality(candidate: Mapping[str, Any]) -> float:
 
 
 def _cost(candidate: Mapping[str, Any]) -> float:
+    """Legacy cost value for callers that do not declare cost state.
+
+    Missing legacy cost remains 0.0 for backwards compatibility. The explicit
+    known/unknown path is :func:`_cost_state`, used by economics-aware callers.
+    """
     try:
         return float(candidate.get("cost") or 0.0)
     except (TypeError, ValueError):
         return float("inf")
+
+
+def _finite_nonnegative(value: Any) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and number >= 0 else None
+
+
+def _cost_state(
+    candidate: Mapping[str, Any],
+) -> Tuple[bool, Optional[float], Optional[str]]:
+    """Resolve (known, cost, reason) for preference ordering.
+
+    A candidate that explicitly declares ``cost_state`` never falls back to
+    the legacy missing-cost-is-zero rule. Unknown cost is ordered after known
+    cost and is never treated as free; missing legacy state keeps the previous
+    behavior byte-compatible for existing callers.
+    """
+    if "cost_state" not in candidate:
+        return True, _cost(candidate), None
+    state = str(candidate.get("cost_state") or "").strip().lower()
+    raw_cost = candidate.get("cost")
+    cost = _finite_nonnegative(raw_cost)
+    if state == "known" and cost is not None:
+        return True, cost, None
+    reason = str(candidate.get("cost_reason") or "").strip()
+    if not reason:
+        reason = "invalid_cost" if raw_cost is not None else "cost_unknown"
+    return False, None, reason
 
 
 def _latency(candidate: Mapping[str, Any]) -> float:
@@ -428,6 +467,44 @@ def _latency(candidate: Mapping[str, Any]) -> float:
         return float(candidate.get("latency_ms") or 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _preference_key(candidate: Mapping[str, Any], mode: str) -> Tuple[Any, ...]:
+    """Shared preference ordering for known and unknown cost.
+
+    Legacy candidates do not set ``cost_state`` and are treated as known by
+    :func:`_cost_state`, preserving the previous ordering. Explicit unknown
+    cost is never free: economy/balanced place it after known costs and keep
+    the caller's evidence order; quality still prioritizes quality, with known
+    cost only breaking an equal-quality tie.
+    """
+    known = candidate.get("cost_state") == "known"
+    quality = _quality(candidate)
+    latency = _latency(candidate)
+    order = int(candidate.get("evidence_order") or 0)
+    cost = candidate.get("effective_cost")
+    cost = float(cost) if cost is not None else 0.0
+    if mode == "quality":
+        return (
+            -quality, 0 if known else 1,
+            cost if known else 0.0,
+            latency if known else 0.0,
+            order,
+        )
+    if mode == "balanced":
+        return (
+            0 if known else 1,
+            (cost + latency * 1e-6) if known else 0.0,
+            -quality if known else 0.0,
+            order,
+        )
+    return (
+        0 if known else 1,
+        cost if known else 0.0,
+        latency if known else 0.0,
+        -quality if known else 0.0,
+        order,
+    )
 
 
 def select_profile_candidates(
@@ -510,7 +587,7 @@ def select_profile_candidates(
         if reasons:
             excluded.append({"route": route, "reasons": reasons})
             continue
-        cost = _cost(candidate)
+        known_cost, cost, cost_reason = _cost_state(candidate)
         expected_success = candidate.get("expected_success")
         retry_rate = candidate.get("retry_rate") or 0.0
         # Expected cost of a satisfactory result: retries and measured
@@ -521,22 +598,16 @@ def select_profile_candidates(
         else:
             risk_factor = 1.0 + max(0.0, float(retry_rate)) * 2.0
             risk_factor += max(0.0, 1.0 - float(expected_success))
-        candidate["effective_cost"] = cost * risk_factor
+        candidate["cost_state"] = "known" if known_cost else "unknown"
+        candidate["cost_reason"] = cost_reason
+        candidate["effective_cost"] = (
+            cost * risk_factor if known_cost and cost is not None else None)
         candidate["evidence_state"] = evidence_state
         candidate["profile"] = profile.name
         candidate["profile_version"] = profile.version
         eligible.append(candidate)
 
-    if mode == "quality":
-        eligible.sort(key=lambda c: (
-            -_quality(c), c["effective_cost"], _latency(c)))
-    elif mode == "balanced":
-        eligible.sort(key=lambda c: (
-            c["effective_cost"] + _latency(c) * 1e-6,
-            -_quality(c)))
-    else:  # economy: cheapest expected satisfactory result first
-        eligible.sort(key=lambda c: (
-            c["effective_cost"], _latency(c), -_quality(c)))
+    eligible.sort(key=lambda c: _preference_key(c, mode))
 
     outcome = "selected" if eligible else "no_suitable"
     return {

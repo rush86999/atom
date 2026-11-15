@@ -31,6 +31,13 @@ Contract (acceptance handoff ``GRADUATION_RUNTIME_HANDOFF.md``):
   existing capability profile (:func:`select_profile_candidates`) filter every
   provider attempt; a pinned graduation call is strict (exact route or
   failure) so an unqualified fallback can never be dispatched.
+* After the comparator's sufficient cohort, the profile's preference (the
+  employee profile is ``economy``) orders already evidence-eligible routes
+  using trusted CURRENT route economics supplied by the caller. The frozen
+  benchmark record carries no price; unknown/subscription cost is never free
+  and preserves the comparator's evidence order. Economics is advisory and
+  never substitutes for the capability/baseline/build gates or the BYOK
+  hard-stop admission.
 * A missing or conflicting provider response identity makes the result
   ineligible for autonomous use; the normal supervised path applies.
 * Before an irreversible effect the fresh evidence and the owner's existing
@@ -46,7 +53,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from core.llm.model_evidence_comparison import (
     COMPARED,
@@ -54,6 +61,10 @@ from core.llm.model_evidence_comparison import (
     task_scope_digest,
 )
 from core.llm.model_provenance import normalize_model_family
+from core.llm.route_economics import (
+    economics_for_route,
+    rank_with_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +457,99 @@ def _normalize_candidates(
     return normalized
 
 
+def _candidate_filter_result(raw: Any) -> Tuple[bool, Optional[str]]:
+    """Normalize a caller-owned scope filter result.
+
+    A filter may return a bool or ``{"eligible": bool, "reason": str}``. A
+    malformed result is an exclusion (fail closed), never an admission.
+    """
+    if isinstance(raw, Mapping):
+        eligible = raw.get("eligible")
+        if eligible is None:
+            eligible = raw.get("allowed")
+        if eligible is None:
+            eligible = raw.get("ok")
+        if eligible is None:
+            return False, "candidate_filter_unreadable"
+        return bool(eligible), (
+            str(raw.get("reason") or "").strip() or None)
+    if isinstance(raw, bool):
+        return raw, None
+    return False, "candidate_filter_unreadable"
+
+
+def _economic_candidates(
+    ranked: Sequence[Mapping[str, Any]],
+    economics: Optional[Mapping[Any, Mapping[str, Any]]],
+    candidate_filter: Optional[Callable[[Mapping[str, Any]], Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
+    """Build the profile input from the comparator's sufficient cohort."""
+    economics = economics or {}
+    candidates: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+    token_basis: Dict[str, Any] = {}
+    for item in ranked or []:
+        provider = str(item.get("provider") or "").strip()
+        model = str(item.get("model") or "").strip()
+        if not provider or not model:
+            excluded.append({
+                "provider": provider, "model": model,
+                "reason": "identity_missing"})
+            continue
+        if candidate_filter is not None:
+            try:
+                allowed, reason = _candidate_filter_result(
+                    candidate_filter(item))
+            except Exception as exc:  # noqa: BLE001 — scope check fails closed
+                allowed, reason = False, (
+                    f"candidate_filter_error:{type(exc).__name__}")
+            if not allowed:
+                excluded.append({
+                    "provider": provider, "model": model,
+                    "reason": reason or "candidate_scope_ineligible"})
+                continue
+        econ = economics_for_route(economics, provider, model)
+        candidate = {
+            "provider": provider,
+            "model": model,
+            "quality": item.get("score"),
+            "score": item.get("score"),
+            "cost": econ.get("cost") if econ.get("state") == "known" else None,
+            "cost_state": econ.get("state"),
+            "cost_reason": econ.get("reason"),
+            "cost_basis": econ.get("basis"),
+            "input_tokens": econ.get("input_tokens"),
+            "output_tokens": econ.get("output_tokens"),
+            "evidence": item.get("evidence"),
+            "observed_at": item.get("observed_at"),
+        }
+        if not token_basis and (
+                econ.get("input_tokens") or econ.get("output_tokens")):
+            token_basis = {
+                "input_tokens": econ.get("input_tokens"),
+                "output_tokens": econ.get("output_tokens"),
+                "tokens_estimated": bool(econ.get("tokens_estimated")),
+                "basis": econ.get("basis"),
+                "currency": econ.get("currency") or "USD",
+            }
+        candidates.append(candidate)
+    return candidates, excluded, token_basis
+
+
+def _build_for_route(
+    ranked: Sequence[Mapping[str, Any]], provider: str, model: str,
+) -> Optional[str]:
+    for item in ranked or []:
+        if (str(item.get("provider") or "") == provider
+                and str(item.get("model") or "") == model):
+            evidence = item.get("evidence")
+            build = (
+                (evidence or {}).get("model_build")
+                if isinstance(evidence, Mapping) else None)
+            return _identity_text(build)
+    return None
+
+
 def resolve_repeat_task_route(
     db: Any,
     agent: Any,
@@ -456,6 +560,10 @@ def resolve_repeat_task_route(
     now: Optional[datetime] = None,
     profile_name: Optional[str] = None,
     measured_evidence: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    route_economics_provider: Optional[
+        Callable[[Sequence[Mapping[str, Any]]], Mapping[Any, Mapping[str, Any]]]
+    ] = None,
+    candidate_filter: Optional[Callable[[Mapping[str, Any]], Any]] = None,
 ) -> Dict[str, Any]:
     """Resolve the evidence-eligible repeat-task route for one agent.
 
@@ -488,6 +596,21 @@ def resolve_repeat_task_route(
     workload scope before any route is selected: an unrelated or unknown
     workload never inherits the receipt baseline. No caller-supplied scope
     is ever consulted.
+
+    ``route_economics_provider`` is the OPTIONAL advisory economics half. It
+    receives the comparator's sufficient ranked route items and returns
+    trusted current route economics (see ``core.llm.route_economics``). The
+    existing capability profile's preference is then applied over ONLY that
+    evidence-eligible cohort. Unknown cost never becomes free and preserves
+    the comparator's evidence order. Economics never changes capability
+    authority: quota, freshness, baseline, build and scope gates still decide
+    eligibility first, and the durable decision records the evidence winner
+    separately from the final economic selection.
+
+    ``candidate_filter`` is an OPTIONAL caller-owned existing-scope check
+    (provider/credential/policy/local-only). A route it excludes cannot win
+    the economic selection. It is never used to add evidence or to bypass the
+    profile/attempt gates.
     """
     from core.agent_graduation_service import (
         _complete_benchmark_identity as complete_benchmark_identity,
@@ -622,7 +745,7 @@ def resolve_repeat_task_route(
         for item in compared
     ]
     decision["comparison"] = comparison
-    selected = comparison.get("selected")
+    evidence_selected = comparison.get("selected")
     ranked = comparison.get("ranked") or []
     decision["ranked_routes"] = [
         {
@@ -636,26 +759,144 @@ def resolve_repeat_task_route(
         }
         for item in ranked
     ]
+    decision["evidence_selected_route"] = (
+        {
+            "provider": str(evidence_selected.get("provider") or ""),
+            "model": str(evidence_selected.get("model") or ""),
+        }
+        if isinstance(evidence_selected, Mapping) else None
+    )
     insufficient = comparison.get("insufficient_evidence") or {}
-    if comparison.get("outcome") != COMPARED or not selected:
+    if comparison.get("outcome") != COMPARED or not evidence_selected:
         return supervise(
             *list(insufficient.get("reasons") or []) or ["no_eligible_candidate"]
         )
+
+    # ECONOMICS HALF. The comparator above remains the quality/identity/baseline
+    # authority. Only its sufficient cohort reaches the profile preference.
+    economics: Mapping[Any, Mapping[str, Any]] = {}
+    economics_error: Optional[str] = None
+    if route_economics_provider is not None:
+        try:
+            economics = route_economics_provider(ranked) or {}
+        except Exception as exc:  # noqa: BLE001 — unknown economics, not free
+            economics_error = f"{type(exc).__name__}: {exc}"
+            logger.debug("repeat-task economics unavailable: %s", exc)
+    economic_candidates, scope_excluded, token_basis = _economic_candidates(
+        ranked, economics, candidate_filter)
+    decision["candidate_scope_filter"] = {
+        "excluded": scope_excluded,
+    }
+    if not economic_candidates:
+        return supervise(
+            "no_scope_eligible_candidate",
+            *[
+                f"{item.get('provider')}/{item.get('model')}:{item.get('reason')}"
+                for item in scope_excluded
+            ],
+        )
+
+    profile = None
+    profile_error: Optional[str] = None
+    try:
+        from core.llm.capability_profiles import resolve_capability_profile
+
+        profile = resolve_capability_profile(
+            profile_name or ROUTE_PROFILE, None, "")
+    except Exception as exc:  # noqa: BLE001 — preserve evidence order
+        profile_error = f"{type(exc).__name__}: {exc}"
+        logger.debug("repeat-task profile unavailable: %s", exc)
+
+    if profile is None:
+        # No profile, no economic ordering. Preserve the comparator's safe
+        # evidence winner and let the attempt filter supervise/refuse it.
+        selected = evidence_selected
+        economic_trace: List[Dict[str, Any]] = [{
+            "provider": str(selected.get("provider") or ""),
+            "model": str(selected.get("model") or ""),
+            "score": selected.get("score"),
+            "observed_at": selected.get("observed_at"),
+            "build": _identity_text(
+                (selected.get("evidence") or {}).get("model_build")
+                if isinstance(selected.get("evidence"), Mapping) else None),
+            "cost_state": "unknown",
+            "cost": None,
+            "cost_reason": "profile_unavailable",
+            "cost_basis": "unknown",
+        }]
+        decision["selection_basis"] = "evidence_order_profile_unavailable"
+        decision["economic_selection"] = {
+            "state": "profile_unavailable",
+            "reason": profile_error,
+            "preference": None,
+            "economics_error": economics_error,
+            "token_basis": token_basis,
+            "evidence_selected_route": decision["evidence_selected_route"],
+            "candidate_scope_filter": decision["candidate_scope_filter"],
+        }
+    else:
+        selection = rank_with_profile(
+            profile,
+            economic_candidates,
+            evidence=measured_evidence or {},
+            preference=profile.preference,
+        )
+        economic_trace = [
+            {
+                "provider": item.get("provider"),
+                "model": item.get("model"),
+                "score": item.get("score"),
+                "observed_at": item.get("observed_at"),
+                "build": _identity_text(
+                    (item.get("evidence") or {}).get("model_build")
+                    if isinstance(item.get("evidence"), Mapping) else None),
+                "cost_state": item.get("cost_state"),
+                "cost": item.get("effective_cost"),
+                "cost_reason": item.get("cost_reason"),
+                "cost_basis": item.get("cost_basis"),
+            }
+            for item in selection.get("ranked") or []
+        ]
+        decision["economic_selection"] = {
+            "state": "selected",
+            "profile": profile.metadata(),
+            "preference": selection.get("preference"),
+            "selection_reason": selection.get("selection_reason"),
+            "selection_basis": (
+                (selection.get("economics") or {}).get("selection_basis")),
+            "known_routes": (
+                (selection.get("economics") or {}).get("known_routes") or []),
+            "unknown_routes": (
+                (selection.get("economics") or {}).get("unknown_routes") or []),
+            "excluded": selection.get("excluded") or [],
+            "economics_error": economics_error,
+            "token_basis": token_basis,
+            "evidence_selected_route": decision["evidence_selected_route"],
+            "candidate_scope_filter": decision["candidate_scope_filter"],
+        }
+        if selection.get("outcome") != "selected" or not selection.get("ranked"):
+            reasons = ["economic_selection_no_eligible_candidate"]
+            reasons.extend(
+                f"{item.get('route')}:{reason}"
+                for item in selection.get("excluded") or []
+                for reason in item.get("reasons") or [])
+            return supervise(*reasons)
+        selected = selection["ranked"][0]
+        decision["selection_basis"] = (
+            (selection.get("economics") or {}).get("selection_basis")
+            or "profile_preference")
+
     decision["route_state"] = STATE_PINNED
     decision["selected_route"] = {
         "provider": str(selected.get("provider") or ""),
         "model": str(selected.get("model") or ""),
     }
-    # Bind the benchmark's actual provider build next to the callable route.
-    # The route stays the alias that is dispatched; the build is the concrete
-    # provider identity the benchmark observed answering that alias. It is
-    # carried into the durable decision so dispatch and the effect gate can
-    # reject a missing or changed response echo.
-    evidence = selected.get("evidence")
-    build = (
-        (evidence or {}).get("model_build")
-        if isinstance(evidence, Mapping) else None)
-    decision["selected_build"] = _identity_text(build)
+    # Bind the benchmark's actual provider build of the FINAL economically
+    # selected route, never the comparator's previous evidence winner.
+    decision["selected_build"] = _build_for_route(
+        ranked, decision["selected_route"]["provider"],
+        decision["selected_route"]["model"])
+    decision["economic_ranked_routes"] = economic_trace
     decision["autonomous_eligible"] = True
     return decision
 
@@ -964,6 +1205,9 @@ def revalidate_repeat_task_effect(
     decisions: Sequence[Any],
     assignment: Optional[Any] = None,
     now: Optional[datetime] = None,
+    route_economics_provider: Optional[
+        Callable[[Sequence[Mapping[str, Any]]], Mapping[Any, Mapping[str, Any]]]
+    ] = None,
 ) -> Optional[Dict[str, Any]]:
     """Revalidate current evidence before an irreversible effect.
 
@@ -1037,7 +1281,8 @@ def revalidate_repeat_task_effect(
             "route_state": prior.get("route_state"),
         }
     fresh = resolve_repeat_task_route(
-        db, agent, assignment=assignment, now=now)
+        db, agent, assignment=assignment, now=now,
+        route_economics_provider=route_economics_provider)
     if fresh.get("route_state") == STATE_PINNED and fresh.get("selected_route"):
         fresh_provider, fresh_model = _route_identity(fresh.get("selected_route"))
         if prior_provider and prior_model and (

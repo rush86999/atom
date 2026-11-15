@@ -600,6 +600,50 @@ def _record_route_marker(
             "%s", decision.get("assignment_id") or run_id, exc)
 
 
+def _repeat_task_route_economics_provider(record: Mapping[str, Any]):
+    """Trusted current economics for the repeat-task resolver.
+
+    Kept as a small seam so tests can inject a fake price authority without
+    reading a developer/owner pricing cache. Production uses the existing
+    configured per-token pricing authority with an explicit workload basis.
+    """
+    from core.llm.route_economics import provider_for_assignment
+
+    assignment = (record or {}).get("assignment") or {}
+    return provider_for_assignment(assignment)
+
+
+def _repeat_task_candidate_filter(
+    llm: Any, workspace_id: str, tenant_id: str,
+):
+    """Existing provider/credential/policy scope check before economic pinning.
+
+    This is not a new credential reader: it reuses the same
+    ``build_provider_model_pin`` gate the pinned dispatch uses. Budget
+    admission remains the BYOK hard-stop authority at dispatch time.
+    """
+    if llm is None or not callable(getattr(llm, "_get_handler", None)):
+        return None
+    from core.llm.pinned_planning import build_provider_model_pin
+
+    def _filter(item: Mapping[str, Any]):
+        provider = str(item.get("provider") or "").strip()
+        model = str(item.get("model") or "").strip()
+        pin = build_provider_model_pin(
+            llm, provider, model,
+            workspace_id=workspace_id or None,
+            tenant_id=tenant_id or None,
+        )
+        if pin.get("provider_model"):
+            return True
+        return {
+            "eligible": False,
+            "reason": "provider_scope_ineligible",
+        }
+
+    return _filter
+
+
 def _resolve_assignment_graduation_route(
     executor: Any,
     run_id: str,
@@ -665,7 +709,12 @@ def _resolve_assignment_graduation_route(
                 measured = {}
             decision = resolve_repeat_task_route(
                 db, agent, assignment=record.get("assignment"),
-                measured_evidence=measured)
+                measured_evidence=measured,
+                route_economics_provider=(
+                    _repeat_task_route_economics_provider(record)),
+                candidate_filter=_repeat_task_candidate_filter(
+                    llm, workspace_id, tenant_id),
+            )
             if decision.get("route_state") == STATE_PINNED:
                 selected = decision.get("selected_route") or {}
                 ranked = {
