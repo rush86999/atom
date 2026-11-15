@@ -15,6 +15,14 @@ Components:
 - contextvar carrier for the per-call resolved ID (set by byok_handler right
   after each successful provider call; read by outcome feedback and agent-loop
   provenance stamping).
+- :func:`capture_model_provenance` — durable provenance from the accepted
+  runtime result (or the call-local served route). It retains actual accepted
+  ``requested_max_tokens``/``effective_max_tokens`` when the result reports
+  them; missing means unknown and is never filled from a request, alias, or
+  handler default. Cap evidence is selected from the SAME source as the
+  serving pair: a flat partial result is not completed from stale nested
+  values (a matching explicit generation id is required), and route
+  attribution never supplies caps.
 - :class:`ModelDriftDetector` — baseline map keyed ``(provider_id,
   requested_model) -> resolved`` persisted to a JSON state file. Fires a
   :class:`DriftEvent` when the echo changes under a stable requested key.
@@ -510,7 +518,28 @@ _PROVENANCE_KEYS = (
     "provider", "model", "requested_provider", "requested_model",
     "resolved_model", "routing_result_id", "mode", "fallback", "source",
     "serving_models", "unattributed_calls",
+    "requested_max_tokens", "effective_max_tokens",
 )
+
+#: Optional completion-budget evidence. Values are accepted only from the
+#: accepted runtime result / its already-captured provenance object, never
+#: from a caller request, alias, or handler default. Positive ints only:
+#: booleans, strings, floats, zero and negatives are unknown, not coerced.
+_INT_PROVENANCE_KEYS = frozenset({
+    "requested_max_tokens", "effective_max_tokens",
+})
+
+
+def _positive_int(value: Any) -> Optional[int]:
+    """An actual reported positive integer, or None when unknown.
+
+    Do not coerce strings/floats/bools here: those are not proof of the value
+    the transport accepted, and a caller-supplied ``max_tokens`` string must
+    never be relabelled as runtime evidence.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if value > 0 else None
 
 
 def _identity(value: Any) -> Optional[str]:
@@ -608,6 +637,11 @@ def provenance_from_metadata(metadata: Any) -> Dict[str, Any]:
                 if unattributed is not None:
                     out[key] = unattributed
                 continue
+            if key in _INT_PROVENANCE_KEYS:
+                value = _positive_int(nested.get(key))
+                if value is not None:
+                    out[key] = value
+                continue
             value = _identity(nested.get(key))
             if value is not None:
                 out[key] = value
@@ -670,6 +704,88 @@ def _fallback_flag(
     return False
 
 
+def _completion_budget_evidence(
+    payload: Mapping,
+    nested: Mapping,
+    *,
+    serving_origin: str,
+    provider: Optional[str],
+    model: Optional[str],
+) -> Dict[str, int]:
+    """Optional cap evidence from the SAME source as the serving pair.
+
+    Cap values are never selected per key across generations. A flat runtime
+    result supplies both optional caps (or only the ones it reported); if one
+    is missing, it may be filled from a nested capture ONLY when an explicit
+    non-empty ``routing_result_id`` matches and the nested pair/source is the
+    same accepted runtime generation. A canonical nested-only durable capture
+    supplies its own caps. Route attribution, partial identities, and
+    same-provider/model guesses never supply caps. Absent remains absent; no
+    default, floor, or min(requested, effective) correction is applied.
+    """
+    flat_provider = _identity(payload.get("provider"))
+    flat_model = _identity(payload.get("model"))
+    nested_provider = _identity(nested.get("provider"))
+    nested_model = _identity(nested.get("model"))
+    flat_caps = {
+        key: _positive_int(payload.get(key)) for key in _INT_PROVENANCE_KEYS}
+    nested_caps = {
+        key: _positive_int(nested.get(key)) for key in _INT_PROVENANCE_KEYS}
+
+    evidence: Dict[str, int] = {}
+    if serving_origin == "flat":
+        # The selected pair must be the flat result's own complete pair.
+        if not (
+            flat_provider and flat_model
+            and provider == flat_provider and model == flat_model
+        ):
+            return {}
+        for key in _INT_PROVENANCE_KEYS:
+            value = flat_caps.get(key)
+            if value is not None:
+                evidence[key] = value
+
+        # Explicit wrapper recapture: only a matching generation id and the
+        # same complete pair/source can supply a missing current key. A bare
+        # provider/model match is not generation identity.
+        missing = [
+            key for key in _INT_PROVENANCE_KEYS if key not in evidence]
+        if (
+            missing
+            and nested_provider == flat_provider
+            and nested_model == flat_model
+            and nested.get("source") == "runtime_result"
+        ):
+            flat_generation = _identity(payload.get("routing_result_id"))
+            nested_generation = _identity(nested.get("routing_result_id"))
+            if (
+                flat_generation and nested_generation
+                and flat_generation == nested_generation
+            ):
+                for key in missing:
+                    value = nested_caps.get(key)
+                    if value is not None:
+                        evidence[key] = value
+        return evidence
+
+    if serving_origin == "nested":
+        # The selected pair must be the nested capture's own complete pair,
+        # and only a canonical runtime-result capture may carry caps.
+        if not (
+            nested_provider and nested_model
+            and provider == nested_provider and model == nested_model
+            and nested.get("source") == "runtime_result"
+        ):
+            return {}
+        for key in _INT_PROVENANCE_KEYS:
+            value = nested_caps.get(key)
+            if value is not None:
+                evidence[key] = value
+        return evidence
+
+    return {}
+
+
 def capture_model_provenance(
     result: Any = None, *, include_route_attribution: bool = True,
 ) -> Dict[str, Any]:
@@ -696,8 +812,6 @@ def capture_model_provenance(
     nested = payload.get("model_provenance")
     nested = nested if isinstance(nested, Mapping) else {}
 
-    result_provider = _result_identity(payload, nested, "provider")
-    result_model = _result_identity(payload, nested, "model")
     requested_provider = _result_identity(
         payload, nested, "requested_provider")
     requested_model = _result_identity(payload, nested, "requested_model")
@@ -712,46 +826,59 @@ def capture_model_provenance(
 
     # ── Atomic serving-pair selection ──
     # provider and model must come from ONE trusted, execution-bound source.
-    # Selecting them independently mixed a partial runtime result with
-    # call-local route attribution and reported a pair — new-provider/
-    # old-model — that never served anything. Candidate sources, most
-    # trusted first: the runtime result's own provider/model, then the
-    # call-local served route (the accepted response's route; a failed
-    # attempt never sets served_route).
-    serving_sources: list = []
-    if result_provider or result_model:
-        serving_sources.append(
-            ("runtime_result", result_provider, result_model))
+    # The flat runtime result, a captured nested provenance, and the
+    # call-local served route are separate candidate sources. A flat partial
+    # result is never completed from a nested capture or from another
+    # partial source; a complete route may still win over a partial flat
+    # result, exactly as before. Nested identity is used only when the flat
+    # result has no provider/model identity at all.
+    flat_provider = _identity(payload.get("provider"))
+    flat_model = _identity(payload.get("model"))
+    nested_provider = _identity(nested.get("provider"))
+    nested_model = _identity(nested.get("model"))
+    flat_any = bool(flat_provider or flat_model)
+
+    served_provider: Optional[str] = None
+    served_model: Optional[str] = None
     if include_route_attribution:
         served_provider, served_model = _route_pair(
             attribution.get("served_route"))
-        if served_provider or served_model:
-            serving_sources.append((
-                "route_attribution",
-                served_provider,
-                _first_identity(
-                    served_model, attribution.get("resolved_model")),
-            ))
-    # A source that knows BOTH members wins (runtime result first, then the
-    # call-local served route); if none does, the highest-priority source
-    # yields a partial pair and the missing member stays absent — never
-    # backfilled from a different source.
-    chosen = next(
-        (s for s in serving_sources if s[1] and s[2]),
-        serving_sources[0] if serving_sources else None,
-    )
-    provider = chosen[1] if chosen else None
-    model = chosen[2] if chosen else None
-    if not provider and not model:
+        served_model = _first_identity(
+            served_model, attribution.get("resolved_model"))
+
+    complete_sources: list = []
+    partial_sources: list = []
+
+    def _consider(
+        source: str, origin: str,
+        candidate_provider: Optional[str],
+        candidate_model: Optional[str],
+    ) -> None:
+        if candidate_provider and candidate_model:
+            complete_sources.append(
+                (source, origin, candidate_provider, candidate_model))
+        elif candidate_provider or candidate_model:
+            partial_sources.append(
+                (source, origin, candidate_provider, candidate_model))
+
+    _consider("runtime_result", "flat", flat_provider, flat_model)
+    if not flat_any:
+        _consider("runtime_result", "nested", nested_provider, nested_model)
+    if include_route_attribution:
+        _consider(
+            "route_attribution", "route", served_provider, served_model)
+
+    candidates = complete_sources + partial_sources
+    if not candidates:
         return {}
-    serving_source = chosen[0] if chosen else None
-    if (serving_source == "runtime_result" and nested
-            and (result_provider or result_model)
+    serving_source, serving_origin, provider, model = candidates[0]
+    if (serving_origin == "nested"
             and nested.get("source") in ("runtime_result",
                                          "route_attribution")):
         # The serving pair was already captured once; preserve its honest
         # source instead of relabelling attribution evidence as a runtime
-        # result on the durable round-trip through a result payload.
+        # result on the durable round-trip through a result payload. A flat
+        # result never inherits an old nested source label.
         serving_source = str(nested.get("source"))
 
     route_provider, route_model = (None, None)
@@ -793,6 +920,18 @@ def capture_model_provenance(
         payload.get("unattributed_calls"), nested.get("unattributed_calls"))
     if unattributed is not None:
         provenance["unattributed_calls"] = unattributed
+
+    # Completion-budget evidence from the SAME accepted source as the
+    # serving pair. A terminal failure result is not an accepted transport
+    # and may not claim a budget even if a caller attached one.
+    if payload.get("success") is not False:
+        provenance.update(_completion_budget_evidence(
+            payload,
+            nested,
+            serving_origin=serving_origin,
+            provider=provider,
+            model=model,
+        ))
 
     fallback = _fallback_flag(
         payload, nested, requested_provider, requested_model, provider, model)
