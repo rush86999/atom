@@ -120,6 +120,8 @@ def test_named_memory_scratch_and_non_sqlite_are_not_guarded(guard_functions):
         "sqlite://",
         f"sqlite:///file:{backend}/scratch.db?mode=rw&uri=true",
         f"sqlite:///file:{backend}/data/scratch.db?uri=true",
+        f"sqlite:///file:{backend}/data/atom%2523ignored?uri=true",
+        f"sqlite:///file:{backend}/data/atom%253Fignored?uri=true",
         "sqlite:////tmp/scratch-atom.db",
         "sqlite:///file:memdb1?mode=memory&cache=shared&uri=true",
         "sqlite:///file::memory:?cache=shared&uri=true",

@@ -82,13 +82,23 @@ def resolve_sqlite_file_path(
     """Actual filesystem path a SQLAlchemy SQLite URL opens, or None.
 
     Shared by the live-DB pytest guard (``core.database``) and the backup /
-    fingerprint consumer (``core.db_safety``). It does not prefix-split the
-    URL: SQLAlchemy parses the driver/query, URI-mode filenames are
-    percent-decoded **after** URI parsing (so an encoded ``#``/``?``/``%``
-    stays part of the filename), and relative non-URI paths use the same
-    backend anchor as the rest of the DB layer. Returns None for non-SQLite
-    and in-memory / named-memory URLs; raises ValueError for a malformed
-    SQLite URL so live-data guards can fail closed.
+    fingerprint consumer (``core.db_safety``). It follows what the engine
+    actually opens:
+
+    * SQLAlchemy parses/unquotes the outer URL and produces the driver
+      filename via ``SQLiteDialect_pysqlite.create_connect_args``;
+    * when that driver filename uses ``uri=true``, the filename is parsed at
+      the SQLite URI layer (``urlsplit``) and percent-decoded **once** for the
+      filesystem path. Thus ``%23ignored``/``%3Fignored`` suffixes behave as
+      the real engine does (fragment/query, still opening the protected file),
+      while a double-encoded ``%2523`` becomes a literal ``#`` in the filename;
+    * ``mode=memory`` is honored only from the actual driver URI query, so a
+      plain non-URI URL with ``?mode=memory`` remains a disk file;
+    * non-URI paths use the existing backend anchor; relative URI paths resolve
+      against the current CWD exactly as SQLite does.
+
+    Returns None for non-SQLite and actual in-memory databases. Raises
+    ValueError for a malformed SQLite URL so live-data guards can fail closed.
     """
     if (not value or not isinstance(value, str)
             or not value.lower().startswith("sqlite")):
@@ -103,38 +113,27 @@ def resolve_sqlite_file_path(
     if str(parsed.get_backend_name()).lower() != "sqlite":
         return None
 
-    # Use the raw URL database segment, not ``parsed.database``: SQLAlchemy
-    # percent-decodes the latter before creating connect args, which turns an
-    # encoded ``%23`` into a literal ``#`` and loses the rest of the filename
-    # to URI-fragment parsing.
-    scheme, sep, rest = anchored.partition(":///")
-    if not sep:
-        return None
-    raw_database, _, raw_query = rest.partition("?")
-    if not raw_database:
-        return None
-    from urllib.parse import parse_qs
+    try:
+        from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 
-    query = parse_qs(raw_query, keep_blank_values=True)
-
-    def _first(name: str) -> str:
-        values = query.get(name) or [""]
-        return str(values[0]).strip().lower()
-
-    if _first("mode") == "memory":
+        connect_args, connect_kwargs = (
+            SQLiteDialect_pysqlite().create_connect_args(parsed))
+    except Exception as exc:
+        raise ValueError(f"cannot resolve SQLite connect args: {exc}") from exc
+    filename = str(connect_args[0]) if connect_args else ""
+    if not filename or filename == ":memory:":
         return None
-    uri_mode = _first("uri") in {"1", "true", "yes", "on"}
-    if raw_database == ":memory:":
-        return None
-    if raw_database.lower().startswith("file:"):
-        if uri_mode:
-            from urllib.parse import unquote, urlsplit
 
-            candidate = unquote(urlsplit(raw_database).path)
-        else:
-            candidate = raw_database
+    if filename.lower().startswith("file:") and connect_kwargs.get("uri"):
+        from urllib.parse import parse_qs, unquote, urlsplit
+
+        uri = urlsplit(filename)
+        mode = (parse_qs(uri.query).get("mode") or [""])[0]
+        if str(mode).lower() == "memory":
+            return None
+        candidate = unquote(uri.path)
     else:
-        candidate = raw_database
+        candidate = filename
     if not candidate or candidate == ":memory:":
         return None
     return str(Path(candidate).resolve(strict=False))
