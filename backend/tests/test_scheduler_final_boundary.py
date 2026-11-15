@@ -65,14 +65,9 @@ def guard_functions(tmp_path):
         {"os": os, "Path": Path, "re": __import__("re"),
          "_BACKEND_ROOT": backend})
     anchor = local["anchor_sqlite_url"]
-    # The database guard calls its local anchor helper. Inject the exact
-    # extracted local helper with the synthetic backend root instead of
-    # replacing the real ``core`` package in sys.modules.
-    namespace = {
-        "os": os,
-        "_DATABASE_BACKEND_DIR": str(backend),
-        "_anchor_sqlite_url": lambda value: anchor(value, backend),
-    }
+    # The database guard imports the real shared resolver and passes the
+    # synthetic backend root explicitly; no sys.modules replacement is needed.
+    namespace = {"os": os, "_DATABASE_BACKEND_DIR": str(backend)}
     _extract_functions(DB_SOURCE, {"_targets_live_dev_db"}, namespace)
     return backend, namespace["_targets_live_dev_db"], anchor
 
