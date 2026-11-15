@@ -192,6 +192,18 @@ def reconcile_scheduler_job_store(
         result["status"] = "fresh"
         return result
 
+    # A live/uncheckpointed SQLite store may keep recent transactions in
+    # -wal/-shm sidecars. Copying only the main file would silently lose
+    # them; require the old process to be stopped and checkpointed first.
+    sidecars = [Path(str(legacy) + suffix) for suffix in ("-wal", "-shm")]
+    present_sidecars = [str(path) for path in sidecars
+                        if path.exists() or path.is_symlink()]
+    if present_sidecars:
+        _conflict(
+            f"legacy scheduler store {legacy} has SQLite sidecar(s) "
+            f"{present_sidecars}; stop the old backend and checkpoint/close "
+            "the store before adopting it")
+
     base.mkdir(parents=True, exist_ok=True)
     temp = canonical.with_name(
         f".{canonical.name}.adopt-{os.getpid()}-{uuid.uuid4().hex}")

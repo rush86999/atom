@@ -323,6 +323,18 @@ def test_ambiguous_legacy_refuses_adoption(tmp_path):
     assert not (backend / "jobs.sqlite").exists()
 
 
+def test_legacy_with_sqlite_sidecars_refuses_adoption(tmp_path):
+    backend = tmp_path / SYNTH_BACKEND
+    backend.mkdir()
+    legacy = tmp_path / "jobs.sqlite"
+    _legacy_sqlite(legacy)
+    Path(str(legacy) + "-wal").write_bytes(b"uncheckpointed")
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_scheduler_job_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert not (backend / "jobs.sqlite").exists()
+
+
 def test_legacy_symlink_refuses_adoption(tmp_path):
     backend = tmp_path / SYNTH_BACKEND
     backend.mkdir()
