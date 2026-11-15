@@ -559,7 +559,7 @@ class TestRecruitFleet:
 class TestMentorship:
     async def test_generate_mentorship_guidance(self):
         agent = make_agent()
-        agent.llm.generate_response = AsyncMock(return_value="Check the params carefully")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'Check the params carefully', "text": 'Check the params carefully', "model": "m", "provider": "p", "finish_reason": "stop"})
         db = MagicMock()
         student = MagicMock()
         student.category = "sales"
@@ -579,8 +579,8 @@ class TestMentorship:
 
     async def test_generate_mentorship_guidance_no_student(self):
         agent = make_agent()
-        agent.llm.generate_response = AsyncMock(
-            return_value="Meta-Agent was unable to provide guidance for this action.")
+        agent.llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": 'Meta-Agent was unable to provide guidance for this action.', "text": 'Meta-Agent was unable to provide guidance for this action.', "model": "m", "provider": "p", "finish_reason": "stop"})
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
         with patch("core.atom_meta_agent.SessionLocal") as mock_session:
@@ -592,7 +592,7 @@ class TestMentorship:
 
     async def test_generate_mentorship_guidance_db_error(self):
         agent = make_agent()
-        agent.llm.generate_response = AsyncMock(return_value="safe guidance")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'safe guidance', "text": 'safe guidance', "model": "m", "provider": "p", "finish_reason": "stop"})
         db = MagicMock()
         db.query.side_effect = RuntimeError("db down")
         with patch("core.atom_meta_agent.SessionLocal") as mock_session:
@@ -636,7 +636,7 @@ class TestRoutingHelpers:
     async def test_route_to_chat(self):
         from core.atom_meta_agent import _route_to_chat
         agent = make_agent()
-        agent.llm.generate_response = AsyncMock(return_value="chat reply")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'chat reply', "text": 'chat reply', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await _route_to_chat(agent, "hello", "u-1")
         assert result["route"] == "CHAT"
         assert result["response"] == "chat reply"
@@ -699,7 +699,7 @@ class TestRoutingHelpers:
     async def test_propose_chat_alternative(self):
         from core.atom_meta_agent import _propose_chat_alternative
         agent = make_agent()
-        agent.llm.generate_response = AsyncMock(return_value="chat alternative")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'chat alternative', "text": 'chat alternative', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await _propose_chat_alternative(
             agent, "original", "workflow", "not enough maturity", "u-1")
         assert isinstance(result, dict)
