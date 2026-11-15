@@ -21,6 +21,7 @@ import asyncio
 import copy
 import hashlib
 import logging
+import os
 import re
 import uuid
 import json
@@ -75,7 +76,17 @@ _SPECIALIST_INSTRUCTION = (
 # attributable; the completion cap bounds spend. The call never receives tool
 # definitions, and the synthesis is rendered as commentary -- it cannot consume
 # a specialist result, create an execution, or claim that an action ran.
-_SYNTHESIS_MAX_OUTPUT_TOKENS = 1400
+_SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS = 8000
+# Backwards-compatible import surface for existing callers/tests. The default
+# is an editorial CEILING, not a target: a short answer still stops naturally
+# and is charged by actual usage. It is configurable below and always lowered
+# by an explicit owner global completion cap or a known route context window;
+# nothing here raises a hard cap.
+_SYNTHESIS_MAX_OUTPUT_TOKENS = _SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS
+_SYNTHESIS_MAX_OUTPUT_TOKENS_ENV = "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS"
+_SYNTHESIS_MAX_OUTPUT_TOKENS_FLOOR = 256
+_SYNTHESIS_MAX_OUTPUT_TOKENS_CEILING = 32768
+_OWNER_COMPLETION_MAX_ENV = "ATOM_COMPLETION_MAX_TOKENS"
 _SYNTHESIS_TIMEOUT_SECONDS = 45.0
 _SYNTHESIS_REQUEST_MAX_CHARS = 4000
 # Per-contribution ceiling never exceeds the shared evidence budget. The
@@ -86,6 +97,70 @@ _SYNTHESIS_CONTRIBUTION_MAX_CHARS = 6000
 _SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS = 10000
 _SYNTHESIS_MIN_CONTRIBUTION_CHARS = 600
 _SYNTHESIS_FAILURE_MAX_CHARS = 300
+
+
+def _parse_bounded_positive_int(name: str, raw: Any, *, floor: int,
+                                ceiling: int) -> int:
+    """Validate one numeric budget literal; invalid values fail closed."""
+    if isinstance(raw, bool):
+        raise ValueError(f"{name} must be a positive integer")
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if value < floor or value > ceiling:
+        raise ValueError(
+            f"{name} must be between {floor} and {ceiling}, got {value}")
+    return value
+
+
+def _resolve_synthesis_output_budget(
+    environ: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Resolve the fleet-synthesis output ceiling from general config.
+
+    Precedence (only DOWNWARD clamps are allowed):
+      1. purpose config ``ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS`` (default
+         8000; validated 256..32768; malformed values raise);
+      2. explicit owner global ``ATOM_COMPLETION_MAX_TOKENS`` when set, as a
+         lower hard ceiling.  The handler's 6000 default is a *default when no
+         per-call cap is supplied*, not an owner instruction, so its mere
+         absence does not silently undo the editorial ceiling.
+    Provider/model context windows are applied later, immediately before
+    transport/reservation, by the existing BYOK route path.
+    """
+    env = dict(os.environ if environ is None else environ)
+    configured = env.get(_SYNTHESIS_MAX_OUTPUT_TOKENS_ENV)
+    if configured is None or str(configured).strip() == "":
+        requested = _SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS
+        source = "fleet_synthesis_default"
+    else:
+        requested = _parse_bounded_positive_int(
+            _SYNTHESIS_MAX_OUTPUT_TOKENS_ENV, configured,
+            floor=_SYNTHESIS_MAX_OUTPUT_TOKENS_FLOOR,
+            ceiling=_SYNTHESIS_MAX_OUTPUT_TOKENS_CEILING)
+        source = "fleet_synthesis_config"
+    effective = requested
+    owner_clamped = False
+    owner = env.get(_OWNER_COMPLETION_MAX_ENV)
+    if owner is not None and str(owner).strip() != "":
+        owner_value = _parse_bounded_positive_int(
+            _OWNER_COMPLETION_MAX_ENV, owner, floor=1,
+            ceiling=1_000_000_000)
+        if owner_value < effective:
+            effective = owner_value
+            source = "owner_global_clamp"
+            owner_clamped = True
+    return {
+        "ok": True,
+        "requested_max_output_tokens": requested,
+        "effective_max_output_tokens": effective,
+        "max_output_tokens": effective,
+        "max_output_tokens_source": source,
+        "owner_global_clamp_applied": owner_clamped,
+    }
+
+
 # Provider stop reasons that mean the completion is NOT the model's finished
 # answer. OpenAI uses "length"; Anthropic uses "max_tokens" (and treats
 # "model_context_window_exceeded" as truncated). The values are normalized
@@ -557,8 +632,9 @@ _SYNTHESIS_SYSTEM_INSTRUCTION = (
     "ordering, never add, subtract, or convert across different units or "
     "currencies, and disclose any unexplained remainder instead of implying "
     "the breakdown is complete. When no "
-    "calculation was precomputed, say harness arithmetic was withheld; do not "
-    "say no calculation is possible, because a qualified calculation may "
+    "calculation was precomputed, say the calculation from the supplied "
+    "figures was withheld; do not say no calculation is possible, because a "
+    "qualified calculation may "
     "still be given from figures whose relationship the request or evidence "
     "states, in one unit, clearly labelled as the editor's own. When "
     "specialists disagree, name the conflict, say which figure the original "
@@ -2418,19 +2494,20 @@ Return JSON matching the TaskAnalysis schema."""
             reason = reconciliation.get("withheld_reason")
             if reason == "mixed_units":
                 note = (
-                    "Harness arithmetic withheld: the supplied figures use "
-                    "different units or currencies. Do not add, subtract, or "
-                    "convert across them. A qualified calculation is still "
-                    "allowed for figures that share one unit when the request "
-                    "or evidence states their relationship; label it as your "
-                    "own calculation, not harness arithmetic."
+                    "Calculation from the supplied figures withheld: the "
+                    "supplied figures use different units or currencies. Do "
+                    "not add, subtract, or convert across them. A qualified "
+                    "calculation is still allowed for figures that share one "
+                    "unit when the request or evidence states their "
+                    "relationship; label it as your own calculation rather "
+                    "than one calculated from the supplied figures."
                 )
             elif reason in (
                     "ambiguous_baseline", "ambiguous_actual",
                     "ambiguous_gap_pair"):
                 note = (
-                    "Harness arithmetic withheld: the supplied figures name "
-                    "more than one possible " + (
+                    "Calculation from the supplied figures withheld: the "
+                    "supplied figures name more than one possible " + (
                         "baseline" if reason == "ambiguous_baseline"
                         else "actual" if reason == "ambiguous_actual"
                         else "comparison") + " for the gap being diagnosed, so "
@@ -2439,23 +2516,28 @@ Return JSON matching the TaskAnalysis schema."""
                     "is not verified and name what would disambiguate it. A "
                     "qualified calculation is still allowed only if the "
                     "request or evidence states which figures are the pair; "
-                    "label it as your own, not harness arithmetic."
+                    "label it as your own rather than one calculated from "
+                    "the supplied figures."
                 )
             else:
                 note = (
-                    "Harness arithmetic withheld: the request does not "
+                    "Calculation from the supplied figures withheld: the "
+                    "request does not "
                     "explicitly declare these figures as a total and its "
                     "components, or as exactly one labelled baseline and one "
                     "labelled actual for the gap being diagnosed. Do not infer "
                     "a relationship from magnitude or ordering. A qualified "
                     "calculation is still allowed when the request or evidence "
-                    "states how same-unit figures relate; label it as your own "
-                    "calculation, not harness arithmetic. Report that harness "
-                    "arithmetic was withheld, not that no calculation is "
+                    "states how same-unit figures relate; label it as your "
+                    "own calculation rather than one calculated from the "
+                    "supplied figures. Report that the calculation from the "
+                    "supplied "
+                    "figures was withheld, not that no calculation is "
                     "possible."
                 )
             return (
-                "\n\nSUPPLIED FIGURES (NO HARNESS ARITHMETIC):\n"
+                "\n\nSUPPLIED FIGURES (CALCULATION FROM THE SUPPLIED "
+                "FIGURES WITHHELD):\n"
                 + "\n".join(figure_lines)
                 + "\n"
                 + note
@@ -2484,8 +2566,9 @@ Return JSON matching the TaskAnalysis schema."""
                     f"- Contributor candidates ({labels}) are NOT attributed "
                     f"by the request, and the scoped specialist evidence does "
                     f"not name each of them ({unnamed} unmentioned). Do not "
-                    "present their subtotal or a residual as harness "
-                    "arithmetic; report the grounded gap alone.")
+                    "present their subtotal or a residual as a calculation "
+                    "from the supplied figures; report the grounded gap "
+                    "alone.")
             else:
                 conditional_lines.append(
                     f"- CONDITIONAL, NOT VERIFIED (candidates: {labels}): if "
@@ -2497,10 +2580,11 @@ Return JSON matching the TaskAnalysis schema."""
                     "Membership is not established by the request's wording. "
                     "Adopt this only if the attributed specialist evidence "
                     "names each candidate as a contributor to this gap, and "
-                    "label it as a conditional, evidence-grounded calculation "
-                    "-- never as harness arithmetic.")
+                    "label it as a conditional, evidence-grounded "
+                    "calculation -- never one calculated from the supplied "
+                    "figures.")
         return (
-            "\n\nSUPPLIED FIGURES AND HARNESS ARITHMETIC (computed only from an "
+            "\n\nSUPPLIED FIGURES AND CALCULATIONS (computed only from an "
             "explicitly grounded relationship, in one unit; do not recalculate "
             "differently):\n"
             + "\n".join(figure_lines)
@@ -2536,11 +2620,12 @@ Return JSON matching the TaskAnalysis schema."""
                             str(label) for label
                             in (conditional.get("unnamed_labels") or []))
                         lines.append(
-                            "Conditional, not harness arithmetic "
-                            f"(candidates: {labels}): unsupported contributor "
-                            "arithmetic was withheld because the request does "
-                            "not attribute these figures and the scoped "
-                            "specialist evidence does not name each of them"
+                            "Conditional specialist evidence "
+                            f"(candidates: {labels}): an unsupported "
+                            "calculation from the supplied figures was "
+                            "withheld because the request does not attribute "
+                            "these figures and the scoped specialist evidence "
+                            "does not name each of them"
                             + (f" ({unnamed} unmentioned)" if unnamed else "")
                             + ". No contributor subtotal or residual is "
                             "stated.")
@@ -2550,7 +2635,7 @@ Return JSON matching the TaskAnalysis schema."""
                         conditional_residual = cls._format_reconciled_value(
                             conditional.get("residual"), currency, unit)
                         lines.append(
-                            "Conditional, not harness arithmetic "
+                            "Conditional specialist evidence "
                             f"(candidates: {labels}): if those exact supplied "
                             "figures are the gap's contributors, their "
                             f"subtotal is {subtotal} and the residual is "
@@ -4255,17 +4340,18 @@ Return JSON matching the TaskAnalysis schema."""
             "and the signed remainder. If the remainder is non-zero, label it "
             "unexplained and do not claim the breakdown is complete. If no "
             "figures were supplied, say not applicable and "
-            "that no figures were supplied. When harness arithmetic is "
-            "withheld, state what was withheld, not that no calculation is "
-            "possible: a qualified calculation is still allowed when the "
-            "request or evidence states how same-unit figures relate. Show "
-            "its inputs and result, and label it a qualified calculation "
-            "rather than harness arithmetic. When contributor membership is "
+            "that no figures were supplied. When a calculation from the supplied "
+            "figures is withheld, state what was withheld, not that no "
+            "calculation is possible: a qualified calculation is still allowed "
+            "when the request or evidence states how same-unit figures relate. "
+            "Show its inputs and result, and label it a qualified calculation "
+            "rather than one calculated from the supplied figures. When "
+            "contributor membership is "
             "conditional, keep that evidence level in every section that "
             "restates the attribution, not only here. Never infer a "
             "relationship from "
             "magnitude or ordering and never add, subtract, or convert across "
-            "units or currencies. Use the harness arithmetic above when "
+            "units or currencies. Use the calculations above when "
             "present; never substitute a different calculation.\n"
             "- In REQUESTED DELIVERABLES, check each deliverable the original "
             "request names. Mark it supplied (with the contributing "
@@ -4592,6 +4678,22 @@ Return JSON matching the TaskAnalysis schema."""
         this call only reads evidence and asks for text -- no tools, no
         operations, no durable work is started here.
         """
+        # Resolve the editorial ceiling before building the request. A
+        # malformed configured value fails closed: no completion is dispatched
+        # and the caller uses the complete attributed work instead of quietly
+        # falling back to an arbitrary number.
+        budget_error: Optional[str] = None
+        try:
+            budget = _resolve_synthesis_output_budget()
+        except ValueError as exc:
+            budget = {
+                "requested_max_output_tokens": None,
+                "effective_max_output_tokens": None,
+                "max_output_tokens": None,
+                "max_output_tokens_source": None,
+                "owner_global_clamp_applied": False,
+            }
+            budget_error = str(exc)
         metadata: Dict[str, Any] = {
             "attempted": bool(successful),
             "used": False,
@@ -4599,7 +4701,11 @@ Return JSON matching the TaskAnalysis schema."""
                 None if successful else "no_successful_specialists"),
             "model": None,
             "provider": None,
-            "max_output_tokens": _SYNTHESIS_MAX_OUTPUT_TOKENS,
+            **budget,
+            # The cap the handler actually applied on the wire, when it
+            # reports one. ``None`` means the transport did not expose it; no
+            # value is inferred from the requested ceiling.
+            "wire_max_output_tokens": None,
             # INPUT-side flag: the bounded prompt omitted specialist text.
             "evidence_truncated": False,
             # OUTPUT-side disclosure. ``output_truncated`` is provider-proven
@@ -4616,6 +4722,13 @@ Return JSON matching the TaskAnalysis schema."""
                 "checked": False, "corrected": False, "residual": None},
         }
         if not successful:
+            return None, metadata
+        if budget_error is not None:
+            metadata["reason"] = "invalid_output_budget"
+            metadata["budget_error"] = budget_error
+            logger.error(
+                "[FleetAdmiral] final synthesis budget invalid (%s); using "
+                "complete attributed contributions", budget_error)
             return None, metadata
 
         llm = getattr(self, "llm", None)
@@ -4637,7 +4750,7 @@ Return JSON matching the TaskAnalysis schema."""
                     ],
                     model="quality",
                     temperature=0.2,
-                    max_tokens=_SYNTHESIS_MAX_OUTPUT_TOKENS,
+                    max_tokens=metadata["effective_max_output_tokens"],
                     # Same authenticated scope the specialists ran under.
                     workspace_id=workspace_id or None,
                     tenant_id=tenant_id or None,
@@ -4675,6 +4788,12 @@ Return JSON matching the TaskAnalysis schema."""
             metadata["model"] = response.get("model")
             metadata["provider"] = response.get("provider")
             metadata["usage"] = response.get("usage")
+            # Transport-reported effective cap. The fleet ceiling can be
+            # lowered again by a known provider/model context window inside
+            # the BYOK route, so the requested number is not the wire number.
+            wire_cap = response.get("effective_max_tokens")
+            if isinstance(wire_cap, int) and not isinstance(wire_cap, bool):
+                metadata["wire_max_output_tokens"] = wire_cap
             finish_reason = self._normalize_finish_reason(
                 response.get("finish_reason"))
         else:
@@ -5294,6 +5413,17 @@ Return JSON matching the TaskAnalysis schema."""
                 for receipt in (item.get("recorded_actions") or [])
                 if isinstance(receipt, dict)
             ]))
+        try:
+            _initial_budget = _resolve_synthesis_output_budget()
+        except ValueError as exc:
+            _initial_budget = {
+                "requested_max_output_tokens": None,
+                "effective_max_output_tokens": None,
+                "max_output_tokens": None,
+                "max_output_tokens_source": None,
+                "owner_global_clamp_applied": False,
+                "budget_error": str(exc),
+            }
         final_synthesis: Dict[str, Any] = {
             "attempted": False,
             "used": False,
@@ -5301,7 +5431,8 @@ Return JSON matching the TaskAnalysis schema."""
                 None if successful else "no_successful_specialists"),
             "model": None,
             "provider": None,
-            "max_output_tokens": _SYNTHESIS_MAX_OUTPUT_TOKENS,
+            **_initial_budget,
+            "wire_max_output_tokens": None,
             "evidence_truncated": False,
             "finish_reason": None,
             "output_truncated": False,

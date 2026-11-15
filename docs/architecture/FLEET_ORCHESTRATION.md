@@ -293,13 +293,57 @@ no unpriced retry and no duplicate work. `final_synthesis.used=false` with
 `reason="output_truncated"`, `"output_ending_unverified"`,
 `"cached_output_claim_unproven"`, or `"evidence_truncated"` records why.
 
-**Budget.** The synthesis remains one bounded read-only call:
-`_SYNTHESIS_MAX_OUTPUT_TOKENS=1400` (up from 900; the five required sections
-plus a 3-action list did not fit) and a shared
-`_SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS=10000` budget with a 6,000-char
-per-contribution ceiling (up from 2,000, which cut the replay's action list
-after item 1). The evidence budget is unchanged, so a large roster still
-cannot dominate the prompt.
+**Budget.** The synthesis remains one bounded read-only call, but its output
+ceiling is now a purpose-scoped, validated setting instead of a hardcoded
+`1400`:
+
+| Setting | Default | Bounds / effect |
+|---|---|---|
+| `ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS` | **8000** | Validated integer 256–32768; malformed values fail closed (no completion is dispatched and the complete attributed contributions are returned with `reason="invalid_output_budget"`). |
+| `ATOM_COMPLETION_MAX_TOKENS` | unset | When explicitly set, acts only as a **lower** clamp on the synthesis ceiling. The handler's 6000 default is not an owner instruction. |
+
+`8000` is an editorial **ceiling**, not a target or a proven minimum: a short
+answer can still stop naturally. Existing usage/pricing accounting and its
+unknown-price liability handling continue to apply; reported token counts do
+not establish the real subscription charge. Configure this setting in the
+backend launch environment and restart the backend; it is not exposed in the
+runtime-settings UI. The setting is never raised silently. The BYOK non-streaming
+route applies one further lowering clamp immediately before transport: a known
+declared model output limit (`max_output_tokens`) or provider/model context
+window caps the requested output budget, whichever known limit is smaller, and
+the admission/reservation path receives that same effective value, so the wire
+request and the authorized bound agree. Unknown limits are left alone (the
+provider remains the judge) and a smaller explicit cap is never raised.
+This is an upper-bound clamp, not a remaining-context allocator: it does not
+subtract prompt tokens. Existing routing checks and provider rejection still
+govern input-plus-output fit.
+`final_synthesis` exposes `requested_max_output_tokens`,
+`effective_max_output_tokens`, and, when the transport reports it,
+`wire_max_output_tokens`; no wire value is inferred from the requested one.
+The historical `1400`/`2000` truncation truth and the attributed fallback are
+preserved: a provider `length`/`max_tokens` result still withholds the
+editorial text and returns the complete specialist work. The Fleet layer
+does not initiate another synthesis or rerun specialists after that result;
+existing BYOK transport-attempt policies remain in force. This change adds no
+retry or provider switch.
+
+The evidence side is unchanged: `_SYNTHESIS_TOTAL_EVIDENCE_MAX_CHARS=10000`
+with a 6,000-char per-contribution ceiling (up from 2,000, which cut the
+replay's action list after item 1), so a large roster still cannot dominate the
+prompt.
+
+Primary sources consulted (2026-11-15), not extrapolated to every model:
+
+- DeepSeek thinking mode — <https://api-docs.deepseek.com/guides/thinking_mode/>:
+  thinking is enabled by default with "high" effort for native DeepSeek. This
+  is **not** proof of the OpenCode Go gateway's server mode.
+- DeepSeek create-chat-completion — <https://api-docs.deepseek.com/api/create-chat-completion/>:
+  `max_tokens` controls the output/context budget; documented defaults are 8K
+  (non-thinking), 64K (thinking), and 128K at maximum reasoning effort. The
+  documented accepted ceiling is 384K. These are native-provider values, not
+  a recommendation to spend them or proof of the Go gateway's settings.
+- OpenCode Go — <https://opencode.ai/v2/docs/console/go/>: lists the Go Flash
+  OpenAI-compatible endpoint used by this route.
 
 **Durable readback.** A cached result written before output truncation was
 tracked (`used=true` + `evidence_truncated=true`) is repaired on read from its

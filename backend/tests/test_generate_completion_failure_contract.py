@@ -441,6 +441,19 @@ def test_accepted_reply_keeps_real_served_identity_and_stop_reason():
     assert client.completions.calls == 1
 
 
+def test_accepted_reply_surfaces_requested_and_effective_output_cap():
+    client = _AcceptedClient("Bounded but complete.")
+    handler = _handler({"p": client}, ranked=[("p", "m")])
+
+    result = asyncio.run(_service(handler).generate_completion(
+        messages=[{"role": "user", "content": "synthesize this"}],
+        max_tokens=8000))
+
+    assert result["success"] is True
+    assert result["requested_max_tokens"] == 8000
+    assert result["effective_max_tokens"] == 8000
+
+
 def test_legacy_text_api_still_returns_the_same_failure_text():
     """Direct generate_response consumers keep the historical string."""
     handler = _handler({"p": _RaisingClient()}, ranked=[("p", "m")])
