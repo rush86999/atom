@@ -79,7 +79,9 @@ def _is_error_observation(observation: Any) -> bool:
 # LLM Integration:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
 # Initialized via get_llm_service() singleton factory for workspace-aware service.
-# All LLM calls (generate_response, generate_structured_response) go through self.llm.
+# All LLM calls go through the canonical LLMService API
+# (generate_completion / generate_structured_response). LLMService has no
+# generate_response method; a caller must never assume one.
 
 from pydantic import BaseModel, Field
 
@@ -434,6 +436,82 @@ def _governance_scope(owner: Any) -> tuple[str, Optional[str]]:
         workspace if isinstance(workspace, str) and workspace else "default",
         tenant if isinstance(tenant, str) and tenant else None,
     )
+
+
+def _completion_text_outcome(
+    result: Any,
+) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Split a canonical ``LLMService.generate_completion`` result.
+
+    The canonical completion result is a mapping with ``success``. A failure
+    must never be published as an answer: this returns ``(None, failure)`` for
+    an explicit failure or an empty generation, and ``(text, None)`` only for
+    accepted text. The failure mapping keeps the producer's typed reason and
+    diagnostics; the raw error string is never used as content.
+    """
+    if not isinstance(result, dict):
+        return None, {
+            "reason": "invalid_completion_result",
+            "message": "LLM completion returned no result object",
+        }
+    if result.get("success") is False:
+        failure = result.get("failure")
+        if not isinstance(failure, dict):
+            failure = {
+                "reason": "generation_failed",
+                "message": str(result.get("error") or "LLM generation failed"),
+            }
+        return None, failure
+    content = result.get("content")
+    if content is None:
+        content = result.get("text")
+    text = str(content or "").strip()
+    if not text:
+        return None, {
+            "reason": "empty_generation",
+            "message": "LLM generation returned no text",
+        }
+    return text, None
+
+
+def _governance_denied_payload(
+    route_category: Any,
+    reason: Optional[str],
+) -> Dict[str, Any]:
+    """Deterministic, typed denial for an enforced governed route.
+
+    This is the existing general result shape (route/handler/status/error/
+    failure_reason) rather than a paid model explanation. It claims no task,
+    recruitment, specialist or tool work, and it names the governance reason.
+    """
+    route = str(
+        getattr(route_category, "value", route_category) or "task"
+    ).upper()
+    denial_reason = str(reason or "governance_denied")
+    message = (
+        f"This {route.lower()} request was blocked by governance: "
+        f"{denial_reason}. No task, recruitment, specialist or tool work was "
+        "started."
+    )
+    return {
+        "route": route,
+        "handler": "governance",
+        "status": "denied",
+        "success": False,
+        "governance_checked": True,
+        "governance_allowed": False,
+        "denied_route": route.lower(),
+        "denial_reason": denial_reason,
+        "error": denial_reason,
+        "failure_reason": "governance_denied",
+        "failure_mode": "governance",
+        "final_output": message,
+        "response": message,
+        "actions_executed": [],
+        "specialists_count": 0,
+        "chain_id": None,
+        "execution_attempted": False,
+    }
 
 
 class AtomMetaAgent:
@@ -1158,6 +1236,7 @@ class AtomMetaAgent:
                     requires_agent_recruitment=True,
                     blueprint_applicable=False,
                 )
+                _fleet_enforced_now = bool(resolved_fleet_enforce())
                 _fleet_exc = None
                 try:
                     _fleet_user_id = (
@@ -1171,9 +1250,75 @@ class AtomMetaAgent:
                         execution_id=execution_id,
                     )
                 except Exception as fleet_err:
-                    logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
-                    _fleet_result = None
                     _fleet_exc = fleet_err
+                    if _fleet_enforced_now:
+                        from core.fleet_orchestration.fleet_routing_stats import (
+                            record_fleet_decision,
+                        )
+                        # Enforced governance/fleet routing failed. Falling
+                        # through to Queen→ReAct would execute a task the
+                        # governed path refused to admit, so terminate with a
+                        # truthful failure instead. No model/tool work is
+                        # started here.
+                        _fleet_error_text = (
+                            "The governed task could not be started because "
+                            f"fleet routing failed ({type(fleet_err).__name__}). "
+                            "No task, recruitment, specialist or tool work was "
+                            "started."
+                        )
+                        _fleet_failure_payload = {
+                            "execution_id": execution_id,
+                            "route": "TASK",
+                            "handler": "FleetAdmiral",
+                            "status": "failed",
+                            "success": False,
+                            "error": type(fleet_err).__name__,
+                            "failure_reason": "fleet_routing_error",
+                            "failure_mode": "fleet_routing",
+                            "final_output": _fleet_error_text,
+                            "response": _fleet_error_text,
+                            "actions_executed": [],
+                            "specialist_results": [],
+                            "specialists_count": 0,
+                            "chain_id": None,
+                            "enforced": True,
+                            "execution_attempted": False,
+                        }
+                        try:
+                            _fleet_audit_id = record_fleet_decision(
+                                execution_id=execution_id,
+                                workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
+                                tenant_id=tenant_id,
+                                agent_id="atom_main",
+                                request=request,
+                                chain_id=None,
+                                specialists_count=0,
+                                roster=[],
+                                recruitment_succeeded=False,
+                                enforced=True,
+                                error=str(fleet_err)[:500],
+                            )
+                        except Exception:
+                            _fleet_audit_id = None
+                        await self._finalize_agent_execution(
+                            execution_id=execution_id,
+                            request=request,
+                            result_payload=_fleet_failure_payload,
+                            durable_status="failed",
+                            final_answer=_fleet_error_text,
+                            start_time=start_time,
+                            trigger_mode=trigger_mode,
+                            tenant_id=tenant_id,
+                            context=context,
+                            fleet_audit_id=_fleet_audit_id,
+                            fleet_success=False,
+                            fleet_error=str(fleet_err)[:500],
+                        )
+                        return _fleet_failure_payload
+                    logger.warning(
+                        "Fleet routing failed in shadow mode, falling back "
+                        "to Queen→ReAct (telemetry only): %s", fleet_err)
+                    _fleet_result = None
 
                 # Fleet routing validation (2026-08-21): audit EVERY fleet-eligible
                 # decision (shadow or enforced, success or failure) so the
@@ -1218,6 +1363,7 @@ class AtomMetaAgent:
                     _fleet_count > 0 and _fleet_status != "failed"
                 )
                 _fleet_enforced = bool(resolved_fleet_enforce())
+                _fleet_audit_id = None
                 try:
                     from core.fleet_orchestration.fleet_routing_stats import (
                         record_fleet_decision,
@@ -1242,10 +1388,13 @@ class AtomMetaAgent:
                     pass
 
                 if _fleet_result is not None:
-                    # Emit a synthetic recruitment-progress step (net-new: the
-                    # FleetAdmiral path has no step_callback of its own) so the
-                    # WS/canvas layer observes the fleet event.
-                    if step_callback:
+                    _fleet_denied = bool(
+                        isinstance(_fleet_result, dict)
+                        and str(_fleet_result.get("status") or "") == "denied"
+                    )
+                    # A denial is not a recruitment event. Only emit the
+                    # progress step when the fleet actually recruited work.
+                    if step_callback and not _fleet_denied:
                         await step_callback({
                             "execution_id": execution_id,
                             "step": 0,
@@ -1257,6 +1406,53 @@ class AtomMetaAgent:
                             "action": {"tool": "route_with_governance", "params": {"intent": "task"}},
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
+
+                    if _fleet_enforced and _fleet_denied:
+                        # Enforced governance denial is terminal. Return the
+                        # typed denial, persist it as failed, and do not enter
+                        # specialist execution or the Queen→ReAct planner.
+                        _denial_reason = str(
+                            _fleet_result.get("denial_reason")
+                            or _fleet_result.get("error")
+                            or "governance_denied")
+                        _denial_text = str(
+                            _fleet_result.get("final_output")
+                            or _fleet_result.get("response")
+                            or "This task was blocked by governance.")
+                        _fleet_denial_payload = {
+                            **_fleet_result,
+                            "execution_id": execution_id,
+                            "route": "TASK",
+                            "handler": "governance",
+                            "status": "denied",
+                            "success": False,
+                            "failure_reason": "governance_denied",
+                            "failure_mode": "governance",
+                            "final_output": _denial_text,
+                            "response": _denial_text,
+                            "actions_executed": [],
+                            "specialist_results": [],
+                            "specialists_count": 0,
+                            "chain_id": None,
+                            "enforced": True,
+                            "execution_attempted": False,
+                            "result": _fleet_result,
+                        }
+                        await self._finalize_agent_execution(
+                            execution_id=execution_id,
+                            request=request,
+                            result_payload=_fleet_denial_payload,
+                            durable_status="failed",
+                            final_answer=_denial_text,
+                            start_time=start_time,
+                            trigger_mode=trigger_mode,
+                            tenant_id=tenant_id,
+                            context=context,
+                            fleet_audit_id=_fleet_audit_id,
+                            fleet_success=False,
+                            fleet_error=_denial_reason,
+                        )
+                        return _fleet_denial_payload
 
                     if _fleet_enforced:
                         # ORCH-02: the enforced response must consume the
@@ -3232,14 +3428,26 @@ Reason for Block: {reason}
 
 Provide your Mentorship Guidance:"""
 
-        guidance = await self.llm.generate_response(
-            prompt=user_prompt,
-            system_instruction=system_prompt,
-            model_type="fast",
-            temperature=0.3
+        completion = await self.llm.generate_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            model="fast",
+            temperature=0.3,
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
         )
-        
-        return guidance or "Meta-Agent was unable to provide guidance for this action."
+        guidance, _failure = _completion_text_outcome(completion)
+        if guidance is None:
+            # Deterministic, honest fallback: no second provider attempt and
+            # no fabricated guidance. The action remains blocked for a human.
+            return (
+                "Meta-Agent guidance is unavailable because the configured AI "
+                "provider did not return text. The action remains blocked "
+                "pending human review."
+            )
+        return guidance
 
     # ==================== INTERNAL METHODS ====================
     
@@ -3783,13 +3991,10 @@ Provide your Mentorship Guidance:"""
         )
 
         if not allowed:
-            # Auto-takeover proposal mode: propose CHAT alternative
-            result = await self._propose_chat_alternative(
-                original_request=request,
-                denied_route=intent.category.value,
-                denial_reason=reason,
-                user_id=user_id
-            )
+            # Enforced denial is terminal: a deterministic typed result, never
+            # a paid model explanation and never an execution fallback. The
+            # reason is retained so the durable outcome can name it.
+            result = _governance_denied_payload(intent.category, reason)
             return {
                 **result,
                 "decision_id": str(uuid.uuid4()),
@@ -3835,17 +4040,39 @@ Provide your Mentorship Guidance:"""
         """
         logger.info(f"Routing CHAT intent to LLMService: {request[:50]}...")
 
-        response = await self.llm.generate_response(
-            prompt=request,
-            system_prompt="You are a helpful AI assistant.",
-            user_id=user_id  # Changed from tenant_id
+        completion = await self.llm.generate_completion(
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": request},
+            ],
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
         )
-
+        text, failure = _completion_text_outcome(completion)
+        if text is None:
+            return {
+                "route": "CHAT",
+                "handler": "LLMService",
+                "success": False,
+                "status": "chat_unavailable",
+                "response": (
+                    "I couldn't generate a response because the configured AI "
+                    "provider is unavailable. No action was taken."
+                ),
+                "error": failure.get("reason"),
+                "failure": failure,
+                "user_id": user_id,
+            }
         return {
             "route": "CHAT",
             "handler": "LLMService",
-            "response": response,
-            "status": "chat_complete"
+            "success": True,
+            "response": text,
+            "status": "chat_complete",
+            "model": completion.get("model"),
+            "provider": completion.get("provider"),
+            "finish_reason": completion.get("finish_reason"),
+            "user_id": user_id,
         }
 
     async def _route_to_workflow(
@@ -3971,11 +4198,34 @@ Generate a helpful response that:
 Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informative.
 """
 
-        chat_response = await self.llm.generate_response(
-            prompt=proposal_prompt,
-            system_prompt="You are a helpful AI assistant explaining routing decisions.",
-            user_id=user_id  # Changed from tenant_id
+        completion = await self.llm.generate_completion(
+            messages=[
+                {"role": "system",
+                 "content": "You are a helpful AI assistant explaining routing decisions."},
+                {"role": "user", "content": proposal_prompt},
+            ],
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
         )
+        text, failure = _completion_text_outcome(completion)
+        if text is None:
+            return {
+                "route": "CHAT",
+                "handler": "LLMService",
+                "auto_takeover": True,
+                "original_route": denied_route,
+                "denial_reason": denial_reason,
+                "success": False,
+                "proposal": (
+                    "The request was not executed. A model-written CHAT "
+                    "alternative is unavailable because the configured AI "
+                    "provider did not return text."
+                ),
+                "status": "auto_takeover_unavailable",
+                "error": failure.get("reason"),
+                "failure": failure,
+                "user_id": user_id,
+            }
 
         return {
             "route": "CHAT",
@@ -3983,8 +4233,13 @@ Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informati
             "auto_takeover": True,
             "original_route": denied_route,
             "denial_reason": denial_reason,
-            "proposal": chat_response,
-            "status": "auto_takeover_proposal"
+            "success": True,
+            "proposal": text,
+            "status": "auto_takeover_proposal",
+            "model": completion.get("model"),
+            "provider": completion.get("provider"),
+            "finish_reason": completion.get("finish_reason"),
+            "user_id": user_id,
         }
 
 
@@ -4188,17 +4443,39 @@ async def _route_to_chat(
     """
     logger.info(f"Routing CHAT intent to LLMService: {request[:50]}...")
 
-    response = await self.llm.generate_response(
-        prompt=request,
-        system_prompt="You are a helpful AI assistant.",
-        user_id=user_id
+    completion = await self.llm.generate_completion(
+        messages=[
+            {"role": "system", "content": "You are a helpful AI assistant."},
+            {"role": "user", "content": request},
+        ],
+        workspace_id=getattr(self, "workspace_id", "default"),
+        tenant_id=getattr(self, "tenant_id", "default"),
     )
-
+    text, failure = _completion_text_outcome(completion)
+    if text is None:
+        return {
+            "route": "CHAT",
+            "handler": "LLMService",
+            "success": False,
+            "status": "chat_unavailable",
+            "response": (
+                "I couldn't generate a response because the configured AI "
+                "provider is unavailable. No action was taken."
+            ),
+            "error": failure.get("reason"),
+            "failure": failure,
+            "user_id": user_id,
+        }
     return {
         "route": "CHAT",
         "handler": "LLMService",
-        "response": response,
-        "status": "chat_complete"
+        "success": True,
+        "response": text,
+        "status": "chat_complete",
+        "model": completion.get("model"),
+        "provider": completion.get("provider"),
+        "finish_reason": completion.get("finish_reason"),
+        "user_id": user_id,
     }
 
 
@@ -4324,11 +4601,34 @@ Generate a helpful response that:
 Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informative.
 """
 
-    chat_response = await self.llm.generate_response(
-        prompt=proposal_prompt,
-        system_prompt="You are a helpful AI assistant explaining routing decisions.",
-        user_id=user_id
+    completion = await self.llm.generate_completion(
+        messages=[
+            {"role": "system",
+             "content": "You are a helpful AI assistant explaining routing decisions."},
+            {"role": "user", "content": proposal_prompt},
+        ],
+        workspace_id=getattr(self, "workspace_id", "default"),
+        tenant_id=getattr(self, "tenant_id", "default"),
     )
+    text, failure = _completion_text_outcome(completion)
+    if text is None:
+        return {
+            "route": "CHAT",
+            "handler": "LLMService",
+            "auto_takeover": True,
+            "original_route": denied_route,
+            "denial_reason": denial_reason,
+            "success": False,
+            "proposal": (
+                "The request was not executed. A model-written CHAT "
+                "alternative is unavailable because the configured AI "
+                "provider did not return text."
+            ),
+            "status": "auto_takeover_unavailable",
+            "error": failure.get("reason"),
+            "failure": failure,
+            "user_id": user_id,
+        }
 
     return {
         "route": "CHAT",
@@ -4336,8 +4636,13 @@ Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informati
         "auto_takeover": True,
         "original_route": denied_route,
         "denial_reason": denial_reason,
-        "proposal": chat_response,
-        "status": "auto_takeover_proposal"
+        "success": True,
+        "proposal": text,
+        "status": "auto_takeover_proposal",
+        "model": completion.get("model"),
+        "provider": completion.get("provider"),
+        "finish_reason": completion.get("finish_reason"),
+        "user_id": user_id,
     }
 
 

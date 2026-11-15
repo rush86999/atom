@@ -1114,19 +1114,19 @@ class TestAtomMetaAgentGaps:
         # no student found -> interim supervisor
         db.query.return_value.filter.return_value.first.return_value = None
         db.query.return_value.filter.return_value.count.return_value = 0
-        agent.llm.generate_response = AsyncMock(return_value="guide")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'guide', "text": 'guide', "model": "m", "provider": "p", "finish_reason": "stop"})
         out = await agent.generate_mentorship_guidance("stu-1", "act", {}, "why")
         assert out == "guide"
-        assert "Interim Supervisor" in agent.llm.generate_response.await_args.kwargs["system_instruction"]
+        assert "Interim Supervisor" in agent.llm.generate_completion.await_args.kwargs["messages"][0]["content"]
         # llm returns None
-        agent.llm.generate_response = AsyncMock(return_value=None)
+        agent.llm.generate_completion = AsyncMock(return_value={"success": False, "content": "", "text": "", "model": None, "provider": None, "finish_reason": None, "error": "x", "failure": {"reason": "generation_failed"}})
         out = await agent.generate_mentorship_guidance("stu-1", "act", {}, "why")
-        assert "unable to provide guidance" in out
+        assert "guidance is unavailable" in out
         # db exception inside thread -> fail open to interim
         def boom(*a, **k):
             raise RuntimeError("db")
         sl.side_effect = RuntimeError("db")
-        agent.llm.generate_response = AsyncMock(return_value="g2")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'g2', "text": 'g2', "model": "m", "provider": "p", "finish_reason": "stop"})
         out = await agent.generate_mentorship_guidance("stu-1", "act", {}, "why")
         assert out == "g2"
 
@@ -1312,10 +1312,13 @@ class TestAtomMetaAgentGaps:
 
     async def test_internal_routing_methods(self, meta_agent, monkeypatch):
         agent, sl, ama = meta_agent
-        agent.llm.generate_response = AsyncMock(return_value="answer")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'answer', "text": 'answer', "model": "m", "provider": "p", "finish_reason": "stop"})
         res = await agent._route_to_chat("hi", "u1")
-        assert res == {"route": "CHAT", "handler": "LLMService",
-                       "response": "answer", "status": "chat_complete"}
+        assert res["route"] == "CHAT"
+        assert res["handler"] == "LLMService"
+        assert res["response"] == "answer"
+        assert res["status"] == "chat_complete"
+        assert res["success"] is True
 
         queen = MagicMock()
         queen.generate_blueprint = AsyncMock(return_value={
@@ -1332,7 +1335,7 @@ class TestAtomMetaAgentGaps:
         res = await agent._route_to_task("do task", "u1")
         assert res["chain_id"] == "c" and res["status"] == "task_routed"
 
-        agent.llm.generate_response = AsyncMock(return_value="proposal")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'proposal', "text": 'proposal', "model": "m", "provider": "p", "finish_reason": "stop"})
         res = await agent._propose_chat_alternative("req", "workflow", "why", "u1")
         assert res["auto_takeover"] is True and res["proposal"] == "proposal"
 
@@ -1418,7 +1421,7 @@ class TestAtomMetaAgentGaps:
     async def test_module_level_router_functions(self, meta_agent):
         agent, sl, ama = meta_agent
         fake = NS(llm=MagicMock())
-        fake.llm.generate_response = AsyncMock(return_value="ans")
+        fake.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'ans', "text": 'ans', "model": "m", "provider": "p", "finish_reason": "stop"})
         res = await ama._route_to_chat(fake, "req", "u1")
         assert res["response"] == "ans"
 
@@ -1439,7 +1442,7 @@ class TestAtomMetaAgentGaps:
             res = await ama._route_to_task(fake, "req", "u1")
         assert res["result"]["chain_id"] == "c"
 
-        fake.llm.generate_response = AsyncMock(return_value="prop")
+        fake.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'prop', "text": 'prop', "model": "m", "provider": "p", "finish_reason": "stop"})
         res = await ama._propose_chat_alternative(fake, "r", "workflow", "why", "u1")
         assert res["proposal"] == "prop"
 
