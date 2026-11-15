@@ -1157,7 +1157,15 @@ def _prepare_execute_environment(args: argparse.Namespace) -> Dict[str, Any]:
     }
 
 
-def _check_execute_ready(args: argparse.Namespace) -> Dict[str, Any]:
+def _check_execute_ready(args: argparse.Namespace,
+                         *, ports: Optional[Dict[int, str]] = None
+                         ) -> Dict[str, Any]:
+    """Dependency + port preflight for an --execute run.
+
+    ``ports`` optionally overrides WHICH ports this run needs (e.g. an opt-in
+    lane that uses a relay endpoint instead of the provider shim). The default
+    is unchanged: backend, frontend and shim ports.
+    """
     deps = _dependency_probe()
     missing = [name for name, present in deps["modules"].items()
                if name in ("httpx", "playwright") and not present]
@@ -1177,12 +1185,28 @@ def _check_execute_ready(args: argparse.Namespace) -> Dict[str, Any]:
         raise DriverError(
             "frontend-nextjs/node_modules is absent; run from the installed "
             "capture worktree; no npm install is permitted")
-    ports = {p: _port_free(p) for p in
-             (args.backend_port, args.frontend_port, args.shim_port)}
-    busy = [p for p, free in ports.items() if not free]
+    probe_ports = (
+        dict(ports) if ports is not None else {
+            args.backend_port: "backend",
+            args.frontend_port: "frontend",
+            args.shim_port: "shim",
+        })
+    ports_state = {port: _port_free(port) for port in probe_ports}
+    busy = [port for port, free in ports_state.items() if not free]
     if busy:
-        raise DriverError(f"ports already in use: {busy}")
-    return {"dependencies": deps, "ports": {str(k): v for k, v in ports.items()}}
+        raise DriverError(
+            "ports already in use: "
+            + ", ".join(f"{port} ({probe_ports[port]})" for port in busy))
+    result = {
+        "dependencies": deps,
+        "ports": {str(k): v for k, v in ports_state.items()},
+    }
+    if ports is not None:
+        # Only an overriding caller gets the role map; the default report keeps
+        # exactly the shape existing drivers already record.
+        result["port_roles"] = {str(k): v for k, v in probe_ports.items()}
+    return result
+
 
 
 def _build_world(world: Path, frozen_source_sha: str) -> Dict[str, Any]:

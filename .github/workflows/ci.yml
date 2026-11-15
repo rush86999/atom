@@ -239,6 +239,21 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest ../scripts/tests/test_browser_document_export_ui.py -q --tb=short --timeout=300 --timeout-method=thread
+      # Opt-in invoice replay harness guards (additive): the four offline
+      # modules prove the default scripted lane is unchanged, the relay refuses
+      # everything outside its loopback/synthetic or fixed-live destination,
+      # caps are reserved before dispatch, the ledger is metadata-only, and the
+      # job-wait identity contract still holds. No provider, credential or
+      # browser is needed: the relay is exercised against loopback synthetic
+      # upstreams in-process.
+      - name: Run invoice replay transport guard controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_invoice_replay.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest ../scripts/tests/test_browser_invoice_partial_evidence_live.py ../scripts/tests/test_browser_invoice_partial_evidence_observer.py ../scripts/tests/test_browser_invoice_partial_evidence_preflight.py ../scripts/tests/test_browser_agent_job_wait_identity.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run goal-write authority regression controls
         env:
           TESTING: "1"
