@@ -51,7 +51,8 @@ def anchor_sqlite_url(value: str, backend_root: Path | str | None = None) -> str
         path, query = path.split("?", 1)
         query = "?" + query
     if (not path
-            or path.startswith(("/", ":", "file:"))
+            or path.startswith(("/", ":"))
+            or path.lower().startswith("file:")
             or re.match(r"^[A-Za-z]:[\\/]", path)):
         return value
     root = Path(backend_root) if backend_root is not None else _BACKEND_ROOT

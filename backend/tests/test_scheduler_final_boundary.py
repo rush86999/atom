@@ -94,10 +94,19 @@ def test_plain_and_uri_live_targets_are_guarded(guard_functions):
         "sqlite:///dev.db",
         f"SQLITE:///{backend}/data/atom.db",
         f"SQLITE:///file:{backend}/data/atom.db?uri=true",
+        f"sqlite:///FILE:{backend}/data/atom.db?uri=true",
         "Sqlite+PySQLite:///./data/atom.db",
     ]
     for url in targets:
         assert guarded(url) is True, url
+
+
+def test_anchor_preserves_file_uris_case_insensitively(guard_functions):
+    backend, _, anchor = guard_functions
+    file_uri = f"sqlite:///FILE:{backend}/data/atom.db?uri=true"
+    assert anchor(file_uri) == file_uri
+    assert anchor("SQLITE:///./data/atom.db") == (
+        f"SQLITE:///{backend}/data/atom.db")
 
 
 def test_uri_connect_args_really_target_the_live_file(guard_functions):

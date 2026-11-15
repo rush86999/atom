@@ -115,7 +115,7 @@ def _targets_live_dev_db(url: str) -> bool:
     if str(parsed.query.get("mode") or connect_kwargs.get("mode") or "").lower() == "memory":
         return False
 
-    if filename.startswith("file:") and connect_kwargs.get("uri"):
+    if filename.lower().startswith("file:") and connect_kwargs.get("uri"):
         from urllib.parse import unquote, urlsplit
 
         uri_path = unquote(urlsplit(filename).path)
