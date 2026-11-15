@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Latest verifier update:** [the later November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) records main through `3a52ecb0d` (#947), merged transcription (#932), the verified document/Canvas and native-chat journeys, and the still-open fleet quality gate. The [earlier follow-through](#10-verifier-follow-through-after-the-index-cut) and original rows remain historical, source-bound records; read the latest addendum before treating their “missing”, “draft”, or “current main” wording as current status.
+> **Latest verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
 **Status: navigation and evidence reconciliation only. Not a new score, not a
 completion claim, and not a replacement for the original records.**
@@ -1347,3 +1347,67 @@ breadth remain open. Local aliases named `o4-mini`, `atom-preview` and
 `llama3.1:8b` were observed to share one Llama 8B digest; aliases are not
 independent model-quality evidence. No claim score, goal identity or overall
 completion state changes in this reconciliation.
+
+
+## 12. November 15 bounded verification follow-through
+
+These observations retain the 143 original claim identities, 18 goals,
+historical 111/123 result, and `app_complete: false`. Each is evidence at the
+named source, not a new whole-goal score.
+
+- **Ordinary web accounts (`01c5ee4bd`, application bytes based on `9de6ef33f`):**
+  a synthetic account used the shipped browser sign-up/sign-in forms and logout
+  control. Duplicate registration and wrong-password errors were visible;
+  protected content and the old token were refused after logout. The account
+  and same browser session survived an actual backend PID change on the same
+  isolated SQLite database. With email delivery intentionally unconfigured,
+  recovery showed the API's explicit unavailable error rather than claiming
+  an email was sent. All 23 functional checks passed. The strict at-execution
+  ledger FAILED on three WebSocket connection errors during the deliberate
+  restart; that failure remains unchanged. This does not verify configured
+  recovery delivery/reset, SSO, or the whole account catalogue. Root checked
+  the executed harness hashes, frontend source copies, screenshots and restart
+  evidence. Retained report: `/private/tmp/atom-account-ordinary-report.md`;
+  root receipt: `/private/tmp/atom-root-account-ordinary-verification.json`.
+
+- **Ordinary approved-skill execution (`9b491e28e`, PR #951):** the completed
+  [hosted Docker job](https://github.com/rush86999/atom/actions/runs/43673281818/job/132687813764)
+  ran `test_joined_agent_loop_runs_in_real_docker`: 1 passed in 28.49 seconds,
+  no skip. The real `GenericAgent.execute` loop used the real action-registry/
+  MCP dispatch and a real reviewed-skill container; assertions checked exact
+  review/code bindings, result, nonce echo, configured read-only/network-disabled
+  execution, cleanup and a fresh-session durable receipt. Model decisions and
+  the pre-ReAct budget gate were simulated, the scanner was a benign fixture,
+  and optional background legs were disabled. This is current source-bound
+  execution evidence, not live model competence, budget enforcement or
+  all-skill qualification. Root receipt:
+  `/private/tmp/atom-root-pr951-skill-docker-evidence.json`.
+
+- **Fleet synthesis (`9b491e28e`, verifier override only):** one separately
+  approved DeepSeek Flash request, capped at 8,000 output tokens, completed with
+  HTTP 200 and `finish_reason=stop`, without fallback or a retry. The retained
+  synthetic sales task was answered with the correct $42,000 shortfall,
+  conditional $36,000 component subtotal, unexplained $6,000 remainder and
+  proposed actions distinguished from executed work. No new TASK, specialist
+  or chain was created. Reported usage was 2,498 prompt and 1,308 completion
+  tokens. Real subscription cost remains unknown; seeded pricing is a fixture.
+  This verifies one retained synthesis sample, not recruitment, unfamiliar
+  work, UI delivery or general model quality. The test overrode the app's
+  1,400-token synthesis default and the verifier's global completion clamp;
+  it does not itself fix shipped policy or prove 8,000 is a necessary minimum.
+  The original three-call allowance and the new one-call allowance are both
+  exhausted. Root receipt:
+  `/private/tmp/atom-root-fleet-cap8000-live-verification.json`.
+
+**Source cut and implementation status.** Main through PR #951 is
+`d81340d84` (tree `5db484b3`). The output-budget repair on this branch is based
+on worker source `7e509e1ff`, joined with that main at `aef3f4225`. Independent
+verification passed 540 combined tests on the joined source. Separate
+dummy-key, fake-transport probes exercised the actual shipped-default code:
+8,000 tokens reached the serialized request with no manual synthesis override,
+and an explicit owner cap lowered it to 2,000. Both blocked a second simulated
+attempt. These probes made zero external requests and provide configuration/
+transport evidence, not another served-model quality result. At this evidence cut, the repair is a
+branch change pending its PR merge. Root receipts:
+`/private/tmp/atom-root-fleet-main951-tests.json` and
+`/private/tmp/atom-root-fleet-shipped-budget-probes.json`.
