@@ -196,6 +196,8 @@ try:
     from fastapi.openapi.utils import get_openapi
     from fastapi.responses import JSONResponse
 
+    from core.scheduler_store import SchedulerStoreUnavailable
+
     startup_logger.info("✓ FastAPI imports successful")
 except Exception as e:
     startup_logger.error(f"✗ Failed to import FastAPI: {e}")
@@ -775,24 +777,43 @@ async def lifespan(app: FastAPI):
                 # Adopt a legacy repo-root jobs.sqlite into the canonical
                 # backend store BEFORE APScheduler opens it. This is the
                 # startup-only reconciliation; config construction/import
-                # never moves files. Conflicts are logged CRITICAL and leave
-                # both files untouched for an operator decision.
-                from core.scheduler_store import reconcile_scheduler_job_store
+                # never moves files. Conflicts/ambiguous sources are refused
+                # and leave both files untouched for an operator decision.
+                from core.scheduler_store import (
+                    SchedulerStoreConflict,
+                    mark_scheduler_store_failed,
+                    mark_scheduler_store_ready,
+                    reconcile_scheduler_job_store,
+                )
 
-                # A Redis job store is authoritative; never reconcile the
-                # unused SQLite URL in that deployment.
-                if not getattr(workflow_scheduler, "using_redis_jobstore", False):
-                    _sched_recon = reconcile_scheduler_job_store(
-                        workflow_scheduler.job_store_url)
-                    if _sched_recon.get("status") == "adopted":
-                        logger.warning(
-                            "✓ Scheduler job store adopted from legacy location: "
-                            f"{_sched_recon.get('legacy_path')} -> "
-                            f"{_sched_recon.get('canonical_path')}")
+                try:
+                    # A Redis job store is authoritative; never reconcile the
+                    # unused SQLite URL in that deployment.
+                    if not getattr(workflow_scheduler, "using_redis_jobstore", False):
+                        _sched_recon = reconcile_scheduler_job_store(
+                            workflow_scheduler.job_store_url)
+                        if _sched_recon.get("status") == "adopted":
+                            logger.warning(
+                                "✓ Scheduler job store adopted from legacy location: "
+                                f"{_sched_recon.get('legacy_path')} -> "
+                                f"{_sched_recon.get('canonical_path')}")
+                    mark_scheduler_store_ready()
+                except SchedulerStoreConflict as exc:
+                    mark_scheduler_store_failed(str(exc))
+                    raise
                 # workflow_scheduler.start() is synchronous — awaiting None
                 # raises TypeError, which was silently swallowed. Call directly.
                 workflow_scheduler.start()
         except Exception as exc:
+            if not qstash_init_skip:
+                from core.scheduler_store import (
+                    mark_scheduler_store_failed,
+                    scheduler_store_state,
+                )
+
+                if scheduler_store_state().get("ready") is not False:
+                    mark_scheduler_store_failed(
+                        f"workflow scheduler failed to start: {exc}")
             logger.warning(f"Workflow scheduler failed to start: {exc}")
 
         # 2. Start Agent Scheduler
@@ -1580,6 +1601,20 @@ try:
             return JSONResponse(status_code=503, content=health_status)
 
         return health_status
+
+    @app.exception_handler(SchedulerStoreUnavailable)
+    async def scheduler_store_unavailable_handler(
+            request: Request, exc: SchedulerStoreUnavailable):
+        """Known-unsafe scheduler storage is a 503, never an empty success."""
+        logger.error(
+            "Scheduler storage unavailable on %s: %s", request.url.path, exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": str(exc),
+                "code": "SCHEDULER_STORE_UNAVAILABLE",
+            },
+        )
 
     # Global exception handler - ensures all errors return JSON, never HTML
     @app.exception_handler(Exception)

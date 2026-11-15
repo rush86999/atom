@@ -21,6 +21,7 @@ live ``backend/jobs.sqlite`` is opened.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sqlite3
@@ -28,7 +29,10 @@ import subprocess
 import sys
 import textwrap
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -37,6 +41,13 @@ from core.local_paths import anchor_sqlite_url
 
 JOB_ID = "scheduler_anchoring_probe"
 SYNTH_BACKEND = "backend"
+
+
+@pytest.fixture(autouse=True)
+def _reset_store_state():
+    store.reset_scheduler_store_state()
+    yield
+    store.reset_scheduler_store_state()
 
 
 def _legacy_sqlite(path: Path, marker: str = "legacy") -> bytes:
@@ -295,7 +306,7 @@ def test_legacy_is_adopted_byte_identically_and_preserved(tmp_path):
     assert store._sha256(canonical) == result["canonical_sha256"]
 
 
-def test_conflict_keeps_both_files_and_never_clobbers(tmp_path):
+def test_conflict_refuses_automatic_selection_and_preserves_both(tmp_path):
     backend = tmp_path / SYNTH_BACKEND
     backend.mkdir()
     canonical = backend / "jobs.sqlite"
@@ -303,11 +314,9 @@ def test_conflict_keeps_both_files_and_never_clobbers(tmp_path):
     canonical.write_bytes(b"canonical-authoritative")
     _legacy_sqlite(legacy)
 
-    result = store.reconcile_scheduler_job_store(
-        "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
-    assert result["status"] == "conflict"
-    assert result["canonical_wins"] is True
-    assert result["legacy_preserved"] is True
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_scheduler_job_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
     assert canonical.read_bytes() == b"canonical-authoritative"
     assert legacy.exists()
 
@@ -360,12 +369,158 @@ def test_concurrent_canonical_appearance_does_not_clobber(tmp_path, monkeypatch)
         raise FileExistsError
 
     monkeypatch.setattr(store.os, "link", raise_exists)
-    result = store.reconcile_scheduler_job_store(
-        "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
-    assert result["status"] == "conflict"
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_scheduler_job_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
     assert canonical.read_bytes() == b"appeared-concurrently"
     assert legacy.exists()
     assert not list(backend.glob(".*adopt-*"))
+
+
+def test_real_wal_writer_is_refused_and_clean_close_adopts(tmp_path):
+    backend = tmp_path / SYNTH_BACKEND
+    backend.mkdir()
+    legacy = tmp_path / "jobs.sqlite"
+    con = sqlite3.connect(legacy)
+    try:
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("CREATE TABLE jobs (id TEXT)")
+        con.execute("INSERT INTO jobs VALUES ('committed-wal')")
+        con.commit()
+        wal = Path(str(legacy) + "-wal")
+        assert wal.exists()
+        with pytest.raises(store.SchedulerStoreConflict):
+            store.reconcile_scheduler_job_store(
+                "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+        assert not (backend / "jobs.sqlite").exists()
+        assert con.execute("SELECT id FROM jobs").fetchone()[0] == "committed-wal"
+        con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        con.execute("PRAGMA journal_mode=DELETE")
+    finally:
+        con.close()
+    assert not Path(str(legacy) + "-wal").exists()
+    assert not Path(str(legacy) + "-shm").exists()
+
+    result = store.reconcile_scheduler_job_store(
+        "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert result["status"] == "adopted"
+    con2 = sqlite3.connect(backend / "jobs.sqlite")
+    try:
+        assert con2.execute("SELECT id FROM jobs").fetchone()[0] == "committed-wal"
+    finally:
+        con2.close()
+
+
+def test_unsupported_hardlink_fails_closed_without_canonical(tmp_path, monkeypatch):
+    backend = tmp_path / SYNTH_BACKEND
+    backend.mkdir()
+    legacy = tmp_path / "jobs.sqlite"
+    original = _legacy_sqlite(legacy)
+
+    def unsupported(src, dst):
+        raise OSError(45, "Operation not supported")
+
+    monkeypatch.setattr(store.os, "link", unsupported)
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_scheduler_job_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert not (backend / "jobs.sqlite").exists()
+    assert legacy.read_bytes() == original
+    assert not list(backend.glob(".*adopt-*"))
+
+
+def test_disk_full_during_copy_publishes_no_canonical(tmp_path, monkeypatch):
+    backend = tmp_path / SYNTH_BACKEND
+    backend.mkdir()
+    legacy = tmp_path / "jobs.sqlite"
+    original = _legacy_sqlite(legacy)
+
+    def partial_copy(src, dst):
+        Path(dst).write_bytes(b"partial")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(store.shutil, "copy2", partial_copy)
+    with pytest.raises(store.SchedulerStoreConflict):
+        store.reconcile_scheduler_job_store(
+            "sqlite:///jobs.sqlite", root=backend, legacy_root=tmp_path)
+    assert not (backend / "jobs.sqlite").exists()
+    assert legacy.read_bytes() == original
+    assert not list(backend.glob(".*adopt-*"))
+
+
+def test_known_unsafe_store_refuses_schedule_list_remove(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCHEDULER_JOB_STORE_TYPE", "sqlalchemy")
+    monkeypatch.setenv(
+        "SCHEDULER_JOB_STORE_URL", f"sqlite:///{tmp_path / 'singleton.db'}")
+    from ai.workflow_scheduler import WorkflowScheduler
+
+    scheduler = WorkflowScheduler(db_url=f"sqlite:///{tmp_path / 'never.db'}")
+    store.mark_scheduler_store_failed("two stores disagree")
+    far = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.schedule_workflow("wf", "date", {"run_date": far})
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.schedule_workflow_cron("job", "wf", "* * * * *")
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.list_jobs()
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.remove_schedule("job")
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.reschedule_system_pipelines()
+    with pytest.raises(store.SchedulerStoreUnavailable):
+        scheduler.start()
+
+
+def test_unverified_state_keeps_legitimate_pre_start_component_use():
+    store.reset_scheduler_store_state()
+    store.require_scheduler_store_ready()  # no raise
+
+
+def test_schedule_endpoint_does_not_swallow_unsafe_storage(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCHEDULER_JOB_STORE_TYPE", "sqlalchemy")
+    monkeypatch.setenv(
+        "SCHEDULER_JOB_STORE_URL", f"sqlite:///{tmp_path / 'singleton.db'}")
+    from ai.workflow_scheduler import workflow_scheduler
+    from core import workflow_endpoints as endpoints
+    from core.scheduler_store import SchedulerStoreUnavailable
+
+    monkeypatch.setattr(
+        endpoints, "_find_visible_workflow",
+        lambda *args, **kwargs: {"id": "wf", "steps": [], "nodes": []})
+    async def _allow(*args, **kwargs):
+        return None
+    monkeypatch.setattr(endpoints, "require_workflow_executor", _allow)
+    monkeypatch.setattr(
+        endpoints.RBACService, "check_permission",
+        staticmethod(lambda *args, **kwargs: False))
+    monkeypatch.setattr(
+        "core.workflow_engine.freeze_execution_scope",
+        lambda data, **kwargs: data)
+    monkeypatch.setattr(
+        workflow_scheduler, "schedule_workflow",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            SchedulerStoreUnavailable("two stores disagree")))
+    with pytest.raises(SchedulerStoreUnavailable):
+        asyncio.run(endpoints.schedule_workflow(
+            "wf",
+            {"trigger_type": "interval", "trigger_config": {"minutes": 60}},
+            user=SimpleNamespace(id="u", workspace_id="w", tenant_id="t"),
+            db=MagicMock()))
+
+
+def test_list_and_remove_endpoints_refuse_known_unsafe_storage(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCHEDULER_JOB_STORE_TYPE", "sqlalchemy")
+    monkeypatch.setenv(
+        "SCHEDULER_JOB_STORE_URL", f"sqlite:///{tmp_path / 'singleton.db'}")
+    from core import workflow_endpoints as endpoints
+    from core.scheduler_store import SchedulerStoreUnavailable
+
+    store.mark_scheduler_store_failed("two stores disagree")
+    user = SimpleNamespace(id="u", workspace_id="w", tenant_id="t")
+    with pytest.raises(SchedulerStoreUnavailable):
+        asyncio.run(endpoints.list_scheduled_jobs(user=user))
+    with pytest.raises(SchedulerStoreUnavailable):
+        asyncio.run(endpoints.unschedule_workflow("wf", "job", user=user))
 
 
 def test_noncanonical_absolute_and_non_sqlite_stores_are_untouched(tmp_path):

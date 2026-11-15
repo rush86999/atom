@@ -9,7 +9,10 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from core.scheduler_store import resolve_scheduler_job_store_url
+from core.scheduler_store import (
+    require_scheduler_store_ready,
+    resolve_scheduler_job_store_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,7 @@ class WorkflowScheduler:
         
     def start(self):
         """Start the scheduler"""
+        require_scheduler_store_ready()
         if not self.scheduler.running:
             # Start BEFORE registering System Pipelines. Registration used to
             # run first, so jobs waited in APScheduler's pending list and were
@@ -79,6 +83,7 @@ class WorkflowScheduler:
 
     def reschedule_system_pipelines(self):
         """Register or refresh System Pipelines (Memory Ingestion) based on settings"""
+        require_scheduler_store_ready()
         try:
             from core.automation_settings import get_automation_settings
             settings = get_automation_settings().get_settings()
@@ -303,6 +308,7 @@ class WorkflowScheduler:
         Returns:
             job_id: The ID of the scheduled job
         """
+        require_scheduler_store_ready()
         job_id = f"job_{workflow_id}_{datetime.now().timestamp()}"
 
         trigger = None
@@ -326,6 +332,7 @@ class WorkflowScheduler:
 
     def schedule_workflow_cron(self, job_id: str, workflow_id: str, cron_expression: str, authorized: bool = False):
         """Schedule a workflow using cron expression"""
+        require_scheduler_store_ready()
         self.scheduler.add_job(
             self._execute_job,
             CronTrigger.from_crontab(cron_expression),
@@ -338,6 +345,7 @@ class WorkflowScheduler:
 
     def schedule_workflow_interval(self, job_id: str, workflow_id: str, interval_minutes: int, authorized: bool = False):
         """Schedule a workflow using interval"""
+        require_scheduler_store_ready()
         self.scheduler.add_job(
             self._execute_job,
             IntervalTrigger(minutes=interval_minutes),
@@ -350,6 +358,7 @@ class WorkflowScheduler:
 
     def schedule_workflow_once(self, job_id: str, workflow_id: str, run_date: str, authorized: bool = False):
         """Schedule a workflow once at a specific date"""
+        require_scheduler_store_ready()
         self.scheduler.add_job(
             self._execute_job,
             DateTrigger(run_date=run_date),
@@ -362,6 +371,7 @@ class WorkflowScheduler:
 
     def remove_job(self, job_id: str) -> bool:
         """Remove a scheduled job"""
+        require_scheduler_store_ready()
         try:
             self.scheduler.remove_job(job_id)
             logger.info(f"Removed job {job_id}")
@@ -374,6 +384,7 @@ class WorkflowScheduler:
 
     def remove_schedule(self, job_id: str):
         """Remove a scheduled job"""
+        require_scheduler_store_ready()
         try:
             self.scheduler.remove_job(job_id)
             logger.info(f"Removed job {job_id}")
@@ -389,6 +400,7 @@ class WorkflowScheduler:
         The old direct access raised AttributeError and turned the whole
         "My scheduled workflows" panel into a 500.
         """
+        require_scheduler_store_ready()
         jobs = []
         for job in self.scheduler.get_jobs():
             next_run = getattr(job, "next_run_time", None)

@@ -44,10 +44,14 @@ backend startup, immediately before the scheduler opens its store,
 * canonical absent, legacy regular file present, unambiguous → the legacy
   bytes are copied to the canonical path with an exclusive, no-clobber
   hardlink; the copy is sha256-verified. **The original legacy file is left
-  untouched.**
-* canonical present → it wins. If a legacy file also exists, a CRITICAL log
-  names both paths and the legacy file is preserved. Nothing is merged or
-  overwritten.
+  untouched.** If the filesystem cannot provide an atomic no-clobber hardlink,
+  adoption is refused; there is no direct-copy fallback that could publish a
+  partial canonical file on a disk-full error.
+* canonical present and legacy absent → canonical is used.
+* canonical present **and** legacy present → automatic selection is refused
+  (`SchedulerStoreConflict`, CRITICAL log); both files are preserved
+  untouched. This is deliberate: automatically using canonical could hide an
+  intact legacy store that contains the real jobs.
 * neither present → fresh install; the scheduler creates the canonical file.
 * legacy exists as a symlink, directory or other non-regular file → startup
   refuses adoption with a CRITICAL log (`SchedulerStoreConflict`); no guess is
@@ -61,18 +65,33 @@ Reconciliation never runs from configuration import or from ordinary
 
 ### Operator resolution for a conflict
 
-If both files exist, decide deliberately:
+If both files exist, startup refuses to choose. Decide deliberately:
 
 1. Stop the backend.
 2. Inspect both files (they are SQLite databases; e.g. `sqlite3
    <file> 'select id from apscheduler_jobs'`). Do not delete either yet.
 3. Keep the authoritative file at `<backend>/jobs.sqlite`; archive or rename
    the other one outside the store path.
-4. Restart. The scheduler uses the canonical file; no automatic merge occurs.
+4. Restart. No automatic merge occurs.
+5. While the conflict is unresolved, the scheduler is not started and the
+   schedule/list/remove methods return `SchedulerStoreUnavailable` (HTTP 503
+   for the served routes), so no RAM-only job is acknowledged and no empty
+   store is presented as authoritative.
 
 This is intentionally a one-file reconciliation, not a migration framework.
 Historical job ids that were written under the old root launch are preserved
 in the legacy file for audit; they are not silently merged.
+
+## Refused-store availability
+
+When startup refuses the store (conflict, ambiguous legacy, failed adoption,
+or scheduler start failure), `core.scheduler_store` records a process-local
+failed state. `WorkflowScheduler.schedule_workflow*`, `list_jobs`,
+`remove_schedule`/`remove_job` and `reschedule_system_pipelines` consult the
+shared `require_scheduler_store_ready()` guard, so every consumer refuses
+instead of acknowledging an in-memory job or an empty authoritative list. The
+served schedule/list/remove routes translate that exception to HTTP 503; the
+chat scheduling handler returns `success: false`.
 
 ## References
 

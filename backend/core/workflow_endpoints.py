@@ -18,6 +18,7 @@ from core.database import get_db
 from core.models import User
 from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
+from core.scheduler_store import SchedulerStoreUnavailable
 from core.workflow_security import require_workflow_executor
 
 # Import AI workflow editor for natural language processing
@@ -3113,6 +3114,11 @@ async def schedule_workflow(
     except HTTPException:
         # R79: the missing-config 400 must not be masked as a 500 by the
         # broad handler below.
+        raise
+    except SchedulerStoreUnavailable:
+        # Known-unsafe storage must surface as the shared 503, not the broad
+        # 500 below. The other schedule/list/remove consumers let this
+        # exception reach the same handler directly.
         raise
     except (ValueError, TypeError) as e:
         # R81: invalid trigger configs (e.g. CronTrigger kwargs with an

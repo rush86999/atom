@@ -22,9 +22,11 @@ startup that uses the canonical store, ``reconcile_scheduler_job_store``
 adopts that legacy file when (and only when) the canonical file is absent and
 the source is an unambiguous regular file. The copy is byte-verified and
 created with an exclusive hardlink (no overwrite possible); the original is
-left untouched. If both files exist, canonical wins and the legacy file is
-preserved with a CRITICAL log for an operator decision. Ambiguous sources
-(symlink/directory/special file) fail loudly instead of guessing.
+left untouched. If both files exist, automatic selection is refused and both
+are preserved for an explicit operator decision. Ambiguous sources
+(symlink/directory/special file), uncheckpointed WAL/SHM sidecars and
+filesystems without atomic hardlinks fail loudly instead of guessing or
+publishing a partial canonical file.
 
 This is intentionally a one-store, one-file reconciliation, not a migration
 framework. It runs only from the backend startup path immediately before the
@@ -37,6 +39,7 @@ import hashlib
 import logging
 import os
 import shutil
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -52,6 +55,53 @@ JOB_STORE_FILE = "jobs.sqlite"
 
 class SchedulerStoreConflict(RuntimeError):
     """An existing scheduler store cannot be adopted without ambiguity."""
+
+
+class SchedulerStoreUnavailable(RuntimeError):
+    """The process knows its scheduler storage is unsafe / not authoritative.
+
+    Raised by scheduler mutators/readers (and therefore by the schedule/list/
+    remove consumers) so a refused startup can never acknowledge a RAM-only
+    pending job or present an empty store as authoritative.
+    """
+
+
+_STORE_STATE_LOCK = threading.Lock()
+# None = unverified (component/pre-start use); True = verified ready;
+# False = known unsafe (conflict, failed adoption, failed start).
+_STORE_STATE: Dict[str, Any] = {"ready": None, "reason": None}
+
+
+def mark_scheduler_store_ready() -> None:
+    with _STORE_STATE_LOCK:
+        _STORE_STATE["ready"] = True
+        _STORE_STATE["reason"] = None
+
+
+def mark_scheduler_store_failed(reason: str) -> None:
+    with _STORE_STATE_LOCK:
+        _STORE_STATE["ready"] = False
+        _STORE_STATE["reason"] = str(reason or "scheduler storage is unavailable")
+
+
+def reset_scheduler_store_state() -> None:
+    """Test seam: return to the unverified (component/pre-start) state."""
+    with _STORE_STATE_LOCK:
+        _STORE_STATE["ready"] = None
+        _STORE_STATE["reason"] = None
+
+
+def scheduler_store_state() -> Dict[str, Any]:
+    with _STORE_STATE_LOCK:
+        return dict(_STORE_STATE)
+
+
+def require_scheduler_store_ready() -> None:
+    """Refuse scheduler operations only when storage is KNOWN unsafe."""
+    state = scheduler_store_state()
+    if state.get("ready") is False:
+        raise SchedulerStoreUnavailable(
+            state.get("reason") or "Scheduler storage is unavailable")
 
 
 def backend_root() -> Path:
@@ -125,11 +175,12 @@ def reconcile_scheduler_job_store(
 ) -> Dict[str, Any]:
     """Adopt a legacy repo-root ``jobs.sqlite`` into the canonical store.
 
-    Returns a status dict; raises :class:`SchedulerStoreConflict` only when
-    the legacy source exists but is ambiguous (symlink/directory/special) or
-    when a canonical path is itself not a regular file. Existing canonical and
-    legacy files are never overwritten or merged: a conflict is reported for
-    an operator to resolve deliberately.
+    Returns a status dict; raises :class:`SchedulerStoreConflict` when both
+    stores exist, the legacy source is ambiguous (symlink/directory/special or
+    has -wal/-shm sidecars), a canonical path is not a regular file, copying
+    fails, or the filesystem cannot install the store with an atomic
+    no-clobber hardlink. Existing files are never overwritten or merged; both
+    are preserved for an operator to resolve deliberately.
 
     ``root``/``legacy_root`` are test seams (synthetic backend/legacy roots);
     production callers use the backend anchor.
@@ -168,16 +219,12 @@ def reconcile_scheduler_job_store(
             "refusing to replace it")
     if canonical.exists():
         if legacy.exists() or legacy.is_symlink():
-            result["status"] = "conflict"
-            result["canonical_wins"] = True
-            result["legacy_preserved"] = True
-            logger.critical(
-                "scheduler job store: both canonical (%s) and legacy (%s) "
-                "exists; using canonical and preserving legacy untouched. "
-                "Operator must decide which store is authoritative.",
-                canonical, legacy)
-        else:
-            result["status"] = "canonical_present"
+            _conflict(
+                f"both canonical ({canonical}) and legacy ({legacy}) scheduler "
+                "stores exist; refusing automatic selection so neither can be "
+                "silently hidden. Both files are preserved; an operator must "
+                "choose which store is authoritative")
+        result["status"] = "canonical_present"
         return result
 
     if legacy.is_symlink():
@@ -208,7 +255,12 @@ def reconcile_scheduler_job_store(
     temp = canonical.with_name(
         f".{canonical.name}.adopt-{os.getpid()}-{uuid.uuid4().hex}")
     try:
-        shutil.copy2(legacy, temp)
+        try:
+            shutil.copy2(legacy, temp)
+        except OSError as exc:
+            _conflict(
+                f"copying legacy scheduler store {legacy} failed ({exc}); "
+                "no canonical file was published")
         source_sha = _sha256(legacy)
         copied_sha = _sha256(temp)
         if source_sha != copied_sha:
@@ -216,24 +268,21 @@ def reconcile_scheduler_job_store(
                 f"legacy scheduler store {legacy} changed while being copied; "
                 "no adoption was installed")
         try:
-            # Exclusive hardlink is atomic and cannot clobber a concurrent
-            # canonical file that appeared after the check above.
+            # Exclusive hardlink is the only install primitive used: it is
+            # atomic and cannot clobber a concurrent canonical file. There is
+            # deliberately NO direct-write fallback, because a disk-full error
+            # mid-copy would publish a partial canonical store and the next
+            # startup would hide the intact legacy file.
             os.link(temp, canonical)
         except FileExistsError:
-            result["status"] = "conflict"
-            result["canonical_wins"] = True
-            result["legacy_preserved"] = True
-            logger.critical(
-                "scheduler job store: canonical %s appeared during legacy "
-                "adoption; preserving both files and using canonical", canonical)
-            return result
-        except OSError:
-            # Filesystems without hardlink support: exclusive create + copy.
-            fd = os.open(canonical, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            with os.fdopen(fd, "wb") as dest:
-                with temp.open("rb") as src:
-                    shutil.copyfileobj(src, dest)
-            shutil.copystat(legacy, canonical)
+            _conflict(
+                f"canonical {canonical} appeared during legacy adoption; "
+                "refusing automatic selection and preserving both files")
+        except OSError as exc:
+            _conflict(
+                f"filesystem cannot install the legacy scheduler store "
+                f"atomically (no-clobber hardlink failed: {exc}); refusing "
+                "adoption rather than publishing a partial canonical file")
         logger.warning(
             "scheduler job store: ADOPTED legacy %s into canonical %s "
             "(sha256=%s); original preserved untouched",
