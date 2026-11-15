@@ -1625,6 +1625,465 @@ def test_discovery_excludes_quarantined_route(world):
         f"{CANDIDATE[0]}/{CANDIDATE[1]}") or [])
 
 
+def _synthetic_route_row(
+    provider: str,
+    model: str,
+    accuracy: float,
+    *,
+    days: int,
+    build: Optional[str] = None,
+) -> dict:
+    """A validated-shape comparison row for the actual resolver.
+
+    The writer path already produces scored rows in the other tests; this
+    helper supplies explicit scores when the economic ordering needs a
+    controlled 0.90-vs-0.95 cohort. It uses the frozen world's real benchmark
+    identity, dataset hash, scoring generation, rubric and scope.
+    """
+    observed = _utc_now() - timedelta(days=days)
+    row = {
+        "source": "synthetic-route-economics",
+        "evidence_id": f"synthetic:{provider}/{model}",
+        "provider": provider,
+        "model": model,
+        "task_scope": dict(SCOPE),
+        "rubric_version": RUBRIC,
+        "dataset_id": _FROZEN["benchmark_id"],
+        "dataset_sha256": DATASET_SHA,
+        "scoring_version": _FROZEN["scoring_version"],
+        "passed": True,
+        "accuracy": accuracy,
+        "observed_at": observed.isoformat(),
+    }
+    if build:
+        row["resolved_model"] = build
+    return row
+
+
+def _known(cost: float, **extra) -> dict:
+    record = {
+        "state": "known",
+        "cost": cost,
+        "currency": "USD",
+        "basis": "synthetic_per_token_estimate",
+    }
+    record.update(extra)
+    return record
+
+
+def _unknown(reason: str = "cost_unknown") -> dict:
+    return {
+        "state": "unknown",
+        "cost": None,
+        "currency": "USD",
+        "basis": "synthetic_unknown",
+        "reason": reason,
+    }
+
+
+async def _pinned_route(llm, route, provenance):
+    from core.llm.pinned_planning import pinned_structured_call
+
+    return await pinned_structured_call(
+        llm,
+        prompt="held-out repeat task",
+        response_model=SimpleNamespace,
+        system_instruction="Return JSON only.",
+        call_kwargs={"provider_model": tuple(route)},
+        log_label="employee work proposal",
+        task_type="planning",
+        workspace_id=WORKSPACE,
+        tenant_id=TENANT,
+        provenance=provenance,
+        strict_pin=True,
+    )
+
+
+def test_economy_profile_selects_cheaper_route_after_evidence_gates(world):
+    """The profile's economy preference applies after evidence eligibility.
+
+    Both candidates meet the baseline on the same frozen benchmark. The
+    comparator's evidence winner is the newer 0.95 route; the final pinned
+    route is the 0.90 route because the profile is explicitly economy and its
+    trusted current cost is 10x lower.
+    """
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-economy", 0.90, days=3,
+            build="gpt-economy-2026-01"),
+    ]
+    economics = {
+        BASELINE: _known(5.0),
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-economy"): _known(1.0),
+    }
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: economics,
+        )
+
+    assert decision["route_state"] == STATE_PINNED, decision["reasons"]
+    # The comparator's capability/evidence winner remains visible in the trace.
+    assert decision["comparison"]["selected"]["model"] == "gpt-premium"
+    assert decision["evidence_selected_route"] == {
+        "provider": "openai", "model": "gpt-premium"}
+    # The final selection is the cheaper equally-eligible route.
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-economy"}
+    assert decision["selected_build"] == "gpt-economy-2026-01"
+    assert decision["selection_basis"] == "lowest_known_expected_cost"
+    assert decision["economic_ranked_routes"][0]["model"] == "gpt-economy"
+    assert decision["economic_selection"]["selection_basis"] == (
+        "lowest_known_expected_cost")
+
+    # Actual ordinary resolver -> capability filter -> strict pinned dispatch.
+    llm = ScriptedLLM(
+        clients=("openai",),
+        served_route=("openai", "gpt-economy"),
+        resolved_model="gpt-economy-2026-01",
+    )
+    selected_score = decision["economic_ranked_routes"][0]["score"]
+    allowed = filter_route_for_attempt(
+        decision["selected_route"], quality=selected_score,
+        llm_service=llm, workspace_id=WORKSPACE, tenant_id=TENANT,
+        evidence={})
+    assert allowed["allowed"] is True, allowed["reasons"]
+    assert allowed["pin"] == ("openai", "gpt-economy")
+    provenance: dict = {}
+    clear_route_attribution()
+    result = asyncio.run(_pinned_route(llm, allowed["pin"], provenance))
+    assert result is not None
+    assert len(llm.calls) == 1
+    assert llm.calls[0]["provider_model"] == ("openai", "gpt-economy")
+    assert validate_served_identity(
+        allowed["pin"], provenance,
+        expected_build=decision["selected_build"]) == IDENTITY_VERIFIED
+
+
+def test_economy_profile_never_admits_a_cheaper_below_baseline_route(world):
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-cheap", 0.80, days=1,
+            build="gpt-cheap-2026-01"),
+    ]
+    economics = {
+        BASELINE: _known(20.0),
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-cheap"): _known(0.1),
+    }
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: economics,
+        )
+
+    assert decision["route_state"] == STATE_PINNED, decision["reasons"]
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-premium"}
+    assert "gpt-cheap" not in {
+        item["model"] for item in decision["ranked_routes"]}
+    cheap = next(
+        item for item in decision["comparison"]["candidates"]
+        if item["model"] == "gpt-cheap")
+    assert cheap["evidence_state"] == "failed"
+    assert "baseline_not_met" in cheap["reasons"]
+
+
+def test_scope_filter_excludes_a_cheaper_provider_ineligible_route(world):
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-economy", 0.90, days=3,
+            build="gpt-economy-2026-01"),
+    ]
+    economics = {
+        BASELINE: _known(20.0),
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-economy"): _known(1.0),
+    }
+
+    def _filter(item):
+        if str(item.get("model") or "") == "gpt-economy":
+            return {"eligible": False,
+                    "reason": "provider_scope_ineligible"}
+        return True
+
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: economics,
+            candidate_filter=_filter,
+        )
+
+    assert decision["route_state"] == STATE_PINNED, decision["reasons"]
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-premium"}
+    assert decision["candidate_scope_filter"]["excluded"] == [{
+        "provider": "openai", "model": "gpt-economy",
+        "reason": "provider_scope_ineligible"}]
+
+
+def test_unknown_cost_is_not_free_and_preserves_safe_order(world):
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-economy", 0.90, days=3,
+            build="gpt-economy-2026-01"),
+    ]
+    economics = {
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-economy"): _unknown("pricing_unavailable"),
+        BASELINE: _unknown("subscription_cost_unknown"),
+    }
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: economics,
+        )
+
+    # The known route is not displaced by an unknown route treated as $0.
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-premium"}
+    assert decision["selection_basis"] == (
+        "known_cost_then_unknown_evidence_order")
+    assert {
+        item["model"] for item in decision["economic_selection"][
+            "unknown_routes"]} == {"gpt-economy", BASELINE[1]}
+
+
+def test_all_unknown_costs_keep_the_comparator_evidence_order(world):
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-economy", 0.90, days=3,
+            build="gpt-economy-2026-01"),
+    ]
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: {},
+        )
+
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-premium"}
+    assert decision["selection_basis"] == "evidence_order_unknown_cost"
+    assert decision["economic_selection"]["known_routes"] == []
+    assert all(
+        item["reason"] == "cost_unknown"
+        for item in decision["economic_selection"]["unknown_routes"])
+
+
+def test_verified_zero_cost_is_known_free_not_unknown(world):
+    rows = [
+        _synthetic_route_row(
+            *BASELINE, 0.85, days=4, build="gpt-5.4-2026-03-build"),
+        _synthetic_route_row(
+            "openai", "gpt-premium", 0.95, days=2,
+            build="gpt-premium-2026-01"),
+        _synthetic_route_row(
+            "openai", "gpt-economy", 0.90, days=3,
+            build="gpt-economy-2026-01"),
+    ]
+    economics = {
+        BASELINE: _known(5.0),
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-economy"): _known(0.0),
+    }
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        decision = resolve_repeat_task_route(
+            db, agent, assignment=_matching_assignment(),
+            evidence_rows=rows,
+            route_economics_provider=lambda ranked: economics,
+        )
+
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-economy"}
+    assert decision["selection_basis"] == "lowest_known_expected_cost"
+    selected_known = next(
+        item for item in decision["economic_selection"]["known_routes"]
+        if item["model"] == "gpt-economy")
+    assert selected_known["cost"] == 0.0
+
+
+def test_quality_preference_still_prioritizes_quality():
+    from core.llm.capability_profiles import get_profile
+    from core.llm.route_economics import rank_with_profile
+
+    profile = get_profile("employee_evidence_selection")
+    candidates = [
+        {"provider": "openai", "model": "gpt-premium", "quality": 0.95,
+         "cost": 10.0, "cost_state": "known",
+         "cost_basis": "synthetic_per_token_estimate"},
+        {"provider": "openai", "model": "gpt-economy", "quality": 0.90,
+         "cost": 1.0, "cost_state": "known",
+         "cost_basis": "synthetic_per_token_estimate"},
+    ]
+    quality = rank_with_profile(
+        profile, candidates, preference="quality")
+    assert quality["outcome"] == "selected"
+    assert quality["ranked"][0]["model"] == "gpt-premium"
+
+    economy = rank_with_profile(
+        profile, candidates, preference="economy")
+    assert economy["outcome"] == "selected"
+    assert economy["ranked"][0]["model"] == "gpt-economy"
+
+
+@pytest.mark.parametrize("bad", [
+    -1.0, float("nan"), float("inf"), True, "not-a-number", None,
+])
+def test_invalid_or_missing_cost_is_unknown_not_free(bad):
+    from core.llm.route_economics import KNOWN, UNKNOWN, normalize_economics
+
+    normalized = normalize_economics(
+        {"state": "known", "cost": bad}, "openai", "gpt-test")
+    assert normalized["state"] == UNKNOWN
+    assert normalized["cost"] is None
+    assert normalized["reason"] in {"invalid_cost", "cost_unknown"}
+
+    explicit_zero = normalize_economics(
+        {"state": "known", "cost": 0.0}, "openai", "gpt-free")
+    assert explicit_zero["state"] == KNOWN
+    assert explicit_zero["cost"] == 0.0
+
+
+def test_configured_economics_keeps_subscription_cost_unknown():
+    from core.llm.route_economics import (
+        KNOWN, UNKNOWN, resolve_configured_economics,
+    )
+
+    class _Pricing:
+        def get_model_price(self, model):
+            return {
+                "gpt-paid": {
+                    "source": "litellm",
+                    "input_cost_per_token": 1e-6,
+                    "output_cost_per_token": 2e-6,
+                },
+                "gpt-go": {
+                    "source": "opencode-zen",
+                    "litellm_provider": "opencode-go",
+                    "input_cost_per_token": 1e-6,
+                    "output_cost_per_token": 2e-6,
+                },
+                "gpt-go-litellm": {
+                    "source": "litellm",
+                    "input_cost_per_token": 1e-6,
+                    "output_cost_per_token": 2e-6,
+                },
+                "gpt-missing": None,
+            }.get(model)
+
+        def estimate_cost(self, model, input_tokens, output_tokens):
+            return {
+                "gpt-paid": 0.001,
+                "gpt-go": 0.002,
+                "gpt-go-litellm": 0.003,
+            }.get(model)
+
+    economics = resolve_configured_economics(
+        [
+            {"provider": "openai", "model": "gpt-paid"},
+            {"provider": "opencode-go", "model": "gpt-go"},
+            {"provider": "opencode-go", "model": "gpt-go-litellm"},
+            {"provider": "openai", "model": "gpt-missing"},
+        ],
+        task_text="held-out repeat task",
+        input_tokens=100,
+        output_tokens=100,
+        pricing_fetcher=_Pricing(),
+    )
+    assert economics[("openai", "gpt-paid")]["state"] == KNOWN
+    assert economics[("openai", "gpt-paid")]["cost"] == 0.001
+    assert economics[("opencode-go", "gpt-go")]["state"] == UNKNOWN
+    assert economics[("opencode-go", "gpt-go")]["reason"] == (
+        "subscription_cost_unknown")
+    assert economics[("opencode-go", "gpt-go-litellm")]["state"] == UNKNOWN
+    assert economics[("opencode-go", "gpt-go-litellm")]["reason"] == (
+        "subscription_cost_unknown")
+    assert economics[("openai", "gpt-missing")]["state"] == UNKNOWN
+
+
+def test_ordinary_assignment_resolver_binds_economy_route_and_marker(
+        world, monkeypatch):
+    """The actual assignment entry point records the economically chosen pin."""
+    fresh = _utc_now() - timedelta(days=2)
+    world.add_benchmark_evidence(
+        "exec-baseline", *BASELINE, observed_at=fresh)
+    world.add_benchmark_evidence(
+        "exec-economy", "openai", "gpt-economy",
+        observed_at=_newer(fresh),
+        echo_model="gpt-economy-2026-01")
+    world.add_benchmark_evidence(
+        "exec-premium", "openai", "gpt-premium",
+        observed_at=_newer(_newer(fresh)),
+        echo_model="gpt-premium-2026-01")
+    economics = {
+        BASELINE: _known(5.0),
+        ("openai", "gpt-premium"): _known(10.0),
+        ("openai", "gpt-economy"): _known(1.0),
+    }
+    import api.assignment_routes as assignment_routes
+
+    monkeypatch.setattr(
+        assignment_routes, "_repeat_task_route_economics_provider",
+        lambda record: (lambda ranked: economics))
+    llm = ScriptedLLM(clients=("openai",))
+    record = _assignment_record()
+    log = DecisionLog(world.db_path.with_suffix(".decisions.json"))
+    executor = stub_executor(world, log, record)
+
+    resolution = assignment_routes._resolve_assignment_graduation_route(
+        executor, record["run_id"], record, llm)
+
+    assert resolution["pin"] == ("openai", "gpt-economy")
+    decision = resolution["decision"]
+    assert decision["selected_route"] == {
+        "provider": "openai", "model": "gpt-economy"}
+    assert decision["selected_build"] == "gpt-economy-2026-01"
+    assert decision["comparison"]["selected"]["model"] == "gpt-premium"
+    marker = record["assignment"]["repeat_task_route"]
+    assert marker["selected_route"] == {
+        "provider": "openai", "model": "gpt-economy"}
+    assert marker["selected_build"] == "gpt-economy-2026-01"
+    assert log.route_entries()[-1]["selected_route"] == {
+        "provider": "openai", "model": "gpt-economy"}
+
+
 def test_explicit_unscored_replacement_never_clears_baseline_floor(world):
     """A passing replacement without an accuracy score never qualifies.
 

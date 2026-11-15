@@ -292,6 +292,27 @@ with a model route the recorded evidence still supports, without a new review fo
   assignment's server-derived `workload_scope` to exactly match the binding's scope; a
   candidate needs fresh *passing* observations on the same benchmark (same dataset hash,
   rubric and task scope), and a pinned call is strict: exact route or failure.
+- **Economic ordering is advisory, after capability eligibility.** Once the comparator has
+  established sufficient, fresh, same-benchmark candidates that meet the receipt baseline,
+  the existing capability profile's preference orders them. The employee selection profile
+  is explicitly `economy`: it prefers the lowest trusted CURRENT expected cost among
+  eligible routes, not the highest benchmark score. Quality-configured profiles still put
+  quality first. Cost is resolved from the existing configured per-token authority with a
+  common, explicit workload token basis; the frozen benchmark record carries no price.
+  Missing, malformed, or subscription/flat-rate cost (notably OpenCode Go's actual
+  subscription charge) is **unknown, never zero**; when every eligible route is unknown the
+  comparator's evidence order is preserved. Price never establishes model quality, no
+  capability-equivalence floor is invented, and the selected route is still bound by its
+  own benchmark build. The BYOK physical-attempt/budget hard stop remains the final
+  authority. This follows the task-routing split between a quality threshold and a
+  cost/quality preference (RouteLLM, arXiv:2406.18665); evaluation/run configuration
+  provenance is retained separately from the score (Inspect tasks/models), and capability
+  evidence is kept distinct from regression/outcome evidence (Anthropic, "Demystifying
+  evals for AI agents"). None of these sources weakens the Atom receipt baseline.
+  Sources: RouteLLM <https://github.com/lm-sys/RouteLLM> / arXiv:2406.18665;
+  Inspect tasks/models <https://inspect.aisi.org.uk/tasks> and
+  <https://inspect.aisi.org.uk/models.html>; Anthropic eval guidance
+  <https://www.anthropic.com/research/demystifying-evals-for-ai-agents>.
 - **Supervised fallback is the default.** The resolver fails closed: a missing baseline,
   non-comparable binding, unknown or mismatched workload, no fresh eligible route or an
   unresolvable pin all resolve to `supervised`, and ordinary routing is untouched. Before

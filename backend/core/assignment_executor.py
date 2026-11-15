@@ -7586,9 +7586,13 @@ class AssignmentExecutor:
                 }
             if marker is None and not has_route_context:
                 return None
+            from core.llm.route_economics import provider_for_assignment
+
             revalidation = revalidate_repeat_task_effect(
                 db, agent_id=agent_id, decisions=decisions,
-                assignment=assignment)
+                assignment=assignment,
+                route_economics_provider=provider_for_assignment(
+                    assignment or {}))
             if revalidation is None:
                 return None
             if str(revalidation.get("outcome") or "") == OUTCOME_EXECUTE:
