@@ -298,7 +298,10 @@ with a model route the recorded evidence still supports, without a new review fo
   is explicitly `economy`: it prefers the lowest trusted CURRENT expected cost among
   eligible routes, not the highest benchmark score. Quality-configured profiles still put
   quality first. Cost is resolved from the existing configured per-token authority with a
-  common, explicit workload token basis; the frozen benchmark record carries no price.
+  common, explicit workload token basis, and only when the catalog row is bound to the exact
+  candidate billing provider ID (trim only; no brand/family/substring classifier). OpenAI,
+  Azure and custom OpenAI-shaped proxies do not share a quote. The frozen benchmark record
+  carries no price.
   Missing, malformed, or subscription/flat-rate cost (notably OpenCode Go's actual
   subscription charge) is **unknown, never zero**; when every eligible route is unknown the
   comparator's evidence order is preserved. Price never establishes model quality, no

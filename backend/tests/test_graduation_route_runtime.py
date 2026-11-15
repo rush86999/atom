@@ -2039,8 +2039,8 @@ def test_configured_economics_keeps_subscription_cost_unknown():
     assert economics[("openai", "gpt-missing")]["state"] == UNKNOWN
 
 
-def test_configured_price_must_be_bound_to_the_candidate_provider():
-    """Root identity negative: model-only lookup is not a provider quote."""
+def test_configured_price_must_use_the_exact_billing_provider_id():
+    """Root identity negative: model/family lookup is not a provider quote."""
     from core.dynamic_pricing_fetcher import DynamicPricingFetcher
     from core.llm.route_economics import (
         KNOWN, UNKNOWN, resolve_configured_economics,
@@ -2059,9 +2059,15 @@ def test_configured_price_must_be_bound_to_the_candidate_provider():
             "input_cost_per_token": 1e-6,
             "output_cost_per_token": 2e-6,
         },
-        "alias-model": {
+        "openai-model": {
             "source": "litellm",
             "litellm_provider": "openai",
+            "input_cost_per_token": 1e-6,
+            "output_cost_per_token": 2e-6,
+        },
+        "azure-model": {
+            "source": "litellm",
+            "litellm_provider": "azure",
             "input_cost_per_token": 1e-6,
             "output_cost_per_token": 2e-6,
         },
@@ -2070,7 +2076,12 @@ def test_configured_price_must_be_bound_to_the_candidate_provider():
         {"provider": "other-provider", "model": "shared-model"},
         {"provider": "remote-provider", "model": "shared-model"},
         {"provider": "remote-provider", "model": "unbound-model"},
-        {"provider": "gpt", "model": "alias-model"},
+        {"provider": "openai", "model": "openai-model"},
+        {"provider": "azure", "model": "azure-model"},
+        {"provider": "azure", "model": "openai-model"},
+        {"provider": "openai", "model": "azure-model"},
+        {"provider": "custom-openai-proxy", "model": "openai-model"},
+        {"provider": "gpt", "model": "openai-model"},
     ]
     economics = resolve_configured_economics(
         routes,
@@ -2084,12 +2095,21 @@ def test_configured_price_must_be_bound_to_the_candidate_provider():
     assert wrong["state"] == UNKNOWN
     assert wrong["reason"] == "provider_price_mismatch"
     assert wrong["cost"] is None
-    # The exact provider binding (and the existing gpt->openai alias contract)
-    # is a positive twin.
+    # Exact provider binding is the positive twin.
     right = economics[("remote-provider", "shared-model")]
     assert right["state"] == KNOWN
     assert right["cost"] == 0.0003
-    assert economics[("gpt", "alias-model")]["state"] == KNOWN
+    assert economics[("openai", "openai-model")]["state"] == KNOWN
+    assert economics[("azure", "azure-model")]["state"] == KNOWN
+    # Realistic cross-provider pairs and family/brand aliases are not quotes.
+    for provider, model in (
+            ("azure", "openai-model"),
+            ("openai", "azure-model"),
+            ("custom-openai-proxy", "openai-model"),
+            ("gpt", "openai-model")):
+        cross = economics[(provider, model)]
+        assert cross["state"] == UNKNOWN, (provider, cross)
+        assert cross["reason"] == "provider_price_mismatch"
     # Missing catalog provider identity is ambiguous, never a quote.
     unbound = economics[("remote-provider", "unbound-model")]
     assert unbound["state"] == UNKNOWN

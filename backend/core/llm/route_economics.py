@@ -16,6 +16,10 @@ Cost contract
   from the EXISTING pricing authority with explicit input/output token
   quantities (``DynamicPricingFetcher.estimate_cost``); this is not a 1:1
   token blend and it is not a settlement/liability claim.
+* The price must be bound to the exact candidate BILLING provider ID (trim
+  only; no brand/family/substring classifier). Different provider IDs with
+  interchangeable-looking names (OpenAI vs Azure vs a custom proxy) do not
+  share a quote.
 * Missing, subscription/flat-rate, negative, NaN/infinite, boolean or
   malformed cost is ``unknown``. Unknown is never treated as free. A true
   explicit zero rate is a known free route.
@@ -57,20 +61,19 @@ def route_key(provider: Any, model: Any) -> Tuple[str, str]:
 
 
 def _provider_identity(value: Any) -> str:
-    """Existing registry provider normalization, or "" when unavailable."""
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    try:
-        from core.llm.registry.transformers import normalize_provider
+    """The configured billing provider ID, after trim only.
 
-        return str(normalize_provider(text) or "").strip().lower()
-    except Exception:  # noqa: BLE001 — no provider identity, no quote
-        return text.casefold()
+    Provider IDs are keys in the existing BYOK/provider configuration. Brand
+    or family classifiers (and substring aliases) collapse providers whose
+    prices are not interchangeable; they must never establish a monetary
+    quote. Missing identity stays empty and therefore unknown.
+    """
+    return str(value or "").strip()
 
 
 def _model_identity(value: Any) -> str:
-    return str(value or "").strip().casefold()
+    """The exact route model ID, after trim only."""
+    return str(value or "").strip()
 
 
 def _valid_cost(value: Any) -> Optional[float]:
