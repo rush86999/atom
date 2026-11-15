@@ -27,3 +27,20 @@ whole-workflow comparison confirmed all other jobs/top-level settings and the
 three original ledgers are unchanged, per-lane order is preserved, and the
 shared/missing/in-memory database cohort remains together. No runtime file
 changes. Runner minutes and hosted latency remain unmeasured.
+
+
+## First observed hosted comparison
+
+Both exact-source PR workflows completed successfully: old run `43710961965`
+at `fb67a5379`, split run `43713943649` at `5276657a2`. The old core lane took
+110.07 minutes; the split critical lane took 69.62 minutes and the extra lane
+45.32 minutes. The observed critical-path reduction is 36.75%. Total core job
+elapsed runner time increased 4.42%; the sum over all CI jobs increased 0.26%.
+The separate Docker workflow and GitGuardian are excluded from that sum.
+
+This is one uncontrolled comparison, not a causal performance or billed-cost
+claim. Runners, cache/network/queue effects and individual test durations vary;
+the gate contract also expands from 125 to 625 combinations. All selectors,
+environments, duplicates and original ledgers were independently compared.
+The complete bundle merged through #958 as `519d06ef3` only after all 15
+exact-head checks passed. Main post-merge CI `43720409849` and Docker `43720409769` both completed successfully; these results are separate from pre-merge checks.
