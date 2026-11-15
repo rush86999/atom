@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Latest merge cut:** main `20a35a81b` through #954; see [qualified merges and economy verification](#13-qualified-merges-and-repeat-task-economy-verification). Historical scores remain unchanged.
+> **Latest merge cut:** main `519d06ef3` through #958, including #957; see [the merged chat and CI checkpoint](#16-merged-chat-repairs-and-observed-ci-timing). Historical scores remain unchanged.
 >
 > **Latest verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
@@ -1624,3 +1624,87 @@ Local root receipts: `/private/tmp/atom-root-chat-advisor-join-qualification.jso
 `/private/tmp/atom-root-chat-http-producer-freeze-7ec`. No owner data or live
 model credential was used. Historical 111/123 and the original 143 claims / 18
 goals remain unchanged; this is not whole-app or whole-goal completion.
+
+
+## 16. Merged chat repairs and observed CI timing
+
+Main `519d06ef3acacd10318e9fec01e4caa55f0a6f76` (tree
+`b240059e697494829d220d730cfb5d6989338cfe`, parent `3363b1810`) includes
+the complete section 15 app repairs through PR #958. Included predecessor
+#957 is closed, not separately merged. Root independently checked the actual
+remote main, full tree and parent against the qualified bundle. All **15**
+exact-head CI/security checks passed before the review-only merge bypass;
+no failed or pending check on the merged PR was bypassed. Post-merge CI
+`43720409849` and Docker `43720409769` both completed successfully at this
+exact main; these are separate results from the pre-merge checks.
+
+The two-core-lane workflow preserves every original command, environment,
+selector, intentional duplicate and per-lane order. Shared/no-explicit/
+in-memory database cohorts stay together. The original three coverage
+ledgers are byte-identical; the aggregate requires success from every lane.
+Independent root workflow verification: **628 passed in 70.96 seconds**,
+including all 625 four-lane result combinations and a separate comparison
+of the whole parsed workflow. Product runtime is identical to reviewed #957.
+
+Observed successful PR CI runs `43710961965` (old, exact `fb67a5379`) and
+`43713943649` (split, exact `5276657a2`) show the longest core lane at
+**110.07 vs 69.62 minutes**, a **36.75% reduction** in this pair. The extra
+lane took 45.32 minutes. Total core job elapsed time rose 4.42%; elapsed time
+summed over all CI jobs rose 0.26% (separate Docker workflow and GitGuardian
+excluded). This is one observed pair on different runners with variable
+cache/network/queue effects, not a controlled causal benchmark, billed-cost
+estimate, app throughput or model-quality result. The preservation test also
+expands from 125 to 625 result combinations.
+
+Local receipts: `/private/tmp/atom-root-pr958-merged-verification.json`,
+`/private/tmp/atom-root-957-958-consolidation-qualification.json`, and
+`/private/tmp/atom-root-ci-two-core-verification/completed-timing-comparison.json`.
+The GitHub closure event for #957 occurred at the #958 merge timestamp;
+root observed it already closed before issuing any separate close command.
+Its CI also completed successfully before the bundle merged. No source or
+recorded failure was omitted. Earlier local-only wording remains dated evidence.
+
+A clean acceptance checkout at this main is distinct from the preserved,
+dirty local owner checkout; merge status is not proof that the owner app has
+been upgraded. Successful live fleet quality, broader browser acceptance and
+the real elapsed Goal 10 wait remain separate. Historical 111/123, all 143
+claim identities / 18 goals and `app_complete: false` are unchanged.
+
+
+## 17. Current-user evidence reaches the grounding panel
+
+Candidate runtime `e22cffabfb80ccb6b076a1a1d3d7ea4541200e5d` fixes a confirmed
+prompt-boundary omission: both reply-verification calls supplied retrieved tool
+evidence without the current user request. The shared panel now receives that
+request separately, labelled user-provided and not independently verified.
+Questions and instructions are not evidence; conflicting sources must remain
+attributed, and a user assertion cannot establish independent verification.
+The 2,000-character user-context bound includes an explicit truncation notice.
+Prior conversation facts are not included by this change.
+
+Root independently ran **696 passing checks in 80.94 seconds**, covering the
+new context controls, existing panel/adaptive behavior, chat terminal outcomes,
+and CI coverage contract. The hosted chat lane adds exactly the new regression
+file; every other workflow byte and existing selector is preserved. Two older
+`test_reply_leg_bounds` source-string checks also fail on unchanged main
+`519d06ef3` (2 failures in 16.50 seconds); they remain recorded and were not
+modified to hide their failures.
+
+These are prompt/provenance and controlled-voter checks, not model-quality,
+injection-resistance or whole-app acceptance. Fresh synthetic HTTP rehearsals
+against main exposed missing test-provider stages; their failures are retained.
+The latest captured request reached the real grounding panel without the
+user-supplied facts, but its test provider rejected that stage, so it produced
+no actual model verdict. No additional live-provider allowance was used or
+created. A later fresh HTTP case at candidate `631ac8d96` confirmed the exact current
+user task in the actual grounding-judge request, separate from retrieved
+evidence. The API returned 200/success, both specialists and the chain completed,
+and the visible answer matched its bound durable assistant row. The strict
+campaign nevertheless remains **FAILED**: it received 13 local requests under
+a 12-admission guard, rejecting one; a background durable-fact request was also
+misclassified by the test provider. Its completed internal synthesis differed
+from the initial answer shown by chat, so final synthesized-answer delivery is
+being investigated separately. No real provider request was made. These results
+qualify the current-request prompt boundary only; successful, fully healthy
+fresh fleet completion and final synthesis delivery still need qualification.
+Historical 111/123 and the original 143 claims / 18 goals remain unchanged.
