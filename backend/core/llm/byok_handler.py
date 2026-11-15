@@ -4362,15 +4362,16 @@ class BYOKHandler:
             "huggingface": {"base_url": "https://router.huggingface.co/v1"},
             "nvidia_nim": {"base_url": "https://integrate.api.nvidia.com/v1"},
             "zai": {"base_url": "https://api.z.ai/api/paas/v4"},
-            # OpenCode Go — low-cost subscription gateway (OpenCode Zen).
-            # OpenAI-compatible /chat/completions; one key serves the whole
-            # tested model catalog. Custom rates/limits (RPM/TPM/context) are
-            # enforced at routing time via core.llm.provider_rate_limits.
-            "opencode-go": {"base_url": os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")},
-            # "opencode" is a first-class catalog id now (API Keys page) —
-            # same gateway, so it needs the same base_url or a UI-stored key
-            # under that id would build a client pointed at the OpenAI
-            # default and every call would 404/401 there.
+            # OpenCode Go — subscription product on the Go OpenAI-compatible
+            # endpoint. A key stored for this provider must not silently hit
+            # the Zen gateway (the prior live Zen 402/default-misroute).
+            # Explicit OPENCODE_BASE_URL still overrides both providers for
+            # custom/loopback setups.
+            "opencode-go": {"base_url": os.getenv(
+                "OPENCODE_BASE_URL",
+                "https://opencode.ai/inference/go/openai/v1")},
+            # "opencode" is the distinct OpenCode Zen catalog id (API Keys
+            # page); it keeps the Zen default and the same explicit override.
             "opencode": {"base_url": os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")},
         }
 
