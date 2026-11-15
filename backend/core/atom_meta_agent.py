@@ -778,11 +778,17 @@ class AtomMetaAgent:
     ) -> bool:
         """Bounded terminal disposition for an owned cancelled/timed-out run.
 
-        Uses only the server-generated execution id and the run's own row; it
-        never calls memory/model/network code, never retries, never recovers a
-        foreign row, and never overwrites an already-finalized status.
+        Requires the server-generated execution id AND the authoritative
+        tenant/workspace ownership. A merely id-shaped match is not account
+        authority; unknown scope fails closed. No memory/model/network call,
+        retry, foreign-row recovery or terminal-row overwrite.
         """
         if not execution_id:
+            return False
+        tenant = self.tenant_id if isinstance(self.tenant_id, str) else ""
+        workspace = (
+            self.workspace_id if isinstance(self.workspace_id, str) else "")
+        if not tenant.strip() or not workspace.strip():
             return False
         db = None
         try:
@@ -792,6 +798,8 @@ class AtomMetaAgent:
                 .filter(
                     AgentExecution.id == execution_id,
                     AgentExecution.agent_id == "atom_main",
+                    AgentExecution.tenant_id == tenant,
+                    AgentExecution.workspace_id == workspace,
                 )
                 .with_for_update()
                 .first()

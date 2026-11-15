@@ -34949,15 +34949,35 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return {"retrieval": "none",
                 "presentation": {"style": style, "field": field}}
 
+    @staticmethod
+    def _clear_agent_attempt(session, execution_id, turn_id) -> None:
+        """Remove only THIS attempt's admission state for the current turn."""
+        if not isinstance(session, dict):
+            return
+        attempt = session.get("_agent_attempt")
+        if (isinstance(attempt, dict)
+                and attempt.get("execution_id") == execution_id
+                and attempt.get("turn_id") == turn_id):
+            session.pop("_agent_attempt", None)
+
     def _admitted_agent_deadline_response(
         self, session: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Truthful partial outcome for an admitted agent run at the deadline."""
         if not isinstance(session, dict):
             return None
-        attempt_id = session.pop("_agent_attempt_execution_id", None)
+        attempt = session.get("_agent_attempt")
+        if not isinstance(attempt, dict):
+            return None
+        # Bind to the CURRENT server-owned turn. A stale attempt from a prior
+        # completed turn must not produce a phantom partial response for a
+        # later unrelated deadline, and must not be erased on its behalf.
+        if attempt.get("turn_id") != session.get("_current_execution_id"):
+            return None
+        attempt_id = attempt.get("execution_id")
         if not attempt_id:
             return None
+        session.pop("_agent_attempt", None)
         return {
             "success": False, "handled": True, "terminal": True,
             "outcome": "partial",
@@ -39676,8 +39696,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # without trusting any client-supplied id.
             import uuid as _uuid
             server_execution_id = str(_uuid.uuid4())
+            turn_id = (
+                session.get("_current_execution_id")
+                if isinstance(session, dict) else None)
             if isinstance(session, dict):
-                session["_agent_attempt_execution_id"] = server_execution_id
+                session["_agent_attempt"] = {
+                    "turn_id": turn_id,
+                    "execution_id": server_execution_id,
+                }
             # Execute through Atom
             entered_atom = True
             result = await atom.execute(
@@ -39719,6 +39745,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 execution_id,
                 "failed" if failure_reason else "success",
             )
+            self._clear_agent_attempt(
+                session, server_execution_id, turn_id)
             return {
                 "status": status,
                 "success": not failure_reason,
@@ -39751,6 +39779,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
             except Exception:
                 pass
+            self._clear_agent_attempt(
+                session, locals().get("server_execution_id"),
+                locals().get("turn_id"))
             if entered_atom:
                 # The exception happened after Atom.execute was entered, so
                 # work/preparation may exist. Keep it an admitted terminal

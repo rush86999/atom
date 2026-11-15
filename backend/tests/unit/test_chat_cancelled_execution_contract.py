@@ -69,7 +69,6 @@ async def test_execute_cancellation_finalizes_owned_running_row(
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-
     with scratch() as db:
         row = db.query(AgentExecution).filter(
             AgentExecution.id == exec_id).one()
@@ -109,13 +108,15 @@ def test_already_finalized_run_is_not_overwritten(scratch):
 def test_chat_deadline_partial_only_for_admitted_attempt():
     orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
     assert orch._admitted_agent_deadline_response({}) is None
-    session = {"_agent_attempt_execution_id": "exec-9"}
+    session = {"_current_execution_id": "turn-9",
+               "_agent_attempt": {"turn_id": "turn-9",
+                                  "execution_id": "exec-9"}}
     response = orch._admitted_agent_deadline_response(session)
     assert response["handled"] is True
     assert response["outcome"] == "partial"
     assert response["execution_id"] == "exec-9"
     assert "exact progress is unknown" in response["message"]
-    assert "_agent_attempt_execution_id" not in session
+    assert "_agent_attempt" not in session
 
 
 @pytest.mark.asyncio
@@ -145,8 +146,126 @@ async def test_agent_handler_uses_server_execution_id_and_propagates_cancel(
         "synthetic", {"primary_intent": co.ChatIntent.AGENT_REQUEST,
                       "confidence": 0.9}, session, {}))
     await entered.wait()
-    server_id = session.get("_agent_attempt_execution_id")
-    assert server_id and seen.get("execution_id") == server_id
+    attempt = session.get("_agent_attempt") or {}
+    assert attempt.get("execution_id") == seen.get("execution_id")
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+    # The same cancelled attempt's immediate deadline still needs this state.
+    assert session.get("_agent_attempt", {}).get("execution_id") == \
+        seen.get("execution_id")
+
+
+def _cancelled_agent(tenant="tenant-1", workspace="ws-1"):
+    agent = ama.AtomMetaAgent.__new__(ama.AtomMetaAgent)
+    agent.tenant_id = tenant
+    agent.workspace_id = workspace
+    agent.user = None
+    return agent
+
+
+def _row(scratch, *, tenant, workspace, status="running"):
+    exec_id = str(uuid.uuid4())
+    with scratch() as db:
+        db.add(AgentExecution(
+            id=exec_id, agent_id="atom_main", tenant_id=tenant,
+            workspace_id=workspace, status=status,
+            input_summary="synthetic", triggered_by="manual",
+            started_at=datetime.now(timezone.utc)))
+        db.commit()
+    return exec_id
+
+
+def test_cancel_scope_rejects_same_tenant_different_workspace(scratch):
+    exec_id = _row(scratch, tenant="tenant-1", workspace="ws-other")
+    agent = _cancelled_agent(tenant="tenant-1", workspace="ws-1")
+    orig = ama.SessionLocal
+    ama.SessionLocal = scratch
+    try:
+        assert agent._finalize_cancelled_execution(
+            exec_id, reason="run_cancelled_before_settlement") is False
+    finally:
+        ama.SessionLocal = orig
+    with scratch() as db:
+        assert db.query(AgentExecution).filter(
+            AgentExecution.id == exec_id).one().status == "running"
+
+
+def test_cancel_scope_rejects_different_tenant(scratch):
+    exec_id = _row(scratch, tenant="tenant-other", workspace="ws-1")
+    agent = _cancelled_agent(tenant="tenant-1", workspace="ws-1")
+    orig = ama.SessionLocal
+    ama.SessionLocal = scratch
+    try:
+        assert agent._finalize_cancelled_execution(
+            exec_id, reason="run_cancelled_before_settlement") is False
+    finally:
+        ama.SessionLocal = orig
+    with scratch() as db:
+        assert db.query(AgentExecution).filter(
+            AgentExecution.id == exec_id).one().status == "running"
+
+
+def test_cancel_scope_unknown_scope_fails_closed(scratch):
+    exec_id = _row(scratch, tenant="tenant-1", workspace="ws-1")
+    for tenant, workspace in (("", "ws-1"), ("tenant-1", "")):
+        agent = _cancelled_agent(tenant=tenant, workspace=workspace)
+        orig = ama.SessionLocal
+        ama.SessionLocal = scratch
+        try:
+            assert agent._finalize_cancelled_execution(
+                exec_id, reason="run_cancelled_before_settlement") is False
+        finally:
+            ama.SessionLocal = orig
+    with scratch() as db:
+        assert db.query(AgentExecution).filter(
+            AgentExecution.id == exec_id).one().status == "running"
+
+
+def test_stale_turn_attempt_is_not_consumed_or_erased():
+    orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
+    session = {
+        "_current_execution_id": "turn-2",
+        "_agent_attempt": {"turn_id": "turn-1", "execution_id": "exec-old"},
+    }
+    assert orch._admitted_agent_deadline_response(session) is None
+    assert session["_agent_attempt"]["execution_id"] == "exec-old"
+    session["_current_execution_id"] = "turn-1"
+    response = orch._admitted_agent_deadline_response(session)
+    assert response["outcome"] == "partial"
+    assert response["execution_id"] == "exec-old"
+    assert "_agent_attempt" not in session
+
+
+def test_clear_agent_attempt_only_matching_turn():
+    orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
+    session = {"_agent_attempt": {"turn_id": "t1", "execution_id": "e1"}}
+    orch._clear_agent_attempt(session, "e2", "t1")
+    assert "_agent_attempt" in session
+    orch._clear_agent_attempt(session, "e1", "t1")
+    assert "_agent_attempt" not in session
+
+
+@pytest.mark.asyncio
+async def test_success_clears_attempt(monkeypatch):
+    class FakeAtom:
+        async def execute(self, **_kwargs):
+            return {"success": True, "status": "success",
+                    "final_output": "done", "execution_id": "exec-ok"}
+
+    import core.atom_meta_agent as atom_mod
+    import core.request_scope as rs
+    monkeypatch.setattr(atom_mod, "get_atom_agent", lambda *a, **k: FakeAtom())
+    monkeypatch.setattr(rs, "current_request_scope", lambda: {})
+    orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
+    async def noop(*_a, **_k):
+        return None
+    orch._emit_agent_status = noop
+    orch._emit_agent_step = noop
+    session = {"id": "s", "user_id": "u",
+               "_current_execution_id": "turn-1"}
+    result = await orch._handle_agent_request(
+        "synthetic", {"primary_intent": co.ChatIntent.AGENT_REQUEST,
+                      "confidence": 0.9}, session, {})
+    assert result["success"] is True
+    assert "_agent_attempt" not in session
