@@ -413,6 +413,12 @@ async def execute_skill(
         if message.startswith("reviewed_executable_policy_rejected"):
             raise HTTPException(
                 status_code=422, detail=message) from e
+        if message.startswith(
+                "STUDENT agents cannot execute Python skills"):
+            # Preserve the actual maturity refusal text; a generic "Internal
+            # error" hides which admission gate denied the call.
+            raise HTTPException(
+                status_code=400, detail=message) from e
         logger.error(f"Execution validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

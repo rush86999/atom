@@ -555,8 +555,12 @@ class SkillRegistryService:
             skill_id: Skill ID from import
             inputs: Input parameters for skill execution
             agent_id: Agent ID executing the skill
-            tenant_id: Authenticated caller's tenant (reviewed skills only)
-            workspace_id: Authenticated caller's workspace (reviewed skills only)
+            tenant_id: Authenticated caller's tenant. Scopes reviewed
+                executable authorization AND the agent-maturity lookup for
+                every skill execution.
+            workspace_id: Authenticated caller's workspace. Scopes reviewed
+                executable authorization AND the agent-maturity lookup for
+                every skill execution.
             user_id: Authenticated caller id, for receipts
 
         Returns:
@@ -607,8 +611,24 @@ class SkillRegistryService:
         package_manager = skill["skill_metadata"].get("package_manager", "npm")
 
         # Governance check: Verify agent maturity
-        # Community skills default to INTERN maturity requirement
-        agent_caps = self._governance.get_agent_capabilities(agent_id)
+        # Community skills default to INTERN maturity requirement.
+        #
+        # Context normalization: no explicit tenant/workspace means a legacy
+        # unscoped/system caller. Keep the cached constructor governance object
+        # there so existing injected-governance behavior and legacy "system"
+        # semantics are preserved. Only scope-bearing calls (the public API and
+        # normal agent action path both pass authenticated scope) construct a
+        # per-call governance object; otherwise a non-default STUDENT was
+        # invisible to the default-scoped lookup and slipped past the gate.
+        if not tenant_id and not workspace_id:
+            agent_caps = self._governance.get_agent_capabilities(agent_id)
+        else:
+            governance = AgentGovernanceService(
+                self.db,
+                workspace_id=workspace_id or "default",
+                tenant_id=tenant_id,
+            )
+            agent_caps = governance.get_agent_capabilities(agent_id)
         if not agent_caps:
             logger.warning(f"Agent not found: {agent_id}, executing as system")
         else:
