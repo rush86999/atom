@@ -117,10 +117,20 @@ class TestAdvisorServiceLLMIntegration:
 
         await service.generate_guidance(tenant_id=sample_workflow_variant.tenant_id)
 
-        # Check call arguments
+        # Canonical facade contract: full role/content messages plus the
+        # authenticated tenant scope, not the old system_prompt/user_prompt
+        # keyword shape.
         call_args = mock_auto_dev_llm.generate_completion.call_args
-        assert "system_prompt" in call_args[1]
-        assert "user_prompt" in call_args[1]
+        kwargs = call_args.kwargs
+        messages = kwargs["messages"]
+        assert [m["role"] for m in messages] == ["system", "user"]
+        assert "Auto-Dev Research Advisor" in messages[0]["content"]
+        assert sample_workflow_variant.tenant_id in messages[1]["content"]
+        assert "Provide your guidance" in messages[1]["content"]
+        assert kwargs["tenant_id"] == sample_workflow_variant.tenant_id
+        assert kwargs["temperature"] == 0.5
+        assert "system_prompt" not in kwargs
+        assert "user_prompt" not in kwargs
 
 
 class TestAdvisorServiceErrorHandling:
