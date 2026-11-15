@@ -18569,7 +18569,8 @@ class ChatOrchestrator:
                             feature_responses = await asyncio.wait_for(
                                 self._route_to_features(
                                     message, intent_analysis, session, context,
-                                    evidence_requirement=_feature_req),
+                                    evidence_requirement=_feature_req,
+                                    turn_id=_execution_id),
                                 timeout=_features_left,
                             )
                     except asyncio.TimeoutError:
@@ -18578,7 +18579,7 @@ class ChatOrchestrator:
                         # Atom run may have started and then been cancelled by
                         # the deadline. Report that uncertainty honestly.
                         _attempt_response = self._admitted_agent_deadline_response(
-                            session)
+                            session, _execution_id)
                         feature_responses = (
                             {FeatureType.AGENT: _attempt_response}
                             if _attempt_response else {})
@@ -34954,30 +34955,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         """Remove only THIS attempt's admission state for the current turn."""
         if not isinstance(session, dict):
             return
-        attempt = session.get("_agent_attempt")
+        attempts = session.get("_agent_attempts")
+        if not isinstance(attempts, dict) or not turn_id:
+            return
+        attempt = attempts.get(turn_id)
         if (isinstance(attempt, dict)
-                and attempt.get("execution_id") == execution_id
-                and attempt.get("turn_id") == turn_id):
-            session.pop("_agent_attempt", None)
+                and attempt.get("execution_id") == execution_id):
+            attempts.pop(turn_id, None)
+            if not attempts:
+                session.pop("_agent_attempts", None)
 
     def _admitted_agent_deadline_response(
-        self, session: Dict[str, Any]
+        self, session: Dict[str, Any], turn_id: str
     ) -> Optional[Dict[str, Any]]:
         """Truthful partial outcome for an admitted agent run at the deadline."""
         if not isinstance(session, dict):
             return None
-        attempt = session.get("_agent_attempt")
-        if not isinstance(attempt, dict):
+        # The CALLER's server-local turn id is the authority, never the
+        # session's latest value (an overlapping turn may have replaced it).
+        if not isinstance(turn_id, str) or not turn_id:
             return None
-        # Bind to the CURRENT server-owned turn. A stale attempt from a prior
-        # completed turn must not produce a phantom partial response for a
-        # later unrelated deadline, and must not be erased on its behalf.
-        if attempt.get("turn_id") != session.get("_current_execution_id"):
+        attempts = session.get("_agent_attempts")
+        if not isinstance(attempts, dict):
+            return None
+        attempt = attempts.get(turn_id)
+        if not isinstance(attempt, dict):
             return None
         attempt_id = attempt.get("execution_id")
         if not attempt_id:
             return None
-        session.pop("_agent_attempt", None)
+        attempts.pop(turn_id, None)
+        if not attempts:
+            session.pop("_agent_attempts", None)
         return {
             "success": False, "handled": True, "terminal": True,
             "outcome": "partial",
@@ -34999,6 +35008,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session: Dict,
         context: Optional[Dict],
         evidence_requirement: Optional[Dict[str, Any]] = None,
+        turn_id: Optional[str] = None,
     ) -> Dict[FeatureType, Any]:
         """Route message to appropriate feature handlers.
 
@@ -35096,8 +35106,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if feature_type in self.feature_handlers:
                 try:
                     logger.info(f"Executing handler for {feature_type}")
+                    handler_context = (
+                        {**(context or {}), "_server_turn_id": turn_id}
+                        if turn_id else context)
                     response = await self.feature_handlers[feature_type](
-                        message, intent_analysis, session, context
+                        message, intent_analysis, session, handler_context
                     )
                     # A handler may accept the route and still end in a
                     # terminal failure/denial/partial outcome. ``handled``
@@ -39697,10 +39710,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             import uuid as _uuid
             server_execution_id = str(_uuid.uuid4())
             turn_id = (
-                session.get("_current_execution_id")
-                if isinstance(session, dict) else None)
-            if isinstance(session, dict):
-                session["_agent_attempt"] = {
+                (context or {}).get("_server_turn_id")
+                if isinstance(context, dict) else None)
+            if not isinstance(turn_id, str) or not turn_id:
+                turn_id = (
+                    session.get("_current_execution_id")
+                    if isinstance(session, dict) else None)
+            if isinstance(session, dict) and turn_id:
+                session.setdefault("_agent_attempts", {})[turn_id] = {
                     "turn_id": turn_id,
                     "execution_id": server_execution_id,
                 }

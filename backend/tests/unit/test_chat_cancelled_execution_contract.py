@@ -107,16 +107,16 @@ def test_already_finalized_run_is_not_overwritten(scratch):
 
 def test_chat_deadline_partial_only_for_admitted_attempt():
     orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
-    assert orch._admitted_agent_deadline_response({}) is None
+    assert orch._admitted_agent_deadline_response({}, "turn-9") is None
     session = {"_current_execution_id": "turn-9",
-               "_agent_attempt": {"turn_id": "turn-9",
-                                  "execution_id": "exec-9"}}
-    response = orch._admitted_agent_deadline_response(session)
+               "_agent_attempts": {"turn-9": {
+                   "turn_id": "turn-9", "execution_id": "exec-9"}}}
+    response = orch._admitted_agent_deadline_response(session, "turn-9")
     assert response["handled"] is True
     assert response["outcome"] == "partial"
     assert response["execution_id"] == "exec-9"
     assert "exact progress is unknown" in response["message"]
-    assert "_agent_attempt" not in session
+    assert "_agent_attempts" not in session
 
 
 @pytest.mark.asyncio
@@ -141,19 +141,22 @@ async def test_agent_handler_uses_server_execution_id_and_propagates_cancel(
         return None
     orch._emit_agent_status = noop
     orch._emit_agent_step = noop
-    session = {"id": "s-1", "user_id": "u-1"}
+    session = {"id": "s-1", "user_id": "u-1",
+               "_current_execution_id": "turn-1"}
     task = asyncio.create_task(orch._handle_agent_request(
         "synthetic", {"primary_intent": co.ChatIntent.AGENT_REQUEST,
                       "confidence": 0.9}, session, {}))
     await entered.wait()
-    attempt = session.get("_agent_attempt") or {}
+    turn_id = session.get("_current_execution_id")
+    attempt = (session.get("_agent_attempts") or {}).get(turn_id) or {}
     assert attempt.get("execution_id") == seen.get("execution_id")
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
     # The same cancelled attempt's immediate deadline still needs this state.
-    assert session.get("_agent_attempt", {}).get("execution_id") == \
-        seen.get("execution_id")
+    turn_id = session.get("_current_execution_id")
+    assert (session.get("_agent_attempts") or {}).get(
+        turn_id, {}).get("execution_id") == seen.get("execution_id")
 
 
 def _cancelled_agent(tenant="tenant-1", workspace="ws-1"):
@@ -226,24 +229,25 @@ def test_stale_turn_attempt_is_not_consumed_or_erased():
     orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
     session = {
         "_current_execution_id": "turn-2",
-        "_agent_attempt": {"turn_id": "turn-1", "execution_id": "exec-old"},
+        "_agent_attempts": {"turn-1": {
+            "turn_id": "turn-1", "execution_id": "exec-old"}},
     }
-    assert orch._admitted_agent_deadline_response(session) is None
-    assert session["_agent_attempt"]["execution_id"] == "exec-old"
-    session["_current_execution_id"] = "turn-1"
-    response = orch._admitted_agent_deadline_response(session)
+    assert orch._admitted_agent_deadline_response(session, "turn-2") is None
+    assert session["_agent_attempts"]["turn-1"]["execution_id"] == "exec-old"
+    response = orch._admitted_agent_deadline_response(session, "turn-1")
     assert response["outcome"] == "partial"
     assert response["execution_id"] == "exec-old"
-    assert "_agent_attempt" not in session
+    assert "_agent_attempts" not in session
 
 
 def test_clear_agent_attempt_only_matching_turn():
     orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
-    session = {"_agent_attempt": {"turn_id": "t1", "execution_id": "e1"}}
+    session = {"_agent_attempts": {"t1": {
+        "turn_id": "t1", "execution_id": "e1"}}}
     orch._clear_agent_attempt(session, "e2", "t1")
-    assert "_agent_attempt" in session
+    assert "_agent_attempts" in session
     orch._clear_agent_attempt(session, "e1", "t1")
-    assert "_agent_attempt" not in session
+    assert "_agent_attempts" not in session
 
 
 @pytest.mark.asyncio
@@ -268,4 +272,22 @@ async def test_success_clears_attempt(monkeypatch):
         "synthetic", {"primary_intent": co.ChatIntent.AGENT_REQUEST,
                       "confidence": 0.9}, session, {})
     assert result["success"] is True
-    assert "_agent_attempt" not in session
+    assert "_agent_attempts" not in session
+
+
+def test_overlapping_turn_deadlines_resolve_their_own_attempt():
+    orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
+    session = {
+        "_current_execution_id": "turn-B",
+        "_agent_attempts": {
+            "turn-A": {"turn_id": "turn-A", "execution_id": "agent-A"},
+            "turn-B": {"turn_id": "turn-B", "execution_id": "agent-B"},
+        },
+    }
+    a = orch._admitted_agent_deadline_response(session, "turn-A")
+    assert a["execution_id"] == "agent-A"
+    assert a["outcome"] == "partial"
+    assert "turn-B" in session["_agent_attempts"]
+    b = orch._admitted_agent_deadline_response(session, "turn-B")
+    assert b["execution_id"] == "agent-B"
+    assert "_agent_attempts" not in session
