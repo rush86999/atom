@@ -1513,3 +1513,55 @@ verification. Reports: `/private/tmp/atom-doc-upload-browser-report.md` and
 `/private/tmp/atom-doc-retained-upload-api-report.md`. Root receipts:
 `/private/tmp/atom-root-doc-upload-boundary-verification.json` and
 `/private/tmp/atom-root-doc-api-followthrough-verification.json`.
+
+
+## 14. Typed completion consumers and terminal fleet failures
+
+Source-qualified local runtime: `0a926e472d49f3c4207804b0d05484ae36378e6f`
+(tree `e82b8c5c93e1e7fbf957cc806cfe7f4ad400b5ab`), integrated atop
+PR #955's frozen source `2de3fbed6`. This is not a merged-source or live
+fleet-acceptance claim.
+
+The repaired Atom helpers, blueprint healer, presentation summary, group
+reflection and social-post generator use the existing canonical
+`LLMService.generate_completion` interface. A shared pure text parser keeps
+provider failures, empty output and malformed non-string content from being
+published as generated answers. Full messages and existing caller scopes
+are retained; declared deterministic/template fallbacks remain scoped
+fallbacks, not successful model output.
+
+An enforced governance denial terminates with a durable failed run and no
+fallback dispatch. If routing raises after preparation might have started,
+the result reports partial/unknown progress. A reliable owned chain remains
+linked; a foreign-account chain sharing an execution string is not returned.
+There is no automatic retry, rollback or claim that earlier work was undone.
+See [the fleet failure contract](../architecture/FLEET_ORCHESTRATION.md).
+
+Independent root verification at that exact runtime:
+
+- **678 passed, 1 skipped** in 62.01 seconds across typed consumers, fleet
+  synthesis, failure/denial, root linkage, scope, budget and CI-lane controls,
+  including the retained real-chain-interruption and foreign-chain cases.
+  The existing skipped module targets removed budget APIs; it is not budget
+  acceptance. `/private/tmp/atom-root-llm-join-qualification/tests.log`.
+- Broader relevant regression selection: **308 passed, 4 failed** in 23.07
+  seconds. The same four failed test identities were independently reproduced
+  on clean main `20a35a81b` before this integration (memory label, outcome
+  signature and two workbook mocks). They remain failures; this result is
+  not described as a fully green broad suite.
+- Earlier independent consumer/CI selection at `f2381d6aa`: **487 passed**
+  in 27.75 seconds. It is component evidence with canonical-interface-only
+  doubles, not remote model quality or fresh user-task acceptance.
+
+The isolated normal-startup probe's retained responses and OpenAPI list
+show the Atom execute route present at source `92c355292`. Root readback
+confirmed 1,634 listed paths, the execute path, and method/not-found response
+bodies. This does not independently freeze the startup command/source:
+POSTs were both rejected by CSRF, so neither authentication nor task
+execution was demonstrated. A loopback bind does not prove egress isolation.
+The older remounted, manually seeded fresh-fleet packet remains unqualified.
+
+No new provider call was made for these checks. The owner-approved single
+8,000-token retained-synthesis test was already consumed; zero additional
+live app-provider calls remain authorized. No historical score or whole-goal
+status changes.
