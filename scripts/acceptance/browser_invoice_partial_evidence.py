@@ -1132,7 +1132,8 @@ def _upload_and_select(
 
 
 def _run_scenario(args: argparse.Namespace,
-                  live: Optional[Dict[str, Any]] = None) -> int:
+                  live: Optional[Dict[str, Any]] = None,
+                  driver_environment: Optional[Dict[str, Any]] = None) -> int:
     if not args.out:
         print("[execute] --out is required", file=sys.stderr)
         return 2
@@ -1181,7 +1182,8 @@ def _run_scenario(args: argparse.Namespace,
             raise DriverError(f"scenario check failed: {name}")
 
     try:
-        stack = D3._prepare_execute_environment(args)
+        stack = (driver_environment if driver_environment is not None
+                 else D3._prepare_execute_environment(args))
         scenario["driver_environment"] = stack
         if live is not None:
             # The relay port replaces the shim port as the provider endpoint
@@ -1741,6 +1743,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         ap.error("choose --preflight or --execute")
     if not args.preflight and not args.execute:
         args.preflight = True
+    driver_environment: Optional[Dict[str, Any]] = None
+    if args.execute:
+        # Isolate THIS process (scratch DATABASE_URL / ATOM_DATA_DIR) BEFORE
+        # any product import. _live_config reads the price catalog, whose
+        # package import chains through core.llm -> core.database; with an
+        # ambient .env (or no DATABASE_URL) that binds the live dev DB into
+        # the driver process for the rest of the run. The preflight path does
+        # not execute, so it keeps its previous no-scratch behaviour.
+        driver_environment = D3._prepare_execute_environment(args)
     try:
         live = _live_config(args)
     except PreflightError as exc:
@@ -1748,7 +1759,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
     if args.preflight:
         return _run_preflight(args)
-    return _run_scenario(args, live)
+    return _run_scenario(args, live, driver_environment)
 
 
 if __name__ == "__main__":

@@ -687,10 +687,13 @@ class Handler(BaseHTTPRequestHandler):
         })
 
         if result.error:
+            # Return the REDACTED transport error: the sandboxed server may log
+            # or model-ingest this body, and the relay is the only place that
+            # can guarantee a credential-shaped string never leaves it.
             _json_response(self, result.status, _error_body(
                 "upstream_unavailable",
                 "timeout" if result.status == 504 else "transport_error",
-                result.error))
+                upstream_error or "upstream error"))
             return
         self.send_response(result.status)
         self.send_header("Content-Type", "application/json")

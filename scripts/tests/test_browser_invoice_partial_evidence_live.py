@@ -438,6 +438,48 @@ def test_upstream_error_is_one_attempt_and_not_retried(relay_factory):
         server.stop()
 
 
+def test_upstream_error_body_is_redacted_before_it_leaves_the_relay(
+        relay, tmp_path):
+    """The caller-facing error is the redacted one, not the raw exception.
+
+    The sandboxed server may log or feed this body to a model; a credential
+    shape that reached the relay's transport layer must not be echoed out.
+    """
+    secret = "sk-live-secret-abcdef123456"
+
+    class FailingUpstream:
+        calls = 0
+
+        def post_chat(self, payload):
+            self.calls += 1
+            return relay.UpstreamResult(502, b"", f"Bearer {secret}")
+
+    upstream = FailingUpstream()
+    state = relay.RelayState(
+        provider="opencode-go", model="deepseek-v4.1-flash",
+        run_token="run-token", upstream_base_url=TRUSTED,
+        limits=relay.RelayLimits(), ledger_path=tmp_path / "ledger.jsonl")
+    server = relay.build_server(port=0, relay=state, upstream=upstream)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        response = __import__("httpx").post(
+            f"http://127.0.0.1:{port}/v1/run-token/chat/completions",
+            json=_chat(), timeout=10)
+        assert response.status_code == 502
+        assert secret not in response.text
+        assert "REDACTED" in response.text
+        assert upstream.calls == 1
+        ledger = __import__("httpx").get(
+            f"http://127.0.0.1:{port}/ledger", timeout=10).text
+        assert secret not in ledger
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def test_ledger_file_is_truncated_per_relay_process(relay, upstream, tmp_path):
     ledger_path = tmp_path / "ledger.jsonl"
     ledger_path.write_text('{"stale": true}\n', encoding="utf-8")
@@ -688,6 +730,24 @@ def test_launch_live_relay_is_pinned(launcher, monkeypatch):
             8117, upstream_base_url="http://127.0.0.1:9/v1",
             run_token="token", ledger_path=Path("/tmp/unused-ledger.jsonl"),
             model="gemini-3-flash",
+            limits={"max_model_calls": 1, "max_spend_usd": 1.0,
+                    "max_output_tokens": 10, "input_usd_per_1m": 0.3,
+                    "output_usd_per_1m": 1.2})
+
+
+def test_launch_live_relay_refuses_a_foreign_provider(launcher, monkeypatch):
+    """The launcher enforces the provider half of the pin too.
+
+    The relay process also refuses a foreign provider, but that surfaced as a
+    generic "did not start" after a fork; a caller cannot half-pin the lane.
+    """
+    monkeypatch.setattr(launcher, "_refuse_if_port_held",
+                        lambda port, label: None)
+    with pytest.raises(RuntimeError, match="provider"):
+        launcher.launch_live_relay(
+            8117, upstream_base_url="http://127.0.0.1:9/v1",
+            run_token="token", ledger_path=Path("/tmp/unused-ledger.jsonl"),
+            provider="openrouter",
             limits={"max_model_calls": 1, "max_spend_usd": 1.0,
                     "max_output_tokens": 10, "input_usd_per_1m": 0.3,
                     "output_usd_per_1m": 1.2})
@@ -1042,6 +1102,42 @@ def test_read_live_credential_rejects_empty_or_whitespace(driver, monkeypatch):
     monkeypatch.setattr(driver.sys, "stdin", io.StringIO("sk with space\n"))
     with pytest.raises(driver.PreflightError, match="whitespace"):
         driver._read_live_credential()
+
+
+def test_execute_isolates_the_driver_before_the_live_config_import(
+        driver, monkeypatch):
+    """Scratch DB env must be installed before config validation can import.
+
+    ``_live_config`` reads ``core.llm.opencode_catalog``; that package's
+    ``__init__`` imports ``byok_handler`` -> ``core.database``, which binds
+    whatever DATABASE_URL/.env is ambient at import time. The preflight path
+    still must not create a scratch environment.
+    """
+    order = []
+
+    def _prepare(args):
+        order.append("prepare")
+        return {"driver_scratch": "scratch"}
+
+    def _live_config(args):
+        order.append("live")
+        return None
+
+    def _run_scenario(args, live=None, driver_environment=None):
+        order.append("run")
+        assert driver_environment == {"driver_scratch": "scratch"}
+        return 0
+
+    monkeypatch.setattr(driver.D3, "_prepare_execute_environment", _prepare)
+    monkeypatch.setattr(driver, "_live_config", _live_config)
+    monkeypatch.setattr(driver, "_run_scenario", _run_scenario)
+    assert driver.main(["--execute", "--out", "/tmp/live-order-out"]) == 0
+    assert order == ["prepare", "live", "run"]
+
+    order.clear()
+    monkeypatch.setattr(driver, "_run_preflight", lambda args: 0)
+    assert driver.main(["--preflight", "--out", "/tmp/live-order-out"]) == 0
+    assert "prepare" not in order
 
 
 # ---------------------------------------------------------------------------

@@ -3882,6 +3882,10 @@ def launch_live_relay(port: int, *, upstream_base_url: str, run_token: str,
         raise RuntimeError(
             f"this lane is pinned to {relay_mod.PIN_MODEL!r}; refusing "
             f"{pinned_model!r}")
+    if pinned_provider != relay_mod.PIN_PROVIDER:
+        raise RuntimeError(
+            f"this lane is pinned to provider {relay_mod.PIN_PROVIDER!r}; "
+            f"refusing {pinned_provider!r}")
     upstream = relay_mod.validate_upstream_base_url(
         upstream_base_url, allow_live=True)
     kind = relay_mod.upstream_kind(upstream)
