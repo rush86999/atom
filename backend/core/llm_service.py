@@ -1004,6 +1004,18 @@ class LLMService:
             # so without this a caller cannot distinguish a naturally
             # finished answer from one cut off at the output-token cap.
             "finish_reason": finish_reason,
+            # Completion-budget truth from THIS call's accepted transport.
+            # ``requested_max_tokens`` is the caller's explicit value (absent
+            # when none was supplied); ``effective_max_tokens`` is what the
+            # route actually applied on the wire after any known context-window
+            # clamp. Missing means the producer did not expose it -- neither
+            # value is fabricated from a handler default.
+            "requested_max_tokens": (
+                outcome_sink.get("requested_max_tokens")
+                if outcome_written else None),
+            "effective_max_tokens": (
+                outcome_sink.get("effective_max_tokens")
+                if outcome_written else None),
             # Identity of this generation's outcome row (set by the handler
             # when it recorded one). Callers that judge the ASSEMBLED reply
             # afterwards — the figure-grounding and verification guards — pass

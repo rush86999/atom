@@ -847,6 +847,8 @@ def _record_generation_outcome(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     diagnostics: Optional[Dict[str, Any]] = None,
+    requested_max_tokens: Optional[int] = None,
+    effective_max_tokens: Optional[int] = None,
 ) -> None:
     """Write THIS call's outcome into a caller-owned mapping.
 
@@ -872,6 +874,13 @@ def _record_generation_outcome(
         sink["provider"] = provider
         sink["model"] = model
         sink["diagnostics"] = dict(diagnostics or {})
+        # Completion-budget truth for accepted transports. Only reported
+        # values are present: an unknown request cap stays absent rather than
+        # being fabricated from a handler default.
+        if requested_max_tokens is not None:
+            sink["requested_max_tokens"] = int(requested_max_tokens)
+        if effective_max_tokens is not None:
+            sink["effective_max_tokens"] = int(effective_max_tokens)
     except Exception:  # noqa: BLE001 — metadata must never gate generation
         pass
 
@@ -881,10 +890,15 @@ def _accepted_text_return(
     text: str,
     provider: Optional[str],
     model: Optional[str],
+    *,
+    requested_max_tokens: Optional[int] = None,
+    effective_max_tokens: Optional[int] = None,
 ) -> str:
     """Record an accepted route and return its text (legacy API unchanged)."""
     _record_generation_outcome(
-        sink, success=True, provider=provider, model=model)
+        sink, success=True, provider=provider, model=model,
+        requested_max_tokens=requested_max_tokens,
+        effective_max_tokens=effective_max_tokens)
     return text
 
 
@@ -2494,6 +2508,32 @@ class BYOKHandler:
             logger.debug("context window lookup failed for %s/%s: %s",
                          provider_id, model, exc)
             return None
+
+    def _bounded_completion_cap(
+        self, provider_id: str, model: str, requested: Optional[int],
+    ) -> Optional[int]:
+        """Lower an explicit completion cap to a known route window.
+
+        The output cap and the prompt share one provider/model context window,
+        so a requested ceiling larger than the whole window cannot be honoured.
+        This clamp only ever LOWERS the caller's value: an unknown window is
+        left alone (the provider remains the judge), and a smaller explicit
+        caller cap is never raised. The admission/reservation path reads the
+        returned value, so the authorized bound matches the wire request.
+        """
+        try:
+            requested_int = int(requested)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return requested
+        if requested_int <= 0:
+            return requested
+        window = self._route_context_window(provider_id, model)
+        if not window or window <= 0 or requested_int <= window:
+            return requested_int
+        logger.info(
+            "Clamping completion cap for %s/%s from %d to its %d-token "
+            "context window", provider_id, model, requested_int, window)
+        return int(window)
 
     def _explicit_primary_requested(
         self, provider_id: Any, model: Any = None,
@@ -7964,6 +8004,12 @@ class BYOKHandler:
                         max_tokens if max_tokens is not None
                         else _DEFAULT_COMPLETION_MAX_TOKENS
                     )
+                    # A known provider/model context window is a lower hard
+                    # ceiling than a larger requested cap. The clamp happens
+                    # BEFORE admission, so the reservation and the wire request
+                    # both see the same effective number.
+                    _cap = self._bounded_completion_cap(
+                        provider_id, model, _cap)
                     _req_kwargs = {
                         "model": _direct_api_model_name(provider_id, model),
                         "messages": messages,
@@ -8288,7 +8334,9 @@ class BYOKHandler:
                     set_served_route(provider_id, model)
 
                     return _accepted_text_return(
-                        outcome_sink, result, provider_id, model)
+                        outcome_sink, result, provider_id, model,
+                        requested_max_tokens=max_tokens,
+                        effective_max_tokens=_cap)
 
                 except Exception as attempt_err:
                     if isinstance(attempt_err, _AccountingBlockedError):
@@ -8375,7 +8423,10 @@ class BYOKHandler:
                                 self._last_used_provider = provider_id
                                 set_served_route(provider_id, model)
                                 return _accepted_text_return(
-                                    outcome_sink, result, provider_id, model)
+                                    outcome_sink, result, provider_id, model,
+                                    requested_max_tokens=max_tokens,
+                                    effective_max_tokens=_t_kwargs.get(
+                                        "max_tokens"))
                         except _AccountingBlockedError:
                             raise
                         except Exception as _temp_retry_err:
@@ -8465,7 +8516,10 @@ class BYOKHandler:
                                 )
                                 return _accepted_text_return(
                                     outcome_sink, result, provider_id,
-                                    fallback_model)
+                                    fallback_model,
+                                    requested_max_tokens=max_tokens,
+                                    effective_max_tokens=_fb_kwargs.get(
+                                        "max_tokens"))
                             except _AccountingBlockedError:
                                 raise
                             except Exception as fb_err:
@@ -8623,7 +8677,11 @@ class BYOKHandler:
                                     set_served_route(provider_id, model)
                                     return _accepted_text_return(
                                         outcome_sink, result, provider_id,
-                                        model)
+                                        model,
+                                        requested_max_tokens=max_tokens,
+                                        effective_max_tokens=(
+                                            heal_result.patched_kwargs.get(
+                                                "max_tokens")))
                                 except _AccountingBlockedError:
                                     raise
                                 except Exception as retry_err:
@@ -8731,7 +8789,10 @@ class BYOKHandler:
                                 set_served_route(provider_id, paid_model)
                                 return _accepted_text_return(
                                     outcome_sink, result, provider_id,
-                                    paid_model)
+                                    paid_model,
+                                    requested_max_tokens=max_tokens,
+                                    effective_max_tokens=_paid_kwargs.get(
+                                        "max_tokens"))
                             except _AccountingBlockedError:
                                 raise
                             except Exception as paid_err:
@@ -8879,7 +8940,10 @@ class BYOKHandler:
                         self._last_used_provider = _sp
                         set_served_route(_sp, _sm)
                         return _accepted_text_return(
-                            outcome_sink, _sweep_result, _sp, _sm)
+                            outcome_sink, _sweep_result, _sp, _sm,
+                            requested_max_tokens=max_tokens,
+                            effective_max_tokens=_sweep_kwargs.get(
+                                "max_tokens"))
                     except Exception as _sweep_attempt_err:
                         logger.warning(
                             f"completion ladder sweep attempt failed for "

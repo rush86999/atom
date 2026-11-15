@@ -605,6 +605,65 @@ def test_generate_response_selfheal_gets_own_intent(
     assert len({r.request_id for r in rows}) == 1
 
 
+@pytest.mark.parametrize("window,expected", [
+    (4096, 4096),      # known route limit wins over the larger request
+    (128000, 8000),    # a larger window never raises the caller's cap
+    (None, 8000),      # unknown window leaves the provider as the judge
+])
+def test_generate_response_bounds_output_cap_to_route_window(
+        host, monkeypatch, tmp_path, window, expected):
+    """One admitted attempt: the wire cap and reservation see the same bound."""
+    _seed(host, spend=0.0)
+    output_quantities = []
+
+    def _estimate(model, input_tokens, output_tokens):
+        output_quantities.append(int(output_tokens))
+        return 0.25
+
+    _pricing(monkeypatch, _estimate)
+    client = MagicMock()
+    client.chat.completions.create.return_value = _response("bounded")
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        sync={"openai": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("openai", "gpt-4o")])
+    handler._route_context_window = lambda provider_id, model: window
+
+    result = asyncio.run(handler.generate_response(
+        "hello", model_type="gpt-4o", max_tokens=8000))
+
+    assert result == "bounded"
+    assert client.chat.completions.create.call_args.kwargs[
+        "max_tokens"] == expected
+    # Admission/reservation saw the same effective cap that went on the wire.
+    assert expected in output_quantities
+    rows = _attempt_rows(host)
+    assert len(rows) == 1, [r.attempt_id for r in rows]
+    assert rows[0].reservation_status == "settled"
+
+
+def test_generate_response_hard_stop_refuses_cap_before_dispatch(
+        host, monkeypatch, tmp_path):
+    """An insufficient budget denies a bounded request with zero sends."""
+    _seed(host, spend=100.0)
+    _pricing(monkeypatch, lambda model, i, o: 7.0)
+    client = MagicMock()
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        sync={"openai": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("openai", "gpt-4o")])
+    handler._route_context_window = lambda provider_id, model: None
+
+    refused = asyncio.run(handler.generate_response(
+        "hello", model_type="gpt-4o", max_tokens=8000))
+
+    assert "could not be authorized" in str(refused).lower()
+    assert client.chat.completions.create.call_count == 0
+    assert _attempt_rows(host) == []
+
+
 def test_chat_sweep_gets_unique_attempts_same_request(
         host, monkeypatch, tmp_path):
     """The catalogue sweep is another physical attempt, not a free replay."""

@@ -44,7 +44,8 @@ from sqlalchemy.orm import sessionmaker
 
 from core.database import Base
 from core.fleet_admiral import (
-    _SYNTHESIS_MAX_OUTPUT_TOKENS,
+    _SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS,
+    _resolve_synthesis_output_budget,
     FleetAdmiral,
 )
 from core.models import (
@@ -292,8 +293,142 @@ def _synthesis_prompt(llm):
     return llm.calls[0]["messages"][1]["content"]
 
 
-def test_synthesis_uses_request_and_attributed_results(world):
+def test_synthesis_default_output_ceiling_is_8000(world, monkeypatch):
+    """The editorial ceiling ships at a bounded default, not the old 1400."""
     _seed_chain(world)
+    monkeypatch.delenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("ATOM_COMPLETION_MAX_TOKENS", raising=False)
+    llm = FakeLLM(content="DIRECT ANSWER: bounded and complete.")
+
+    result = _run(world, llm)
+
+    assert result["success"] is True, result
+    assert len(llm.calls) == 1, llm.calls
+    assert llm.calls[0]["max_tokens"] == 8000
+    synthesis = result["final_synthesis"]
+    assert synthesis["requested_max_output_tokens"] == 8000
+    assert synthesis["effective_max_output_tokens"] == 8000
+    assert synthesis["max_output_tokens"] == 8000
+    assert synthesis["max_output_tokens_source"] == "fleet_synthesis_default"
+    # The doubled transport reported no wire cap, so none is invented.
+    assert synthesis["wire_max_output_tokens"] is None
+
+
+def test_synthesis_owner_global_cap_only_lowers_the_ceiling(
+        world, monkeypatch):
+    _seed_chain(world)
+    monkeypatch.delenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.setenv("ATOM_COMPLETION_MAX_TOKENS", "3000")
+    llm = FakeLLM(content="DIRECT ANSWER: bounded by the owner cap.")
+
+    result = _run(world, llm)
+
+    assert result["success"] is True, result
+    assert len(llm.calls) == 1, llm.calls
+    assert llm.calls[0]["max_tokens"] == 3000
+    synthesis = result["final_synthesis"]
+    assert synthesis["requested_max_output_tokens"] == 8000
+    assert synthesis["effective_max_output_tokens"] == 3000
+    assert synthesis["max_output_tokens_source"] == "owner_global_clamp"
+    assert synthesis["owner_global_clamp_applied"] is True
+
+
+def test_synthesis_purpose_config_may_lower_or_raise_within_bounds(
+        world, monkeypatch):
+    _seed_chain(world)
+    monkeypatch.delenv("ATOM_COMPLETION_MAX_TOKENS", raising=False)
+    monkeypatch.setenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", "12000")
+    llm = FakeLLM(content="DIRECT ANSWER: configured ceiling.")
+
+    result = _run(world, llm)
+
+    assert result["success"] is True, result
+    assert llm.calls[0]["max_tokens"] == 12000
+    synthesis = result["final_synthesis"]
+    assert synthesis["requested_max_output_tokens"] == 12000
+    assert synthesis["effective_max_output_tokens"] == 12000
+    assert synthesis["max_output_tokens_source"] == "fleet_synthesis_config"
+
+
+@pytest.mark.parametrize("configured", [
+    "0", "255", "32769", "not-a-number", "8000.5",
+])
+def test_synthesis_budget_rejects_invalid_configured_values(configured):
+    with pytest.raises(ValueError):
+        _resolve_synthesis_output_budget({
+            "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS": configured,
+        })
+
+
+def test_synthesis_budget_owner_cap_never_raises_the_configured_ceiling():
+    lowered = _resolve_synthesis_output_budget({
+        "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS": "12000",
+        "ATOM_COMPLETION_MAX_TOKENS": "8000",
+    })
+    assert lowered["requested_max_output_tokens"] == 12000
+    assert lowered["effective_max_output_tokens"] == 8000
+    assert lowered["max_output_tokens_source"] == "owner_global_clamp"
+
+    higher = _resolve_synthesis_output_budget({
+        "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS": "12000",
+        "ATOM_COMPLETION_MAX_TOKENS": "20000",
+    })
+    assert higher["requested_max_output_tokens"] == 12000
+    assert higher["effective_max_output_tokens"] == 12000
+    assert higher["max_output_tokens_source"] == "fleet_synthesis_config"
+
+
+def test_synthesis_malformed_budget_fails_closed_without_a_call(
+        world, monkeypatch):
+    _seed_chain(world)
+    monkeypatch.setenv(
+        "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", "not-a-number")
+    llm = FakeLLM()
+
+    result = _run(world, llm)
+
+    assert result["success"] is True, result
+    assert llm.calls == []
+    synthesis = result["final_synthesis"]
+    assert synthesis["used"] is False
+    assert synthesis["reason"] == "invalid_output_budget"
+    assert "ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS" in (
+        synthesis["budget_error"])
+    assert "Final synthesis unavailable" in result["final_output"]
+
+
+def test_synthesis_reports_handler_wire_cap_without_overwriting_policy(
+        world, monkeypatch):
+    _seed_chain(world)
+    monkeypatch.delenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("ATOM_COMPLETION_MAX_TOKENS", raising=False)
+    llm = FakeLLM(response={
+        "success": True,
+        "content": "DIRECT ANSWER: a smaller route accepted the request.",
+        "model": "small-window-model",
+        "provider": "synthesis-provider",
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5,
+                  "total_tokens": 15},
+        "finish_reason": "stop",
+        "requested_max_tokens": 8000,
+        "effective_max_tokens": 4096,
+    })
+
+    result = _run(world, llm)
+
+    assert result["success"] is True, result
+    synthesis = result["final_synthesis"]
+    # Policy truth and transport truth stay separate: the context clamp is
+    # reported as the wire cap, not silently rewritten into the policy value.
+    assert synthesis["requested_max_output_tokens"] == 8000
+    assert synthesis["effective_max_output_tokens"] == 8000
+    assert synthesis["wire_max_output_tokens"] == 4096
+
+
+def test_synthesis_uses_request_and_attributed_results(world, monkeypatch):
+    _seed_chain(world)
+    monkeypatch.delenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("ATOM_COMPLETION_MAX_TOKENS", raising=False)
     llm = FakeLLM(content="DIRECT ANSWER: shortfall is $42,000.")
     result = _run(world, llm)
 
@@ -313,7 +448,7 @@ def test_synthesis_uses_request_and_attributed_results(world):
     # Existing scoped/budgeted LLM service: authenticated scope + output cap.
     assert call["workspace_id"] == WORKSPACE
     assert call["tenant_id"] == TENANT
-    assert call["max_tokens"] == _SYNTHESIS_MAX_OUTPUT_TOKENS
+    assert call["max_tokens"] == _SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS
     assert call["max_tokens"] > 0
     assert call["temperature"] <= 0.3
     # Read-only: no tool/function definitions or action payloads are supplied.
@@ -338,8 +473,8 @@ def test_synthesis_uses_request_and_attributed_results(world):
     # proof that nothing ran.
     assert "RECORDED SPECIALIST ACTIONS" in prompt
     assert "None recorded." in prompt
-    # The prompt supplies harness arithmetic and a place to reconcile it.
-    assert "SUPPLIED FIGURES AND HARNESS ARITHMETIC" in prompt
+    # The prompt supplies the computed figures and a place to reconcile them.
+    assert "SUPPLIED FIGURES AND CALCULATIONS" in prompt
     assert "6,000 USD" in prompt
     assert "QUANTITATIVE RECONCILIATION" in prompt
     assert "unexplained" in prompt
@@ -353,7 +488,7 @@ def test_synthesis_uses_request_and_attributed_results(world):
     assert result["final_synthesis"]["model"] == "synthesis-model"
     assert result["final_synthesis"]["provider"] == "synthesis-provider"
     assert result["final_synthesis"]["max_output_tokens"] == (
-        _SYNTHESIS_MAX_OUTPUT_TOKENS)
+        _SYNTHESIS_DEFAULT_MAX_OUTPUT_TOKENS)
 
     # The exact user-visible text and the synthesis disclosure are durable.
     durable = _durable_result(world)
@@ -698,12 +833,52 @@ def test_prompt_withholds_arithmetic_for_unrelated_same_unit_figures(world):
 
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
-    assert "SUPPLIED FIGURES (NO HARNESS ARITHMETIC)" in prompt
-    assert "HARNESS ARITHMETIC (" not in prompt
+    assert ("SUPPLIED FIGURES (CALCULATION FROM THE SUPPLIED FIGURES "
+            "WITHHELD)") in prompt
+    assert "CALCULATIONS (" not in prompt
     assert "Do not infer a relationship from magnitude or ordering" in prompt
     # Unrelated same-unit figures are not added or subtracted.
     assert "135" not in prompt
     assert "headcount: 120 people" in prompt
+
+
+def test_production_prompts_and_rendered_text_drop_internal_jargon(
+        world, monkeypatch):
+    """User-facing text says what was calculated, not internal harness terms."""
+    _seed_chain(world)
+    monkeypatch.delenv("ATOM_FLEET_SYNTHESIS_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("ATOM_COMPLETION_MAX_TOKENS", raising=False)
+    llm = FakeLLM(content="DIRECT ANSWER: the shortfall is $42,000.")
+    result = _run(world, llm, task=LIVE_TASK)
+
+    assert result["success"] is True, result
+    prompt = _synthesis_prompt(llm)
+    system = llm.calls[0]["messages"][0]["content"]
+    assert "harness arithmetic" not in prompt.lower()
+    assert "harness arithmetic" not in system.lower()
+    # The request-vs-specialist provenance distinction is still explicit.
+    assert "attributed specialist evidence" in prompt.lower()
+    assert "request" in prompt.lower()
+    assert "conditional" in prompt.lower()
+
+    body = FleetAdmiral._reconciliation_body([{
+        "kind": "total_components",
+        "total": 42000,
+        "statement": "Stated total (total shortfall): 42,000 USD.",
+        "component_sum": None,
+        "conditional_calculation": {
+            "labels": ["churn", "slipped deals"],
+            "component_sum": 36000,
+            "residual": 6000,
+            "evidence_support": "unsupported",
+            "unnamed_labels": ["slipped deals"],
+        },
+        "currency": "USD",
+        "unit": "",
+    }])
+    assert "Conditional specialist evidence" in body
+    assert "calculation from the supplied figures" in body.lower()
+    assert "harness arithmetic" not in body.lower()
 
 
 def test_withheld_harness_arithmetic_permits_a_qualified_calculation(world):
@@ -727,8 +902,9 @@ def test_withheld_harness_arithmetic_permits_a_qualified_calculation(world):
 
     # The harness still precomputes nothing and still forbids inferring a
     # relationship from magnitude or ordering.
-    assert "SUPPLIED FIGURES (NO HARNESS ARITHMETIC)" in prompt
-    assert "HARNESS ARITHMETIC (" not in prompt
+    assert ("SUPPLIED FIGURES (CALCULATION FROM THE SUPPLIED FIGURES "
+            "WITHHELD)") in prompt
+    assert "CALCULATIONS (" not in prompt
     assert "Do not infer a relationship from magnitude or ordering" in prompt
     assert "135" not in prompt
 
@@ -737,11 +913,13 @@ def test_withheld_harness_arithmetic_permits_a_qualified_calculation(world):
     assert "not that no calculation is possible" in prompt.lower()
     for text in (system.lower(), prompt.lower()):
         assert "qualified calculation" in text
-    assert "harness arithmetic was withheld" in system.lower()
-    assert "harness arithmetic withheld" in prompt.lower()
+    assert "calculation from the supplied figures was withheld" in (
+        system.lower())
+    assert "calculation from the supplied figures withheld" in (
+        prompt.lower())
     # The editor's own arithmetic must be labelled as such, never promoted to
-    # harness arithmetic.
-    assert "not harness arithmetic" in prompt.lower()
+    # a calculation from the supplied figures.
+    assert "one calculated from the supplied figures" in prompt.lower()
 
 
 def test_withheld_mixed_units_permits_only_same_unit_qualified_math(world):
@@ -751,8 +929,9 @@ def test_withheld_mixed_units_permits_only_same_unit_qualified_math(world):
 
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
-    assert "SUPPLIED FIGURES (NO HARNESS ARITHMETIC)" in prompt
-    assert "HARNESS ARITHMETIC (" not in prompt
+    assert ("SUPPLIED FIGURES (CALCULATION FROM THE SUPPLIED FIGURES "
+            "WITHHELD)") in prompt
+    assert "CALCULATIONS (" not in prompt
     assert "different units or currencies" in prompt
     assert "Do not add, subtract, or convert across them" in prompt
     # A qualified calculation is allowed only for figures that share a unit;
@@ -841,12 +1020,13 @@ def test_ambiguous_pair_prompt_names_the_reason_and_forbids_guessing(world):
 
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
-    assert "SUPPLIED FIGURES (NO HARNESS ARITHMETIC)" in prompt
+    assert ("SUPPLIED FIGURES (CALCULATION FROM THE SUPPLIED FIGURES "
+            "WITHHELD)") in prompt
     assert "genuinely ambiguous" in prompt
     assert "Do not pick one by magnitude, order, or arithmetic convenience" in (
         prompt)
     # No gap is presented as verified.
-    assert "SUPPLIED FIGURES AND HARNESS ARITHMETIC" not in prompt
+    assert "SUPPLIED FIGURES AND CALCULATIONS" not in prompt
     assert "42,000" not in prompt
     assert result["final_synthesis"]["reconciliation"] == {
         "checked": False, "corrected": False, "residual": None,
@@ -949,7 +1129,7 @@ def test_regional_budget_prompt_keeps_the_gap_and_withholds_contributors(world):
 
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
-    assert "SUPPLIED FIGURES AND HARNESS ARITHMETIC" in prompt
+    assert "SUPPLIED FIGURES AND CALCULATIONS" in prompt
     assert "42,000 USD" in prompt
     assert "Contributor attribution was withheld" in prompt
     assert "regional budget" in prompt
@@ -1112,7 +1292,7 @@ def test_synthesis_prompt_states_the_conditional_contributor_calculation(world):
 
     assert result["success"] is True, result
     prompt = _synthesis_prompt(llm)
-    assert "SUPPLIED FIGURES AND HARNESS ARITHMETIC" in prompt
+    assert "SUPPLIED FIGURES AND CALCULATIONS" in prompt
     assert "target" in prompt and "closed" in prompt
     assert "42,000 USD" in prompt
     # The contributors are named by the scoped finance finding, so the
@@ -1195,7 +1375,7 @@ def test_grounded_completion_claim_is_refused_even_without_evidence(world):
     assert "fully explained" not in output.lower()
     assert "Contributor attribution was withheld" in output
     # The conditional option is stated, but no subtotal is asserted.
-    assert "Conditional, not harness arithmetic" in output
+    assert "Conditional specialist evidence" in output
     assert result["final_synthesis"]["reconciliation"] == {
         "checked": True, "corrected": True, "residual": None,
         "conditional": False}
@@ -1323,7 +1503,7 @@ def test_captured_frozen_message_without_evidence_keeps_withheld_fallback():
         "conditional": False}
     assert "42,000 USD" in reply
     assert "Contributor attribution was withheld" in reply
-    assert "Conditional, not harness arithmetic" in reply
+    assert "Conditional specialist evidence" in reply
     # The candidates remain visible, but no subtotal is presented as harness
     # arithmetic and no false no-conflict claim survives.
     assert "36,000" in reply and "6,000" in reply
@@ -1654,7 +1834,7 @@ def test_captured_cross_live_message_grounds_gap_source_and_removes_false_confli
     # contributor attribution is conditional on specialist evidence.
     assert "Stated gap (target minus closed): 42,000 USD." in quant
     assert "Attribution basis: scoped specialist evidence (conditional" in quant
-    assert "not harness arithmetic" not in quant
+    assert "harness arithmetic" not in quant.lower()
     assert "attributed specialist evidence states" not in quant.lower()
     assert "Residual: 6,000 USD." in quant
 
@@ -2094,7 +2274,7 @@ def test_signed_section_without_evidence_is_still_repaired(world):
     assert output.count("QUANTITATIVE RECONCILIATION") == 1
     assert "-6,000" not in output
     assert "Contributor attribution was withheld" in output
-    assert "Conditional, not harness arithmetic" in output
+    assert "Conditional specialist evidence" in output
     assert result["final_synthesis"]["reconciliation"] == {
         "checked": True, "corrected": True, "residual": None,
         "conditional": False}
@@ -2126,7 +2306,8 @@ def test_unsupported_contributor_subtotal_is_suppressed_without_completion_claim
     assert "22,000" not in reply
     assert "20,000" not in reply
     assert "Contributor attribution was withheld" in reply
-    assert "unsupported contributor arithmetic was withheld" in reply.lower()
+    assert ("an unsupported calculation from the supplied figures was "
+            "withheld") in reply.lower()
     assert metadata == {
         "checked": True, "corrected": True, "residual": None,
         "conditional": False}
@@ -2202,7 +2383,8 @@ def test_unavailable_synthesis_fallback_withholds_unsupported_arithmetic(world):
     assert "42,000 USD" in output
     assert "22,000" not in output
     assert "20,000" not in output
-    assert "unsupported contributor arithmetic was withheld" in output.lower()
+    assert ("an unsupported calculation from the supplied figures was "
+            "withheld") in output.lower()
 
 
 def test_proposed_corrective_actions_are_not_labelled_missing(world):
