@@ -10042,3 +10042,17 @@ denial is terminal/zero-dispatch; a routing exception after a real
 no Queen/retry/cleanup); non-string accepted content is a typed invalid result,
 not stringified text. Focused suite 6 pass; fleet/LLM-failure/physical-attempt
 regressions 266 pass/14 skip. No live provider/quality claim.
+
+
+**Chat/cancellation/advisor contracts (2026-11-15, integration `7ec517031`)**:
+`tests/unit/test_chat_terminal_outcome_contract.py`,
+`tests/unit/test_chat_cancelled_execution_contract.py` and
+`tests/unit/test_advisor_completion_contract.py` cover terminal routing,
+post-entry uncertainty, scoped cancellation/audit/idempotency, independent
+concurrent-turn receipts, canonical advisor messages and declared fallbacks.
+Root cancellation counterexamples: 15 passed (22.02s). Joined existing
+advisor/fleet/typed-failure/CI preservation selection: 336 passed (56.03s).
+A separate fresh normal-startup HTTP test confirmed public failure, failed
+chain/two links, no orphan running run or duplicate working task, and matching
+assistant metadata; catalog unavailability yielded zero provider HTTP calls.
+This is synthetic failure-path evidence, not live quality or app completion.

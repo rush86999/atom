@@ -482,3 +482,25 @@ conflated:
   `invalid_completion_content` failure, never stringified into an answer;
   typed failures and empty generations stay failures. Flag-off and shadow
   routing parity are unchanged; only an enforced interruption terminates.
+
+
+## Chat boundary and cancellation
+
+A terminal fleet failure remains a handled chat result even when `success` is
+false. The router and coordinated envelope preserve failed/denied/partial
+outcomes and known execution/chain references, instead of dispatching a new
+background task. A post-entry exception reports partial/unknown progress.
+
+A genuinely cancelled Atom execution records `cancelled` with unknown effect
+state, closes its audit, then re-raises cancellation. Cleanup requires the
+owned tenant and workspace, preserves already terminal rows and performs no
+model/memory request. The chat deadline identifies admitted attempts by its
+own server-local turn ID; the cached session's latest turn is not authority.
+Overlapping turns retain independent receipts and clear only their own.
+Neither deadline extension nor automatic replay is part of this behavior.
+
+Verification includes real scratch cancellation, actual inline timeout and
+asynchronous overlapping handlers, plus a normal-startup synthetic HTTP
+failure path. The latter used intentionally unavailable catalog models and
+seeded INTERN specialists; it proves truthful visible/durable failure, not
+successful model output. See the current readiness evidence index, section 15.

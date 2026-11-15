@@ -1565,3 +1565,62 @@ No new provider call was made for these checks. The owner-approved single
 8,000-token retained-synthesis test was already consumed; zero additional
 live app-provider calls remain authorized. No historical score or whole-goal
 status changes.
+
+
+## 15. Chat terminal outcomes, cancellation and advisor completion contract
+
+The section 14 delivery and graduation economics are now included in main
+`3363b1810bbc406fcc0baf4823c409783699c67c` through PR #956. All 14
+exact-head checks passed before merging. Included predecessor #955 was closed
+after independently verifying the merged tree. Earlier local-only statements
+in section 14 describe their original checkpoint.
+
+The next isolated integration is `7ec5170312591fc4897df247e558442c48755ea9`
+(tree `7a21c9acadf772bc143537f36d1bfbd3c75d42b4`), containing that main,
+chat/cancellation source `836f0c0ee`, and advisor source `04181f850`.
+Terminal failed, denied and partial agent results stay handled through the
+chat router and coordinated response; they cannot become a duplicate
+ComputerUseAgent task. Exceptions after entering Atom report uncertainty.
+Cancellation finalizes only the owned tenant/workspace execution, closes its
+audit and re-raises `CancelledError`; it does not claim effects were undone.
+Deadline receipts use the caller's server-local turn identity. Overlapping
+requests cannot take or erase each other's receipts; success clears only its
+own receipt. Existing 45/95-second deadlines are unchanged.
+
+Independent verification at this integration:
+
+- **15 passed in 22.02 seconds**: real scratch Atom cancellation and original
+  foreign-row, stale-turn and actual inline timeout overlap counterexamples,
+  plus permanent cancellation/interleaving controls.
+- **336 passed in 56.03 seconds**: chat, cancellation, advisor, fleet synthesis,
+  typed failure/denial and additive CI-lane preservation controls. Both new
+  CI steps retain their exact selectors and all baseline steps.
+- **Normal-startup HTTP synthetic failure path passed**: real registration,
+  login and chat returned HTTP 200; chat reported `success=false/outcome=failed`
+  and the specialists' failure, without a new working/Task-ID bubble. One
+  failed fleet chain and two failed links were persisted; outer chat and Atom
+  executions were failed, specialist executions exhausted steps, none running.
+  Saved assistant metadata had `quality=error/outcome=failed`, consistently
+  without an invented mandatory top-level `success` field. Root independently
+  checked SQLite read-only and matched runtime files to the pinned source.
+
+The HTTP test used a fresh API-seeded empty world, directly seeded synthetic
+INTERN specialists, loopback-only Seatbelt startup, cached default FastEmbed
+weights and an intentionally unavailable model catalog. **Zero provider HTTP
+requests occurred**; this verifies failure propagation, not successful fleet
+synthesis, real model quality, normal agent creation or spreadsheet acceptance.
+The output pump drained without a rejection/error; owned processes stopped,
+ports closed and the temporary bootstrap credential was removed unread.
+Original failed setup campaigns and the earlier embedding-timeout HTTP run
+remain failed; this is a new run, not a regrade.
+
+Advisor guidance now uses canonical full messages and tenant context, the
+shared completion parser, and explicit heuristic/no-data fallbacks instead of
+mislabeling those as model output. This is component evidence, not a live
+advisor journey. Existing broader-suite failures remain as recorded.
+
+Local root receipts: `/private/tmp/atom-root-chat-advisor-join-qualification.json`,
+`/private/tmp/atom-root-chat-http-7ec-adjudication.json`; private producer freeze
+`/private/tmp/atom-root-chat-http-producer-freeze-7ec`. No owner data or live
+model credential was used. Historical 111/123 and the original 143 claims / 18
+goals remain unchanged; this is not whole-app or whole-goal completion.
