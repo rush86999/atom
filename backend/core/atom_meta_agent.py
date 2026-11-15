@@ -641,6 +641,18 @@ class AtomMetaAgent:
                 step_callback=step_callback, execution_id=exec_uuid,
                 canvas_context=canvas_context,
             )
+        except asyncio.CancelledError:
+            self._finalize_cancelled_execution(
+                exec_uuid, reason="run_cancelled_before_settlement")
+            self._close_audit_bracket(
+                exec_uuid, status="cancelled", actions_executed=[],
+                success=False,
+                error_message=(
+                    "run_cancelled: cancellation/timeout; exact effects "
+                    "unknown"),
+                token=_audit_token,
+            )
+            raise
         except Exception as run_err:
             self._close_audit_bracket(
                 exec_uuid, status="failed", actions_executed=[],
@@ -760,6 +772,65 @@ class AtomMetaAgent:
                 context=context or {},
                 cancel_check=(context or {}).get("fleet_cancel_check"),
             )
+
+    def _finalize_cancelled_execution(
+        self, execution_id: Optional[str], *, reason: str
+    ) -> bool:
+        """Bounded terminal disposition for an owned cancelled/timed-out run.
+
+        Uses only the server-generated execution id and the run's own row; it
+        never calls memory/model/network code, never retries, never recovers a
+        foreign row, and never overwrites an already-finalized status.
+        """
+        if not execution_id:
+            return False
+        db = None
+        try:
+            db = SessionLocal()
+            row = (
+                db.query(AgentExecution)
+                .filter(
+                    AgentExecution.id == execution_id,
+                    AgentExecution.agent_id == "atom_main",
+                )
+                .with_for_update()
+                .first()
+            )
+            if row is None:
+                return False
+            terminal = {"completed", "failed", "cancelled", "timeout",
+                        "success", "killed_sandbox"}
+            if str(row.status or "").strip().lower() in terminal:
+                return False
+            row.status = "cancelled"
+            row.result_summary = (
+                "Run cancelled before completion; some preparation may have "
+                "occurred. Exact effects are unknown.")[:500]
+            row.error_message = (
+                f"{reason}: cancellation/timeout; no automatic retry; "
+                "exact effects unknown")[:500]
+            row.completed_at = datetime.now(timezone.utc)
+            try:
+                if row.started_at is not None:
+                    row.duration_seconds = (
+                        row.completed_at - row.started_at).total_seconds()
+            except Exception:
+                pass
+            db.commit()
+            return True
+        except Exception:
+            if db is not None:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+            return False
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
     async def _finalize_agent_execution(
         self,
@@ -2090,6 +2161,11 @@ class AtomMetaAgent:
                 )
             except Exception as _dsh_e:
                 logger.debug(f"decision turn-shadow dispatch failed: {_dsh_e}")
+
+        except asyncio.CancelledError:
+            self._finalize_cancelled_execution(
+                execution_id, reason="run_cancelled_before_settlement")
+            raise
 
         except KillRunAborted as _kill:
             # A tripwire kill reached the top of the body: finalize the run as

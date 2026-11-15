@@ -18573,14 +18573,19 @@ class ChatOrchestrator:
                                 timeout=_features_left,
                             )
                     except asyncio.TimeoutError:
-                        # A timed-out handler yields no partial dict (the method
-                        # returns once), so the answer falls back to the template
-                        # + the deadline note below. Side effects are not at risk:
-                        # these handlers are read-only lookups.
+                        # A timed-out handler yields no partial dict. Lookups are
+                        # read-only, but an ADMITTED AGENT route is not: its owned
+                        # Atom run may have started and then been cancelled by
+                        # the deadline. Report that uncertainty honestly.
+                        _attempt_response = self._admitted_agent_deadline_response(
+                            session)
+                        feature_responses = (
+                            {FeatureType.AGENT: _attempt_response}
+                            if _attempt_response else {})
                         logger.warning(
                             f"[deadline] feature routing timed out after "
-                            f"{_features_left:.1f}s — continuing without it")
-                        feature_responses = {}
+                            f"{_features_left:.1f}s — "
+                            f"{'admitted agent attempt retained' if _attempt_response else 'no admitted agent attempt'}")
 
             # 4. If AI gave a real response, use it; otherwise use template
             #    Carry model/provider through so the UI can surface which model
@@ -34944,6 +34949,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return {"retrieval": "none",
                 "presentation": {"style": style, "field": field}}
 
+    def _admitted_agent_deadline_response(
+        self, session: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Truthful partial outcome for an admitted agent run at the deadline."""
+        if not isinstance(session, dict):
+            return None
+        attempt_id = session.pop("_agent_attempt_execution_id", None)
+        if not attempt_id:
+            return None
+        return {
+            "success": False, "handled": True, "terminal": True,
+            "outcome": "partial",
+            "error_code": "agent_execution_interrupted",
+            "failure_reason": "agent_execution_interrupted",
+            "execution_id": attempt_id,
+            "chain_id": None,
+            "message": (
+                "The agent run did not finish before the turn deadline. Some "
+                "preparation may have occurred; no further automatic work "
+                "will run and the exact progress is unknown."),
+            "feature": "agent",
+        }
+
     async def _route_to_features(
         self,
         message: str,
@@ -39643,6 +39671,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             await self._emit_agent_status(session_id, "atom_main", None, "running")
 
+            # Execute through Atom with a SERVER-generated run identity so a
+            # chat deadline/cancellation can refer to the exact owned attempt
+            # without trusting any client-supplied id.
+            import uuid as _uuid
+            server_execution_id = str(_uuid.uuid4())
+            if isinstance(session, dict):
+                session["_agent_attempt_execution_id"] = server_execution_id
             # Execute through Atom
             entered_atom = True
             result = await atom.execute(
@@ -39650,6 +39685,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 context=execute_context,
                 trigger_mode=AgentTriggerMode.MANUAL,
                 step_callback=step_callback,
+                execution_id=server_execution_id,
             )
             execution_id = result.get("execution_id") or seen_execution["id"]
             
