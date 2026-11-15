@@ -298,7 +298,10 @@ class TestReflectAndGenerateDirectives:
 
         with patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm:
             mock_llm_service = AsyncMock()
-            mock_llm_service.generate_response.return_value = "1. Add error handling\n2. Improve caching\n3. Fix race condition"
+            mock_llm_service.generate_completion.return_value = {
+                "success": True,
+                "content": "1. Add error handling\n2. Improve caching\n3. Fix race condition",
+            }
             mock_llm.return_value = mock_llm_service
 
             service = GroupReflectionService(mock_db)
@@ -331,7 +334,7 @@ class TestReflectAndGenerateDirectives:
 
         with patch('core.service_factory.ServiceFactory.get_llm_service') as mock_llm:
             mock_llm_service = AsyncMock()
-            mock_llm_service.generate_response.side_effect = Exception("LLM error")
+            mock_llm_service.generate_completion.side_effect = Exception("LLM error")
             mock_llm.return_value = mock_llm_service
 
             service = GroupReflectionService(mock_db)

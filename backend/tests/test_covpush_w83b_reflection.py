@@ -436,6 +436,10 @@ def _make_db(traces=None, agents=None):
     return db
 
 
+def _ok(content):
+    return {"success": True, "content": content, "text": content}
+
+
 def _make_svc(db):
     with patch(
         "core.service_factory.ServiceFactory.get_llm_service",
@@ -790,8 +794,8 @@ class TestReflectAndGenerateDirectives:
 
     async def test_success_generates_directives(self):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(
-            return_value="1. First directive\n\n2. Second directive\n3. Third directive"
+        llm.generate_completion = AsyncMock(
+            return_value=_ok("1. First directive\n\n2. Second directive\n3. Third directive")
         )
         svc = _make_svc(_make_db())
         svc.llm = llm
@@ -806,14 +810,15 @@ class TestReflectAndGenerateDirectives:
             pool, tenant_id="t-1", max_directives=2
         )
         assert directives == ["First directive", "Second directive"]
-        llm.generate_response.assert_awaited_once()
-        kwargs = llm.generate_response.await_args.kwargs
+        llm.generate_completion.assert_awaited_once()
+        kwargs = llm.generate_completion.await_args.kwargs
         assert kwargs["tenant_id"] == "t-1"
         assert len(kwargs["messages"]) == 2
 
     async def test_success_content_none(self):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value=None)
+        llm.generate_completion = AsyncMock(
+            return_value={"success": True, "content": ""})
         svc = _make_svc(_make_db())
         svc.llm = llm
         pool = {
@@ -827,7 +832,7 @@ class TestReflectAndGenerateDirectives:
 
     async def test_llm_error_fallback(self):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(side_effect=RuntimeError("LLM down"))
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("LLM down"))
         svc = _make_svc(_make_db())
         svc.llm = llm
         pool = {
@@ -842,7 +847,8 @@ class TestReflectAndGenerateDirectives:
 
     async def test_profile_resolved_from_category_when_not_in_pool(self):
         llm = MagicMock()
-        llm.generate_response = AsyncMock(return_value="1. Do a thing")
+        llm.generate_completion = AsyncMock(
+            return_value=_ok("1. Do a thing"))
         svc = _make_svc(_make_db())
         svc.llm = llm
         pool = {

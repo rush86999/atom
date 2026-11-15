@@ -450,3 +450,35 @@ potential concurrency twins for a real sink producer, a `**kwargs` wrapper that
 ignores the sink, a narrow legacy handler, and non-introspectable/positional-only
 callables / blank-reason normalization / structured provider-failure
 withholding) plus the existing `tests/test_fleet_final_synthesis.py` contract.
+
+## Enforced denial and post-admission interruption outcomes
+
+The governed TASK branch distinguishes two outcomes that were previously
+conflated:
+
+- **Pre-admission denial (known zero).** A governance denial or unknown
+  agent is terminal. The result is `status=denied`, `success=False`,
+  `failure_reason=governance_denied`, `execution_attempted=False`, no chain,
+  zero specialists, and no model, recruitment, specialist, tool or
+  Queen/ReAct dispatch. The reason is retained and the failed execution is
+  durable.
+- **Post-admission interruption (partial/unknown).** An arbitrary exception
+  while routing can occur after task analysis, model spend, chain
+  initialization or recruitment. The result is `status=partial`,
+  `outcome=partial_unknown`, `execution_attempted=True`. A chain is recovered
+  only when the owned `AgentExecution` row and the chain agree on the
+  authenticated tenant, workspace (when the chain records one) and
+  `root_agent_id=atom_main`; a matching `root_execution_id` string alone is
+  not account authority, and a cross-tenant or explicit workspace/root-agent
+  mismatch leaves the chain unknown. `preparation_started` is `True` only with
+  that reliable chain witness; otherwise it is `None`/unknown (governance can
+  fail before admission) and the public message says preparation status is
+  unknown. Counts that are not known stay unknown (`specialists_count=None`);
+  nothing is deleted, retried, compensated or replayed. The uncertainty is
+  persisted on the failed `AgentExecution` so a rerun cannot read the run as
+  zero or rolled back.
+- **Completion text contract.** `AtomMetaAgent` text helpers accept only
+  string `content`/legacy `text`. A dict/list/bool/number is a typed
+  `invalid_completion_content` failure, never stringified into an answer;
+  typed failures and empty generations stay failures. Flag-off and shadow
+  routing parity are unchanged; only an enforced interruption terminates.

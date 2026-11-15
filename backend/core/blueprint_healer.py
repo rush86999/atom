@@ -10,6 +10,8 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 
+from core.llm.completion_outcome import completion_text_outcome
+
 logger = logging.getLogger(__name__)
 
 class BlueprintHealer:
@@ -50,16 +52,18 @@ Your task is to:
 Return ONLY the updated 'nodes' array in JSON format."""
 
         try:
-            # Standardize on unified LLMService.generate_response
-            content = await self.llm.generate_response(
+            completion = await self.llm.generate_completion(
                 tenant_id=tenant_id,
                 messages=[
                     {"role": "system", "content": "You are a self-healing AI architect. Output only valid JSON nodes array."},
                     {"role": "user", "content": prompt}
                 ]
             )
-
-            if not content:
+            content, failure = completion_text_outcome(completion)
+            if failure is not None:
+                logger.warning(
+                    "Healer: LLM unavailable (%s); blueprint left unchanged",
+                    failure.get("reason"))
                 return blueprint
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
@@ -98,15 +102,20 @@ Examples:
 DIRECTIVE:"""
 
         try:
-            # Standardize on unified LLMService.generate_response
-            content = await self.llm.generate_response(
+            completion = await self.llm.generate_completion(
                 tenant_id=tenant_id,
                 messages=[
                     {"role": "system", "content": "You are a professional AI evolution scientist. Output ONLY the directive string."},
                     {"role": "user", "content": prompt}
                 ]
             )
-            return content or "Improve architectural robustness for the failing node type."
+            content, failure = completion_text_outcome(completion)
+            if failure is not None:
+                logger.warning(
+                    "Blueprint directive unavailable (%s); using declared "
+                    "deterministic fallback", failure.get("reason"))
+                return "Improve architectural robustness for the failing node type."
+            return content
         except Exception as e:
             logger.warning("Blueprint healing failed, using fallback: %s", e, exc_info=True)
             return "Refine dependencies for failed node types."

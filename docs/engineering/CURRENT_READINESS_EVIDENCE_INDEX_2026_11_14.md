@@ -1,5 +1,7 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Latest merge cut:** main `20a35a81b` through #954; see [qualified merges and economy verification](#13-qualified-merges-and-repeat-task-economy-verification). Historical scores remain unchanged.
+>
 > **Latest verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
 **Status: navigation and evidence reconciliation only. Not a new score, not a
@@ -1428,3 +1430,138 @@ transport evidence, not another served-model quality result. At this evidence cu
 branch change pending its PR merge. Root receipts:
 `/private/tmp/atom-root-fleet-main951-tests.json` and
 `/private/tmp/atom-root-fleet-shipped-budget-probes.json`.
+
+
+## 13. Qualified merges and repeat-task economy verification
+
+At this November 15 evidence cut, main is `20a35a81b` (tree `f0c404c5`).
+PRs [#952](https://github.com/rush86999/atom/pull/952),
+[#953](https://github.com/rush86999/atom/pull/953) and
+[#954](https://github.com/rush86999/atom/pull/954) merged in that order after
+all 14 exact-head CI/security checks passed. Root verified each merged tree
+against the independently qualified tree. This is source delivery, not a
+new readiness score or whole-goal acceptance.
+
+- #952 ships current-version PDF downloads, intrinsic page rotation handling
+  and shared deleted-canvas checks. Its bounded component/service evidence
+  does not turn the retained failed browser ledger into a pass.
+- #953 ships the configurable fleet synthesis ceiling (default 8,000 output
+  tokens), lowered by explicit owner/model limits before admission. Offline
+  transport probes verify serialization and caps. The one separately approved
+  live sample used an earlier verifier override, not a post-patch fresh task.
+- #954 retains reported completion limits in durable model provenance without
+  mixing response generations. It does not add those limits to benchmark
+  comparison or qualification signatures.
+
+**Economy candidate, prepublication source `f0777a436`, tree `8c3a232f`.**
+Repeat-task routing already required fresh, same-workload/dataset/rubric
+evidence meeting the graduation baseline. The existing economy profile's
+ordering was then discarded by accuracy/recency ranking. This branch applies
+the profile preference after that capability gate: a cheaper sufficient
+route can win, while below-baseline, stale, quarantined or mismatched routes
+remain ineligible. Explicit route constraints and final BYOK admission remain.
+
+The price signal is a common workload-token configured estimate, not the
+final prompt's exact cost or a settlement. A quote must name the same billing
+provider; OpenAI, Azure and custom OpenAI proxies are distinct. Unknown or
+invalid cost is not free; all-unknown cohorts preserve evidence order. OpenCode
+subscription list prices remain unknown actual charges. Other subscription
+credential forms are not automatically classified here. Existing legacy
+callers without explicit cost-state metadata retain their prior ordering.
+Effect revalidation stays conservative: a changed economic winner requires
+supervision rather than a silent repin.
+
+Root independently ran **391 tests, all passed in 245.93 seconds**, on the
+clean merge with actual main ancestry. Ten actual-function synthetic price
+identity/zero/subscription cases also passed, including the original negative
+cases. No owner pricing cache, credentials or live provider calls were used.
+This qualifies the branch mechanics, not live price accuracy, achieved dollar
+savings or served model quality. At this cut the economy change is not yet
+main. Root receipts: `/private/tmp/atom-root-economy-final-check/tests.log` and
+`/private/tmp/atom-root-economy-final-identity-verification.json`.
+
+
+### Real Documents upload and separate retained API follow-through — November 15
+
+At source `d81340d84` (PR #951), a synthetic unique TXT file was uploaded
+through the real Documents file picker and submit control. The card and
+detail appeared, UI export returned the exact 261-byte fixture digest with
+authoritative stored-text provenance, and authenticated document search found
+the upload. Search used the public API from the signed-in origin; there is no
+Documents search input. Root verified the executed harness hashes, retained
+evidence, source neighborhood, screenshot, unique backing file and SQL/FTS
+readback. The strict browser ledger FAILED on navigation-cancelled background
+polling; its failure and the preflight correction-limit overrun remain. No UI
+restart/delete/absence claim follows from that run.
+
+A distinct API-only task continued with the same actual uploaded document and
+same isolated DB. It verified exact export content across a real backend PID
+change, then public DELETE produced a verified target-bound receipt and
+unlinked the unshared backing file. A second real PID change preserved bound
+detail/export 404s and search absence. Root independently checked stopped DB
+snapshots (fresh to removed), the current DB with SQLite read-only mode, file
+absence, zero matching Lance rows and twelve actual runtime-neighborhood
+files. A raw FTS tombstone remains; active lexical search excludes it.
+
+This is bounded real-UI upload evidence plus separate API persistence and
+deletion evidence, not a passing browser lifecycle or whole Goal 3. The API
+worker's manifest had a stale self-entry; fourteen other entries matched and
+root retained an independent external manifest. The API protocol is distinct
+from the copied browser protocol. Worker SQLAlchemy reader calls did not
+enforce read-only mode; root's independent SQL/Lance readback supplies that
+verification. Reports: `/private/tmp/atom-doc-upload-browser-report.md` and
+`/private/tmp/atom-doc-retained-upload-api-report.md`. Root receipts:
+`/private/tmp/atom-root-doc-upload-boundary-verification.json` and
+`/private/tmp/atom-root-doc-api-followthrough-verification.json`.
+
+
+## 14. Typed completion consumers and terminal fleet failures
+
+Source-qualified local runtime: `0a926e472d49f3c4207804b0d05484ae36378e6f`
+(tree `e82b8c5c93e1e7fbf957cc806cfe7f4ad400b5ab`), integrated atop
+PR #955's frozen source `2de3fbed6`. This is not a merged-source or live
+fleet-acceptance claim.
+
+The repaired Atom helpers, blueprint healer, presentation summary, group
+reflection and social-post generator use the existing canonical
+`LLMService.generate_completion` interface. A shared pure text parser keeps
+provider failures, empty output and malformed non-string content from being
+published as generated answers. Full messages and existing caller scopes
+are retained; declared deterministic/template fallbacks remain scoped
+fallbacks, not successful model output.
+
+An enforced governance denial terminates with a durable failed run and no
+fallback dispatch. If routing raises after preparation might have started,
+the result reports partial/unknown progress. A reliable owned chain remains
+linked; a foreign-account chain sharing an execution string is not returned.
+There is no automatic retry, rollback or claim that earlier work was undone.
+See [the fleet failure contract](../architecture/FLEET_ORCHESTRATION.md).
+
+Independent root verification at that exact runtime:
+
+- **678 passed, 1 skipped** in 62.01 seconds across typed consumers, fleet
+  synthesis, failure/denial, root linkage, scope, budget and CI-lane controls,
+  including the retained real-chain-interruption and foreign-chain cases.
+  The existing skipped module targets removed budget APIs; it is not budget
+  acceptance. `/private/tmp/atom-root-llm-join-qualification/tests.log`.
+- Broader relevant regression selection: **308 passed, 4 failed** in 23.07
+  seconds. The same four failed test identities were independently reproduced
+  on clean main `20a35a81b` before this integration (memory label, outcome
+  signature and two workbook mocks). They remain failures; this result is
+  not described as a fully green broad suite.
+- Earlier independent consumer/CI selection at `f2381d6aa`: **487 passed**
+  in 27.75 seconds. It is component evidence with canonical-interface-only
+  doubles, not remote model quality or fresh user-task acceptance.
+
+The isolated normal-startup probe's retained responses and OpenAPI list
+show the Atom execute route present at source `92c355292`. Root readback
+confirmed 1,634 listed paths, the execute path, and method/not-found response
+bodies. This does not independently freeze the startup command/source:
+POSTs were both rejected by CSRF, so neither authentication nor task
+execution was demonstrated. A loopback bind does not prove egress isolation.
+The older remounted, manually seeded fresh-fleet packet remains unqualified.
+
+No new provider call was made for these checks. The owner-approved single
+8,000-token retained-synthesis test was already consumed; zero additional
+live app-provider calls remain authorized. No historical score or whole-goal
+status changes.

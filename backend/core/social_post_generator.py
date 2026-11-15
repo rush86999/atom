@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 
 from sqlalchemy.orm import Session
+from core.llm.completion_outcome import completion_text_outcome
 from core.models import AgentOperationTracker, AgentRegistry
 
 
@@ -219,13 +220,20 @@ Next steps: {tracker.next_steps or 'N/A'}
 Make it engaging and team-focused. Keep it under 280 characters."""
 
         try:
-            content = await self.llm_service.generate_response(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
+            completion = await self.llm_service.generate_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
                 workspace_id=workspace_id,
                 tenant_id=tenant_id,
-                temperature=0.7
+                temperature=0.7,
             )
+            content, failure = completion_text_outcome(completion)
+            if failure is not None:
+                raise RuntimeError(
+                    "LLM generation failed: "
+                    f"{failure.get('reason') or 'generation_failed'}")
 
             # Validate length
             if len(content) > 280:
@@ -284,7 +292,10 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         agent_id: str,
         operation: dict,
         db: Session = None,
-        limit: int = 3
+        limit: int = 3,
+        *,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> dict:
         """
         Generate social post with relevant episode context.
@@ -319,7 +330,8 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         if episode_context and self.llm_service:
             # Use LLM with episode context
             content = await self._generate_with_llm_and_context(
-                operation, episode_context
+                operation, episode_context,
+                workspace_id=workspace_id, tenant_id=tenant_id,
             )
         else:
             # Fall back to template-based generation
@@ -414,7 +426,10 @@ Make it engaging and team-focused. Keep it under 280 characters."""
     async def _generate_with_llm_and_context(
         self,
         operation: dict,
-        episode_context: str
+        episode_context: str,
+        *,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> str:
         """
         Generate post using LLM with episode context.
@@ -436,12 +451,24 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         user_prompt = self._build_user_prompt(operation, episode_context)
 
         try:
-            content = await self.llm_service.generate_response(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
-                tenant_id="default",
-                temperature=0.7
+            completion = await self.llm_service.generate_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+                temperature=0.7,
             )
+            content, failure = completion_text_outcome(completion)
+            if failure is not None:
+                logger.warning(
+                    "LLM generation with context unavailable (%s), falling "
+                    "back to template", failure.get("reason"))
+                return self.generate_with_template(
+                    operation.get("operation_type", "unknown"),
+                    operation
+                )
 
             # Validate length
             if len(content) > 280:

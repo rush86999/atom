@@ -257,11 +257,12 @@ class TestReflectGenerateDirectivesDomainAware:
 
         captured_system_prompt = {}
 
-        async def fake_generate_response(**kwargs):
+        async def fake_generate_completion(**kwargs):
             captured_system_prompt["value"] = kwargs["messages"][0]["content"]
-            return "1. Increase personalization\n2. Reduce cadence"
+            return {"success": True,
+                    "content": "1. Increase personalization\n2. Reduce cadence"}
 
-        svc.llm.generate_response = fake_generate_response
+        svc.llm.generate_completion = fake_generate_completion
 
         pool = {
             "agent_count": 2, "trace_count": 2,

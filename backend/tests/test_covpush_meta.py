@@ -959,7 +959,7 @@ class TestQueryMemoryAndGuidance:
         db = sl.return_value.__enter__.return_value
         db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(category="Finance")
         db.query.return_value.filter.return_value.count.return_value = 0
-        agent.llm.generate_response = AsyncMock(return_value="guidance text")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'guidance text', "text": 'guidance text', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent.generate_mentorship_guidance("student-1", "run_report", {}, "too risky")
         assert result == "guidance text"
 
@@ -969,7 +969,7 @@ class TestQueryMemoryAndGuidance:
         db = sl.return_value.__enter__.return_value
         db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(category="Finance")
         db.query.return_value.filter.return_value.count.return_value = 1
-        agent.llm.generate_response = AsyncMock(return_value="guidance text")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'guidance text', "text": 'guidance text', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent.generate_mentorship_guidance("student-1", "a", {}, "r")
         assert result == "guidance text"
 
@@ -978,9 +978,9 @@ class TestQueryMemoryAndGuidance:
         agent, sl = meta_agent
         db = sl.return_value.__enter__.return_value
         db.query.return_value.filter.return_value.first.return_value = None
-        agent.llm.generate_response = AsyncMock(return_value="")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": "", "text": "", "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent.generate_mentorship_guidance("student-1", "a", {}, "r")
-        assert "unable to provide guidance" in result
+        assert "guidance is unavailable" in result
 
 
 class TestWaitForApproval:
@@ -1326,7 +1326,7 @@ class TestRouteWithGovernanceClass:
     @pytest.mark.asyncio
     async def test_chat_bypasses_governance(self, meta_agent):
         agent, _ = meta_agent
-        agent.llm.generate_response = AsyncMock(return_value="chat reply")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'chat reply', "text": 'chat reply', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent.route_with_governance("hi", _route_cls(IntentCategory.CHAT), "u1")
         assert result["route"] == "CHAT"
         assert result["governance_checked"] is False
@@ -1349,12 +1349,15 @@ class TestRouteWithGovernanceClass:
     async def test_workflow_denied_proposes_chat(self, meta_agent):
         agent, _ = meta_agent
         agent._check_governance = AsyncMock(return_value=(False, "not mature enough"))
-        agent.llm.generate_response = AsyncMock(return_value="here is what I can do")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'here is what I can do', "text": 'here is what I can do', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent.route_with_governance("build a report", _route_cls(IntentCategory.WORKFLOW), "u1")
-        assert result["route"] == "CHAT"
-        assert result["auto_takeover"] is True
+        assert result["route"] == "WORKFLOW"
+        assert result["status"] == "denied"
+        assert result["success"] is False
+        assert result["failure_reason"] == "governance_denied"
         assert result["governance_allowed"] is False
-        assert result["original_route"] == "workflow"
+        assert result["denial_reason"] == "not mature enough"
+        assert "auto_takeover" not in result
 
     @pytest.mark.asyncio
     async def test_task_allowed(self, meta_agent):
@@ -1382,7 +1385,7 @@ class TestProposeChatAlternative:
     @pytest.mark.asyncio
     async def test_propose(self, meta_agent):
         agent, _ = meta_agent
-        agent.llm.generate_response = AsyncMock(return_value="proposal text")
+        agent.llm.generate_completion = AsyncMock(return_value={"success": True, "content": 'proposal text', "text": 'proposal text', "model": "m", "provider": "p", "finish_reason": "stop"})
         result = await agent._propose_chat_alternative("req", "workflow", "reason", "u1")
         assert result["auto_takeover"] is True
         assert result["proposal"] == "proposal text"

@@ -26,6 +26,10 @@ from core.models import AgentOperationTracker, AgentRegistry
 # Unit Tests: SocialPostGenerator
 # ==============================================================================
 
+def _ok(content):
+    return {"success": True, "content": content, "text": content}
+
+
 class TestSocialPostGenerator:
     """Unit tests for SocialPostGenerator"""
 
@@ -171,7 +175,7 @@ class TestSocialPostGenerator:
     async def test_generate_from_operation_success(self, generator, mock_tracker, mock_agent):
         """Test successful post generation"""
         llm = Mock()
-        llm.generate_response = AsyncMock(return_value="Just finished tests! 🧪")
+        llm.generate_completion = AsyncMock(return_value=_ok("Just finished tests! 🧪"))
         with patch.object(SocialPostGenerator, 'llm_service', llm):
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
 
@@ -191,7 +195,7 @@ class TestSocialPostGenerator:
     async def test_llm_timeout_fallback(self, generator, mock_tracker, mock_agent):
         """Test that LLM timeout falls back to template"""
         llm = Mock()
-        llm.generate_response = AsyncMock(side_effect=asyncio.TimeoutError())
+        llm.generate_completion = AsyncMock(side_effect=asyncio.TimeoutError())
         with patch.object(SocialPostGenerator, 'llm_service', llm):
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
 
@@ -209,7 +213,7 @@ class TestSocialPostGenerator:
     async def test_llm_api_error_fallback(self, generator, mock_tracker, mock_agent):
         """Test that API errors fall back to template"""
         llm = Mock()
-        llm.generate_response = AsyncMock(side_effect=Exception("API request failed"))
+        llm.generate_completion = AsyncMock(side_effect=Exception("API request failed"))
         with patch.object(SocialPostGenerator, 'llm_service', llm):
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
 
@@ -231,7 +235,7 @@ class TestSocialPostGenerator:
         # Create a very long response
         long_response = "x" * 300
         llm = Mock()
-        llm.generate_response = AsyncMock(return_value=long_response)
+        llm.generate_completion = AsyncMock(return_value=_ok(long_response))
         with patch.object(SocialPostGenerator, 'llm_service', llm):
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
 
@@ -241,7 +245,7 @@ class TestSocialPostGenerator:
     async def test_generated_post_quality(self, generator, mock_tracker, mock_agent):
         """Verify casual tone, emoji usage (max 2), no jargon"""
         llm = Mock()
-        llm.generate_response = AsyncMock(return_value="Just finished running tests! 🎉 All passed! 🧪")
+        llm.generate_completion = AsyncMock(return_value=_ok("Just finished running tests! 🎉 All passed! 🧪"))
         with patch.object(SocialPostGenerator, 'llm_service', llm):
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
 

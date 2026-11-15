@@ -36,6 +36,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from core.llm.completion_outcome import completion_text_outcome
 from core.models import AgentEvolutionTrace, AgentRegistry, Skill
 
 logger = logging.getLogger(__name__)
@@ -542,15 +543,29 @@ class GroupReflectionService:
         )
 
         try:
-            # Standardize on unified LLMService.generate_response
-            content = await self.llm.generate_response(
+            completion = await self.llm.generate_completion(
                 tenant_id=tenant_id,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ]
             )
-            directives = self._parse_directives(content or "", max_directives)
+            content, failure = completion_text_outcome(completion)
+            if failure is not None:
+                if failure.get("reason") == "empty_generation":
+                    # Preserve the existing empty-generation contract: no
+                    # directives, not a fabricated lesson.
+                    logger.warning(
+                        "GEA reflection [%s] LLM returned no text",
+                        profile.name)
+                    return []
+                logger.error(
+                    "GEA reflection [%s] LLM unavailable: %s",
+                    profile.name, failure.get("reason"))
+                return [
+                    f"Maintain current behavior while investigating "
+                    f"{profile.failure_label}."]
+            directives = self._parse_directives(content, max_directives)
             logger.info("GEA reflection [%s] produced %d directives", profile.name, len(directives))
             return directives
         except Exception as e:

@@ -28,12 +28,19 @@ _BLUEPRINT = {
 }
 
 
+def _completion(content):
+    if content is None:
+        return None
+    return {"success": True, "content": content, "text": content}
+
+
 def _healer(llm_return=None, llm_exc=None):
     llm = MagicMock()
     if llm_exc is not None:
-        llm.generate_response = AsyncMock(side_effect=llm_exc)
+        llm.generate_completion = AsyncMock(side_effect=llm_exc)
     else:
-        llm.generate_response = AsyncMock(return_value=llm_return)
+        llm.generate_completion = AsyncMock(
+            return_value=_completion(llm_return))
     return BlueprintHealer(db=MagicMock(), llm_service=llm), llm
 
 
@@ -53,11 +60,11 @@ class TestHealBlueprint:
         assert healed["name"] == "ResearchArchitecture"
         assert original["nodes"] == _BLUEPRINT["nodes"]  # original untouched
         # prompt embeds blueprint + failed node + error
-        user_msg = llm.generate_response.await_args.kwargs["messages"][1]["content"]
+        user_msg = llm.generate_completion.await_args.kwargs["messages"][1]["content"]
         assert "ResearchArchitecture" in user_msg
         assert "n1" in user_msg
         assert "tool schema unknown" in user_msg
-        assert llm.generate_response.await_args.kwargs["tenant_id"] == "default"
+        assert llm.generate_completion.await_args.kwargs["tenant_id"] == "default"
 
     def test_plain_json_output(self):
         healer, _ = _healer(llm_return='[{"id": "n9", "type": "tool", "name": "retry"}]')
@@ -68,7 +75,7 @@ class TestHealBlueprint:
     def test_custom_tenant_passed(self):
         healer, llm = _healer(llm_return='[{"id": "x"}]')
         asyncio.run(healer.heal_blueprint(_BLUEPRINT, "n1", "err", tenant_id="t-42"))
-        assert llm.generate_response.await_args.kwargs["tenant_id"] == "t-42"
+        assert llm.generate_completion.await_args.kwargs["tenant_id"] == "t-42"
 
     def test_empty_content_returns_original(self):
         healer, _ = _healer(llm_return=None)
@@ -93,7 +100,7 @@ class TestSummarizeHealingAsDirective:
             {"name": "extract", "type": "tool"}, [{"id": "n1"}], "schema unknown"
         ))
         assert directive == "Always add a search node first."
-        user_msg = llm.generate_response.await_args.kwargs["messages"][1]["content"]
+        user_msg = llm.generate_completion.await_args.kwargs["messages"][1]["content"]
         assert "extract" in user_msg
         assert "schema unknown" in user_msg
 
