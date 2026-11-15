@@ -1765,3 +1765,8 @@ binding at that scope. It does not prove real model quality, priced usage,
 default first-run routing, agent creation/graduation, UI rendering, or whole-app
 completion. No real provider credential/request was used. Historical 111/123
 and all 143 claims / 18 goals remain unchanged.
+
+
+## Ordinary API-created agent review and promotion — November 15 follow-through
+
+[Controlled review/promotion regression](ORDINARY_AGENT_REVIEW_PROMOTION_2026_11_15.md) adds the ordinary custom-agent creation boundary before the existing qualification review and promotion routes. It checks exact receipt/reviewer/evidence identity and fresh-session persistence, plus unqualified and foreign-scope denial twins. Synthetic training/evidence rows remain fixtures: this does not qualify ordinary training producers, learned capability, live model quality, skills consumption, restart or UI. No historical claim score or full-goal completion changes.
