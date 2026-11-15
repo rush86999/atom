@@ -29,6 +29,27 @@ Status: **P1–P4 implemented and verified** (2026-09-04).
   download/search-only today — OneDrive covers archival); retention policies
   (audit-first: all versions deliberately retained forever).
 
+## November 15 verification update
+
+The viewer now offers a visible **Download** control for its acknowledged,
+rendered version. Pending page edits require Save first; a lagging WebSocket
+update cannot redirect a download to the previous version. Intrinsic PDF page
+rotation is composed with the pending user rotation for both preview sizing
+and rendering; saves send the effective absolute angle expected by the backend.
+PDF reads and mutations also reuse the shared deleted-canvas gate after the
+owner check. Restoring the canvas reopens its retained version.
+
+Verification is bounded: focused component/gallery and PDF service regressions,
+plus synthetic browser journeys, cover these repairs. A retained-world journey
+confirmed a saved 90-degree PDF opened with landscape dimensions and that
+rotating left saved/downloaded a native zero-degree PDF. Its pre-edit screenshot
+was captured before painting and is blank; it does not prove readable rendering.
+The strict browser error ledger still failed on three canceled background
+requests and two classifier control fixtures. Earlier failed ledgers remain
+failed. These results do not establish the complete PDF feature catalogue,
+collaboration, external delivery, or whole-app readiness. The historical P1–P4
+implementation summary above is not a new acceptance result.
+
 Companion to `PLAYBOOK_USER_JOURNEY.md`; follows the same draft → review →
 approve → immutable lifecycle pattern.
 

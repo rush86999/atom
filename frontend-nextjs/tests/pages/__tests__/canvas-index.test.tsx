@@ -42,7 +42,9 @@ jest.mock("@/lib/api-client", () => ({
 }));
 
 import { createBlankCanvas } from "@/lib/canvas-api";
+import { createPdfFromUpload } from "@/lib/pdf-canvas-api";
 const mockedCreate = createBlankCanvas as jest.Mock;
+const mockedPdfUpload = createPdfFromUpload as jest.Mock;
 
 describe("CanvasIndexPage — blank canvas creation", () => {
   beforeEach(() => {
@@ -90,5 +92,23 @@ describe("CanvasIndexPage — blank canvas creation", () => {
         String(c[0]).includes("boom"),
       )).toBe(true),
     );
+  });
+
+  it("uploads a PDF through the shipped file input and routes to its canvas", async () => {
+    mockedPdfUpload.mockResolvedValue({ canvas_id: "c-pdf" });
+    const { container } = render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByTestId("upload-pdf-button")).toBeEnabled());
+
+    const input = container.querySelector(
+      'input[type="file"][accept="application/pdf"]',
+    ) as HTMLInputElement;
+    expect(input).not.toBeNull();
+    const file = new File(["%PDF-1.4 synthetic"], "synthetic.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(mockedPdfUpload).toHaveBeenCalledWith(file));
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith("/canvas/c-pdf"));
   });
 });
