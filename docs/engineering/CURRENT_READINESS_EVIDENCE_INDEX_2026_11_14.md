@@ -15,6 +15,8 @@
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
+> **Current-source real Docker skill dispatch:** [The existing ordinary-loop test](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`, with registered skill dispatch, real container execution, fresh-session durable receipt and independently confirmed create/start/die/destroy/absence. Scripted model/scanner/principal fixtures; no live-model skill-selection claim.
+
 > **Ordinary workbook browser and restart:** [The 24-sheet XLSX journey](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`: native upload/edit, exact recalculated 34,610 total, all 521 formula/cached-value checks, identical exports before/after full stack restart and unsigned denial. Composite retained-failure evidence; synthetic local file, not live connector or model judgment.
 
 > **Persistent PostgreSQL container restart:** [The new named-volume case](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`: same database/system/volume identity, all 372 table counts/content fingerprints unchanged, fresh public login and same-canvas readback after restart, and independently confirmed cleanup. Normal restart in controlled test mode; not drive-removal, cluster, upgrade or production acceptance.
@@ -426,7 +428,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   `skills.list` and `skills.execute` are now model-callable through the
   ordinary `GenericAgent` loop. The merged mechanism is verified with a
   deterministic decision stub, not a live-model competence claim; real-Docker
-  positive evidence remains source-bound to `d6fc54648`.
+  positive evidence was source-bound to `d6fc54648`. [A fresh real-Docker joined ordinary-loop case](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) now passed at `3316b0fe7`, with durable receipt and independent exact-container lifecycle/absence checks; model/scanner/principal fixtures remain simulated.
 - **Exact sources:** `#918` `bb1e2b3f3`; `#925` `ad6ecbd5d`; `#937`
   `b4370d0d4` (files byte-identical to `1387b7dd1`);
   `#945` `05715907e` (ordinary `skills.list`/`skills.execute` loop, 15
@@ -447,9 +449,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 - **Remaining user-boundary acceptance:** the ordinary-loop mechanism and
   pre-dispatch denial twins are merged in `#945` and exercised with a
   deterministic model decision; no mechanism gap remains. Independent
-  real-model selection quality, fresh real-Docker evidence at this source and
-  unfamiliar skill quality are separate, bounded evidence questions and are not
-  promoted by the deterministic controls.
+  real-model selection quality and unfamiliar skill quality remain separate. Fresh real-Docker execution is now source-bound to the newer `3316b0fe7` record; it does not promote model judgment or full Goal 6 acceptance.
 - **Preserved negatives:** generated-code promotion was recorded as
   unimplemented before `#918`; `#937` is a defensive approval gate, not
   automatic invocation; earlier exploratory probes without assertions are not
@@ -1031,7 +1031,7 @@ reassignment; other workers own the lanes noted.
 | 1 | **Goal 10 broader ordinary journey** | [Actual retained 48-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with same-job identity, one verified effect and replay controls. | Current-main ordinary-model work, independent useful work/partial progress and cancel breadth remain separate. Never rearm the terminal elapsed-wait case. |
 | 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
-| 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
+| 4 | **Goal 6 automatic skill invocation** | `#945` merged ordinary-loop discovery/dispatch with deterministic and denial controls; [fresh real-Docker joined dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`, with durable receipt and independent cleanup. | No further mechanism implementation. Real-model selection, unfamiliar skill quality, concurrency/soak and KVM isolation remain separate; scripted decisions do not establish model quality. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; [ordinary synthetic TXT browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`. | Fresh-grant live WorkDrive and broader file/search/grounding journeys; synthetic TXT upload/export/delete is separately covered. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic full-population API replay at `6ad2738ed` returned 34,533.00; [ordinary 24-sheet browser edit/export/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`, including recalculated 34,610 total and unsigned denial. | Live connected source, model-driven population/grounding and ambiguous-request refusal remain unverified. |
@@ -1075,7 +1075,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 | Goal 10 48-hour resume | **resolved-bounded** | [The real 48.0203-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with the same job/execution, one verified task effect, inert duplicate and late-answer denial. Scripted model and seeded principal; current-main ordinary-model, partial-work and cancellation breadth remain unverified. The terminal case must never be rearmed. |
 | Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
 | Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
-| Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop `skills.list`/`skills.execute` with deterministic joined and denial controls; live-model competence and fresh real-Docker evidence at this source remain separate, unclaimed limits. |
+| Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop discovery/dispatch and denial controls; [real-Docker dispatch/durable receipt](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`. Live-model competence, unfamiliar skill quality and KVM remain unclaimed. |
 | Goal 16 native menu bar live chat | **missing** | Native login/session/2FA and public-API live Go chat verified on the reviewed `#943` source; native UI chat pending. |
 | Goal 16 native mobile device journey | **missing** | Hosted CI/Jest passed; no supported simulator/device native journey. |
 | Goal 17 measurement | **missing** | No declared environment/workload/sample; cache-only benchmark is narrower. |
