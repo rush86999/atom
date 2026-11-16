@@ -385,8 +385,16 @@ async function readDetail(res: Response, fallback: string): Promise<string> {
     const body = await res.json();
     const detail = body?.detail;
     if (typeof detail === 'string' && detail) return detail;
-    if (detail && typeof detail === 'object' && typeof detail.error === 'string') {
-      return detail.error;
+    if (detail && typeof detail === 'object') {
+      if (typeof detail.error === 'string' && detail.error) return detail.error;
+      if (detail.error && typeof detail.error === 'object'
+          && typeof detail.error.message === 'string'
+          && detail.error.message) {
+        return detail.error.message;
+      }
+      if (typeof detail.message === 'string' && detail.message) {
+        return detail.message;
+      }
     }
     if (typeof body?.message === 'string' && body.message) return body.message;
   } catch {
@@ -541,18 +549,44 @@ export async function teachAgentFromRun(
   return body?.data ?? body;
 }
 
+export interface CheckpointResolution {
+  success: true;
+  resumed: true;
+  checkpoint?: { id: string; status: string };
+  run?: GoalRun;
+  loop?: Record<string, unknown>;
+}
+
 export async function resolveCheckpoint(
   runId: string,
   hitlId: string,
   approved: boolean,
   guidance?: string,
-): Promise<void> {
+): Promise<CheckpointResolution> {
   const res = await fetchJson(`/api/goal-runs/${runId}/checkpoints/${hitlId}/resolve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approved, guidance }),
   });
-  if (!res.ok) throw new Error(`Failed to resolve checkpoint (${res.status})`);
+  if (!res.ok) {
+    const error = new Error(await readDetail(
+      res, `Failed to resolve checkpoint (${res.status})`,
+    )) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  const body = await res.json();
+  if (body?.resumed !== true) {
+    // A 200 with resumed:false is not a decision outcome. It means the run
+    // was no longer waiting on this checkpoint; treat it as stale so the page
+    // refreshes instead of announcing a resume that never happened.
+    const error = new Error(
+      body?.reason || 'This checkpoint is no longer current. Refresh the run.',
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+  return body as CheckpointResolution;
 }
 
 export async function advanceGoalRun(id: string): Promise<void> {

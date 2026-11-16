@@ -333,7 +333,10 @@ export default function GoalRunDetailPage() {
         }
     }, [teachLesson, teachScope, run?.agent_id, run?.goal_id, loadLessons]);
 
-    const act = useCallback(async (fn: () => Promise<void>, successMsg?: string) => {
+    // The action's return value is intentionally ignored (some mutations
+    // return the verified outcome, e.g. resolveCheckpoint); the refreshed
+    // run is the single source of truth after a successful call.
+    const act = useCallback(async (fn: () => Promise<unknown>, successMsg?: string) => {
         setBusy(true);
         try {
             await fn();
@@ -888,11 +891,11 @@ export default function GoalRunDetailPage() {
                         {canActOnRun && (
                             <div className="flex gap-2">
                                 <Button size="sm" disabled={busy}
-                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, true, guidance), "Checkpoint approved — the run resumes")}>
+                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, true, guidance), "Checkpoint approved — refreshing the run")}>
                                     <Check className="h-4 w-4" /> Approve
                                 </Button>
                                 <Button size="sm" variant="destructive" disabled={busy}
-                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, false, guidance), "Checkpoint rejected — the agent re-decides with your note")}>
+                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, false, guidance), "Checkpoint rejected — refreshing the run")}>
                                     <X className="h-4 w-4" /> Reject
                                 </Button>
                             </div>

@@ -524,40 +524,40 @@ async def resolve_checkpoint(
     if not run:
         raise router.not_found_error("GoalRun", run_id)
     _require_run_access(db, current_user, run)
-    hitl = db.query(HITLAction).filter(HITLAction.id == hitl_id).first()
-    if not hitl or (hitl.params or {}).get("run_id") != run_id:
-        raise router.not_found_error("Checkpoint", hitl_id)
-    if hitl.status != HITLActionStatus.PENDING.value:
-        raise HTTPException(status_code=409,
-                            detail=f"checkpoint already {hitl.status}")
-    hitl.status = (HITLActionStatus.APPROVED.value if payload.approved
-                   else HITLActionStatus.REJECTED.value)
-    hitl.reviewed_by = str(current_user.id)
-    hitl.user_feedback = payload.guidance
-    db.commit()
-    wake = svc.consume_wake(run_id, {"event": "human_checkpoint",
-                                     "hitl_id": hitl_id,
-                                     "approved": payload.approved})
-    if not wake.get("consumed"):
-        return {"success": True, "resumed": False,
-                "reason": wake.get("reason", "run not waiting")}
-    if payload.approved:
-        svc.complete_checkpoint(run_id,
-                                step_id=(hitl.params or {}).get("step_id"))
-    else:
-        # Rejection: the cursor returns to the guarded work step so the
-        # router's next decision can revise REAL work instead of
-        # re-requesting the same approval.
-        svc.rewind_to_work_before(run_id,
-                                  step_id=(hitl.params or {}).get("step_id"))
-    result = await svc.advance(
+
+    result = svc.claim_checkpoint_resolution(
+        run_id=run_id,
+        hitl_id=hitl_id,
+        approved=payload.approved,
+        reviewer=str(current_user.id),
+        guidance=payload.guidance,
+    )
+    if result.get("status") != "verified":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "CHECKPOINT_STALE",
+                    "message": result.get("message")
+                    or "This checkpoint is no longer current; refresh the run.",
+                },
+            },
+        )
+
+    loop = await svc.advance(
         run_id, event={"event": "human_checkpoint",
                        "approved": payload.approved,
                        "guidance": payload.guidance,
                        "summary": payload.guidance or
                                   ("checkpoint approved" if payload.approved
                                    else "checkpoint rejected")})
-    return {"success": True, "resumed": True, "loop": result}
+    return {
+        "success": True,
+        "resumed": True,
+        "checkpoint": result.get("checkpoint"),
+        "run": loop.get("run") or result.get("run"),
+        "loop": loop,
+    }
 
 
 @router.post("/{run_id}/distill")

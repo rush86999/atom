@@ -14,6 +14,7 @@
 import React from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { toast } from "sonner";
 
 const mockUseUserRole = jest.fn();
 jest.mock("@/lib/user-role", () => ({
@@ -67,6 +68,7 @@ const getPromotionEvidence = api.getPromotionEvidence as jest.Mock;
 const listAgentLessons = api.listAgentLessons as jest.Mock;
 const teachAgentFromRun = api.teachAgentFromRun as jest.Mock;
 const resumeGoalRun = api.resumeGoalRun as jest.Mock;
+const resolveCheckpoint = api.resolveCheckpoint as jest.Mock;
 
 const run = (overrides: Partial<GoalRun> = {}): GoalRun => ({
   id: "run-1",
@@ -447,6 +449,54 @@ describe("GoalRun detail — coaching", () => {
         decision_binding: "bind-1",
       },
     ));
+  });
+});
+
+describe("GoalRun checkpoint outcome", () => {
+  beforeEach(() => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    resolveCheckpoint.mockReset();
+    getGoalRun.mockResolvedValue(run({
+      status: "waiting",
+      plan: [{ id: "checkpoint-1", kind: "human_checkpoint", title: "Quote approval" }],
+      cursor: "checkpoint-1",
+      waiting_on: {
+        event: "human_checkpoint",
+        match: { hitl_id: "hitl-1" },
+      },
+    }));
+  });
+
+  it("does not announce success when the checkpoint is stale; it refreshes", async () => {
+    resolveCheckpoint.mockRejectedValue(
+      Object.assign(new Error("This checkpoint is no longer the run's current wait."),
+                    { status: 409 }),
+    );
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("pending-checkpoint"));
+    fireEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    await waitFor(() => expect(resolveCheckpoint).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalledWith(
+      "Checkpoint approved — refreshing the run");
+    await waitFor(() => expect(getGoalRun).toHaveBeenCalledTimes(2));
+  });
+
+  it("announces a genuine resumed outcome and refreshes", async () => {
+    resolveCheckpoint.mockResolvedValue({ success: true, resumed: true });
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("pending-checkpoint"));
+    fireEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    await waitFor(() => expect(resolveCheckpoint).toHaveBeenCalledWith(
+      "run-1", "hitl-1", true, ""));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
+      "Checkpoint approved — refreshing the run"));
+    expect(toast.error).not.toHaveBeenCalled();
+    await waitFor(() => expect(getGoalRun).toHaveBeenCalledTimes(2));
   });
 });
 
