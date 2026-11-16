@@ -717,13 +717,15 @@ class TestInRunDispatchReauthorized:
         result = await run_stateful(
             instance, user_id="alice", persist=True, scopes=("*",))
 
-        assert world.runtime.calls == 1
+        assert world.runtime.calls == 1  # one guest execution
         assert world.runtime.callback_result == {
             "ok": False, "error": "authority_denied"}
         resolve.assert_not_awaited()
         dispatch.assert_not_awaited()
         assert result["success"] is False
-        assert result["error_code"] == "CANVAS_AUTHORITY_CHANGED"
+        # The pre-effect recheck sees the deactivated actor before the write
+        # claim; the claim would also have refused (CANVAS_AUTHORITY_CHANGED).
+        assert result["error_code"] == "CANVAS_ACTOR_REFUSED"
         world.broadcast_state.assert_not_awaited()
         world.broadcast_db.assert_not_awaited()
         after = world.state(instance)
@@ -820,3 +822,351 @@ class TestInRunDispatchReauthorized:
         resolve.assert_awaited_once()
         dispatch.assert_awaited_once()
         assert result["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# Mid-guest revocation twins (root receipt cases)
+# ---------------------------------------------------------------------------
+def _tombstone(world, canvas_id, user_id="alice"):
+    """Append an honest delete tombstone AFTER the existing audit rows."""
+    from datetime import datetime, timedelta, timezone
+
+    def mutate():
+        with world.Session() as db:
+            db.add(CanvasAudit(
+                id=str(uuid.uuid4()), canvas_id=canvas_id,
+                tenant_id=world.canvas(canvas_id).tenant_id,
+                user_id=user_id, canvas_type="mini_app",
+                action_type="delete",
+                details_json={"canvas_id": canvas_id},
+                created_at=datetime.now(timezone.utc) + timedelta(seconds=30),
+            ))
+            db.commit()
+    return mutate
+
+
+def _paired_scope_move(world, canvas_id, user_id, tenant_id, workspace_id):
+    """Atomically move BOTH the actor and the canvas to a new scope."""
+    def mutate():
+        with world.Session() as db:
+            db.query(User).filter(User.id == user_id).one().tenant_id = tenant_id
+            db.query(User).filter(User.id == user_id).one().workspace_id = workspace_id
+            db.query(Canvas).filter(Canvas.id == canvas_id).one().tenant_id = tenant_id
+            db.query(Canvas).filter(Canvas.id == canvas_id).one().workspace_id = workspace_id
+            db.commit()
+    return mutate
+
+
+class TestMidGuestRevocationTwins:
+    @pytest.mark.asyncio
+    async def test_deleted_canvas_mid_guest_blocks_callback_and_persist(self, world, monkeypatch):
+        """require_canvas_active must fire for callbacks AND local persist."""
+        from core.mini_app_service import run_stateful
+
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        before = world.state(instance)
+        before_counts = world.counts(instance)
+        resolve, dispatch = _dispatch_spies(monkeypatch)
+        world.runtime = MutatingRuntime(
+            world, _tombstone(world, instance))
+
+        result = await run_stateful(
+            instance, user_id="alice", persist=True, scopes=("*",))
+
+        assert world.runtime.callback_result == {
+            "ok": False, "error": "authority_denied"}
+        resolve.assert_not_awaited()
+        dispatch.assert_not_awaited()
+        # Tombstoned target: no local persist, no broadcast, no state change.
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_DELETED"
+        assert result["http_status"] == 404
+        after = world.state(instance)
+        assert (after.version, after.state) == (before.version, before.state)
+        assert world.counts(instance)["assets"] == before_counts["assets"]
+        assert world.counts(instance)["records"] == before_counts["records"]
+        world.broadcast_state.assert_not_awaited()
+        world.broadcast_db.assert_not_awaited()
+        assert world.runtime.calls == 1  # guest ran; effects were denied
+
+    @pytest.mark.asyncio
+    async def test_paired_actor_canvas_scope_move_blocks_callback_and_persist(self, world, monkeypatch):
+        """A consistent User+Canvas move still must not use the OLD scope.
+
+        The fresh policy check passes (owner, matching new scope), so only the
+        frozen actor/target identity binding catches it.
+        """
+        from core.canvas_authority import require_active_actor, require_canvas_read
+        from core.mini_app_service import run_stateful
+
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        before = world.state(instance)
+        before_counts = world.counts(instance)
+        resolve, dispatch = _dispatch_spies(monkeypatch)
+        world.runtime = MutatingRuntime(
+            world,
+            _paired_scope_move(world, instance, "alice", "tenant-b", "ws-b"),
+        )
+
+        result = await run_stateful(
+            instance, user_id="alice", persist=True, scopes=("*",))
+
+        # Evidence the fresh policy gate ALONE would have allowed the effect:
+        with world.Session() as db:
+            fresh_actor = require_active_actor(db, "alice")
+            assert fresh_actor["tenant_id"] == "tenant-b"
+            require_canvas_read(db, instance, fresh_actor)
+        # ... but the frozen dispatch material no longer matches → denied.
+        assert world.runtime.callback_result == {
+            "ok": False, "error": "authority_denied"}
+        resolve.assert_not_awaited()
+        dispatch.assert_not_awaited()
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_SCOPE_CHANGED"
+        assert result["http_status"] == 409
+        after = world.state(instance)
+        assert (after.version, after.state) == (before.version, before.state)
+        assert world.counts(instance)["assets"] == before_counts["assets"]
+        assert world.counts(instance)["records"] == before_counts["records"]
+        world.broadcast_state.assert_not_awaited()
+        world.broadcast_db.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Pre-fetch: authority is checked at EVERY internal dispatch boundary
+# ---------------------------------------------------------------------------
+class TestPrefetchPerDispatch:
+    def _manifest(self, integrations):
+        return {
+            "declared_scopes": ["*"], "skills": [], "mcp_servers": [],
+            "integrations": integrations, "entrypoint": "logic",
+            "dependencies": [], "base_image": "python:3.11-slim", "assets": [],
+            "storage": {"enabled": True, "backend": "local"},
+            "db": {"enabled": True}, "data_sources": [],
+            "initial_state": {}, "blueprint": {},
+        }
+
+    @pytest.mark.asyncio
+    async def test_revoked_between_first_and_second_prefetch_stops_later_dispatch(
+            self, world, monkeypatch):
+        from core import mini_app_integration_dispatch as dispatch_mod
+        from core.mini_app_service import run_stateful
+
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        app_id, _ = world.app(
+            author="alice", tenant_id="tenant-a", workspace_id="ws-a",
+            manifest=self._manifest([
+                {"service": "svc-one", "action": "read"},
+                {"service": "svc-two", "action": "read"},
+            ]))
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        before = world.state(instance)
+        before_counts = world.counts(instance)
+        calls = []
+
+        async def _dispatch(service, action, params, tenant_id=None, db=None):
+            calls.append(service)
+            if service == "svc-one":
+                with world.Session() as db2:
+                    db2.query(User).filter(User.id == "alice").one().is_active = False
+                    db2.commit()
+            return {"ok": True, "data": {"v": 1}, "backend": "native"}
+
+        monkeypatch.setattr(dispatch_mod, "dispatch", _dispatch)
+        monkeypatch.setattr(dispatch_mod, "resolve_backend",
+                            AsyncMock(return_value=("native", None)))
+
+        result = await run_stateful(instance, user_id="alice", persist=True)
+
+        assert calls == ["svc-one"], calls  # second source never dispatched
+        assert world.runtime.calls == []    # guest never started
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_ACTOR_REFUSED"
+        after = world.state(instance)
+        assert (after.version, after.state) == (before.version, before.state)
+        assert world.counts(instance)["assets"] == before_counts["assets"]
+        assert world.counts(instance)["records"] == before_counts["records"]
+        world.broadcast_state.assert_not_awaited()
+        world.broadcast_db.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_each_prefetch_dispatches_while_authority_holds(self, world, monkeypatch):
+        from core import mini_app_integration_dispatch as dispatch_mod
+        from core.mini_app_service import run_stateful
+
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        app_id, _ = world.app(
+            author="alice", tenant_id="tenant-a", workspace_id="ws-a",
+            manifest=self._manifest([
+                {"service": "svc-one", "action": "read"},
+                {"service": "svc-two", "action": "read"},
+            ]))
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        calls = []
+
+        async def _dispatch(service, action, params, tenant_id=None, db=None):
+            calls.append((service, tenant_id))
+            return {"ok": True, "data": {"v": service}, "backend": "native"}
+
+        monkeypatch.setattr(dispatch_mod, "dispatch", _dispatch)
+        monkeypatch.setattr(dispatch_mod, "resolve_backend",
+                            AsyncMock(return_value=("native", None)))
+
+        result = await run_stateful(instance, user_id="alice", persist=True)
+
+        assert calls == [("svc-one", "tenant-a"), ("svc-two", "tenant-a")]
+        assert result["success"] is True
+        assert len(world.runtime.calls) == 1
+        injected = world.runtime.calls[0]["inputs"]["data_sources"]
+        assert injected == {"svc-one": {"v": "svc-one"},
+                            "svc-two": {"v": "svc-two"}}
+
+    @pytest.mark.asyncio
+    async def test_data_source_prefetch_boundary_stops_later_dispatch(self, world, monkeypatch):
+        import core.action_registry as registry_mod
+        from core.mini_app_service import run_stateful
+
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        manifest = self._manifest([])
+        manifest["data_sources"] = [
+            {"type": "documents.search", "query": "one"},
+            {"type": "documents.search", "query": "two"},
+        ]
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a", manifest=manifest)
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        queries = []
+
+        async def _exec(name, args, ctx):
+            queries.append(args.get("query"))
+            if args.get("query") == "one":
+                with world.Session() as db2:
+                    db2.query(User).filter(User.id == "alice").one().is_active = False
+                    db2.commit()
+            return {"success": True, "data": {"results": [{"q": args.get("query")}]}}
+
+        monkeypatch.setattr(
+            registry_mod.action_registry, "execute_action", _exec)
+
+        result = await run_stateful(instance, user_id="alice", persist=True)
+
+        assert queries == ["one"], queries
+        assert world.runtime.calls == []
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_ACTOR_REFUSED"
+
+
+# ---------------------------------------------------------------------------
+# mini_app_get_state — same authority neighborhood
+# ---------------------------------------------------------------------------
+class TestGetStateAuthority:
+    @staticmethod
+    def _seed_state(world, canvas_id, value):
+        with world.Session() as db:
+            row = db.query(CanvasState).filter(
+                CanvasState.canvas_id == canvas_id).one()
+            row.state = value
+            row.version = (row.version or 0) + 1
+            db.commit()
+
+    @pytest.mark.asyncio
+    async def test_legit_installer_reads_own_instance(self, world):
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        world.actor("bob", tenant_id="tenant-b", workspace_id="ws-b")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="bob",
+                                  tenant_id="tenant-b", workspace_id="ws-b")
+        self._seed_state(world, instance, {"n": 7})
+
+        result = await _tool().mini_app_get_state(
+            {"canvas_id": instance}, {"user_id": "bob"})
+
+        assert result["success"] is True, result
+        assert result["state"] == {"n": 7}
+        assert result["version"] == 2
+
+    @pytest.mark.asyncio
+    async def test_cross_owner_cannot_read_state(self, world):
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        world.actor("bob", tenant_id="tenant-b", workspace_id="ws-b")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        self._seed_state(world, instance, {"secret": 1})
+
+        result = await _tool().mini_app_get_state(
+            {"canvas_id": instance}, {"user_id": "bob"})
+
+        assert result["success"] is False
+        assert result["http_status"] == 404
+        assert result["error_code"] == "CANVAS_NOT_AUTHORIZED"
+        assert "state" not in result
+
+    @pytest.mark.asyncio
+    async def test_app_author_gets_no_shortcut_on_installers_copy(self, world):
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        world.actor("bob", tenant_id="tenant-b", workspace_id="ws-b")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="bob",
+                                  tenant_id="tenant-b", workspace_id="ws-b")
+        self._seed_state(world, instance, {"n": 1})
+
+        result = await _tool().mini_app_get_state(
+            {"canvas_id": instance}, {"user_id": "alice"})
+
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_NOT_AUTHORIZED"
+        assert "state" not in result
+
+    @pytest.mark.asyncio
+    async def test_missing_and_inactive_actor_cannot_read_state(self, world):
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        world.actor("frozen", tenant_id="tenant-a", workspace_id="ws-a",
+                    active=False)
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        self._seed_state(world, instance, {"secret": 2})
+
+        missing = await _tool().mini_app_get_state({"canvas_id": instance}, {})
+        assert missing["success"] is False
+        assert "Authenticated user" in missing["error"]
+
+        inactive = await _tool().mini_app_get_state(
+            {"canvas_id": instance}, {"user_id": "frozen"})
+        assert inactive["success"] is False
+        assert inactive["error_code"] == "CANVAS_ACTOR_REFUSED"
+        assert "state" not in inactive
+
+    @pytest.mark.asyncio
+    async def test_deleted_canvas_state_not_served(self, world):
+        world.actor("alice", tenant_id="tenant-a", workspace_id="ws-a")
+        app_id, _ = world.app(author="alice", tenant_id="tenant-a",
+                              workspace_id="ws-a")
+        instance = world.instance(app_id=app_id, installer="alice",
+                                  tenant_id="tenant-a", workspace_id="ws-a")
+        self._seed_state(world, instance, {"secret": 3})
+        _tombstone(world, instance)()
+
+        result = await _tool().mini_app_get_state(
+            {"canvas_id": instance}, {"user_id": "alice"})
+
+        assert result["success"] is False
+        assert result["error_code"] == "CANVAS_DELETED"
+        assert result["http_status"] == 404
+        assert "state" not in result

@@ -471,7 +471,14 @@ async def mini_app_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
 
 
 async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    """Read the current state of a mini-app instance canvas."""
+    """Read the current state of a mini-app instance canvas.
+
+    Uses the same canvas authority neighborhood as ``mini_app_run``: the
+    authoritative actor, the owner/co-editor + current-scope policy and the
+    active-canvas (tombstone) gate are applied BEFORE the ``CanvasState``
+    read. There is no app-author shortcut — an installed copy's state belongs
+    to the instance canvas owner/co-editor.
+    """
     viewer = _require_actor(context)
     if not viewer.id:
         return _auth_error()
@@ -479,6 +486,12 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
     if not canvas_id:
         return {"success": False, "error": "canvas_id is required"}
     try:
+        from core.canvas_authority import (
+            CanvasAuthorityError,
+            require_active_actor,
+            require_canvas_active,
+            require_canvas_read,
+        )
         from core.database import get_db_session
         from core.models import Canvas, CanvasState
 
@@ -488,6 +501,17 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
             if not canvas.mini_app_id:
                 return {"success": False, "error": f"Canvas {canvas_id} is not a mini-app instance"}
+            try:
+                actor = require_active_actor(db, viewer.id)
+                require_canvas_read(db, canvas_id, actor)
+                require_canvas_active(db, canvas_id)
+            except CanvasAuthorityError as exc:
+                return {
+                    "success": False,
+                    "error": str(exc),
+                    "http_status": exc.status_code,
+                    "error_code": exc.code,
+                }
             row = (
                 db.query(CanvasState)
                 .filter(CanvasState.canvas_id == canvas_id)

@@ -89,6 +89,14 @@ def _make_canvas(**overrides):
 
 
 @pytest.fixture()
+def fake_canvas_gate():
+    from tests.mini_app_authority_fixtures import patched_canvas_gate
+
+    with patched_canvas_gate():
+        yield
+
+
+@pytest.fixture()
 def db_cm():
     """Context manager returning a FakeSession."""
 
@@ -321,7 +329,7 @@ class TestListAndState:
         result = await mat.mini_app_list({}, {})
         assert result["success"] is False
 
-    async def test_get_state_success(self, patched_db):
+    async def test_get_state_success(self, patched_db, fake_canvas_gate):
         canvas = _make_canvas()
         state_row = SimpleNamespace(state={"n": 5}, version=2)
         with patched_db(Canvas, canvas, CanvasState, state_row):
@@ -342,7 +350,7 @@ class TestListAndState:
         assert result["success"] is False
         assert "not found" in result["error"]
 
-    async def test_get_state_no_state_rows(self, patched_db):
+    async def test_get_state_no_state_rows(self, patched_db, fake_canvas_gate):
         with patched_db(Canvas, _make_canvas(), CanvasState, None):
             result = await mat.mini_app_get_state({"canvas_id": "canvas-1"}, _viewer_context())
         assert result["success"] is True

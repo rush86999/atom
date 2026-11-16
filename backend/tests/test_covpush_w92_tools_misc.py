@@ -177,6 +177,14 @@ def _C(name):
     return _ModelMeta(name, (_Inst,), {})
 
 
+@pytest.fixture
+def fake_canvas_gate():
+    from tests.mini_app_authority_fixtures import patched_canvas_gate
+
+    with patched_canvas_gate():
+        yield
+
+
 def _viewer_patch(user_id="u1", tier=None):
     viewer = SimpleNamespace(id=user_id, tenant_id="t", workspace_id="w", tier=tier)
     return patch.object(mini_app_tool, "_viewer", return_value=viewer)
@@ -398,7 +406,7 @@ class TestMiniAppTool:
             r = await mini_app_tool.mini_app_install({"app_id": "a1"}, {"user_id": "u"})
             assert r["success"] is False
 
-    async def test_run_and_list_and_state(self):
+    async def test_run_and_list_and_state(self, fake_canvas_gate):
         rs = AsyncMock(return_value={"success": True})
         with _viewer_patch(), patch("core.mini_app_service.run_stateful", rs):
             r = await mini_app_tool.mini_app_run({"canvas_id": "c1", "inputs": {"a": 1}},

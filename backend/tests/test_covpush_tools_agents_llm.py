@@ -149,6 +149,14 @@ def _viewer(**kw):
 
 
 @pytest.fixture
+def fake_canvas_gate():
+    from tests.mini_app_authority_fixtures import patched_canvas_gate
+
+    with patched_canvas_gate():
+        yield
+
+
+@pytest.fixture
 def ctx():
     return {"user_id": "user-1", "agent_id": "agent-1", "tier": "autonomous"}
 
@@ -409,7 +417,7 @@ class TestMiniAppToolGaps:
         assert res["success"] is False and res["apps"] == []
 
     @pytest.mark.asyncio
-    async def test_get_state_paths(self, ctx):
+    async def test_get_state_paths(self, ctx, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_get_state
 
         with patch("core.database.get_db_session") as gds:

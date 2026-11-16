@@ -14,6 +14,7 @@ no network.
 """
 from __future__ import annotations
 
+import contextlib
 import uuid
 from typing import Any, Optional
 
@@ -124,3 +125,36 @@ def ensure_canvas_audit(
         },
     ))
     db.flush()
+
+
+@contextlib.contextmanager
+def patched_canvas_gate(actor_id: str = "fake-actor"):
+    """Opt handler-plumbing UNIT tests out of the DB-backed canvas gate.
+
+    Those tests drive the handlers with fake sessions (MagicMock / single-row
+    stubs) that cannot answer the actor/scope queries. The REAL gate is
+    covered against a scratch DB by ``tests/test_mini_app_run_authority.py``
+    (foreign owner, missing/inactive actor, tombstone, installed copy), so
+    these unit tests isolate handler plumbing explicitly instead of asserting
+    authorization against an imaginary session.
+    """
+    from unittest.mock import patch
+
+    from core import canvas_authority
+
+    actor = {
+        "ok": True,
+        "user": None,
+        "id": actor_id,
+        "tenant_id": None,
+        "workspace_id": None,
+        "status": "active",
+        "is_active": True,
+        "effective_tenant_id": "default",
+        "effective_workspace_id": "default",
+    }
+    with patch.object(
+            canvas_authority, "require_active_actor", return_value=actor), \
+        patch.object(canvas_authority, "require_canvas_read"), \
+        patch.object(canvas_authority, "require_canvas_active"):
+        yield
