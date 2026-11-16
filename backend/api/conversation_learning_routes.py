@@ -71,6 +71,12 @@ class CandidateCreate(BaseModel):
 class CandidateRevise(BaseModel):
     thread_id: str
     source_kind: str = SOURCE_KIND_EMAIL
+    # A correction must name the revision the reviewer actually saw. Without
+    # this compare-and-swap a stale tab silently overwrites a newer revision.
+    # Optional at parse time so a foreign/private candidate still fails closed
+    # with 404 before an authorized caller receives 422 for the missing guard.
+    expected_revision: Optional[int] = None
+    expected_status: str = ""
     proposed_lesson: Optional[str] = None
     method: Optional[Dict[str, Any]] = None
     method_status: Optional[str] = None
@@ -91,6 +97,8 @@ class DependencyResolve(BaseModel):
     unit: str = ""
     value: Any = None
     confirmed_by: str = ""
+    expected_revision: Optional[int] = None
+    expected_status: str = ""
 
 
 class CandidateConfirm(BaseModel):
@@ -98,6 +106,7 @@ class CandidateConfirm(BaseModel):
     source_kind: str = SOURCE_KIND_EMAIL
     reviewer: str
     expected_revision: int
+    expected_status: str = ""
 
 
 class CandidatePromote(BaseModel):
@@ -106,6 +115,7 @@ class CandidatePromote(BaseModel):
     reviewer: str
     expected_revision: int
     expected_digest: str = ""
+    expected_status: str = ""
 
 
 class CandidateReject(BaseModel):
@@ -113,6 +123,8 @@ class CandidateReject(BaseModel):
     source_kind: str = SOURCE_KIND_EMAIL
     reviewer: str
     reason: str = ""
+    expected_revision: Optional[int] = None
+    expected_status: str = ""
 
 
 class ApplyMethodRequest(BaseModel):
@@ -349,6 +361,14 @@ def revise(candidate_id: str, request: CandidateRevise,
            current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
     candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
+    candidate = _revalidate_source(db, user, candidate)
+    candidate = revalidate_candidate(db, candidate, evidence.resources)
+    if candidate.status == "invalidated":
+        raise HTTPException(status_code=409, detail="candidate_invalidated")
+    if request.expected_revision is None:
+        raise HTTPException(
+            status_code=422, detail="expected_revision_required")
     try:
         revised = revise_candidate(
             db, candidate, proposed_lesson=request.proposed_lesson,
@@ -357,9 +377,18 @@ def revise(candidate_id: str, request: CandidateRevise,
             format_spec=request.format_spec,
             conditions=request.conditions,
             decision_options=request.decision_options,
+            expected_revision=request.expected_revision,
+            expected_status=request.expected_status or None,
             changed_by=_reviewer(user))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status_code = 409 if detail in {
+            "candidate_revision_changed",
+            "candidate_status_changed",
+            "candidate_rejected",
+            "candidate_invalidated",
+        } else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     return _payload(revised)
 
 
@@ -369,15 +398,25 @@ def resolve(candidate_id: str, request: DependencyResolve,
             current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
     candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    if request.expected_revision is None:
+        raise HTTPException(
+            status_code=422, detail="expected_revision_required")
     evidence = _evidence(db, user, request.thread_id, request.source_kind)
     try:
         resolved = resolve_dependency(
             db, candidate, request.dependency_id, catalog=evidence.resources,
             resource_id=request.resource_id, column=request.column,
             unit=request.unit, value=request.value,
-            confirmed_by=_reviewer(user))
+            confirmed_by=_reviewer(user),
+            expected_revision=request.expected_revision,
+            expected_status=request.expected_status or None)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status_code = 409 if detail in {
+            "candidate_revision_changed",
+            "candidate_status_changed",
+        } else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     return _payload(resolved)
 
 
@@ -391,8 +430,10 @@ def confirm(candidate_id: str, request: CandidateConfirm,
     if candidate.status == "invalidated":
         raise HTTPException(status_code=409, detail="candidate_invalidated")
     try:
-        confirmed = confirm_candidate(db, candidate, reviewer=_reviewer(user),
-                                      expected_revision=request.expected_revision)
+        confirmed = confirm_candidate(
+            db, candidate, reviewer=_reviewer(user),
+            expected_revision=request.expected_revision,
+            expected_status=request.expected_status or None)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _payload(confirmed)
@@ -412,6 +453,7 @@ def promote(candidate_id: str, request: CandidatePromote,
             db, candidate, reviewer=_reviewer(user),
             expected_revision=request.expected_revision,
             expected_digest=request.expected_digest,
+            expected_status=request.expected_status or None,
             catalog=evidence.resources)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -489,5 +531,19 @@ def reject(candidate_id: str, request: CandidateReject,
            current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
     candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
-    return _payload(reject_candidate(db, candidate, reviewer=_reviewer(user),
-                                     reason=request.reason))
+    if request.expected_revision is None:
+        raise HTTPException(
+            status_code=422, detail="expected_revision_required")
+    try:
+        rejected = reject_candidate(
+            db, candidate, reviewer=_reviewer(user), reason=request.reason,
+            expected_revision=request.expected_revision,
+            expected_status=request.expected_status or None)
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 409 if detail in {
+            "candidate_revision_changed",
+            "candidate_status_changed",
+        } else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    return _payload(rejected)
