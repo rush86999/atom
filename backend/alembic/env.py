@@ -18,6 +18,10 @@ import sys
 # Add backend to path to allow imports
 sys.path.append(str(Path(__file__).parent.parent))
 
+# Import for its PostgreSQL dialect registration: current revision IDs exceed
+# Alembic's default VARCHAR(32) version column, so fresh PostgreSQL installs
+# use the supported version_table_impl hook to create a wider column.
+from core.alembic_version_table import WideVersionTablePostgresqlImpl  # noqa: F401,E402
 from core.models import Base
 
 target_metadata = Base.metadata
