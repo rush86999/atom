@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 
 from core.goals.goal_plan_validation import (
     normalize_step_kind,
+    normalize_wait_spec,
     validate_assignment_projection,
     validate_goal_plan,
     validate_replan_decision,
@@ -525,8 +526,6 @@ class GoalRunService:
         event, timer, or human input. The spec is consumed exactly once —
         by consume_wake()."""
         from core.models import GoalRun
-        if not isinstance(spec, dict) or not spec.get("event"):
-            raise ValueError("wait spec must be a dict with an 'event' key")
         with self._sessions()() as session:
             run = self._load(session, run_id)
             if not run:
@@ -536,6 +535,12 @@ class GoalRunService:
                 # decides to wait again for something else (§3.3).
                 raise GoalRunTransitionError(
                     f"cannot wait from status '{run.status}'")
+            normalized, wait_errors = normalize_wait_spec(
+                spec, require_consumable_deadline=False)
+            if wait_errors:
+                raise ValueError(
+                    "invalid wait spec: " + "; ".join(wait_errors))
+            spec = normalized
             run.waiting_on = {**spec, "created_at": _iso()}
             run.status = "waiting"
             self._bump_material(run)
@@ -770,7 +775,21 @@ class GoalRunService:
                     "result": None, "run": self.get_run(run_id)}
 
         if kind == "WAIT":
-            spec = decision.get("wait_spec") or {"event": "timer"}
+            spec, wait_errors = normalize_wait_spec(
+                decision.get("wait_spec"))
+            if wait_errors:
+                # Mirror the invalid-REPLAN path: hold an ASK_HUMAN with an
+                # ``invalid_decision`` and NO ``original_decision``. The
+                # approval then runs the genuine ASK_HUMAN no-op and can
+                # never replay the invalid concrete WAIT.
+                return self._hold_for_approval(
+                    run_id,
+                    {**decision, "decision": "ASK_HUMAN",
+                     "rationale": (
+                         "invalid WAIT: " + "; ".join(wait_errors)),
+                     "invalid_decision": decision,
+                     "validation_errors": wait_errors},
+                    reason="invalid wait spec")
             updated = self.set_wait(run_id, spec)
             return {"advanced": True, "decision": "WAIT", "run": updated}
 
@@ -1075,7 +1094,10 @@ class GoalRunService:
         supervision tier's ceiling is a commitment a human signs off on."""
         if decision.get("decision") != "WAIT":
             return decision
-        deadline = (decision.get("wait_spec") or {}).get("deadline")
+        spec = decision.get("wait_spec")
+        # Injected/scripted router output is not yet coerced here; a
+        # non-mapping spec must not raise before execute_decision can hold it.
+        deadline = spec.get("deadline") if isinstance(spec, dict) else None
         if not deadline:
             return decision
         parsed = None
