@@ -546,6 +546,23 @@ jobs:
 
           '
 
+      # Gate the complete office canvas co-editing suite (DOCX/XLSX/PPTX
+      # canvas↔file ownership, persistence, notifications and sync). Run the
+      # whole file without selectors, deselection or continue-on-error.
+      - name: Run office canvas co-editing controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-docx-coediting/atom-docx-coediting.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-docx-coediting/data"
+          ATOM_OFFICE_DIR: "${{ runner.temp }}/atom-docx-coediting/office"
+          PYTHON_DOTENV_DISABLED: "1"
+        run: |
+          mkdir -p "${{ runner.temp }}/atom-docx-coediting/data" "${{ runner.temp }}/atom-docx-coediting/office"
+          python -m pytest tests/test_office_canvas_coediting.py -q --tb=short --timeout=300 --timeout-method=thread
+
 
   backend-core-extra:
     runs-on: ubuntu-latest
