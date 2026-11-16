@@ -1,11 +1,17 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Browser account lifecycle:** [ordinary signup/session/recovery](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) passed with real local authenticated STARTTLS mail at source 97e43, including consumed-link refusal, old-password denial and new-password web session. SSO/TOTP/rate-limit/one-hour expiry remain outside the episode.
+> **Documents browser lifecycle:** [ordinary upload/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`: full33KB Text/Markdown/JSON downloads, matched provenance, verified deletion, fresh library absence and stale-tab export404. Internal SQLite/cached assets; no Docker or app LLM. Live connected-source and broader file/search qualification remain separate.
 >
-> **Candidate SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. This candidate has not yet merged; earlier browser evidence retains its original source.
+> **Authenticator login and replay:** [ordinary browser TOTP and shared replay fence](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate `268efd405`: enrollment, challenge/no session, wrong-code refusal, valid sign-in, same-step replay409/no token and disabling/reload. Independent122 checks plus an injected commit-exception refusal through the real helper passed. This remains source-bound partial Goal1 evidence.
+>
+> **PDF editing in the browser:** [PDF lifecycle](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed upload, both-page rendering, byte-identical download/reload, gallery reopen, native page rotation/save, edited-byte reload and signed-out denial at `bb7017af3`. One synthetic PDF; not all Canvas families or Goal5 completion.
+>
+> **Browser account lifecycle:** [ordinary signup/session/recovery](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) passed with real local authenticated STARTTLS mail at source 97e43, including consumed-link refusal, old-password denial and new-password web session. SSO/rate-limit/one-hour expiry remain outside that episode; TOTP is verified in the separate record above.
+>
+> **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current release cut:** main `de6f4b2c82bfee8245ab5a8446146ecc55bdf68e` through #970. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Current release cut:** main `75c1edec61b651c43b70937f467b3f64a6ca37bb` through #971. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
@@ -294,9 +300,12 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 ### Goal 1 — Setup and ordinary account use
 
 - **Audit state:** accepted-bounded.
-- **Current state:** bounded. Signed-in Settings passed 29/29 at
-  `a53b56fdc`, including Sessions and the full 2FA setup/enable/reload/disable
-  round trip. This is a Settings boundary, not the whole account lifecycle.
+- **Current state:** bounded. Earlier signed-in Settings passed29/29 at
+  `a53b56fdc`. [Ordinary signup/session/recovery](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md)
+  now passed at `97e43`; [ordinary TOTP enrollment/login/disable and same-code
+  replay refusal](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate
+  `268efd405`, including no authenticated challenge/error session. These
+  remain separate source-bound episodes, not the whole account lifecycle.
 - **Exact sources:** `#923` `d253602f1` (durable session revocation);
   `#939` `e855a9bf0` and
   [`WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md`](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md)
@@ -304,11 +313,11 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   requests, source `a53b56fdc`); `#936` `d1e3ddac8` (quickstart auth URL and
   private config); `#943` `a868435fd` (merged native login/session/2FA;
   evidence at draft head `5d1f11de4`).
-- **Remaining user-boundary acceptance:** ordinary sign-up/recovery/SSO
-  browser journey, fresh-profile sign-out, password reset, process-restart
-  session recovery outside the scratch settings world, and a current-main
-  replay. The 29/29 result is bound to `a53b56fdc`; later commits changed no
-  Settings page/backend files, but no fresh current-main run exists.
+- **Remaining user-boundary acceptance:** SSO, account deletion, rate-limit
+  breadth, actual one-hour reset expiry, process-restart session recovery
+  outside the scratch settings world, other deployment audiences and external
+  mail delivery. The original29/29 Settings record and each newer browser
+  episode retain their own source; no blanket current-main replay is claimed.
 - **Preserved negatives:** the committed WA-075 history records 25 pass /
   2 missing / 1 skipped, exit 3, then 27 pass / 1 missing / 1 skipped, exit 3.
   Those are not erased by §8. The `#943` direct-IPC logout observation is
@@ -339,17 +348,19 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 ### Goal 3 — Authorized common data and search
 
 - **Audit state:** accepted-bounded.
-- **Current state:** bounded. WorkDrive code and live receipts exist, but the
-  live 52-check and 56/56 receipts are bound to earlier PR heads, not
-  current main `a868435fd`. Document delete truth and joined lifecycle are now
-  hosted-CI selected; hosted selection is not a live signed-in replay.
+- **Current state:** bounded. Earlier WorkDrive live receipts retain their
+  original PR sources. [Ordinary Documents upload/detail/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md)
+  passed at `ed6ae3c98` with a full33KB synthetic TXT, all three downloads,
+  matched provenance, verified removal/readback and stale-tab refusal. This
+  does not requalify live WorkDrive or semantic-search quality.
 - **Exact sources:** `#911` `04cb6ad6d` and `#921` `9062bb71e` (WorkDrive
   delivery; 56/56 private replay bound to `24794f257`); `#912` `9a0fc333d`
   (joined lifecycle selector); `#938` `471494e5d` (delete-truth selector at
   `.github/workflows/ci.yml`); `INT-09` remains external-blocked.
 - **Remaining user-boundary acceptance:** a fresh signed-in WorkDrive replay on
-  current main with a fresh grant; ordinary UI upload/open/search/export/delete
-  and grounding; live connector qualification. `INT-09` remains external.
+  current main with a fresh grant; broader file-family upload/open/search/export/delete
+  and grounding; live connector qualification. The synthetic TXT browser
+  lifecycle is covered by the newer source-bound record. `INT-09` remains external.
 - **Preserved negatives:** `test_document_delete_truth.py` was **not** hosted-
   selected before `#938`; the WorkDrive 56/56 receipt is not a current-main
   run; live provider/account breadth was never granted in the audit.
@@ -384,10 +395,11 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 ### Goal 5 — Canvas and editable outputs
 
 - **Audit state:** accepted-bounded.
-- **Current state:** bounded. `#926` fixed the unslashed Canvas list route and
-  passed a 22/22 post-merge signed-in replay at `6ad2738ed`. `#931` merged the
-  offline editor assets; WA-045 passed 32/32 at `6ad2738ed`. Full Canvas D2 and
-  remaining canvas families remain open.
+- **Current state:** bounded. `#926` fixed the unslashed Canvas list route
+  and passed22/22; `#931` offline editor assets enabled WA-04532/32 at
+  `6ad2738ed`. [Ordinary PDF upload/edit/download/reload](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md)
+  now passed at `bb7017af3`, including saved rotation90/0, preserved page
+  text and signed-out denial. Full CanvasD2 and other families remain open.
 - **Exact sources:** `#926` `1c00a72fc`; `#931` `6ad2738ed`; private
   `/private/tmp/canvas-926-postmerge-20261113_221126/evidence/result.json`
   and `/private/tmp/atom-main-canvas.W1hk5v/evidence/canvas-blank-lifecycle.json`;
@@ -1020,10 +1032,10 @@ reassignment; other workers own the lanes noted.
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
 | 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
-| 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
+| 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; [ordinary synthetic TXT browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`. | Fresh-grant live WorkDrive and broader file/search/grounding journeys; synthetic TXT upload/export/delete is separately covered. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
-| 8 | **Goal 5 Canvas full families** | WA-045 32/32 and Canvas list 22/22 at `6ad2738ed`; full D2 open; mini-app KVM legs environment-limited. | Full Canvas D2, remaining families, ordinary reopen/export, and a KVM/microVM run where applicable. |
-| 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. Earlier Settings/native and PostgreSQL API records remain source-bound. | SSO, browser TOTP, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
+| 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [ordinary PDF upload/edit/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; full D2 open. | Remaining Canvas families and PDF operations, server-restart persistence and KVM/microVM where applicable. |
+| 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
 | 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; native mobile/KVM open. | Existing upgrades, async transport, database/container restart, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
