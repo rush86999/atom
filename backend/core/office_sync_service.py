@@ -261,15 +261,63 @@ class OfficeSyncService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _docx_text_child_tags():
+        from docx.oxml.ns import qn
+        return {qn("w:t"), qn("w:tab"), qn("w:br"), qn("w:cr")}
+
+    @staticmethod
+    def _set_run_text_preserving_inline(paragraph, run, text: str) -> None:
+        """Replace only a run's text nodes; keep drawings/other XML in place.
+
+        python-docx's ``Run.text`` setter replaces the ENTIRE ``<w:r>``
+        content, so a run that mixes text with an inline drawing loses the
+        drawing (and its ``r:embed``); orphaned media/relationships remain in
+        the package. Here text-only runs keep the normal setter (preserving
+        rPr), while mixed runs rebuild ONLY the text children at their
+        original position using python-docx's own text appender (tabs and
+        line breaks included). Non-text children are never removed or moved.
+        """
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        from docx.text.run import Run
+
+        tags = OfficeSyncService._docx_text_child_tags()
+        r = run._r
+        text_children = [child for child in r if child.tag in tags]
+        if not text_children:
+            return
+        other_children = [child for child in r
+                          if child.tag not in tags and child.tag != qn("w:rPr")]
+        if not other_children:
+            run.text = text
+            return
+
+        insert_at = list(r).index(text_children[0])
+        template = OxmlElement("w:r")
+        Run(template, paragraph).text = text
+        replacements = [child for child in template
+                        if child.tag != qn("w:rPr")]
+        for child in text_children:
+            r.remove(child)
+        for offset, child in enumerate(replacements):
+            r.insert(insert_at + offset, child)
+
+    @staticmethod
     def _set_paragraph_text(paragraph, text: str) -> None:
-        """Replace a paragraph's text while keeping its style and first-run
-        formatting where possible."""
-        if paragraph.runs:
-            paragraph.runs[0].text = text
-            for run in paragraph.runs[1:]:
-                run.text = ""
-        else:
-            paragraph.add_run(text)
+        """Replace a paragraph's text while keeping its style, first-run
+        formatting and any inline non-text content (drawings, etc.)."""
+        tags = OfficeSyncService._docx_text_child_tags()
+        text_runs = [run for run in paragraph.runs
+                     if any(child.tag in tags for child in run._r)]
+        if not text_runs:
+            # Drawing-only paragraph: preserve it; add text only when asked
+            # (an empty line must not keep appending empty runs).
+            if text or not paragraph.runs:
+                paragraph.add_run(text)
+            return
+        for index, run in enumerate(text_runs):
+            OfficeSyncService._set_run_text_preserving_inline(
+                paragraph, run, text if index == 0 else "")
 
     def _sync_docx_in_place(self, file_path: str, content: str) -> None:
         """Line↔paragraph sync that PRESERVES document structure.
