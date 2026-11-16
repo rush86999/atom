@@ -728,9 +728,10 @@ export default function ApprovalsPage() {
             confidence. Completion alone does not promote the agent: promotion requires the
             readiness requirements shown in the panel plus a passed capability qualification. An
             explicitly configured owner exception for that exact agent can waive the qualification
-            review, not the readiness requirements. Otherwise the agent stays STUDENT and the panel
-            shows what remains. An INTERN may then PROPOSE automated actions: those arrive in this
-            same queue for your approval, and you keep coaching it over chat the same way.
+            review, not the readiness requirements. Otherwise the agent keeps its current tier and
+            the panel shows what remains. An INTERN may then PROPOSE automated actions: those
+            arrive in this same queue for your approval, and you keep coaching it over chat the
+            same way.
           </p>
           {proposals.filter((p) => p.active_session_id).length === 0 ? (
             <div className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
