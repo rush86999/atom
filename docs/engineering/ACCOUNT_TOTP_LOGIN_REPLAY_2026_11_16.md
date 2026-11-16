@@ -10,7 +10,7 @@ Independent verification:
 
 - 122 adjacent login, menubar, factor-write and rate-limit controls passed in 64.40 seconds using scratch databases with network access denied.
 - Three replay controls fail against the original source: repeated sign-in, an enrollment-consumed step, and a previously accepted later step. They pass against the candidate.
-- A real shared-helper scratch-database commit failure returns 503 without invoking token creation, and rolls back the consumed step.
+- An injected commit exception inside the real shared helper returns 503 without invoking token creation, and rolls back the consumed step. This is fault injection on a real scratch SQLAlchemy session, not a physical storage failure.
 - In a fresh isolated app, ordinary browser password sign-in, enrollment from the displayed manual secret, recovery-code panel, logout, password-only challenge, wrong-code refusal, later real-time code sign-in, native-prompt disabling and disabled-state reload all passed. Challenge and invalid-code attempts left the web session unauthenticated.
 - Immediately after successful authenticator sign-in, a fresh context submitted the same accepted code to the public login API within the same real 30-second step. It received 409, no token and no authenticated web session.
 
@@ -21,3 +21,5 @@ No auth cookies, bearer tokens or browser storage were injected; no request inte
 This does not prove SSO, recovery-code sign-in, concurrent login races, all deployment profiles, production readiness or completion of Goal 1. Filtered evidence belongs beside this document at publication. Publish only after reconciling the actual merged parent and fresh required CI; do not attribute this runtime to an unexecuted future commit.
 
 [Filtered result](evidence/account_totp_login_replay_20261116/result.json).
+
+The owner-approved test-only follow-up `87f019af2604e0b09d5ae5ecee624d570f28bbe8` adds that real-helper commit-exception case permanently and closes its scratch client/session/engine. Independent focused verification passed41 checks in16.73s. Production code remains identical to the browser-verified candidate; this adds no new runtime claim.

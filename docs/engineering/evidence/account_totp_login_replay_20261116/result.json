@@ -25,5 +25,13 @@
     "reused_build_source": "97e43a6b18a676a867b4e1e86f3b0c22da74461d",
     "tracked_frontend_tree_equal": true,
     "tree": "a34382b5d78bdf194411383d3805fb149fee39f8"
+  },
+  "permanent_fault_regression": {
+    "test_only_commit": "87f019af2604e0b09d5ae5ecee624d570f28bbe8",
+    "root_focused_checks": "41 passed in16.73s",
+    "method": "real helper and scratch SQLAlchemy execute; only session.commit injected to raise",
+    "outcome": "503; token mint not called; consumed-step update rolled back",
+    "production_code_changed": false,
+    "physical_storage_fault_claimed": false
   }
 }

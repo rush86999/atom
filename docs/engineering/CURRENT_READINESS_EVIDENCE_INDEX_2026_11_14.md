@@ -1,6 +1,6 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Authenticator login and replay:** [ordinary browser TOTP and shared replay fence](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate `268efd405`: enrollment, challenge/no session, wrong-code refusal, valid sign-in, same-step replay409/no token and disabling/reload. Independent122 checks plus a real helper commit-failure refusal passed. This remains source-bound partial Goal1 evidence.
+> **Authenticator login and replay:** [ordinary browser TOTP and shared replay fence](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate `268efd405`: enrollment, challenge/no session, wrong-code refusal, valid sign-in, same-step replay409/no token and disabling/reload. Independent122 checks plus an injected commit-exception refusal through the real helper passed. This remains source-bound partial Goal1 evidence.
 >
 > **PDF editing in the browser:** [PDF lifecycle](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed upload, both-page rendering, byte-identical download/reload, gallery reopen, native page rotation/save, edited-byte reload and signed-out denial at `bb7017af3`. One synthetic PDF; not all Canvas families or Goal5 completion.
 >
