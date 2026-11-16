@@ -599,6 +599,36 @@ jobs:
             python -m pytest tests/test_active_intervention_service.py \
             -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Reviewed in-place lesson correction learning boundary (additive): the
+      # three complete-file groups run as THREE separate python processes, and
+      # each process gets its own absolute SQLite file under one runner-temp
+      # root, so a pass in one group can never be certified by state a sibling
+      # group left behind. Data and Office roots are absolute runner-temp
+      # directories too, PYTHON_DOTENV_DISABLED keeps a developer .env from
+      # leaking in, and PYTEST_VERSION=ci matches the canonical login controls.
+      # Complete files only: no node-id subsets, skips or continue-on-error.
+      - name: Run reviewed lesson correction conversation learning controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-learning-review-correction/learning-review.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-learning-review-correction/data"
+          ATOM_OFFICE_DIR: "${{ runner.temp }}/atom-learning-review-correction/office"
+          PYTHON_DOTENV_DISABLED: "1"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          learning_review_root=$(mktemp -d "${RUNNER_TEMP}/learning-review-XXXXXX")
+          DATABASE_URL="sqlite:///${learning_review_root}/conversation-learning.db" \
+            python -m pytest tests/test_conversation_learning.py tests/test_conversation_learning_routes.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+          DATABASE_URL="sqlite:///${learning_review_root}/native-chat-teaching.db" \
+            python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_chat_teaching_route.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+          DATABASE_URL="sqlite:///${learning_review_root}/assignment-routes.db" \
+            python -m pytest tests/test_assignment_routes.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+
 
   backend-core-extra:
     runs-on: ubuntu-latest
@@ -1611,4 +1641,12 @@ jobs:
       # running tests/pages/goal-runs/detail.test.tsx.
       - name: Goal-run checkpoint API and index regression tests
         run: npx jest tests/lib/goal-run-api-checkpoint.test.ts tests/pages/goal-runs/index.test.tsx lib/__tests__/goal-run-api.error-detail.test.ts --runInBand --no-coverage --watchman=false
+
+      # Reviewed in-place lesson correction UI (additive end step): the complete
+      # review surface — the route-level ConversationLearningReview twin, the
+      # revise API client, the learning page and the component-level review —
+      # is gated together so a correction that saves in one host cannot pass
+      # while another host still loses the edit. Complete files only.
+      - name: Run reviewed lesson correction learning UI controls
+        run: npx jest tests/components/ConversationLearningReview.test.tsx tests/lib/conversation-learning-api-revise.test.ts tests/pages/learning.test.tsx components/learning/__tests__/ConversationLearningReview.test.tsx --runInBand --no-coverage --watchman=false
 

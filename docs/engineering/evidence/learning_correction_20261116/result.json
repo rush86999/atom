@@ -1,0 +1,44 @@
+{
+  "status": "root_verified_learning_correction_repromotion_restart",
+  "source": "1d4f409e15174a63d7ec09a4658bca5180310d34",
+  "backend_product_source_matches_independently_tested_9513": true,
+  "frontend_tree_matches_independently_tested_native_release": true,
+  "independent_backend_tests": 162,
+  "independent_frontend_tests": 12,
+  "independent_ci_contracts": 642,
+  "real_peer_revision_refusal": 409,
+  "browser": {
+    "normal_form_login_and_exact_session": true,
+    "learning_mutations": 7,
+    "same_candidate_revision": 2,
+    "old_confirmation_cleared": true,
+    "old_promoted_lesson_stale": true,
+    "fresh_confirmation_and_distinct_repromotion": true,
+    "deterministic_apply": {
+      "value": "15",
+      "unit": "USD",
+      "selected_rows": 1
+    },
+    "full_stack_restart_fresh_login_read_only": true,
+    "post_restart_learning_mutations": 0,
+    "unsigned_api": 401,
+    "exact_login_callback": true,
+    "no_model_provider": true
+  },
+  "diagnostics": [
+    "initial fixture refused Personal NULL scope before commit; canonical default fixture followed in separately marked attempt",
+    "first browser failed login with mismatched 127.0.0.1 vs configured localhost origin; zero learning mutations, preserved",
+    "first readonly restart stopped on missing WWW-Authenticate header; actual401 retained; no header-preservation claim; continuation readonly and no mutation replay"
+  ],
+  "owned_apps_stopped": true,
+  "original_scope": {
+    "claims": 143,
+    "goals": 18,
+    "app_complete": false
+  },
+  "limitations": [
+    "synthetic native-chat and employee fixture",
+    "no model competence, live provider, indexed external resource or PostgreSQL concurrency acceptance",
+    "all broader goal requirements remain separately qualified"
+  ]
+}

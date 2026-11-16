@@ -7,6 +7,7 @@ the behavior of an approved method on unfamiliar rows.
 from __future__ import annotations
 
 import os
+import threading
 
 os.environ.setdefault("TESTING", "1")
 
@@ -70,6 +71,11 @@ def _agent(db, agent_id="agent-1"):
     db.add(row)
     db.commit()
     return row
+
+
+def _peer_session(db):
+    """A separate connection to the same scratch DB (peer tab/worker)."""
+    return sessionmaker(bind=db.get_bind(), expire_on_commit=False)()
 
 
 def _dataset(db, *, resource_id="ds-1", version="v1",
@@ -1817,6 +1823,271 @@ def test_changed_candidate_content_invalidates_old_approval(db):
     with pytest.raises(ValueError, match="candidate_revision_changed"):
         promote_candidate(
             db, revised, reviewer="owner", expected_revision=1)
+
+
+def test_revising_a_promoted_candidate_retires_old_lesson(db):
+    """Correction keeps identity and untouched fields, retires old guidance.
+
+    The review handle must not fork into a second candidate, and work-time
+    retrieval must not keep applying a lesson whose content is under
+    correction. The journal keeps the old entry with explicit provenance.
+    """
+    from core.student_learning_service import get_agent_lessons
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the original pricing method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+        applies_to=["pricing", "quotes"],
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    old_entry_id = promoted["lesson_id"]
+    assert [entry["lesson"] for entry in get_agent_lessons(
+        db, "agent-1", include_context_bound=True)] == [
+            "Use the original pricing method."]
+
+    revised = revise_candidate(
+        db, candidate, proposed_lesson="Use the corrected pricing method.",
+        expected_revision=1, changed_by="owner")
+
+    assert revised.candidate_id == candidate.candidate_id
+    assert revised.thread_id == "thread-1"
+    assert revised.source_kind == "email"
+    assert revised.revision == 2
+    assert revised.confirmed_by is None
+    assert revised.confirmed_revision is None
+    assert revised.method.operation == "multiply_sum"
+    assert revised.method.rounding == {"places": 2, "stage": "final"}
+    assert revised.context == {
+        "customer": "Customer-A", "qualification": "licensed"}
+    assert revised.applies_to == ["pricing", "quotes"]
+
+    # Work-time retrieval stops using the old wording immediately, while the
+    # append-only journal retains the entry with revalidation provenance.
+    assert get_agent_lessons(
+        db, "agent-1", include_context_bound=True) == []
+    agent = db.query(AgentRegistry).filter(
+        AgentRegistry.id == "agent-1").first()
+    journal = agent.configuration["learning"]["log"]
+    retired = [entry for entry in journal
+               if str(entry.get("id") or "") == str(old_entry_id)]
+    assert retired
+    assert retired[0]["stale"] is True
+    assert retired[0]["details"]["conversation_learning"][
+        "revalidation_required"] is True
+
+    with pytest.raises(ValueError, match="candidate_revision_changed"):
+        revise_candidate(
+            db, revised, proposed_lesson="Silent stale overwrite.",
+            expected_revision=1)
+    assert revised.proposed_lesson == "Use the corrected pricing method."
+
+    confirm_candidate(db, revised, reviewer="owner", expected_revision=2)
+    promote_candidate(db, revised, reviewer="owner", expected_revision=2)
+    assert [entry["lesson"] for entry in get_agent_lessons(
+        db, "agent-1", include_context_bound=True)] == [
+            "Use the corrected pricing method."]
+
+
+def test_terminal_candidates_cannot_be_revised(db):
+    _agent(db)
+    rejected = _candidate(lesson="Rejected guidance.")
+    save_candidate(db, rejected)
+    reject_candidate(db, rejected, reviewer="owner", reason="not applicable")
+    with pytest.raises(ValueError, match="candidate_rejected"):
+        revise_candidate(
+            db, rejected, proposed_lesson="Revive the rejected rule.",
+            expected_revision=1)
+    assert rejected.proposed_lesson == "Rejected guidance."
+
+
+def test_peer_correction_after_read_is_not_overwritten(db):
+    """A separate session's completed correction wins; the stale tab 409s."""
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    candidate_id = candidate.candidate_id
+    stale = load_candidate(db, "thread-1", candidate_id)
+    assert stale is not None and stale.revision == 1
+
+    peer = _peer_session(db)
+    try:
+        peer_candidate = load_candidate(peer, "thread-1", candidate_id)
+        peer_revised = revise_candidate(
+            peer, peer_candidate, proposed_lesson="Peer correction.",
+            expected_revision=1)
+        assert peer_revised.revision == 2
+    finally:
+        peer.close()
+
+    with pytest.raises(ValueError, match="candidate_revision_changed"):
+        revise_candidate(
+            db, stale, proposed_lesson="Stale tab overwrite.",
+            expected_revision=1)
+
+    fresh = load_candidate(db, "thread-1", candidate_id)
+    assert fresh is not None
+    assert fresh.revision == 2
+    assert fresh.proposed_lesson == "Peer correction."
+    events = db.query(ConversationEvent).filter(
+        ConversationEvent.conversation_id == "thread-1",
+        ConversationEvent.kind == "learning_candidate_revised",
+    ).all()
+    assert len(events) == 1
+
+
+def test_stale_correction_cannot_retire_a_newer_promotion(db):
+    """Status is part of the guarded read; a stale tab must not un-promote."""
+    from core.student_learning_service import get_agent_lessons
+
+    _agent(db)
+    candidate = _candidate(lesson="Use the promoted rates method.")
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    stale = load_candidate(db, "thread-1", candidate.candidate_id)
+    assert stale is not None and stale.status == "confirmed"
+
+    peer = _peer_session(db)
+    try:
+        peer_candidate = load_candidate(peer, "thread-1", candidate.candidate_id)
+        promote_candidate(
+            peer, peer_candidate, reviewer="owner", expected_revision=1)
+    finally:
+        peer.close()
+
+    # No client-supplied status is needed: the guarded re-read itself sees
+    # that the candidate moved from confirmed to promoted.
+    with pytest.raises(ValueError, match="candidate_status_changed"):
+        revise_candidate(
+            db, stale, proposed_lesson="Stale correction.",
+            expected_revision=1)
+
+    assert [entry["lesson"] for entry in get_agent_lessons(
+        db, "agent-1")] == ["Use the promoted rates method."]
+    fresh = load_candidate(db, "thread-1", candidate.candidate_id)
+    assert fresh is not None
+    assert fresh.status == "promoted"
+    assert fresh.proposed_lesson == "Use the promoted rates method."
+
+
+def test_concurrent_corrections_have_exactly_one_winner(db):
+    """Two connections loaded at rev1; the durable fence serializes them."""
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    candidate_id = candidate.candidate_id
+    barrier = threading.Barrier(2)
+    results = []
+    results_lock = threading.Lock()
+
+    def _attempt(text):
+        peer = _peer_session(db)
+        try:
+            loaded = load_candidate(peer, "thread-1", candidate_id)
+            assert loaded is not None and loaded.revision == 1
+            barrier.wait(timeout=10)
+            try:
+                revised = revise_candidate(
+                    peer, loaded, proposed_lesson=text,
+                    expected_revision=1)
+                outcome = ("ok", revised.revision, text)
+            except ValueError as exc:
+                outcome = ("err", str(exc))
+            with results_lock:
+                results.append(outcome)
+        finally:
+            peer.close()
+
+    threads = [
+        threading.Thread(target=_attempt, args=(text,))
+        for text in ("Worker A correction.", "Worker B correction.")
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+        assert not thread.is_alive()
+
+    assert len(results) == 2
+    assert [item[0] for item in results].count("ok") == 1
+    assert [item[0] for item in results].count("err") == 1
+    winner = next(item for item in results if item[0] == "ok")
+    assert winner[1] == 2
+    error = next(item for item in results if item[0] == "err")
+    assert error[1] == "candidate_revision_changed"
+
+    fresh = load_candidate(db, "thread-1", candidate_id)
+    assert fresh is not None
+    assert fresh.revision == 2
+    assert fresh.proposed_lesson == winner[2]
+    events = db.query(ConversationEvent).filter(
+        ConversationEvent.conversation_id == "thread-1",
+        ConversationEvent.kind == "learning_candidate_revised",
+    ).all()
+    assert len(events) == 1
+
+
+def test_write_guard_uses_dialect_specific_serialization():
+    """Postgres row lock vs SQLite single-writer transaction (no container)."""
+    from types import SimpleNamespace
+
+    from core.conversation_learning import _begin_candidate_write_guard
+
+    calls = []
+
+    class _FakeQuery:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def with_for_update(self):
+            calls.append("for_update")
+            return self
+
+        def first(self):
+            return SimpleNamespace(id="agent-1")
+
+    class _FakePostgres:
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+        def commit(self):
+            calls.append("commit")
+
+        def query(self, model):
+            calls.append("agent_query")
+            return _FakeQuery()
+
+    _begin_candidate_write_guard(
+        _FakePostgres(), SimpleNamespace(agent_id="agent-1"))
+    assert calls == ["commit", "agent_query", "for_update"]
+
+    calls.clear()
+
+    class _FakeConnection:
+        def exec_driver_sql(self, statement):
+            calls.append(statement)
+
+    class _FakeSqlite:
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="sqlite"))
+
+        def commit(self):
+            calls.append("commit")
+
+        def connection(self):
+            return _FakeConnection()
+
+    _begin_candidate_write_guard(
+        _FakeSqlite(), SimpleNamespace(agent_id="agent-1"))
+    assert calls == [
+        "commit", "PRAGMA busy_timeout=30000", "BEGIN IMMEDIATE"]
 
 
 def test_rejecting_a_proposal_has_no_governing_effect(db):

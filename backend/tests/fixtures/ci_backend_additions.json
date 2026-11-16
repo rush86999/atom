@@ -566,5 +566,19 @@
       "ENVIRONMENT": "development"
     },
     "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_public_http_exception_wire_format.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run reviewed lesson correction conversation learning controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-learning-review-correction/learning-review.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-learning-review-correction/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-learning-review-correction/office",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "learning_review_root=$(mktemp -d \"${RUNNER_TEMP}/learning-review-XXXXXX\")\nDATABASE_URL=\"sqlite:///${learning_review_root}/conversation-learning.db\" \\\n  python -m pytest tests/test_conversation_learning.py tests/test_conversation_learning_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${learning_review_root}/native-chat-teaching.db\" \\\n  python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_chat_teaching_route.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${learning_review_root}/assignment-routes.db\" \\\n  python -m pytest tests/test_assignment_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
