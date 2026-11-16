@@ -454,19 +454,14 @@ class GenericAgent:
         context.setdefault("execution_id", _run_uuid)
         context.setdefault("agent_id", self.id)
 
-        # TASK-LEVEL never-autonomous admission: before memory recall, model
-        # calls, tool dispatch or any final output. A matching basket is
-        # reviewed even when the task only reads/analyses and calls no tools.
-        _never_admission = await self._admit_never_autonomous_task(
-            task_input, context, step_callback)
-        if _never_admission is not None:
-            return _never_admission
-
         # Per-run uncertainty ledger for declared mutations whose post-dispatch
         # outcome was not independently confirmed. Preserve an authoritative
         # pending entry for the SAME durable execution (a cold resumed pass
         # must not erase it), and reload the durable claims below instead of
-        # trusting only tools re-called during this pass.
+        # trusting only tools re-called during this pass. This MUST run before
+        # task admission: an admission stop is a terminal result too, and a
+        # policy outage/refusal must not hide an already-landed uncertain
+        # effect from the caller.
         _exec_identity = str(
             context.get("execution_id") or context.get("run_id") or "")
         _existing_uncertain = context.get("_uncertain_operations")
@@ -478,6 +473,18 @@ class GenericAgent:
             context["_uncertain_operations"] = []
         context["_uncertain_operations_execution"] = _exec_identity
         self._reload_uncertain_operations(context)
+
+        # TASK-LEVEL never-autonomous admission: before memory recall, model
+        # calls, tool dispatch or any final output. A matching basket is
+        # reviewed even when the task only reads/analyses and calls no tools.
+        # The policy stop remains authoritative, but any unresolved durable
+        # effect loaded above is carried onto the returned result so a policy
+        # refusal cannot mask a required reconciliation.
+        _never_admission = await self._admit_never_autonomous_task(
+            task_input, context, step_callback)
+        if _never_admission is not None:
+            return self._carry_unresolved_effects(_never_admission, context)
+
         # Governance maturity is NOT the same as the transient execution-state
         # row (``running`` while this admitted job executes). Use only the
         # server-owned tier frozen by admission/dispatch, then let a current
@@ -2740,6 +2747,34 @@ What is your next step?"""
             self._record_uncertain_operation(
                 context, "operation-store", "",
                 f"operation claim store unavailable ({unavailable})")
+
+    def _carry_unresolved_effects(
+        self, result: Any, context: Dict,
+    ) -> Any:
+        """Keep unresolved-effect provenance on a pre-execution policy stop.
+
+        Task admission can refuse the run before the first model or tool
+        call. That refusal is still the caller-visible terminal result, so it
+        must not read as a clean ``nothing happened`` state when this
+        execution has a claimed/dispatching/uncertain effect (or the claim
+        store could not be read). The policy verdict stays authoritative;
+        reconciliation metadata is additive and cannot turn the stop into an
+        approval or a success.
+        """
+        if not isinstance(result, dict):
+            return result
+        pending = list((context or {}).get("_uncertain_operations") or [])
+        if not pending:
+            return result
+        out = dict(result)
+        existing = out.get("uncertain_operations")
+        merged = list(existing) if isinstance(existing, list) else []
+        for entry in pending:
+            if entry not in merged:
+                merged.append(entry)
+        out["uncertain_operations"] = merged
+        out["requires_reconciliation"] = True
+        return out
 
     def _finalize_mutation_result(
         self, tool_name: str, result: Any, expected: Dict,
