@@ -53,7 +53,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
-from core.sandbox_runtime.capacity import get_capacity_semaphore
+from core.sandbox_runtime.capacity import await_teardown, get_capacity_semaphore
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -389,29 +389,10 @@ class MiniAppDevRuntime:
                               "image": tag, "reason": "guest_died"},
                 )
         finally:
-            if proc.returncode is None:
-                proc.kill()
-            try:
-                await proc.wait()
-            except Exception:  # noqa: BLE001
-                pass
-            drain_task.cancel()
-            try:
-                await drain_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
-            if proc.returncode not in (0, None):
-                # Non-zero exit without --rm completion (killed/errored run):
-                # best-effort removal so nothing lingers on the dev host.
-                try:
-                    rm = await asyncio.create_subprocess_exec(
-                        "docker", "rm", "-f", container,
-                        stdout=asyncio.subprocess.DEVNULL,
-                        stderr=asyncio.subprocess.DEVNULL,
-                    )
-                    await asyncio.wait_for(rm.wait(), timeout=5)
-                except Exception:  # noqa: BLE001
-                    pass
+            # The permit is held by the wrapper until this completes, even if
+            # the caller is cancelled while the container is draining.
+            await await_teardown(
+                self._teardown_container(proc, container, drain_task))
 
         stdout_text = stdout_text or ""
         stderr_text = stderr_text or ""
@@ -434,6 +415,29 @@ class MiniAppDevRuntime:
             truncated=len(stdout_text) > OUTPUT_CAP or len(stderr_text) > OUTPUT_CAP,
             metadata=meta,
         )
+
+    async def _teardown_container(self, proc, container: str, drain_task) -> None:
+        if proc.returncode is None:
+            proc.kill()
+        try:
+            await proc.wait()
+        except Exception:  # noqa: BLE001
+            pass
+        drain_task.cancel()
+        try:
+            await drain_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
+        if proc.returncode not in (0, None):
+            try:
+                rm = await asyncio.create_subprocess_exec(
+                    "docker", "rm", "-f", container,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(rm.wait(), timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
 
     async def _ensure_image(self, tag: str, deps: List[str]) -> Optional[str]:
         """Build ``tag`` if absent; return None on success, error text on failure.

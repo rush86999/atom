@@ -51,7 +51,7 @@ from typing import Any, Dict, List, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
-from core.sandbox_runtime.capacity import get_capacity_semaphore
+from core.sandbox_runtime.capacity import await_teardown, get_capacity_semaphore
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -344,17 +344,9 @@ class FirecrackerRuntime:
                     metadata={"backend": "firecracker", "vm_id": vm_id, "timeout": True},
                 )
             finally:
-                # The command channel has completed (or timed out): tear the VM
-                # down. The guest agent sleeps after replying; the host kills
-                # it. We reap the child so a killed firecracker/jailer doesn't
-                # leave a dangling process (a kill without wait would orphan it
-                # and possibly leak the jailer cgroup on the host).
-                if proc.returncode is None:
-                    proc.kill()
-                try:
-                    await proc.wait()
-                except Exception:  # noqa: BLE001
-                    pass
+                # Held until the owned VM process is reaped, even if the
+                # caller is cancelled during teardown.
+                await await_teardown(self._teardown_vm(proc))
 
             stdout_text = stdout_text or ""
             stderr_text = stderr_text or ""
@@ -379,6 +371,14 @@ class FirecrackerRuntime:
                 shutil.rmtree(run_dir, ignore_errors=True)
             except Exception:  # noqa: BLE001
                 pass
+
+    async def _teardown_vm(self, proc) -> None:
+        if proc.returncode is None:
+            proc.kill()
+        try:
+            await proc.wait()
+        except Exception:  # noqa: BLE001
+            pass
 
     async def _exchange(
         self,

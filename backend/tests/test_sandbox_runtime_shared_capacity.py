@@ -203,3 +203,159 @@ def test_cancellation_releases_permit(monkeypatch, kind):
 
 class _Policy:
     max_exec_seconds = 1
+
+
+def test_capacity2_across_two_loops_in_two_threads():
+    import threading
+    import time
+    import uuid
+
+    scope = "test-multiloop-" + uuid.uuid4().hex
+    lock = threading.Lock()
+    released = threading.Event()
+    entered = threading.Event()
+    state = {"active": 0, "max": 0}
+
+    async def worker_tasks():
+        sem = capacity.get_capacity_semaphore(scope, 2)
+
+        async def one():
+            async with sem:
+                with lock:
+                    state["active"] += 1
+                    state["max"] = max(state["max"], state["active"])
+                    if state["active"] >= 2:
+                        entered.set()
+                await asyncio.to_thread(released.wait)
+                with lock:
+                    state["active"] -= 1
+        await asyncio.gather(*(one() for _ in range(3)))
+
+    def run_loop():
+        asyncio.run(worker_tasks())
+
+    threads = [threading.Thread(target=run_loop) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    assert entered.wait(5), "two permits were not acquired"
+    time.sleep(0.2)
+    assert state["max"] <= 2, state
+    released.set()
+    for thread in threads:
+        thread.join(timeout=5)
+    assert state["max"] == 2, state
+    assert capacity.snapshot(scope)["in_use"] == 0
+
+
+def test_queued_waiter_cancellation_releases_no_slot():
+    scope = "test-waiter-cancel"
+    capacity.reset_for_tests(scope)
+
+    async def scenario():
+        sem = capacity.get_capacity_semaphore(scope, 1)
+        holder_started = asyncio.Event()
+        release_holder = asyncio.Event()
+
+        async def holder():
+            async with sem:
+                holder_started.set()
+                await release_holder.wait()
+
+        async def waiter():
+            async with sem:
+                return "acquired"
+
+        h = asyncio.create_task(holder())
+        await holder_started.wait()
+        w = asyncio.create_task(waiter())
+        await asyncio.sleep(0.05)
+        w.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await w
+        release_holder.set()
+        await h
+        second = await asyncio.wait_for(waiter(), timeout=2)
+        assert second == "acquired"
+        assert capacity.snapshot(scope)["in_use"] == 0
+
+    asyncio.run(scenario())
+    capacity.reset_for_tests(scope)
+
+
+def test_holder_cancellation_releases_slot():
+    scope = "test-holder-cancel"
+    capacity.reset_for_tests(scope)
+
+    async def scenario():
+        sem = capacity.get_capacity_semaphore(scope, 1)
+        started = asyncio.Event()
+
+        async def holder():
+            async with sem:
+                started.set()
+                await asyncio.sleep(60)
+
+        h = asyncio.create_task(holder())
+        await started.wait()
+        h.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await h
+        async with sem:
+            assert capacity.snapshot(scope)["in_use"] == 1
+        assert capacity.snapshot(scope)["in_use"] == 0
+
+    asyncio.run(scenario())
+    capacity.reset_for_tests(scope)
+
+
+@pytest.mark.parametrize("kind", ["dev", "fc"])
+def test_cancellation_during_blocked_teardown_holds_permit(monkeypatch, kind):
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    capacity.reset_for_tests()
+    cleanup_release = asyncio.Event()
+    created = _install_proc(monkeypatch, cleanup_release)
+    entered = asyncio.Event()
+
+    async def exchange(*args, **kwargs):
+        return "", "", 0, None, None
+
+    if kind == "dev":
+        monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+        factory = dev_mod.MiniAppDevRuntime
+    else:
+        monkeypatch.setattr(fc_mod.FirecrackerRuntime, "_exchange", exchange)
+        factory = fc_mod.FirecrackerRuntime
+
+    async def run_one(runtime):
+        if kind == "dev":
+            return await runtime._run_in_container(
+                "print(1)", policy=_Policy(), inputs={}, tag="img")
+        return await runtime._run_in_vm(
+            "print(1)", policy=_Policy(), inputs={}, rootfs="/tmp/fake.ext4")
+
+    async def scenario():
+        first = asyncio.create_task(run_one(factory()))
+        while not created:
+            await asyncio.sleep(0)
+        # Wait until the first process is in blocked teardown.
+        while not created[0].cleanup_started.is_set():
+            await asyncio.sleep(0)
+        second = asyncio.create_task(run_one(factory()))
+        await asyncio.sleep(0.05)
+        assert len(created) == 1
+        first.cancel()
+        # Repeated cancellation must not release the permit or start the next
+        # process before the owned process teardown finishes.
+        first.cancel()
+        await asyncio.sleep(0.05)
+        assert len(created) == 1
+        cleanup_release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        result = await asyncio.wait_for(second, timeout=2)
+        assert result.success
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        capacity.reset_for_tests()
