@@ -15,8 +15,10 @@ def test_real_mcp_registry_context_and_capability_boundary(host,monkeypatch,case
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED","true")
     monkeypatch.setattr("core.generic_agent.get_db_session",host.session)
     with host.Session() as db:
-        db.add(Tenant(id=TENANT, name="Local operator", subdomain="local-operator"))
-        db.add(Workspace(id=WORKSPACE, name="Operator workspace", tenant_id=TENANT))
+        # The shared host fixture seeds the authoritative Tenant+Workspace.
+        assert db.get(Tenant, TENANT) is not None
+        workspace = db.get(Workspace, WORKSPACE)
+        assert workspace is not None and str(workspace.tenant_id) == TENANT
         db.add(AgentRegistry(id="scratch-agent",name="Actual MCP agent",category="Operations",module_path="core.generic_agent",class_name="GenericAgent",user_id=USER,workspace_id=WORKSPACE,tenant_id=TENANT,status="student" if case=="reviewable_hard_stop" else "autonomous",confidence_score=0.35 if case=="reviewable_hard_stop" else 0.99,capabilities=["mini_app_scaffold"] if allowed else ["canvas.list"]))
         if case in ("hard_stop", "reviewable_hard_stop"):
             db.add(TenantSetting(tenant_id=TENANT,setting_key="billing",setting_value=json.dumps({"budget_limit_usd":1,"enforcement":{"mode":"hard_stop"}})))
@@ -69,8 +71,15 @@ def test_budget_scope_uses_existing_personal_account_resolution(host, case):
     agent_workspace = None if personal else WORKSPACE
     agent_tenant = None if case in ("personal_null", "workspace_fallback") else TENANT
     with host.Session() as db:
-        db.add(Tenant(id=tenant, name="Operator", subdomain="budget-operator"))
-        db.add(Workspace(id=workspace_id, name="Operator workspace", tenant_id=tenant))
+        if tenant == TENANT and workspace_id == WORKSPACE:
+            # Shared host fixture owns the authoritative primary scope.
+            assert db.get(Tenant, tenant) is not None
+            seeded_workspace = db.get(Workspace, workspace_id)
+            assert seeded_workspace is not None and str(seeded_workspace.tenant_id) == tenant
+        else:
+            # Other scratch scopes (e.g. the personal default) are created here.
+            db.add(Tenant(id=tenant, name="Operator", subdomain="budget-operator"))
+            db.add(Workspace(id=workspace_id, name="Operator workspace", tenant_id=tenant))
         db.add(AgentRegistry(
             id="budget-agent", name="Budget actor", category="Operations",
             module_path="core.generic_agent", class_name="GenericAgent",
@@ -117,8 +126,10 @@ def test_budget_scope_uses_existing_personal_account_resolution(host, case):
 def test_only_configured_approval_mode_proposes_budget_review(host, mode, allowed, review, caller):
     from core.agent_governance_service import AgentGovernanceService
     with host.Session() as db:
-        db.add(Tenant(id=TENANT, name="Operator", subdomain="budget-modes"))
-        db.add(Workspace(id=WORKSPACE, name="Operator workspace", tenant_id=TENANT))
+        # The shared host fixture seeds the authoritative Tenant+Workspace.
+        assert db.get(Tenant, TENANT) is not None
+        workspace = db.get(Workspace, WORKSPACE)
+        assert workspace is not None and str(workspace.tenant_id) == TENANT
         db.add(AgentRegistry(
             id="budget-agent", name="Budget actor", category="Operations",
             module_path="core.generic_agent", class_name="GenericAgent",

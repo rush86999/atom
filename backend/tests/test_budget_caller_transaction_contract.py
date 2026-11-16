@@ -9,8 +9,10 @@ from core.agent_governance_service import AgentGovernanceService
 @pytest.mark.parametrize("read_error", [False,True])
 def test_budget_check_does_not_commit_the_callers_edit(host,monkeypatch,flushed,read_error):
     with host.Session() as setup:
-        setup.add(Tenant(id=TENANT,name="Operator",subdomain="caller-txn"))
-        setup.add(Workspace(id=WORKSPACE,name="Operator workspace",tenant_id=TENANT))
+        # The shared host fixture seeds the authoritative Tenant+Workspace.
+        assert setup.get(Tenant, TENANT) is not None
+        workspace = setup.get(Workspace, WORKSPACE)
+        assert workspace is not None and str(workspace.tenant_id) == TENANT
         setup.add(AgentRegistry(id="caller-budget-agent",name="Budget agent",category="Operations",module_path="core.generic_agent",class_name="GenericAgent",user_id=USER,workspace_id=WORKSPACE,tenant_id=TENANT,status="autonomous",confidence_score=0.99))
         setup.commit()
     if read_error:
@@ -37,8 +39,10 @@ def test_explicit_rollup_writer_still_persists_cache(host):
     from core.models import TokenUsage
     from core.spend_aggregation_service import SpendAggregationService
     with host.Session() as db:
-        db.add(Tenant(id=TENANT,name="Operator",subdomain="explicit-rollup"))
-        db.add(Workspace(id=WORKSPACE,name="Operator workspace",tenant_id=TENANT))
+        # The shared host fixture seeds the authoritative Tenant+Workspace.
+        assert db.get(Tenant, TENANT) is not None
+        workspace = db.get(Workspace, WORKSPACE)
+        assert workspace is not None and str(workspace.tenant_id) == TENANT
         db.add(AgentRegistry(id="rollup-agent",name="Rollup agent",category="Operations",module_path="core.generic_agent",class_name="GenericAgent",user_id=USER,workspace_id=WORKSPACE,tenant_id=TENANT,status="autonomous"))
         db.add(TokenUsage(agent_id="rollup-agent",workspace_id=WORKSPACE,tenant_id=TENANT,model_name="controlled-no-provider",cost_usd=2,timestamp=datetime.now()))
         db.commit()
