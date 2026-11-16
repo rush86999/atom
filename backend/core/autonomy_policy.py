@@ -1244,6 +1244,64 @@ def create_never_rule(
     return _serialize_never_rule(row)
 
 
+def _load_owned_never_rule(db: Any, user_id: str,
+                           rule_id: str) -> Any:
+    from core.models import ActionAutonomyRule
+
+    return (
+        db.query(ActionAutonomyRule)
+        .filter(
+            ActionAutonomyRule.id == str(rule_id),
+            ActionAutonomyRule.user_id == str(user_id),
+        )
+        .first()
+    )
+
+
+def _claim_never_rule_update(
+    db: Any,
+    user_id: str,
+    rule_id: str,
+    *,
+    loaded_revision: int,
+    name: str,
+    enabled: bool,
+    match: Any,
+) -> int:
+    """Database-level compare-and-swap for one owned rule.
+
+    The loaded rule object is NOT trusted as the write fence: a peer Session
+    may have committed a newer revision after our SELECT. The conditional
+    UPDATE binds the primary key, the owner, and the persisted revision, so a
+    peer that committed first makes this statement match zero rows and the
+    stale writer can never overwrite it. ``revision`` is incremented in SQL,
+    and the ORM is told not to synchronize the (stale) identity-map instance.
+    """
+    from sqlalchemy import update
+
+    from core.models import ActionAutonomyRule
+
+    stmt = (
+        update(ActionAutonomyRule)
+        .where(
+            ActionAutonomyRule.id == str(rule_id),
+            ActionAutonomyRule.user_id == str(user_id),
+            ActionAutonomyRule.revision == int(loaded_revision),
+        )
+        .values(
+            name=name,
+            enabled=bool(enabled),
+            match_json=match,
+            # Atomic increment on the claimed row; never a Python-side +1
+            # recomputed from a snapshot that a peer may have superseded.
+            revision=ActionAutonomyRule.revision + 1,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(stmt)
+    return int(result.rowcount or 0)
+
+
 def update_never_rule(
     db: Any,
     user_id: str,
@@ -1254,33 +1312,54 @@ def update_never_rule(
     enabled: bool = True,
     expected_revision: Optional[int] = None,
 ) -> Dict[str, Any]:
-    from core.models import ActionAutonomyRule
-
-    row = (
-        db.query(ActionAutonomyRule)
-        .filter(
-            ActionAutonomyRule.id == str(rule_id),
-            ActionAutonomyRule.user_id == str(user_id),
-        )
-        .first()
-    )
+    row = _load_owned_never_rule(db, user_id, rule_id)
     if row is None:
         raise NeverRuleNotFound(rule_id)
+    loaded_revision = int(row.revision or 1)
+    # Fast, side-effect-free answer for an already-stale request. The durable
+    # claim below is still the authoritative fence for the in-flight race.
     if (expected_revision is not None
-            and int(expected_revision) != int(row.revision or 1)):
-        raise NeverRuleConflict(int(row.revision or 1))
+            and int(expected_revision) != loaded_revision):
+        raise NeverRuleConflict(loaded_revision)
+
+    # Validate the replacement body before any write is attempted. A rejected
+    # body must leave the authoritative row (and the peer's newer revision)
+    # exactly as it is.
     clean_name = str(name or "").strip()
     if not clean_name or len(clean_name) > 120:
         raise NeverRuleValidationError("name must be 1-120 characters")
     clean_match = normalize_never_match(match)
-    row.name = clean_name
-    row.enabled = bool(enabled)
-    row.match_json = clean_match
-    row.revision = int(row.revision or 1) + 1
+
+    claimed = _claim_never_rule_update(
+        db,
+        user_id,
+        rule_id,
+        loaded_revision=loaded_revision,
+        name=clean_name,
+        enabled=bool(enabled),
+        match=clean_match,
+    )
+    if claimed != 1:
+        # A peer Session committed a different revision (or removed the row)
+        # between our load and this UPDATE. The stale body is NOT persisted;
+        # report the current durable revision through the existing typed
+        # conflict so the API keeps returning 409.
+        db.rollback()
+        current = _load_owned_never_rule(db, user_id, rule_id)
+        if current is None:
+            raise NeverRuleNotFound(rule_id)
+        raise NeverRuleConflict(int(current.revision or 1))
+
     db.commit()
-    db.refresh(row)
+    # The loaded instance is stale after the Core UPDATE (and may survive the
+    # commit in an identity map that does not expire on commit). Read the
+    # authoritative row back instead of serializing pre-write attributes.
+    db.expire_all()
+    current = _load_owned_never_rule(db, user_id, rule_id)
+    if current is None:  # pragma: no cover - claimed row cannot vanish first
+        raise NeverRuleNotFound(rule_id)
     invalidate_never_autonomous_cache(user_id=user_id)
-    return _serialize_never_rule(row)
+    return _serialize_never_rule(current)
 
 
 def delete_never_rule(db: Any, user_id: str, rule_id: str) -> bool:
