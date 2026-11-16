@@ -1071,7 +1071,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 | Current-main signed-in WorkDrive/document journey | **missing** | 56/56 is bound to `24794f257`; delete truth is hosted-selected, not live-replayed on current main. |
 | Current-main Settings replay | **not re-run** | 29/29 is bound to `a53b56fdc`; later non-Settings paths changed, but no fresh run exists. |
 | Current-main workbook/canvas browser | **not re-run** | 34,533.00 and 32/32 / 22/22 are bound to `6ad2738ed`; product files outside the listed change set did not change, but no fresh run exists. |
-| Goal 10 48-hour resume | **not due / not run** | Gate is `2026-11-16T06:42:25.414033Z`; no resume report. |
+| Goal 10 48-hour resume | **resolved-bounded** | [The real 48.0203-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with the same job/execution, one verified task effect, inert duplicate and late-answer denial. Scripted model and seeded principal; current-main ordinary-model, partial-work and cancellation breadth remain unverified. The terminal case must never be rearmed. |
 | Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
 | Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
 | Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop `skills.list`/`skills.execute` with deterministic joined and denial controls; live-model competence and fresh real-Docker evidence at this source remain separate, unclaimed limits. |
