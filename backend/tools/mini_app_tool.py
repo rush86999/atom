@@ -282,6 +282,7 @@ async def mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
             app.blueprint_canvas_id,
             inputs=args.get("inputs") or {},
             user_id=viewer.id,
+            viewer=viewer,
             persist=False,
         )
         if not result.get("success"):
@@ -406,6 +407,13 @@ async def mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
 
     This is the runtime execution an agent invokes to drive a mini-app's
     controller on behalf of the requesting user.
+
+    Authority is NOT decided here: the instance canvas owner/co-editor +
+    current-scope policy is enforced inside ``run_stateful`` against the
+    authoritative ``User`` row, before it reads state or starts the runtime.
+    The tool's job is to hand over the authenticated identity it resolved from
+    the dispatch context (never a client-supplied actor) plus the same viewer
+    used for scope capping.
     """
     viewer = _require_actor(context)
     if not viewer.id:
@@ -420,6 +428,7 @@ async def mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
         inputs=args.get("inputs") or {},
         agent_id=(context or {}).get("agent_id"),
         user_id=viewer.id,
+        viewer=viewer,
         persist=True,
     )
     return result
@@ -462,7 +471,14 @@ async def mini_app_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
 
 
 async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    """Read the current state of a mini-app instance canvas."""
+    """Read the current state of a mini-app instance canvas.
+
+    Uses the same canvas authority neighborhood as ``mini_app_run``: the
+    authoritative actor, the owner/co-editor + current-scope policy and the
+    active-canvas (tombstone) gate are applied BEFORE the ``CanvasState``
+    read. There is no app-author shortcut — an installed copy's state belongs
+    to the instance canvas owner/co-editor.
+    """
     viewer = _require_actor(context)
     if not viewer.id:
         return _auth_error()
@@ -470,6 +486,12 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
     if not canvas_id:
         return {"success": False, "error": "canvas_id is required"}
     try:
+        from core.canvas_authority import (
+            CanvasAuthorityError,
+            require_active_actor,
+            require_canvas_active,
+            require_canvas_read,
+        )
         from core.database import get_db_session
         from core.models import Canvas, CanvasState
 
@@ -479,6 +501,17 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
             if not canvas.mini_app_id:
                 return {"success": False, "error": f"Canvas {canvas_id} is not a mini-app instance"}
+            try:
+                actor = require_active_actor(db, viewer.id)
+                require_canvas_read(db, canvas_id, actor)
+                require_canvas_active(db, canvas_id)
+            except CanvasAuthorityError as exc:
+                return {
+                    "success": False,
+                    "error": str(exc),
+                    "http_status": exc.status_code,
+                    "error_code": exc.code,
+                }
             row = (
                 db.query(CanvasState)
                 .filter(CanvasState.canvas_id == canvas_id)
@@ -832,7 +865,10 @@ async def mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
 #   mini_app_db_query  — read-only (query/count/get/list_series), INTERN+
 #   mini_app_db_write  — mutations (append/update/update_many/delete/
 #                        delete_series/clear), SUPERVISED+
-# Owner-gated (canvas or app owner); identity always from context. The same
+# Reads follow the accepted canvas policy (owner or historical co-editor,
+# current scope, active canvas); writes are STRICT instance-owner and
+# actor/target-frozen before the effect. Publication/approval and app
+# authorship are NOT grants. Identity always from context. The same
 # host-validated op shape as the microVM record_ops envelope, so agents and
 # app logic speak one vocabulary.
 # ---------------------------------------------------------------------------
@@ -853,21 +889,65 @@ def _require_tier(context: Dict[str, Any], minimum: str) -> Optional[str]:
     return None
 
 
+def _record_target_denial(exc: Any) -> Dict[str, Any]:
+    """Typed no-effect refusal for an instance record/data read or write."""
+    return {
+        "success": False,
+        "error": str(exc),
+        "http_status": getattr(exc, "status_code", 403),
+        "error_code": getattr(exc, "code", "CANVAS_NOT_AUTHORIZED"),
+    }
+
+
 def _resolve_record_target(db: Any, viewer: Any, canvas_id: str) -> Any:
-    """Resolve + owner-gate the instance canvas; return the Canvas row or None."""
-    from core.models import Canvas, MiniApp
+    """Resolve + READ-authorize an instance canvas (accepted canvas policy).
+
+    Installed-instance data belongs to the instance canvas, not the app
+    definition: publication/approval and ``MiniApp.created_by`` are NOT grants
+    here. Raises ``CanvasAuthorityError`` on refusal, returns ``None`` when the
+    target is structurally absent/not an instance.
+    """
+    from core.canvas_authority import (
+        require_active_actor,
+        require_canvas_active,
+        require_canvas_read,
+    )
+    from core.models import Canvas
 
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None or not canvas.mini_app_id:
+        return None
+    actor = require_active_actor(db, str(viewer.id))
+    require_canvas_read(db, canvas_id, actor)
+    require_canvas_active(db, canvas_id)
+    return canvas
+
+
+def _resolve_record_write_target(db: Any, viewer: Any, canvas_id: str) -> Any:
+    """Resolve + strict-owner WRITE-authorize an instance canvas.
+
+    Same mutation contract as the record/asset API: only the instance canvas
+    owner may write. ``require_canvas_write`` then claims the active actor and
+    freezes the canvas/scope snapshot inside this mutation transaction before
+    any record/audit effect. Raises ``CanvasAuthorityError`` on refusal.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_write,
+    )
+
+    canvas = _resolve_record_target(db, viewer, canvas_id)
     if canvas is None:
         return None
-    if not canvas.mini_app_id:
-        return None
-    app = db.query(MiniApp).filter(MiniApp.id == canvas.mini_app_id).first()
-    is_owner = str(canvas.created_by) == str(viewer.id) or (
-        app is not None and str(app.created_by) == str(viewer.id)
-    )
-    if not is_owner:
-        return None
+    if str(canvas.created_by) != str(viewer.id):
+        raise CanvasAuthorityError(
+            "Not the instance owner",
+            status_code=403,
+            code="CANVAS_NOT_INSTANCE_OWNER",
+        )
+    actor = require_active_actor(db, str(viewer.id))
+    require_canvas_write(db, canvas_id, actor)
     return canvas
 
 
@@ -890,6 +970,7 @@ async def mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     if tier_err:
         return {"success": False, "error": tier_err}
     try:
+        from core.canvas_authority import CanvasAuthorityError
         from core.database import get_db_session
         from core.mini_app_db_service import db_store_enabled, get_record, list_series
         from core.mini_app_db_service import query_records, count_records
@@ -897,7 +978,10 @@ async def mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         if not db_store_enabled():
             return {"success": False, "error": "db_disabled"}
         with get_db_session() as db:
-            canvas = _resolve_record_target(db, viewer, canvas_id)
+            try:
+                canvas = _resolve_record_target(db, viewer, canvas_id)
+            except CanvasAuthorityError as exc:
+                return _record_target_denial(exc)
             if canvas is None:
                 return {"success": False, "error": "Mini-app instance not found or not owned"}
             series = args.get("series")
@@ -955,13 +1039,17 @@ async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         return {"success": False, "error": tier_err}
     request_sha256 = _request_sha256(args)
     try:
+        from core.canvas_authority import CanvasAuthorityError
         from core.database import get_db_session
         from core.mini_app_db_service import db_store_enabled, validate_series
 
         if not db_store_enabled():
             return {"success": False, "error": "db_disabled"}
         with get_db_session() as db:
-            canvas = _resolve_record_target(db, viewer, canvas_id)
+            try:
+                canvas = _resolve_record_write_target(db, viewer, canvas_id)
+            except CanvasAuthorityError as exc:
+                return _record_target_denial(exc)
             if canvas is None:
                 return {"success": False, "error": "Mini-app instance not found or not owned"}
             from core.models import MiniApp

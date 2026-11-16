@@ -21,12 +21,18 @@ def _make_app(db, name="calc", deps=None, scopes=None):
     # collide on the shared in-memory engine.
     canvas_id = f"c-{uuid.uuid4().hex[:12]}"
     app_id = f"app-{uuid.uuid4().hex[:12]}"
+    # Honest actor world: run_stateful authorizes against the authoritative
+    # User row + the canvas audit trail (a bare "u1" would be refused).
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, "u1", "t1", "w1")
     canvas = Canvas(
         id=canvas_id, tenant_id="t1", created_by="u1", name=name,
         canvas_type="mini_app", content={"blocks": []}, style={}, status="active",
         mini_app_id=app_id,  # source canvas is the app's dev instance
     )
     db.add(canvas)
+    ensure_canvas_audit(db, canvas_id, user_id="u1", tenant_id="t1")
     db.add(CanvasLogic(canvas_id=canvas_id, language="python", source="state = {**state, 'n': state.get('n', 0) + 1}", created_by="u1"))
     app = MiniApp(
         id=app_id, tenant_id="t1", workspace_id="w1", created_by="u1", name=name,

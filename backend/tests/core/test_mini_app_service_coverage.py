@@ -54,7 +54,13 @@ def canvas(db):
         id="canvas-1", tenant_id="t1", created_by="u1", name="c",
         canvas_type="mini_app", content={"blocks": []}, style={},
     )
+    # Honest actor world: run_stateful resolves the acting user from the
+    # authoritative User row and requires the canvas's newest audit row.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, "u1", "t1", "w1")
     db.add(c)
+    ensure_canvas_audit(db, c.id, user_id="u1", tenant_id="t1")
     db.commit()
     return c
 
@@ -1381,7 +1387,7 @@ class TestRunStatefulFull:
     @pytest.mark.asyncio
     async def test_no_logic_returns_error(self, db, canvas, app):
         with patch("core.database.get_db_session", return_value=self._ctx(db)):
-            r = await svc.run_stateful(canvas.id)
+            r = await svc.run_stateful(canvas.id, user_id="u1")
         assert r["success"] is False
         assert "No logic" in r["error"]
 
@@ -1401,7 +1407,7 @@ class TestRunStatefulFull:
              patch("core.mini_app_service._inject_record_queries", return_value={}), \
              patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
              patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
-            r = await svc.run_stateful(canvas.id)
+            r = await svc.run_stateful(canvas.id, user_id="u1")
         assert r["success"] is False
         assert "truncated" in r["error"]
 
@@ -1415,7 +1421,7 @@ class TestRunStatefulFull:
              patch("core.mini_app_service._inject_record_queries", return_value={}), \
              patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
              patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
-            r = await svc.run_stateful(canvas.id)
+            r = await svc.run_stateful(canvas.id, user_id="u1")
         assert r["success"] is False
         # Runtime failures are generic in the response on purpose — the raised
         # message can carry env var names/values and FS paths.

@@ -1014,16 +1014,37 @@ def ma_app(**kw):
 
 
 def ma_canvas(**kw):
-    base = dict(id="c1", tenant_id="t1", created_by="u1", mini_app_id=None)
+    base = dict(id="c1", tenant_id="t1", workspace_id=None, created_by="u1",
+                mini_app_id=None, status="active")
     base.update(kw)
     return SimpleNamespace(**base)
 
 
-def ma_db(firsts=None, alls=None):
-    """Per-model mock db: query(Model).filter(...).first()/.all()."""
-    firsts = firsts or {}
+def ma_db(firsts=None, alls=None, *, actor_id=None, actor_tenant="t1",
+          actor_workspace="w1", canvas_audit=True):
+    """Per-model mock db: query(Model).filter(...).first()/.all().
+
+    Instance-data routes run the real canvas policy against this fake, so when
+    a Canvas is mapped seed the authoritative actor/tenant/audit rows the gate
+    reads. ``actor_id`` must be the OVERRIDDEN request user for ownership
+    tests (a mismatching id is what makes a stranger a stranger).
+    """
+    import core.models as models
+
+    firsts = dict(firsts or {})
     alls = alls or {}
+    if models.Canvas in firsts:
+        firsts.setdefault(models.Tenant.id, actor_tenant)
+        firsts.setdefault(models.User, SimpleNamespace(
+            id=actor_id or USER.id, tenant_id=actor_tenant,
+            workspace_id=actor_workspace, status="active", is_active=True))
+        if canvas_audit:
+            firsts.setdefault(models.CanvasAudit, SimpleNamespace(
+                id="audit-1", tenant_id=actor_tenant))
     db = MagicMock()
+    # The guarded actor/target claim executes a no-op UPDATE; a matching row
+    # count is what the real transaction returns for an unchanged target.
+    db.execute.return_value.rowcount = 1
 
     def query(model, *a, **k):
         chain = MagicMock()
@@ -1471,18 +1492,32 @@ class TestMiniAppRecords:
         # canvas without mini_app_id
         assert ma_client(ma_db({models.Canvas: ma_canvas(mini_app_id=None)})).get(
             "/api/mini-apps/instances/c1/records/series").status_code == 404
-        # stranger on a private instance
+        # stranger on a private instance → canvas-policy refusal (no oracle)
         stranger = SimpleNamespace(id="stranger", email="s@x.com")
-        client = make_client(ma, db=ma_db({models.Canvas: ma_canvas(mini_app_id="app-1"),
-                                           models.MiniApp: ma_app(is_public=False)}))
+        client = make_client(ma, db=ma_db(
+            {models.Canvas: ma_canvas(mini_app_id="app-1"),
+             models.MiniApp: ma_app(is_public=False)},
+            actor_id="stranger", canvas_audit=False))
         client.app.dependency_overrides[get_current_user] = lambda: stranger
-        import core.mini_app_db_service as dbs
         with patch.object(ma, "db_store_enabled", lambda: True):
-            assert client.get("/api/mini-apps/instances/c1/records/series").status_code == 403
-        # non-owner mutation on a public instance
-        pub_client = make_client(ma, db=ma_db({models.Canvas: ma_canvas(mini_app_id="app-1"),
-                                               models.MiniApp: ma_app(is_public=True)}))
+            assert client.get("/api/mini-apps/instances/c1/records/series").status_code == 404
+        # stranger on a PUBLIC instance → same refusal (publication is no grant)
+        pub_client = make_client(ma, db=ma_db(
+            {models.Canvas: ma_canvas(mini_app_id="app-1"),
+             models.MiniApp: ma_app(is_public=True)},
+            actor_id="stranger", canvas_audit=False))
         pub_client.app.dependency_overrides[get_current_user] = lambda: stranger
         with patch.object(ma, "db_store_enabled", lambda: True):
             assert pub_client.post("/api/mini-apps/instances/c1/records",
-                                   json={"series": "s1", "data": {}}).status_code == 403
+                                   json={"series": "s1", "data": {}}).status_code == 404
+        # a read-authorized collaborator still cannot mutate (owner contract)
+        collab = make_client(ma, db=ma_db(
+            {models.Canvas: ma_canvas(mini_app_id="app-1"),
+             models.MiniApp: ma_app(is_public=True)},
+            actor_id="stranger"))
+        collab.app.dependency_overrides[get_current_user] = lambda: stranger
+        with patch.object(ma, "db_store_enabled", lambda: True):
+            assert collab.get(
+                "/api/mini-apps/instances/c1/records/series").status_code == 200
+            assert collab.post("/api/mini-apps/instances/c1/records",
+                               json={"series": "s1", "data": {}}).status_code == 403

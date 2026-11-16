@@ -824,11 +824,16 @@ def _mini_app(db, name="calc", scopes=None, status="draft"):
     app_id = f"mapp-{uuid.uuid4().hex[:12]}"
     from core.models import Canvas, CanvasLogic, CanvasState, MiniApp
 
+    # Honest actor world for the run-authority gate.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, "u1", "t1", "w1")
     db.add(Canvas(
         id=canvas_id, tenant_id="t1", workspace_id="w1", created_by="u1",
         name=name, canvas_type="mini_app", content={"blocks": []}, style={},
         status="active", mini_app_id=app_id,
     ))
+    ensure_canvas_audit(db, canvas_id, user_id="u1", tenant_id="t1")
     db.add(CanvasLogic(
         canvas_id=canvas_id, language="python",
         source="state = {**state, 'n': state.get('n', 0) + 1}",

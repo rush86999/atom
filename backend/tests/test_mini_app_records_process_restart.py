@@ -21,6 +21,22 @@ What is real here (no doubles on the surfaces under test):
   ``POST/GET /api/mini-apps/instances/{canvas_id}/records`` backed by
   ``core/mini_app_db_service.py`` on the scratch SQLite store.
 
+Permanent ordinary journey (added 2026-11-16, after the published-app
+instance-data privacy repair):
+
+* the owner SHARES the app publicly through the real ``/share`` route BEFORE
+  any foreign check, then a second normally-registered user is denied on every
+  installed-instance surface (records, record series, single record, assets,
+  update-check, record write) while the owner still gets HTTP 200;
+* RPC ``mini_app_get_state`` is owner-positive and
+  ``mini_app_get_state`` / ``mini_app_run`` are typed denials for the foreign
+  user in BOTH process phases, with an owner-id ``user_id`` param spoof that
+  must be ignored (context identity wins);
+* owner records and ``mini_app_get_state`` read-back are byte-identical
+  before/after the real restart, and the foreign denials repeat after a
+  normal fresh login on the new process. No guest is ever started: the
+  child-side execution tripwire would fail the journey if it were.
+
 Scope limits (stated, not claimed):
 
 * This qualifies ONLY the host-mediated durable record path (MINI04).
@@ -343,6 +359,92 @@ def _query_records(base_url, token, canvas_id, series, order="asc"):
     return body
 
 
+def _rpc(base_url: str, token: str, action: str, params: dict):
+    """Call the real RPC action surface (server builds the dispatch context)."""
+    return _request(
+        "POST", f"{base_url}/api/rpc/{action}", token, {"params": params})
+
+
+def _owner_instance_surface_ok(base_url, token, canvas_id, record_id, series):
+    """Every installed-instance read the owner must still get (HTTP 200)."""
+    body = _query_records(base_url, token, canvas_id, series)
+    status, series_body = _request(
+        "GET", f"{base_url}/api/mini-apps/instances/{canvas_id}/records/series",
+        token)
+    assert status == 200 and series_body.get("success") is True, series_body
+    status, record_body = _request(
+        "GET",
+        f"{base_url}/api/mini-apps/instances/{canvas_id}/records/{record_id}"
+        f"?series={series}",
+        token)
+    assert status == 200 and record_body.get("success") is True, record_body
+    status, assets_body = _request(
+        "GET", f"{base_url}/api/mini-apps/instances/{canvas_id}/assets", token)
+    assert status == 200 and assets_body.get("success") is True, assets_body
+    status, update_body = _request(
+        "GET", f"{base_url}/api/mini-apps/instances/{canvas_id}/update-check",
+        token)
+    assert status == 200 and update_body.get("success") is True, update_body
+
+    state_status, state_envelope = _rpc(
+        base_url, token, "mini_app_get_state", {"canvas_id": canvas_id})
+    assert state_status == 200, state_envelope
+    assert state_envelope.get("success") is True, state_envelope
+    state = state_envelope.get("data") or {}
+    assert state.get("success") is True, state
+    assert state.get("canvas_id") == canvas_id, state
+    return body, state
+
+
+def _assert_no_instance_payload(body):
+    for key in ("records", "series", "record", "assets", "count",
+                "update_available", "state", "version"):
+        assert key not in body, body
+
+
+def _assert_foreign_instance_denied(base_url, token, canvas_id, record_id,
+                                    series, owner_user_id):
+    """A normal foreign user gets NO installed-instance data on any surface.
+
+    ``user_id`` in the RPC params is the ACTUAL owner id on purpose: the
+    handler must use the authenticated context identity, never the params.
+    """
+    reads = [
+        ("GET", f"/api/mini-apps/instances/{canvas_id}/records?series={series}"),
+        ("GET", f"/api/mini-apps/instances/{canvas_id}/records/series"),
+        ("GET", f"/api/mini-apps/instances/{canvas_id}/records/{record_id}"
+                f"?series={series}"),
+        ("GET", f"/api/mini-apps/instances/{canvas_id}/assets"),
+        ("GET", f"/api/mini-apps/instances/{canvas_id}/update-check"),
+    ]
+    for method, path in reads:
+        status, body = _request(method, base_url + path, token)
+        assert status in (403, 404), (path, status, body)
+        _assert_no_instance_payload(body)
+
+    write_status, write_body = _request(
+        "POST", f"{base_url}/api/mini-apps/instances/{canvas_id}/records",
+        token, {"series": series, "data": {"kind": "intrusion"}})
+    assert write_status in (403, 404), (write_status, write_body)
+    _assert_no_instance_payload(write_body)
+
+    spoof = {"user_id": owner_user_id}
+    for action, params in (
+        ("mini_app_get_state", {"canvas_id": canvas_id, **spoof}),
+        # No guest: the canvas gate refuses BEFORE get_miniapp_runtime(); the
+        # child-side tripwire would otherwise write the execution marker.
+        ("mini_app_run", {"canvas_id": canvas_id, "inputs": {}, **spoof}),
+    ):
+        rpc_status, rpc_body = _rpc(base_url, token, action, params)
+        assert rpc_status == 200, (action, rpc_status, rpc_body)
+        assert rpc_body.get("success") is False, (action, rpc_body)
+        data = rpc_body.get("data") or {}
+        assert data.get("success") is False, (action, data)
+        assert data.get("error_code") in {
+            "CANVAS_NOT_AUTHORIZED", "CANVAS_ACTOR_REFUSED"}, (action, data)
+        _assert_no_instance_payload(data)
+
+
 # ---------------------------------------------------------------------------
 # The journey
 # ---------------------------------------------------------------------------
@@ -431,23 +533,28 @@ def test_mini_app_records_persist_across_real_process_restart(tmp_path):
             empty_b = _query_records(base1, token, instance_b, series)
             assert empty_b["count"] == 0, empty_b
 
+            # --- Owner shares the app PUBLICLY before any foreign check -----
+            share_status, share = _request(
+                "POST", f"{base1}/api/mini-apps/{app_id}/share?public=true",
+                token)
+            assert share_status == 200, share
+            assert share.get("is_public") is True, share
+
+            # Owner surfaces stay valid (HTTP 200) on the public app instance.
+            owner_records_before, owner_state_before = (
+                _owner_instance_surface_ok(
+                    base1, token, instance_a, rec1["id"], series))
+            assert owner_records_before["count"] == 2
+
             # --- Authorization negative (second real user) ------------------
-            neg_status, neg = _request(
-                "GET",
-                f"{base1}/api/mini-apps/instances/{instance_a}/records"
-                f"?series={series}",
-                token_b,
-            )
-            assert neg_status == 403, (neg_status, neg)
-            neg_w_status, neg_w = _request(
-                "POST",
-                f"{base1}/api/mini-apps/instances/{instance_a}/records",
-                token_b, {"series": series, "data": {"kind": "intrusion"}},
-            )
-            assert neg_w_status == 403, (neg_w_status, neg_w)
+            _assert_foreign_instance_denied(
+                base1, token_b, instance_a, rec1["id"], series, owner_user_id)
             # The refused write must not have landed.
             still2 = _query_records(base1, token, instance_a, series)
             assert still2["count"] == 2
+            assert [r["id"] for r in still2["records"]] == [
+                rec1["id"], rec2["id"]]
+            assert not Path(env["MINI04_EXECUTION_MARKER"]).exists()
 
             # --- REAL process restart ---------------------------------------
             rc1 = _stop_child(child1)
@@ -481,6 +588,18 @@ def test_mini_app_records_persist_across_real_process_restart(tmp_path):
                 assert after["records"][0]["data"] == rec1["data"]
                 assert after["records"][1]["data"] == rec2["data"]
 
+                # Owner record + state read-back is unchanged across the real
+                # restart (captured in phase 1, same scratch DB/new process).
+                owner_records_after, owner_state_after = (
+                    _owner_instance_surface_ok(
+                        base2, token2, instance_a, rec1["id"], series))
+                assert owner_records_after["count"] == 2
+                assert [r["id"] for r in owner_records_after["records"]] == [
+                    rec1["id"], rec2["id"]]
+                assert owner_records_after["records"] == before["records"]
+                assert owner_state_after["state"] == owner_state_before["state"]
+                assert owner_state_after["version"] == owner_state_before["version"]
+
                 # Monotonic seq continues strictly later after the restart.
                 rec3 = _append_record(base2, token2, instance_a, series,
                                       {"kind": "note", "body": "after-restart"})
@@ -491,14 +610,14 @@ def test_mini_app_records_persist_across_real_process_restart(tmp_path):
                 empty_b2 = _query_records(base2, token2, instance_b, series)
                 assert empty_b2["count"] == 0, empty_b2
 
-                # And the second user's refusal persists on the new process.
-                neg2_status, _ = _request(
-                    "GET",
-                    f"{base2}/api/mini-apps/instances/{instance_a}/records"
-                    f"?series={series}",
-                    token_b,
-                )
-                assert neg2_status == 403, neg2_status
+                # And the second user's refusal persists on the new process
+                # after a NORMAL fresh login there (no fabricated JWT).
+                token_b2 = _login(base2, email_b, password_b)
+                _assert_foreign_instance_denied(
+                    base2, token_b2, instance_a, rec1["id"], series,
+                    owner_user_id)
+                still3 = _query_records(base2, token2, instance_a, series)
+                assert still3["count"] == 3
                 assert not Path(env["MINI04_EXECUTION_MARKER"]).exists()
             finally:
                 _stop_child(child2)

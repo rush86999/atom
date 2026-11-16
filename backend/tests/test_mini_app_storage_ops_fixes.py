@@ -30,11 +30,16 @@ def _make_app(db, storage_cfg=None):
                                     "max_bytes_per_object": 5 * 1024 * 1024},
         "initial_state": {}, "blueprint": {},
     }
+    # Honest actor world for the run-authority gate.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, "u1", "t1", "w1")
     db.add(MiniApp(id=app_id, tenant_id="t1", workspace_id="w1", created_by="u1",
                    name="t", manifest=manifest, blueprint_canvas_id=canvas_id, status="draft"))
     db.add(Canvas(id=canvas_id, tenant_id="t1", created_by="u1", name="inst",
                   canvas_type="mini_app", content={}, style={}, status="active",
                   mini_app_id=app_id))
+    ensure_canvas_audit(db, canvas_id, user_id="u1", tenant_id="t1")
     db.add(CanvasLogic(canvas_id=canvas_id, language="python", source="state = state", created_by="u1"))
     db.add(CanvasState(canvas_id=canvas_id, tenant_id="t1", state={}, version=1))
     db.commit()

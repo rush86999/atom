@@ -25,11 +25,17 @@ def _make_app(db, name="store", manifest_extra=None):
     }
     if manifest_extra:
         manifest.update(manifest_extra)
+    # Honest actor world for the run-authority gate (see
+    # tests/mini_app_authority_fixtures.py).
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, "u1", "t1", "w1")
     db.add(Canvas(
         id=canvas_id, tenant_id="t1", created_by="u1", name=name,
         canvas_type="mini_app", content={"blocks": []}, style={}, status="active",
         mini_app_id=app_id,
     ))
+    ensure_canvas_audit(db, canvas_id, user_id="u1", tenant_id="t1")
     db.add(CanvasLogic(canvas_id=canvas_id, language="python", source="state = state", created_by="u1"))
     db.add(MiniApp(
         id=app_id, tenant_id="t1", workspace_id="w1", created_by="u1", name=name,

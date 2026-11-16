@@ -1202,13 +1202,21 @@ async def _inject_data_sources(
     tenant_id: str,
     workspace_id: Optional[str],
     agent_id: Optional[str],
+    *,
+    authority_check: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Pre-fetch existing-system data into ``inputs["data_sources"]``.
 
     Currently supports ``documents.search`` (over IngestedDocument /
     KnowledgeDocument). Unknown or failing sources are logged + skipped —
     never crash the run. Results are size-capped (5 MiB serialized).
+
+    ``authority_check`` (optional callable) runs immediately before EVERY
+    source dispatch; a refusal propagates and stops the remaining calls (the
+    caller returns a typed denial instead of running the guest).
     """
+    from core.canvas_authority import CanvasAuthorityError
+
     out: Dict[str, Any] = {}
     for ds in manifest.get("data_sources") or []:
         ds_type = ds.get("type")
@@ -1219,6 +1227,11 @@ async def _inject_data_sources(
                 query = (ds.get("query") or "").strip()
                 if not query:
                     continue
+                # Per-dispatch authority boundary. Reraised below: the
+                # skip-on-failure catch must not swallow a refusal (which also
+                # stops every remaining source).
+                if authority_check is not None:
+                    authority_check()
                 res = await _safe_action_call(
                     action_registry, "documents.search",
                     {"query": query, "limit": int(ds.get("limit", 10))},
@@ -1227,6 +1240,8 @@ async def _inject_data_sources(
                 payload = res.get("data") if isinstance(res, dict) else None
                 if isinstance(payload, dict) and _json_bytes(payload) <= _DEFAULT_DATA_SOURCE_CAP:
                     out.setdefault("documents", []).extend(payload.get("results") or [])
+        except CanvasAuthorityError:
+            raise
         except Exception as e:  # noqa: BLE001
             logger.debug("data_source %s skipped: %s", ds_type, e)
     return out
@@ -1238,6 +1253,8 @@ async def _inject_integration_sources(
     workspace_id: Optional[str],
     agent_id: Optional[str],
     db: Optional[Session] = None,
+    *,
+    authority_check: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Pre-fetch integration data into ``inputs["data_sources"]``.
 
@@ -1249,7 +1266,11 @@ async def _inject_integration_sources(
     skipped; results are size-capped.
 
     ``mcp_servers`` is a deprecated alias read as a fallback.
+    ``authority_check`` (optional callable) runs immediately before EVERY
+    integration dispatch; a refusal propagates (not swallowed by the
+    skip-on-failure catch) and stops the remaining sources.
     """
+    from core.canvas_authority import CanvasAuthorityError
     from core.mini_app_integration_dispatch import dispatch
 
     integrations = manifest.get("integrations")
@@ -1262,6 +1283,10 @@ async def _inject_integration_sources(
         if not service or not action:
             continue
         try:
+            # Per-dispatch authority boundary: each source may resolve
+            # credentials and reach an external system.
+            if authority_check is not None:
+                authority_check()
             result = await dispatch(
                 service, action, ms.get("params") or {},
                 tenant_id=tenant_id, db=db,
@@ -1271,6 +1296,8 @@ async def _inject_integration_sources(
             payload = result.get("data")
             if isinstance(payload, (dict, list)) and _json_bytes(payload) <= _DEFAULT_DATA_SOURCE_CAP:
                 out[service] = payload
+        except CanvasAuthorityError:
+            raise
         except Exception as e:  # noqa: BLE001
             logger.debug("mcp source %s/%s skipped: %s", service, action, e)
     return out
@@ -1348,23 +1375,144 @@ def _resolve_integration_credentials(
     return {}
 
 
+def _same_raw_scope_value(current: Any, expected: Any) -> bool:
+    """Exact raw-value scope comparison (NULL distinct from '' and 'default')."""
+    def _norm(value: Any) -> Optional[str]:
+        return None if value is None else str(value)
+
+    return _norm(current) == _norm(expected)
+
+
+def _frozen_instance_scope(canvas: Any) -> Dict[str, Any]:
+    """Freeze the target material used for host-side dispatch under a grant."""
+    return {
+        "tenant_id": getattr(canvas, "tenant_id", None),
+        "workspace_id": getattr(canvas, "workspace_id", None),
+        "mini_app_id": getattr(canvas, "mini_app_id", None),
+    }
+
+
+def _reauthorize_canvas_actor(
+    canvas_id: str,
+    actor_id: str,
+    *,
+    expected_scope: Optional[Dict[str, Any]] = None,
+    expected_actor_scope: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Re-apply the shared canvas gate for an IN-RUN external effect.
+
+    The guest executes for seconds and integration callbacks dispatch while it
+    runs. A grant captured before the guest must not authorize a dispatch
+    after the actor was deactivated, the canvas was tombstoned, or the actor /
+    canvas scope moved: this re-reads the authoritative ``User`` row, the
+    canvas owner/co-editor + current-scope policy, and the active-canvas
+    tombstone in a FRESH session (the run session's identity map / open read
+    snapshot would otherwise answer with the pre-guest grant).
+
+    ``expected_scope`` / ``expected_actor_scope`` are the exact material frozen
+    under the pre-run grant (canvas tenant/workspace/instance id and the raw
+    actor tenant/workspace). A peer that moves BOTH actor and canvas to a new
+    scope still passes the policy check, but the frozen dispatch material
+    (tenant/workspace used for credential and resource resolution) no longer
+    matches, so the effect is refused instead of running against old-tenant
+    resources. Raises ``CanvasAuthorityError`` (fail-closed); it performs no
+    dispatch itself.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_active,
+        require_canvas_read,
+    )
+    from core.database import get_db_session
+    from core.models import Canvas
+
+    with get_db_session() as check_db:
+        actor = require_active_actor(check_db, str(actor_id))
+        require_canvas_read(check_db, str(canvas_id), actor)
+        require_canvas_active(check_db, str(canvas_id))
+        if expected_scope is not None:
+            fresh = check_db.query(Canvas).filter(
+                Canvas.id == str(canvas_id)).first()
+            if fresh is None:
+                raise CanvasAuthorityError(
+                    f"Canvas {canvas_id} not found",
+                    status_code=404,
+                    code="CANVAS_NOT_AUTHORIZED",
+                )
+            if not (
+                _same_raw_scope_value(
+                    getattr(fresh, "tenant_id", None),
+                    expected_scope.get("tenant_id"))
+                and _same_raw_scope_value(
+                    getattr(fresh, "workspace_id", None),
+                    expected_scope.get("workspace_id"))
+                and _same_raw_scope_value(
+                    getattr(fresh, "mini_app_id", None),
+                    expected_scope.get("mini_app_id"))
+            ):
+                raise CanvasAuthorityError(
+                    "Canvas authorization scope changed during the run",
+                    status_code=409,
+                    code="CANVAS_SCOPE_CHANGED",
+                )
+        if expected_actor_scope is not None and not (
+            _same_raw_scope_value(
+                actor.get("tenant_id"), expected_actor_scope.get("tenant_id"))
+            and _same_raw_scope_value(
+                actor.get("workspace_id"),
+                expected_actor_scope.get("workspace_id"))
+        ):
+            raise CanvasAuthorityError(
+                "Acting user authorization scope changed during the run",
+                status_code=409,
+                code="CANVAS_ACTOR_SCOPE_CHANGED",
+            )
+
+
 def _make_callback_handler(
     db: Any,
     tenant_id: str,
     scopes: Tuple[str, ...],
     workspace_id: Optional[str],
     agent_id: Optional[str],
+    *,
+    authority_check: Optional[Any] = None,
 ) -> Any:
     """Build the async callback handler passed to ``execute_python``.
 
-    Services guest ``fetch_integration`` callbacks: scope-gated, credential-
-    resolved host-side (tokens never reach the guest), size-capped, skip-on-
-    failure. Only ``integrations.<service>`` (or ``*``) in the resolved scopes
-    permits a call; otherwise the guest sees ``scope_denied`` so user code can
-    react gracefully.
+    Services guest ``fetch_integration`` callbacks: authority-gated, scope-
+    gated, credential-resolved host-side (tokens never reach the guest),
+    size-capped, skip-on-failure. Only ``integrations.<service>`` (or ``*``)
+    in the resolved scopes permits a call; otherwise the guest sees
+    ``scope_denied`` so user code can react gracefully.
+
+    ``authority_check`` (optional callable) re-validates CURRENT canvas
+    authority immediately before each external dispatch. The run's pre-guest
+    gate is not a license for the whole guest lifetime: a callback that fires
+    after the actor was deactivated or the scope moved returns
+    ``authority_denied`` and dispatches nothing (no credential resolution, no
+    integration call).
     """
 
     async def handler(request: Dict[str, Any]) -> Dict[str, Any]:
+        # Authority first: even a malformed request must not be processed on
+        # behalf of a grant that no longer holds.
+        if authority_check is not None:
+            from core.canvas_authority import CanvasAuthorityError
+
+            try:
+                authority_check()
+            except CanvasAuthorityError as exc:
+                logger.warning(
+                    "callback %s denied by canvas authority: %s",
+                    request.get("kind"), exc.code)
+                return {"ok": False, "error": "authority_denied"}
+            except Exception as exc:  # noqa: BLE001 - unreadable is not a grant
+                logger.warning(
+                    "callback %s authority recheck failed: %s",
+                    request.get("kind"), type(exc).__name__)
+                return {"ok": False, "error": "authority_denied"}
         kind = request.get("kind")
         if kind != "fetch_integration":
             return {"ok": False, "error": f"unknown callback kind: {kind}"}
@@ -1425,7 +1573,30 @@ async def run_stateful(
     the acceptance-test harness so each test case is self-contained
     (given-state → expected-state) instead of depending on run order. Only
     meaningful with ``persist=False``.
+
+    **Authority** (the same gate every specialized canvas family uses): the
+    acting user is resolved from the authoritative ``User`` row — never from
+    caller-supplied tenant/workspace claims — and the canvas owner/co-editor +
+    current-scope policy is applied BEFORE any state read, asset/integration
+    injection, policy/FS allocation, runtime execution or callback. A dry-run
+    needs read authority; a persisting run additionally claims and freezes the
+    target (``require_canvas_write``) immediately before its first effect, so a
+    peer move between the check and the write produces no partial effect.
+    The pre-run grant is not reused for external dispatches: the actor, the
+    active-canvas tombstone and the frozen actor/target scope+instance
+    identity are re-checked immediately before EACH integration pre-fetch and
+    before EVERY in-guest callback dispatch, so a deactivation, mid-guest
+    delete or a peer actor+canvas scope move yields ``authority_denied`` (or a
+    typed pre-guest refusal) with no credential resolution and no dispatch.
+    The same active-canvas + frozen-identity check runs before local persist.
     """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_active,
+        require_canvas_read,
+        require_canvas_write,
+    )
     from core.canvas_logic_service import CanvasLogicService
     from core.mini_app_storage import get_max_object_bytes, get_mini_app_storage
     from core.models import Canvas, CanvasState, MiniApp, MiniAppAsset
@@ -1446,6 +1617,45 @@ async def run_stateful(
             if app is None:
                 return {"success": False, "error": f"MiniApp {canvas.mini_app_id} not found"}
 
+            # ---- Authority gate: before state / assets / policy / fs /
+            # runtime / callbacks. Identity must be present and consistent;
+            # the authoritative User row (not the caller's viewer/tenant
+            # claims) decides. Missing/inactive/foreign → typed refusal with
+            # no read, no runtime, no storage/record write, no broadcast.
+            explicit_actor = str(user_id).strip() if user_id is not None else ""
+            viewer_actor = str(getattr(viewer, "id", None) or "").strip()
+            if explicit_actor and viewer_actor and explicit_actor != viewer_actor:
+                raise CanvasAuthorityError(
+                    "Acting user identity is inconsistent",
+                    status_code=403,
+                    code="CANVAS_ACTOR_MISMATCH",
+                )
+            actor = require_active_actor(db, explicit_actor or viewer_actor)
+            require_canvas_read(db, canvas_id, actor)
+            require_canvas_active(db, canvas_id)
+            # Attribution (CanvasState.created_by, asset/record rows, audit
+            # rows) follows the verified actor id.
+            user_id = str(actor["id"])
+
+            # Freeze the exact target/actor material this grant was issued for.
+            # Host-side dispatch resolves resources with the frozen tenant/
+            # workspace, so every in-run effect must re-prove that CURRENT
+            # actor + target still equal it — a peer move (even a consistent
+            # User+Canvas move) must not authorize old-scope resources.
+            frozen_scope = _frozen_instance_scope(canvas)
+            frozen_actor_scope = {
+                "tenant_id": actor.get("tenant_id"),
+                "workspace_id": actor.get("workspace_id"),
+            }
+
+            def _authority_check() -> None:
+                _reauthorize_canvas_actor(
+                    canvas_id,
+                    actor["id"],
+                    expected_scope=frozen_scope,
+                    expected_actor_scope=frozen_actor_scope,
+                )
+
             manifest = app.manifest or {}
             if initial_state is not None:
                 current_state, version = dict(initial_state), 0
@@ -1457,12 +1667,17 @@ async def run_stateful(
 
             asset_inputs = _inject_assets(manifest, canvas.tenant_id, canvas_id)
             record_inputs = _inject_record_queries(manifest, db, canvas_id)
+            # The pre-fetch injectors dispatch external integrations with
+            # host-held credentials; each internal dispatch re-validates
+            # authority (a refusal stops the remaining sources).
             data_source_inputs = await _inject_data_sources(
-                manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id
+                manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id,
+                authority_check=_authority_check,
             )
             mcp_inputs = await _inject_integration_sources(
                 manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id,
                 db=db,
+                authority_check=_authority_check,
             )
             data_source_inputs.update(mcp_inputs)
 
@@ -1497,8 +1712,16 @@ async def run_stateful(
             wrapped = _wrap_source(source.get("source", ""))
 
             runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable (or docker-dev refused/unreachable)
+            # Release the read snapshot before the guest: in-guest callback
+            # rechecks must observe current authority, and the host must not
+            # keep a read transaction open for the whole VM run.
+            db.commit()
             callback_handler = _make_callback_handler(
-                db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id
+                db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id,
+                # Re-check CURRENT active canvas + frozen actor/target identity
+                # before EVERY in-guest external dispatch — the guest outlives
+                # the pre-run grant.
+                authority_check=_authority_check,
             )
             result = await runtime.execute_python(
                 wrapped,
@@ -1567,6 +1790,17 @@ async def run_stateful(
 
             new_state = current_state
             op_results: List[Dict[str, Any]] = []
+            if persist and envelope is not None:
+                # A persisting run is a canvas WRITE. First re-prove the canvas
+                # is still ACTIVE and that CURRENT actor + target still equal
+                # the frozen grant material (catches a mid-guest delete or a
+                # consistent actor+canvas scope move, which would otherwise
+                # persist under stale tenant/workspace identity). Then apply
+                # the shared owner/co-editor + scope policy and freeze the
+                # exact target (actor claim + guarded no-op DML) in this
+                # transaction before the first storage/record/state effect.
+                _authority_check()
+                require_canvas_write(db, canvas_id, actor)
             # Bug fix: storage_ops now respects the manifest storage.enabled
             # gate (parity with record_ops' db.enabled gate) AND uses the same
             # per-object cap as the REST upload path so an asset written via the
@@ -1690,6 +1924,19 @@ async def run_stateful(
                 "proposed_record_ops": record_results if not persist else [],
                 "callbacks": meta.get("callbacks", []),
             }
+    except CanvasAuthorityError as exc:
+        # Typed, fail-closed refusal from the shared canvas gate. Returned
+        # before any state read / runtime / storage / record / broadcast
+        # effect; the message is the accepted canvas-authority wording
+        # ("not found" for a non-owner, so it is not an existence oracle).
+        logger.info(
+            "MiniApp run refused for %s: %s (%s)", canvas_id, exc.code, exc)
+        return {
+            "success": False,
+            "error": str(exc),
+            "http_status": exc.status_code,
+            "error_code": exc.code,
+        }
     except RuntimeError as e:
         # Keep runtime failures generic in the response — the raised message
         # can carry env var names/values and FS paths (e.g. Firecracker

@@ -149,6 +149,14 @@ def _viewer(**kw):
 
 
 @pytest.fixture
+def fake_canvas_gate():
+    from tests.mini_app_authority_fixtures import patched_canvas_gate
+
+    with patched_canvas_gate():
+        yield
+
+
+@pytest.fixture
 def ctx():
     return {"user_id": "user-1", "agent_id": "agent-1", "tier": "autonomous"}
 
@@ -409,7 +417,7 @@ class TestMiniAppToolGaps:
         assert res["success"] is False and res["apps"] == []
 
     @pytest.mark.asyncio
-    async def test_get_state_paths(self, ctx):
+    async def test_get_state_paths(self, ctx, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_get_state
 
         with patch("core.database.get_db_session") as gds:
@@ -598,7 +606,7 @@ class TestMiniAppToolGaps:
         assert res["success"] is False and res["error"] == "db_disabled"
 
     @pytest.mark.asyncio
-    async def test_db_query_target_paths(self, ctx):
+    async def test_db_query_target_paths(self, ctx, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_db_query
 
         with patch("core.mini_app_db_service.db_store_enabled", return_value=True), patch(
@@ -639,7 +647,7 @@ class TestMiniAppToolGaps:
                 assert res["success"] is True and res["count"] == 1
 
     @pytest.mark.asyncio
-    async def test_db_query_count_get_list(self, ctx):
+    async def test_db_query_count_get_list(self, ctx, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_db_query
 
         canvas = SimpleNamespace(id="c", mini_app_id="app-1", created_by="user-1")
@@ -695,7 +703,7 @@ class TestMiniAppToolGaps:
             assert res["success"] is False and "not owned" in res["error"]
 
     @pytest.mark.asyncio
-    async def test_db_write_op_execution(self, ctx):
+    async def test_db_write_op_execution(self, ctx, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_db_write
 
         canvas = SimpleNamespace(id="c", mini_app_id="app-1", created_by="user-1")

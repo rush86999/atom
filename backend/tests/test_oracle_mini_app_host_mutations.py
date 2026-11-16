@@ -46,7 +46,9 @@ from core.models import (
     CanvasState,
     MiniApp,
     MiniAppInstallation,
+    Tenant,
     User,
+    Workspace,
 )
 from core.oracle import get_postcondition, validate
 from core.task_lifecycle import TaskLifecycle, _approval_payload_hash
@@ -81,6 +83,14 @@ def host(tmp_path, monkeypatch):
     monkeypatch.setattr("core.database.engine", engine)
 
     with Session() as db:
+        # Honest scope rows: the canvas policy resolves the acting user's
+        # effective tenant/workspace against authoritative Tenant/Workspace
+        # rows (the User row below already points at them).
+        db.add(Tenant(
+            id=TENANT, name="Host tenant", subdomain="host-proof-tenant",
+            edition="personal", is_active=True))
+        db.add(Workspace(id=WORKSPACE, name="Host workspace", tenant_id=TENANT))
+        db.flush()
         db.add(User(
             id=USER, tenant_id=TENANT, workspace_id=WORKSPACE,
             email="host-proof@example.com", hashed_password="x",

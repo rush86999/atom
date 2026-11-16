@@ -2,8 +2,12 @@
 
 Auth: every route requires ``get_current_user``. Owner-scoped mutations (save
 logic, dev-run, update, publish, delete asset) require ``created_by == user``.
-Asset routes require the instance canvas to carry ``mini_app_id`` and the
-requester to own the canvas (or the app to be public).
+App definitions (listing/get/publish/share/approved install) stay shareable;
+an INSTALLED INSTANCE is user data and follows the accepted canvas policy:
+the authoritative actor must be the canvas owner or a historical co-editor,
+within the current tenant/workspace, on an active canvas. Publication or
+approval is a marketplace-install signal, never a grant to read another
+user's instance records/assets.
 """
 from __future__ import annotations
 
@@ -94,14 +98,31 @@ def _require_owner(app: MiniApp, user: User) -> None:
 
 
 def _require_instance_canvas(db: Session, canvas_id: str, user: User) -> Canvas:
+    """Authorize a READ of installed-instance data with the canvas policy.
+
+    Mini-app **definitions** are shareable (listing / get / publish / share /
+    approved install); an **installed instance** is the installer's data.
+    Publication or approval is a marketplace-install signal and an app author
+    is not an instance authority — neither is a grant here. The actor is the
+    authoritative ``User`` row and the accepted canvas policy (owner or
+    historical co-editor, current tenant/workspace, active canvas) decides.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_active,
+        require_canvas_read,
+    )
+
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
     if canvas is None or not canvas.mini_app_id:
         raise HTTPException(status_code=404, detail="Mini-app instance canvas not found")
-    app = db.query(MiniApp).filter(MiniApp.id == canvas.mini_app_id).first()
-    is_owner = str(canvas.created_by) == str(user.id)
-    is_public = bool(app and app.is_public)
-    if not (is_owner or is_public):
-        raise HTTPException(status_code=403, detail="Not authorized to access this instance")
+    try:
+        actor = require_active_actor(db, str(user.id))
+        require_canvas_read(db, canvas_id, actor)
+        require_canvas_active(db, canvas_id)
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
     return canvas
 
 
@@ -205,6 +226,7 @@ async def dev_run_mini_app(
         app.blueprint_canvas_id,
         inputs=body.inputs,
         user_id=str(current_user.id),
+        viewer=current_user,
         persist=False,
     )
     if not result.get("success"):
@@ -465,8 +487,8 @@ async def upload_instance_asset(
     from core.mini_app_storage import validate_key
 
     canvas = _require_instance_canvas(db, canvas_id, current_user)
-    # Mutations are owner-gated: a public app must NOT let a stranger write
-    # into the owner's instance namespace (viewer/operator rights never widen).
+    # Mutations are owner-gated: publication never lets a stranger write into
+    # another user's instance namespace (viewer/operator rights never widen).
     _require_instance_owner(canvas, current_user)
     cap = get_max_object_bytes()
     data = await file.read()
@@ -477,6 +499,7 @@ async def upload_instance_asset(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    _freeze_instance_write(db, canvas, current_user)  # before storage effect
     storage = get_mini_app_storage(canvas.tenant_id, canvas_id)
     uri = storage.store(key, data, content_type=file.content_type)
     row = db.query(MiniAppAsset).filter(
@@ -554,8 +577,8 @@ async def delete_instance_asset(
     db: Session = Depends(get_db),
 ):
     canvas = _require_instance_canvas(db, canvas_id, current_user)
-    if str(canvas.created_by) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Not the instance owner")
+    _require_instance_owner(canvas, current_user)
+    _freeze_instance_write(db, canvas, current_user)  # before storage effect
     storage = get_mini_app_storage(canvas.tenant_id, canvas_id)
     ok = storage.delete(key)
     row = db.query(MiniAppAsset).filter(
@@ -570,9 +593,11 @@ async def delete_instance_asset(
 
 # ---------------------------------------------------------------------------
 # Instance record store — the mini-app data layer (host-mediated CRUD).
-# Reads: owner or public instance (via _require_instance_canvas). Mutations:
-# owner-only. Kill switch (ATOM_MINIAPP_DB_ENABLED=false) → 503 db_disabled.
-# No str(e) in any error body.
+# Reads follow the accepted canvas policy (owner or historical co-editor,
+# current scope, active canvas). Mutations stay strict instance-owner and are
+# actor/target-frozen before the effect. Publication/approval and app
+# authorship are NOT instance-data grants. Kill switch
+# (ATOM_MINIAPP_DB_ENABLED=false) → 503 db_disabled. No str(e) in any body.
 # ---------------------------------------------------------------------------
 def _require_db_enabled() -> None:
     if not db_store_enabled():
@@ -591,6 +616,28 @@ def _record_series_or_400(series: Any) -> str:
 def _require_instance_owner(canvas: Canvas, user: User) -> None:
     if str(canvas.created_by) != str(user.id):
         raise HTTPException(status_code=403, detail="Not the instance owner")
+
+
+def _freeze_instance_write(db: Session, canvas: Canvas, user: User) -> None:
+    """Bind a strict-owner instance mutation to the exact actor + target.
+
+    ``_require_instance_owner`` is the (unchanged) mutation contract — a
+    read-authorized co-editor still may not write another user's instance
+    data. ``require_canvas_write`` then claims the active authoritative actor
+    and freezes the canvas + scope snapshot in this transaction BEFORE any
+    storage/record effect, so a concurrent move/deactivation writes nothing.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_write,
+    )
+
+    try:
+        actor = require_active_actor(db, str(user.id))
+        require_canvas_write(db, canvas.id, actor)
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
 
 
 def _manifest_db_caps(db: Session, canvas: Canvas) -> Dict[str, Any]:
@@ -655,6 +702,7 @@ async def append_instance_record(
     from core.mini_app_db_service import DEFAULT_MAX_RECORDS_PER_SERIES
 
     max_records = cfg.get("max_records_per_series", DEFAULT_MAX_RECORDS_PER_SERIES)
+    _freeze_instance_write(db, canvas, current_user)  # before record effect
     try:
         row = append_record(
             db, canvas.id, canvas.tenant_id, app.id if app is not None else canvas.mini_app_id,
@@ -748,6 +796,7 @@ async def update_instance_record(
     max_bytes = cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
     if not validate_record_data(body.data, max_bytes):
         raise HTTPException(status_code=400, detail="record data must be an object within the size cap")
+    _freeze_instance_write(db, canvas, current_user)  # before record effect
     try:
         row = update_record(db, canvas.id, s, record_id, body.data, max_bytes=max_bytes)
     except ValueError:
@@ -777,6 +826,7 @@ async def delete_instance_record(
     cfg = _manifest_db_caps(db, canvas)
     if not bool(cfg.get("enabled", True)):
         raise HTTPException(status_code=503, detail="db_disabled")
+    _freeze_instance_write(db, canvas, current_user)  # before record effect
     ok = delete_record(db, canvas.id, s, record_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Record not found")
@@ -799,5 +849,6 @@ async def delete_instance_record_series(
     cfg = _manifest_db_caps(db, canvas)
     if not bool(cfg.get("enabled", True)):
         raise HTTPException(status_code=503, detail="db_disabled")
+    _freeze_instance_write(db, canvas, current_user)  # before record effect
     n = delete_series(db, canvas.id, s)
     return {"success": True, "series": s, "deleted": n}

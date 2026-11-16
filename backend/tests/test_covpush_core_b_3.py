@@ -47,11 +47,16 @@ def _make_app(db, name="covapp", manifest_extra=None, user="u1", status="draft",
     }
     if manifest_extra:
         manifest.update(manifest_extra)
+    # Honest actor world for the run-authority gate.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, user, "t1", "w1")
     db.add(Canvas(
         id=canvas_id, tenant_id="t1", workspace_id="w1", created_by=user,
         name=name, canvas_type="mini_app", content={"blocks": []}, style={},
         is_collaborative=True, status="active", mini_app_id=app_id,
     ))
+    ensure_canvas_audit(db, canvas_id, user_id=user, tenant_id="t1")
     db.add(CanvasLogic(canvas_id=canvas_id, language="python",
                        source="state = state", created_by=user))
     db.add(MiniApp(
@@ -704,7 +709,7 @@ class TestRunStatefulPaths:
         db_session.query(CanvasLogic).filter(CanvasLogic.canvas_id == canvas_id).delete()
         db_session.commit()
         _make_runtime(monkeypatch, envelope=None)
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         assert "No logic" in res["error"]
 
     @pytest.mark.asyncio
@@ -726,7 +731,7 @@ class TestRunStatefulPaths:
                     exit_code=0, truncated=True, metadata={})
         monkeypatch.setattr("core.mini_app_service.get_miniapp_runtime",
                             lambda: FakeRuntime())
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         assert res["success"] is False
         assert "truncated" in res["error"]
 
@@ -805,7 +810,7 @@ class TestRunStatefulPaths:
         app_id, canvas_id = _make_app(db_session, state={"old": 1})
         envelope = {"state": {"override": 1}, "storage_ops": [], "record_ops": []}
         _make_runtime(monkeypatch, envelope=envelope)
-        res = await run_stateful(canvas_id, user_id=None, persist=True,
+        res = await run_stateful(canvas_id, user_id="u1", persist=True,
                                  initial_state={"custom": 9})
         assert res["state"] == {"override": 1}
         assert res["success"] is True
@@ -1040,6 +1045,7 @@ class TestHarness:
                 raise RuntimeError("flaky harness")
             return await real_run_stateful(*args, **kwargs)
 
+        viewer = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
         with patch("core.mini_app_service.run_stateful", new=run_stateful_flaky):
             result = await run_tests(app_id, canvas_id, [
                 {"name": "pass", "initial_state": {"runs": 0},
@@ -1048,7 +1054,7 @@ class TestHarness:
                  "expect_state": {"runs": 99}},
                 {"name": "raise", "initial_state": {"runs": 0},
                  "expect_state": {"runs": 1}, "inputs": {"boom": 1}},
-            ])
+            ], viewer=viewer)
         assert result["total"] == 3
         assert result["passed"] == 1
         by_name = {r["name"]: r for r in result["results"]}

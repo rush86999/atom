@@ -160,13 +160,17 @@ def test_plain_args_generic_and_assignment_produce_the_same_verified_effect(
 # ---------------------------------------------------------------------------
 
 def test_plain_args_non_miniapp_presentation_is_verified(host, monkeypatch):
-    # Only presentation requires this authoritative row. Budget fixture
-    # consumers configure their own workspace and must not inherit a seed.
-    from core.models import Workspace
+    # Presentation verifies against the authoritative scope row seeded by the
+    # shared host fixture (Tenant+Workspace). Assert it is the right scope
+    # instead of inserting a duplicate/incorrect one.
+    from core.models import Tenant, Workspace
     with host.Session() as db:
-        db.add(Workspace(id=WORKSPACE, tenant_id=TENANT,
-                         name="Presentation proof workspace", status="active"))
-        db.commit()
+        assert db.get(Tenant, TENANT) is not None, (
+            "shared host fixture must seed the authoritative tenant")
+        workspace = db.get(Workspace, WORKSPACE)
+        assert workspace is not None, (
+            "shared host fixture must seed the authoritative workspace")
+        assert str(workspace.tenant_id) == TENANT, workspace.tenant_id
     _enable_oracle(monkeypatch)
     monkeypatch.setattr("core.generic_agent.get_db_session", host.session)
     monkeypatch.setattr(

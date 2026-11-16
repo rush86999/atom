@@ -30,6 +30,20 @@ def _uid(prefix: str = "chat") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
+def _seed_actor(user_id: str) -> None:
+    """Seed the authoritative User row the chat loop's dev-run authorizes.
+
+    ``try_handle`` scaffold/dev-runs as the chat user; a bare id with no User
+    row is not an actor (Personal Edition tenant/workspace shape).
+    """
+    from core.database import get_db_session
+    from tests.mini_app_authority_fixtures import ensure_actor
+
+    with get_db_session() as db:
+        ensure_actor(db, user_id, "default", None)
+        db.commit()
+
+
 class TestGate:
     def test_matches_mini_app_spellings(self):
         for m in ("build a mini app tracker", "mini-app CRM please",
@@ -65,6 +79,7 @@ class TestChatDrivenLoop:
     @pytest.mark.asyncio
     async def test_build_publish_install_end_to_end(self, patched_db):
         user = _uid()
+        _seed_actor(user)
 
         # 1. Build (no LLM → deterministic authoring; kind from message scan).
         res = await try_handle(self.BUILD, [], user, None, None)
@@ -121,6 +136,7 @@ class TestChatDrivenLoop:
             raise RuntimeError("Firecracker not provisioned (test)")
         monkeypatch.setattr(svc, "get_miniapp_runtime", _no_runtime)
         user = _uid()
+        _seed_actor(user)
         res = await try_handle("build a mini app expense tracker", [], user, None, None)
         assert res is not None
         assert "Firecracker" in res["message"]

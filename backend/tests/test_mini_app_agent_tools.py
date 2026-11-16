@@ -46,6 +46,15 @@ def _uid(prefix: str = "u") -> str:
 
 
 async def _scaffold(user_id: str, name: str = "Counter", deps=None, scopes=None):
+    # Seed the authoritative actor first: scaffold/run resolve the acting user
+    # from the User row (a bare context user_id is not an actor), and the
+    # canvas audit row scaffold writes is what the run gate reads back.
+    from core.database import get_db_session
+    from tests.mini_app_authority_fixtures import ensure_actor
+
+    with get_db_session() as db:
+        ensure_actor(db, user_id, "default", None)
+        db.commit()
     return await action_registry.execute_action(
         "mini_app_scaffold",
         {"name": name, "declared_scopes": scopes or ["canvas_render"], "dependencies": deps or []},

@@ -183,7 +183,14 @@ class TestBrowseMetadata:
 # Gap F — update-check signal
 # ---------------------------------------------------------------------------
 class TestUpdateCheck:
+    def _installer(self, db_session):
+        """The installing user must be a real active actor (canvas policy)."""
+        from tests.mini_app_authority_fixtures import ensure_actor
+
+        ensure_actor(db_session, "u1", "t_installer", "w_installer")
+
     def test_update_available_when_version_bumps(self, db_session):
+        self._installer(db_session)
         aid = _seed_app(db_session, owner_id="u1", version="1.0.0")
         c = _client(db_session, "u1")
         cid = c.post(f"/api/mini-apps/{aid}/install").json()["canvas_id"]
@@ -197,6 +204,7 @@ class TestUpdateCheck:
         assert body["latest_version"] == "2.0.0"
 
     def test_no_update_when_versions_match(self, db_session):
+        self._installer(db_session)
         aid = _seed_app(db_session, owner_id="u1", version="1.0.0")
         c = _client(db_session, "u1")
         cid = c.post(f"/api/mini-apps/{aid}/install").json()["canvas_id"]

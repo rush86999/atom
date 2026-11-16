@@ -1221,8 +1221,8 @@ class TestMiniAppRoutes:
 
         from core.database import Base
         from core.models import (
-            Canvas, CanvasLogic, CanvasRecord, CanvasState, MiniApp,
-            MiniAppAsset, MiniAppInstallation,
+            Canvas, CanvasAudit, CanvasLogic, CanvasRecord, CanvasState, MiniApp,
+            MiniAppAsset, MiniAppInstallation, Tenant, User, Workspace,
         )
 
         engine = create_engine(
@@ -1233,9 +1233,15 @@ class TestMiniAppRoutes:
         Base.metadata.create_all(bind=engine, tables=[
             MiniApp.__table__, Canvas.__table__, CanvasLogic.__table__,
             MiniAppAsset.__table__, CanvasState.__table__, CanvasRecord.__table__,
-            MiniAppInstallation.__table__,
+            MiniAppInstallation.__table__, Tenant.__table__,
+            Workspace.__table__, User.__table__, CanvasAudit.__table__,
         ])
         session = sessionmaker(bind=engine)()
+        # Instance data follows the canvas policy: the requester must be a
+        # real active user and canvases carry their install audit row.
+        from tests.mini_app_authority_fixtures import ensure_actor
+
+        ensure_actor(session, "user-1", "t1", None)
         yield session
         session.close()
 
@@ -1303,7 +1309,12 @@ class TestMiniAppRoutes:
             name=f"instance {canvas_id}", canvas_type="mini_app",
             content={}, style={}, status="active", mini_app_id=mini_app_id,
         )
+        from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+        ensure_actor(db, owner, "t1", None)
         db.add(canvas)
+        ensure_canvas_audit(db, canvas_id, user_id=owner, tenant_id="t1",
+                            action_type="mini_app_install")
         db.commit()
         db.refresh(canvas)
         return canvas
@@ -1730,11 +1741,13 @@ class TestMiniAppRoutes:
         r = client.get("/api/mini-apps/instances/canvas-1/update-check")
         assert r.json()["update_available"] is False
 
-    def test_update_check_instance_403_for_stranger(self, client, db_session):
+    def test_update_check_instance_denied_for_stranger(self, client, db_session):
         self._make_app(db_session, status="published")
         self._make_canvas(db_session, owner="other-user")
         r = client.get("/api/mini-apps/instances/canvas-1/update-check")
-        assert r.status_code == 403
+        # Publication is not a grant: stranger gets the canvas-policy refusal.
+        assert r.status_code == 404
+        assert "installed_version" not in r.json()
 
     def test_update_check_instance_404(self, client):
         r = client.get("/api/mini-apps/instances/ghost/update-check")
@@ -1834,9 +1847,28 @@ class TestMiniAppRoutes:
                             files={"file": ("e.bin", b"x", "application/octet-stream")})
         assert r.status_code == 400
 
-    def test_upload_asset_non_owner_403(self, client, db_session):
+    def test_upload_asset_non_owner_denied(self, client, db_session):
         self._make_app(db_session, status="published", is_public=True)
         self._make_canvas(db_session, owner="other-user")
+        c = self._asset_client(db_session, user_id="user-1")
+        r = c.post("/api/mini-apps/instances/canvas-1/assets",
+                   data={"key": "k.png"},
+                   files={"file": ("k.png", b"x", "image/png")})
+        assert r.status_code == 404
+        from core.models import MiniAppAsset
+        assert db_session.query(MiniAppAsset).count() == 0
+
+    def test_upload_asset_collaborator_stays_owner_only(self, client, db_session):
+        from core.models import CanvasAudit
+
+        self._make_app(db_session, status="published", is_public=True)
+        self._make_canvas(db_session, owner="other-user")
+        db_session.add(CanvasAudit(
+            id="collab-a", canvas_id="canvas-1", tenant_id="t1",
+            user_id="user-1", canvas_type="mini_app", action_type="update",
+            details_json={"title": "x"},
+        ))
+        db_session.commit()
         c = self._asset_client(db_session, user_id="user-1")
         r = c.post("/api/mini-apps/instances/canvas-1/assets",
                    data={"key": "k.png"},
@@ -1927,9 +1959,25 @@ class TestMiniAppRoutes:
         assert r.status_code == 200
         assert r.json()["deleted"] is False
 
-    def test_delete_asset_non_owner_403(self, client, db_session):
+    def test_delete_asset_non_owner_denied(self, client, db_session):
         self._make_app(db_session, status="published", is_public=True)
         self._make_canvas(db_session, owner="other-user")
+        c = self._asset_client(db_session, user_id="user-1")
+        r = c.delete("/api/mini-apps/instances/canvas-1/assets/k1")
+        # Publication never grants a stranger instance-namespace access.
+        assert r.status_code == 404
+
+    def test_delete_asset_collaborator_stays_owner_only(self, client, db_session):
+        from core.models import CanvasAudit
+
+        self._make_app(db_session, status="published", is_public=True)
+        self._make_canvas(db_session, owner="other-user")
+        db_session.add(CanvasAudit(
+            id="collab-d", canvas_id="canvas-1", tenant_id="t1",
+            user_id="user-1", canvas_type="mini_app", action_type="update",
+            details_json={"title": "x"},
+        ))
+        db_session.commit()
         c = self._asset_client(db_session, user_id="user-1")
         r = c.delete("/api/mini-apps/instances/canvas-1/assets/k1")
         assert r.status_code == 403
@@ -2020,12 +2068,28 @@ class TestMiniAppRoutes:
         assert r.status_code == 400
         assert "cap reached" in r.json()["detail"]
 
-    def test_records_append_non_owner_403(self, client, db_session):
+    def test_records_append_non_owner_denied(self, client, db_session):
         self._record_fixture(db_session, owner="other-user")
         c = self._asset_client(db_session)
         r = c.post("/api/mini-apps/instances/canvas-1/records",
                    json={"series": "s1", "data": {"a": 1}})
+        assert r.status_code == 404
+
+    def test_records_append_collaborator_stays_owner_only(self, client, db_session):
+        from core.models import CanvasAudit
+
+        self._record_fixture(db_session, owner="other-user")
+        db_session.add(CanvasAudit(
+            id="collab-r", canvas_id="canvas-1", tenant_id="t1",
+            user_id="user-1", canvas_type="mini_app", action_type="update",
+            details_json={"title": "x"},
+        ))
+        db_session.commit()
+        c = self._asset_client(db_session)
+        r = c.post("/api/mini-apps/instances/canvas-1/records",
+                   json={"series": "s1", "data": {"a": 1}})
         assert r.status_code == 403
+        assert r.json()["detail"] == "Not the instance owner"
 
     def test_records_kill_switch_503(self, client, db_session):
         self._record_fixture(db_session)

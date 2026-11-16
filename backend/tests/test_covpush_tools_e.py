@@ -16,6 +16,14 @@ def _db_ctx(db):
     yield db
 
 
+@pytest.fixture
+def fake_canvas_gate():
+    from tests.mini_app_authority_fixtures import patched_canvas_gate
+
+    with patched_canvas_gate():
+        yield
+
+
 def _patch_db(db):
     return patch("core.database.get_db_session", side_effect=lambda: _db_ctx(db))
 
@@ -607,7 +615,7 @@ class TestMiniAppTool:
             res2 = await mini_app_list({}, self._user_ctx())
         assert res2["success"] is False and res2["apps"] == []
 
-    async def test_get_state_paths(self):
+    async def test_get_state_paths(self, fake_canvas_gate):
         from tools.mini_app_tool import mini_app_get_state
         res = await mini_app_get_state({}, {})
         assert res["success"] is False

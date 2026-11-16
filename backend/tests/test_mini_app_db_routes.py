@@ -30,14 +30,25 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    from core.models import CanvasAudit, Tenant, User, Workspace
+
     Base.metadata.create_all(
         bind=engine,
         tables=[
             MiniApp.__table__, Canvas.__table__, CanvasLogic.__table__,
             MiniAppAsset.__table__, CanvasState.__table__, CanvasRecord.__table__,
+            Tenant.__table__, Workspace.__table__, User.__table__,
+            CanvasAudit.__table__,
         ],
     )
     session = sessionmaker(bind=engine)()
+    # Honest actors: instance data follows the canvas policy, so the
+    # requesting users must exist and every real install writes an audit row.
+    from tests.mini_app_authority_fixtures import ensure_actor
+
+    ensure_actor(session, "user-1", "t1", None)
+    ensure_actor(session, "user-2", "t1", None)
+    ensure_actor(session, "other-user", "t1", None)
     yield session
     session.close()
 
@@ -85,6 +96,10 @@ def canvas_fixture(db_session):
         mini_app_id=app_id,
     ))
     db_session.add(CanvasState(canvas_id=canvas_id, tenant_id="t1", state={}, version=1))
+    from tests.mini_app_authority_fixtures import ensure_canvas_audit
+
+    ensure_canvas_audit(db_session, canvas_id, user_id="user-1", tenant_id="t1",
+                        action_type="mini_app_install")
     db_session.commit()
     return app_id, canvas_id
 
@@ -104,6 +119,10 @@ def _public_canvas(db_session):
         canvas_type="mini_app", content={}, style={}, status="active",
         mini_app_id="app-public",
     ))
+    from tests.mini_app_authority_fixtures import ensure_canvas_audit
+
+    ensure_canvas_audit(db_session, "inst-public", user_id="other-user",
+                        tenant_id="t1", action_type="mini_app_install")
     db_session.commit()
     return "inst-public"
 
@@ -191,18 +210,39 @@ class TestRecordsRoutes:
         r2 = client.get("/api/mini-apps/instances/nope/records", params={"series": "s"})
         assert r2.status_code == 404
 
-    def test_public_read_allowed_mutation_denied(self, client, db_session, canvas_fixture):
+    def test_public_instance_data_not_readable_by_stranger(self, client, db_session, canvas_fixture):
+        """Publication is an install signal, never a grant to instance data."""
         public_id = _public_canvas(db_session)
         q = client.get(f"/api/mini-apps/instances/{public_id}/records", params={"series": "s"})
-        assert q.status_code == 200
-        r = client.post(f"/api/mini-apps/instances/{public_id}/records",
+        assert q.status_code == 404  # non-owner gets the canvas-policy refusal
+        assert "records" not in q.json()
+        r = client.get(f"/api/mini-apps/instances/{public_id}/records/series")
+        assert r.status_code == 404
+        count = client.post(f"/api/mini-apps/instances/{public_id}/records/count",
+                            json={"series": "s"})
+        assert count.status_code == 404
+        assert "count" not in count.json()
+        w = client.post(f"/api/mini-apps/instances/{public_id}/records",
                         json={"series": "s", "data": {"x": 1}})
-        assert r.status_code == 403
+        assert w.status_code == 404
 
-    def test_owner_only_mutation(self, client, db_session, canvas_fixture):
+    def test_collaborator_reads_but_mutation_stays_owner_only(self, client, db_session):
+        """Accepted canvas collaboration: read yes, write no (unchanged contract)."""
+        from core.models import CanvasAudit
+
         public_id = _public_canvas(db_session)
-        r = client.delete(f"/api/mini-apps/instances/{public_id}/records", params={"series": "s"})
-        assert r.status_code == 403
+        db_session.add(CanvasAudit(
+            id="collab-audit", canvas_id=public_id, tenant_id="t1",
+            user_id="user-1", canvas_type="mini_app", action_type="update",
+            details_json={"title": "pub"},
+        ))
+        db_session.commit()
+        q = client.get(f"/api/mini-apps/instances/{public_id}/records", params={"series": "s"})
+        assert q.status_code == 200 and q.json()["records"] == []
+        w = client.post(f"/api/mini-apps/instances/{public_id}/records",
+                        json={"series": "s", "data": {"x": 1}})
+        assert w.status_code == 403
+        assert w.json()["detail"] == "Not the instance owner"
 
     def test_kill_switch_503(self, client, canvas_fixture, monkeypatch):
         monkeypatch.setenv("ATOM_MINIAPP_DB_ENABLED", "false")

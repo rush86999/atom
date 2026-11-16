@@ -59,12 +59,17 @@ def _make_app(
 ):
     canvas_id = canvas_id or f"c-{uuid.uuid4().hex[:12]}"
     app_id = app_id or f"app-{uuid.uuid4().hex[:12]}"
+    # Honest actor world for the run-authority gate.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, owner, "t1", "w1")
     canvas = Canvas(
         id=canvas_id, tenant_id="t1", workspace_id="w1", created_by=owner,
         name=name, canvas_type="mini_app", content={"blocks": []}, style={},
         status="active", mini_app_id=app_id,
     )
     db.add(canvas)
+    ensure_canvas_audit(db, canvas_id, user_id=owner, tenant_id="t1")
     if with_logic:
         db.add(CanvasLogic(
             canvas_id=canvas_id, language="python",
@@ -576,7 +581,7 @@ class TestRunStatefulErrors:
         from core.mini_app_service import run_stateful
         _patch_db(monkeypatch, db_session)
         app, canvas_id, _ = _make_app(db_session, with_logic=False)
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         assert not res["success"] and "No logic" in res["error"]
 
     @pytest.mark.asyncio
@@ -586,7 +591,7 @@ class TestRunStatefulErrors:
         _patch_db(monkeypatch, db_session)
         app, canvas_id, _ = _make_app(db_session)
         monkeypatch.setattr(svc, "get_miniapp_runtime", lambda: (_ for _ in ()).throw(RuntimeError("no firecracker")))
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         # Fails closed with a GENERIC message: the RuntimeError detail can
         # carry env names/values + FS paths and must not reach the API/agent
         # surface (R5 str(e)-leak class).
@@ -606,7 +611,7 @@ class TestRunStatefulErrors:
                 raise ValueError("boom")
 
         monkeypatch.setattr(svc, "get_miniapp_runtime", BoomRuntime)
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         assert not res["success"] and res["error"] == "Mini-app run failed"
 
     @pytest.mark.asyncio
@@ -615,7 +620,7 @@ class TestRunStatefulErrors:
         _patch_db(monkeypatch, db_session)
         app, canvas_id, _ = _make_app(db_session)
         _fake_runtime(monkeypatch, metadata={}, truncated=True, stdout_extra="__MINIAPP_STATE__:{\"state\": ")
-        res = await run_stateful(canvas_id)
+        res = await run_stateful(canvas_id, user_id="u1")
         assert not res["success"] and "truncated" in res["error"]
 
 
@@ -1376,30 +1381,64 @@ class TestRoutesAssetUploadAuthz:
 
     def test_non_owner_cannot_upload_to_public_instance(self, client, db_session, user_store, tmp_path, monkeypatch):
         from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from tests.mini_app_authority_fixtures import ensure_actor
+
         monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
         app, canvas_id = _route_app(db_session, is_public=True)
+        ensure_actor(db_session, "user-2", "t1", "w1")
         user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
         res = client.post(
             f"/api/mini-apps/instances/{canvas_id}/assets",
             data={"key": "pwn.txt"}, files={"file": ("pwn.txt", b"evil", "text/plain")},
         )
-        assert res.status_code == 403
+        # A stranger (even on a public app) gets the canvas-policy refusal.
+        assert res.status_code == 404
         assert db_session.query(MiniAppAsset).filter(MiniAppAsset.canvas_id == canvas_id).count() == 0
+        assert not (tmp_path / "store").exists()
+
+    def test_collaborator_reads_but_cannot_write_instance(self, client, db_session, user_store, tmp_path, monkeypatch):
+        """Accepted collaboration: reads follow the canvas policy, writes stay
+        strict instance-owner."""
+        from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from core.models import CanvasAudit
+        from tests.mini_app_authority_fixtures import ensure_actor
+
+        monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
+        app, canvas_id = _route_app(db_session, is_public=True)
+        ensure_actor(db_session, "user-2", "t1", "w1")
+        db_session.add(CanvasAudit(
+            id=f"collab-{uuid.uuid4().hex[:8]}", canvas_id=canvas_id,
+            tenant_id="t1", user_id="user-2", canvas_type="mini_app",
+            action_type="update", details_json={"title": "collab"},
+        ))
+        db_session.commit()
+        user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
+        listing = client.get(f"/api/mini-apps/instances/{canvas_id}/assets")
+        assert listing.status_code == 200 and listing.json()["assets"] == []
+        res = client.post(
+            f"/api/mini-apps/instances/{canvas_id}/assets",
+            data={"key": "pwn.txt"}, files={"file": ("pwn.txt", b"evil", "text/plain")},
+        )
+        assert res.status_code == 403
+        assert res.json()["detail"] == "Not the instance owner"
 
     def test_non_owner_cannot_overwrite_existing_asset(self, client, db_session, user_store, tmp_path, monkeypatch):
         from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from tests.mini_app_authority_fixtures import ensure_actor
+
         monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
         app, canvas_id = _route_app(db_session, is_public=True)
         db_session.add(MiniAppAsset(
             canvas_id=canvas_id, tenant_id="t1", key="k.txt", uri="orig", size=3, created_by="user-1",
         ))
         db_session.commit()
+        ensure_actor(db_session, "user-2", "t1", "w1")
         user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
         res = client.post(
             f"/api/mini-apps/instances/{canvas_id}/assets",
             data={"key": "k.txt"}, files={"file": ("k.txt", b"pwned", "text/plain")},
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
         row = db_session.query(MiniAppAsset).filter(MiniAppAsset.canvas_id == canvas_id, MiniAppAsset.key == "k.txt").first()
         assert row.size == 3 and row.uri == "orig"
 
