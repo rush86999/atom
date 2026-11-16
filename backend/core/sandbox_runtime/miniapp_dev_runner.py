@@ -81,6 +81,8 @@ _AVAIL_TTL_SECONDS = 10.0
 CAPACITY_SCOPE = "miniapp-docker"
 _RM_CAPTURE_BYTES = 4096
 _REMOVE_TIMEOUT_SECONDS = 5.0
+_REMOVE_CONFIRM_SECONDS = 10.0
+_REMOVE_POLL_INTERVAL = 0.1
 
 # Availability probe TTL cache — ``docker info`` spawns a process (~100ms);
 # the factory + execute path both probe, so cache briefly.
@@ -158,6 +160,23 @@ def _valid_returncode(proc) -> Optional[int]:
     if isinstance(value, int) and not isinstance(value, bool):
         return value
     return None
+
+
+def _removal_in_progress(stdout, stderr, container: str) -> bool:
+    """Docker's exact --rm race line, for this exact case-sensitive target."""
+    try:
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
+    except Exception:  # noqa: BLE001
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+    expected = (
+        "Error response from daemon: removal of container "
+        f"{str(container or '')} is already in progress")
+    return lines[0] == expected
 
 
 def _known_absent(stdout, stderr, container: str) -> bool:
@@ -524,6 +543,7 @@ class MiniAppDevRuntime:
         exit 1, timeout, connection/daemon errors and unrelated targets are
         cleanup uncertainty, never success.
         """
+        deadline = time.monotonic() + _REMOVE_CONFIRM_SECONDS + _REMOVE_TIMEOUT_SECONDS
         try:
             rm = await asyncio.create_subprocess_exec(
                 "docker", "rm", "-f", container,
@@ -573,8 +593,80 @@ class MiniAppDevRuntime:
             return
         if wait_failed:
             raise _cleanup_uncertain("docker rm wait failed")
+        if _removal_in_progress(out, err, container):
+            await self._confirm_container_removed(
+                container, deadline=deadline)
+            return
         raise _cleanup_uncertain(
             f"docker rm did not confirm removal (exit {rc})")
+
+    async def _confirm_container_removed(self, container: str, *,
+                                         deadline: float) -> None:
+        """Poll exact owned-target status until absent or the deadline.
+
+        `removal ... already in progress` is NOT absence. Docker --rm can
+        report that race while it finishes removing the container. Confirm via
+        `docker inspect` exact-target absence within the cleanup deadline;
+        persistent present/removing/error/invalid output is uncertainty.
+        """
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _cleanup_uncertain(
+                    "docker removal not confirmed before cleanup deadline")
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "inspect", "--format", "{{.State.Status}}",
+                    container,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"docker inspect failed: {type(exc).__name__}") from None
+            reads = [asyncio.create_task(_read_bounded(proc.stdout)),
+                     asyncio.create_task(_read_bounded(proc.stderr))]
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*reads, proc.wait(),
+                                   return_exceptions=True),
+                    timeout=min(2.0, remaining))
+            except asyncio.TimeoutError:
+                for task in reads:
+                    task.cancel()
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect timed out") from None
+            except Exception as exc:  # noqa: BLE001
+                for task in reads:
+                    task.cancel()
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain(
+                    f"docker inspect failed: {type(exc).__name__}") from None
+            out, err, wait_result = results[0], results[1], results[2]
+            if isinstance(out, BaseException) or isinstance(err, BaseException):
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect read failed") from None
+            if isinstance(wait_result, BaseException):
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect wait failed") from None
+            rc = _valid_returncode(proc)
+            if rc is None:
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect status invalid")
+            if rc == 0:
+                status = bytes(out or b"").decode("utf-8", "replace").strip()
+                if status not in ("running", "exited", "paused", "restarting",
+                                  "removing", "created", "dead"):
+                    await self._reap_rm(proc)
+                    raise _cleanup_uncertain(
+                        "docker inspect target status unknown")
+                await asyncio.sleep(_REMOVE_POLL_INTERVAL)
+                continue
+            if _known_absent(out, err, container):
+                return
+            await self._reap_rm(proc)
+            raise _cleanup_uncertain(
+                f"docker inspect did not confirm absence (exit {rc})")
 
     async def _reap_rm(self, rm) -> None:
         try:

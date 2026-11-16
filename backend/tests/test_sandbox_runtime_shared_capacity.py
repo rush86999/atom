@@ -713,3 +713,172 @@ def test_rm_malformed_unknown_status_fails_closed(monkeypatch):
     second = asyncio.run(_run_dev())
     assert second.metadata["reason"] == "capacity_quarantined"
     assert len(created) == 1
+
+
+def _install_progress_cli(monkeypatch, inspect_sequence, *, inspect_delay=0.0):
+    created = []
+    inspect_calls = []
+
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "rm"):
+            target = args[3]
+            stderr = (
+                "Error response from daemon: removal of container "
+                f"{target} is already in progress\n").encode()
+            return FakeCLI(returncode=1, stderr=stderr)
+        if args[:2] == ("docker", "inspect"):
+            inspect_calls.append(args[-1])
+            item = inspect_sequence.pop(0) if inspect_sequence else (
+                1, b"", b"Error response from daemon: No such object: missing")
+            rc, out, err = item
+            return FakeCLI(returncode=rc, stdout=out, stderr=err,
+                           delay=inspect_delay)
+        proc = FakeProc(exit_code=-9)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    return created, inspect_calls
+
+
+def _run_dev_task():
+    return dev_mod.MiniAppDevRuntime()._run_in_container(
+        "print(1)", policy=_Policy(), inputs={}, tag="img")
+
+
+def test_rm_progress_confirmed_absent_succeeds(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-progress-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_CONFIRM_SECONDS", 1.0)
+    monkeypatch.setattr(dev_mod, "_REMOVE_POLL_INTERVAL", 0.01)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, inspect_calls = _install_progress_cli(monkeypatch, [
+        (0, b"removing\n", b""),
+        (1, b"", b"Error response from daemon: No such object: {target}"),
+    ])
+    # Fill the exact target into the second inspect error.
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "inspect"):
+            inspect_calls.append(args[-1])
+            idx = len(inspect_calls) - 1
+            if idx == 0:
+                return FakeCLI(returncode=0, stdout=b"removing\n")
+            return FakeCLI(returncode=1, stderr=(
+                "Error response from daemon: No such object: "
+                + args[-1]).encode())
+        if args[:2] == ("docker", "rm"):
+            return FakeCLI(returncode=1, stderr=(
+                "Error response from daemon: removal of container "
+                + args[3] + " is already in progress\n").encode())
+        proc = FakeProc(exit_code=-9)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = asyncio.run(_run_dev_task())
+    assert result.success is True
+    assert len(created) == 1
+    assert len(inspect_calls) == 2
+    assert capacity.snapshot(scope)["in_use"] == 0
+    assert not capacity.snapshot(scope)["quarantined"]
+
+
+def test_rm_progress_persistent_present_or_error_quarantines(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-progress-bad-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_CONFIRM_SECONDS", 0.1)
+    monkeypatch.setattr(dev_mod, "_REMOVE_POLL_INTERVAL", 0.01)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, inspect_calls = _install_progress_cli(monkeypatch, [
+        (0, b"running\n", b""),
+        (0, b"removing\n", b""),
+        (1, b"", b"Error response from daemon: daemon unavailable"),
+    ])
+    result = asyncio.run(_run_dev_task())
+    assert result.success is False
+    assert result.metadata["reason"] == "cleanup_unconfirmed"
+    assert capacity.snapshot(scope)["quarantined"]
+    assert len(created) == 1
+    second = asyncio.run(_run_dev_task())
+    assert second.metadata["reason"] == "capacity_quarantined"
+    assert len(created) == 1
+
+
+def test_rm_progress_queued_caller_waits_for_confirmation(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-progress-queue-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_CONFIRM_SECONDS", 1.0)
+    monkeypatch.setattr(dev_mod, "_REMOVE_POLL_INTERVAL", 0.01)
+    created = []
+    inspect_calls = []
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "rm"):
+            return FakeCLI(returncode=1, stderr=(
+                "Error response from daemon: removal of container "
+                + args[3] + " is already in progress\n").encode())
+        if args[:2] == ("docker", "inspect"):
+            inspect_calls.append(args[-1])
+            if len(inspect_calls) == 1:
+                return FakeCLI(returncode=0, stdout=b"removing\n", delay=0.1)
+            return FakeCLI(returncode=1, stderr=(
+                "Error response from daemon: No such object: "
+                + args[-1]).encode())
+        proc = FakeProc(exit_code=-9)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    async def scenario():
+        first = asyncio.create_task(_run_dev_task())
+        while not inspect_calls:
+            await asyncio.sleep(0)
+        second = asyncio.create_task(_run_dev_task())
+        await asyncio.sleep(0.02)
+        assert len(created) == 1
+        a, b = await asyncio.gather(first, second)
+        assert a.success is True and b.success is True
+        assert len(created) == 2
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("inspect_item", [
+    (1, b"", b"Error response from daemon: No such object: other-container"),
+    (0, b"", b""),
+    (1, b"", b"Error response from daemon: daemon unavailable"),
+])
+def test_rm_progress_unrelated_or_malformed_inspect_quarantines(
+        monkeypatch, inspect_item):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-progress-inspect-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_CONFIRM_SECONDS", 0.1)
+    monkeypatch.setattr(dev_mod, "_REMOVE_POLL_INTERVAL", 0.01)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, inspect_calls = _install_progress_cli(
+        monkeypatch, [inspect_item])
+    result = asyncio.run(_run_dev_task())
+    assert result.success is False
+    assert result.metadata["reason"] == "cleanup_unconfirmed"
+    assert capacity.snapshot(scope)["quarantined"]
+    assert len(created) == 1
