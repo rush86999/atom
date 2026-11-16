@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import smtplib
+import ssl
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,10 @@ def send_smtp_email(to_email: str, subject: str, body: str, html_body: Optional[
             msg.attach(MIMEText(html_body, 'html'))
 
         with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
-            server.starttls()
+            # Python 3.12 documented secure default: a real default context
+            # verifies the server certificate chain AND hostname. A bare
+            # starttls() would accept an untrusted/self-signed certificate.
+            server.starttls(context=ssl.create_default_context())
             server.login(smtp_user, smtp_password)
             server.send_message(msg)
         

@@ -1,6 +1,11 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Current release cut:** main `5d7f6f682f748da8a15972d9c959d882c8717e87` through #969. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Browser account lifecycle:** [ordinary signup/session/recovery](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) passed with real local authenticated STARTTLS mail at source 97e43, including consumed-link refusal, old-password denial and new-password web session. SSO/TOTP/rate-limit/one-hour expiry remain outside the episode.
+>
+> **Candidate SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. This candidate has not yet merged; earlier browser evidence retains its original source.
+>
+
+> **Current release cut:** main `de6f4b2c82bfee8245ab5a8446146ecc55bdf68e` through #970. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
@@ -1018,7 +1023,7 @@ reassignment; other workers own the lanes noted.
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
 | 8 | **Goal 5 Canvas full families** | WA-045 32/32 and Canvas list 22/22 at `6ad2738ed`; full D2 open; mini-app KVM legs environment-limited. | Full Canvas D2, remaining families, ordinary reopen/export, and a KVM/microVM run where applicable. |
-| 9 | **Goal 1 full account lifecycle** | Settings and native 2FA/menubar have bounded proofs; normal public signup/login and renewed login across API restart also passed on synthetic PostgreSQL. | Ordinary browser signup/recovery/SSO and broader session lifecycle remain separate acceptance. |
+| 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. Earlier Settings/native and PostgreSQL API records remain source-bound. | SSO, browser TOTP, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
 | 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; native mobile/KVM open. | Existing upgrades, async transport, database/container restart, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |

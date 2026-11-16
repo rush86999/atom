@@ -1,0 +1,27 @@
+{
+  "source": "56e410f2588ca353d437aaf603426ff883391b00",
+  "email_utils_sha256": "e8ac15946daf68095c4b588c4078df1f89143841a334e8d7f3e52075696b6402",
+  "root_unit_gate": "94passed25.98s",
+  "actual_SMTP_cases": [
+    {
+      "name": "untrusted_chain",
+      "sent": false,
+      "messages": 0
+    },
+    {
+      "name": "trusted_wrong_hostname",
+      "sent": false,
+      "messages": 0
+    },
+    {
+      "name": "trusted_correct_hostname",
+      "sent": true,
+      "messages": 1
+    }
+  ],
+  "all_pass": true,
+  "owned_server_stopped": true,
+  "trust": "Python default certificate+hostname verification, standard SSL_CERT_FILE for owned test CA",
+  "scope": "actual shared SMTP helper; no provider inference or external mail",
+  "original_scope_preserved": "143claims/18goals,historicalscoreunchanged,app_completefalse"
+}

@@ -1,0 +1,97 @@
+{
+  "source": "97e43a6b18a676a867b4e1e86f3b0c22da74461d",
+  "runtime_source_id": "97e43a6b18a6-dirty.7d401fa39a75",
+  "build": "Webpack96.321s/PASS/generatednext-env-only",
+  "environment": "isolated core world, selected-empty provider policy",
+  "synthetic_data": true,
+  "signup_session_stages": [
+    {
+      "name": "signup_page",
+      "status": 200
+    },
+    {
+      "name": "signup_submit",
+      "status": 200
+    },
+    {
+      "name": "signup_session",
+      "status": "signed_in"
+    },
+    {
+      "name": "onboarding_dismiss",
+      "status": "closed"
+    },
+    {
+      "name": "getting_started_dismiss",
+      "status": "closed"
+    },
+    {
+      "name": "reload_session",
+      "status": "retained"
+    },
+    {
+      "name": "onboarding_dismiss",
+      "status": "not_shown"
+    },
+    {
+      "name": "logout",
+      "status": "signed_out"
+    },
+    {
+      "name": "protected_route",
+      "status": "denied"
+    },
+    {
+      "name": "signin_page",
+      "status": 200
+    },
+    {
+      "name": "signin_submit",
+      "status": 200
+    },
+    {
+      "name": "onboarding_dismiss",
+      "status": "not_shown"
+    }
+  ],
+  "recovery_stages": [
+    "forgot:open",
+    "forgot:submit",
+    "mail:wait",
+    "reset:open",
+    "reset:submit",
+    "reset:single-use",
+    "login:old-password",
+    "login:new-password"
+  ],
+  "recovery_checks": {
+    "forgotGeneric": true,
+    "forgot200": true,
+    "mailReceived": true,
+    "verifyValid": true,
+    "reset200": true,
+    "resetSucceeded": true,
+    "verifyInvalidAfterUse": true,
+    "tokenSingleUseRefused": true,
+    "oldPassword401": true,
+    "oldPasswordRefused": true,
+    "newPasswordLogin200": true,
+    "dashboardAuthenticated": true,
+    "sessionIdentity": true,
+    "pageErrors": true
+  },
+  "SMTP": "owned Mailpit1.33.1, STARTTLS and specific auth; plaintext/wrong auth refused; no external relay",
+  "mail_storage": "memory URI, zero-byte placeholder checked after delivery",
+  "backend_restart_same_source_database": true,
+  "all_owned_services_stopped": true,
+  "no_auth_injection_or_route_interception": true,
+  "provider_inference": false,
+  "result": "PASS",
+  "limits": [
+    "syntheticownedworld/coreprofile",
+    "noSSO/TOTPchallenge/accountdeletion/rate-limit/real1hexpiry proof",
+    "localSMTPtransport,notexternaldeliverabilityorproductionTLSvalidation",
+    "first2harnessfailuresretained; thirdactorfullypassed",
+    "notwholeGoal1orappcomplete"
+  ]
+}
