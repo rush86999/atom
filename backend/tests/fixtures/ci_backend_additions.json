@@ -552,5 +552,19 @@
       "PYTHON_DOTENV_DISABLED": "1"
     },
     "run": "mkdir -p \"${{ runner.temp }}/atom-docx-coediting/data\" \"${{ runner.temp }}/atom-docx-coediting/office\"\npython -m pytest tests/test_office_canvas_coediting.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run goal-run checkpoint approval and active-intervention controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-activity-checkpoint/checkpoint-approval.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-activity-checkpoint/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-activity-checkpoint/office",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
