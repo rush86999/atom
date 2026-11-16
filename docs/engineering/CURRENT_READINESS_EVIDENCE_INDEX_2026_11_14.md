@@ -11,10 +11,18 @@
 > **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current release cut:** main `75c1edec61b651c43b70937f467b3f64a6ca37bb` through #971. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Current release cut:** main `5176c9e79f3a70e63f7110187f431fff8ab14fed` through #972; all 15 PR checks independently verified successful. Main-branch post-merge CI remains a separate check. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
+> **DOCX/PPTX native edits and restart:** [The two ordinary-browser journeys](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) passed at `3316b0fe7`, with preserved unaffected document parts, byte-identical exports after a shared full-stack restart and unsigned denial. Synthetic paragraph/title edits only; images, cross-user ownership and broader operations remain open.
+
+> **Current-source real Docker skill dispatch:** [The existing ordinary-loop test](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`, with registered skill dispatch, real container execution, fresh-session durable receipt and independently confirmed create/start/die/destroy/absence. Scripted model/scanner/principal fixtures; no live-model skill-selection claim.
+
+> **Ordinary workbook browser and restart:** [The 24-sheet XLSX journey](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`: native upload/edit, exact recalculated 34,610 total, all 521 formula/cached-value checks, identical exports before/after full stack restart and unsigned denial. Composite retained-failure evidence; synthetic local file, not live connector or model judgment.
+
+> **Persistent PostgreSQL container restart:** [The new named-volume case](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`: same database/system/volume identity, all 372 table counts/content fingerprints unchanged, fresh public login and same-canvas readback after restart, and independently confirmed cleanup. Normal restart in controlled test mode; not drive-removal, cluster, upgrade or production acceptance.
+
 > **Qualified PostgreSQL fresh bootstrap:** [the bounded record](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) records 371 tables, seven intact revision IDs and 68 independent checks. Existing upgrades, async transport and broader production PostgreSQL workloads remain unverified.
 >
 > **Real 48-hour follow-through:** [the retained wait result](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) passed restart and authorized answer after 48.0203 hours at source `2f2b376a0`, with one verified effect and duplicate-answer controls. The model/principal were controlled; this does not regrade current-main or whole-goal readiness.
@@ -375,17 +383,14 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   merged main `6ad2738ed` returned 34,533.00 with 500 audited rows, 20 sheet
   citations and an explicitly labeled 80-row preview. This is a synthetic
   API/document-download journey, not a live connected-source or ordinary
-  browser acceptance.
+  browser acceptance. Separately, [the ordinary 24-sheet browser lifecycle](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`, with native quantity edit, recalculated 34,610 total, all formula/cache checks, same-canvas export after both app processes restarted and unsigned refusal.
 - **Exact sources:** `#928` `b39cc2982`; `#929` `bbf08de05`; `#930`
   `67ad1df80`; `#940` `760997df8`; private
   `/private/tmp/atom-main-fullpop.Q5pZMN/results/full-population-result.json`
   and `silent-partial-grand-total.docx.txt`; focused five-test log
   `/private/tmp/brennan-brief/workbook-current-main-tests.log` at
   `ea4a0a952`.
-- **Remaining user-boundary acceptance:** ordinary browser and live connected-
-  source run, extraction of the contributing-sheet population, exact export/
-  restart readback, and reconciliation of ambiguous requests. The current
-  evidence is synthetic fixtures.
+- **Remaining user-boundary acceptance:** live connected-source run, model-driven extraction of the contributing-sheet population and reconciliation of ambiguous requests. The newer ordinary browser, exact XLSX export and same-world restart evidence remain synthetic and source-bound.
 - **Preserved negatives:** the pre-#930 single-sheet **1758.00** counterexample
   remains historical. The quote-discount and count-unit merges do not by
   themselves prove an ordinary served-model run.
@@ -399,7 +404,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   and passed22/22; `#931` offline editor assets enabled WA-04532/32 at
   `6ad2738ed`. [Ordinary PDF upload/edit/download/reload](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md)
   now passed at `bb7017af3`, including saved rotation90/0, preserved page
-  text and signed-out denial. Full CanvasD2 and other families remain open.
+  text and signed-out denial. [DOCX paragraph and PPTX title edits](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) passed at `3316b0fe7`, preserving unaffected XML/material and identical exports after both app processes restarted. Full CanvasD2, images and broader operations remain open.
 - **Exact sources:** `#926` `1c00a72fc`; `#931` `6ad2738ed`; private
   `/private/tmp/canvas-926-postmerge-20261113_221126/evidence/result.json`
   and `/private/tmp/atom-main-canvas.W1hk5v/evidence/canvas-blank-lifecycle.json`;
@@ -425,7 +430,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   `skills.list` and `skills.execute` are now model-callable through the
   ordinary `GenericAgent` loop. The merged mechanism is verified with a
   deterministic decision stub, not a live-model competence claim; real-Docker
-  positive evidence remains source-bound to `d6fc54648`.
+  positive evidence was source-bound to `d6fc54648`. [A fresh real-Docker joined ordinary-loop case](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) now passed at `3316b0fe7`, with durable receipt and independent exact-container lifecycle/absence checks; model/scanner/principal fixtures remain simulated.
 - **Exact sources:** `#918` `bb1e2b3f3`; `#925` `ad6ecbd5d`; `#937`
   `b4370d0d4` (files byte-identical to `1387b7dd1`);
   `#945` `05715907e` (ordinary `skills.list`/`skills.execute` loop, 15
@@ -446,9 +451,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 - **Remaining user-boundary acceptance:** the ordinary-loop mechanism and
   pre-dispatch denial twins are merged in `#945` and exercised with a
   deterministic model decision; no mechanism gap remains. Independent
-  real-model selection quality, fresh real-Docker evidence at this source and
-  unfamiliar skill quality are separate, bounded evidence questions and are not
-  promoted by the deterministic controls.
+  real-model selection quality and unfamiliar skill quality remain separate. Fresh real-Docker execution is now source-bound to the newer `3316b0fe7` record; it does not promote model judgment or full Goal 6 acceptance.
 - **Preserved negatives:** generated-code promotion was recorded as
   unimplemented before `#918`; `#937` is a defensive approval gate, not
   automatic invocation; earlier exploratory probes without assertions are not
@@ -1030,15 +1033,15 @@ reassignment; other workers own the lanes noted.
 | 1 | **Goal 10 broader ordinary journey** | [Actual retained 48-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with same-job identity, one verified effect and replay controls. | Current-main ordinary-model work, independent useful work/partial progress and cancel breadth remain separate. Never rearm the terminal elapsed-wait case. |
 | 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
-| 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
+| 4 | **Goal 6 automatic skill invocation** | `#945` merged ordinary-loop discovery/dispatch with deterministic and denial controls; [fresh real-Docker joined dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`, with durable receipt and independent cleanup. | No further mechanism implementation. Real-model selection, unfamiliar skill quality, concurrency/soak and KVM isolation remain separate; scripted decisions do not establish model quality. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; [ordinary synthetic TXT browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`. | Fresh-grant live WorkDrive and broader file/search/grounding journeys; synthetic TXT upload/export/delete is separately covered. |
-| 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
-| 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [ordinary PDF upload/edit/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; full D2 open. | Remaining Canvas families and PDF operations, server-restart persistence and KVM/microVM where applicable. |
+| 7 | **Goal 4 workbook ordinary/live** | Synthetic full-population API replay at `6ad2738ed` returned 34,533.00; [ordinary 24-sheet browser edit/export/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`, including recalculated 34,610 total and unsigned denial. | Live connected source, model-driven population/grounding and ambiguous-request refusal remain unverified. |
+| 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [PDF rotation/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; [DOCX/PPTX native edits and restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) and [24-sheet XLSX edit/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`. | Full D2, embedded images, cross-user ownership, broader editing/PDF operations, other families and KVM remain open. |
 | 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
-| 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; native mobile/KVM open. | Existing upgrades, async transport, database/container restart, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
+| 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; [normal named-volume container restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`, with identical 372-table snapshots and same-canvas login/readback. | Existing upgrades, async transport, abrupt outage recovery, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
 | 13 | **Goal 2 measured model selection** | Routing mechanisms verified; #942 preserved query complexity; no measured served comparison. | Two or more real served models with requested/served identity and scored quality/cost, including cheap Flash as first-class. No new spend authority. |
 | 14 | **Goal 17 performance/comparative** | Unverified; cache-only benchmark only. | Declared environment/workload/sample, reproducible command, dated source for comparative claims. |
 | 15 | **Goal 18 profile breadth** | `CORE-07` switch baseline; owner-deferred. | Explicit owner decision and qualified journeys for restored surfaces; no force-enable. |
@@ -1070,11 +1073,11 @@ the *current status* of a PR or a slice, but it does not erase these records.
 | Current-main live fleet after #934/#935 | **missing** | The accepted live reports are at `ad6ecbd5d` (pre-#934) and a private #935 frozen replay; current main `a868435fd` was not re-run. |
 | Current-main signed-in WorkDrive/document journey | **missing** | 56/56 is bound to `24794f257`; delete truth is hosted-selected, not live-replayed on current main. |
 | Current-main Settings replay | **not re-run** | 29/29 is bound to `a53b56fdc`; later non-Settings paths changed, but no fresh run exists. |
-| Current-main workbook/canvas browser | **not re-run** | 34,533.00 and 32/32 / 22/22 are bound to `6ad2738ed`; product files outside the listed change set did not change, but no fresh run exists. |
-| Goal 10 48-hour resume | **not due / not run** | Gate is `2026-11-16T06:42:25.414033Z`; no resume report. |
+| Workbook/canvas ordinary browser | **resolved-bounded / broader scope open** | [24-sheet workbook edit/export/full-stack restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`; PDF rotation/readback passed at `bb7017af3`. Earlier 34,533.00 and 32/32 / 22/22 remain source-bound; live connected files and other Canvas families are not requalified. |
+| Goal 10 48-hour resume | **resolved-bounded** | [The real 48.0203-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with the same job/execution, one verified task effect, inert duplicate and late-answer denial. Scripted model and seeded principal; current-main ordinary-model, partial-work and cancellation breadth remain unverified. The terminal case must never be rearmed. |
 | Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
 | Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
-| Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop `skills.list`/`skills.execute` with deterministic joined and denial controls; live-model competence and fresh real-Docker evidence at this source remain separate, unclaimed limits. |
+| Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop discovery/dispatch and denial controls; [real-Docker dispatch/durable receipt](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`. Live-model competence, unfamiliar skill quality and KVM remain unclaimed. |
 | Goal 16 native menu bar live chat | **missing** | Native login/session/2FA and public-API live Go chat verified on the reviewed `#943` source; native UI chat pending. |
 | Goal 16 native mobile device journey | **missing** | Hosted CI/Jest passed; no supported simulator/device native journey. |
 | Goal 17 measurement | **missing** | No declared environment/workload/sample; cache-only benchmark is narrower. |

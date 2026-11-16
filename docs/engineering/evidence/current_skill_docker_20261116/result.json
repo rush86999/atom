@@ -1,0 +1,48 @@
+{
+  "status": "root_verified_real_Docker_joined_skill",
+  "source_sha": "3316b0fe71a1203a90e0f4ec856d7eb5a08d2f4a",
+  "scope": "existing GenericAgent -> registered skills.execute -> real HazardSandbox container -> durable reviewed receipt; scripted model/scanner/auth fixture, not ordinary login or real-model selection quality",
+  "test": "backend/tests/test_reviewed_executable_skill_agent_dispatch_docker.py",
+  "result": "1 passed in 22.61s",
+  "image_tag": "python:3.11-slim",
+  "image_id": "sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535",
+  "image_tag_unchanged_before_after": true,
+  "synthetic_result": {
+    "count": 4,
+    "maximum": 11,
+    "sum": 26
+  },
+  "real_sandbox": true,
+  "model_decision_simulated": true,
+  "scanner_and_identity_fixtures_simulated": true,
+  "app_provider_calls": 0,
+  "durable_receipt_fresh_session": true,
+  "review_binding": {
+    "review_revision": 1,
+    "review_digest": "4b13da656fb45c1a6d5d60de7ea5cc9ec1fc262397a3a668fd9e23ca5ca02974",
+    "candidate_code_sha256": "18fb11ff4b65f3f8b3ca90c1699eeca5a657580c1d4262ca8cc562e90b86b1e7",
+    "executable_code_sha256": "69c1333b814892a235b43e965ad203e7c9ad7c3e54e1c30082b04243edc735e6"
+  },
+  "nonce_echo_verified": true,
+  "Docker_events": [
+    "create",
+    "start",
+    "die",
+    "destroy"
+  ],
+  "single_event_container_identity": true,
+  "fresh_owned_container_absent": true,
+  "preexisting_container_IDs_preserved": true,
+  "host_preflight": {
+    "docker_ping": true,
+    "exact_socket_guard": true,
+    "TCP_owner_external_denied": true
+  },
+  "verifier_helper_sha256": "73318484f3887f5f92d6760bcad37fd1f4839ef416f6706aac06a19438abdb10",
+  "limits": [
+    "scripted model, scanner and principal fixtures; not ordinary login or real-model skill selection quality",
+    "single benign reviewed skill; not every unfamiliar skill",
+    "Docker sandbox; not Firecracker/KVM or production isolation certification",
+    "one invocation, not concurrency/timeout/soak certification"
+  ]
+}
