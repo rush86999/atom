@@ -408,7 +408,8 @@ export default function ApprovalsPage() {
   };
 
   // Complete an APPROVED training session: supervisor scores the pass and the
-  // backend boosts confidence / promotes STUDENT → INTERN when earned.
+  // backend updates confidence; it may auto-promote only when readiness and
+  // the capability-qualification gate (or an exact owner exception) allow it.
   const [sessionForms, setSessionForms] = useState<Record<string, {
     performance_score: string; supervisor_feedback: string;
     tasks_completed: string; total_tasks: string; errors_count: string;
@@ -568,7 +569,7 @@ export default function ApprovalsPage() {
         return;
       }
       const data = await res.json().catch(() => ({}));
-      setNotice(`Training session completed.${data?.promotion ? " 🎓 Promotion granted!" : ""}`);
+      setNotice(`Training session completed.${data?.promoted_to_intern ? " 🎓 Promotion granted!" : ""}`);
       loadProposals();
     } catch (e) {
       setError(`Session completion failed: ${String(e)}`);
@@ -723,9 +724,13 @@ export default function ApprovalsPage() {
           <h2 className="text-lg font-semibold">Active Training Sessions</h2>
           <p className="text-sm text-gray-400 mb-4">
             Approved trainings in progress. Work with the agent (chat at /agents), then score the
-            supervised pass here — completion boosts the agent&apos;s confidence and can promote it to INTERN.
-            An INTERN may then PROPOSE automated actions: those arrive in this same queue for your
-            approval, and you keep coaching it over chat the same way.
+            supervised pass here — completion records the pass evidence and updates the agent&apos;s
+            confidence. Completion alone does not promote the agent: promotion requires the
+            readiness requirements shown in the panel plus a passed capability qualification. An
+            explicitly configured owner exception for that exact agent can waive the qualification
+            review, not the readiness requirements. Otherwise the agent stays STUDENT and the panel
+            shows what remains. An INTERN may then PROPOSE automated actions: those arrive in this
+            same queue for your approval, and you keep coaching it over chat the same way.
           </p>
           {proposals.filter((p) => p.active_session_id).length === 0 ? (
             <div className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
