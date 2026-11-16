@@ -833,6 +833,7 @@ class WorkflowEngine:
             evaluate_task_admission,
             grant_never_autonomous_clearance,
             task_admission_params,
+            warm_task_admission_receipt_denial,
         )
         from core.task_classification import current_task_profile
 
@@ -868,6 +869,10 @@ class WorkflowEngine:
                     return None
                 durable = decision.get("durable_admission") or {}
                 if durable.get("hitl_action_id"):
+                    if warm_task_admission_receipt_denial(
+                            decision, decision,
+                            hitl_action_id=durable.get("hitl_action_id")):
+                        return "paused"
                     holder: Dict[str, Any] = {}
                     if not grant_never_autonomous_clearance(
                             holder, decision, task_profile=profile,

@@ -50,6 +50,27 @@ class HITLService:
             if not user:
                 raise ValueError(f"Resolver user {resolver_id} not found")
 
+            # A never-autonomous task admission is decided only by a
+            # currently-authorized reviewer in the row's exact canonical
+            # scope; status alone is never authority. Enforce it before the
+            # conditional claim below so this messaging/2FA writer cannot
+            # bypass the approval surfaces.
+            if str(action.action_type or "") == "never_autonomous_task":
+                from core.review_decision_authority import (
+                    authorize_task_admission_decision,
+                    claim_task_admission_reviewer,
+                )
+
+                check = authorize_task_admission_decision(
+                    db, action, resolver_id)
+                if not check.get("ok"):
+                    raise ValueError(check["message"])
+                if not claim_task_admission_reviewer(
+                        db, check["authority"]):
+                    db.rollback()
+                    raise ValueError(
+                        "Reviewer authority changed; refresh and retry.")
+
             def _current_status() -> str:
                 current = (
                     db.query(HITLAction)

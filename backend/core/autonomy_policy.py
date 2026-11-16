@@ -1059,13 +1059,17 @@ def find_approved_task_admission(
     decision: Any,
     tenant_id: Any = None,
     workspace_id: Any = None,
+    hitl_action_id: Any = None,
 ) -> Optional[Dict[str, Any]]:
     """Re-read an approved durable TASK admission for this exact execution.
 
     Mirrors the workflow step resumption contract: the persisted HITL row is
     the authority; a boolean in the resume payload is not. The row must name
-    the same execution, task fingerprint, scope and still-current reviewed
-    rule revisions.
+    the same execution, task fingerprint, scope, owner and still-current
+    reviewed rule revisions, AND carry a currently-authorized human reviewer
+    (see ``core.review_decision_authority``). A row whose status says
+    approved but whose reviewer is missing/unknown/inactive/foreign — or
+    whose server-owned task binding was rewritten — is not a receipt.
     """
     if not execution_id or not fingerprint:
         return None
@@ -1076,6 +1080,8 @@ def find_approved_task_admission(
             HITLAction.action_type == NEVER_TASK_ADMISSION_ACTION,
             HITLAction.status.in_(("approved", "executed")),
         )
+        if hitl_action_id not in (None, ""):
+            query = query.filter(HITLAction.id == str(hitl_action_id))
         if agent_id:
             query = query.filter(HITLAction.agent_id == str(agent_id))
         rows = query.order_by(HITLAction.created_at.desc()).limit(50).all()
@@ -1092,13 +1098,6 @@ def find_approved_task_admission(
                 continue
             if str(params.get("task_fingerprint") or "") != str(fingerprint):
                 continue
-            reviewed = {
-                "outcome": NEVER_OUTCOME_REVIEW,
-                "rule_bindings": params.get("rule_bindings") or [],
-                "owner_user_id": params.get("owner_user_id"),
-            }
-            if not decision_covers(reviewed, decision):
-                continue
             reviewed_owner = params.get("owner_user_id")
             current_owner = (
                 decision.get("owner_user_id")
@@ -1106,23 +1105,25 @@ def find_approved_task_admission(
             if (reviewed_owner and current_owner
                     and str(reviewed_owner) != str(current_owner)):
                 continue
-            if (tenant_id not in (None, "")
-                    and row.tenant_id not in (None, "")
-                    and str(row.tenant_id) != str(tenant_id)):
+            # The reviewer/binding/provenance check is shared with the
+            # approval surfaces so no alternate status writer can mint a
+            # clearance merely by flipping the row to approved.
+            from core.review_decision_authority import (
+                validate_task_admission_receipt,
+            )
+
+            receipt = validate_task_admission_receipt(
+                db,
+                row,
+                decision,
+                execution_id=execution_id,
+                fingerprint=fingerprint,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+            )
+            if receipt is None:
                 continue
-            if (workspace_id not in (None, "")
-                    and getattr(row, "workspace_id", None) not in (None, "")
-                    and str(row.workspace_id) != str(workspace_id)):
-                continue
-            return {
-                "hitl_action_id": str(row.id),
-                "params": params,
-                "approved_by": (
-                    row.reviewed_by or getattr(row, "resolver_id", None)),
-                "resolved_at": (
-                    row.reviewed_at.isoformat()
-                    if getattr(row, "reviewed_at", None) else None),
-            }
+            return receipt
     except Exception as exc:  # noqa: BLE001 — absence is not authority
         logger.warning(
             "never-autonomous task admission lookup failed: %s", exc)
@@ -1139,6 +1140,7 @@ def evaluate_task_admission(
     execution_id: Any = None,
     tenant_id: Any = None,
     workspace_id: Any = None,
+    admission_action_id: Any = None,
 ) -> Dict[str, Any]:
     """Evaluate the TASK-level never-autonomous admission.
 
@@ -1146,6 +1148,8 @@ def evaluate_task_admission(
     not a particular effect. A matched decision also reports whether an
     existing durable HITL approval for this exact execution/task already
     exists, so a cold resume reuses its provenance instead of prompting again.
+    ``admission_action_id`` pins the reuse to the exact row a warm waiter is
+    polling; a different approval row cannot stand in for it.
     """
     decision = evaluate_never_autonomous(
         db,
@@ -1167,8 +1171,41 @@ def evaluate_task_admission(
         decision=decision,
         tenant_id=tenant_id,
         workspace_id=workspace_id,
+        hitl_action_id=admission_action_id,
     )
     return decision
+
+
+def warm_task_admission_receipt_denial(
+    decision: Any,
+    fresh: Any,
+    *,
+    hitl_action_id: Any = None,
+) -> Optional[str]:
+    """Reason a warm waiter must NOT grant clearance, or ``None`` when valid.
+
+    ``_wait_for_approval`` returning ``True`` only means the row's status
+    changed. The caller must re-read the EXACT durable authorized receipt
+    (``fresh["durable_admission"]``, itself validated against the current
+    reviewer and immutable task binding) before granting. A policy revision
+    change and an unverified approval are reported separately so the UI can
+    ask for the right kind of fresh review.
+    """
+    if not isinstance(fresh, Mapping):
+        return "approval_unverified"
+    if fresh.get("outcome") != NEVER_OUTCOME_REVIEW:
+        return None
+    if not decision_covers(decision, fresh):
+        return "policy_changed"
+    receipt = fresh.get("durable_admission")
+    if not isinstance(receipt, Mapping) or not receipt.get("hitl_action_id"):
+        return "approval_unverified"
+    if hitl_action_id not in (None, "") and str(
+            receipt.get("hitl_action_id") or "") != str(hitl_action_id):
+        return "approval_unverified"
+    if not receipt.get("approved_by"):
+        return "approval_unverified"
+    return None
 
 
 def task_admission_params(

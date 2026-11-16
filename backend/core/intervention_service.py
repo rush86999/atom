@@ -179,6 +179,34 @@ class InterventionService:
                     "message": f"Action is {action.status}, cannot approve.",
                 }
 
+            # A never-autonomous TASK admission is a human admission for ONE
+            # exact task execution. Its status is not authority: the current
+            # reviewer must be verified (exact canonical scope, persisted
+            # owner or supervisor, BOTH required_role locations) and the
+            # server-owned task/rule binding must be immutable. This runs
+            # BEFORE any status write, so governance/bridge callers cannot be
+            # the weak surface. The same reviewer fence is re-checked in the
+            # claim transaction below.
+            if str(action.action_type or "") == "never_autonomous_task":
+                from core.review_decision_authority import (
+                    authorize_task_admission_decision,
+                    claim_task_admission_reviewer,
+                )
+
+                check = authorize_task_admission_decision(
+                    db, action, approver_id,
+                    modified_params=modified_params)
+                if not check.get("ok"):
+                    return _refusal(
+                        check["message"], check["error_code"],
+                        check["http_status"], action.id)
+                if not claim_task_admission_reviewer(
+                        db, check["authority"]):
+                    db.rollback()
+                    return _refusal(
+                        "Reviewer authority changed; refresh and retry.",
+                        "AUTHORITY_CHANGED", 409, action.id)
+
             # A goal-run checkpoint is not a status-only intervention: its
             # decision and the run wake are one atomic claim, bound to the
             # run's exact current wait. Governance/messaging callers reach
@@ -263,6 +291,25 @@ class InterventionService:
                     "success": False,
                     "message": f"Action is {action.status}, cannot reject.",
                 }
+
+            if str(action.action_type or "") == "never_autonomous_task":
+                from core.review_decision_authority import (
+                    authorize_task_admission_decision,
+                    claim_task_admission_reviewer,
+                )
+
+                check = authorize_task_admission_decision(
+                    db, action, approver_id)
+                if not check.get("ok"):
+                    return _refusal(
+                        check["message"], check["error_code"],
+                        check["http_status"], action.id)
+                if not claim_task_admission_reviewer(
+                        db, check["authority"]):
+                    db.rollback()
+                    return _refusal(
+                        "Reviewer authority changed; refresh and retry.",
+                        "AUTHORITY_CHANGED", 409, action.id)
 
             if str(action.action_type or "") == "goal_run_checkpoint":
                 from core.hitl_resume import resolve_goal_run_checkpoint

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -40,6 +41,7 @@ from core.models import (
     Base,
     HITLAction,
     HITLActionStatus,
+    User,
 )
 from core.task_classification import (
     TASK_PROFILE_CONTEXT_KEY,
@@ -96,7 +98,37 @@ def use_db(store, monkeypatch):
     return db
 
 
+def _active_user(
+    db, user_id="u1", role="team_lead", workspace_id="default",
+    tenant_id=None, active=True,
+):
+    """A real, currently-authorised human reviewer row.
+
+    Review authority is resolved from the durable User row, so an approval
+    fixture that only flips ``status`` (with no real reviewer) no longer
+    models a legitimate decision.
+    """
+    existing = db.query(User).filter(User.id == user_id).first()
+    if existing is not None:
+        return existing
+    user = User(
+        id=user_id,
+        email=f"{user_id}@example.com",
+        first_name="Reviewer",
+        last_name="User",
+        role=role,
+        status="active" if active else "inactive",
+        is_active=bool(active),
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+    )
+    db.add(user)
+    db.commit()
+    return user
+
+
 def _agent(db, agent_id="hire-1", user_id="u1", status="autonomous"):
+    _active_user(db, user_id)
     db.add(AgentRegistry(
         id=agent_id,
         name=agent_id,
@@ -138,10 +170,13 @@ def _finance_rule(db, name="Always review finance", user_id="u1"):
         db, user_id, name=name, match={"domain": ["finance"]})
 
 
-def _approved_hitl(db, action_id):
+def _approved_hitl(db, action_id, reviewer_id="u1"):
+    _active_user(db, reviewer_id)
     row = db.query(HITLAction).filter(HITLAction.id == action_id).first()
     assert row is not None
     row.status = HITLActionStatus.APPROVED.value
+    row.reviewed_by = reviewer_id
+    row.reviewed_at = datetime.now(timezone.utc)
     db.commit()
     return row
 
@@ -297,7 +332,8 @@ async def test_second_real_task_start_requires_a_fresh_approval(
     _agent(db)
     _finance_rule(db)
     agent = _generic_agent(db)
-    context = {"user_id": "u1", "workspace_id": "default"}
+    context = {"user_id": "u1", "workspace_id": "default",
+               "execution_id": "exec-two-starts"}
 
     async def _approve(action_id):
         _approved_hitl(db, action_id)
@@ -471,10 +507,13 @@ def test_durable_task_admission_resumes_only_the_same_task(store, use_db):
             "task_fingerprint": decision["task_fingerprint"],
             "rule_bindings": [{"id": rule["id"], "revision": 1}],
             "owner_user_id": "u1",
+            "task_profile": profile.as_dict(),
         },
         status=HITLActionStatus.APPROVED.value,
         reason=decision["reason"],
         user_id="u1",
+        reviewed_by="u1",
+        reviewed_at=datetime.now(timezone.utc),
     ))
     db.commit()
 
@@ -554,8 +593,7 @@ async def test_workflow_task_admission_pauses_and_resume_reuses_hitl(
 
         # Resume: the durable approved row is the authority; a rebuilt
         # profile (new per-task id) reuses it and does not pause again.
-        rows[0].status = HITLActionStatus.APPROVED.value
-        db.commit()
+        _approved_hitl(db, rows[0].id)
         reset_task_profile(token)
         token = bind_task_profile(
             None, build_task_profile(FINANCE_JAN, user_id="u1"))

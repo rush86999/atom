@@ -1067,6 +1067,26 @@ async def decide_hitl_action(
 
     _validate_assignment_approval_payload(action, req.modified_params)
 
+    # A never-autonomous task admission is a human decision for ONE exact
+    # task execution. Check the CURRENT reviewer's scope/owner/supervisor and
+    # both persisted required_role locations, and refuse any rewrite of the
+    # server-owned task/rule binding, BEFORE the row can move. The same
+    # authority is fenced again immediately before the status write below.
+    task_admission_authority = None
+    if str(action.action_type or "") == "never_autonomous_task":
+        from core.review_decision_authority import (
+            authorize_task_admission_decision,
+        )
+
+        check = authorize_task_admission_decision(
+            db, action, str(user.id),
+            modified_params=req.modified_params)
+        if not check.get("ok"):
+            raise router.error_response(
+                check["error_code"], check["message"],
+                status_code=int(check["http_status"]))
+        task_admission_authority = check["authority"]
+
     # Idempotent: already-resolved actions return current state, don't double-apply
     already_resolved = action.status in (
         HITLActionStatus.APPROVED.value,
@@ -1175,6 +1195,19 @@ async def decide_hitl_action(
                     "deadline": expiry.get("deadline"),
                     "action_id": action_id,
                 },
+                status_code=409,
+            )
+
+    if task_admission_authority is not None:
+        from core.review_decision_authority import (
+            claim_task_admission_reviewer,
+        )
+
+        if not claim_task_admission_reviewer(db, task_admission_authority):
+            db.rollback()
+            raise router.error_response(
+                "AUTHORITY_CHANGED",
+                "Reviewer authority changed; refresh and retry.",
                 status_code=409,
             )
 

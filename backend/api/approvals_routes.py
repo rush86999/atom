@@ -136,6 +136,29 @@ async def decide_approval(
     if denial:
         raise HTTPException(status_code=403, detail=denial)
 
+    # A never-autonomous task admission cannot be decided by a foreign or
+    # unqualified reviewer, and its server-owned task/rule binding is
+    # immutable through the edit-before-approve flow. The shared service
+    # repeats this check and fences the current actor in its claim.
+    if str(action.action_type or "") == "never_autonomous_task":
+        from core.review_decision_authority import (
+            authorize_task_admission_decision,
+        )
+
+        check = authorize_task_admission_decision(
+            db, action, str(user.id),
+            modified_params=body.modified_params)
+        if not check.get("ok"):
+            raise HTTPException(
+                status_code=int(check["http_status"]),
+                detail={
+                    "error": {
+                        "code": check["error_code"],
+                        "message": check["message"],
+                    },
+                },
+            )
+
     # Same preflight as the legacy approvals surface: validate the exact
     # reviewed goal decision before approve_intervention/reject_intervention
     # mutates the HITL row. Non-goal actions are unaffected.
@@ -257,7 +280,20 @@ async def decide_approval(
         )
 
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("message", "Decision failed"))
+        if result.get("error_code") or result.get("http_status"):
+            raise HTTPException(
+                status_code=int(result.get("http_status") or 400),
+                detail={
+                    "error": {
+                        "code": result.get("error_code") or "DECISION_FAILED",
+                        "message": result.get(
+                            "message", "Decision failed"),
+                    },
+                },
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("message", "Decision failed"))
 
     # The status write alone leaves paused goal runs/workflows stuck; resume
     # the durable work the human just unblocked (shared with the legacy

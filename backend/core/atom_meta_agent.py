@@ -3675,10 +3675,10 @@ Provide your Mentorship Guidance:"""
         """
         from core.autonomy_policy import (
             NEVER_TASK_ADMISSION_ACTION,
-            decision_covers,
             evaluate_task_admission,
             grant_never_autonomous_clearance,
             task_admission_params,
+            warm_task_admission_receipt_denial,
         )
         from core.task_classification import task_profile_from_context
 
@@ -3768,11 +3768,14 @@ Provide your Mentorship Guidance:"""
                     execution_id=execution_id,
                     tenant_id=tenant_id,
                     workspace_id=workspace_id,
+                    admission_action_id=action_id,
                 )
             finally:
                 db.close()
             if fresh.get("outcome") == "review":
-                if not decision_covers(decision, fresh):
+                denial = warm_task_admission_receipt_denial(
+                    decision, fresh, hitl_action_id=action_id)
+                if denial == "policy_changed":
                     return {
                         "output": (
                             "Governance Error: the never-autonomous policy "
@@ -3781,6 +3784,23 @@ Provide your Mentorship Guidance:"""
                         "status": "awaiting_approval",
                         "requires_human_approval": True,
                         "reason": fresh.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "actions_executed": [],
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                if denial:
+                    return {
+                        "output": (
+                            "Governance Error: this task's approval could "
+                            "not be verified against the durable authorized "
+                            "receipt; a fresh human review is required."),
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "reason": (
+                            "The never-autonomous approval for this exact "
+                            "task execution was not authorized or no longer "
+                            "matches it."),
                         "execution_id": execution_id,
                         "never_autonomous": fresh,
                         "actions_executed": [],
