@@ -589,6 +589,7 @@ jobs:
           mkdir -p "${checkpoint_root}/data" "${checkpoint_root}/office"
           python -m pytest \
             tests/test_goal_run_checkpoint_approval_surfaces.py \
+            tests/test_public_http_exception_wire_format.py \
             tests/test_goal_run_routes.py \
             tests/test_hitl_resume.py \
             tests/test_hitl_approvals_journey.py \
@@ -1609,5 +1610,5 @@ jobs:
       # only — the goal-runs detail step above stays byte-identical and keeps
       # running tests/pages/goal-runs/detail.test.tsx.
       - name: Goal-run checkpoint API and index regression tests
-        run: npx jest tests/lib/goal-run-api-checkpoint.test.ts tests/pages/goal-runs/index.test.tsx --runInBand --no-coverage --watchman=false
+        run: npx jest tests/lib/goal-run-api-checkpoint.test.ts tests/pages/goal-runs/index.test.tsx lib/__tests__/goal-run-api.error-detail.test.ts --runInBand --no-coverage --watchman=false
 
