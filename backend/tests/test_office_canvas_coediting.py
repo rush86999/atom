@@ -67,6 +67,7 @@ def test_db():
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 def _make_xlsx(path):
@@ -372,15 +373,86 @@ class TestPresentPersistence:
         )
 
     def test_explicit_canvas_id_respected(self, test_db, xlsx_file):
+        """An explicit id reuses an EXISTING owned active canvas.
+
+        /present intentionally requires the owner gate before explicit-id
+        reuse (`_require_canvas_owner`, b4060236b). The old test supplied a
+        random nonexistent id; production correctly 404'd it. Establish the
+        real owned canvas first, then prove reuse + file binding.
+        """
         from core.models import Canvas
 
         cid = f"canvas_{uuid.uuid4().hex[:12]}"
-        resp = self._client(test_db).post(
-            "/present",
-            json={"file_path": str(xlsx_file), "user_id": "x", "canvas_id": cid},
-        )
-        assert resp.json()["canvas_id"] == cid
-        assert test_db.query(Canvas).filter(Canvas.id == cid).first() is not None
+        test_db.add(Canvas(
+            id=cid, tenant_id="default", workspace_id=None,
+            created_by="u-pres", name="before.xlsx", canvas_type="document",
+            status="active", content={"blocks": []},
+        ))
+        test_db.commit()
+        count_before = test_db.query(Canvas).count()
+
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "x",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["canvas_id"] == cid
+        assert body["canvas_type"] == "sheets"
+
+        row = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        assert row.created_by == "u-pres"  # ownership unchanged
+        assert row.canvas_type == "sheets"  # adopted the real file type
+        assert row.content["office_file"] == str(xlsx_file)  # bound
+        assert row.content["format"] == "xlsx"
+        assert test_db.query(Canvas).count() == count_before  # reused, no mint
+
+    def test_explicit_canvas_id_missing_is_refused(self, test_db, xlsx_file):
+        from core.models import Canvas
+
+        cid = f"canvas_{uuid.uuid4().hex[:12]}"
+        count_before = test_db.query(Canvas).count()
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "x",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 404, resp.text
+        assert resp.json() == {"detail": "Canvas not found"}
+        assert test_db.query(Canvas).filter(Canvas.id == cid).count() == 0
+        assert test_db.query(Canvas).count() == count_before
+
+    def test_explicit_canvas_id_foreign_owner_is_refused(self, test_db, xlsx_file):
+        from core.models import Canvas
+
+        cid = f"canvas_{uuid.uuid4().hex[:12]}"
+        test_db.add(Canvas(
+            id=cid, tenant_id="default", workspace_id=None,
+            created_by="u-other", name="foreign.xlsx", canvas_type="sheets",
+            status="active", content={"office_file": "/elsewhere/foreign.xlsx"},
+        ))
+        test_db.commit()
+        before = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        before_content = dict(before.content)
+        count_before = test_db.query(Canvas).count()
+
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "u-pres",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 404, resp.text
+        assert resp.json() == {"detail": "Canvas not found"}  # no oracle
+
+        after = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        assert after.created_by == "u-other"  # ownership unchanged
+        assert dict(after.content) == before_content  # no file rebinding
+        assert after.content.get("office_file") != str(xlsx_file)
+        assert test_db.query(Canvas).count() == count_before
 
     def test_canvas_types_per_format(self, test_db, office_root):
         from core.models import Canvas
