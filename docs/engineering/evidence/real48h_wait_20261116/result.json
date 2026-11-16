@@ -1,0 +1,21 @@
+{
+  "accepted_scope": "real48h retained-world restart plus controlled authorized-answer continuation",
+  "source": "2f2b376a0daa8049edd91121fbec42acada15aea",
+  "elapsed_hours_at_restart": 48.0203,
+  "same_job_execution_wait": true,
+  "no_pre_answer_effect_or_model_continuation": true,
+  "verified_task_effect_count": 1,
+  "original_answer_and_correlation_preserved": true,
+  "job_execution_success_durable_after_stop": true,
+  "duplicate_200_already_resumed_and_late_conflict409_asserted_by_bound_verifier": true,
+  "all_owned_children_dead": true,
+  "verifier_sha256": "b7962229b93498921f3d1ab99adad965d704ddca6d2e36c732f3366103d480f3",
+  "limitations": [
+    "scripted model",
+    "seeded principal API override",
+    "not current-main48h or ordinarybrowser/livejudgment proof",
+    "independent-work/partial-reply/cancel breadth not regraded"
+  ],
+  "goal_or_claim_score_changed": false,
+  "terminal_case": true
+}

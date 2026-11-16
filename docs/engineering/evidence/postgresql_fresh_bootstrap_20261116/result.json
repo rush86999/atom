@@ -1,0 +1,36 @@
+{
+  "source": "5aa8c1c8b8cdec59e17675e42c7ac4ec4338615a",
+  "scope": "new verified-empty PG15 schema adoption; no fullapp/managed-upgrade/async-transport claim",
+  "postgres_version_num": "150019",
+  "python": "3.12.13",
+  "sqlalchemy": "2.1.8",
+  "alembic": "1.20.1",
+  "initial_public_tables": 0,
+  "registered_tables": 371,
+  "created_tables": 371,
+  "version_num_length": 255,
+  "heads": [
+    "20260820_experience_marketplace",
+    "20260821_turn_facts_source_attribution",
+    "20260822_org_actions",
+    "20260902_wikiskill_adaptation",
+    "20261102_goal_run_material_revision",
+    "20261113_user_session_token_jti",
+    "c1e2a454c6e9"
+  ],
+  "exact_head_readback": true,
+  "own_container_removed": true,
+  "root_regressions_passed": 68,
+  "root_gate_seconds": 21.62,
+  "prior_failures_retained": [
+    "implicit driver absent",
+    "sync driver incorrectly used by async engine",
+    "revision VARCHAR32 rejected38char head"
+  ],
+  "limitations": [
+    "fresh-schema adoption only",
+    "existing narrow version tables unchanged",
+    "real asyncpg transport unavailable in verifier environment",
+    "historical migration replay, fullapp, persistence/restart and multiworker not qualified"
+  ]
+}
