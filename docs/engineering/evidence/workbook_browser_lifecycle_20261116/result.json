@@ -1,0 +1,62 @@
+{
+  "status": "root_verified_composite_browser_lifecycle",
+  "source_sha": "3316b0fe71a1203a90e0f4ec856d7eb5a08d2f4a",
+  "scope": "synthetic ordinary-browser XLSX upload/edit/formula/export/reload and same-world full API/frontend restart; not live connector/model judgment",
+  "fixture": {
+    "sheets": 24,
+    "bytes": 34469,
+    "sha256": "7decf9685f48965e7c1381c59d7b4e87a4572f5435178b3d7285d45cfe27eb2b",
+    "independent_original_total": 34533,
+    "edit": "Data20!B2:2->9",
+    "independent_new_total": 34610,
+    "formula_count": 521
+  },
+  "native_UI": {
+    "normal_login_and_exact_web_session": true,
+    "new_canvas_and_native_existing_agent_attach": true,
+    "real_filechooser_upload": 200,
+    "all_24_sheets_read": true,
+    "native_quantity_edit": "Data20!B2: 2 -> 9",
+    "fresh_recalculation": "complete; recalculated=true; no formula gaps",
+    "dependent_total_before": 34533,
+    "dependent_total_after": 34610,
+    "save_and_reload": true
+  },
+  "download": {
+    "status": 200,
+    "bytes": 34479,
+    "sha256": "4a45d134e4467f29c4e4972b2d359fa6e490a364d0d5888097589bce25a63c36",
+    "exact_sheet_order": true,
+    "all_521_formula_strings_and_cached_values_checked": true,
+    "independent_individual_controls": 1133,
+    "before_and_after_full_stack_restart_identical_bytes": true,
+    "no_store": true,
+    "unsigned_status": 401
+  },
+  "persistence": {
+    "same_world_account_canvas_workbook": true,
+    "API_and_frontend_both_replaced": true,
+    "fresh_normal_login_after_restart": true,
+    "no_upload_or_edit_replay": true,
+    "unsigned_UI": "/login with exact canvas callback; password form visible; no workbook download"
+  },
+  "cleanup": {
+    "all_four_owned_app_PIDs_absent": true,
+    "owned_Chrome_orphans": 0
+  },
+  "method": "Composite evidence: native mutation run reached export but failed a verifier comparison; independent file reconciliation and new read-only browser continuations completed export/denial/restart coverage. No failing run relabelled passed.",
+  "retained_failures": [
+    "workbook.result.json: attachment test-attribute timeout before upload",
+    "workbook-inspect.result.json: diagnostic syntax failure before browser; corrected v2 observed real dialog",
+    "workbook-v2.result.json: wrong raw-formula-vs-cached-value comparison after successful mutation/download",
+    "first Python export control: string99.0 versus99 false negative; exact numeric comparison1133PASS",
+    "workbook-readonly.result.json: verifier expected auth/signin instead of shipped /login; API401/export already succeeded"
+  ],
+  "limits": [
+    "existing synthetic local workbook; no fresh WorkDrive source",
+    "model-free attach to launcher-provisioned Demo Assistant; no guided agent creation quality",
+    "no model-driven sheet population selection, citations, grounding or ambiguous-request refusal",
+    "not all workbook operations, file families or Goal4/5 acceptance",
+    "no app provider key or live dev DB used"
+  ]
+}
