@@ -55,6 +55,16 @@ const trainingProposal = {
   created_at: "2026-01-02T09:00:00Z",
 };
 
+const activeTrainingProposal = {
+  ...trainingProposal,
+  status: "approved",
+  active_session_id: "sess-1",
+  session_status: "active",
+  agent_tier: "student",
+  agent_confidence: 0.6,
+  lesson_plan: { mentor: "atom_main", objective: "Triage tickets", tasks: ["Classify one ticket"] },
+};
+
 const actionProposal = {
   id: "ap-1",
   agent_id: "agent-sales-123456789",
@@ -300,6 +310,77 @@ describe("ApprovalsPage", () => {
         expect.objectContaining({ method: "POST" })
       )
     );
+  });
+
+  it("does not announce promotion when completion returns a blocked readiness object", async () => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/sessions/sess-1/complete")) {
+        return Promise.resolve(okJson({
+          promoted_to_intern: false,
+          promotion: { ready: false, reason: "needs work episodes" },
+        }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [activeTrainingProposal] }));
+      }
+      return Promise.resolve(okJson([]));
+    });
+    render(<ApprovalsPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete Training Session" }));
+
+    expect(await screen.findByText("Training session completed.")).toBeInTheDocument();
+    expect(screen.queryByText(/Promotion granted/)).not.toBeInTheDocument();
+  });
+
+  it("announces promotion only for an actual true promoted_to_intern flag", async () => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/sessions/sess-1/complete")) {
+        return Promise.resolve(okJson({
+          promoted_to_intern: true,
+          promotion: { ready: true, pathway: "self_directed" },
+        }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [activeTrainingProposal] }));
+      }
+      return Promise.resolve(okJson([]));
+    });
+    render(<ApprovalsPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete Training Session" }));
+
+    expect(await screen.findByText(/Training session completed\. .*Promotion granted!/)).toBeInTheDocument();
+  });
+
+  it("does not announce promotion when the completion response omits the flag", async () => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/sessions/sess-1/complete")) {
+        return Promise.resolve(okJson({ promotion: { ready: true } }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [activeTrainingProposal] }));
+      }
+      return Promise.resolve(okJson([]));
+    });
+    render(<ApprovalsPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete Training Session" }));
+
+    expect(await screen.findByText("Training session completed.")).toBeInTheDocument();
+    expect(screen.queryByText(/Promotion granted/)).not.toBeInTheDocument();
   });
 
   it("surfaces a supervisor-permission error when training decisions are rejected", async () => {

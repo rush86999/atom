@@ -3,8 +3,11 @@
 Last reviewed: November 16, 2026.
 
 **Production readiness is not verified.** The code contains PostgreSQL support;
-the current independent result qualifies only a fresh empty-database schema
-bootstrap. See [the source-bound fresh-bootstrap record](../engineering/POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md).
+the independent records qualify fresh empty-database schema adoption,
+[normal public auth/canvas across API restart](../engineering/POSTGRES_FULLAPP_RESTART_2026_11_16.md)
+and [one synthetic logical restore](../engineering/POSTGRES_LOGICAL_RESTORE_2026_11_16.md)
+at source `c1ab1af1da0600f6bc91199b7569d5756ce64492`. These bounded records do
+not establish general production support.
 
 ## Fresh installation
 
@@ -16,8 +19,14 @@ It must not be used to adopt an existing database silently.
 
 A disposable PostgreSQL 15.19 run created 371 registered tables and recorded
 all seven revision IDs with the repaired driver/version-table configuration.
-This was a development-mode schema test with synthetic identities, not a
-production TLS, full-app or disaster-recovery qualification.
+The later controlled full-app case also passed normal signup/login and
+canvas persistence across distinct API processes. A separate stopped-writer
+logical dump/restore matched all 372 public tables (including the version
+table) by exact row counts and row-content fingerprints, preserved all seven
+heads, then passed normal login and same-canvas readback on the restored DB
+across another API restart. No user or canvas was re-created after restore.
+This is synthetic single-database recovery, not production TLS or complete
+disaster-recovery qualification.
 
 The PostgreSQL DBAPI declared in the full backend requirements is psycopg2.
 Implicit PostgreSQL URLs are pinned to it; explicit driver choices remain
@@ -51,9 +60,12 @@ These code paths are configuration mechanisms, not evidence that a particular
 production deployment is secure or complete. No live database credentials
 belong in logs, committed files or evidence packets.
 
-Before claiming production support, independently verify supported clean and
-existing installs, normal application login and work, async services,
-persistence across restart, multi-worker behavior and backup/restore/rollback.
+Before claiming production support, independently verify supported existing
+installs/upgrades, async services, persistence across database/container
+restart, multi-worker/soak behavior, cluster roles/extensions, PITR and full
+rollback. The measured public auth/canvas API restart and single-database
+logical restore remain source-bound; ordinary browser and broader workload
+acceptance are separate.
 The SQLite development snapshot helpers are not PostgreSQL backup proof.
 The older [PostgreSQL 14 schema baseline](../engineering/evidence/postgresql_schema_20261107/README.md)
 remains ORM-creation evidence only.
