@@ -10072,3 +10072,49 @@ tests/pages/canvas-detail.test.tsx --runInBand` → **86 passed / 2 suites**;
 `npx tsc --noEmit` → clean. Cached `node_modules` symlinked read-only; no
 install, browser, live API/DB, or provider calls. Browser/real-backend UAT is
 left to ROOT after the backend worker is ready.
+
+## Session 2026-11-16 — never-autonomous task baskets (CI selection + docs)
+
+**Files**: `.github/workflows/ci.yml` (two additive steps:
+`backend-core` → "Run never-autonomous task boundary controls" and
+`frontend-typecheck` → "Run never-autonomous task basket UI controls"),
+`backend/tests/fixtures/ci_backend_additions.json` (the parsed backend step
+appended to the lane ledger), `docs/engineering/NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md`
+(route, empty default, AND/OR dimensions, one-execution approval, fail-closed
+unknown, independent autonomy controls, classifier limits, migration and CI
+selection) and the readiness index link. No product file, product test,
+existing CI selection, policy, required check or trigger was edited.
+
+**Backend selection**: all five complete files run in separate processes with
+per-file absolute runner-temp SQLite and
+`TESTING=1 PYTEST_VERSION=ci PYTHON_DOTENV_DISABLED=1`:
+`tests/test_never_autonomous_rules.py`,
+`tests/test_never_autonomous_task_scope.py`,
+`tests/test_never_autonomous_rule_write_fences.py`,
+`tests/test_never_autonomous_review_authority.py`,
+`tests/test_never_autonomous_entry_identity.py`. No node-id subsets,
+deselection, skip or `continue-on-error`.
+
+**UI selection**: the complete
+`components/canvas/__tests__/AutonomyPanel.test.tsx` file. The already-selected
+`tests/pages/canvas-detail.test.tsx` host coverage stays in the existing
+"Native canvas save and uncertain-outcome controls" step, unchanged.
+
+**Verification actually run in this worktree**: `tests/test_ci_backend_lane_contract.py
+tests/test_quickstart_matrix_contract.py` → **642 passed** with an absolute
+scratch DB; `bash -n` on both new run blocks → clean. The exact CI-shaped
+per-file backend loop against isolated scratch SQLite → **4 failed, 68 passed**
+(five separate processes); the entry-identity file alone → **4 failed, 14
+passed**; the other four files → **54 passed**. The failures are the
+approval-receipt/outage branches owned by the separate approval-atomicity
+worker (`changed_suffix_beyond_8000`, `identical_full_task_cold_resume`,
+`ungrantable_classification_outage`, `recovery_requires_fresh_review`). A
+single-process diagnostic run of all five files additionally failed
+`workflow_unbound_profile_still_pauses` (5 failed, 67 passed); that
+cross-file ordering interaction is why the CI step keeps one process per file.
+Everything is recorded, not skipped, deselected or bypassed. The UI Jest file
+was not run here because
+`frontend-nextjs/node_modules` is absent; no install was attempted. No live
+DB/server/browser/credential/network/model provider was used. This is CI
+selection and documentation only; root browser, final broader suites and merge
+remain pending, and no verified/shipped claim is made.
