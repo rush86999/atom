@@ -138,6 +138,7 @@ describe("ConversationLearningReview correction", () => {
     expect(body).toEqual({
       proposed_lesson: "Use the corrected rates workbook.",
       expected_revision: 1,
+      expected_status: "confirmed",
     });
 
     expect(screen.getByTestId("learning-proposed-lesson")).toHaveTextContent(
@@ -203,6 +204,7 @@ describe("ConversationLearningReview correction", () => {
     await waitFor(() => expect(reviseCandidate).toHaveBeenCalledTimes(1));
     const body = reviseCandidate.mock.calls[0][2];
     expect(body.expected_revision).toBe(1);
+    expect(body.expected_status).toBe("confirmed");
     expect(body.method.inputs[1]).toEqual({
       concept: "unit_price",
       column: "NetPrice",

@@ -161,6 +161,7 @@ export async function reviseLearningCandidate(
   candidateId: string,
   payload: Record<string, unknown> & {
     expected_revision: number;
+    expected_status?: string;
     proposed_lesson?: string;
     method?: Record<string, any>;
     method_status?: string;
@@ -189,6 +190,8 @@ export async function resolveLearningDependency(
     unit?: string;
     value?: unknown;
     confirmed_by?: string;
+    expected_revision?: number;
+    expected_status?: string;
   },
   sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
@@ -204,7 +207,8 @@ export async function confirmLearningCandidate(
   candidateId: string,
   reviewer: string,
   expectedRevision: number,
-  sourceKind = "email"
+  sourceKind = "email",
+  expectedStatus = ""
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/confirm`,
@@ -213,6 +217,7 @@ export async function confirmLearningCandidate(
       source_kind: sourceKind,
       reviewer,
       expected_revision: expectedRevision,
+      ...(expectedStatus ? { expected_status: expectedStatus } : {}),
     }
   );
   return data;
@@ -224,7 +229,8 @@ export async function promoteLearningCandidate(
   reviewer: string,
   expectedRevision: number,
   expectedDigest: string,
-  sourceKind = "email"
+  sourceKind = "email",
+  expectedStatus = ""
 ): Promise<{ lesson_id: string; candidate: Record<string, any> }> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/promote`,
@@ -234,6 +240,7 @@ export async function promoteLearningCandidate(
       reviewer,
       expected_revision: expectedRevision,
       expected_digest: expectedDigest,
+      ...(expectedStatus ? { expected_status: expectedStatus } : {}),
     }
   );
   return data;
@@ -265,11 +272,20 @@ export async function rejectLearningCandidate(
   candidateId: string,
   reviewer: string,
   reason = "",
-  sourceKind = "email"
+  sourceKind = "email",
+  expectedRevision = 0,
+  expectedStatus = ""
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/reject`,
-    { thread_id: threadId, source_kind: sourceKind, reviewer, reason }
+    {
+      thread_id: threadId,
+      source_kind: sourceKind,
+      reviewer,
+      reason,
+      ...(expectedRevision ? { expected_revision: expectedRevision } : {}),
+      ...(expectedStatus ? { expected_status: expectedStatus } : {}),
+    }
   );
   return data;
 }

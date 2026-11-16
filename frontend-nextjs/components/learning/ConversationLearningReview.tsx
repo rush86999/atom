@@ -471,6 +471,8 @@ export function ConversationLearningReview({
           resource_id: resourceId,
           ...dependencyAnswer(dep, answer),
           confirmed_by: reviewer,
+          expected_revision: review.revision,
+          expected_status: review.status,
         },
         sourceKind,
       );
@@ -489,7 +491,8 @@ export function ConversationLearningReview({
     setError(null);
     try {
       const confirmed = await confirmLearningCandidate(
-        threadId, review.candidate_id, reviewer, review.revision, sourceKind);
+        threadId, review.candidate_id, reviewer, review.revision, sourceKind,
+        review.status);
       setPayload(confirmed);
       setNotice("Review confirmed. Promotion will bind this exact revision and digest.");
     } catch (err: any) {
@@ -506,7 +509,7 @@ export function ConversationLearningReview({
     try {
       const promoted = await promoteLearningCandidate(
         threadId, review.candidate_id, reviewer,
-        review.revision, review.digest, sourceKind);
+        review.revision, review.digest, sourceKind, review.status);
       setNotice(`Lesson promoted (${promoted.lesson_id}).`);
       await load();
     } catch (err: any) {
@@ -553,7 +556,7 @@ export function ConversationLearningReview({
     try {
       const rejected = await rejectLearningCandidate(
         threadId, review.candidate_id, reviewer, "Rejected in review",
-        sourceKind);
+        sourceKind, review.revision, review.status);
       setPayload(rejected);
       setNotice("Proposal rejected. No lesson was written.");
     } catch (err: any) {
@@ -597,7 +600,11 @@ export function ConversationLearningReview({
       const revised = await reviseLearningCandidate(
         threadId,
         review.candidate_id,
-        { ...body, expected_revision: review.revision },
+        {
+          ...body,
+          expected_revision: review.revision,
+          expected_status: review.status,
+        },
         sourceKind,
       );
       setPayload(revised);

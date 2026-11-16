@@ -165,14 +165,14 @@ describe("ConversationLearningReview", () => {
     fireEvent.click(screen.getByTestId("learning-confirm"));
     await waitFor(() => {
       expect(confirmLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", 1, "email");
+        "thread-1", "lc-1", "owner", 1, "email", "review_ready");
     });
     expect(screen.getByTestId("learning-promote")).toBeEnabled();
 
     fireEvent.click(screen.getByTestId("learning-promote"));
     await waitFor(() => {
       expect(promoteLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", 1, "digest-1", "email");
+        "thread-1", "lc-1", "owner", 1, "digest-1", "email", "confirmed");
     });
   });
 
@@ -189,7 +189,8 @@ describe("ConversationLearningReview", () => {
 
     await waitFor(() => {
       expect(rejectLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", "Rejected in review", "email");
+        "thread-1", "lc-1", "owner", "Rejected in review", "email", 1,
+        "needs_clarification");
     });
     expect(await screen.findByTestId("learning-notice")).toHaveTextContent(
       "No lesson was written."

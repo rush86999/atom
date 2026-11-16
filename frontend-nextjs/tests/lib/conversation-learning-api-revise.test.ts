@@ -26,6 +26,7 @@ describe("reviseLearningCandidate", () => {
       "candidate/1",
       {
         expected_revision: 4,
+        expected_status: "promoted",
         proposed_lesson: "Use the corrected workbook.",
         applies_to: ["pricing"],
       },
@@ -38,6 +39,7 @@ describe("reviseLearningCandidate", () => {
         thread_id: "thread/1",
         source_kind: "native_chat",
         expected_revision: 4,
+        expected_status: "promoted",
         proposed_lesson: "Use the corrected workbook.",
         applies_to: ["pricing"],
       },

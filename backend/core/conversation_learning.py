@@ -20,6 +20,7 @@ pieces.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
@@ -1420,6 +1421,7 @@ def _append_candidate_event(
     candidate: LearningCandidate,
     *,
     extra: Optional[Dict[str, Any]] = None,
+    commit: bool = True,
 ) -> str:
     from core.models import ConversationEvent
 
@@ -1432,8 +1434,124 @@ def _append_candidate_event(
         tenant_id=candidate.tenant_id or None,
     )
     db.add(row)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        # The caller owns the surrounding transaction (candidate write
+        # fence); flush makes the event id available without committing.
+        db.flush()
     return str(row.id)
+
+
+def _begin_candidate_write_guard(
+    db: Session,
+    candidate: LearningCandidate,
+) -> None:
+    """Acquire the existing durable write fence for a candidate mutation.
+
+    PostgreSQL: lock the AgentRegistry row that also owns the lesson log, so
+    event append, promotion and stale-marking cannot interleave. SQLite
+    ignores ``FOR UPDATE``; its only cross-connection serialization is the
+    single writer transaction, acquired with ``BEGIN IMMEDIATE`` before the
+    authoritative read. This is the same supported pattern already used for
+    spend admission and canvas CAS — no process-only mutex and no second
+    registry.
+    """
+    try:
+        dialect = str(db.get_bind().dialect.name or "")
+    except Exception:
+        dialect = ""
+    # End the route's pre-guard transaction so the authoritative read below
+    # runs in a fresh, already-serialized transaction. ``commit`` (not
+    # rollback) preserves loaded ORM attributes on caller objects while still
+    # closing the read snapshot; every writer in this module commits its own
+    # work before returning, so there is no caller-owned pending write here.
+    db.commit()
+    if dialect == "sqlite":
+        conn = db.connection()
+        conn.exec_driver_sql("PRAGMA busy_timeout=30000")
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+        return
+    from core.models import AgentRegistry
+
+    locked = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == candidate.agent_id)
+        .with_for_update()
+        .first()
+    )
+    if locked is None:
+        raise ValueError("candidate_agent_missing")
+
+
+def _authoritative_candidate(
+    db: Session,
+    candidate: LearningCandidate,
+) -> LearningCandidate:
+    """Latest candidate reconstructed while the write guard is held.
+
+    Candidate state is the append-only event ledger, so reading it again under
+    the fence is the authoritative compare source. The identity fields are
+    checked before any mutation so a forged/stale object cannot retarget a
+    different candidate, source or scope.
+    """
+    latest = load_candidate(
+        db, candidate.thread_id, candidate.candidate_id, candidate.source_kind)
+    if latest is None:
+        raise ValueError("candidate_not_found")
+    if (
+        str(latest.candidate_id) != str(candidate.candidate_id)
+        or str(latest.thread_id) != str(candidate.thread_id)
+        or str(latest.source_kind) != str(candidate.source_kind)
+        or str(latest.agent_id) != str(candidate.agent_id)
+        or str(latest.workspace_id) != str(candidate.workspace_id)
+        or str(latest.tenant_id) != str(candidate.tenant_id)
+    ):
+        raise ValueError("candidate_identity_changed")
+    return latest
+
+
+def _adopt_authoritative_candidate(
+    candidate: LearningCandidate,
+    latest: LearningCandidate,
+) -> LearningCandidate:
+    """Refresh the caller's object in place from the guarded read.
+
+    Services historically mutated the passed candidate in place; tests and
+    callers rely on that. The values come only from the guarded re-read.
+    """
+    candidate.__dict__.update(latest.__dict__)
+    return candidate
+
+
+def _guarded_candidate_mutation(func):
+    """Run a candidate mutation as one guarded transaction.
+
+    The write fence is acquired BEFORE the authoritative event-ledger read,
+    so a completed peer correction is visible and a loser cannot append its
+    event, retire a lesson or partially write anything: the wrapper rolls
+    back and re-raises the service's typed ValueError.
+    """
+
+    @functools.wraps(func)
+    def wrapper(db: Session, candidate: LearningCandidate, *args, **kwargs):
+        try:
+            _begin_candidate_write_guard(db, candidate)
+            latest = _authoritative_candidate(db, candidate)
+            # Any state transition since the caller's scoped read (a peer
+            # confirmation, promotion, rejection or invalidation) is a
+            # conflict even when the content revision did not change.
+            if str(latest.status) != str(candidate.status):
+                raise ValueError("candidate_status_changed")
+            _adopt_authoritative_candidate(candidate, latest)
+            result = func(db, candidate, *args, **kwargs)
+            db.commit()
+            return result
+        except Exception:
+            db.rollback()
+            raise
+
+    return wrapper
 
 
 def save_candidate(
@@ -1542,6 +1660,7 @@ def _find_edge(candidate: LearningCandidate,
          and edge.resolution_status != "resolved"), None)
 
 
+@_guarded_candidate_mutation
 def resolve_dependency(
     db: Session,
     candidate: LearningCandidate,
@@ -1554,8 +1673,15 @@ def resolve_dependency(
     value: Any = None,
     method_status: Optional[str] = None,
     confirmed_by: str = "",
+    expected_revision: Optional[int] = None,
+    expected_status: Optional[str] = None,
 ) -> LearningCandidate:
     """Apply one user answer to a dependency, then require review again."""
+    if expected_revision is not None and int(expected_revision) != int(
+            candidate.revision):
+        raise ValueError("candidate_revision_changed")
+    if expected_status and str(expected_status) != str(candidate.status):
+        raise ValueError("candidate_status_changed")
     dep = next(
         (item for item in candidate.dependencies
          if item.dependency_id == str(dependency_id)), None)
@@ -1648,10 +1774,12 @@ def resolve_dependency(
     _append_candidate_event(
         db, "learning_candidate_dependency_resolved", candidate,
         extra={"dependency_id": dependency_id,
-               "resolved_by": confirmed_by or "user"})
+               "resolved_by": confirmed_by or "user"},
+        commit=False)
     return candidate
 
 
+@_guarded_candidate_mutation
 def revise_candidate(
     db: Session,
     candidate: LearningCandidate,
@@ -1665,6 +1793,7 @@ def revise_candidate(
     conditions: Optional[Dict[str, Any]] = None,
     decision_options: Optional[Sequence[str]] = None,
     expected_revision: Optional[int] = None,
+    expected_status: Optional[str] = None,
     changed_by: str = "",
 ) -> LearningCandidate:
     """Change candidate content; any prior approval is no longer valid.
@@ -1681,8 +1810,11 @@ def revise_candidate(
     if expected_revision is not None and int(expected_revision) != int(
             candidate.revision):
         raise ValueError("candidate_revision_changed")
+    if expected_status and str(expected_status) != str(candidate.status):
+        raise ValueError("candidate_status_changed")
     if candidate.status == "promoted" and candidate.promoted_entry_id:
-        _mark_promoted_lesson_stale(db, candidate, "candidate_revised")
+        _mark_promoted_lesson_stale(
+            db, candidate, "candidate_revised", commit=False, strict=True)
     if proposed_lesson is not None:
         candidate.proposed_lesson = _bounded(proposed_lesson, 2000)
     if method is not None:
@@ -1713,20 +1845,24 @@ def revise_candidate(
     candidate = refresh_candidate(candidate)
     _append_candidate_event(
         db, "learning_candidate_revised", candidate,
-        extra={"changed_by": changed_by})
+        extra={"changed_by": changed_by}, commit=False)
     return candidate
 
 
+@_guarded_candidate_mutation
 def confirm_candidate(
     db: Session,
     candidate: LearningCandidate,
     *,
     reviewer: str,
     expected_revision: Optional[int] = None,
+    expected_status: Optional[str] = None,
 ) -> LearningCandidate:
     if expected_revision is not None and int(expected_revision) != int(
             candidate.revision):
         raise ValueError("candidate_revision_changed")
+    if expected_status and str(expected_status) != str(candidate.status):
+        raise ValueError("candidate_status_changed")
     readiness = candidate_readiness(candidate)
     if not readiness["review_ready"]:
         raise ValueError("candidate_not_review_ready")
@@ -1736,26 +1872,36 @@ def confirm_candidate(
     candidate.confirmed_digest = _candidate_digest(candidate)
     _append_candidate_event(
         db, "learning_candidate_confirmed", candidate,
-        extra={"reviewer": reviewer})
+        extra={"reviewer": reviewer}, commit=False)
     return candidate
 
 
+@_guarded_candidate_mutation
 def reject_candidate(
     db: Session,
     candidate: LearningCandidate,
     *,
     reviewer: str,
     reason: str = "",
+    expected_revision: Optional[int] = None,
+    expected_status: Optional[str] = None,
 ) -> LearningCandidate:
+    if expected_revision is not None and int(expected_revision) != int(
+            candidate.revision):
+        raise ValueError("candidate_revision_changed")
+    if expected_status and str(expected_status) != str(candidate.status):
+        raise ValueError("candidate_status_changed")
     candidate.status = "rejected"
     candidate.rejected_by = str(reviewer or "")
     candidate.rejected_reason = _bounded(reason, 500)
     _append_candidate_event(
         db, "learning_candidate_rejected", candidate,
-        extra={"reviewer": reviewer, "reason": candidate.rejected_reason})
+        extra={"reviewer": reviewer, "reason": candidate.rejected_reason},
+        commit=False)
     return candidate
 
 
+@_guarded_candidate_mutation
 def promote_candidate(
     db: Session,
     candidate: LearningCandidate,
@@ -1763,6 +1909,7 @@ def promote_candidate(
     reviewer: str,
     expected_revision: Optional[int] = None,
     expected_digest: Optional[str] = None,
+    expected_status: Optional[str] = None,
     catalog: Sequence[ResourceBinding | Dict[str, Any]] = (),
 ) -> Dict[str, Any]:
     """Write an approved candidate through the one teaching journal."""
@@ -1771,6 +1918,8 @@ def promote_candidate(
     if expected_revision is not None and int(expected_revision) != int(
             candidate.revision):
         raise ValueError("candidate_revision_changed")
+    if expected_status and str(expected_status) != str(candidate.status):
+        raise ValueError("candidate_status_changed")
     if (candidate.confirmed_revision != candidate.revision
             or candidate.confirmed_digest != _candidate_digest(candidate)):
         raise ValueError("candidate_not_confirmed_at_current_revision")
@@ -1868,6 +2017,7 @@ def promote_candidate(
         conditions=dict(candidate.conditions) or None,
         decision_options=list(candidate.decision_options) or None,
         workspace_id=candidate.workspace_id,
+        commit=False,
     )
     if entry is None:
         raise ValueError("lesson_not_journaled")
@@ -1875,7 +2025,8 @@ def promote_candidate(
     candidate.promoted_entry_id = str(entry.get("id") or "")
     _append_candidate_event(
         db, "learning_candidate_promoted", candidate,
-        extra={"reviewer": reviewer, "entry_id": candidate.promoted_entry_id})
+        extra={"reviewer": reviewer, "entry_id": candidate.promoted_entry_id},
+        commit=False)
     return {
         "candidate": candidate,
         "entry": entry,
@@ -2024,6 +2175,9 @@ def _mark_promoted_lesson_stale(
     db: Session,
     candidate: LearningCandidate,
     reason: str,
+    *,
+    commit: bool = True,
+    strict: bool = False,
 ) -> None:
     """Mark the promoted lesson for revalidation without deleting it.
 
@@ -2065,8 +2219,16 @@ def _mark_promoted_lesson_stale(
             config = {**config, "learning": learning}
             agent.configuration = config
             flag_modified(agent, "configuration")
-            db.commit()
+            if commit:
+                db.commit()
+            else:
+                db.flush()
     except Exception as exc:  # noqa: BLE001 — staleness must not break review
+        if strict:
+            # A correction promises to retire the old guidance atomically.
+            # If that write cannot be staged, abort the correction instead of
+            # committing new content while the old lesson stays usable.
+            raise
         logger.debug("promoted lesson revalidation mark skipped: %s", exc)
 
 
