@@ -1,0 +1,72 @@
+{
+  "source": "c1ab1af1da0600f6bc91199b7569d5756ce64492",
+  "environment": {
+    "database": "PostgreSQL15.19, new owned tmpfs container",
+    "python": "3.12.13 cachedvenv",
+    "application": "main_api_app:app canonical full API",
+    "test_mode": true,
+    "synthetic_data": true,
+    "network": "owned PG+HTTP ports only; OS/native-driver denial controls passed",
+    "provider_inference": false
+  },
+  "fresh_bootstrap": {
+    "tables_registered": 371,
+    "tables_created": 371,
+    "heads_preserved": 7,
+    "version_num_length": 255
+  },
+  "steps": [
+    {
+      "name": "preflight",
+      "status": "ok"
+    },
+    {
+      "name": "app-ready-1",
+      "status": "ok"
+    },
+    {
+      "name": "register",
+      "status": 200
+    },
+    {
+      "name": "login-1",
+      "status": 200
+    },
+    {
+      "name": "canvas-create",
+      "status": 200
+    },
+    {
+      "name": "canvas-read-1",
+      "status": 200
+    },
+    {
+      "name": "unauthorized-twin",
+      "status": 401
+    },
+    {
+      "name": "stop-1",
+      "status": "ok"
+    },
+    {
+      "name": "login-2",
+      "status": 200
+    },
+    {
+      "name": "canvas-read-2",
+      "status": 200
+    }
+  ],
+  "distinct_app_pids": true,
+  "same_canvas_id_read_after_restart": true,
+  "app_children_stopped": true,
+  "owned_container_removed": true,
+  "result": "PASS",
+  "limitations": [
+    "API process restart, not database/container restart",
+    "optional asyncpg not installed; async transport not verified",
+    "no multiworker/soak/backup/restore/existing-upgrade qualification",
+    "optional automation settings initialization attempted a hardcoded source-tree file write and was denied by read-only guard; no settings-persistence claim",
+    "controlled test env and synthetic public auth, not frontend/browser or live-model quality"
+  ]
+}

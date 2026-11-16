@@ -1,0 +1,66 @@
+{
+  "source": "c1ab1af1da0600f6bc91199b7569d5756ce64492",
+  "postgresql": "15.19",
+  "python": "3.12.13",
+  "test_environment": true,
+  "synthetic_data": true,
+  "method": "pg_dump custom; new template0 database; pg_restore single-transaction exit-on-error no-owner no-acl",
+  "writers_stopped": true,
+  "owned_cluster_identity_verified": true,
+  "new_restore_database_empty_before_restore": true,
+  "tables": 372,
+  "table_lists_equal": true,
+  "exact_row_counts_equal": true,
+  "content_fingerprints_equal": true,
+  "source_unchanged_during_dump": true,
+  "migration_heads_preserved": 7,
+  "version_column_length": 255,
+  "archive_sha256": "2dba2a5842246b9657054f81d750d7ff559fa635f008acfb9c9138d86b22276d",
+  "archive_bytes": 1285858,
+  "restored_public_api_steps": [
+    {
+      "name": "preflight",
+      "status": "ok"
+    },
+    {
+      "name": "app-ready-1",
+      "status": "ok"
+    },
+    {
+      "name": "login-1",
+      "status": 200
+    },
+    {
+      "name": "canvas-read-1",
+      "status": 200
+    },
+    {
+      "name": "unauthorized-twin",
+      "status": 401
+    },
+    {
+      "name": "stop-1",
+      "status": "ok"
+    },
+    {
+      "name": "login-2",
+      "status": 200
+    },
+    {
+      "name": "canvas-read-2",
+      "status": 200
+    }
+  ],
+  "same_canvas_id": true,
+  "no_reregister_or_recreate_on_restored_database": true,
+  "four_owned_app_children_stopped": true,
+  "owned_container_removed": true,
+  "provider_inference": false,
+  "result": "PASS",
+  "limits": [
+    "single synthetic logical database only",
+    "test mode; no frontend or live model evidence",
+    "no cluster-role/extension/PITR/multiworker/soak/database-container-restart qualification",
+    "not production disaster recovery"
+  ]
+}

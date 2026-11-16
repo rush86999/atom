@@ -1,6 +1,10 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Candidate PostgreSQL fresh bootstrap:** [the bounded record](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) records 371 tables, seven intact revision IDs and 68 independent checks. Existing upgrades, async transport and whole-app PostgreSQL remain unverified.
+> **Current release cut:** main `5d7f6f682f748da8a15972d9c959d882c8717e87` through #969. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+>
+> **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
+>
+> **Qualified PostgreSQL fresh bootstrap:** [the bounded record](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) records 371 tables, seven intact revision IDs and 68 independent checks. Existing upgrades, async transport and broader production PostgreSQL workloads remain unverified.
 >
 > **Real 48-hour follow-through:** [the retained wait result](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) passed restart and authorized answer after 48.0203 hours at source `2f2b376a0`, with one verified effect and duplicate-answer controls. The model/principal were controlled; this does not regrade current-main or whole-goal readiness.
 >
@@ -10,7 +14,7 @@
 >
 > **November 16 runtime follow-through:** [Sandbox lifecycle capacity](SANDBOX_LIFECYCLE_CAPACITY_2026_11_16.md) records process-wide capacity, teardown quarantine, 248 passing checks and a single real DEV-container smoke. It does not regrade whole-app readiness.
 >
-> **Merged verification base:** main `5cf380ecf` through #967; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
+> **Historical verification base:** main `5cf380ecf` through #967; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
 >
 > **Earlier verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
@@ -50,10 +54,10 @@ bounded test is promoted to whole-goal or whole-app completion.
 | Was the score recomputed? | **No.** Historical functional result remains **111/123 (90.2%)**. |
 | Were goals renumbered? | **No.** The canonical 18-goal catalogue is unchanged; historical 12-row numbering is crosswalked below. |
 | Is the app complete? | **No.** `app_complete: false` is preserved. |
-| Is current main merged? | Yes through `a868435fd` (`#943`). Drafts `#919` and `#932` are **not** main. `#943` was draft at task start and merged during this pass. |
+| What was merged at the original evidence cut? | At the historical November 14 cut, main was `a868435fd` (`#943`). The current release cut is stated above; old draft labels below describe their original dates. |
 | Is every original goal now verified? | **No.** Several goals remain open, unverified, environment-limited, external-blocked or bounded to narrow evidence. |
 | Can bounded tests be counted as whole-goal acceptance? | **No.** They are evidence at a named source and scope only. |
-| Is the 48-hour Goal 10 wait ready? | **No.** It is not due before **2026-11-16T06:42:25.414033Z**. |
+| Did the retained 48-hour Goal 10 wait finish? | **Yes, at its recorded source.** Actual resume and authorized answer passed after 48.0203 hours; see the linked November 16 record. Current-model/whole-goal acceptance remains separate. |
 
 ## Contents
 
@@ -1006,7 +1010,7 @@ reassignment; other workers own the lanes noted.
 
 | Rank | Boundary | Current exact position | What would count |
 |---:|---|---|---|
-| 1 | **Goal 10 elapsed wait** | Durable wait persisted at 06:42:25.414033Z on 2026-11-14; worker stopped; resume gate refuses until **2026-11-16T06:42:25.414033Z**. Source head `2f2b376a0`. | Actual resume on/after the gate, same job/execution/wait identity, no model continuation/task effect before the answer, then a verified outcome. Do not run early or force the gate. |
+| 1 | **Goal 10 broader ordinary journey** | [Actual retained 48-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with same-job identity, one verified effect and replay controls. | Current-main ordinary-model work, independent useful work/partial progress and cancel breadth remain separate. Never rearm the terminal elapsed-wait case. |
 | 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
 | 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
@@ -1014,10 +1018,10 @@ reassignment; other workers own the lanes noted.
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
 | 8 | **Goal 5 Canvas full families** | WA-045 32/32 and Canvas list 22/22 at `6ad2738ed`; full D2 open; mini-app KVM legs environment-limited. | Full Canvas D2, remaining families, ordinary reopen/export, and a KVM/microVM run where applicable. |
-| 9 | **Goal 1 full account lifecycle** | WA-075 29/29 Settings at `a53b56fdc`; native 2FA/menubar merged in `#943`; no current-main ordinary signup/recovery/SSO. | Ordinary signup, recovery, SSO and restart-session journeys at the current main, not just Settings. |
+| 9 | **Goal 1 full account lifecycle** | Settings and native 2FA/menubar have bounded proofs; normal public signup/login and renewed login across API restart also passed on synthetic PostgreSQL. | Ordinary browser signup/recovery/SSO and broader session lifecycle remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
-| 12 | **Goal 16 operations breadth** | macOS 3.12 quickstart/restore/rollback bounded; mobile CI merged; native mobile/KVM/PostgreSQL open. | Supported clean installs, PostgreSQL/multi-worker/soak, native mobile device journey, KVM/Firecracker, full rollback/login/restore/restart. |
+| 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; native mobile/KVM open. | Existing upgrades, async transport, database/container restart, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
 | 13 | **Goal 2 measured model selection** | Routing mechanisms verified; #942 preserved query complexity; no measured served comparison. | Two or more real served models with requested/served identity and scored quality/cost, including cheap Flash as first-class. No new spend authority. |
 | 14 | **Goal 17 performance/comparative** | Unverified; cache-only benchmark only. | Declared environment/workload/sample, reproducible command, dated source for comparative claims. |
 | 15 | **Goal 18 profile breadth** | `CORE-07` switch baseline; owner-deferred. | Explicit owner decision and qualified journeys for restored surfaces; no force-enable. |
