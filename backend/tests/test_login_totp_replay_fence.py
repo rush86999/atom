@@ -48,11 +48,16 @@ def env():
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[login_rate_limit] = lambda: None
     client = TestClient(app)
-    with patch("core.auth_endpoints.verify_password", return_value=True), \
-         patch("core.auth_endpoints.create_access_token", return_value="tok"), \
-         patch("core.auth_endpoints.audit_service.log_event") as audit, \
-         patch("core.session_registry.register_session"):
-        yield db, user, client, audit
+    try:
+        with patch("core.auth_endpoints.verify_password", return_value=True), \
+             patch("core.auth_endpoints.create_access_token", return_value="tok"), \
+             patch("core.auth_endpoints.audit_service.log_event") as audit, \
+             patch("core.session_registry.register_session"):
+            yield db, user, client, audit
+    finally:
+        client.close()
+        db.close()
+        engine.dispose()
 
 
 def _login(client, code=None):
@@ -138,3 +143,17 @@ def test_no_factor_and_password_only_challenge_preserved(env):
     normal = _login(client)
     assert normal.status_code == 200
     assert normal.json()["access_token"] == "tok"
+
+
+@freeze_time("2026-01-01 00:00:00")
+def test_helper_commit_failure_returns_503_without_token_or_consumed_step(env):
+    db, user, client, _audit = env
+    code = pyotp.TOTP(TEST_SECRET).now()
+    with patch.object(db, "commit", side_effect=RuntimeError("commit failed")), \
+         patch("core.auth_endpoints.create_access_token") as create_token:
+        resp = _login(client, code)
+    assert resp.status_code == 503
+    assert "access_token" not in resp.json()
+    create_token.assert_not_called()
+    db.refresh(user)
+    assert user.two_factor_last_totp_step is None
