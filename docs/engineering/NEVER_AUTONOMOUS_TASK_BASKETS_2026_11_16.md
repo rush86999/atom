@@ -1,12 +1,10 @@
 # Never-autonomous task baskets — behavior, limits and CI selection
 
-**Status: documentation and CI selection only. Not verified, not shipped.**
-This record describes the owner-requested optional never-autonomous task
-baskets as implemented in this worktree and records their additive test
-selection. Root has not run the ordinary browser journey, the final broader
-backend/frontend suites have not been run, and the change is not merged or
-post-merge-CI verified. Nothing here promotes the feature to a verified or
-shipped state, and nothing here re-scores readiness.
+**Status: independently verified locally; merge and exact-head CI pending.**
+Product source `b8e9b592d05beda4e964dda8012653cc33b46859` passed the
+bounded checks below. This is a task-boundary feature qualification, not a
+full-app readiness or model-quality claim. The original 143 claims / 18 goals
+and `app_complete: false` remain unchanged.
 
 The owner requirement is optional, never-autonomous task baskets identified by
 difficulty/category/domain combinations. The feature is an **opt-in veto**, not
@@ -20,7 +18,7 @@ existing topic/maturity/trust controls continue to run independently.
   (`data-testid="canvas-side-tab-autonomy"`), rendered by
   `frontend-nextjs/components/canvas/AutonomyPanel.tsx`.
 - **No standalone Settings page hosts these rules.** The canvas Autonomy tab is
-  the shipped access point in this source. The page passes `canvasId` and an
+  the access point in this source. The page passes `canvasId` and an
   optional accessible `agentId` to the panel; `canvas_id`/`agent_id` affect the
   topic grouping and live gate display only.
 - **Rules are user-global, not canvas-local.** The panel is reached from a
@@ -242,7 +240,7 @@ trigger and protection is preserved:
   `backend/tests/fixtures/ci_backend_additions.json` so the backend lane
   preservation ledger still matches exactly.
 
-### Actual local validation, including failures
+### Earlier CI-selection validation (source `63a784823`, before integration repair)
 
 - `tests/test_ci_backend_lane_contract.py tests/test_quickstart_matrix_contract.py`
   → **642 passed** in this worktree, with an absolute scratch `DATABASE_URL`.
@@ -270,17 +268,67 @@ trigger and protection is preserved:
 - No live database, server, browser, credential, network or model provider was
   used.
 
-## What remains open
+## Independent integration qualification
 
-- Root browser verification of the canvas Autonomy tab: empty default, rule
-  create/edit/disable/delete, a real matched task and the specific-execution
-  approval, plus the fail-closed unknown path.
-- The separately owned approval-decision atomicity repair and its regressions.
-- Final broader backend/frontend suites, current-main post-merge CI, and the
-  actual merge.
-- Classifier quality/recall beyond the described lexical limits; no semantic or
-  model-quality claim is made.
+- Backend source `134fc85f365c3fd895c03d7bd51d69aab2d84b78`:
+  all five complete never-autonomous files **78 passed**; nine affected
+  approval/checkpoint/2FA/workflow files **163 passed**. No network or live
+  database was available. Backend bytes are unchanged through `b8e9b592d`.
+- The original real second-session rejection race now returns **409**, keeps
+  the peer rejection, and grants no durable admission. The rule-update race,
+  foreign reviewer refusal, full-material fingerprint, reused-context task
+  separation and classifier-outage cases were independently exercised.
+- CI/docs source `ef12fdf908052c9dae31b899b058c00c7a9c116b`:
+  both complete lane-preservation contracts **642 passed**. Later UI repair
+  changes no workflow or backend selection.
+- Frontend source `b8e9b592d`: complete AutonomyPanel, canvas-detail and
+  approvals-page files **110 passed**; configured TypeScript check
+  (`--noEmit --incremental false`) and production webpack build passed using
+  cached dependencies with networking denied.
+- Existing agent/assignment/workflow/MCP neighborhood: **298 passed, 2 failed,
+  2 skipped**, versus current main `8b48dd84a`: **297 passed, the same 2 failed,
+  2 skipped**. The two failures attempt hardcoded `/tmp/w85_cite.txt` and
+  `/tmp/evil.pdf` writes outside the root test's permitted temporary tree.
+- Existing five-file Meta-agent selection: **401 passed, 2 failed, 6 skipped**
+  on both candidate and current main. Failure identities and assertions match
+  (`test_spawn_failure_handling`, `test_core_tools_names_constant`, with
+  the latter expecting 28 tools where both sources have 30). These are
+  recorded paired baseline failures, not represented as a green suite; no
+  test or required check was skipped or bypassed to certify this feature.
+- Scratch SQLite migration: creates an empty rule table and four indexes;
+  repeating upgrade preserves an existing sentinel rule. PostgreSQL runtime
+  migration was **not** exercised.
+- Normal browser sign-in on an isolated production-built app: empty default,
+  native canvas creation, combined difficulty/domain rule creation and page
+  reload; edit, disable, enable, confirmed delete; real two-tab stale save
+  **409** preserves the draft and explicit reload shows the winning revision.
+  After full app restart, fresh sign-in reads the same rule/dimensions with
+  **zero rule writes**.
+- The initial approval queue hid task text behind a truncated JSON summary.
+  The repaired card displays the server-recorded task, classification and
+  reason; its separate technical details retain the binding, and the immutable
+  task has no Modify control. A real signed-in browser approved one naturally
+  classified complex/math/finance **synthetic** task through the public queue
+  (**HTTP 200**). With the app stopped, a fresh database session admitted only
+  that exact task; changed task material required fresh review. This fixture
+  used the real approval writer but no running employee, provider or model;
+  the check does not claim model output quality or a completed worker run.
+
+Browser preparation failures were retained and corrected before proceeding;
+completed mutations were not replayed. Initial raw-create response capture
+was overwritten by a later read-only observation, so no retained raw-create
+response is claimed. Native extended-edit/conflict responses, UI state,
+approval response and cold-resume adjudication were retained separately.
+
+## Remaining release and product limits
+
+- Exact-head PR CI/security and main-branch merge/post-merge workflows must
+  still pass. No failed or pending check may be bypassed.
+- Classification uses the existing deterministic heuristics described above;
+  semantic recall/precision and model-quality guarantees remain unqualified.
+- Only SQLite migration/runtime was exercised locally. No live customer data,
+  hosted deployment, paid inference or external integration was used.
 
 The original **143 claims / 18 goals**, historical scores and
-`app_complete: false` remain intact. This document marks no goal or claim
-complete and does not regrade readiness.
+`app_complete: false` remain intact. This document marks no original goal or
+claim complete and does not regrade readiness.
