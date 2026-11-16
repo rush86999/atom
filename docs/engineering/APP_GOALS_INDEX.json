@@ -1,5 +1,5 @@
 {
-  "title": "Atom app goals — canonical reference index",
+  "title": "Atom app goals \u2014 canonical reference index",
   "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
   "reference_order": [
     {
@@ -211,5 +211,11 @@
       "status": "Combining currentmain01b and reviewedgraduation before fresh CI; not whole goal acceptance",
       "accepted": false
     }
+  },
+  "web_boundary_evidence_2026_11_16": {
+    "path": "docs/acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md",
+    "product_source": "e58bdf314a5eea6f53a98ee540792968c072914e",
+    "merged_equivalent_tree": "446a723e1ad5ae5e76b51b383ade0964a481668e",
+    "scope": "Synthetic core-profile real-browser account/settings/document boundaries; partial settings, no provider inference or broad readiness regrade. Original 143 claims / 18 goals unchanged."
   }
 }
