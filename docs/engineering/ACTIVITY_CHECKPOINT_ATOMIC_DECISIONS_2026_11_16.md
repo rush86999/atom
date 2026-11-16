@@ -85,3 +85,17 @@ qualification of the later authority changes. No check was skipped to merge.
 The original **143 claims / 18 goals** and `app_complete: false` remain intact.
 Broader model work, every integration approval surface and PostgreSQL
 concurrency still require their own acceptance evidence.
+
+## Reconciliation with merged Learning main
+
+Learning #975 merged as `7a22e6d0748057d80b4bf198fca9916e1ee55765`,
+with all 15 exact-head checks successful. The local joined source `9c02280da`
+passed **396 affected backend tests, 642 CI contracts and 80 frontend tests**,
+plus a fresh production webpack build. Reconciliation onto actual main produced
+`ba6292e41465dd5314e3ef9eeb31e11d6340d427` with the **identical full tree**
+`a9e52529c47b9147fa64e649cec343961a81a3b1`. The three CI/index conflicts were
+resolved from that already-tested insertion-only union; all earlier job fields
+and steps, both new backend/frontend gates and 29 qualified product files were
+preserved. Later evidence edits are documentation-only. Parent browser episodes
+retain their exact sources; these joined checks/build do not claim a new joined
+browser replay or whole-app qualification. Main post-merge CI remains separate.

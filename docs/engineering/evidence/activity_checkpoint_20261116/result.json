@@ -65,5 +65,17 @@
     "synthetic goal states; dispatch/persistence is qualified, model work completion is not",
     "no live PostgreSQL concurrency or every integration approval acceptance",
     "historical browser episodes retain exact original source"
-  ]
+  ],
+  "integrated_release": {
+    "source": "ba6292e41465dd5314e3ef9eeb31e11d6340d427",
+    "tree": "a9e52529c47b9147fa64e649cec343961a81a3b1",
+    "actual_main": "7a22e6d0748057d80b4bf198fca9916e1ee55765",
+    "identical_full_tree_to_tested_union": "9c02280daf61e8f2e5cba1f48e54618387c5faeb",
+    "affected_backend_passed": 396,
+    "ci_contracts_passed": 642,
+    "frontend_passed": 80,
+    "production_build_passed": true,
+    "qualified_parent_product_files_unchanged": 29,
+    "browser_scope": "parent episodes retain original sources; no joined replay claim"
+  }
 }
