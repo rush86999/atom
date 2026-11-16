@@ -505,7 +505,8 @@ async def _run_one(runtime, kind):
 
 
 def _install_docker_cli(monkeypatch, *, exit_code=-9, rm_rc=0,
-                        rm_stderr=b"", rm_error=None, rm_delay=0.0):
+                        rm_stderr=b"", rm_error=None, rm_delay=0.0,
+                        rm_wait_error=None):
     created = []
     rm_calls = []
     rm_procs = []
@@ -516,7 +517,8 @@ def _install_docker_cli(monkeypatch, *, exit_code=-9, rm_rc=0,
             rm_calls.append(target)
             stderr = rm_stderr.replace(b"{target}", target.encode())
             proc = FakeCLI(returncode=rm_rc, stderr=stderr,
-                           read_error=rm_error, delay=rm_delay)
+                           read_error=rm_error, delay=rm_delay,
+                           wait_error=rm_wait_error)
             rm_procs.append(proc)
             return proc
         proc = FakeProc(exit_code=exit_code)
@@ -657,3 +659,57 @@ def test_rm_timeout_kills_and_reaps_owned_cli(monkeypatch):
     assert rm_procs[0].killed is True
     assert rm_procs[0].waited >= 1
     assert capacity.snapshot(scope)["quarantined"]
+
+
+@pytest.mark.parametrize("wait_error", [
+    OSError("wait failed"),
+    asyncio.CancelledError(),
+])
+def test_rm_wait_error_or_cancelled_status_fails_closed(monkeypatch, wait_error):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-wait-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, rm_calls, rm_procs = _install_docker_cli(
+        monkeypatch, rm_rc=None, rm_wait_error=wait_error)
+
+    first = asyncio.run(_run_dev())
+    assert first.success is False
+    assert first.metadata["reason"] == "cleanup_unconfirmed"
+    assert len(created) == 1 and len(rm_calls) == 1
+    assert rm_procs[0].killed is True
+    assert rm_procs[0].waited >= 1
+    snapshot = capacity.snapshot(scope)
+    assert snapshot["quarantined"]
+    assert snapshot["in_use"] == 1
+
+    second = asyncio.run(_run_dev())
+    assert second.success is False
+    assert second.metadata["reason"] == "capacity_quarantined"
+    assert len(created) == 1
+
+
+def test_rm_malformed_unknown_status_fails_closed(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-malformed-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, rm_calls, rm_procs = _install_docker_cli(
+        monkeypatch, rm_rc=True)
+
+    first = asyncio.run(_run_dev())
+    assert first.success is False
+    assert first.metadata["reason"] == "cleanup_unconfirmed"
+    assert len(created) == 1
+    assert capacity.snapshot(scope)["quarantined"]
+    second = asyncio.run(_run_dev())
+    assert second.metadata["reason"] == "capacity_quarantined"
+    assert len(created) == 1

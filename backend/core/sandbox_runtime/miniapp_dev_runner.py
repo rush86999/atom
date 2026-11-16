@@ -153,6 +153,13 @@ class _CaptureOverflow(RuntimeError):
     pass
 
 
+def _valid_returncode(proc) -> Optional[int]:
+    value = getattr(proc, "returncode", None)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
 def _known_absent(stdout, stderr, container: str) -> bool:
     """One complete daemon absence record for the exact case-sensitive name."""
     try:
@@ -543,19 +550,31 @@ class MiniAppDevRuntime:
             await self._reap_rm(rm)
             raise _cleanup_uncertain(
                 f"docker rm failed: {type(exc).__name__}") from None
-        out, err = results[0], results[1]
+        out, err, wait_result = results[0], results[1], results[2]
         if isinstance(out, BaseException) or isinstance(err, BaseException):
             await self._reap_rm(rm)
             if isinstance(out, _CaptureOverflow) or isinstance(err, _CaptureOverflow):
                 raise _cleanup_uncertain("docker rm output cap") from None
             raise _cleanup_uncertain("docker rm read failed") from None
-        if int(getattr(rm, "returncode", 1)) == 0:
+
+        wait_failed = isinstance(wait_result, BaseException)
+        if wait_failed:
+            # A failed wait leaves the CLI/container status unresolved: finish
+            # the bounded kill/reap attempt before deciding.
+            await self._reap_rm(rm)
+        rc = _valid_returncode(rm)
+        if wait_failed and rc is None:
+            raise _cleanup_uncertain("docker rm wait failed; exit unknown")
+        if rc == 0:
             return
+        if rc is None:
+            raise _cleanup_uncertain("docker rm status invalid")
         if _known_absent(out, err, container):
             return
+        if wait_failed:
+            raise _cleanup_uncertain("docker rm wait failed")
         raise _cleanup_uncertain(
-            f"docker rm did not confirm removal (exit "
-            f"{int(getattr(rm, 'returncode', 1))})")
+            f"docker rm did not confirm removal (exit {rc})")
 
     async def _reap_rm(self, rm) -> None:
         try:
@@ -565,7 +584,7 @@ class MiniAppDevRuntime:
             pass
         try:
             await asyncio.wait_for(rm.wait(), timeout=2)
-        except Exception:  # noqa: BLE001
+        except BaseException:  # noqa: BLE001 - cleanup must not mask uncertainty
             pass
 
     async def _ensure_image(self, tag: str, deps: List[str]) -> Optional[str]:
