@@ -5,7 +5,7 @@ Provides role checking dependencies for FastAPI routes.
 """
 
 import logging
-from typing import Callable, Union
+from typing import Any, Callable, Iterable, Optional, Union
 from fastapi import Depends, HTTPException, status
 
 from core.auth import get_current_user
@@ -58,6 +58,55 @@ def role_level(role: Union[UserRole, str, None]) -> int:
 def user_meets_role(user: User, minimum: UserRole) -> bool:
     """True if the user's role is at or above `minimum` in the hierarchy."""
     return role_level(getattr(user, "role", None)) >= _ROLE_LEVELS.get(minimum, 99)
+
+
+def persisted_required_roles(action: Any) -> list:
+    """Every role policy persisted on a HITL action.
+
+    ``request_intervention`` stores the governance ``required_role`` in
+    ``context_snapshot``; the ``HITLAction.required_role`` column is the
+    durable field other writers set. Both are the same policy, so BOTH are
+    returned and enforced — never only the first/weakest one.
+    """
+    roles = []
+    column = getattr(action, "required_role", None)
+    if column:
+        roles.append(column)
+    snapshot = getattr(action, "context_snapshot", None) or {}
+    if isinstance(snapshot, dict) and snapshot.get("required_role"):
+        roles.append(snapshot.get("required_role"))
+    return roles
+
+
+def required_role_denial(
+    actor_role: Union[UserRole, str, None],
+    required_raws: Iterable[Any],
+    *,
+    subject: str = "action",
+    actor_label: str = "Approver",
+) -> Optional[str]:
+    """Denial reason when ``actor_role`` misses ANY persisted requirement.
+
+    The single shared role-policy check for HITL decisions (goal-run
+    checkpoints and ordinary interventions). Unknown role strings deny (fail
+    closed) even when another persisted requirement is valid.
+    """
+    for required_raw in required_raws:
+        normalized = str(required_raw).strip().lower()
+        try:
+            required_role = UserRole(normalized)
+        except ValueError:
+            logger.error(
+                "Persisted %s required_role %r is unreadable; denying "
+                "(fail closed)", subject, required_raw)
+            return (
+                f"This {subject} requires an unreadable role; decision "
+                "denied (fail closed).")
+        if role_level(actor_role) < role_level(required_role):
+            return (
+                f"{actor_label} role '{actor_role}' is below the required "
+                f"role '{required_role.value}' for this {subject}")
+    return None
 
 
 def require_role(required_role: UserRole) -> Callable[[User], User]:

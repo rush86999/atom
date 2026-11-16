@@ -1796,22 +1796,6 @@ async def verify_action_2fa_verified(
         if denial:
             return _refused(
                 denial, http_status=403, error_code="PERMISSION_DENIED")
-        required_column = str(getattr(action, "required_role", "") or "").strip()
-        if required_column:
-            try:
-                from core.models import UserRole
-                from core.security.rbac import user_meets_role
-
-                required_role = UserRole(required_column.lower())
-                if not user_meets_role(user, required_role):
-                    return _refused(
-                        f"Approver role is below the required role "
-                        f"{required_role.value}",
-                        http_status=403, error_code="PERMISSION_DENIED")
-            except ValueError:
-                return _refused(
-                    "Action requires an unreadable role; decision denied",
-                    http_status=403, error_code="PERMISSION_DENIED")
 
         if action.status in ("approved", "rejected", "expired"):
             return _refused(

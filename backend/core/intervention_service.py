@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
-from core.models import AgentRegistry, HITLAction, HITLActionStatus, User, UserRole
+from core.models import AgentRegistry, HITLAction, HITLActionStatus, User
 
 logger = logging.getLogger(__name__)
 
@@ -315,8 +315,9 @@ class InterventionService:
         """
         Return a denial reason if ``approver_id`` may not decide ``action``,
         else None. The approver must be a verified (existing, ACTIVE) user;
-        when the action carries ``required_role`` they must hold at least
-        that role. Unknown role strings deny (fail closed).
+        they must hold at least EVERY persisted ``required_role`` (HITLAction
+        column + governance ``context_snapshot``). Unknown role strings deny
+        (fail closed).
         """
         approver = db.query(User).filter(User.id == approver_id).first()
         if (
@@ -328,37 +329,18 @@ class InterventionService:
 
         # ``request_intervention`` persists the governance policy in
         # ``context_snapshot``; the HITLAction column is the durable field
-        # other writers set. Both are the same policy — enforce either.
-        required_raw = getattr(action, "required_role", None)
-        if not required_raw:
-            required_raw = (
-                getattr(action, "context_snapshot", None) or {}
-            ).get("required_role")
-        if not required_raw:
-            return None
+        # other writers set. Both are the same policy, so EVERY persisted
+        # requirement is enforced (never only the column when the snapshot is
+        # stricter) and an unknown role in either location denies.
+        from core.security.rbac import (
+            persisted_required_roles,
+            required_role_denial,
+        )
 
-        normalized = str(required_raw).strip().lower()
-        try:
-            required_role = UserRole(normalized)
-        except ValueError:
-            logger.error(
-                "HITL action %s requires unknown role %r; denying (fail closed)",
-                action.id,
-                required_raw,
-            )
-            return (
-                f"Action requires unreadable role '{required_raw}'; "
-                "decision denied (fail closed)"
-            )
-
-        from core.security.rbac import user_meets_role
-
-        if not user_meets_role(approver, required_role):
-            return (
-                f"Approver role '{approver.role}' is below the required role "
-                f"'{required_role.value}' for this action"
-            )
-        return None
+        return required_role_denial(
+            getattr(approver, "role", None),
+            persisted_required_roles(action),
+        )
 
 # Singleton instance
 intervention_service = InterventionService()

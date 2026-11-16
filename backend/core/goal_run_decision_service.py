@@ -35,7 +35,11 @@ from core.models import (
     UserRole,
 )
 from core.personal_scope import resolve_tenant_id, resolve_workspace_id
-from core.security.rbac import role_level
+from core.security.rbac import (
+    persisted_required_roles,
+    required_role_denial,
+    role_level,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -285,42 +289,6 @@ def _exact(column, value: Any):
     return column.is_(None) if value is None else column == str(value)
 
 
-def _checkpoint_required_roles(action: Any) -> list:
-    """Every role policy persisted on a checkpoint.
-
-    ``request_intervention`` stores it in ``context_snapshot``; the model
-    also has a ``required_role`` column for older/other writers. Both mean
-    the same thing, so BOTH are enforced (never silently ignore the stricter
-    one).
-    """
-    roles = []
-    column = getattr(action, "required_role", None)
-    if column:
-        roles.append(column)
-    snapshot = getattr(action, "context_snapshot", None) or {}
-    if isinstance(snapshot, dict) and snapshot.get("required_role"):
-        roles.append(snapshot.get("required_role"))
-    return roles
-
-
-def _checkpoint_role_denial(
-    authority: Dict[str, Any], required_raws: list,
-) -> Optional[str]:
-    for required_raw in required_raws:
-        normalized = str(required_raw).strip().lower()
-        try:
-            required_role = UserRole(normalized)
-        except ValueError:
-            return (
-                "This checkpoint requires an unreadable role; decision "
-                "denied (fail closed).")
-        if role_level(authority["role"]) < role_level(required_role):
-            return (
-                f"Reviewer role '{authority['role']}' is below the required "
-                f"role '{required_role.value}' for this checkpoint")
-    return None
-
-
 def resolve_checkpoint_reviewer(
     db: Session, *, reviewer: Any, run: Any, action: Any = None,
 ) -> Dict[str, Any]:
@@ -374,8 +342,9 @@ def resolve_checkpoint_reviewer(
                 "can decide this checkpoint."),
         }
 
-    denial = _checkpoint_role_denial(
-        authority, _checkpoint_required_roles(action))
+    denial = required_role_denial(
+        authority["role"], persisted_required_roles(action),
+        subject="checkpoint", actor_label="Reviewer")
     if denial:
         return {
             "ok": False,
