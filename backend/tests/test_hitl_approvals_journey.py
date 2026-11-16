@@ -165,6 +165,129 @@ class TestRequiredRoleEnforcement:
         assert action.params == modified
 
 
+def _persisted_policy_action(
+    hitl_db, *, column=None, snapshot=None, action_type="workflow_approval",
+):
+    """A non-checkpoint intervention whose role policy may live in BOTH the
+    HITLAction column (other writers) and the governance context_snapshot
+    (``request_intervention``)."""
+    action = HITLAction(
+        workspace_id="ws-1",
+        action_type=action_type,
+        platform="governance_policy",
+        params={},
+        reason="persisted role policy",
+        required_role=column,
+        context_snapshot=snapshot,
+        status=HITLActionStatus.PENDING.value,
+    )
+    hitl_db.add(action)
+    hitl_db.commit()
+    return action.id
+
+
+class TestPersistedRolePolicyLocations:
+    """Every persisted role requirement is enforced on non-checkpoint HITL
+    decisions — not just whichever location the helper happened to read first.
+
+    ``request_intervention`` persists governance ``required_role`` in
+    ``context_snapshot`` while older/other writers set the column. These are
+    the same policy, so a decision must satisfy BOTH; the previous
+    column-first fallback let a real active team_lead approve an action whose
+    column said ``member`` but whose snapshot said ``admin``.
+    """
+
+    def _status(self, hitl_db, action_id):
+        hitl_db.expire_all()
+        return hitl_db.query(HITLAction).filter(
+            HITLAction.id == action_id).one().status
+
+    def test_approve_denied_by_stricter_snapshot(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="member",
+            snapshot={"required_role": "admin"})
+        result = asyncio.run(svc.approve_intervention(action_id, "lead-1"))
+        assert result["success"] is False, result
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert result["http_status"] == 403
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_reject_denied_by_stricter_snapshot(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="member",
+            snapshot={"required_role": "admin"})
+        result = asyncio.run(
+            svc.reject_intervention(action_id, "lead-1", "no"))
+        assert result["success"] is False, result
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert result["http_status"] == 403
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_approve_denied_by_stricter_column(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="admin",
+            snapshot={"required_role": "member"})
+        result = asyncio.run(svc.approve_intervention(action_id, "lead-1"))
+        assert result["success"] is False, result
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_reject_denied_by_stricter_column(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="admin",
+            snapshot={"required_role": "member"})
+        result = asyncio.run(
+            svc.reject_intervention(action_id, "lead-1", "no"))
+        assert result["success"] is False, result
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_unknown_snapshot_role_fails_closed_with_valid_column(
+            self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="member",
+            snapshot={"required_role": "grand_wizard"})
+        result = asyncio.run(svc.approve_intervention(action_id, "super-1"))
+        assert result["success"] is False, "unknown snapshot role was ignored"
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_unknown_column_role_fails_closed_with_valid_snapshot(
+            self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="grand_wizard",
+            snapshot={"required_role": "member"})
+        result = asyncio.run(svc.approve_intervention(action_id, "super-1"))
+        assert result["success"] is False, "unknown column role was ignored"
+        assert result["error_code"] == "AUTHORITY_REQUIRED"
+        assert self._status(hitl_db, action_id) == HITLActionStatus.PENDING.value
+
+    def test_approve_allowed_for_sufficient_actor(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="member",
+            snapshot={"required_role": "admin"})
+        result = asyncio.run(svc.approve_intervention(action_id, "admin-1"))
+        assert result["success"] is True, result
+        hitl_db.expire_all()
+        action = hitl_db.query(HITLAction).filter(
+            HITLAction.id == action_id).one()
+        assert action.status == HITLActionStatus.APPROVED.value
+        assert action.reviewed_by == "admin-1"
+
+    def test_reject_allowed_for_sufficient_actor(self, svc, hitl_db):
+        action_id = _persisted_policy_action(
+            hitl_db, column="member",
+            snapshot={"required_role": "admin"})
+        result = asyncio.run(
+            svc.reject_intervention(action_id, "admin-1", "not approved"))
+        assert result["success"] is True, result
+        hitl_db.expire_all()
+        action = hitl_db.query(HITLAction).filter(
+            HITLAction.id == action_id).one()
+        assert action.status == HITLActionStatus.REJECTED.value
+        assert action.reviewed_by == "admin-1"
+
+
 # ============================================================================
 # 2. The /api/agents/approvals/* surface the frontend actually calls
 # ============================================================================

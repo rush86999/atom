@@ -1,5 +1,8 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Activity checkpoint authority and atomic decisions:** [shared claim and browser restart evidence](ACTIVITY_CHECKPOINT_ATOMIC_DECISIONS_2026_11_16.md) qualifies final product `1f70c1708`: stale decisions have no effects; foreign reviewers and stricter persisted role policies are enforced across callers; independent 234 backend checks and fresh owner approve/reject/restart passed. Earlier stale-message evidence remains bound to C8. Synthetic goal fixtures, no model-quality or whole-goal completion claim.
+
+
 > **Learning correction and reuse:** [same-candidate correction, renewed approval and restart](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) passed at `1d4f409e1`: old approval cleared, old lesson retired, fresh promotion, exact 15 USD deterministic reuse and zero-write readback after full-stack restart. Independent 162 backend / 12 frontend checks plus 642 CI contracts passed. Synthetic native-chat fixture; no live model or whole-goal completion claim.
 
 > **DOCX inline pictures:** [the source-bound repair and valid-image browser record](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) passed at candidate `8d98b0689`, preserving real drawing XML/references and decoded pixels through native edits and full-stack restart. Final local674 checks passed with unchanged production helper; malformed earlier PNG fixtures remain explicitly unqualified. Broader drawings and full Goal5 remain open.

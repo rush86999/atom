@@ -5,9 +5,31 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
-from core.models import AgentRegistry, HITLAction, HITLActionStatus, User, UserRole
+from core.models import AgentRegistry, HITLAction, HITLActionStatus, User
 
 logger = logging.getLogger(__name__)
+
+
+def _refusal(
+    message: str, error_code: str, http_status: int,
+    action_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """One refusal shape for every intervention decision surface.
+
+    ``success: False`` keeps the historical service contract; the explicit
+    HTTP status/code lets governance/approval routes answer 401/403/404/409
+    instead of flattening a scope denial into a generic 400 or a 500.
+    """
+    result: Dict[str, Any] = {
+        "success": False,
+        "message": message,
+        "error_code": error_code,
+        "http_status": int(http_status),
+    }
+    if action_id:
+        result["action_id"] = action_id
+    return result
+
 
 class InterventionService:
     """
@@ -152,11 +174,58 @@ class InterventionService:
                 return {"success": False, "message": "Action not found"}
 
             if action.status != HITLActionStatus.PENDING.value:
-                return {"success": False, "message": f"Action is {action.status}, cannot approve."}
+                return {
+                    "success": False,
+                    "message": f"Action is {action.status}, cannot approve.",
+                }
+
+            # A goal-run checkpoint is not a status-only intervention: its
+            # decision and the run wake are one atomic claim, bound to the
+            # run's exact current wait. Governance/messaging callers reach
+            # this service with arbitrary HITL ids, so this is the shared
+            # guard that keeps them from committing an approved checkpoint
+            # row without resuming (the original defect). Reviewer authority
+            # (active user, exact scope, owner/supervisor, required_role) is
+            # enforced inside the claim, so every checkpoint entry answers
+            # the SAME refusal shape/status. Every other action_type keeps
+            # the historical path below unchanged.
+            if str(action.action_type or "") == "goal_run_checkpoint":
+                if modified_params is not None:
+                    return _refusal(
+                        "A checkpoint's reviewed scope cannot be rewritten "
+                        "during approval; refresh the run and decide the "
+                        "current checkpoint.",
+                        "CHECKPOINT_REVIEW_IMMUTABLE", 409, action.id)
+                from core.hitl_resume import resolve_goal_run_checkpoint
+
+                outcome = await resolve_goal_run_checkpoint(
+                    action_id,
+                    approved=True,
+                    reviewer_id=approver_id,
+                    db=db,
+                )
+                if not outcome.get("resumed"):
+                    return _refusal(
+                        outcome.get("message") or (
+                            "This checkpoint is no longer current; refresh "
+                            "the run."),
+                        str(outcome.get("error_code")
+                            or "CHECKPOINT_STALE"),
+                        int(outcome.get("http_status") or 409),
+                        action.id,
+                    )
+                return {
+                    "success": True,
+                    "message": "Checkpoint approved",
+                    "action_id": action.id,
+                    "resumed": True,
+                    "resume": outcome,
+                }
 
             denial = self._required_role_denial(db, action, approver_id)
             if denial:
-                return {"success": False, "message": denial}
+                return _refusal(
+                    denial, "AUTHORITY_REQUIRED", 403, action.id)
 
             if modified_params is not None:
                 action.params = modified_params
@@ -190,11 +259,43 @@ class InterventionService:
                 return {"success": False, "message": "Action not found"}
 
             if action.status != HITLActionStatus.PENDING.value:
-                return {"success": False, "message": f"Action is {action.status}, cannot reject."}
+                return {
+                    "success": False,
+                    "message": f"Action is {action.status}, cannot reject.",
+                }
+
+            if str(action.action_type or "") == "goal_run_checkpoint":
+                from core.hitl_resume import resolve_goal_run_checkpoint
+
+                outcome = await resolve_goal_run_checkpoint(
+                    action_id,
+                    approved=False,
+                    reviewer_id=approver_id,
+                    guidance=reason,
+                    db=db,
+                )
+                if not outcome.get("resumed"):
+                    return _refusal(
+                        outcome.get("message") or (
+                            "This checkpoint is no longer current; refresh "
+                            "the run."),
+                        str(outcome.get("error_code")
+                            or "CHECKPOINT_STALE"),
+                        int(outcome.get("http_status") or 409),
+                        action.id,
+                    )
+                return {
+                    "success": True,
+                    "message": "Checkpoint rejected",
+                    "action_id": action.id,
+                    "resumed": True,
+                    "resume": outcome,
+                }
 
             denial = self._required_role_denial(db, action, approver_id)
             if denial:
-                return {"success": False, "message": denial}
+                return _refusal(
+                    denial, "AUTHORITY_REQUIRED", 403, action.id)
 
             action.status = HITLActionStatus.REJECTED.value
             action.reviewed_by = approver_id
@@ -214,39 +315,32 @@ class InterventionService:
         """
         Return a denial reason if ``approver_id`` may not decide ``action``,
         else None. The approver must be a verified (existing, ACTIVE) user;
-        when the action carries ``required_role`` they must hold at least
-        that role. Unknown role strings deny (fail closed).
+        they must hold at least EVERY persisted ``required_role`` (HITLAction
+        column + governance ``context_snapshot``). Unknown role strings deny
+        (fail closed).
         """
         approver = db.query(User).filter(User.id == approver_id).first()
-        if not approver or getattr(approver, "status", None) not in (None, "active"):
+        if (
+            not approver
+            or not bool(getattr(approver, "is_active", True))
+            or getattr(approver, "status", None) not in (None, "active")
+        ):
             return "Approver could not be verified; decision denied (fail closed)"
 
-        required_raw = (action.context_snapshot or {}).get("required_role")
-        if not required_raw:
-            return None
+        # ``request_intervention`` persists the governance policy in
+        # ``context_snapshot``; the HITLAction column is the durable field
+        # other writers set. Both are the same policy, so EVERY persisted
+        # requirement is enforced (never only the column when the snapshot is
+        # stricter) and an unknown role in either location denies.
+        from core.security.rbac import (
+            persisted_required_roles,
+            required_role_denial,
+        )
 
-        normalized = str(required_raw).strip().lower()
-        try:
-            required_role = UserRole(normalized)
-        except ValueError:
-            logger.error(
-                "HITL action %s requires unknown role %r; denying (fail closed)",
-                action.id,
-                required_raw,
-            )
-            return (
-                f"Action requires unreadable role '{required_raw}'; "
-                "decision denied (fail closed)"
-            )
-
-        from core.security.rbac import user_meets_role
-
-        if not user_meets_role(approver, required_role):
-            return (
-                f"Approver role '{approver.role}' is below the required role "
-                f"'{required_role.value}' for this action"
-            )
-        return None
+        return required_role_denial(
+            getattr(approver, "role", None),
+            persisted_required_roles(action),
+        )
 
 # Singleton instance
 intervention_service = InterventionService()

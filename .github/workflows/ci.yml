@@ -563,6 +563,42 @@ jobs:
           mkdir -p "${{ runner.temp }}/atom-docx-coediting/data" "${{ runner.temp }}/atom-docx-coediting/office"
           python -m pytest tests/test_office_canvas_coediting.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Goal-run checkpoint stale-approval surfaces (additive): every public
+      # checkpoint/approval surface must route through the atomic stale claim
+      # (refuse the stale generation) instead of faking a resume, pinned end to
+      # end through the goal-run decision contract and the HITL resume/approval
+      # journeys. tests/test_active_intervention_service.py deliberately runs
+      # as its OWN process with its OWN scratch SQLite file inside this same
+      # gate: its known baseline ordering interaction with the selection above
+      # is a test-conflation, not a product defect, so it must not share the
+      # collector/session. All roots are absolute ${RUNNER_TEMP} scratch paths
+      # (SQLite, ATOM_DATA_DIR, ATOM_OFFICE_DIR); TESTING=1 and
+      # PYTHON_DOTENV_DISABLED=1 keep the lane off .env and the repo dev DB.
+      - name: Run goal-run checkpoint approval and active-intervention controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-activity-checkpoint/checkpoint-approval.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-activity-checkpoint/data"
+          ATOM_OFFICE_DIR: "${{ runner.temp }}/atom-activity-checkpoint/office"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          checkpoint_root="${RUNNER_TEMP}/atom-activity-checkpoint"
+          mkdir -p "${checkpoint_root}/data" "${checkpoint_root}/office"
+          python -m pytest \
+            tests/test_goal_run_checkpoint_approval_surfaces.py \
+            tests/test_public_http_exception_wire_format.py \
+            tests/test_goal_run_routes.py \
+            tests/test_hitl_resume.py \
+            tests/test_hitl_approvals_journey.py \
+            tests/test_goal_run_decision_contract.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+          DATABASE_URL="sqlite:///${checkpoint_root}/active-intervention.db" \
+            python -m pytest tests/test_active_intervention_service.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+
       # Reviewed in-place lesson correction learning boundary (additive): the
       # three complete-file groups run as THREE separate python processes, and
       # each process gets its own absolute SQLite file under one runner-temp
@@ -1597,6 +1633,14 @@ jobs:
 
       - name: Activity utility ranking and stale-response controls
         run: npx jest tests/pages/goal-runs/index.test.tsx --runInBand --no-coverage --watchman=false
+
+      # Goal-run checkpoint stale-approval API and index surfaces (additive):
+      # the client surface must report the atomic stale-approval refusal while
+      # the goal-runs index keeps its existing stale-response behaviour. Additive
+      # only — the goal-runs detail step above stays byte-identical and keeps
+      # running tests/pages/goal-runs/detail.test.tsx.
+      - name: Goal-run checkpoint API and index regression tests
+        run: npx jest tests/lib/goal-run-api-checkpoint.test.ts tests/pages/goal-runs/index.test.tsx lib/__tests__/goal-run-api.error-detail.test.ts --runInBand --no-coverage --watchman=false
 
       # Reviewed in-place lesson correction UI (additive end step): the complete
       # review surface — the route-level ConversationLearningReview twin, the

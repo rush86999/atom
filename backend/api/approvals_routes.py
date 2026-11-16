@@ -189,6 +189,64 @@ async def decide_approval(
                 },
             )
 
+    # A human checkpoint is a decision AND a wake over the run's exact current
+    # wait. It must go through the shared atomic claim BEFORE any status
+    # write: approve_intervention/reject_intervention commit the HITL row on
+    # their own, which is exactly how a cancelled/stale checkpoint used to
+    # become approved without resuming. Non-checkpoint actions keep the
+    # existing path below unchanged.
+    if str(action.action_type or "") == "goal_run_checkpoint":
+        if body.modified_params:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": {
+                        "code": "CHECKPOINT_REVIEW_IMMUTABLE",
+                        "message": (
+                            "A checkpoint's reviewed scope cannot be "
+                            "rewritten during approval; refresh the run and "
+                            "decide the current checkpoint."),
+                    },
+                },
+            )
+        from core.hitl_resume import resolve_goal_run_checkpoint
+
+        guidance = (
+            body.reason if decision == "approved"
+            else (body.reason
+                  or f"Rejected via approvals UI by {user.email}"))
+        outcome = await resolve_goal_run_checkpoint(
+            approval_id,
+            approved=decision == "approved",
+            reviewer_id=str(user.id),
+            guidance=guidance,
+            db=db,
+        )
+        if not outcome.get("resumed"):
+            raise HTTPException(
+                status_code=int(outcome.get("http_status") or 409),
+                detail={
+                    "error": {
+                        "code": outcome.get("error_code")
+                        or "CHECKPOINT_STALE",
+                        "message": outcome.get("message") or (
+                            "This checkpoint is no longer current; refresh "
+                            "the run."),
+                    },
+                    "approval_id": approval_id,
+                },
+            )
+        return {
+            "success": True,
+            "approval_id": approval_id,
+            "status": decision,
+            "decided_by": user.id,
+            "message": (
+                "Checkpoint approved" if decision == "approved"
+                else "Checkpoint rejected"),
+            "resume": outcome,
+        }
+
     if decision == "approved":
         result = await intervention_service.approve_intervention(
             approval_id, user.id, modified_params=body.modified_params

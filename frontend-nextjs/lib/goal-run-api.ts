@@ -380,15 +380,54 @@ export async function createGoalRun(input: CreateGoalRunInput): Promise<{
 
 /** Pull a user-safe `detail` string out of an error body (FastAPI may send a
     bare string or a structured object). Falls back to `fallback`. */
+/** A human message from a string or an `{ code, message }` envelope. Returns
+ *  `null` for anything else — a non-string message is not human-readable, so
+ *  the caller falls back rather than dumping JSON at the user. */
+function messageFrom(value: unknown): string | null {
+  if (typeof value === 'string' && value) return value;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const message = (value as Record<string, unknown>).message;
+    if (typeof message === 'string' && message) return message;
+  }
+  return null;
+}
+
+/** Pull a user-safe message out of an error body. Falls back to `fallback`.
+ *
+ *  FastAPI refuses in two wire shapes for the same `HTTPException.detail`:
+ *  production installs `core.error_handler.http_exception_handler`, which
+ *  returns a dict detail DIRECTLY as the body — a structured refusal is
+ *  `{ error: { code, message }, ... }` at the top level; a bare FastAPI app
+ *  (no handler, e.g. TestClient) nests it as `{ detail: { error: {...} } }`.
+ *  Both must surface the same human message. Legacy string forms
+ *  (`detail`, `detail.error`, `detail.message`, top-level `message`) are
+ *  unchanged. */
 async function readDetail(res: Response, fallback: string): Promise<string> {
   try {
     const body = await res.json();
-    const detail = body?.detail;
-    if (typeof detail === 'string' && detail) return detail;
-    if (detail && typeof detail === 'object' && typeof detail.error === 'string') {
-      return detail.error;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return fallback;
     }
-    if (typeof body?.message === 'string' && body.message) return body.message;
+    const record = body as Record<string, unknown>;
+    const detail = record.detail;
+
+    if (typeof detail === 'string' && detail) return detail;
+
+    if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+      const detailRecord = detail as Record<string, unknown>;
+      const detailMessage = messageFrom(detailRecord.error);
+      if (detailMessage) return detailMessage;
+      if (typeof detailRecord.message === 'string' && detailRecord.message) {
+        return detailRecord.message;
+      }
+    }
+
+    // Production shape: the handler returned the dict detail unwrapped.
+    const topLevelMessage = messageFrom(record.error);
+    if (topLevelMessage) return topLevelMessage;
+    if (typeof record.message === 'string' && record.message) {
+      return record.message;
+    }
   } catch {
     /* best-effort */
   }
@@ -541,18 +580,44 @@ export async function teachAgentFromRun(
   return body?.data ?? body;
 }
 
+export interface CheckpointResolution {
+  success: true;
+  resumed: true;
+  checkpoint?: { id: string; status: string };
+  run?: GoalRun;
+  loop?: Record<string, unknown>;
+}
+
 export async function resolveCheckpoint(
   runId: string,
   hitlId: string,
   approved: boolean,
   guidance?: string,
-): Promise<void> {
+): Promise<CheckpointResolution> {
   const res = await fetchJson(`/api/goal-runs/${runId}/checkpoints/${hitlId}/resolve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approved, guidance }),
   });
-  if (!res.ok) throw new Error(`Failed to resolve checkpoint (${res.status})`);
+  if (!res.ok) {
+    const error = new Error(await readDetail(
+      res, `Failed to resolve checkpoint (${res.status})`,
+    )) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  const body = await res.json();
+  if (body?.resumed !== true) {
+    // A 200 with resumed:false is not a decision outcome. It means the run
+    // was no longer waiting on this checkpoint; treat it as stale so the page
+    // refreshes instead of announcing a resume that never happened.
+    const error = new Error(
+      body?.reason || 'This checkpoint is no longer current. Refresh the run.',
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+  return body as CheckpointResolution;
 }
 
 export async function advanceGoalRun(id: string): Promise<void> {

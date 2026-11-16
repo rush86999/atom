@@ -7,10 +7,16 @@ work it unblocked, shared by both approval surfaces that exist today
 (``/api/agents/approvals`` on api.agent_routes and the alias in
 api.approvals_routes).
 
-Failures here never roll back the human decision. They are logged and
-returned so the caller can surface a warning; a retry is safe because the
-goal-run service resolves by the wake spec / pending decision, not by the
-HITL row's status.
+Goal-run CHECKPOINTS are the exception to "decision first": their decision
+AND their wake are one atomic claim (``resolve_goal_run_checkpoint`` /
+``_claim_and_advance_checkpoint``). A cancelled/stale/replayed checkpoint
+request is refused before any HITL write, so the approvals surfaces must
+translate a refusal into a non-2xx rather than a success. The claim also
+enforces reviewer authority (current active user, exact canonical
+workspace/tenant, run owner or supervisor, persisted required_role) inside
+the same transaction, so no bridge/governance caller can be the weak
+surface. For other action types failures here never roll back the human
+decision; they are logged and returned so the caller can surface a warning.
 """
 from __future__ import annotations
 
@@ -31,9 +37,33 @@ _AGENT_INFORMATION_ACTIONS = {
     "agent_information_request", "agent_missing_information"}
 
 
-def _load_action(action_id: str, bind: Any = None) -> Optional[Dict[str, Any]]:
+def _action_snapshot(action: Any, bind: Any) -> Dict[str, Any]:
+    """Copy the small set of HITL fields the bridge needs, detached."""
+    return {
+        "id": action.id,
+        "workspace_id": action.workspace_id,
+        "tenant_id": action.tenant_id,
+        "action_type": action.action_type,
+        "params": dict(action.params or {}),
+        "reason": action.reason,
+        "status": action.status,
+        "bind": bind,
+    }
+
+
+def _load_action(action_id: str, bind: Any = None,
+                 db: Any = None) -> Optional[Dict[str, Any]]:
     from contextlib import closing
     from sqlalchemy.orm import sessionmaker
+
+    if db is not None:
+        # The caller's request session: looking the row up here keeps the
+        # checkpoint claim and the surface's answer in the same transaction.
+        action = db.query(HITLAction).filter(
+            HITLAction.id == action_id).first()
+        if action is None:
+            return None
+        return _action_snapshot(action, db.get_bind())
 
     if bind is not None:
         # The caller committed the decision and handed us its bind so the
@@ -52,17 +82,7 @@ def _load_action(action_id: str, bind: Any = None) -> Optional[Dict[str, Any]]:
             HITLAction.id == action_id).first()
         if action is None:
             return None
-        # Copy the small set of fields we need; the session closes below.
-        return {
-            "id": action.id,
-            "workspace_id": action.workspace_id,
-            "tenant_id": action.tenant_id,
-            "action_type": action.action_type,
-            "params": dict(action.params or {}),
-            "reason": action.reason,
-            "status": action.status,
-            "bind": session.get_bind(),
-        }
+        return _action_snapshot(action, session.get_bind())
 
 
 def _action_field(action: Any, name: str, default: Any = None) -> Any:
@@ -192,9 +212,138 @@ def preflight_hitl_decision(
     }
 
 
+def _checkpoint_refusal(
+    http_status: int, code: str, message: str,
+) -> Dict[str, Any]:
+    """One refusal shape shared by every checkpoint approval surface.
+
+    ``resumed: False`` is never a success: routes must translate this into
+    a non-2xx response so a stale/cancelled/replayed decision cannot be
+    announced to the human as a resume.
+    """
+    return {
+        "handled": True,
+        "kind": "checkpoint",
+        "resumed": False,
+        "refused": True,
+        "http_status": int(http_status),
+        "error_code": code,
+        "message": message,
+        "reason": message,
+    }
+
+
+async def _claim_and_advance_checkpoint(
+    action: Dict[str, Any],
+    approved: bool,
+    reviewer_id: Optional[str],
+    guidance: Optional[str],
+    *,
+    db: Any = None,
+) -> Dict[str, Any]:
+    """The single checkpoint decision path: claim THEN advance.
+
+    ``GoalRunService.claim_checkpoint_resolution`` validates that the run is
+    waiting on THIS hitl row and that the row names a live checkpoint step,
+    then writes the HITL decision and the run wake/plan/cursor in one
+    transaction. It must happen BEFORE any surface writes the HITL status,
+    otherwise a cancelled/stale/replayed request can leave an approved row
+    with no resume (the original defect).
+
+    ``db`` is the caller's request session when one exists: the claim then
+    commits the same transaction the surface will answer from. Direct
+    bridge callers without a session get the service's own session.
+    """
+    from core.goals.goal_run_service import GoalRunService
+
+    params = action.get("params") or {}
+    run_id = str(params.get("run_id") or "")
+    if not run_id:
+        return _checkpoint_refusal(
+            404, "CHECKPOINT_NOT_FOUND",
+            "This checkpoint does not belong to a goal run.")
+
+    session_factory = None
+    if db is not None:
+        @contextmanager
+        def _session():
+            yield db
+
+        session_factory = _session
+    elif action.get("bind") is not None:
+        from sqlalchemy.orm import sessionmaker
+
+        session_factory = sessionmaker(bind=action["bind"])
+
+    svc = GoalRunService(
+        workspace_id=action.get("workspace_id") or "default",
+        tenant_id=action.get("tenant_id") or "default",
+        session_factory=session_factory,
+    )
+    claim = svc.claim_checkpoint_resolution(
+        run_id=run_id,
+        hitl_id=str(action["id"]),
+        approved=approved,
+        reviewer=reviewer_id,
+        guidance=guidance,
+    )
+    if claim.get("status") != "verified":
+        return _checkpoint_refusal(
+            int(claim.get("http_status") or 409),
+            str(claim.get("error_code") or "CHECKPOINT_STALE"),
+            claim.get("message") or (
+                "This checkpoint is no longer the run's current wait. "
+                "Refresh the run before deciding."),
+        )
+
+    loop = await svc.advance(
+        run_id,
+        event={
+            "event": "human_checkpoint",
+            "approved": approved,
+            "guidance": guidance,
+            "summary": guidance or (
+                "checkpoint approved" if approved else "checkpoint rejected"),
+        },
+    )
+    return {
+        "handled": True,
+        "resumed": True,
+        "kind": "checkpoint",
+        "checkpoint": claim.get("checkpoint"),
+        "run": loop.get("run") or claim.get("run"),
+        "loop": loop,
+    }
+
+
+async def resolve_goal_run_checkpoint(
+    action_id: str,
+    approved: bool,
+    reviewer_id: Optional[str] = None,
+    guidance: Optional[str] = None,
+    *,
+    db: Any = None,
+) -> Dict[str, Any]:
+    """Resolve one goal-run checkpoint through the atomic claim.
+
+    Approval surfaces call this INSTEAD of writing the HITL row themselves;
+    a refusal has no durable effect and must be surfaced as a non-2xx.
+    """
+    action = _load_action(action_id, db=db)
+    if action is None:
+        return _checkpoint_refusal(
+            404, "CHECKPOINT_NOT_FOUND", "Checkpoint not found.")
+    if action.get("action_type") != "goal_run_checkpoint":
+        return {"handled": False, "resumed": False,
+                "reason": "not a goal-run checkpoint"}
+    return await _claim_and_advance_checkpoint(
+        action, approved, reviewer_id, guidance, db=db)
+
+
 async def _resume_goal_run(action: Dict[str, Any], approved: bool,
                            reviewer_id: Optional[str],
-                           guidance: Optional[str]) -> Dict[str, Any]:
+                           guidance: Optional[str],
+                           *, db: Any = None) -> Dict[str, Any]:
     from core.goals.goal_run_service import GoalRunService
 
     params = action.get("params") or {}
@@ -202,37 +351,18 @@ async def _resume_goal_run(action: Dict[str, Any], approved: bool,
     if not run_id:
         return {"handled": False, "reason": "goal-run action has no run_id"}
 
+    if action["action_type"] == "goal_run_checkpoint":
+        # Direct bridge callers must not bypass the claim either: this is the
+        # same path the approval routes use, so a pending row can only be
+        # resolved against the run's exact current wait, and a replay is
+        # refused instead of advancing a second time.
+        return await _claim_and_advance_checkpoint(
+            action, approved, reviewer_id, guidance, db=db)
+
     svc = GoalRunService(
         workspace_id=action.get("workspace_id") or "default",
         tenant_id=action.get("tenant_id") or "default",
     )
-    if action["action_type"] == "goal_run_checkpoint":
-        step_id = params.get("step_id")
-        wake = svc.consume_wake(run_id, {
-            "event": "human_checkpoint",
-            "hitl_id": action["id"],
-            "approved": approved,
-        })
-        if not wake.get("consumed"):
-            return {"handled": True, "resumed": False,
-                    "reason": wake.get("reason", "run not waiting")}
-        if approved:
-            svc.complete_checkpoint(run_id, step_id=step_id)
-        else:
-            svc.rewind_to_work_before(run_id, step_id=step_id)
-        loop = await svc.advance(
-            run_id,
-            event={
-                "event": "human_checkpoint",
-                "approved": approved,
-                "guidance": guidance,
-                "summary": guidance or (
-                    "checkpoint approved" if approved else "checkpoint rejected"),
-            },
-        )
-        return {"handled": True, "resumed": True, "kind": "checkpoint",
-                "loop": loop}
-
     decision = params.get("decision")
     if not isinstance(decision, dict):
         decision = {}
@@ -677,19 +807,26 @@ async def resume_after_hitl_decision(
     reviewer_id: Optional[str] = None,
     guidance: Optional[str] = None,
     bind: Any = None,
+    db: Any = None,
 ) -> Dict[str, Any]:
     """Resume whatever the decided action was blocking.
 
     Returns ``{"handled": False}`` for ordinary governed actions that have no
     durable waiter (they already executed through their own path).
+
+    ``db`` is the caller's request session, when the caller has one. Passing
+    it binds the checkpoint claim to that transaction; direct callers that
+    only pass a ``bind`` still go through the same claim (never a status
+    write followed by a best-effort wake).
     """
-    action = _load_action(action_id, bind=bind)
+    action = _load_action(action_id, bind=bind, db=db)
     if action is None:
         return {"handled": False, "reason": "action not found"}
 
     try:
         if action["action_type"] in _GOAL_RUN_ACTIONS:
-            result = await _resume_goal_run(action, approved, reviewer_id, guidance)
+            result = await _resume_goal_run(
+                action, approved, reviewer_id, guidance, db=db)
         elif action["action_type"] in _AGENT_INFORMATION_ACTIONS:
             from api.agent_routes import resume_information_wait_action
 

@@ -18,7 +18,10 @@ os.environ.setdefault("TESTING", "1")
 from api.goal_run_routes import router
 from core.auth import get_current_user
 from core.database import get_db as _get_db
-from core.models import GoalObjective, HITLAction, HITLActionStatus, User, UserRole
+from core.models import (
+    AuditLog, GoalObjective, GoalRun, HITLAction, HITLActionStatus, User,
+    UserRole,
+)
 
 
 def _make_client(db, viewer_id: str) -> TestClient:
@@ -55,10 +58,12 @@ def supervisor_env(db_session):
     db_session.add(User(
         id="gr-lead", email="gr-lead@example.com", first_name="Goal",
         last_name="Lead", role=UserRole.TEAM_LEAD.value, status="active",
+        workspace_id="ws-test",
     ))
     db_session.add(User(
         id="gr-emp", email="gr-emp@example.com", first_name="Emp",
         last_name="Loyee", role=UserRole.MEMBER.value, status="active",
+        workspace_id="ws-test",
     ))
     db_session.add(GoalObjective(
         id="goal-1", workspace_id="default", tenant_id=None,
@@ -175,14 +180,313 @@ def test_checkpoint_resolution(supervisor_env):
     run = client.get(f"/api/goal-runs/{run_id}").json()
     assert run["status"] == "waiting"
     hitl_id = run["waiting_on"]["match"]["hitl_id"]
-    resolved = client.post(
+    resolved_resp = client.post(
         f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
-        json={"approved": True, "guidance": "quote looks right"}).json()
+        json={"approved": True, "guidance": "quote looks right"})
+    assert resolved_resp.status_code == 200, resolved_resp.text
+    resolved = resolved_resp.json()
     assert resolved["resumed"] is True
     run = client.get(f"/api/goal-runs/{run_id}").json()
     assert run["status"] != "waiting"
     hitl = svc_env.query(HITLAction).filter(HITLAction.id == hitl_id).one()
     assert hitl.status == HITLActionStatus.APPROVED.value
+
+
+def _make_waiting_checkpoint(
+    client: TestClient, db, title: str = "Quote approval",
+    *, plan=None, cursor=None,
+):
+    """Create one dormant run and drive it to a real checkpoint wait."""
+    from contextlib import contextmanager
+    from core.goals.goal_run_service import GoalRunService
+
+    run_id = client.post("/api/goal-runs", json={
+        "goal_id": "goal-1", "supervision_mode": "shadow",
+        "start": False}).json()["id"]
+
+    @contextmanager
+    def _sess():
+        yield db
+
+    svc = GoalRunService(workspace_id="ws-test", tenant_id="default",
+                         session_factory=_sess)
+    svc.set_plan(run_id, plan or [{
+        "id": "step-approval", "kind": "human_checkpoint", "title": title,
+    }])
+    if cursor:
+        svc._set_cursor(run_id, cursor)
+    advanced = client.post(f"/api/goal-runs/{run_id}/advance")
+    assert advanced.status_code == 200, advanced.text
+    assert advanced.json()["advanced"] is True
+    run = client.get(f"/api/goal-runs/{run_id}").json()
+    assert run["status"] == "waiting"
+    hitl_id = run["waiting_on"]["match"]["hitl_id"]
+    db.expire_all()
+    return run_id, hitl_id
+
+
+def _checkpoint_state(db, run_id: str, hitl_id: str):
+    db.expire_all()
+    run = db.query(GoalRun).filter(GoalRun.id == run_id).one()
+    hitl = db.query(HITLAction).filter(HITLAction.id == hitl_id).one()
+    return {
+        "run_status": run.status,
+        "waiting_on": run.waiting_on,
+        "plan": list(run.plan or []),
+        "cursor": run.cursor,
+        "steps_executed": run.steps_executed,
+        "revision": run.material_revision,
+        "decision_log": list(run.decision_log or []),
+        "hitl_status": hitl.status,
+        "hitl_reviewed_by": hitl.reviewed_by,
+        "hitl_feedback": hitl.user_feedback,
+        "audit_count": db.query(AuditLog).count(),
+    }
+
+
+def test_cancelled_checkpoint_resolution_refuses_without_mutation(
+    supervisor_env, monkeypatch,
+):
+    """The reported defect: cancelled run + pending checkpoint must not mark
+    HITL approved, change wait/plan/cursor/decision, or invoke advance."""
+    client = _make_client(supervisor_env, "gr-lead")
+    run_id, hitl_id = _make_waiting_checkpoint(client, supervisor_env)
+    cancelled = client.post(f"/api/goal-runs/{run_id}/cancel")
+    assert cancelled.status_code == 200, cancelled.text
+    before = _checkpoint_state(supervisor_env, run_id, hitl_id)
+    assert before["run_status"] == "cancelled"
+    assert before["hitl_status"] == HITLActionStatus.PENDING.value
+
+    from core.goals.goal_run_service import GoalRunService
+    advance_calls = []
+
+    async def no_advance(self, *args, **kwargs):
+        advance_calls.append((args, kwargs))
+        raise AssertionError("stale checkpoint must not invoke advance")
+
+    monkeypatch.setattr(GoalRunService, "advance", no_advance)
+
+    response = client.post(
+        f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+        json={"approved": True, "guidance": "late approval"},
+    )
+    assert response.status_code == 409, response.text
+    body = response.json()
+    assert body["detail"]["error"]["code"] == "CHECKPOINT_STALE"
+    assert "refresh" in body["detail"]["error"]["message"].lower()
+    assert advance_calls == []
+
+    after = _checkpoint_state(supervisor_env, run_id, hitl_id)
+    assert after == before
+    assert after["hitl_status"] == HITLActionStatus.PENDING.value
+
+
+def test_checkpoint_rejection_preserves_rewind_semantics(
+    supervisor_env, monkeypatch,
+):
+    client = _make_client(supervisor_env, "gr-lead")
+    run_id, hitl_id = _make_waiting_checkpoint(
+        client, supervisor_env,
+        plan=[
+            {"id": "step-work", "kind": "canvas_work", "title": "Draft"},
+            {"id": "step-approval", "kind": "human_checkpoint",
+             "title": "Quote approval"},
+        ],
+        cursor="step-approval",
+    )
+
+    from core.goals.goal_run_service import GoalRunService
+
+    async def no_advance(self, *args, **kwargs):
+        return {"advanced": True, "decision": "ADVANCE"}
+
+    monkeypatch.setattr(GoalRunService, "advance", no_advance)
+    response = client.post(
+        f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+        json={"approved": False, "guidance": "revise the quote"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["resumed"] is True
+    after = _checkpoint_state(supervisor_env, run_id, hitl_id)
+    assert after["run_status"] == "active"
+    assert after["waiting_on"] is None
+    assert after["hitl_status"] == HITLActionStatus.REJECTED.value
+    assert after["hitl_feedback"] == "revise the quote"
+    assert after["cursor"] == "step-work"
+    checkpoint_step = next(
+        s for s in after["plan"] if s["id"] == "step-approval")
+    assert checkpoint_step.get("done") is not True
+
+
+def test_checkpoint_replay_refuses_without_second_advance(
+    supervisor_env, monkeypatch,
+):
+    client = _make_client(supervisor_env, "gr-lead")
+    run_id, hitl_id = _make_waiting_checkpoint(client, supervisor_env)
+
+    from core.goals.goal_run_service import GoalRunService
+    original_advance = GoalRunService.advance
+    advance_calls = []
+
+    async def counted_advance(self, *args, **kwargs):
+        advance_calls.append((args, kwargs))
+        return await original_advance(self, *args, **kwargs)
+
+    monkeypatch.setattr(GoalRunService, "advance", counted_advance)
+    first = client.post(
+        f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+        json={"approved": True, "guidance": "quote looks right"},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["resumed"] is True
+    assert len(advance_calls) == 1
+    after_first = _checkpoint_state(supervisor_env, run_id, hitl_id)
+
+    replay = client.post(
+        f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+        json={"approved": True, "guidance": "again"},
+    )
+    assert replay.status_code == 409, replay.text
+    assert replay.json()["detail"]["error"]["code"] == (
+        "CHECKPOINT_ALREADY_RESOLVED")
+    assert len(advance_calls) == 1
+    after_replay = _checkpoint_state(supervisor_env, run_id, hitl_id)
+    assert after_replay == after_first
+    assert after_replay["hitl_status"] == HITLActionStatus.APPROVED.value
+
+
+def test_wrong_checkpoint_and_foreign_authority_refuse_without_mutation(
+    supervisor_env, monkeypatch,
+):
+    client = _make_client(supervisor_env, "gr-lead")
+    run_a, hitl_a = _make_waiting_checkpoint(client, supervisor_env, "A")
+    run_b, hitl_b = _make_waiting_checkpoint(client, supervisor_env, "B")
+    before_a = _checkpoint_state(supervisor_env, run_a, hitl_a)
+    before_b = _checkpoint_state(supervisor_env, run_b, hitl_b)
+
+    from core.goals.goal_run_service import GoalRunService
+    advance_calls = []
+
+    async def no_advance(self, *args, **kwargs):
+        advance_calls.append((args, kwargs))
+        raise AssertionError("refused checkpoint must not invoke advance")
+
+    monkeypatch.setattr(GoalRunService, "advance", no_advance)
+
+    # A real checkpoint id from another run is not a current checkpoint for A.
+    wrong = client.post(
+        f"/api/goal-runs/{run_a}/checkpoints/{hitl_b}/resolve",
+        json={"approved": True},
+    )
+    assert wrong.status_code == 404, wrong.text
+    assert advance_calls == []
+    assert _checkpoint_state(supervisor_env, run_a, hitl_a) == before_a
+    assert _checkpoint_state(supervisor_env, run_b, hitl_b) == before_b
+
+    # A non-owner member cannot act on someone else's run.
+    member = _make_client(supervisor_env, "gr-emp")
+    foreign = member.post(
+        f"/api/goal-runs/{run_a}/checkpoints/{hitl_a}/resolve",
+        json={"approved": True},
+    )
+    assert foreign.status_code == 403, foreign.text
+    assert advance_calls == []
+    assert _checkpoint_state(supervisor_env, run_a, hitl_a) == before_a
+
+
+def test_peer_cancel_between_snapshot_and_claim_refuses(
+    supervisor_env, monkeypatch,
+):
+    """A peer cancel that lands after the snapshot but before the conditional
+    claim must win wholly; the first request may not leave HITL approved."""
+    client = _make_client(supervisor_env, "gr-lead")
+    run_id, hitl_id = _make_waiting_checkpoint(client, supervisor_env)
+
+    from sqlalchemy.orm import sessionmaker
+    from core.goals.goal_run_service import GoalRunService
+
+    PeerSession = sessionmaker(bind=supervisor_env.get_bind())
+    peer_db = PeerSession()
+    peer_client = _make_client(peer_db, "gr-lead")
+    original_snapshot = GoalRunService._checkpoint_claim_snapshot
+    fired = {"value": False}
+
+    def peer_then_snapshot(self, session, rid, hid):
+        snapshot = original_snapshot(self, session, rid, hid)
+        if not fired["value"]:
+            fired["value"] = True
+            peer = peer_client.post(f"/api/goal-runs/{rid}/cancel")
+            assert peer.status_code == 200, peer.text
+        return snapshot
+
+    monkeypatch.setattr(
+        GoalRunService, "_checkpoint_claim_snapshot", peer_then_snapshot)
+
+    try:
+        response = client.post(
+            f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+            json={"approved": True, "guidance": "racing approval"},
+        )
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["error"]["code"] == "CHECKPOINT_STALE"
+        after = _checkpoint_state(supervisor_env, run_id, hitl_id)
+        assert after["run_status"] == "cancelled"
+        assert after["hitl_status"] == HITLActionStatus.PENDING.value
+        assert after["hitl_reviewed_by"] is None
+    finally:
+        peer_db.close()
+
+
+def test_peer_resolve_between_snapshot_and_claim_refuses(
+    supervisor_env, monkeypatch,
+):
+    """A peer resolution may win; the loser must not mark/replay or advance."""
+    client = _make_client(supervisor_env, "gr-lead")
+    run_id, hitl_id = _make_waiting_checkpoint(client, supervisor_env)
+
+    from sqlalchemy.orm import sessionmaker
+    from core.goals.goal_run_service import GoalRunService
+
+    PeerSession = sessionmaker(bind=supervisor_env.get_bind())
+    peer_db = PeerSession()
+    peer_client = _make_client(peer_db, "gr-lead")
+    original_snapshot = GoalRunService._checkpoint_claim_snapshot
+    original_advance = GoalRunService.advance
+    advance_calls = []
+    fired = {"value": False}
+
+    async def counted_advance(self, *args, **kwargs):
+        advance_calls.append((args, kwargs))
+        return await original_advance(self, *args, **kwargs)
+
+    def peer_then_snapshot(self, session, rid, hid):
+        snapshot = original_snapshot(self, session, rid, hid)
+        if not fired["value"]:
+            fired["value"] = True
+            peer = peer_client.post(
+                f"/api/goal-runs/{rid}/checkpoints/{hid}/resolve",
+                json={"approved": True, "guidance": "peer approval"},
+            )
+            assert peer.status_code == 200, peer.text
+        return snapshot
+
+    monkeypatch.setattr(GoalRunService, "advance", counted_advance)
+    monkeypatch.setattr(
+        GoalRunService, "_checkpoint_claim_snapshot", peer_then_snapshot)
+
+    try:
+        response = client.post(
+            f"/api/goal-runs/{run_id}/checkpoints/{hitl_id}/resolve",
+            json={"approved": True, "guidance": "late approval"},
+        )
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["error"]["code"] == (
+            "CHECKPOINT_ALREADY_RESOLVED")
+        assert len(advance_calls) == 1  # peer's valid resolution only
+        after = _checkpoint_state(supervisor_env, run_id, hitl_id)
+        assert after["hitl_status"] == HITLActionStatus.APPROVED.value
+    finally:
+        peer_db.close()
 
 
 def test_event_ingestion_endpoint(supervisor_env):

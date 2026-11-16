@@ -519,6 +519,251 @@ class GoalRunService:
                 session.commit()
         self._advance_cursor(run_id, {})
 
+    def _checkpoint_claim_snapshot(
+        self, session, run_id: str, hitl_id: str,
+    ):
+        """Load the run/HITL pair used by the checkpoint claim.
+
+        Kept as a named seam so race controls can interleave a peer action
+        after the snapshot and prove the conditional claim refuses without
+        effects. Production callers use it directly.
+        """
+        from core.models import HITLAction
+        run = self._load(session, run_id)
+        hitl = session.query(HITLAction).filter(
+            HITLAction.id == str(hitl_id)).first()
+        return run, hitl
+
+    def claim_checkpoint_resolution(
+        self, *, run_id: str, hitl_id: str, approved: bool,
+        reviewer: Optional[str] = None, guidance: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Atomically claim one EXACT human checkpoint resolution.
+
+        The checkpoint row, the run's current wait, and the cursor are one
+        material contract. A stale/cancelled/wrong/replayed request must not
+        mark the HITL row, clear a wait, move the plan/cursor, append a
+        decision, or invoke the decision loop. The HITL claim and the run
+        wake/plan update share one transaction and are defended by
+        conditional updates on the loaded material revision/status, so a
+        peer resolve or cancel either wins wholly or loses without effects.
+
+        The caller owns workspace access checks for READ purposes and
+        invokes ``advance`` only after a ``verified`` result. Reviewer
+        authority is part of this claim, not a caller courtesy: the current
+        active reviewer must be in the run's exact canonical scope and be
+        the owner or a supervisor, and a peer deactivation/move between the
+        authority read and the write makes the fresh-actor fence miss (409
+        AUTHORITY_CHANGED). Every checkpoint surface (goal-run route,
+        approvals aliases, HITL bridge and InterventionService/governance)
+        therefore has the same gate.
+        """
+        from core.models import GoalRun, HITLAction, HITLActionStatus
+
+        def refused(http_status: int, code: str, message: str) -> Dict[str, Any]:
+            return {
+                "status": "refused",
+                "http_status": int(http_status),
+                "error_code": code,
+                "message": message,
+                "resumed": False,
+            }
+
+        with self._sessions()() as session:
+            run, hitl = self._checkpoint_claim_snapshot(
+                session, run_id, hitl_id)
+            if run is None:
+                return refused(404, "NOT_FOUND", f"GoalRun not found: {run_id}")
+            if hitl is None or str(hitl.action_type or "") != "goal_run_checkpoint":
+                return refused(
+                    404, "CHECKPOINT_NOT_FOUND",
+                    "This checkpoint does not belong to the current run.")
+
+            from core.goal_run_decision_service import (
+                claim_fresh_reviewer,
+                resolve_checkpoint_reviewer,
+            )
+
+            authority = resolve_checkpoint_reviewer(
+                session, reviewer=reviewer, run=run, action=hitl)
+            if not authority.get("ok"):
+                return refused(
+                    int(authority.get("http_status") or 403),
+                    str(authority.get("error_code") or "AUTHORITY_REQUIRED"),
+                    str(authority.get("message") or "Decision refused."),
+                )
+
+            params = dict(hitl.params or {})
+            if str(params.get("run_id") or "") != str(run.id):
+                return refused(
+                    404, "CHECKPOINT_NOT_FOUND",
+                    "This checkpoint does not belong to the current run.")
+            if str(hitl.status or "") != HITLActionStatus.PENDING.value:
+                return refused(
+                    409, "CHECKPOINT_ALREADY_RESOLVED",
+                    f"checkpoint already {hitl.status}")
+
+            run_ws = str(run.workspace_id or "")
+            hitl_ws = str(hitl.workspace_id or "")
+            from core.goal_run_decision_service import canonical_scope_id
+
+            if (
+                canonical_scope_id(hitl_ws)
+                != canonical_scope_id(run_ws)
+            ):
+                return refused(
+                    409, "CHECKPOINT_STALE",
+                    "This checkpoint is outside the run's scope; refresh the run.")
+            hitl_tenant = str(hitl.tenant_id or "")
+            run_tenant = str(run.tenant_id or "")
+            if (
+                canonical_scope_id(hitl_tenant)
+                != canonical_scope_id(run_tenant)
+            ):
+                return refused(
+                    409, "CHECKPOINT_STALE",
+                    "This checkpoint is outside the run's tenant; refresh the run.")
+
+            # The checkpoint is current only when the run is waiting on THIS
+            # hitl_id and that HITL row names a live plan step. The persisted
+            # wait match is authoritative; cursor equality is not required
+            # because a REPLAN can leave the cursor on an older step while a
+            # legitimate checkpoint step is created. The conditional GoalRun
+            # update below also binds material_revision.
+            step_id = str(params.get("step_id") or "")
+            plan_steps = [
+                s for s in (run.plan or [])
+                if isinstance(s, dict) and str(s.get("id") or "") == step_id
+            ]
+            spec = run.waiting_on if isinstance(run.waiting_on, dict) else {}
+            match = spec.get("match") if isinstance(spec.get("match"), dict) else {}
+            if (
+                str(run.status or "") != "waiting"
+                or str(spec.get("event") or "") != "human_checkpoint"
+                or str(match.get("hitl_id") or "") != str(hitl.id)
+                or not step_id
+                or not plan_steps
+                or str(plan_steps[0].get("kind") or "").strip().lower()
+                    != "human_checkpoint"
+                or bool(plan_steps[0].get("done"))
+            ):
+                return refused(
+                    409, "CHECKPOINT_STALE",
+                    "This checkpoint is no longer the run's current wait. "
+                    "Refresh the run before deciding.")
+
+            prior_revision = int(run.material_revision or 0)
+            plan = [dict(s) for s in (run.plan or [])]
+            ids = [s.get("id") for s in plan]
+            cursor = run.cursor
+            steps_executed = int(run.steps_executed or 0)
+            if approved:
+                for step in plan:
+                    if step.get("id") == step_id:
+                        step["done"] = True
+                steps_executed += 1
+                # complete_checkpoint's cursor move, applied in this same
+                # transaction instead of a second committed write.
+                if cursor in ids:
+                    idx = ids.index(cursor)
+                    if idx + 1 < len(plan):
+                        cursor = plan[idx + 1].get("id")
+            else:
+                # rewind_to_work_before, applied in this same transaction.
+                if step_id in ids:
+                    idx = ids.index(step_id)
+                    for j in range(idx - 1, -1, -1):
+                        candidate = plan[j]
+                        if (candidate.get("kind") != "human_checkpoint"
+                                and not candidate.get("done")):
+                            cursor = candidate.get("id")
+                            break
+
+            log = list(run.decision_log or [])
+            log.append({
+                "ts": _iso(),
+                "kind": "wake",
+                "event_id": "",
+                "event": {
+                    "event": "human_checkpoint",
+                    "approved": bool(approved),
+                    "summary": guidance or (
+                        "checkpoint approved" if approved
+                        else "checkpoint rejected"),
+                },
+                "matched_by": "match:hitl_id",
+            })
+            result_revision = prior_revision + 1
+            new_status = (HITLActionStatus.APPROVED.value if approved
+                          else HITLActionStatus.REJECTED.value)
+
+            # Fresh-actor fence in the SAME transaction as the effect: a peer
+            # revoke/role/tenant/workspace move after the authority read makes
+            # this conditional update miss, so no HITL/wake write happens.
+            if not claim_fresh_reviewer(session, authority):
+                session.rollback()
+                return refused(
+                    409, "AUTHORITY_CHANGED",
+                    "The reviewer's authority changed; refresh and retry.")
+
+            # One transaction: claim the pending HITL row first, then wake the
+            # exact waiting run. A rowcount miss rolls both back, so a peer
+            # cancel/resolve cannot leave an approved HITL with no resume.
+            hitl_claimed = session.query(HITLAction).filter(
+                HITLAction.id == str(hitl.id),
+                HITLAction.action_type == "goal_run_checkpoint",
+                HITLAction.status == HITLActionStatus.PENDING.value,
+            ).update({
+                HITLAction.status: new_status,
+                HITLAction.reviewed_by: authority["id"],
+                HITLAction.reviewed_at: datetime.now(timezone.utc),
+                HITLAction.user_feedback: guidance,
+            }, synchronize_session=False)
+            if hitl_claimed != 1:
+                session.rollback()
+                return refused(
+                    409, "CHECKPOINT_ALREADY_RESOLVED",
+                    "This checkpoint was already decided. Refresh the run.")
+
+            run_claimed = session.query(GoalRun).filter(
+                GoalRun.id == str(run.id),
+                GoalRun.workspace_id == str(run.workspace_id),
+                GoalRun.status == "waiting",
+                GoalRun.material_revision == prior_revision,
+                GoalRun.waiting_on.isnot(None),
+            ).update({
+                GoalRun.status: "active",
+                GoalRun.waiting_on: None,
+                GoalRun.plan: plan,
+                GoalRun.cursor: cursor,
+                GoalRun.steps_executed: steps_executed,
+                GoalRun.decision_log: log,
+                GoalRun.material_revision: result_revision,
+            }, synchronize_session=False)
+            if run_claimed != 1:
+                session.rollback()
+                return refused(
+                    409, "CHECKPOINT_STALE",
+                    "This checkpoint is no longer the run's current wait. "
+                    "Refresh the run before deciding.")
+
+            session.commit()
+            session.expire_all()
+            fresh = session.query(GoalRun).filter(
+                GoalRun.id == str(run.id),
+                GoalRun.workspace_id == str(run.workspace_id),
+            ).first()
+            return {
+                "status": "verified",
+                "http_status": 200,
+                "resumed": True,
+                "run": self._to_dict(fresh) if fresh is not None else None,
+                "checkpoint": {
+                    "id": str(hitl.id),
+                    "status": new_status,
+                },
+            }
+
     # ------------------------------------------------------------ waits
 
     def set_wait(self, run_id: str, spec: Dict[str, Any]) -> Dict[str, Any]:
