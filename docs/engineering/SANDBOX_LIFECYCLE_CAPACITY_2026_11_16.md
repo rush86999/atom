@@ -52,3 +52,35 @@ Private verifier receipts are retained under
 `/private/tmp/atom-miniapp-root-localgate-20261116/`,
 `/private/tmp/atom-miniapp-root-aa42-20261116/` and
 `/private/tmp/atom-miniapp-final-dev-smoke-20261116/`.
+
+## Real concurrent cleanup correction
+
+A later six-call real Docker probe exposed a normal `--rm` race that the initial
+single-container smoke missed: `docker rm -f` can report that removal of the
+exact owned container is already in progress. The candidate was held and made
+draft. That response is not treated as proof of absence. Teardown now polls the
+exact target within a total cleanup deadline, retaining capacity until absence
+is confirmed; persistent presence, malformed output, failed waits and daemon
+errors still quarantine the backend. Docker's observed inspect absence response
+is lowercase `error: no such object: <name>` with whitespace stdout. A separate
+command-specific parser accepts that complete record while comparing the target
+case-sensitively and rejecting unrelated targets or additional errors.
+
+At corrected implementation `ac7256ff2dd688a60d11f12a1c9af0969c7ac93a`, an
+independent real test created six fresh runtime instances and six DEV containers
+at configured capacity two. All six succeeded; guest timestamp intervals showed
+peak execution overlap **two**, and all six owned containers were absent after
+completion. Each container retained the 128 MiB, one CPU, network-none,
+read-only and dropped-capability posture. This demonstrates one-process DEV
+Docker execution overlap; it does not establish Firecracker or distributed-host
+capacity. No model calls or live app data were used.
+
+Earlier failed real probes and exact Docker responses remain separately retained
+under `/private/tmp/atom-miniapp-real-capacity-20261116/` and
+`/private/tmp/atom-miniapp-real-capacity-recheck-20261116/`. The passing receipt is
+`/private/tmp/atom-miniapp-real-capacity-final-20261116/result.json`.
+
+The final independent CI-contract and runtime gate passed **870 checks**, with
+five real-Docker integration cases explicitly deselected because the separate
+six-container experiment supplied the bounded live evidence. The gate selected
+the CI lane contract, shared-capacity, DEV-runtime and runner regression modules.
