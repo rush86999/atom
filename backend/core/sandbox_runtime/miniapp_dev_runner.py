@@ -53,7 +53,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
-from core.sandbox_runtime.capacity import await_teardown, get_capacity_semaphore
+from core.sandbox_runtime.capacity import (
+    CapacityQuarantined, CleanupUncertain, await_teardown,
+    get_capacity_semaphore, quarantine,
+)
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -74,6 +77,7 @@ _AGENT_IN_CONTAINER = "/opt/atom-guest/agent.py"
 
 _BUILD_TIMEOUT_SECONDS = 900
 _AVAIL_TTL_SECONDS = 10.0
+CAPACITY_SCOPE = "miniapp-docker"
 
 # Availability probe TTL cache — ``docker info`` spawns a process (~100ms);
 # the factory + execute path both probe, so cache briefly.
@@ -142,6 +146,11 @@ def _dev_dockerfile(tag: str, deps: List[str]) -> str:
     )
 
 
+def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
+    quarantine(CAPACITY_SCOPE, reason)
+    return CleanupUncertain(reason)
+
+
 # ===========================================================================
 # Runtime
 # ===========================================================================
@@ -159,10 +168,10 @@ class MiniAppDevRuntime:
         self._build_lock: Optional[asyncio.Lock] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Shared across every MiniAppDevRuntime instance on this event loop.
-        # Factories construct new instances; the Docker/VM capacity is
-        # process-wide, and this permit is held through teardown.
-        sem = get_capacity_semaphore("miniapp-docker", _max_concurrency())
+        # Shared process-wide across every MiniAppDevRuntime instance and
+        # event loop. Factories construct new instances; the Docker/VM
+        # capacity is a process resource, held through teardown.
+        sem = get_capacity_semaphore(CAPACITY_SCOPE, _max_concurrency())
         self._concurrency_sem = sem
         return sem
 
@@ -276,10 +285,27 @@ class MiniAppDevRuntime:
         callback_handler: Any = None,
     ) -> SandboxExecResult:
         """Hold one shared capacity permit through the complete container lifecycle."""
-        async with self._sem():
-            return await self._run_in_container_locked(
-                code, policy=policy, inputs=inputs, tag=tag,
-                callback_handler=callback_handler)
+        try:
+            async with self._sem():
+                return await self._run_in_container_locked(
+                    code, policy=policy, inputs=inputs, tag=tag,
+                    callback_handler=callback_handler)
+        except CapacityQuarantined:
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    "docker-dev capacity is quarantined after an unconfirmed "
+                    "owned-process cleanup; refusing a new launch"),
+                exit_code=-1,
+                metadata={"backend": "docker-dev",
+                          "reason": "capacity_quarantined"})
+        except CleanupUncertain as exc:
+            quarantine(CAPACITY_SCOPE, str(exc))
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    f"docker-dev cleanup unconfirmed: {exc}"),
+                exit_code=-1,
+                metadata={"backend": "docker-dev",
+                          "reason": "cleanup_unconfirmed"})
 
     async def _run_in_container_locked(
         self,
@@ -418,11 +444,19 @@ class MiniAppDevRuntime:
 
     async def _teardown_container(self, proc, container: str, drain_task) -> None:
         if proc.returncode is None:
-            proc.kill()
+            try:
+                proc.kill()
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"docker kill failed: {type(exc).__name__}") from None
         try:
             await proc.wait()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            if proc.returncode is None:
+                raise _cleanup_uncertain(
+                    f"docker wait failed: {type(exc).__name__}") from None
+        if proc.returncode is None:
+            raise _cleanup_uncertain("docker process exit was not confirmed")
         drain_task.cancel()
         try:
             await drain_task

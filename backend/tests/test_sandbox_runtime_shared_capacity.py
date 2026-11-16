@@ -21,34 +21,42 @@ class _QuietStderr:
 
 
 class FakeProc:
-    def __init__(self, cleanup_event=None):
+    def __init__(self, cleanup_event=None, *, wait_error=None,
+                 kill_error=None):
         self.returncode = None
         self.stdout = None
         self.stdin = None
         self.stderr = _QuietStderr()
         self.killed = False
         self._cleanup_event = cleanup_event
+        self._wait_error = wait_error
+        self._kill_error = kill_error
         self.cleanup_started = asyncio.Event() if cleanup_event is not None else None
         self.cleanup_count = 0
 
     def kill(self):
+        if self._kill_error is not None:
+            raise self._kill_error
         self.killed = True
 
     async def wait(self):
         self.cleanup_count += 1
         if self.cleanup_started is not None:
             self.cleanup_started.set()
+        if self._wait_error is not None:
+            raise self._wait_error
         if self._cleanup_event is not None:
             await self._cleanup_event.wait()
         self.returncode = 0
         return 0
 
 
-def _install_proc(p, cleanup_event=None):
+def _install_proc(p, cleanup_event=None, *, wait_error=None, kill_error=None):
     created = []
 
     async def fake_exec(*args, **kwargs):
-        proc = FakeProc(cleanup_event)
+        proc = FakeProc(cleanup_event, wait_error=wait_error,
+                        kill_error=kill_error)
         created.append(proc)
         return proc
     p.setattr(asyncio, "create_subprocess_exec", fake_exec)
@@ -359,3 +367,97 @@ def test_cancellation_during_blocked_teardown_holds_permit(monkeypatch, kind):
         asyncio.run(scenario())
     finally:
         capacity.reset_for_tests()
+
+
+@pytest.mark.parametrize("kind", ["dev", "fc"])
+def test_unconfirmed_wait_never_succeeds_or_frees_capacity(monkeypatch, kind):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-unconfirmed-" + uuid.uuid4().hex
+    if kind == "dev":
+        monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(dev_mod, "_guest_exchange", _ok_exchange)
+        factory = dev_mod.MiniAppDevRuntime
+    else:
+        monkeypatch.setattr(fc_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(fc_mod.FirecrackerRuntime, "_exchange", _ok_exchange)
+        factory = fc_mod.FirecrackerRuntime
+    created = _install_proc(monkeypatch, wait_error=OSError("wait failed"))
+
+    first = asyncio.run(_run_one(factory(), kind))
+    assert first.success is False
+    assert first.exit_code == -1
+    assert first.metadata["reason"] == "cleanup_unconfirmed"
+    assert capacity.snapshot(scope)["quarantined"]
+    assert len(created) == 1
+
+    second = asyncio.run(_run_one(factory(), kind))
+    assert second.success is False
+    assert second.metadata["reason"] == "capacity_quarantined"
+    assert len(created) == 1
+
+
+@pytest.mark.parametrize("kind", ["dev", "fc"])
+def test_unconfirmed_kill_never_succeeds_or_frees_capacity(monkeypatch, kind):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-kill-" + uuid.uuid4().hex
+    if kind == "dev":
+        monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(dev_mod, "_guest_exchange", _ok_exchange)
+        factory = dev_mod.MiniAppDevRuntime
+    else:
+        monkeypatch.setattr(fc_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(fc_mod.FirecrackerRuntime, "_exchange", _ok_exchange)
+        factory = fc_mod.FirecrackerRuntime
+    created = _install_proc(monkeypatch, kill_error=OSError("kill failed"))
+
+    first = asyncio.run(_run_one(factory(), kind))
+    assert first.success is False
+    assert first.metadata["reason"] == "cleanup_unconfirmed"
+    assert capacity.snapshot(scope)["quarantined"]
+    assert len(created) == 1
+    second = asyncio.run(_run_one(factory(), kind))
+    assert second.success is False
+    assert second.metadata["reason"] == "capacity_quarantined"
+    assert len(created) == 1
+
+
+@pytest.mark.parametrize("kind", ["dev", "fc"])
+def test_known_exited_wait_error_does_not_poison(monkeypatch, kind):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-known-exit-" + uuid.uuid4().hex
+    if kind == "dev":
+        monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(dev_mod, "_guest_exchange", _ok_exchange)
+        factory = dev_mod.MiniAppDevRuntime
+    else:
+        monkeypatch.setattr(fc_mod, "CAPACITY_SCOPE", scope)
+        monkeypatch.setattr(fc_mod.FirecrackerRuntime, "_exchange", _ok_exchange)
+        factory = fc_mod.FirecrackerRuntime
+
+    async def fake_exec(*a, **k):
+        proc = FakeProc(wait_error=OSError("wait failed"))
+        proc.returncode = 0
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    first = asyncio.run(_run_one(factory(), kind))
+    assert first.success is True
+    assert first.exit_code == 0
+    assert not capacity.snapshot(scope)["quarantined"]
+    second = asyncio.run(_run_one(factory(), kind))
+    assert second.success is True
+
+
+async def _ok_exchange(*args, **kwargs):
+    return "", "", 0, None, None
+
+
+async def _run_one(runtime, kind):
+    if kind == "dev":
+        return await runtime._run_in_container(
+            "print(1)", policy=_Policy(), inputs={}, tag="img")
+    return await runtime._run_in_vm(
+        "print(1)", policy=_Policy(), inputs={}, rootfs="/tmp/fake.ext4")

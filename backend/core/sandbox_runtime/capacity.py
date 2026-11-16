@@ -31,6 +31,14 @@ _loop_proxies: "WeakKeyDictionary[object, Dict[str, CapacitySemaphore]]" = (
     WeakKeyDictionary())
 
 
+class CapacityQuarantined(RuntimeError):
+    """The backend's capacity is held by an unresolved owned resource."""
+
+
+class CleanupUncertain(RuntimeError):
+    """An owned process could not be confirmed exited."""
+
+
 class _Permit:
     __slots__ = ("_gate", "_released")
 
@@ -58,10 +66,13 @@ class _Gate:
         self._lock = threading.Lock()
         self._in_use = 0
         self._waiters: Deque[_Waiter] = deque()
+        self._quarantined: Optional[str] = None
 
     async def acquire(self) -> _Permit:
         loop = asyncio.get_running_loop()
         with self._lock:
+            if self._quarantined:
+                raise CapacityQuarantined(self._quarantined)
             if self._in_use < self.limit and not self._waiters:
                 self._in_use += 1
                 return _Permit(self)
@@ -85,7 +96,29 @@ class _Gate:
 
     def release(self) -> None:
         with self._lock:
+            if self._quarantined:
+                return
             self._release_locked()
+
+    def quarantine(self, reason: str) -> None:
+        with self._lock:
+            if self._quarantined:
+                return
+            self._quarantined = str(reason or "cleanup_unconfirmed")
+            for waiter in self._waiters:
+                if not waiter.future.done():
+                    try:
+                        waiter.loop.call_soon_threadsafe(
+                            self._fail, waiter,
+                            CapacityQuarantined(self._quarantined))
+                    except RuntimeError:
+                        pass
+            self._waiters.clear()
+
+    @staticmethod
+    def _fail(waiter: _Waiter, exc: Exception) -> None:
+        if not waiter.future.done():
+            waiter.future.set_exception(exc)
 
     def _release_locked(self) -> None:
         while self._waiters:
@@ -110,7 +143,8 @@ class _Gate:
     def snapshot(self) -> dict:
         with self._lock:
             return {"limit": self.limit, "in_use": self._in_use,
-                    "waiters": len(self._waiters)}
+                    "waiters": len(self._waiters),
+                    "quarantined": self._quarantined}
 
 
 async def await_teardown(coro) -> None:
@@ -131,9 +165,11 @@ async def await_teardown(coro) -> None:
             continue
     try:
         task.result()
+    except CleanupUncertain:
+        raise
     except asyncio.CancelledError:
         cancelled = True
-    except Exception:  # noqa: BLE001 - teardown is best effort
+    except Exception:  # noqa: BLE001 - non-ownership teardown is best effort
         pass
     if cancelled:
         raise asyncio.CancelledError()
@@ -185,6 +221,14 @@ def get_capacity_semaphore(scope: str, limit: int) -> CapacitySemaphore:
         return proxy
 
 
+def quarantine(scope: str, reason: str) -> None:
+    """Retain the backend bound for the process lifetime after uncertain cleanup."""
+    with _gates_lock:
+        gate = _gates.get(scope)
+    if gate is not None:
+        gate.quarantine(reason)
+
+
 def snapshot(scope: str) -> dict:
     with _gates_lock:
         gate = _gates.get(scope)
@@ -201,9 +245,8 @@ def reset_for_tests(scope: Optional[str] = None) -> None:
             if gate is None:
                 continue
             state = gate.snapshot()
-            if state["in_use"] or state["waiters"]:
-                raise RuntimeError(
-                    f"capacity scope {name!r} is still in use; refusing reset")
+            if state["in_use"] or state["waiters"] or state["quarantined"]:
+                continue  # never release a live/unresolved production bound
             _gates.pop(name, None)
         for per_loop in list(_loop_proxies.values()):
             for name in scopes:

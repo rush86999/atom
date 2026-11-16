@@ -51,7 +51,10 @@ from typing import Any, Dict, List, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
-from core.sandbox_runtime.capacity import await_teardown, get_capacity_semaphore
+from core.sandbox_runtime.capacity import (
+    CapacityQuarantined, CleanupUncertain, await_teardown,
+    get_capacity_semaphore, quarantine,
+)
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -59,6 +62,7 @@ logger = logging.getLogger(__name__)
 
 # Detect Linux once at import (cheap). Referenced by is_available().
 _IS_LINUX = sys.platform.startswith("linux")
+CAPACITY_SCOPE = "firecracker"
 
 # Guest-side metadata.
 GUEST_CID = 3
@@ -142,6 +146,11 @@ def is_provisioned_for(image: Optional[str] = None) -> bool:
     return True
 
 
+def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
+    quarantine(CAPACITY_SCOPE, reason)
+    return CleanupUncertain(reason)
+
+
 # ===========================================================================
 # Runtime
 # ===========================================================================
@@ -177,10 +186,10 @@ class FirecrackerRuntime:
         self._concurrency_sem: Optional[asyncio.Semaphore] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Shared across every FirecrackerRuntime instance on this event loop:
-        # factories construct new instances, but the KVM/RAM resource is
-        # process-wide. Held for the whole spawn/exchange/teardown lifecycle.
-        sem = get_capacity_semaphore("firecracker", _max_concurrency())
+        # Shared process-wide across every FirecrackerRuntime instance and
+        # event loop; factories construct new instances, but KVM/RAM is a
+        # process resource. Held for the whole spawn/exchange/teardown lifecycle.
+        sem = get_capacity_semaphore(CAPACITY_SCOPE, _max_concurrency())
         self._concurrency_sem = sem
         return sem
 
@@ -273,10 +282,27 @@ class FirecrackerRuntime:
         callback_handler: Any = None,
     ) -> SandboxExecResult:
         """Hold one shared capacity permit through the complete VM lifecycle."""
-        async with self._sem():
-            return await self._run_in_vm_locked(
-                code, policy=policy, inputs=inputs, rootfs=rootfs,
-                callback_handler=callback_handler)
+        try:
+            async with self._sem():
+                return await self._run_in_vm_locked(
+                    code, policy=policy, inputs=inputs, rootfs=rootfs,
+                    callback_handler=callback_handler)
+        except CapacityQuarantined:
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    "Firecracker capacity is quarantined after an unconfirmed "
+                    "owned-process cleanup; refusing a new boot"),
+                exit_code=-1,
+                metadata={"backend": "firecracker",
+                          "reason": "capacity_quarantined"})
+        except CleanupUncertain as exc:
+            quarantine(CAPACITY_SCOPE, str(exc))
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    f"Firecracker cleanup unconfirmed: {exc}"),
+                exit_code=-1,
+                metadata={"backend": "firecracker",
+                          "reason": "cleanup_unconfirmed"})
 
     async def _run_in_vm_locked(
         self,
@@ -374,11 +400,20 @@ class FirecrackerRuntime:
 
     async def _teardown_vm(self, proc) -> None:
         if proc.returncode is None:
-            proc.kill()
+            try:
+                proc.kill()
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"firecracker kill failed: {type(exc).__name__}") from None
         try:
             await proc.wait()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            if proc.returncode is None:
+                raise _cleanup_uncertain(
+                    f"firecracker wait failed: {type(exc).__name__}") from None
+        if proc.returncode is None:
+            raise _cleanup_uncertain(
+                "firecracker process exit was not confirmed")
 
     async def _exchange(
         self,
