@@ -32,6 +32,7 @@
     "Run offline scheduled alignment dispatch controls",
     "Run served spreadsheet stale-cache regression control",
     "Run reviewed prompt skill process restart controls",
-    "Run sandbox runtime lifecycle capacity controls"
+    "Run sandbox runtime lifecycle capacity controls",
+    "Run mini-app instance authority and privacy controls"
   ]
 }
