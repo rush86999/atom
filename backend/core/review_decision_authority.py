@@ -23,13 +23,17 @@ policy registry and no alternate role map.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Mapping, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Mapping, Optional
+
+from sqlalchemy import update
 
 from core.autonomy_policy import (
     NEVER_TASK_ADMISSION_ACTION,
     NEVER_OUTCOME_REVIEW,
     decision_covers,
 )
+from core.models import HITLAction, HITLActionStatus
 from core.goal_run_decision_service import (
     _resolve_actor,
     canonical_scope_id,
@@ -189,6 +193,89 @@ def resolve_task_admission_reviewer(
     return authority
 
 
+def _exact_column(column: Any, value: Any):
+    """NULL-safe scalar equivalence for a persisted binding field."""
+    return column.is_(None) if value is None else column == value
+
+
+def task_admission_binding_conditions(action: Any) -> List[Any]:
+    """SQL predicates that freeze the task binding a reviewer saw.
+
+    The row is authority only while these exact server-owned fields still
+    match. ``params`` carries the execution id, task fingerprint, owner,
+    reviewed rule revisions and reviewed task profile; ``context_snapshot``
+    carries the execution/scope/actor binding. Both are compared to the
+    values loaded BEFORE the decision, so a peer that rewrites the binding
+    between the load and the claim makes the conditional UPDATE miss.
+
+    JSON columns compare exactly on SQLite (serialized text) and semantically
+    on PostgreSQL (JSONB equality). A NULL ``context_snapshot`` is the only
+    shipped task-admission shape that has no object; it is compared as SQL
+    NULL. Task-admission ``params`` is non-null by contract.
+    """
+    return [
+        HITLAction.id == str(getattr(action, "id", "") or ""),
+        HITLAction.action_type == NEVER_TASK_ADMISSION_ACTION,
+        _exact_column(
+            HITLAction.agent_id, getattr(action, "agent_id", None)),
+        _exact_column(
+            HITLAction.workspace_id, getattr(action, "workspace_id", None)),
+        _exact_column(
+            HITLAction.tenant_id, getattr(action, "tenant_id", None)),
+        _exact_column(HITLAction.user_id, getattr(action, "user_id", None)),
+        HITLAction.params == getattr(action, "params", None),
+        _exact_column(
+            HITLAction.context_snapshot,
+            getattr(action, "context_snapshot", None)),
+    ]
+
+
+def claim_task_admission_decision(
+    db: Any,
+    action: Any,
+    *,
+    status: str,
+    reviewer_id: str,
+    reviewed_at: Optional[datetime] = None,
+    user_feedback: Optional[str] = None,
+) -> bool:
+    """Atomically claim ONE pending task-admission decision.
+
+    This is the write fence, not a re-read: the conditional UPDATE requires
+    the row to still be ``pending`` AND every immutable execution/task/owner/
+    rule/profile binding field to equal the values the reviewer's authority
+    was checked against. A peer rejection, approval, cancel or binding
+    rewrite committed after the load makes ``rowcount`` 0, so the stale
+    writer returns a conflict instead of overwriting the winner. The caller
+    must run :func:`claim_task_admission_reviewer` (the fresh-actor fence) in
+    the SAME transaction before this statement.
+    """
+    if status not in (
+            HITLActionStatus.APPROVED.value, HITLActionStatus.REJECTED.value):
+        raise ValueError("task admission decision must be approved or rejected")
+    reviewer = _nonempty(reviewer_id)
+    if not reviewer:
+        raise ValueError("task admission decision requires a reviewer")
+
+    values: Dict[str, Any] = {
+        "status": status,
+        "reviewed_by": reviewer,
+        "reviewed_at": reviewed_at or datetime.now(timezone.utc),
+    }
+    if user_feedback is not None:
+        values["user_feedback"] = user_feedback
+
+    conditions = task_admission_binding_conditions(action)
+    conditions.append(HITLAction.status == HITLActionStatus.PENDING.value)
+    result = db.execute(
+        update(HITLAction)
+        .where(*conditions)
+        .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+    return int(result.rowcount or 0) == 1
+
+
 def authorize_task_admission_decision(
     db: Any,
     action: Any,
@@ -200,8 +287,10 @@ def authorize_task_admission_decision(
 
     Returns ``{"ok": True, "authority": ...}`` or a refusal carrying the
     shared HTTP status/code. The caller must still run
-    ``claim_task_admission_reviewer`` in the same transaction as its status
-    write; this read alone is not the fence.
+    ``claim_task_admission_reviewer`` (fresh actor) and
+    ``claim_task_admission_decision`` (pending state + immutable binding) in
+    the same transaction as its status write; this read alone is not the
+    fence.
     """
     binding = task_admission_binding_denial(action)
     if binding:

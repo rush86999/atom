@@ -185,9 +185,11 @@ class InterventionService:
             # owner or supervisor, BOTH required_role locations) and the
             # server-owned task/rule binding must be immutable. This runs
             # BEFORE any status write, so governance/bridge callers cannot be
-            # the weak surface. The same reviewer fence is re-checked in the
-            # claim transaction below.
-            if str(action.action_type or "") == "never_autonomous_task":
+            # the weak surface. The same reviewer fence and the atomic
+            # pending-state/binding claim are re-checked in the write below.
+            is_task_admission = (
+                str(action.action_type or "") == "never_autonomous_task")
+            if is_task_admission:
                 from core.review_decision_authority import (
                     authorize_task_admission_decision,
                     claim_task_admission_reviewer,
@@ -255,13 +257,32 @@ class InterventionService:
                 return _refusal(
                     denial, "AUTHORITY_REQUIRED", 403, action.id)
 
-            if modified_params is not None:
-                action.params = modified_params
+            if is_task_admission:
+                # Atomic pending-state + immutable binding + fresh-actor
+                # claim. A peer that rejected/approved the row (or rewrote
+                # its execution/task/rule/profile binding) after our load
+                # makes this UPDATE miss; the stale approver never wins.
+                from core.review_decision_authority import (
+                    claim_task_admission_decision,
+                )
 
-            # Update status
-            action.status = HITLActionStatus.APPROVED.value
-            action.reviewed_by = approver_id
-            action.reviewed_at = datetime.now()
+                if not claim_task_admission_decision(
+                        db, action,
+                        status=HITLActionStatus.APPROVED.value,
+                        reviewer_id=approver_id):
+                    db.rollback()
+                    return _refusal(
+                        "This task admission was decided or its reviewed "
+                        "task binding changed; refresh and retry.",
+                        "TASK_ADMISSION_DECISION_CONFLICT", 409, action.id)
+            else:
+                if modified_params is not None:
+                    action.params = modified_params
+
+                # Update status
+                action.status = HITLActionStatus.APPROVED.value
+                action.reviewed_by = approver_id
+                action.reviewed_at = datetime.now()
 
             db.commit()
 
@@ -292,7 +313,9 @@ class InterventionService:
                     "message": f"Action is {action.status}, cannot reject.",
                 }
 
-            if str(action.action_type or "") == "never_autonomous_task":
+            is_task_admission = (
+                str(action.action_type or "") == "never_autonomous_task")
+            if is_task_admission:
                 from core.review_decision_authority import (
                     authorize_task_admission_decision,
                     claim_task_admission_reviewer,
@@ -344,10 +367,26 @@ class InterventionService:
                 return _refusal(
                     denial, "AUTHORITY_REQUIRED", 403, action.id)
 
-            action.status = HITLActionStatus.REJECTED.value
-            action.reviewed_by = approver_id
-            action.reviewed_at = datetime.now()
-            action.user_feedback = reason
+            if is_task_admission:
+                from core.review_decision_authority import (
+                    claim_task_admission_decision,
+                )
+
+                if not claim_task_admission_decision(
+                        db, action,
+                        status=HITLActionStatus.REJECTED.value,
+                        reviewer_id=approver_id,
+                        user_feedback=reason):
+                    db.rollback()
+                    return _refusal(
+                        "This task admission was decided or its reviewed "
+                        "task binding changed; refresh and retry.",
+                        "TASK_ADMISSION_DECISION_CONFLICT", 409, action.id)
+            else:
+                action.status = HITLActionStatus.REJECTED.value
+                action.reviewed_by = approver_id
+                action.reviewed_at = datetime.now()
+                action.user_feedback = reason
 
             db.commit()
 

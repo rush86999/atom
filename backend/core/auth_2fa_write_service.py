@@ -1797,6 +1797,32 @@ async def verify_action_2fa_verified(
             return _refused(
                 denial, http_status=403, error_code="PERMISSION_DENIED")
 
+        # A never-autonomous TASK admission is not a generic 2FA-gated
+        # effect: the verifier must be the persisted owner or a supervisor
+        # in the exact canonical scope, and the server-owned task binding
+        # must be the one they may decide. The action claim below already
+        # CASes the full binding; this adds the missing reviewer authority
+        # before any write.
+        if str(action.action_type or "") == "never_autonomous_task":
+            from core.review_decision_authority import (
+                authorize_task_admission_decision,
+                claim_task_admission_reviewer,
+            )
+
+            check = authorize_task_admission_decision(
+                db, action, user.id)
+            if not check.get("ok"):
+                return _refused(
+                    check["message"],
+                    http_status=int(check["http_status"]),
+                    error_code=str(check["error_code"]))
+            if not claim_task_admission_reviewer(
+                    db, check["authority"]):
+                db.rollback()
+                return _refused(
+                    "Reviewer authority changed; refresh and retry.",
+                    http_status=409, error_code="CONFLICT")
+
         if action.status in ("approved", "rejected", "expired"):
             return _refused(
                 f"HITL action is already {action.status}",

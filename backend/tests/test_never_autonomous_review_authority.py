@@ -417,6 +417,211 @@ def test_reviewer_authority_fence_observes_peer_role_or_scope_change(env):
             HITLActionStatus.PENDING.value)
 
 
+# ------------------------------------------------ load→claim decision race
+
+
+def _after_load_peer(monkeypatch, hook):
+    """Commit a peer Session mutation after authorize/load, before the claim.
+
+    The decision writers import the authority seam inside the method, so
+    patching the module attribute interleaves a REAL second SQLAlchemy
+    Session exactly in the window the stale write used to win.
+    """
+    from core import review_decision_authority
+
+    original = review_decision_authority.authorize_task_admission_decision
+
+    def _wrapped(db, action, reviewer, **kwargs):
+        check = original(db, action, reviewer, **kwargs)
+        hook()
+        return check
+
+    monkeypatch.setattr(
+        review_decision_authority,
+        "authorize_task_admission_decision", _wrapped)
+
+
+def _peer_decide(env, action_id: str, status: str, reviewer: str,
+                 feedback=None):
+    peer = env.Session()
+    try:
+        row = peer.query(HITLAction).filter(HITLAction.id == action_id).one()
+        row.status = status
+        row.reviewed_by = reviewer
+        row.reviewed_at = datetime.now(timezone.utc)
+        if feedback is not None:
+            row.user_feedback = feedback
+        peer.commit()
+    finally:
+        peer.close()
+
+
+def _peer_rewrite_binding(env, action_id: str):
+    peer = env.Session()
+    try:
+        row = peer.query(HITLAction).filter(HITLAction.id == action_id).one()
+        params = dict(row.params or {})
+        params["task_fingerprint"] = "0" * 64
+        row.params = params
+        peer.commit()
+    finally:
+        peer.close()
+
+
+def test_peer_rejection_between_load_and_claim_wins(env, monkeypatch):
+    """The reproduced race: a real second DB session rejects AFTER the
+    approver loaded/authorized the pending row. The stale approval must not
+    overwrite it; it answers a 409 conflict."""
+    from core.intervention_service import intervention_service
+
+    job = _job(env, "exec-race-reject")
+    _after_load_peer(monkeypatch, lambda: _peer_decide(
+        env, job.action_id, HITLActionStatus.REJECTED.value,
+        "supervisor-1", "peer rejected"))
+
+    stale = asyncio.run(intervention_service.approve_intervention(
+        job.action_id, "lead-1"))
+
+    assert stale.get("success") is False
+    assert stale.get("http_status") == 409
+    assert stale.get("error_code") == "TASK_ADMISSION_DECISION_CONFLICT"
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.REJECTED.value
+    assert row.reviewed_by == "supervisor-1"
+    assert row.user_feedback == "peer rejected"
+    assert _evaluate(env, job).get("durable_admission") is None
+
+
+def test_peer_approval_between_load_and_claim_beats_stale_rejection(
+    env, monkeypatch,
+):
+    from core.intervention_service import intervention_service
+
+    job = _job(env, "exec-race-approve")
+    _after_load_peer(monkeypatch, lambda: _peer_decide(
+        env, job.action_id, HITLActionStatus.APPROVED.value,
+        "supervisor-1"))
+
+    stale = asyncio.run(intervention_service.reject_intervention(
+        job.action_id, "lead-1", "stale rejection"))
+
+    assert stale.get("success") is False
+    assert stale.get("http_status") == 409
+    assert stale.get("error_code") == "TASK_ADMISSION_DECISION_CONFLICT"
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.APPROVED.value
+    assert row.reviewed_by == "supervisor-1"
+    assert _evaluate(env, job).get("durable_admission") is not None
+
+
+def test_peer_binding_rewrite_between_load_and_claim_blocks_stale_approval(
+    env, monkeypatch,
+):
+    from core.intervention_service import intervention_service
+
+    job = _job(env, "exec-race-binding")
+    _after_load_peer(
+        monkeypatch, lambda: _peer_rewrite_binding(env, job.action_id))
+
+    stale = asyncio.run(intervention_service.approve_intervention(
+        job.action_id, "lead-1"))
+
+    assert stale.get("success") is False
+    assert stale.get("http_status") == 409
+    assert stale.get("error_code") == "TASK_ADMISSION_DECISION_CONFLICT"
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.PENDING.value
+    assert row.reviewed_by is None
+    assert row.params["task_fingerprint"] == "0" * 64
+    assert _evaluate(env, job).get("durable_admission") is None
+
+
+def test_two_loaded_reviewers_only_one_decision_claim_wins(env):
+    """Two real sessions load/authorize the same pending row; exactly one
+    conditional decision claim may win."""
+    from core.review_decision_authority import (
+        authorize_task_admission_decision,
+        claim_task_admission_decision,
+    )
+
+    job = _job(env, "exec-race-one-winner")
+    first = env.Session()
+    second = env.Session()
+    try:
+        row_first = first.query(HITLAction).filter(
+            HITLAction.id == job.action_id).one()
+        row_second = second.query(HITLAction).filter(
+            HITLAction.id == job.action_id).one()
+        assert authorize_task_admission_decision(
+            first, row_first, "lead-1").get("ok") is True
+        assert authorize_task_admission_decision(
+            second, row_second, "supervisor-1").get("ok") is True
+        # End the second reader's read transaction so the winner's commit is
+        # visible to its claim instead of being hidden by SQLite's snapshot.
+        second.commit()
+
+        assert claim_task_admission_decision(
+            first, row_first,
+            status=HITLActionStatus.APPROVED.value,
+            reviewer_id="lead-1") is True
+        first.commit()
+
+        assert claim_task_admission_decision(
+            second, row_second,
+            status=HITLActionStatus.REJECTED.value,
+            reviewer_id="supervisor-1") is False
+        second.rollback()
+    finally:
+        first.close()
+        second.close()
+
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.APPROVED.value
+    assert row.reviewed_by == "lead-1"
+    assert _evaluate(env, job).get("durable_admission") is not None
+
+
+def test_messaging_writer_cannot_overwrite_peer_decision_after_load(
+    env, monkeypatch,
+):
+    from core.hitl_service import HITLService
+
+    job = _job(env, "exec-race-hitl-service")
+    _after_load_peer(monkeypatch, lambda: _peer_decide(
+        env, job.action_id, HITLActionStatus.REJECTED.value,
+        "supervisor-1", "peer rejected"))
+
+    stale = asyncio.run(HITLService().resolve_action(
+        job.action_id, "approved", "lead-1"))
+
+    assert stale.get("message") == "Action already resolved"
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.REJECTED.value
+    assert row.reviewed_by == "supervisor-1"
+
+
+def test_mounted_legacy_route_returns_conflict_on_peer_approval(
+    env, monkeypatch,
+):
+    from api.agent_routes import router as legacy_router
+
+    job = _job(env, "exec-race-route")
+    _after_load_peer(monkeypatch, lambda: _peer_decide(
+        env, job.action_id, HITLActionStatus.APPROVED.value,
+        "supervisor-1"))
+
+    response = _client(env, "admin-1", legacy_router).post(
+        f"/api/agents/approvals/{job.action_id}",
+        json={"decision": "rejected", "feedback": "stale route reject"})
+
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"]["code"] == (
+        "TASK_ADMISSION_DECISION_CONFLICT")
+    row = _row(env, job.action_id)
+    assert row.status == HITLActionStatus.APPROVED.value
+    assert row.reviewed_by == "supervisor-1"
+
+
 def test_reject_also_requires_scope_and_owner_or_supervisor(env):
     from core.intervention_service import intervention_service
 

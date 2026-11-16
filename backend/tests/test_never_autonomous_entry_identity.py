@@ -31,6 +31,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -173,11 +174,28 @@ def _finance_rule(db, name="Always review finance", user_id="u1"):
 
 
 def _approved_hitl(db, action_id):
+    """Approve through the real reviewer-authority + atomic claim seam.
+
+    A status-only flip is not a receipt: ``validate_task_admission_receipt``
+    requires the persisted reviewer, reviewed_at and the immutable binding to
+    still match. Using the production claim keeps this fixture exactly as
+    strict as the mounted approval surfaces instead of bypassing them.
+    """
+    from core.review_decision_authority import (
+        authorize_task_admission_decision,
+        claim_task_admission_decision,
+    )
+
     row = db.query(HITLAction).filter(HITLAction.id == action_id).first()
     assert row is not None
-    row.status = HITLActionStatus.APPROVED.value
-    row.reviewed_by = "u1"
+    check = authorize_task_admission_decision(db, row, "u1")
+    assert check.get("ok") is True, check
+    assert claim_task_admission_decision(
+        db, row, status=HITLActionStatus.APPROVED.value,
+        reviewer_id="u1", reviewed_at=datetime.now(timezone.utc),
+    ) is True
     db.commit()
+    db.refresh(row)
     return row
 
 

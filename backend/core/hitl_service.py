@@ -54,11 +54,14 @@ class HITLService:
             # currently-authorized reviewer in the row's exact canonical
             # scope; status alone is never authority. Enforce it before the
             # conditional claim below so this messaging/2FA writer cannot
-            # bypass the approval surfaces.
+            # bypass the approval surfaces. The claim itself also pins the
+            # immutable task/execution/rule/profile binding loaded here.
+            task_admission_binding = []
             if str(action.action_type or "") == "never_autonomous_task":
                 from core.review_decision_authority import (
                     authorize_task_admission_decision,
                     claim_task_admission_reviewer,
+                    task_admission_binding_conditions,
                 )
 
                 check = authorize_task_admission_decision(
@@ -70,6 +73,8 @@ class HITLService:
                     db.rollback()
                     raise ValueError(
                         "Reviewer authority changed; refresh and retry.")
+                task_admission_binding = (
+                    task_admission_binding_conditions(action))
 
             def _current_status() -> str:
                 current = (
@@ -85,6 +90,7 @@ class HITLService:
                     .where(
                         HITLAction.id == action_id,
                         HITLAction.status.in_(list(allowed_statuses)),
+                        *task_admission_binding,
                     )
                     .values(**values)
                 )

@@ -4265,6 +4265,28 @@ What is your next step?"""
                             "task_level": True,
                         })
 
+            if profile is None:
+                # Neither the real classifier nor the trusted unknown-profile
+                # fallback was available, so there is no server-owned task
+                # identity a human approval could bind to. The HITL row is
+                # still filed for the record, but this run is explicitly
+                # blocked: waiting for an approval that can never authorize
+                # THIS task would be an unbounded pause, not a safe gate.
+                return {
+                    "output": (
+                        "Governance Error: the never-autonomous task "
+                        "identity could not be bound; human review is "
+                        "required before this task can run."),
+                    "steps": [],
+                    "status": "blocked",
+                    "requires_human_approval": True,
+                    "hitl_action_id": action_id,
+                    "reason": decision.get("reason"),
+                    "execution_id": execution_id,
+                    "never_autonomous": decision,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+
             if not durable.get("hitl_action_id"):
                 approved = await self._wait_for_approval(action_id)
                 if not approved:
