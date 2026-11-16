@@ -28,6 +28,10 @@ its existing authority requirements. No new reply endpoint was introduced.
 
 Product commits `172845127` and `9ff6a22bc` were checked in joined source
 `2bff100d5`, which also includes the test-only fixture repair `768b1a943`.
+The release branch on main `5cf380ecf` carries identical product bytes in
+`8977de60a` and `3617fb151`; the reconciled tree matched the independently
+qualified candidate exactly before this documentation update.
+
 A fresh scratch SQLite run with external network access denied passed **208
 checks in 50.46 seconds**; 106 unrelated assignment cases were deselected.
 The selection includes native goal-run loops, routes, matching, access,

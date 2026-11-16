@@ -6,7 +6,7 @@
 >
 > **November 16 runtime follow-through:** [Sandbox lifecycle capacity](SANDBOX_LIFECYCLE_CAPACITY_2026_11_16.md) records process-wide capacity, teardown quarantine, 248 passing checks and a single real DEV-container smoke. It does not regrade whole-app readiness.
 >
-> **Merged verification base:** main `452c509a1` through #966; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
+> **Merged verification base:** main `5cf380ecf` through #967; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
 >
 > **Earlier verifier update:** [the November 15 follow-through](#12-november-15-bounded-verification-follow-through) records source-bound account, Docker skill-execution and retained fleet-synthesis evidence. The [November 14 reconciliation](#11-later-verifier-reconciliation--merged-transcription-and-bounded-ui-journeys) and original rows remain historical. Newer evidence supersedes stale status wording without erasing earlier failures or widening its scope.
 
