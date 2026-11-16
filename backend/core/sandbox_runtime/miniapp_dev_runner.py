@@ -44,6 +44,7 @@ import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -78,6 +79,8 @@ _AGENT_IN_CONTAINER = "/opt/atom-guest/agent.py"
 _BUILD_TIMEOUT_SECONDS = 900
 _AVAIL_TTL_SECONDS = 10.0
 CAPACITY_SCOPE = "miniapp-docker"
+_RM_CAPTURE_BYTES = 4096
+_REMOVE_TIMEOUT_SECONDS = 5.0
 
 # Availability probe TTL cache — ``docker info`` spawns a process (~100ms);
 # the factory + execute path both probe, so cache briefly.
@@ -146,16 +149,36 @@ def _dev_dockerfile(tag: str, deps: List[str]) -> str:
     )
 
 
-def _known_absent(stderr, container: str) -> bool:
-    """Exact-target daemon absence only; never generic docker failure text."""
+class _CaptureOverflow(RuntimeError):
+    pass
+
+
+def _known_absent(stdout, stderr, container: str) -> bool:
+    """One complete daemon absence record for the exact case-sensitive name."""
     try:
-        text = bytes(stderr or b"")[-4096:].decode("utf-8", "replace").lower()
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
     except Exception:  # noqa: BLE001
         return False
-    target = str(container or "").lower()
-    if not target or target not in text:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
         return False
-    return ("no such container" in text) or ("no such object" in text)
+    match = re.fullmatch(
+        r"(?:Error response from daemon:\s*|Error:\s*)?"
+        r"No such (?:container|object):\s*(\S+)", lines[0])
+    return bool(match and match.group(1) == str(container or ""))
+
+
+async def _read_bounded(stream, limit: int = _RM_CAPTURE_BYTES) -> bytes:
+    buf = bytearray()
+    while True:
+        chunk = await stream.read(4096)
+        if not chunk:
+            return bytes(buf)
+        if len(buf) + len(chunk) > limit:
+            raise _CaptureOverflow("docker rm output cap")
+        buf.extend(chunk)
 
 
 def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
@@ -496,24 +519,47 @@ class MiniAppDevRuntime:
         except Exception as exc:  # noqa: BLE001
             raise _cleanup_uncertain(
                 f"docker rm failed: {type(exc).__name__}") from None
+        reads = [asyncio.create_task(_read_bounded(rm.stdout)),
+                 asyncio.create_task(_read_bounded(rm.stderr))]
         try:
-            out, err = await asyncio.wait_for(rm.communicate(), timeout=5)
+            results = await asyncio.wait_for(
+                asyncio.gather(*reads, rm.wait(), return_exceptions=True),
+                timeout=_REMOVE_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
-            try:
-                rm.kill()
-            except Exception:  # noqa: BLE001
-                pass
+            for task in reads:
+                task.cancel()
+            await self._reap_rm(rm)
             raise _cleanup_uncertain("docker rm timed out") from None
         except Exception as exc:  # noqa: BLE001
+            for task in reads:
+                task.cancel()
+            await self._reap_rm(rm)
             raise _cleanup_uncertain(
-                f"docker rm wait failed: {type(exc).__name__}") from None
+                f"docker rm failed: {type(exc).__name__}") from None
+        out, err = results[0], results[1]
+        if isinstance(out, BaseException) or isinstance(err, BaseException):
+            await self._reap_rm(rm)
+            if isinstance(out, _CaptureOverflow) or isinstance(err, _CaptureOverflow):
+                raise _cleanup_uncertain("docker rm output cap") from None
+            raise _cleanup_uncertain("docker rm read failed") from None
         if int(getattr(rm, "returncode", 1)) == 0:
             return
-        if _known_absent((err or b"") + (out or b""), container):
+        if _known_absent(out, err, container):
             return
         raise _cleanup_uncertain(
             f"docker rm did not confirm removal (exit "
             f"{int(getattr(rm, 'returncode', 1))})")
+
+    async def _reap_rm(self, rm) -> None:
+        try:
+            if rm.returncode is None:
+                rm.kill()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            await asyncio.wait_for(rm.wait(), timeout=2)
+        except Exception:  # noqa: BLE001
+            pass
 
     async def _ensure_image(self, tag: str, deps: List[str]) -> Optional[str]:
         """Build ``tag`` if absent; return None on success, error text on failure.

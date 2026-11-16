@@ -52,22 +52,44 @@ class FakeProc:
         return self._exit_code
 
 
+class _Reader:
+    def __init__(self, data=b"", *, read_error=None, delay=0.0):
+        self._data = bytes(data)
+        self._pos = 0
+        self._read_error = read_error
+        self._delay = delay
+
+    async def read(self, n=-1):
+        if self._delay:
+            await asyncio.sleep(self._delay)
+        if self._read_error is not None:
+            raise self._read_error
+        end = len(self._data) if n < 0 else min(len(self._data), self._pos + n)
+        chunk = self._data[self._pos:end]
+        self._pos = end
+        return chunk
+
+
 class FakeCLI:
     def __init__(self, returncode=0, stdout=b"", stderr=b"", *,
-                 communicate_error=None):
+                 read_error=None, delay=0.0, wait_error=None):
         self.returncode = returncode
-        self.stdout = stdout
-        self.stderr = stderr
-        self._communicate_error = communicate_error
+        self.stdout = _Reader(stdout, read_error=read_error, delay=delay)
+        self.stderr = _Reader(stderr, read_error=read_error, delay=delay)
+        self._wait_error = wait_error
         self.killed = False
+        self.waited = 0
 
-    async def communicate(self):
-        if self._communicate_error is not None:
-            raise self._communicate_error
-        return self.stdout, self.stderr
+    async def wait(self):
+        self.waited += 1
+        if self._wait_error is not None:
+            raise self._wait_error
+        return self.returncode
 
     def kill(self):
         self.killed = True
+        if self.returncode is None:
+            self.returncode = -9
 
 
 def _install_proc(p, cleanup_event=None, *, wait_error=None, kill_error=None):
@@ -483,22 +505,25 @@ async def _run_one(runtime, kind):
 
 
 def _install_docker_cli(monkeypatch, *, exit_code=-9, rm_rc=0,
-                        rm_stderr=b"", rm_error=None):
+                        rm_stderr=b"", rm_error=None, rm_delay=0.0):
     created = []
     rm_calls = []
+    rm_procs = []
 
     async def fake_exec(*args, **kwargs):
         if args[:2] == ("docker", "rm"):
             target = args[3]
             rm_calls.append(target)
             stderr = rm_stderr.replace(b"{target}", target.encode())
-            return FakeCLI(returncode=rm_rc, stderr=stderr,
-                           communicate_error=rm_error)
+            proc = FakeCLI(returncode=rm_rc, stderr=stderr,
+                           read_error=rm_error, delay=rm_delay)
+            rm_procs.append(proc)
+            return proc
         proc = FakeProc(exit_code=exit_code)
         created.append(proc)
         return proc
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
-    return created, rm_calls
+    return created, rm_calls, rm_procs
 
 
 def _run_dev():
@@ -515,6 +540,18 @@ def _run_dev():
      None, False),
     (1, b"Error response from daemon: No such container: {target}",
      None, True),
+    (1, b"Error: No such container: {target}", None, True),
+    (1, b"No such object: {target}", None, True),
+    (1, b"Error response from daemon: No such container: {target}0",
+     None, False),
+    (1, b"Error response from daemon: No such container: {target}-suffix",
+     None, False),
+    (1, b"Error response from daemon: No such container: {target}\n"
+        b"Error response from daemon: daemon unavailable", None, False),
+    (1, b"No such container: other\ncontext: {target}", None, False),
+    (1, b"Error response from daemon: No such container: {target}".upper(),
+     None, False),
+    (1, b"x" * 5000, None, False),
     (0, b"", asyncio.TimeoutError(), False),
 ])
 def test_container_removal_must_be_confirmed(monkeypatch, rm_rc, rm_stderr,
@@ -526,7 +563,7 @@ def test_container_removal_must_be_confirmed(monkeypatch, rm_rc, rm_stderr,
     async def exchange(*a, **k):
         return "", "", 0, None, None
     monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
-    created, rm_calls = _install_docker_cli(
+    created, rm_calls, rm_procs = _install_docker_cli(
         monkeypatch, rm_rc=rm_rc, rm_stderr=rm_stderr, rm_error=rm_error)
 
     result = asyncio.run(_run_dev())
@@ -538,6 +575,7 @@ def test_container_removal_must_be_confirmed(monkeypatch, rm_rc, rm_stderr,
         assert result.exit_code == 0
         assert not snapshot["quarantined"]
         assert snapshot["in_use"] == 0
+        assert len(rm_procs) == 1
     else:
         assert result.exit_code == -1
         assert result.metadata["reason"] == "cleanup_unconfirmed"
@@ -563,14 +601,17 @@ def test_rm_failure_refuses_queued_caller(monkeypatch):
     created = []
 
     class BlockingRm(FakeCLI):
-        async def communicate(self):
+        def __init__(self):
+            super().__init__(returncode=1,
+                             stderr=b"Error response from daemon: daemon unavailable")
+        async def wait(self):
             rm_started.set()
             await rm_release.wait()
-            return b"", b"Error response from daemon: daemon unavailable"
+            return 1
 
     async def fake_exec(*args, **kwargs):
         if args[:2] == ("docker", "rm"):
-            return BlockingRm(returncode=1)
+            return BlockingRm()
         proc = FakeProc(exit_code=-9)
         created.append(proc)
         return proc
@@ -594,3 +635,25 @@ def test_rm_failure_refuses_queued_caller(monkeypatch):
         assert len(created) == 1
 
     asyncio.run(scenario())
+
+
+def test_rm_timeout_kills_and_reaps_owned_cli(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-timeout-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_TIMEOUT_SECONDS", 0.05)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, rm_calls, rm_procs = _install_docker_cli(
+        monkeypatch, rm_rc=None, rm_delay=1.0)
+
+    result = asyncio.run(_run_dev())
+    assert result.success is False
+    assert result.metadata["reason"] == "cleanup_unconfirmed"
+    assert len(created) == 1 and len(rm_calls) == 1
+    assert rm_procs[0].killed is True
+    assert rm_procs[0].waited >= 1
+    assert capacity.snapshot(scope)["quarantined"]
