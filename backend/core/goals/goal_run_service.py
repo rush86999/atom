@@ -779,17 +779,22 @@ class GoalRunService:
                 decision.get("wait_spec"))
             if wait_errors:
                 # Mirror the invalid-REPLAN path: hold an ASK_HUMAN with an
-                # ``invalid_decision`` and NO ``original_decision``. The
-                # approval then runs the genuine ASK_HUMAN no-op and can
-                # never replay the invalid concrete WAIT.
+                # ``invalid_decision`` and NO ``original_decision``. Strip any
+                # supplied replay link first: this hold is synthesized from
+                # untrusted/injected output, and approval must not replay the
+                # invalid concrete WAIT (or a smuggled concrete decision).
+                invalid_hold = {
+                    key: value for key, value in decision.items()
+                    if key != "original_decision"}
+                invalid_hold.update({
+                    "decision": "ASK_HUMAN",
+                    "rationale": (
+                        "invalid WAIT: " + "; ".join(wait_errors)),
+                    "invalid_decision": decision,
+                    "validation_errors": wait_errors,
+                })
                 return self._hold_for_approval(
-                    run_id,
-                    {**decision, "decision": "ASK_HUMAN",
-                     "rationale": (
-                         "invalid WAIT: " + "; ".join(wait_errors)),
-                     "invalid_decision": decision,
-                     "validation_errors": wait_errors},
-                    reason="invalid wait spec")
+                    run_id, invalid_hold, reason="invalid wait spec")
             updated = self.set_wait(run_id, spec)
             return {"advanced": True, "decision": "WAIT", "run": updated}
 

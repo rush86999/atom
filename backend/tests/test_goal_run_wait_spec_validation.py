@@ -120,10 +120,16 @@ MALFORMED_WAIT_SPECS = [
     {"event": "   "},
     {"event": "timer"},
     {"event": "timer", "deadline": "not-a-timestamp"},
-    {"event": "email_reply", "match": {"from": None}},
     {"event": "email_reply", "match": ["from"]},
     [],
     "email_reply",
+]
+
+# JSON-shaped numerics can be arbitrarily large. float()/timedelta() must
+# never raise out of validation; these are rejected, never clamped.
+OVERFLOW_TIMER_SPECS = [
+    pytest.param({"timer_seconds": 1e300}, id="float-1e300"),
+    pytest.param({"timer_seconds": 10 ** 400}, id="int-1e400"),
 ]
 
 
@@ -166,6 +172,19 @@ def test_router_decide_degrades_malformed_wait_to_ask_human(
     assert "event" not in str(out.get("wait_spec"))
 
 
+@pytest.mark.parametrize("spec", OVERFLOW_TIMER_SPECS)
+def test_router_decide_rejects_overflowing_timer_seconds(monkeypatch, spec):
+    router = _scripted_router(monkeypatch, {
+        "decision": "WAIT", "rationale": "follow up eventually",
+        "wait_spec": spec, "confidence": 0.9})
+
+    out = asyncio.run(router.decide(_router_context()))
+
+    assert out["decision"] == "ASK_HUMAN", out
+    assert out["wait_spec"] is None
+    assert "unusable decision" in out["rationale"]
+
+
 @pytest.mark.parametrize("spec,expected_event", [
     ({"event": "email_reply", "match": {"from": "acme@x.com"}},
      "email_reply"),
@@ -173,6 +192,8 @@ def test_router_decide_degrades_malformed_wait_to_ask_human(
       "match_exact": {"record_id": "R-1"}}, "crm_sync_done"),
     ({"event": "human_input", "match": {"from": "lead@x.com"}},
      "human_input"),
+    ({"event": "inventory_ready",
+      "match": {"payload": {"sku": "A1"}}}, "inventory_ready"),
     ({"event": "timer",
       "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()},
      "timer"),
@@ -243,6 +264,78 @@ def test_malformed_wait_holds_answerable_ask_human_without_execution(
     assert after["pending_decision"] is None
 
 
+@pytest.mark.parametrize("spec", OVERFLOW_TIMER_SPECS)
+def test_overflowing_timer_seconds_holds_ask_human_without_deadline(
+        backend, spec):
+    svc, factory, make = backend
+    rid = make()
+
+    out = advance(svc, rid, {
+        "decision": "WAIT", "rationale": "follow up eventually",
+        "wait_spec": spec, "confidence": 0.9})
+
+    assert out["decision"] == "ASK_HUMAN", out
+    assert out["held"] is True
+    run = svc.get_run(rid)
+    assert run["status"] == "paused_hitl"
+    assert run["waiting_on"] is None
+    assert run["pending_decision"]["invalid_decision"]["wait_spec"] == spec
+    with factory() as session:
+        assert session.query(Canvas).count() == 0
+
+
+def test_invalid_wait_strips_supplied_original_decision_replay_link(backend):
+    """Injected/persisted malformed WAIT may smuggle ``original_decision``;
+    the synthesized invalid hold must not let approval replay it."""
+    svc, factory, make = backend
+    rid = make()
+
+    out = advance(svc, rid, {
+        "decision": "WAIT", "rationale": "need a fact",
+        "wait_spec": [],
+        "original_decision": {
+            "decision": "ADVANCE", "rationale": "smuggled concrete work",
+            "confidence": 0.9},
+        "confidence": 0.9})
+
+    assert out["decision"] == "ASK_HUMAN", out
+    pending = svc.get_run(rid)["pending_decision"]
+    assert "original_decision" not in pending
+    assert pending["invalid_decision"]["original_decision"]["decision"] == (
+        "ADVANCE")
+
+    resumed = _reviewed_resume(
+        svc, rid, approved=True, reviewer="sup", guidance="Budget is 50k.")
+    assert resumed["resumed"] is True
+    after = svc.get_run(rid)
+    assert after["waiting_on"] is None
+    assert after["pending_decision"] is None
+    assert after["status"] != "waiting"
+    # The smuggled ADVANCE never ran.
+    with factory() as session:
+        assert session.query(Canvas).count() == 0
+    assert after["steps_executed"] == 0
+
+
+def test_nested_match_values_keep_existing_stringified_semantics(backend):
+    """Custom-integration match values were already consumable via
+    _match_wait's str() comparison; hardening must not prohibit them."""
+    svc, _, make = backend
+    rid = make()
+    spec = {"event": "inventory_ready",
+            "match": {"payload": {"sku": "A1"}}}
+
+    out = advance(svc, rid, {
+        "decision": "WAIT", "rationale": "wait for inventory",
+        "wait_spec": spec, "confidence": 0.9})
+
+    assert out["decision"] == "WAIT", out
+    assert svc.get_run(rid)["waiting_on"]["match"] == spec["match"]
+    wake = svc.consume_wake(rid, {
+        "event": "inventory_ready", "payload": str({"sku": "A1"})})
+    assert wake["consumed"] is True
+
+
 @pytest.mark.parametrize("spec", [
     {"event": "email_reply", "match": {"from": "acme@x.com"}},
     {"event": "crm_sync_done", "match_exact": {"record_id": "R-1"}},
@@ -308,7 +401,8 @@ def test_wait_for_timer_seconds_is_executable_and_sweepable(backend):
 
 def test_plan_validator_rejects_unconsumable_wait_for_specs():
     for spec in ({}, {"event": None}, {"event": "timer"},
-                 {"event": "timer", "deadline": "nope"}):
+                 {"event": "timer", "deadline": "nope"},
+                 {"timer_seconds": 1e300}, {"timer_seconds": 10 ** 400}):
         errors = validate_goal_plan([{
             "id": "wait-1", "kind": "wait_for", "title": "Wait",
             "wait_spec": spec}])
@@ -409,6 +503,65 @@ def test_public_advance_holds_malformed_wait_instead_of_500(
     after = client.get(f"/api/goal-runs/{run_id}").json()
     assert after["waiting_on"] is None
     assert after["pending_decision"] is None
+
+
+@pytest.mark.parametrize("spec", OVERFLOW_TIMER_SPECS)
+def test_public_advance_overflow_timer_holds_usable_ask_human(
+        route_world, monkeypatch, spec):
+    _script_default_router(monkeypatch, {
+        "decision": "WAIT", "rationale": "follow up eventually",
+        "wait_spec": spec, "confidence": 0.9})
+    client = _make_client(route_world, "gr-lead")
+    run_id = _create_dormant(client)
+
+    resp = client.post(f"/api/goal-runs/{run_id}/advance")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["decision"] == "ASK_HUMAN"
+    assert body["held"] is True
+    detail = client.get(f"/api/goal-runs/{run_id}").json()
+    assert detail["status"] == "paused_hitl"
+    assert detail["waiting_on"] is None
+    reviewed = detail["pending_decision"]
+    assert reviewed["invalid_decision"]["wait_spec"] == spec
+
+    resumed = client.post(f"/api/goal-runs/{run_id}/resume", json={
+        "approved": True, "guidance": "Budget is 50k.",
+        "decision_id": reviewed["decision_id"],
+        "decision_binding": reviewed["decision_binding"]})
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["resumed"] is True
+    assert client.get(f"/api/goal-runs/{run_id}").json()["waiting_on"] is None
+    assert route_world.query(Canvas).count() == 0
+
+
+def test_public_invalid_wait_cannot_replay_supplied_original(
+        route_world, monkeypatch):
+    _script_default_router(monkeypatch, {
+        "decision": "WAIT", "rationale": "need a fact",
+        "wait_spec": None,
+        "original_decision": {"decision": "ADVANCE",
+                              "rationale": "smuggled work",
+                              "confidence": 0.9},
+        "confidence": 0.9})
+    client = _make_client(route_world, "gr-lead")
+    run_id = _create_dormant(client)
+
+    resp = client.post(f"/api/goal-runs/{run_id}/advance")
+    assert resp.status_code == 200, resp.text
+    reviewed = client.get(f"/api/goal-runs/{run_id}").json()["pending_decision"]
+    assert "original_decision" not in reviewed
+
+    resumed = client.post(f"/api/goal-runs/{run_id}/resume", json={
+        "approved": True, "guidance": "Budget is 50k.",
+        "decision_id": reviewed["decision_id"],
+        "decision_binding": reviewed["decision_binding"]})
+    assert resumed.status_code == 200, resumed.text
+    after = client.get(f"/api/goal-runs/{run_id}").json()
+    assert after["waiting_on"] is None
+    assert after["pending_decision"] is None
+    assert route_world.query(Canvas).count() == 0
 
 
 def test_public_valid_custom_wait_survives_and_inbox_wakes(

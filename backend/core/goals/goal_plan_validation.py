@@ -90,15 +90,18 @@ def normalize_wait_spec(
             event = normalized["event"]
 
     if timer_seconds is not None:
-        valid_seconds = (
-            isinstance(timer_seconds, (int, float))
-            and not isinstance(timer_seconds, bool)
-            and math.isfinite(float(timer_seconds))
-            and float(timer_seconds) > 0
-        )
-        if not valid_seconds:
+        seconds: Optional[float] = None
+        if (isinstance(timer_seconds, (int, float))
+                and not isinstance(timer_seconds, bool)):
+            try:
+                seconds = float(timer_seconds)
+            except (OverflowError, ValueError, TypeError):
+                # JSON-shaped huge integers are legal input; converting them
+                # to float/timedelta is not. Reject, never clamp.
+                seconds = None
+        if seconds is None or not math.isfinite(seconds) or seconds <= 0:
             errors.append(
-                "wait_spec.timer_seconds must be a positive number")
+                "wait_spec.timer_seconds must be a positive finite number")
         elif event is not None and str(event).lower() != "timer":
             errors.append(
                 "wait_spec.timer_seconds cannot be combined with a "
@@ -108,9 +111,14 @@ def normalize_wait_spec(
             event = "timer"
             if deadline is None:
                 base = now or datetime.now(timezone.utc)
-                normalized["deadline"] = (
-                    base + timedelta(seconds=float(timer_seconds))
-                ).isoformat()
+                try:
+                    normalized["deadline"] = (
+                        base + timedelta(seconds=seconds)
+                    ).isoformat()
+                except (OverflowError, ValueError):
+                    errors.append(
+                        "wait_spec.timer_seconds is outside the "
+                        "representable timer range")
             normalized.pop("timer_seconds", None)
 
     if not normalized.get("event"):
@@ -132,16 +140,13 @@ def normalize_wait_spec(
         constraints = normalized.get(key)
         if constraints is None:
             continue
+        # Existing _match_wait stringifies each declared value and compares
+        # it against the event value, so nested/scalar values are already
+        # consumable custom-integration matches. Only the container must be
+        # a mapping here: that is the shape whose .items() we read, and a
+        # list/scalar would crash instead of validating.
         if not isinstance(constraints, Mapping):
             errors.append(f"wait_spec.{key} must be an object")
-            continue
-        for field, value in constraints.items():
-            if not isinstance(field, str) or not field.strip():
-                errors.append(
-                    f"wait_spec.{key} keys must be non-empty strings")
-            if value is None or isinstance(value, (dict, list, tuple, set)):
-                errors.append(
-                    f"wait_spec.{key}.{field} must be a scalar value")
 
     return (normalized if not errors else None), errors
 
