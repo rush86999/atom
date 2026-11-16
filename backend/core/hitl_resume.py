@@ -11,9 +11,12 @@ Goal-run CHECKPOINTS are the exception to "decision first": their decision
 AND their wake are one atomic claim (``resolve_goal_run_checkpoint`` /
 ``_claim_and_advance_checkpoint``). A cancelled/stale/replayed checkpoint
 request is refused before any HITL write, so the approvals surfaces must
-translate a refusal into a non-2xx rather than a success. For other action
-types failures here never roll back the human decision; they are logged and
-returned so the caller can surface a warning.
+translate a refusal into a non-2xx rather than a success. The claim also
+enforces reviewer authority (current active user, exact canonical
+workspace/tenant, run owner or supervisor, persisted required_role) inside
+the same transaction, so no bridge/governance caller can be the weak
+surface. For other action types failures here never roll back the human
+decision; they are logged and returned so the caller can surface a warning.
 """
 from __future__ import annotations
 

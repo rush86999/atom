@@ -58,10 +58,12 @@ def supervisor_env(db_session):
     db_session.add(User(
         id="gr-lead", email="gr-lead@example.com", first_name="Goal",
         last_name="Lead", role=UserRole.TEAM_LEAD.value, status="active",
+        workspace_id="ws-test",
     ))
     db_session.add(User(
         id="gr-emp", email="gr-emp@example.com", first_name="Emp",
         last_name="Loyee", role=UserRole.MEMBER.value, status="active",
+        workspace_id="ws-test",
     ))
     db_session.add(GoalObjective(
         id="goal-1", workspace_id="default", tenant_id=None,

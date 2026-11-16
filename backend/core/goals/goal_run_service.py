@@ -548,8 +548,15 @@ class GoalRunService:
         conditional updates on the loaded material revision/status, so a
         peer resolve or cancel either wins wholly or loses without effects.
 
-        The caller owns authority/workspace access checks and invokes
-        ``advance`` only after a ``verified`` result.
+        The caller owns workspace access checks for READ purposes and
+        invokes ``advance`` only after a ``verified`` result. Reviewer
+        authority is part of this claim, not a caller courtesy: the current
+        active reviewer must be in the run's exact canonical scope and be
+        the owner or a supervisor, and a peer deactivation/move between the
+        authority read and the write makes the fresh-actor fence miss (409
+        AUTHORITY_CHANGED). Every checkpoint surface (goal-run route,
+        approvals aliases, HITL bridge and InterventionService/governance)
+        therefore has the same gate.
         """
         from core.models import GoalRun, HITLAction, HITLActionStatus
 
@@ -571,6 +578,21 @@ class GoalRunService:
                 return refused(
                     404, "CHECKPOINT_NOT_FOUND",
                     "This checkpoint does not belong to the current run.")
+
+            from core.goal_run_decision_service import (
+                claim_fresh_reviewer,
+                resolve_checkpoint_reviewer,
+            )
+
+            authority = resolve_checkpoint_reviewer(
+                session, reviewer=reviewer, run=run, action=hitl)
+            if not authority.get("ok"):
+                return refused(
+                    int(authority.get("http_status") or 403),
+                    str(authority.get("error_code") or "AUTHORITY_REQUIRED"),
+                    str(authority.get("message") or "Decision refused."),
+                )
+
             params = dict(hitl.params or {})
             if str(params.get("run_id") or "") != str(run.id):
                 return refused(
@@ -580,12 +602,27 @@ class GoalRunService:
                 return refused(
                     409, "CHECKPOINT_ALREADY_RESOLVED",
                     f"checkpoint already {hitl.status}")
+
             run_ws = str(run.workspace_id or "")
             hitl_ws = str(hitl.workspace_id or "")
-            if hitl_ws and run_ws and hitl_ws != run_ws:
+            from core.goal_run_decision_service import canonical_scope_id
+
+            if (
+                canonical_scope_id(hitl_ws)
+                != canonical_scope_id(run_ws)
+            ):
                 return refused(
                     409, "CHECKPOINT_STALE",
                     "This checkpoint is outside the run's scope; refresh the run.")
+            hitl_tenant = str(hitl.tenant_id or "")
+            run_tenant = str(run.tenant_id or "")
+            if (
+                canonical_scope_id(hitl_tenant)
+                != canonical_scope_id(run_tenant)
+            ):
+                return refused(
+                    409, "CHECKPOINT_STALE",
+                    "This checkpoint is outside the run's tenant; refresh the run.")
 
             # The checkpoint is current only when the run is waiting on THIS
             # hitl_id and that HITL row names a live plan step. The persisted
@@ -660,6 +697,15 @@ class GoalRunService:
             new_status = (HITLActionStatus.APPROVED.value if approved
                           else HITLActionStatus.REJECTED.value)
 
+            # Fresh-actor fence in the SAME transaction as the effect: a peer
+            # revoke/role/tenant/workspace move after the authority read makes
+            # this conditional update miss, so no HITL/wake write happens.
+            if not claim_fresh_reviewer(session, authority):
+                session.rollback()
+                return refused(
+                    409, "AUTHORITY_CHANGED",
+                    "The reviewer's authority changed; refresh and retry.")
+
             # One transaction: claim the pending HITL row first, then wake the
             # exact waiting run. A rowcount miss rolls both back, so a peer
             # cancel/resolve cannot leave an approved HITL with no resume.
@@ -669,7 +715,7 @@ class GoalRunService:
                 HITLAction.status == HITLActionStatus.PENDING.value,
             ).update({
                 HITLAction.status: new_status,
-                HITLAction.reviewed_by: reviewer,
+                HITLAction.reviewed_by: authority["id"],
                 HITLAction.reviewed_at: datetime.now(timezone.utc),
                 HITLAction.user_feedback: guidance,
             }, synchronize_session=False)

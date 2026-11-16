@@ -17,6 +17,7 @@ worker database); no provider, app server, or live data.
 import asyncio
 import os
 from contextlib import contextmanager
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -62,7 +63,19 @@ def approval_env(db_session):
         _user("ck-lead", UserRole.TEAM_LEAD, "ws-test"),
         _user("ck-member", UserRole.MEMBER, "ws-test"),
         _user("ck-other-admin", UserRole.ADMIN, "ws-other"),
+        _user("ck-default-admin", UserRole.ADMIN, None),
     ])
+    db_session.add(User(
+        id="ck-other-tenant", email="ck-other-tenant@example.com",
+        first_name="T", last_name="U", role=UserRole.ADMIN.value,
+        status="active", is_active=True, workspace_id="ws-test",
+        tenant_id="tenant-b",
+    ))
+    db_session.add(User(
+        id="ck-inactive", email="ck-inactive@example.com",
+        first_name="T", last_name="U", role=UserRole.ADMIN.value,
+        status="inactive", is_active=False, workspace_id="ws-test",
+    ))
     db_session.add(GoalObjective(
         id="goal-ck", workspace_id="ws-test", tenant_id=None,
         title="Prepare a quote for the Acme lead", status="active"))
@@ -76,11 +89,12 @@ def _session_over(db):
 
 
 def make_waiting_checkpoint(db, *, plan=None, cursor=None,
-                            created_by="ck-lead"):
+                            created_by="ck-lead", workspace="ws-test",
+                            tenant="default"):
     """Create a real run and drive it onto a checkpoint wait."""
     from core.goals.goal_run_service import GoalRunService
 
-    svc = GoalRunService(workspace_id="ws-test", tenant_id="default",
+    svc = GoalRunService(workspace_id=workspace, tenant_id=tenant,
                          session_factory=lambda: _session_over(db))
     plan = plan or [{
         "id": "step-cp", "kind": "human_checkpoint",
@@ -574,3 +588,372 @@ def test_intervention_service_cancelled_checkpoint_refuses(
     assert result["error_code"] == "CHECKPOINT_STALE"
     assert calls == []
     assert _state(db, run_id, hitl_id) == before
+
+
+# ------------------------------------------- mounted governance approve/reject
+
+
+def _governance_client(db, principal, monkeypatch):
+    """Mount the PRODUCTION governance router with the test DB/principal."""
+    from api.agent_governance_routes import router as governance_router
+
+    monkeypatch.setattr(
+        "core.intervention_service.get_db_session",
+        lambda: _session_over(db))
+    app = FastAPI()
+    app.include_router(governance_router)
+    app.dependency_overrides[get_current_user] = lambda: principal
+    app.dependency_overrides[_get_db] = lambda: db
+    return TestClient(app)
+
+
+def _governance_user_client(db, user_id, monkeypatch):
+    principal = db.query(User).filter(User.id == user_id).one()
+    return _governance_client(db, principal, monkeypatch)
+
+
+def _operation(verb: str, hitl_id: str) -> str:
+    if verb == "reject":
+        return f"/api/agent-governance/reject/{hitl_id}"
+    return f"/api/agent-governance/approve/{hitl_id}"
+
+
+def _params(verb: str) -> dict:
+    return {"reason": "not mine to decide"} if verb == "reject" else {}
+
+
+@pytest.mark.parametrize("verb", ["approve", "reject"])
+@pytest.mark.parametrize(
+    "reviewer", ["ck-other-admin", "ck-other-tenant"])
+def test_governance_foreign_workspace_or_tenant_refuses(
+    approval_env, monkeypatch, verb, reviewer,
+):
+    """The reported escape: a foreign-scope team_lead/admin could POST the
+    governance approve/reject endpoint for another workspace's checkpoint and
+    receive 200. It must be a non-2xx scope denial with no durable effect."""
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    response = _governance_user_client(db, reviewer, monkeypatch).post(
+        _operation(verb, hitl_id), params=_params(verb))
+
+    assert response.status_code == 404, response.text
+    assert _error_code(response.json()) == "CHECKPOINT_SCOPE_DENIED"
+    assert calls == []
+    after = _state(db, run_id, hitl_id)
+    assert after == before
+    assert after["hitl"] == HITLActionStatus.PENDING.value
+    assert after["reviewer"] is None
+
+
+def test_governance_inactive_actor_refuses(approval_env, monkeypatch):
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    response = _governance_user_client(
+        db, "ck-inactive", monkeypatch).post(
+            _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 403, response.text
+    assert _error_code(response.json()) == "ACCOUNT_INACTIVE"
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+def test_governance_missing_actor_refuses(approval_env, monkeypatch):
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+    ghost = SimpleNamespace(
+        id="ck-ghost", role=UserRole.ADMIN.value, status="active",
+        is_active=True, workspace_id="ws-test", tenant_id=None)
+
+    response = _governance_client(db, ghost, monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 404, response.text
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+def test_bridge_missing_and_inactive_reviewer_refuse(
+    approval_env, monkeypatch,
+):
+    """The shared bridge is the mouth of every non-HTTP caller. A missing or
+    inactive reviewer must be refused by the claim itself (401/403), not
+    silently recorded as the reviewer."""
+    from core.hitl_resume import resolve_goal_run_checkpoint
+
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    missing = asyncio.run(resolve_goal_run_checkpoint(
+        hitl_id, approved=True, reviewer_id="ck-ghost", db=db))
+    assert missing["resumed"] is False
+    assert missing["http_status"] == 401
+    assert missing["error_code"] == "UNAUTHENTICATED"
+
+    inactive = asyncio.run(resolve_goal_run_checkpoint(
+        hitl_id, approved=True, reviewer_id="ck-inactive", db=db))
+    assert inactive["resumed"] is False
+    assert inactive["http_status"] == 403
+    assert inactive["error_code"] == "ACCOUNT_INACTIVE"
+
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+@pytest.mark.parametrize("verb", ["approve", "reject"])
+def test_intervention_service_member_nonowner_refuses(
+    approval_env, monkeypatch, verb,
+):
+    from core.intervention_service import InterventionService
+
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    monkeypatch.setattr(
+        "core.intervention_service.get_db_session",
+        lambda: _session_over(db))
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    service = InterventionService()
+    if verb == "approve":
+        result = asyncio.run(service.approve_intervention(
+            hitl_id, "ck-member"))
+    else:
+        result = asyncio.run(service.reject_intervention(
+            hitl_id, "ck-member", "no"))
+
+    assert result["success"] is False
+    assert result["http_status"] == 403
+    assert result["error_code"] == "AUTHORITY_REQUIRED"
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+def test_valid_owner_member_can_decide_own_run(
+    approval_env, monkeypatch,
+):
+    """Owner authority is positive and independent of role band: the member
+    who started the run can decide its checkpoint through the service."""
+    from core.intervention_service import InterventionService
+
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db, created_by="ck-member")
+    monkeypatch.setattr(
+        "core.intervention_service.get_db_session",
+        lambda: _session_over(db))
+    calls = []
+    _count_advance(monkeypatch, calls)
+
+    result = asyncio.run(InterventionService().approve_intervention(
+        hitl_id, "ck-member"))
+
+    assert result["success"] is True, result
+    assert result.get("resumed") is True
+    assert len(calls) == 1
+    after = _state(db, run_id, hitl_id)
+    assert after["hitl"] == HITLActionStatus.APPROVED.value
+    assert after["reviewer"] == "ck-member"
+
+
+def test_valid_supervisor_decides_via_governance(approval_env, monkeypatch):
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    calls = []
+    _count_advance(monkeypatch, calls)
+
+    response = _governance_user_client(db, "ck-lead", monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    assert len(calls) == 1
+    after = _state(db, run_id, hitl_id)
+    assert after["hitl"] == HITLActionStatus.APPROVED.value
+    assert after["reviewer"] == "ck-lead"
+    assert after["status"] != "waiting"
+
+
+def test_persisted_required_role_is_enforced_on_checkpoint(
+    approval_env, monkeypatch,
+):
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    run_id_ok, hitl_ok = make_waiting_checkpoint(db)
+    for checkpoint_id in (hitl_id, hitl_ok):
+        hitl = db.query(HITLAction).filter(
+            HITLAction.id == checkpoint_id).one()
+        hitl.required_role = "admin"
+    db.commit()
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    denied = _governance_user_client(db, "ck-lead", monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert denied.status_code == 403, denied.text
+    assert _error_code(denied.json()) == "AUTHORITY_REQUIRED"
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+    # The same required_role is a positive for an admin supervisor.
+    monkeypatch.undo()
+    allowed_calls = []
+    _count_advance(monkeypatch, allowed_calls)
+    allowed = _governance_user_client(db, "ck-admin", monkeypatch).post(
+        _operation("approve", hitl_ok), params=_params("approve"))
+    assert allowed.status_code == 200, allowed.text
+    assert len(allowed_calls) == 1
+    assert _state(db, run_id_ok, hitl_ok)["hitl"] == (
+        HITLActionStatus.APPROVED.value)
+
+
+def test_checkpoint_snapshot_required_role_is_enforced(
+    approval_env, monkeypatch,
+):
+    """The governance-policy snapshot is the other persisted role source;
+    a checkpoint must not ignore it either."""
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    hitl = db.query(HITLAction).filter(HITLAction.id == hitl_id).one()
+    hitl.context_snapshot = {"required_role": "admin"}
+    db.commit()
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    response = _governance_user_client(db, "ck-lead", monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 403, response.text
+    assert _error_code(response.json()) == "AUTHORITY_REQUIRED"
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+def test_unknown_persisted_required_role_fails_closed(
+    approval_env, monkeypatch,
+):
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    hitl = db.query(HITLAction).filter(HITLAction.id == hitl_id).one()
+    hitl.required_role = "grand_wizard"
+    db.commit()
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+
+    response = _governance_user_client(db, "ck-admin", monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 403, response.text
+    assert _error_code(response.json()) == "AUTHORITY_REQUIRED"
+    assert calls == []
+    assert _state(db, run_id, hitl_id) == before
+
+
+def _peer_change_after_authority(monkeypatch, db, user_id, values):
+    """A peer write that lands between the authority read and the claim."""
+    import core.goal_run_decision_service as authority
+
+    original = authority.resolve_checkpoint_reviewer
+    fired = {"value": False}
+
+    def resolve_then_peer(session, *, reviewer, run, action=None):
+        result = original(
+            session, reviewer=reviewer, run=run, action=action)
+        if result.get("ok") and not fired["value"]:
+            fired["value"] = True
+            PeerSession = sessionmaker(bind=db.get_bind())
+            peer = PeerSession()
+            try:
+                peer.query(User).filter(User.id == user_id).update(
+                    values, synchronize_session=False)
+                peer.commit()
+            finally:
+                peer.close()
+        return result
+
+    monkeypatch.setattr(
+        authority, "resolve_checkpoint_reviewer", resolve_then_peer)
+    return fired
+
+
+@pytest.mark.parametrize("change", ["revoke", "move"])
+def test_peer_revocation_or_move_between_authority_and_claim_refuses(
+    approval_env, monkeypatch, change,
+):
+    """The fresh-actor fence, not a process mutex: a reviewer deactivated or
+    moved to another workspace AFTER passing the authority read must make the
+    atomic claim miss (409 AUTHORITY_CHANGED) with no effects."""
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(db)
+    before = _state(db, run_id, hitl_id)
+    calls = []
+    _forbid_advance(monkeypatch, calls)
+    if change == "revoke":
+        values = {User.is_active: False, User.status: "inactive"}
+    else:
+        values = {User.workspace_id: "ws-other"}
+    fired = _peer_change_after_authority(
+        monkeypatch, db, "ck-admin", values)
+
+    response = _governance_user_client(db, "ck-admin", monkeypatch).post(
+        _operation("approve", hitl_id), params=_params("approve"))
+
+    assert fired["value"] is True
+    assert response.status_code == 409, response.text
+    assert _error_code(response.json()) == "AUTHORITY_CHANGED"
+    assert calls == []
+    after = _state(db, run_id, hitl_id)
+    assert after == before
+    assert after["hitl"] == HITLActionStatus.PENDING.value
+    assert after["reviewer"] is None
+
+
+def test_personal_null_and_default_scope_are_the_same_authority(
+    approval_env, monkeypatch,
+):
+    """Preserve Personal Edition semantics: a NULL/default user acts on a
+    default-workspace run; a non-default workspace still does not."""
+    db = approval_env
+    run_id, hitl_id = make_waiting_checkpoint(
+        db, workspace="default", tenant="default")
+    calls = []
+    _count_advance(monkeypatch, calls)
+
+    response = _governance_user_client(
+        db, "ck-default-admin", monkeypatch).post(
+            _operation("approve", hitl_id), params=_params("approve"))
+
+    assert response.status_code == 200, response.text
+    assert len(calls) == 1
+    after = _state(db, run_id, hitl_id)
+    assert after["hitl"] == HITLActionStatus.APPROVED.value
+    assert after["reviewer"] == "ck-default-admin"
+
+    # A run in the Personal default scope is still foreign to ws-other.
+    run_id2, hitl_id2 = make_waiting_checkpoint(
+        db, workspace="default", tenant="default")
+    before2 = _state(db, run_id2, hitl_id2)
+    denied = _governance_user_client(
+        db, "ck-other-admin", monkeypatch).post(
+            _operation("reject", hitl_id2), params=_params("reject"))
+    assert denied.status_code == 404, denied.text
+    assert _error_code(denied.json()) == "CHECKPOINT_SCOPE_DENIED"
+    assert _state(db, run_id2, hitl_id2) == before2

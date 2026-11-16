@@ -848,11 +848,11 @@ async def approve_workflow(
 
              raise router.error_response(
 
-                 error_code="APPROVAL_FAILED",
+                 error_code=result.get("error_code") or "APPROVAL_FAILED",
 
                  message=result.get("message", "Failed to approve workflow"),
 
-                 status_code=400
+                 status_code=int(result.get("http_status") or 400)
 
              )
 
@@ -954,11 +954,11 @@ async def reject_workflow(
 
              raise router.error_response(
 
-                 error_code="REJECTION_FAILED",
+                 error_code=result.get("error_code") or "REJECTION_FAILED",
 
                  message=result.get("message", "Failed to reject workflow"),
 
-                 status_code=400
+                 status_code=int(result.get("http_status") or 400)
 
              )
 

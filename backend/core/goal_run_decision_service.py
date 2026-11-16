@@ -34,7 +34,7 @@ from core.models import (
     User,
     UserRole,
 )
-from core.personal_scope import resolve_tenant_id
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.security.rbac import role_level
 
 logger = logging.getLogger(__name__)
@@ -191,8 +191,28 @@ def _actor_refusal(actor: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+def canonical_scope_id(value: Any) -> str:
+    """Canonical tenant/workspace id for authority comparisons.
+
+    Personal Edition persists an unscoped actor/run as NULL and an
+    explicitly-default one as the literal ``"default"``. They are the SAME
+    scope; any other id must match exactly. This is the read-side twin of
+    ``agent_workspace_scope_condition`` (NULL and "default" are shared only
+    in the Personal/default scope) and keeps a non-default workspace from
+    ever being treated as a match for a NULL legacy row.
+    """
+    text = str(value or "").strip()
+    return "default" if text in ("", "default") else text
+
+
 def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
-    actor_id = str(getattr(actor, "id", "") or "")
+    # Governance/bridge callers hold only the authenticated id, routes hold
+    # the User row. Both resolve to the SAME durable row here so the check
+    # below is about the current actor, not a stale request object.
+    actor_id = (
+        actor.strip() if isinstance(actor, str)
+        else str(getattr(actor, "id", "") or "")
+    )
     if not actor_id:
         return {
             "ok": False, "http_status": 401,
@@ -224,6 +244,8 @@ def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
                 "status": str(row.status or ""),
                 "tenant_id": str(resolve_tenant_id(row)),
                 "raw_tenant_id": row.tenant_id,
+                "workspace_id": str(resolve_workspace_id(row)),
+                "raw_workspace_id": row.workspace_id,
             }
     except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
         logger.warning(
@@ -237,6 +259,13 @@ def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
 
 
 def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
+    """Fresh-actor fence: the authority read must still be true at claim.
+
+    A peer deactivation, role change, tenant move or workspace move between
+    the read and the write makes the conditional UPDATE miss, so the caller
+    refuses without effects. ``workspace_id`` is part of the fence because
+    workspace membership is part of the authority being exercised.
+    """
     result = db.execute(
         update(User)
         .where(
@@ -245,6 +274,7 @@ def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
             User.status == actor["status"],
             User.role == actor["role"],
             _exact(User.tenant_id, actor["raw_tenant_id"]),
+            _exact(User.workspace_id, actor.get("raw_workspace_id")),
         )
         .values(updated_at=User.updated_at)
     )
@@ -253,6 +283,112 @@ def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
 
 def _exact(column, value: Any):
     return column.is_(None) if value is None else column == str(value)
+
+
+def _checkpoint_required_roles(action: Any) -> list:
+    """Every role policy persisted on a checkpoint.
+
+    ``request_intervention`` stores it in ``context_snapshot``; the model
+    also has a ``required_role`` column for older/other writers. Both mean
+    the same thing, so BOTH are enforced (never silently ignore the stricter
+    one).
+    """
+    roles = []
+    column = getattr(action, "required_role", None)
+    if column:
+        roles.append(column)
+    snapshot = getattr(action, "context_snapshot", None) or {}
+    if isinstance(snapshot, dict) and snapshot.get("required_role"):
+        roles.append(snapshot.get("required_role"))
+    return roles
+
+
+def _checkpoint_role_denial(
+    authority: Dict[str, Any], required_raws: list,
+) -> Optional[str]:
+    for required_raw in required_raws:
+        normalized = str(required_raw).strip().lower()
+        try:
+            required_role = UserRole(normalized)
+        except ValueError:
+            return (
+                "This checkpoint requires an unreadable role; decision "
+                "denied (fail closed).")
+        if role_level(authority["role"]) < role_level(required_role):
+            return (
+                f"Reviewer role '{authority['role']}' is below the required "
+                f"role '{required_role.value}' for this checkpoint")
+    return None
+
+
+def resolve_checkpoint_reviewer(
+    db: Session, *, reviewer: Any, run: Any, action: Any = None,
+) -> Dict[str, Any]:
+    """Resolve the CURRENT reviewer and decide whether they may decide THIS
+    goal-run checkpoint. The single shared authority seam for every
+    checkpoint entry (goal-run route, approvals aliases, the HITL bridge and
+    InterventionService/governance).
+
+    Policy (same as the run routes, made explicit here so no surface can be
+    the weak one): a real, currently-active user in the run's EXACT
+    canonical tenant/workspace, who is either the run's owner or a
+    supervisor (team_lead+), and who meets any persisted ``required_role``.
+    Cross-scope is a 404 (never confirm another scope's run); an in-scope
+    member who is not the owner is a 403.
+    """
+    authority = _resolve_actor(db, reviewer)
+    if not authority.get("ok"):
+        return {
+            "ok": False,
+            "http_status": int(authority.get("http_status") or 401),
+            "error_code": str(
+                authority.get("error_code") or "UNAUTHENTICATED"),
+            "message": str(
+                authority.get("message") or "Authentication required"),
+        }
+
+    run_workspace = canonical_scope_id(getattr(run, "workspace_id", None))
+    run_tenant = canonical_scope_id(getattr(run, "tenant_id", None))
+    if (
+        canonical_scope_id(authority.get("workspace_id")) != run_workspace
+        or canonical_scope_id(authority.get("tenant_id")) != run_tenant
+    ):
+        return {
+            "ok": False,
+            "http_status": 404,
+            "error_code": "CHECKPOINT_SCOPE_DENIED",
+            "message": (
+                "This checkpoint is outside your workspace or tenant."),
+        }
+
+    is_owner = str(getattr(run, "created_by", "") or "") == authority["id"]
+    is_supervisor = role_level(authority["role"]) >= role_level(
+        UserRole.TEAM_LEAD)
+    if not (is_owner or is_supervisor):
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error_code": "AUTHORITY_REQUIRED",
+            "message": (
+                "Only the run's owner or a supervisor (team_lead or higher) "
+                "can decide this checkpoint."),
+        }
+
+    denial = _checkpoint_role_denial(
+        authority, _checkpoint_required_roles(action))
+    if denial:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error_code": "AUTHORITY_REQUIRED",
+            "message": denial,
+        }
+    return authority
+
+
+def claim_fresh_reviewer(db: Session, authority: Dict[str, Any]) -> bool:
+    """Public fresh-actor fence for the checkpoint claim transaction."""
+    return _claim_actor(db, authority)
 
 
 def _load_run(
