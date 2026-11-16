@@ -10056,3 +10056,19 @@ A separate fresh normal-startup HTTP test confirmed public failure, failed
 chain/two links, no orphan running run or duplicate working task, and matching
 assistant metadata; catalog unavailability yielded zero provider HTTP calls.
 This is synthetic failure-path evidence, not live quality or app completion.
+
+## Session 2026-11-16 — never-autonomous task baskets (frontend)
+
+**Files**: `frontend-nextjs/components/canvas/AutonomyPanel.tsx` (opt-in
+difficulty/category/domain task-basket section, per-rule revisioned CRUD,
+409 conflict reload, additive `never_autonomous` gate chip/profile),
+`frontend-nextjs/components/canvas/__tests__/AutonomyPanel.test.tsx`
+(component/RTL contract coverage incl. axe) and
+`frontend-nextjs/tests/pages/canvas-detail.test.tsx` (host tab + rule GET +
+gate integration). No topic-mode/default changes and no backend edits.
+
+**Verification**: `npx jest components/canvas/__tests__/AutonomyPanel.test.tsx
+tests/pages/canvas-detail.test.tsx --runInBand` → **86 passed / 2 suites**;
+`npx tsc --noEmit` → clean. Cached `node_modules` symlinked read-only; no
+install, browser, live API/DB, or provider calls. Browser/real-backend UAT is
+left to ROOT after the backend worker is ready.
