@@ -33,6 +33,7 @@
     "Run served spreadsheet stale-cache regression control",
     "Run reviewed prompt skill process restart controls",
     "Run sandbox runtime lifecycle capacity controls",
-    "Run mini-app instance authority and privacy controls"
+    "Run mini-app instance authority and privacy controls",
+    "Run goal-run wait specification controls"
   ]
 }

@@ -160,9 +160,11 @@ Then open http://localhost:3101. Stop the development processes with **Ctrl+C**;
 restart with `make dev` against the same checkout to keep your local data.
 Do not delete the database or generated keys to troubleshoot an existing install.
 
-**Measured first use:** approximately **5 min 15 s** on one fresh-worktree run
-with warm package caches, including setup, startup, sample and browser access.
-**15 minutes is a cold-install target, not a measured guarantee.** See the
+**Measured first use:** approximately **5 min 15 s** in one recorded macOS /
+Python 3.11 / Node 20.19 run at `8b1abd7e6`, with warm package caches, including
+setup, startup, sample and browser access. Full first use on current `main`
+and cold-cache install time were not re-measured; **15 minutes remains a
+cold-install target, not a measured guarantee.** See the
 [setup guide](docs/getting_started/quick-start.md) and
 [measured first-use record](docs/demo/FIRST_USE_TEST_2026-11-01.md).
 

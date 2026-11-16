@@ -1,5 +1,7 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Candidate wait validation:** [Goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) records 208 independent controlled checks and six counterexamples. This candidate is not a merged-source or live-model readiness claim.
+>
 > **November 16 authority follow-through:** [Mini-app instance authority](MINIAPP_INSTANCE_AUTHORITY_2026_11_16.md) records signed-in privacy checks across restart, per-effect authority and 147 passing checks. This remains bounded evidence, not a readiness regrade.
 >
 > **November 16 runtime follow-through:** [Sandbox lifecycle capacity](SANDBOX_LIFECYCLE_CAPACITY_2026_11_16.md) records process-wide capacity, teardown quarantine, 248 passing checks and a single real DEV-container smoke. It does not regrade whole-app readiness.
