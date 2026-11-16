@@ -1,6 +1,10 @@
 # Current readiness evidence index — 2026-11-14
 
-> **Candidate wait validation:** [Goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) records 208 independent controlled checks and six counterexamples. This candidate is not a merged-source or live-model readiness claim.
+> **Candidate PostgreSQL fresh bootstrap:** [the bounded record](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) records 371 tables, seven intact revision IDs and 68 independent checks. Existing upgrades, async transport and whole-app PostgreSQL remain unverified.
+>
+> **Real 48-hour follow-through:** [the retained wait result](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) passed restart and authorized answer after 48.0203 hours at source `2f2b376a0`, with one verified effect and duplicate-answer controls. The model/principal were controlled; this does not regrade current-main or whole-goal readiness.
+>
+> **Merged wait validation:** [Goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) records 208 independent controlled checks and six counterexamples. Merged in #968 at `de17357a7`; the controlled checks do not establish live-model readiness.
 >
 > **November 16 authority follow-through:** [Mini-app instance authority](MINIAPP_INSTANCE_AUTHORITY_2026_11_16.md) records signed-in privacy checks across restart, per-effect authority and 147 passing checks. This remains bounded evidence, not a readiness regrade.
 >

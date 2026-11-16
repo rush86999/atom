@@ -26,7 +26,7 @@ install_requires = [
 
     # Database (SQLite for Personal)
     "sqlalchemy>=2.0.0",
-    "alembic>=1.8.0",
+    "alembic>=1.14.0",
 
     # Authentication
     "python-jose[cryptography]>=3.3.0",

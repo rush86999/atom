@@ -43,9 +43,13 @@ class DatabaseManager:
         if self.db_url.startswith("sqlite:///"):
             # Replace sqlite:/// with sqlite+aiosqlite:/// for async support
             self.async_db_url = self.db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-        elif self.db_url.startswith("postgresql://"):
-            # For PostgreSQL, use asyncpg
-            self.async_db_url = self.db_url.replace("postgresql://", "postgresql+asyncpg://")
+        elif self.db_url.startswith(
+                ("postgresql://", "postgres://", "postgresql+psycopg2://")):
+            # For PostgreSQL, use asyncpg (the sync form may already carry the
+            # declared psycopg2 driver pinned by core.database).
+            from core.local_paths import postgres_asyncpg_url
+
+            self.async_db_url = postgres_asyncpg_url(self.db_url)
         else:
             # Default to sqlite+aiosqlite
             self.async_db_url = "sqlite+aiosqlite:///atom_data.db"

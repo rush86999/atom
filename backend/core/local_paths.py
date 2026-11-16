@@ -21,6 +21,77 @@ def resolve_local_path(value: str | os.PathLike) -> Path:
     return path.resolve()
 
 
+#: The PostgreSQL DBAPI declared by ``requirements.txt`` /
+#: ``pyproject.toml`` (``psycopg2-binary``). SQLAlchemy 2.1 changed the
+#: DEFAULT driver for a driver-less ``postgresql://`` URL to psycopg (psycopg3)
+#: — https://docs.sqlalchemy.org/en/21/dialects/postgresql.html#module-sqlalchemy.dialects.postgresql.psycopg2
+#: — so an implicit URL would fail at engine construction on an installation
+#: that only has the declared psycopg2 driver.
+DECLARED_POSTGRES_DRIVER = "psycopg2"
+
+
+def normalize_postgres_driver(value: str) -> str:
+    """Pin a DRIVER-LESS PostgreSQL URL to the declared psycopg2 driver.
+
+    Only the scheme token changes; the rest of the URL is preserved VERBATIM,
+    so credentials escaping, IPv6 hosts, ports, database names and query
+    strings (including SQLAlchemy's ``host``/``port`` query overrides) keep
+    their existing semantics. Explicit driver choices are never rewritten:
+
+    * ``postgresql://…`` / ``postgres://…`` → ``postgresql+psycopg2://…``
+    * ``postgresql+psycopg2://``, ``postgresql+psycopg://``,
+      ``postgresql+asyncpg://``, ``postgresql+pg8000://`` … unchanged
+    * SQLite / redis / empty / ``None`` unchanged
+    """
+    if not value or not isinstance(value, str):
+        return value
+    for implicit in ("postgresql://", "postgres://"):
+        if value.startswith(implicit):
+            return (f"postgresql+{DECLARED_POSTGRES_DRIVER}://"
+                    + value[len(implicit):])
+    return value
+
+
+def postgres_native_asyncpg_dsn(value: str) -> str:
+    """Plain asyncpg DSN for a RAW ``asyncpg.connect`` client.
+
+    asyncpg's DSN parser accepts only the ``postgres://`` / ``postgresql://``
+    schemes (https://magicstack.github.io/asyncpg/current/api/index.html#asyncpg.connection.connect);
+    a SQLAlchemy ``postgresql+asyncpg://`` (or any ``+driver``) suffix is NOT
+    a valid native DSN. Strip the driver token only; endpoint, credential
+    escaping and the query string remain verbatim so the native client
+    reaches the same server with the same options.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    lowered = value.lower()
+    if lowered.startswith(("postgresql://", "postgres://")):
+        return value
+    if lowered.startswith("postgres+"):
+        return "postgres://" + value.partition("://")[2]
+    if lowered.startswith("postgresql+"):
+        return "postgresql://" + value.partition("://")[2]
+    return value
+
+
+def postgres_asyncpg_url(value: str) -> str:
+    """SQLAlchemy ASYNC ENGINE URL (``postgresql+asyncpg://``) for Postgres.
+
+    This is an engine URL, not a native client DSN: raw ``asyncpg.connect``
+    callers must use :func:`postgres_native_asyncpg_dsn`.
+
+    Converts only driver-less URLs and the declared-default psycopg2 form
+    produced by :func:`normalize_postgres_driver`; an explicit async or other
+    driver is returned unchanged so callers keep their own choice.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    for prefix in ("postgresql+psycopg2://", "postgresql://", "postgres://"):
+        if value.startswith(prefix):
+            return "postgresql+asyncpg://" + value[len(prefix):]
+    return value
+
+
 def anchor_sqlite_url(value: str, backend_root: Path | str | None = None) -> str:
     """Anchor a relative SQLAlchemy SQLite file URL to the backend directory.
 

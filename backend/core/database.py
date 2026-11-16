@@ -8,6 +8,12 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from core.local_paths import (
+    normalize_postgres_driver,
+    postgres_asyncpg_url,
+    postgres_native_asyncpg_dsn,
+)
+
 load_dotenv()
 # CRITICAL: Production database configuration
 logger = logging.getLogger(__name__)
@@ -132,7 +138,8 @@ def get_database_url():
     )
     if pytest_running and os.getenv("TESTING") != "0":
         if database_url and not _targets_live_dev_db(database_url):
-            database_url = _anchor_sqlite_url(_clean_postgresql_url(database_url))
+            database_url = normalize_postgres_driver(
+                _anchor_sqlite_url(_clean_postgresql_url(database_url)))
             logger.warning(
                 "🧪 pytest detected: honoring explicit non-dev test DB (%s)",
                 database_url,
@@ -177,6 +184,13 @@ def get_database_url():
     # Anchor relative SQLite paths so the DB file is independent of the
     # launch CWD (repo root vs backend/ previously meant different databases).
     database_url = _anchor_sqlite_url(database_url)
+
+    # SQLAlchemy 2.1 made psycopg3 the DEFAULT driver for a driver-less
+    # ``postgresql://`` URL. requirements.txt/pyproject declare
+    # ``psycopg2-binary`` only, so pin the implicit form to the declared
+    # driver (explicit drivers, credentials, IPv6 and query strings are
+    # preserved verbatim — the scheme token is the only change).
+    database_url = normalize_postgres_driver(database_url)
 
     # Security: Ensure SSL for PostgreSQL in production
     if env == "production" and "postgresql" in database_url:
@@ -587,10 +601,10 @@ try:
 
     if "sqlite:///" in async_db_url:
         async_db_url = async_db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-    elif "postgresql://" in async_db_url:
-        async_db_url = async_db_url.replace("postgresql://", "postgresql+asyncpg://")
-    elif "postgres://" in async_db_url:
-        async_db_url = async_db_url.replace("postgres://", "postgresql+asyncpg://")
+    elif "postgresql" in async_db_url or "postgres://" in async_db_url:
+        # Includes the declared-default psycopg2 form pinned above; explicit
+        # non-asyncpg driver choices are returned unchanged.
+        async_db_url = postgres_asyncpg_url(async_db_url)
 
     # Create async engine
     # NOTE: pool_* kwargs are QueuePool options and are REJECTED by NullPool,

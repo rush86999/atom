@@ -76,7 +76,9 @@ def _legacy_sqlite(path: Path, marker: str = "legacy") -> bytes:
         ("sqlite://", "unchanged"),
         ("sqlite:///file:memdb1?mode=memory&cache=shared&uri=true", "unchanged"),
         ("sqlite:///file:/tmp/jobs.sqlite?mode=ro&uri=true", "unchanged"),
-        ("postgresql://localhost/jobs", "unchanged"),
+        ("postgresql://localhost/jobs", "declared-pg-driver"),
+        ("postgresql+psycopg2://localhost/jobs", "unchanged"),
+        ("postgresql+asyncpg://localhost/jobs", "unchanged"),
         ("redis://localhost:6379/1", "unchanged"),
     ],
 )
@@ -88,6 +90,10 @@ def test_resolver_anchors_only_relative_sqlite_files(tmp_path, url, expected):
             f"sqlite+pysqlite:///{root / 'jobs.sqlite'}")
     elif expected == "canonical-nested":
         assert resolved == f"sqlite+pysqlite:///{root / 'data' / 'jobs.sqlite'}"
+    elif expected == "declared-pg-driver":
+        # SQLAlchemy 2.1 defaults driver-less postgresql:// to psycopg3; this
+        # install declares psycopg2, so the policy pins the declared driver.
+        assert resolved == "postgresql+psycopg2://localhost/jobs"
     else:
         assert resolved == url
 

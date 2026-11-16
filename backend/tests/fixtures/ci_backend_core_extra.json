@@ -34,6 +34,7 @@
     "Run reviewed prompt skill process restart controls",
     "Run sandbox runtime lifecycle capacity controls",
     "Run mini-app instance authority and privacy controls",
-    "Run goal-run wait specification controls"
+    "Run goal-run wait specification controls",
+    "Run PostgreSQL driver and fresh-version controls"
   ]
 }
