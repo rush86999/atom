@@ -32,11 +32,22 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    from core.models import CanvasAudit, Tenant, User, Workspace
+
     Base.metadata.create_all(
         bind=engine,
-        tables=[MiniApp.__table__, Canvas.__table__, CanvasLogic.__table__, MiniAppAsset.__table__],
+        tables=[
+            MiniApp.__table__, Canvas.__table__, CanvasLogic.__table__,
+            MiniAppAsset.__table__, Tenant.__table__, Workspace.__table__,
+            User.__table__, CanvasAudit.__table__,
+        ],
     )
     session = sessionmaker(bind=engine)()
+    # Instance data follows the canvas policy: the requester and every canvas
+    # owner are authoritative users, and a real install writes an audit row.
+    from tests.mini_app_authority_fixtures import ensure_actor
+
+    ensure_actor(session, "user-1", "t1", None)
     yield session
     session.close()
 
@@ -101,7 +112,12 @@ def _make_canvas_row(db, canvas_id="canvas-1", owner="user-1", mini_app_id="app-
         mini_app_id=mini_app_id,
         canvas_type="mini_app",
     )
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, owner, "t1", None)
     db.add(canvas)
+    ensure_canvas_audit(db, canvas_id, user_id=owner, tenant_id="t1",
+                        action_type="mini_app_install")
     db.commit()
     db.refresh(canvas)
     return canvas
@@ -324,7 +340,7 @@ class TestAssets:
         )
         assert r.status_code == 404
 
-    def test_upload_asset_public_app_foreign_user_403(self, client, db_session, storage):
+    def test_upload_asset_public_app_foreign_user_denied(self, client, db_session, storage):
         _make_app_row(db_session, app_id="app-1", owner="owner-2", is_public=True)
         _make_canvas_row(db_session, mini_app_id="app-1", owner="owner-2")
         with patch("api.mini_app_routes.get_mini_app_storage", return_value=storage):
@@ -333,9 +349,12 @@ class TestAssets:
                 data={"key": "k"},
                 files={"file": ("k", b"x", "text/plain")},
             )
-        assert r.status_code == 403
+        # Publication is not a grant to instance data: a stranger gets the
+        # canvas-policy refusal ("not found"), not an ownership oracle.
+        assert r.status_code == 404
+        assert db_session.query(MiniAppAsset).count() == 0
 
-    def test_upload_asset_private_foreign_403(self, client, db_session):
+    def test_upload_asset_private_foreign_denied(self, client, db_session):
         _make_app_row(db_session, app_id="app-1", owner="owner-2", is_public=False)
         _make_canvas_row(db_session, mini_app_id="app-1", owner="owner-2")
         r = client.post(
@@ -343,7 +362,7 @@ class TestAssets:
             data={"key": "k"},
             files={"file": ("k", b"x", "text/plain")},
         )
-        assert r.status_code == 403
+        assert r.status_code == 404
 
     def test_upload_invalid_key_400(self, client, db_session, storage):
         _make_app_row(db_session, app_id="app-1")
@@ -396,8 +415,24 @@ class TestAssets:
         assert r.status_code == 200
         assert r.json()["deleted"] is True
 
-    def test_delete_asset_foreign_owner_403(self, client, db_session):
+    def test_delete_asset_foreign_owner_denied(self, client, db_session):
         _make_app_row(db_session, app_id="app-1")
         _make_canvas_row(db_session, mini_app_id="app-1", owner="owner-2")
         r = client.delete("/api/mini-apps/instances/canvas-1/assets/k")
+        assert r.status_code == 404
+
+    def test_delete_asset_collaborator_stays_owner_only(self, client, db_session):
+        """Accepted read collaboration must not widen instance mutations."""
+        from core.models import CanvasAudit
+
+        _make_app_row(db_session, app_id="app-1")
+        _make_canvas_row(db_session, mini_app_id="app-1", owner="owner-2")
+        db_session.add(CanvasAudit(
+            id="collab-a", canvas_id="canvas-1", tenant_id="t1",
+            user_id="user-1", canvas_type="mini_app", action_type="update",
+            details_json={"title": "x"},
+        ))
+        db_session.commit()
+        r = client.delete("/api/mini-apps/instances/canvas-1/assets/k")
         assert r.status_code == 403
+        assert r.json()["detail"] == "Not the instance owner"

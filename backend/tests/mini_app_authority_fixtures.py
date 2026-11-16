@@ -142,19 +142,23 @@ def patched_canvas_gate(actor_id: str = "fake-actor"):
 
     from core import canvas_authority
 
-    actor = {
-        "ok": True,
-        "user": None,
-        "id": actor_id,
-        "tenant_id": None,
-        "workspace_id": None,
-        "status": "active",
-        "is_active": True,
-        "effective_tenant_id": "default",
-        "effective_workspace_id": "default",
-    }
+    def _actor(_db: Any, user_id: Any) -> Dict[str, Any]:
+        # Mirror the caller id so identity-based owner checks still apply.
+        return {
+            "ok": True,
+            "user": None,
+            "id": str(user_id),
+            "tenant_id": None,
+            "workspace_id": None,
+            "status": "active",
+            "is_active": True,
+            "effective_tenant_id": "default",
+            "effective_workspace_id": "default",
+        }
+
     with patch.object(
-            canvas_authority, "require_active_actor", return_value=actor), \
+            canvas_authority, "require_active_actor", side_effect=_actor), \
         patch.object(canvas_authority, "require_canvas_read"), \
-        patch.object(canvas_authority, "require_canvas_active"):
+        patch.object(canvas_authority, "require_canvas_active"), \
+        patch.object(canvas_authority, "require_canvas_write"):
         yield

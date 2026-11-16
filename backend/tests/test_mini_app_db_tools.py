@@ -39,17 +39,19 @@ def _uid(prefix: str = "u") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
-def _make_instance(SessionLocal, owner_id: str, tier: str = "autonomous"):
-    """Create a User row + published app + installed instance canvas in the DB."""
+def _make_instance(SessionLocal, owner_id: str, tier: str = "autonomous",
+                   canvas_tenant: str = "t1", canvas_workspace=None):
+    """Create a User row + published app + installed instance canvas in the DB.
+
+    Instance data follows the canvas policy, so the owner is a real active
+    user in the canvas's tenant/workspace and the instance carries its install
+    audit row (as the real ``install`` path writes).
+    """
     from core.models import Canvas, CanvasLogic, CanvasState, MiniApp, User
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
 
     with SessionLocal() as s:
-        user = User(
-            id=owner_id, email=f"{owner_id}@test.dev", first_name="F", last_name="L",
-            role="user", status="active",
-        )
-        s.add(user)
-        s.flush()
+        ensure_actor(s, owner_id, canvas_tenant, canvas_workspace)
         app_id = f"app-{uuid.uuid4().hex[:8]}"
         canvas_id = f"inst-{uuid.uuid4().hex[:8]}"
         s.add(MiniApp(
@@ -64,11 +66,15 @@ def _make_instance(SessionLocal, owner_id: str, tier: str = "autonomous"):
             blueprint_canvas_id=f"src-{uuid.uuid4().hex[:8]}",
         ))
         s.add(Canvas(
-            id=canvas_id, tenant_id="t1", created_by=owner_id, name="dbapp",
+            id=canvas_id, tenant_id=canvas_tenant, workspace_id=canvas_workspace,
+            created_by=owner_id, name="dbapp",
             canvas_type="mini_app", content={}, style={}, status="active",
             mini_app_id=app_id,
         ))
-        s.add(CanvasState(canvas_id=canvas_id, tenant_id="t1", state={}, version=1))
+        ensure_canvas_audit(s, canvas_id, user_id=owner_id,
+                            tenant_id=canvas_tenant,
+                            action_type="mini_app_install")
+        s.add(CanvasState(canvas_id=canvas_id, tenant_id=canvas_tenant, state={}, version=1))
         s.commit()
         return app_id, canvas_id
 
@@ -112,12 +118,19 @@ class TestDbQuery:
         owner = _uid("owner")
         _, canvas_id = _make_instance(SessionLocal, owner)
         intruder = _uid("intruder")
+        from tests.mini_app_authority_fixtures import ensure_actor
+
+        with SessionLocal() as s:
+            ensure_actor(s, intruder, "t1", None)
+            s.commit()
         q = await action_registry.execute_action(
             "mini_app_db_query", {"canvas_id": canvas_id, "op": "query", "series": "s"},
             _ctx(intruder),
         )
         assert q["success"] is False
-        assert "not owned" in q["error"]
+        # A real non-owner gets the canvas-policy refusal, never records.
+        assert q["error_code"] == "CANVAS_NOT_AUTHORIZED"
+        assert "records" not in q
 
     @pytest.mark.asyncio
     async def test_spoofed_user_id_ignored(self, patched_db):

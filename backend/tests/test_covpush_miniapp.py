@@ -1381,30 +1381,64 @@ class TestRoutesAssetUploadAuthz:
 
     def test_non_owner_cannot_upload_to_public_instance(self, client, db_session, user_store, tmp_path, monkeypatch):
         from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from tests.mini_app_authority_fixtures import ensure_actor
+
         monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
         app, canvas_id = _route_app(db_session, is_public=True)
+        ensure_actor(db_session, "user-2", "t1", "w1")
         user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
         res = client.post(
             f"/api/mini-apps/instances/{canvas_id}/assets",
             data={"key": "pwn.txt"}, files={"file": ("pwn.txt", b"evil", "text/plain")},
         )
-        assert res.status_code == 403
+        # A stranger (even on a public app) gets the canvas-policy refusal.
+        assert res.status_code == 404
         assert db_session.query(MiniAppAsset).filter(MiniAppAsset.canvas_id == canvas_id).count() == 0
+        assert not (tmp_path / "store").exists()
+
+    def test_collaborator_reads_but_cannot_write_instance(self, client, db_session, user_store, tmp_path, monkeypatch):
+        """Accepted collaboration: reads follow the canvas policy, writes stay
+        strict instance-owner."""
+        from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from core.models import CanvasAudit
+        from tests.mini_app_authority_fixtures import ensure_actor
+
+        monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
+        app, canvas_id = _route_app(db_session, is_public=True)
+        ensure_actor(db_session, "user-2", "t1", "w1")
+        db_session.add(CanvasAudit(
+            id=f"collab-{uuid.uuid4().hex[:8]}", canvas_id=canvas_id,
+            tenant_id="t1", user_id="user-2", canvas_type="mini_app",
+            action_type="update", details_json={"title": "collab"},
+        ))
+        db_session.commit()
+        user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
+        listing = client.get(f"/api/mini-apps/instances/{canvas_id}/assets")
+        assert listing.status_code == 200 and listing.json()["assets"] == []
+        res = client.post(
+            f"/api/mini-apps/instances/{canvas_id}/assets",
+            data={"key": "pwn.txt"}, files={"file": ("pwn.txt", b"evil", "text/plain")},
+        )
+        assert res.status_code == 403
+        assert res.json()["detail"] == "Not the instance owner"
 
     def test_non_owner_cannot_overwrite_existing_asset(self, client, db_session, user_store, tmp_path, monkeypatch):
         from core.mini_app_storage import MINIAPP_STORAGE_LOCAL_ROOT
+        from tests.mini_app_authority_fixtures import ensure_actor
+
         monkeypatch.setenv(MINIAPP_STORAGE_LOCAL_ROOT, str(tmp_path / "store"))
         app, canvas_id = _route_app(db_session, is_public=True)
         db_session.add(MiniAppAsset(
             canvas_id=canvas_id, tenant_id="t1", key="k.txt", uri="orig", size=3, created_by="user-1",
         ))
         db_session.commit()
+        ensure_actor(db_session, "user-2", "t1", "w1")
         user_store["user"] = SimpleNamespace(id="user-2", tenant_id="t1", is_admin=False, is_staff=False)
         res = client.post(
             f"/api/mini-apps/instances/{canvas_id}/assets",
             data={"key": "k.txt"}, files={"file": ("k.txt", b"pwned", "text/plain")},
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
         row = db_session.query(MiniAppAsset).filter(MiniAppAsset.canvas_id == canvas_id, MiniAppAsset.key == "k.txt").first()
         assert row.size == 3 and row.uri == "orig"
 
