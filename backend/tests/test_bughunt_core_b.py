@@ -31,8 +31,15 @@ from core.models import (
 )
 
 
-def _make_miniapp(db, name="bugapp", manifest_extra=None, user="u1"):
-    """Create a canvas + logic + app + state tuple for run_stateful tests."""
+def _make_miniapp(db, name="bugapp", manifest_extra=None, user="u1",
+                  canvas_owner=None):
+    """Create a canvas + logic + app + state tuple for run_stateful tests.
+
+    ``canvas_owner`` models an installed copy: the instance canvas (and its
+    authority) belongs to the installer even when ``MiniApp.created_by`` is a
+    different author.
+    """
+    canvas_owner = canvas_owner or user
     canvas_id = f"c-{uuid.uuid4().hex[:12]}"
     app_id = f"app-{uuid.uuid4().hex[:12]}"
     manifest = {
@@ -46,13 +53,20 @@ def _make_miniapp(db, name="bugapp", manifest_extra=None, user="u1"):
     }
     if manifest_extra:
         manifest.update(manifest_extra)
+    # Honest actor world for the run-authority gate.
+    from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+    ensure_actor(db, user, "t1", "w1")
+    if canvas_owner != user:
+        ensure_actor(db, canvas_owner, "t1", "w1")
     db.add(Canvas(
-        id=canvas_id, tenant_id="t1", created_by=user, name=name,
+        id=canvas_id, tenant_id="t1", created_by=canvas_owner, name=name,
         canvas_type="mini_app", content={"blocks": []}, style={}, status="active",
         mini_app_id=app_id,
     ))
+    ensure_canvas_audit(db, canvas_id, user_id=canvas_owner, tenant_id="t1")
     db.add(CanvasLogic(canvas_id=canvas_id, language="python",
-                       source="state = state", created_by=user))
+                       source="state = state", created_by=canvas_owner))
     db.add(MiniApp(
         id=app_id, tenant_id="t1", workspace_id="w1", created_by=user, name=name,
         manifest=manifest, blueprint_canvas_id=canvas_id, status="draft",
@@ -183,7 +197,8 @@ class TestStorageOpAttribution:
     async def test_storage_op_asset_attributed_to_acting_user(self, db_session, monkeypatch):
         """MiniAppAsset.created_by must be the RUN's actor (user_id), matching
         record-op attribution — not the app author's id."""
-        app_id, canvas_id = _make_miniapp(db_session, user="app-author")
+        app_id, canvas_id = _make_miniapp(
+            db_session, user="app-author", canvas_owner="actor-9")
         envelope = {
             "state": {"n": 1},
             "storage_ops": [

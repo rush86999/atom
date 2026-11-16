@@ -226,10 +226,15 @@ class TestRunStatefulCallback:
 
         cid = f"c-{uuid.uuid4().hex[:10]}"
         aid = f"app-{uuid.uuid4().hex[:10]}"
+        # Honest actor world for the run-authority gate.
+        from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
+
+        ensure_actor(db_session, "u1", "t1", "w1")
         db_session.add(MiniApp(id=aid, tenant_id="t1", created_by="u1", name="t",
                                manifest={"declared_scopes": ["*"]}))
         db_session.add(Canvas(id=cid, tenant_id="t1", created_by="u1", name="i",
                               canvas_type="mini_app", content={}, style={}, status="active", mini_app_id=aid))
+        ensure_canvas_audit(db_session, cid, user_id="u1", tenant_id="t1")
         db_session.add(CanvasLogic(canvas_id=cid, language="python",
                                    source="data = fetch_integration('notion','search',{'q':'x'})\nstate = {'r': data}",
                                    created_by="u1"))

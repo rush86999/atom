@@ -282,6 +282,7 @@ async def mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
             app.blueprint_canvas_id,
             inputs=args.get("inputs") or {},
             user_id=viewer.id,
+            viewer=viewer,
             persist=False,
         )
         if not result.get("success"):
@@ -406,6 +407,13 @@ async def mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
 
     This is the runtime execution an agent invokes to drive a mini-app's
     controller on behalf of the requesting user.
+
+    Authority is NOT decided here: the instance canvas owner/co-editor +
+    current-scope policy is enforced inside ``run_stateful`` against the
+    authoritative ``User`` row, before it reads state or starts the runtime.
+    The tool's job is to hand over the authenticated identity it resolved from
+    the dispatch context (never a client-supplied actor) plus the same viewer
+    used for scope capping.
     """
     viewer = _require_actor(context)
     if not viewer.id:
@@ -420,6 +428,7 @@ async def mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[st
         inputs=args.get("inputs") or {},
         agent_id=(context or {}).get("agent_id"),
         user_id=viewer.id,
+        viewer=viewer,
         persist=True,
     )
     return result

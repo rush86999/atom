@@ -1348,23 +1348,71 @@ def _resolve_integration_credentials(
     return {}
 
 
+def _reauthorize_canvas_actor(
+    canvas_id: str,
+    actor_id: str,
+) -> None:
+    """Re-apply the shared canvas gate for an IN-RUN external effect.
+
+    The guest executes for seconds and integration callbacks dispatch while it
+    runs. A grant captured before the guest must not authorize a dispatch
+    after the actor was deactivated or the canvas/actor scope moved: this
+    re-reads the authoritative ``User`` row and the canvas owner/co-editor +
+    current-scope policy in a FRESH session (the run session's identity map /
+    open read snapshot would otherwise answer with the pre-guest grant).
+    Raises ``CanvasAuthorityError`` (fail-closed); it performs no dispatch.
+    """
+    from core.canvas_authority import require_active_actor, require_canvas_read
+    from core.database import get_db_session
+
+    with get_db_session() as check_db:
+        actor = require_active_actor(check_db, str(actor_id))
+        require_canvas_read(check_db, str(canvas_id), actor)
+
+
 def _make_callback_handler(
     db: Any,
     tenant_id: str,
     scopes: Tuple[str, ...],
     workspace_id: Optional[str],
     agent_id: Optional[str],
+    *,
+    authority_check: Optional[Any] = None,
 ) -> Any:
     """Build the async callback handler passed to ``execute_python``.
 
-    Services guest ``fetch_integration`` callbacks: scope-gated, credential-
-    resolved host-side (tokens never reach the guest), size-capped, skip-on-
-    failure. Only ``integrations.<service>`` (or ``*``) in the resolved scopes
-    permits a call; otherwise the guest sees ``scope_denied`` so user code can
-    react gracefully.
+    Services guest ``fetch_integration`` callbacks: authority-gated, scope-
+    gated, credential-resolved host-side (tokens never reach the guest),
+    size-capped, skip-on-failure. Only ``integrations.<service>`` (or ``*``)
+    in the resolved scopes permits a call; otherwise the guest sees
+    ``scope_denied`` so user code can react gracefully.
+
+    ``authority_check`` (optional callable) re-validates CURRENT canvas
+    authority immediately before each external dispatch. The run's pre-guest
+    gate is not a license for the whole guest lifetime: a callback that fires
+    after the actor was deactivated or the scope moved returns
+    ``authority_denied`` and dispatches nothing (no credential resolution, no
+    integration call).
     """
 
     async def handler(request: Dict[str, Any]) -> Dict[str, Any]:
+        # Authority first: even a malformed request must not be processed on
+        # behalf of a grant that no longer holds.
+        if authority_check is not None:
+            from core.canvas_authority import CanvasAuthorityError
+
+            try:
+                authority_check()
+            except CanvasAuthorityError as exc:
+                logger.warning(
+                    "callback %s denied by canvas authority: %s",
+                    request.get("kind"), exc.code)
+                return {"ok": False, "error": "authority_denied"}
+            except Exception as exc:  # noqa: BLE001 - unreadable is not a grant
+                logger.warning(
+                    "callback %s authority recheck failed: %s",
+                    request.get("kind"), type(exc).__name__)
+                return {"ok": False, "error": "authority_denied"}
         kind = request.get("kind")
         if kind != "fetch_integration":
             return {"ok": False, "error": f"unknown callback kind: {kind}"}
@@ -1425,7 +1473,28 @@ async def run_stateful(
     the acceptance-test harness so each test case is self-contained
     (given-state → expected-state) instead of depending on run order. Only
     meaningful with ``persist=False``.
+
+    **Authority** (the same gate every specialized canvas family uses): the
+    acting user is resolved from the authoritative ``User`` row — never from
+    caller-supplied tenant/workspace claims — and the canvas owner/co-editor +
+    current-scope policy is applied BEFORE any state read, asset/integration
+    injection, policy/FS allocation, runtime execution or callback. A dry-run
+    needs read authority; a persisting run additionally claims and freezes the
+    target (``require_canvas_write``) immediately before its first effect, so a
+    peer move between the check and the write produces no partial effect.
+    The pre-run grant is not reused for external dispatches: the actor and
+    canvas scope are re-checked immediately before each integration pre-fetch
+    and before every in-guest callback dispatch, so a deactivation/scope move
+    mid-run yields ``authority_denied`` with no credential resolution and no
+    dispatch.
     """
+    from core.canvas_authority import (
+        CanvasAuthorityError,
+        require_active_actor,
+        require_canvas_active,
+        require_canvas_read,
+        require_canvas_write,
+    )
     from core.canvas_logic_service import CanvasLogicService
     from core.mini_app_storage import get_max_object_bytes, get_mini_app_storage
     from core.models import Canvas, CanvasState, MiniApp, MiniAppAsset
@@ -1446,6 +1515,26 @@ async def run_stateful(
             if app is None:
                 return {"success": False, "error": f"MiniApp {canvas.mini_app_id} not found"}
 
+            # ---- Authority gate: before state / assets / policy / fs /
+            # runtime / callbacks. Identity must be present and consistent;
+            # the authoritative User row (not the caller's viewer/tenant
+            # claims) decides. Missing/inactive/foreign → typed refusal with
+            # no read, no runtime, no storage/record write, no broadcast.
+            explicit_actor = str(user_id).strip() if user_id is not None else ""
+            viewer_actor = str(getattr(viewer, "id", None) or "").strip()
+            if explicit_actor and viewer_actor and explicit_actor != viewer_actor:
+                raise CanvasAuthorityError(
+                    "Acting user identity is inconsistent",
+                    status_code=403,
+                    code="CANVAS_ACTOR_MISMATCH",
+                )
+            actor = require_active_actor(db, explicit_actor or viewer_actor)
+            require_canvas_read(db, canvas_id, actor)
+            require_canvas_active(db, canvas_id)
+            # Attribution (CanvasState.created_by, asset/record rows, audit
+            # rows) follows the verified actor id.
+            user_id = str(actor["id"])
+
             manifest = app.manifest or {}
             if initial_state is not None:
                 current_state, version = dict(initial_state), 0
@@ -1457,9 +1546,14 @@ async def run_stateful(
 
             asset_inputs = _inject_assets(manifest, canvas.tenant_id, canvas_id)
             record_inputs = _inject_record_queries(manifest, db, canvas_id)
+            # The pre-fetch injectors can dispatch external integrations with
+            # host-held credentials. Re-validate authority immediately before
+            # each one (no external dispatch on a stale grant).
+            _reauthorize_canvas_actor(canvas_id, actor["id"])
             data_source_inputs = await _inject_data_sources(
                 manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id
             )
+            _reauthorize_canvas_actor(canvas_id, actor["id"])
             mcp_inputs = await _inject_integration_sources(
                 manifest, canvas.tenant_id, getattr(canvas, "workspace_id", None), agent_id,
                 db=db,
@@ -1497,8 +1591,16 @@ async def run_stateful(
             wrapped = _wrap_source(source.get("source", ""))
 
             runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable (or docker-dev refused/unreachable)
+            # Release the read snapshot before the guest: in-guest callback
+            # rechecks must observe current authority, and the host must not
+            # keep a read transaction open for the whole VM run.
+            db.commit()
             callback_handler = _make_callback_handler(
-                db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id
+                db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id,
+                # Re-check current authority before EVERY in-guest external
+                # dispatch — the guest outlives the pre-run grant.
+                authority_check=lambda: _reauthorize_canvas_actor(
+                    canvas_id, actor["id"]),
             )
             result = await runtime.execute_python(
                 wrapped,
@@ -1567,6 +1669,13 @@ async def run_stateful(
 
             new_state = current_state
             op_results: List[Dict[str, Any]] = []
+            if persist and envelope is not None:
+                # A persisting run is a canvas WRITE. Re-apply the shared
+                # owner/co-editor + scope policy and freeze the exact target
+                # (actor claim + guarded no-op DML) in this transaction before
+                # the first storage/record/state effect, so a peer scope move
+                # between authorization and effect writes nothing.
+                require_canvas_write(db, canvas_id, actor)
             # Bug fix: storage_ops now respects the manifest storage.enabled
             # gate (parity with record_ops' db.enabled gate) AND uses the same
             # per-object cap as the REST upload path so an asset written via the
@@ -1690,6 +1799,19 @@ async def run_stateful(
                 "proposed_record_ops": record_results if not persist else [],
                 "callbacks": meta.get("callbacks", []),
             }
+    except CanvasAuthorityError as exc:
+        # Typed, fail-closed refusal from the shared canvas gate. Returned
+        # before any state read / runtime / storage / record / broadcast
+        # effect; the message is the accepted canvas-authority wording
+        # ("not found" for a non-owner, so it is not an existence oracle).
+        logger.info(
+            "MiniApp run refused for %s: %s (%s)", canvas_id, exc.code, exc)
+        return {
+            "success": False,
+            "error": str(exc),
+            "http_status": exc.status_code,
+            "error_code": exc.code,
+        }
     except RuntimeError as e:
         # Keep runtime failures generic in the response — the raised message
         # can carry env var names/values and FS paths (e.g. Firecracker

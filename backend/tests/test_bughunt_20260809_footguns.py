@@ -456,7 +456,11 @@ class TestMiniAppRecordCaps:
             "initial_state": {},
         }
         from core.models import Canvas, CanvasState, MiniApp, User
+        from tests.mini_app_authority_fixtures import ensure_actor, ensure_canvas_audit
 
+        # Honest actor world for the run-authority gate: the run is authorized
+        # against the authoritative User row + the canvas audit trail.
+        ensure_actor(db, owner, "t1", None)
         app = MiniApp(
             id=app_id, tenant_id="t1", created_by=owner, name="t",
             manifest=manifest, status="published", runtime_version=0,
@@ -467,6 +471,7 @@ class TestMiniAppRecordCaps:
             mini_app_id=app_id, name="inst",
         )
         db.add(canvas)
+        ensure_canvas_audit(db, canvas_id, user_id=owner, tenant_id="t1")
         db.add(CanvasState(canvas_id=canvas_id, tenant_id="t1", state={}, version=1))
         from core.canvas_logic_service import CanvasLogicService
 

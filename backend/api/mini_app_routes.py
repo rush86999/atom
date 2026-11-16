@@ -205,6 +205,7 @@ async def dev_run_mini_app(
         app.blueprint_canvas_id,
         inputs=body.inputs,
         user_id=str(current_user.id),
+        viewer=current_user,
         persist=False,
     )
     if not result.get("success"):
