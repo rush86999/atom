@@ -1,0 +1,84 @@
+{
+  "status": "root_verified_DOCX_PPTX_browser_restart",
+  "source_sha": "3316b0fe71a1203a90e0f4ec856d7eb5a08d2f4a",
+  "method": "ordinary form sign-in and exact web session; native existing-agent attach, real filechooser, native text/title edit and blur save; fresh normal login after shared full API/frontend restart; no injected auth/state or fake HTTP",
+  "DOCX": {
+    "fixture": {
+      "bytes": 37498,
+      "sha256": "3600da5a6a98c95c4acab6cd47ad46e7d2161b73d774965644b26acea6fa8868",
+      "paragraphs": 17,
+      "tables": 3,
+      "images": 0,
+      "edited_paragraph_index": 2,
+      "styles": [
+        "Heading 1",
+        "Heading 2",
+        "Heading 3",
+        "List Bullet",
+        "Normal"
+      ]
+    },
+    "edited_paragraph_index": 2,
+    "edited_text": "Synthetic DOCX browser verified paragraph, November 16 2026.",
+    "paragraph_text_and_style_checks": 17,
+    "unchanged_paragraph_XML": 16,
+    "unchanged_table_XML": 3,
+    "only_changed_zip_part": [
+      "word/document.xml"
+    ],
+    "export_bytes": 37542,
+    "export_sha256": "f8c64e78ae67268be59595f942c0381bfe81e5b780a3b7710f21fbbec04537d3",
+    "before_and_after_restart_export_identical": true,
+    "unsigned_download": 401,
+    "unsigned_page": "/login with exact canvas callback and visible password form; no export control"
+  },
+  "PPTX": {
+    "fixture": {
+      "bytes": 35223,
+      "sha256": "64a322f1986987a738ec496c66900996b417cd30115356c16f3333315dd08ad4",
+      "slides": 2,
+      "shapes_per_slide": [
+        2,
+        2
+      ],
+      "notes": [
+        "speaker note one",
+        "speaker note two"
+      ],
+      "images": 0
+    },
+    "edited_title": "Intro edited synthetic-20261116",
+    "unchanged_material": [
+      "slide1 body - Alpha / - Beta",
+      "slide2 Data title and 2x2 table",
+      "both speaker notes",
+      "shape IDs, names and geometry",
+      "core title/author/subject"
+    ],
+    "only_changed_zip_part": [
+      "ppt/slides/slide1.xml"
+    ],
+    "export_bytes": 35234,
+    "export_sha256": "ce3ac3cc80509de65284332e11c4f584e3e8b3bbea6b8e8d19a58b44eb0dcc08",
+    "actual_browser_download_matches_response": true,
+    "before_and_after_restart_export_identical": true,
+    "unsigned_download": 401,
+    "unsigned_page": "/login with exact canvas callback and visible password form; no export control"
+  },
+  "same_world_full_API_frontend_restart": true,
+  "each_upload_and_native_edit_executed_once": true,
+  "post_restart_read_only": true,
+  "all_four_owned_app_processes_absent": true,
+  "owned_Chrome_orphans": 0,
+  "environment": "isolated SQLite/core world; equal entire tracked frontend tree and cached production build; selected-empty providers and cached local FastEmbed; no external provider requests",
+  "limits": [
+    "synthetic local DOCX/PPTX only",
+    "no images in either fixture",
+    "no cross-user ownership or live connector qualification",
+    "no model-driven document quality claim",
+    "not all Office editing operations or full Goal5",
+    "DOCX tables are read-only in this UI",
+    "PPTX title edit only; no arbitrary slide object editing",
+    "model-backed agent creation not exercised"
+  ]
+}
