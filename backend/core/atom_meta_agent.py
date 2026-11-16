@@ -939,24 +939,40 @@ class AtomMetaAgent:
         # Canonical task profile for this run. It lives in the dispatch
         # context as a server-only object; governance and the shared MCP gate
         # read it, while model tool args cannot forge or replace it.
+        _profile_owner = (
+            context.get("user_id") or context.get("actor_id"))
         try:
             from core.autonomy_policy import NEVER_CLEARANCE_CONTEXT_KEY
             from core.task_classification import (
                 TASK_PROFILE_CONTEXT_KEY,
                 build_task_profile,
+                build_unknown_task_profile,
             )
 
             # Always rebuild for THIS request: a reused caller context must
             # never carry a prior run's classification or clearance into a
             # new task.
             context.pop(NEVER_CLEARANCE_CONTEXT_KEY, None)
-            context[TASK_PROFILE_CONTEXT_KEY] = build_task_profile(
-                request,
-                steps=(context.get("task_steps")
-                       or context.get("steps") or []),
-                user_id=(context.get("user_id")
-                         or context.get("actor_id")),
-            )
+            try:
+                context[TASK_PROFILE_CONTEXT_KEY] = build_task_profile(
+                    request,
+                    steps=(context.get("task_steps")
+                           or context.get("steps") or []),
+                    user_id=_profile_owner,
+                )
+            except Exception as _classify_err:  # noqa: BLE001
+                # Missing classification must never mean "no policy applies".
+                # The canonical unknown profile keeps every configured rule a
+                # potential match, so the admission below requires review
+                # before the first model call.
+                logger.warning(
+                    "meta-agent task classification unavailable (%s); "
+                    "evaluating configured rules against an unknown profile",
+                    type(_classify_err).__name__)
+                context[TASK_PROFILE_CONTEXT_KEY] = build_unknown_task_profile(
+                    user_id=_profile_owner,
+                    reason=type(_classify_err).__name__,
+                )
         except Exception as _profile_err:  # noqa: BLE001
             logger.debug("meta-agent task profile skipped: %s", _profile_err)
 
@@ -3680,20 +3696,32 @@ Provide your Mentorship Guidance:"""
             task_admission_params,
             warm_task_admission_receipt_denial,
         )
-        from core.task_classification import task_profile_from_context
+        from core.task_classification import (
+            build_unknown_task_profile,
+            task_profile_from_context,
+        )
 
         profile = task_profile_from_context(context)
-        if profile is None:
-            return None
         execution_id = str(
             context.get("execution_id") or context.get("run_id") or "")
         workspace_id = context.get("workspace_id") or self.workspace_id
         tenant_id = context.get("tenant_id") or self.tenant_id
         owner_user_id = (
-            profile.owner_user_id
+            (profile.owner_user_id if profile is not None else None)
             or context.get("user_id")
             or context.get("actor_id")
             or getattr(getattr(self, "user", None), "id", None))
+        if profile is None:
+            # No trusted profile is not proof that no rule applies: review
+            # against the canonical unknown profile before any model call.
+            try:
+                profile = build_unknown_task_profile(
+                    user_id=owner_user_id, reason="profile_unavailable")
+                logger.warning(
+                    "atom_main: task profile unavailable at admission; "
+                    "evaluating configured rules against an unknown profile")
+            except Exception:  # noqa: BLE001 — policy below fails closed
+                profile = None
         try:
             db = SessionLocal()
             try:

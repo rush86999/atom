@@ -7467,9 +7467,26 @@ class AssignmentExecutor:
             or None)
         try:
             from core.autonomy_policy import evaluate_never_autonomous
-            from core.task_classification import build_assignment_task_profile
+            from core.task_classification import (
+                build_assignment_task_profile,
+                build_unknown_task_profile,
+            )
 
-            profile = build_assignment_task_profile(assignment)
+            try:
+                profile = build_assignment_task_profile(assignment)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Classification unavailability is not a nonmatch: keep every
+                # dimension unknown so a configured rule still requires the
+                # durable human review this gate produces.
+                logger.warning(
+                    "assignment %s: task classification unavailable for %s "
+                    "(%s); evaluating configured rules against an unknown "
+                    "profile", assignment.get("assignment_id"),
+                    step.get("step_id"), type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=user_id,
+                    reason=type(_classify_err).__name__,
+                )
             with self.lifecycle.runs._sessions()() as db:
                 never = evaluate_never_autonomous(
                     db, user_id, profile,
@@ -7528,9 +7545,25 @@ class AssignmentExecutor:
                 OUTCOME_EXECUTE, OUTCOME_PROPOSE, evaluate_never_autonomous,
                 gate_for_topic,
             )
-            from core.task_classification import build_assignment_task_profile
+            from core.task_classification import (
+                build_assignment_task_profile,
+                build_unknown_task_profile,
+            )
 
-            profile = build_assignment_task_profile(assignment)
+            try:
+                profile = build_assignment_task_profile(assignment)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Keep configured rules potential (not a silent nonmatch)
+                # when classification is unavailable before an effect.
+                logger.warning(
+                    "assignment %s: task classification unavailable for %s "
+                    "(%s); evaluating configured rules against an unknown "
+                    "profile", assignment.get("assignment_id"),
+                    step.get("step_id"), type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=user_id,
+                    reason=type(_classify_err).__name__,
+                )
             with self.lifecycle.runs._sessions()() as db:
                 if not topic:
                     # A step without a mapped topic still cannot bypass an

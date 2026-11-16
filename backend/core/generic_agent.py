@@ -371,21 +371,38 @@ class GenericAgent:
         # topic gate and governance check evaluates the SAME trusted profile.
         # A model cannot forge it: it is an in-process object, not a tool arg.
         _task_profile_token = None
+        _profile_owner = (
+            context.get("user_id")
+            or context.get("actor_id")
+            or getattr(self, "user_id", None))
         try:
             from core.task_classification import (
                 bind_task_profile,
                 build_task_profile,
+                build_unknown_task_profile,
                 reset_task_profile,
             )
 
-            _profile = build_task_profile(
-                task_input,
-                steps=(context.get("task_steps")
-                       or context.get("steps") or []),
-                user_id=(context.get("user_id")
-                         or context.get("actor_id")
-                         or getattr(self, "user_id", None)),
-            )
+            try:
+                _profile = build_task_profile(
+                    task_input,
+                    steps=(context.get("task_steps")
+                           or context.get("steps") or []),
+                    user_id=_profile_owner,
+                )
+            except Exception as _classify_err:  # noqa: BLE001
+                # Classification unavailable is NOT "no policy applies".
+                # Bind the canonical unknown profile so any configured rule is
+                # a potential match and the task admission below requires
+                # durable human review before the first model call/output.
+                logger.warning(
+                    "task classification unavailable for agent %s (%s); "
+                    "evaluating configured rules against an unknown profile",
+                    self.id, type(_classify_err).__name__)
+                _profile = build_unknown_task_profile(
+                    user_id=_profile_owner,
+                    reason=type(_classify_err).__name__,
+                )
             _task_profile_token = bind_task_profile(context, _profile)
         except Exception as _profile_err:  # noqa: BLE001 — policy handles missing
             logger.debug("task profile bind skipped: %s", _profile_err)
@@ -4157,11 +4174,12 @@ What is your next step?"""
             task_admission_params,
             warm_task_admission_receipt_denial,
         )
-        from core.task_classification import current_task_profile
+        from core.task_classification import (
+            build_unknown_task_profile,
+            current_task_profile,
+        )
 
         profile = current_task_profile()
-        if profile is None:
-            return None
         execution_id = str(
             context.get("execution_id") or context.get("run_id") or "")
         workspace_id = (
@@ -4170,6 +4188,24 @@ What is your next step?"""
         tenant_id = (
             context.get("tenant_id")
             or getattr(self, "tenant_id", None))
+        owner_user_id = (
+            (profile.owner_user_id if profile is not None else None)
+            or context.get("user_id")
+            or context.get("actor_id")
+        )
+        if profile is None:
+            # A missing profile (unbound/builder outage) is not proof that no
+            # rule applies. Review against the canonical unknown profile so a
+            # configured potentially-applicable rule still gates the task.
+            try:
+                profile = build_unknown_task_profile(
+                    user_id=owner_user_id, reason="profile_unavailable")
+                logger.warning(
+                    "agent %s: task profile unavailable at admission; "
+                    "evaluating configured rules against an unknown profile",
+                    self.id)
+            except Exception:  # noqa: BLE001 — policy below fails closed
+                profile = None
         try:
             with get_db_session() as db:
                 if db is None:
@@ -4181,9 +4217,8 @@ What is your next step?"""
                 agent_row = db.query(AgentRegistry).filter(
                     AgentRegistry.id == self.id).first()
                 owner_user_id = (
-                    profile.owner_user_id
-                    or context.get("user_id")
-                    or context.get("actor_id")
+                    owner_user_id
+                    or (profile.owner_user_id if profile is not None else None)
                     or getattr(agent_row, "user_id", None))
                 decision = evaluate_task_admission(
                     db,

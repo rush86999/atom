@@ -1029,17 +1029,135 @@ def has_never_autonomous_clearance(
     return True
 
 
+_CANONICAL_TASK_MAX_DEPTH = 64
+
+
+def _canonical_task_material(value: Any, _depth: int = 0) -> Any:
+    """Deterministic, JSON-safe representation of COMPLETE task material.
+
+    The admission fingerprint is an authorization identity: it must bind every
+    byte of the task a human reviewed, not a display prefix. Callers may pass
+    the string prompt or (for workflow/assignment entry points) a supported
+    structured payload, so this canonicalizes both without truncation and
+    without process-local state:
+
+    - ``str`` stays exact (including trailing whitespace and suffix bytes).
+    - ``bytes``/``bytearray``/``memoryview`` become base64 objects.
+    - mappings become sorted key/value entry lists (insertion order cannot
+      change the fingerprint; keys are canonicalized so mixed key types do
+      not raise or collide).
+    - lists/tuples preserve order; sets/frozensets sort canonically.
+    - ``datetime``/``date``/``time``, ``Decimal``, ``UUID``, ``Enum``,
+      dataclasses and objects exposing ``as_dict()``/``to_dict()`` are
+      tagged explicitly so type changes cannot collide with equal strings.
+    - unsupported objects fail CLOSED (``TypeError`` names only the type, never
+      the value): an authorization identity must not degrade to a lossy repr
+      that could let a different task reuse an approval.
+    """
+    if _depth > _CANONICAL_TASK_MAX_DEPTH:
+        raise ValueError("task material nesting too deep")
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        import base64
+
+        return {"$bytes": base64.b64encode(bytes(value)).decode("ascii")}
+
+    import dataclasses
+    import datetime as _dt
+    import decimal
+    import enum
+    import uuid as _uuid
+
+    if isinstance(value, _dt.datetime):
+        return {"$datetime": value.isoformat()}
+    if isinstance(value, _dt.date):
+        return {"$date": value.isoformat()}
+    if isinstance(value, _dt.time):
+        return {"$time": value.isoformat()}
+    if isinstance(value, decimal.Decimal):
+        return {"$decimal": str(value)}
+    if isinstance(value, _uuid.UUID):
+        return {"$uuid": str(value)}
+    if isinstance(value, enum.Enum):
+        return {
+            "$enum": (
+                f"{type(value).__module__}.{type(value).__qualname__}"),
+            "value": _canonical_task_material(value.value, _depth + 1),
+        }
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {
+            "$dataclass": (
+                f"{type(value).__module__}.{type(value).__qualname__}"),
+            "fields": [
+                [item.name, _canonical_task_material(
+                    getattr(value, item.name), _depth + 1)]
+                for item in dataclasses.fields(value)
+            ],
+        }
+    if isinstance(value, Mapping):
+        entries = [
+            [
+                _canonical_task_material(key, _depth + 1),
+                _canonical_task_material(item, _depth + 1),
+            ]
+            for key, item in value.items()
+        ]
+        entries.sort(key=lambda pair: json.dumps(
+            pair[0], sort_keys=True, separators=(",", ":")))
+        return {"$map": entries}
+    if isinstance(value, (list, tuple)):
+        return {
+            "$seq": [
+                _canonical_task_material(item, _depth + 1)
+                for item in value
+            ],
+        }
+    if isinstance(value, (set, frozenset)):
+        entries = [
+            _canonical_task_material(item, _depth + 1) for item in value
+        ]
+        entries.sort(key=lambda item: json.dumps(
+            item, sort_keys=True, separators=(",", ":")))
+        return {"$set": entries}
+    for attr in ("as_dict", "to_dict"):
+        converter = getattr(value, attr, None)
+        if callable(converter):
+            return {
+                "$as_dict": (
+                    f"{type(value).__module__}.{type(value).__qualname__}"),
+                "value": _canonical_task_material(
+                    converter(), _depth + 1),
+            }
+    raise TypeError(
+        "unsupported task material type: "
+        f"{type(value).__module__}.{type(value).__qualname__}")
+
+
 def task_admission_fingerprint(task_material: Any, profile: Any) -> str:
-    """Stable fingerprint of the exact task a human admitted.
+    """Stable fingerprint of the EXACT task a human admitted.
 
     Used ONLY to reuse an existing durable HITL task admission on a cold
-    resume. It hashes the full task material plus the server-resolved profile
-    (never a caller-supplied boolean), so a different task or reclassified
-    task cannot inherit a prior admission.
+    resume. It hashes the COMPLETE task material plus the server-resolved
+    profile (never a caller-supplied boolean), so a different task or
+    reclassified task cannot inherit a prior admission. In particular a task
+    whose suffix changes beyond any display/request-body limit produces a
+    different fingerprint — authorization is never truncated to a preview.
+
+    Plain-string material keeps the pre-existing payload shape, so approvals
+    issued for short tasks remain resumable; material that previously lost
+    information to truncation deliberately stops matching and needs a fresh
+    review.
     """
-    profile_data = profile.as_dict() if hasattr(profile, "as_dict") else {}
+    try:
+        profile_data = profile.as_dict() if hasattr(profile, "as_dict") else {}
+    except Exception:  # noqa: BLE001 — no profile fields, still full material
+        profile_data = {}
     payload = {
-        "task": str(task_material or "")[:8000],
+        "task": _canonical_task_material(
+            "" if task_material is None else task_material),
         "profile": {
             key: profile_data.get(key)
             for key in ("difficulty", "category", "domain")

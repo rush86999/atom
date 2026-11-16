@@ -835,11 +835,12 @@ class WorkflowEngine:
             task_admission_params,
             warm_task_admission_receipt_denial,
         )
-        from core.task_classification import current_task_profile
+        from core.task_classification import (
+            build_unknown_task_profile,
+            current_task_profile,
+        )
 
         profile = current_task_profile()
-        if profile is None:
-            return None
         task_material = " ".join(
             str(value) for value in (
                 workflow.get("name"), workflow.get("description"),
@@ -848,9 +849,22 @@ class WorkflowEngine:
         )
         agent_id = str(workflow.get("agent_id") or "system_agent")
         owner_user_id = (
-            profile.owner_user_id
+            (profile.owner_user_id if profile is not None else None)
             or workflow.get("created_by")
             or user_id)
+        if profile is None:
+            # Missing classification cannot prove a configured rule
+            # inapplicable; review against the canonical unknown profile
+            # before the workflow's first step/model call.
+            try:
+                profile = build_unknown_task_profile(
+                    user_id=owner_user_id, reason="profile_unavailable")
+                logger.warning(
+                    "workflow %s: task profile unavailable at admission; "
+                    "evaluating configured rules against an unknown profile",
+                    execution_id)
+            except Exception:  # noqa: BLE001 — policy below fails closed
+                profile = None
         try:
             with get_db_session() as db:
                 governance = ServiceFactory.get_governance_service(
@@ -970,18 +984,44 @@ class WorkflowEngine:
         the persisted workflow definition. The body keeps the existing
         execution loop unchanged.
         """
-        from core.task_classification import (
-            bind_task_profile,
-            build_workflow_task_profile,
-            reset_task_profile,
-        )
+        token = None
+        try:
+            from core.task_classification import (
+                bind_task_profile,
+                build_unknown_task_profile,
+                build_workflow_task_profile,
+                reset_task_profile,
+            )
 
-        token = bind_task_profile(
-            None, build_workflow_task_profile(workflow))
+            try:
+                profile = build_workflow_task_profile(workflow)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Bind the canonical unknown profile rather than letting the
+                # run skip task admission entirely. Configured rules become
+                # potential matches (durable review before the first step).
+                logger.warning(
+                    "workflow %s: task classification unavailable (%s); "
+                    "evaluating configured rules against an unknown profile",
+                    execution_id, type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=(
+                        workflow.get("created_by")
+                        or workflow.get("user_id")),
+                    reason=type(_classify_err).__name__,
+                )
+            token = bind_task_profile(None, profile)
+        except Exception as _profile_err:  # noqa: BLE001
+            logger.debug(
+                "workflow %s: task profile bind skipped: %s",
+                execution_id, _profile_err)
         try:
             await self._run_execution_body(execution_id, workflow)
         finally:
-            reset_task_profile(token)
+            if token is not None:
+                try:
+                    reset_task_profile(token)
+                except Exception:  # noqa: BLE001
+                    pass
 
     async def _run_execution_body(self, execution_id: str, workflow: Dict[str, Any]) -> None:
         """Main execution loop"""

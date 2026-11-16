@@ -197,6 +197,37 @@ def build_task_profile(
     )
 
 
+def build_unknown_task_profile(
+    *,
+    user_id: Optional[str] = None,
+    reason: Optional[str] = None,
+) -> TaskProfile:
+    """Canonical fail-closed profile when classification cannot run.
+
+    Classification unavailability is NOT proof that no configured policy
+    applies. This keeps every dimension unknown (``None``) so the shared
+    ``evaluate_never_autonomous`` matcher treats a constrained dimension as
+    “cannot prove nonmatch” and sends the task to durable human review. It is
+    deliberately a normal server-sourced ``TaskProfile`` (not a second
+    classifier or registry), so task admission can still bind a per-task
+    identity, owner and execution and be reviewed/granted.
+
+    ``reason`` is a short non-sensitive label (normally the exception class);
+    task material is never accepted or stored here.
+    """
+    signals = {"classification_source": "unavailable"}
+    if reason:
+        signals["classification_error"] = str(reason)[:60]
+    return TaskProfile(
+        difficulty=None,
+        category=None,
+        domain=None,
+        signals=signals,
+        source="server",
+        owner_user_id=str(user_id).strip() if user_id else None,
+    )
+
+
 def build_assignment_task_profile(assignment: Any) -> TaskProfile:
     """Profile a durable assignment/task plan (server-owned state)."""
     if not isinstance(assignment, Mapping):
@@ -305,6 +336,7 @@ __all__ = [
     "bind_task_profile",
     "build_assignment_task_profile",
     "build_task_profile",
+    "build_unknown_task_profile",
     "build_workflow_task_profile",
     "current_task_profile",
     "is_trusted_task_profile",
