@@ -52,8 +52,33 @@ def normalize_postgres_driver(value: str) -> str:
     return value
 
 
+def postgres_native_asyncpg_dsn(value: str) -> str:
+    """Plain asyncpg DSN for a RAW ``asyncpg.connect`` client.
+
+    asyncpg's DSN parser accepts only the ``postgres://`` / ``postgresql://``
+    schemes (https://magicstack.github.io/asyncpg/current/api/index.html#asyncpg.connection.connect);
+    a SQLAlchemy ``postgresql+asyncpg://`` (or any ``+driver``) suffix is NOT
+    a valid native DSN. Strip the driver token only; endpoint, credential
+    escaping and the query string remain verbatim so the native client
+    reaches the same server with the same options.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    lowered = value.lower()
+    if lowered.startswith(("postgresql://", "postgres://")):
+        return value
+    if lowered.startswith("postgres+"):
+        return "postgres://" + value.partition("://")[2]
+    if lowered.startswith("postgresql+"):
+        return "postgresql://" + value.partition("://")[2]
+    return value
+
+
 def postgres_asyncpg_url(value: str) -> str:
-    """PostgreSQL URL for asyncpg consumers (NOTIFY/LISTEN, async engine).
+    """SQLAlchemy ASYNC ENGINE URL (``postgresql+asyncpg://``) for Postgres.
+
+    This is an engine URL, not a native client DSN: raw ``asyncpg.connect``
+    callers must use :func:`postgres_native_asyncpg_dsn`.
 
     Converts only driver-less URLs and the declared-default psycopg2 form
     produced by :func:`normalize_postgres_driver`; an explicit async or other

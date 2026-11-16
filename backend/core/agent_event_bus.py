@@ -9,7 +9,7 @@ from typing import Any, Union
 
 from sqlalchemy import text
 
-from core.database import DATABASE_URL, postgres_asyncpg_url
+from core.database import DATABASE_URL, postgres_native_asyncpg_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,9 @@ class PostgresEventBus(EventBusInterface):
 
         conn = None
         try:
-            # asyncpg's DSN parser accepts only postgres:// / postgresql://,
-            # not SQLAlchemy driver suffixes.
-            clean_url = postgres_asyncpg_url(DATABASE_URL)
+            # RAW native client: asyncpg's DSN parser accepts only
+            # postgres:// / postgresql://, never a SQLAlchemy +driver suffix.
+            clean_url = postgres_native_asyncpg_dsn(DATABASE_URL)
             conn = await asyncpg.connect(clean_url)
             logger.info("✅ PostgresEventBus listener connected")
 

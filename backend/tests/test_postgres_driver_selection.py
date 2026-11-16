@@ -84,17 +84,152 @@ class TestImplicitDriverPinning:
     def test_explicit_and_non_postgres_urls_are_unchanged(self, url):
         assert _normalize()(url) == url
 
-    def test_asyncpg_consumers_get_a_plain_dsn(self):
+    def test_sqlalchemy_async_engine_url_converter(self):
         asyncpg_url = _asyncpg_url()
         url = "postgresql://u:p%40ss@[::1]:5432/db?application_name=atom"
         pinned = _normalize()(url)
         assert asyncpg_url(pinned) == "postgresql+asyncpg://" + url[len("postgresql://"):]
         assert asyncpg_url(url) == "postgresql+asyncpg://" + url[len("postgresql://"):]
-        # Explicit non-default choices are preserved for the caller.
+        # Explicit async-engine choices survive for the caller.
         explicit = "postgresql+psycopg://u:p@host/db"
         assert asyncpg_url(explicit) == explicit
         assert asyncpg_url("postgresql+asyncpg://u:p@host/db") == (
             "postgresql+asyncpg://u:p@host/db")
+
+    def test_native_asyncpg_dsn_is_a_plain_protocol_dsn(self):
+        """RAW asyncpg.connect gets postgres:// / postgresql://, never +driver."""
+        from core.local_paths import postgres_native_asyncpg_dsn
+
+        url = "postgresql://u:p%40ss@[::1]:5432/db?application_name=atom"
+        pinned = _normalize()(url)
+        native = postgres_native_asyncpg_dsn(pinned)
+        assert native == url  # same endpoint/credentials/query, no +driver
+        assert "+" not in native.partition("://")[0]
+        assert postgres_native_asyncpg_dsn("postgres://u:p@host/db") == (
+            "postgres://u:p@host/db")
+        assert postgres_native_asyncpg_dsn(
+            "postgresql+asyncpg://u:p@host/db") == "postgresql://u:p@host/db"
+        assert postgres_native_asyncpg_dsn("sqlite:////tmp/x.db") == (
+            "sqlite:////tmp/x.db")
+
+
+def _native_dsn_scheme_ok(dsn: str) -> bool:
+    """Documented asyncpg DSN schemes (https://magicstack.github.io/asyncpg/
+    current/api/index.html#asyncpg.connection.connect)."""
+    scheme = dsn.partition("://")[0]
+    return scheme in ("postgresql", "postgres")
+
+
+class TestEventBusNativeDSNBoundary:
+    def test_setup_listener_passes_a_native_dsn_to_raw_connect(
+            self, monkeypatch):
+        """CONTROLLED fake asyncpg client at the boundary.
+
+        Not an actual asyncpg transport/node qualification: asyncpg is not
+        installed in the cached Python. The fake models the documented DSN
+        scheme validator and captures exactly what the bus would hand to
+        ``asyncpg.connect``.
+        """
+        import asyncio
+        import sys
+        import types
+
+        import core.agent_event_bus as event_bus
+
+        captured = {}
+
+        async def _connect(dsn, **kwargs):
+            captured["dsn"] = dsn
+            captured["kwargs"] = kwargs
+            if not _native_dsn_scheme_ok(dsn):
+                raise ValueError(f"invalid DSN scheme for asyncpg: {dsn!r}")
+
+            class _Conn:
+                async def add_listener(self, channel, handler):
+                    captured["channel"] = channel
+                    bus._stop_event.set()  # exit the listen loop immediately
+
+                async def close(self):
+                    captured["closed"] = True
+
+            return _Conn()
+
+        fake_module = types.SimpleNamespace(connect=_connect)
+        monkeypatch.setitem(sys.modules, "asyncpg", fake_module)
+        monkeypatch.setattr(
+            event_bus, "DATABASE_URL",
+            "postgresql+psycopg2://u:p%40ss@[::1]:5432/atom_db"
+            "?application_name=event_bus")
+
+        bus = event_bus.PostgresEventBus()
+        asyncio.run(bus._setup_listener())
+
+        assert captured["dsn"] == (
+            "postgresql://u:p%40ss@[::1]:5432/atom_db"
+            "?application_name=event_bus")
+        assert _native_dsn_scheme_ok(captured["dsn"])
+        assert captured["channel"] == "atom_social_events"
+        assert captured.get("closed") is True
+
+
+class TestCoreDatabaseImportWithMissingAsyncDependency:
+    """Joined import test: sync default works; optional async stays graceful."""
+
+    def _run(self, tmp_path, database_url):
+        import subprocess
+        import sys as _sys
+
+        backend = os.path.dirname(os.path.dirname(
+            os.path.abspath(__import__("core.database").__file__)))
+        code = (
+            "import json, core.database as d\n"
+            "print(json.dumps({\n"
+            "  'url': d.DATABASE_URL,\n"
+            "  'sync_driver': d.engine.dialect.driver,\n"
+            "  'async_available': bool(d.ASYNC_DB_AVAILABLE),\n"
+            "}))\n"
+        )
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("TESTING", "PYTEST_VERSION", "PYTEST_CURRENT_TEST",
+                            "DATABASE_URL")}
+        env.update({
+            "TESTING": "0",
+            "DATABASE_URL": database_url,
+            "ENVIRONMENT": "development",
+            "PYTHONPATH": backend,
+            "SQL_ECHO": "false",
+        })
+        result = subprocess.run(
+            [_sys.executable, "-c", code], capture_output=True, text=True,
+            env=env, cwd=str(tmp_path), timeout=120)
+        assert result.returncode == 0, result.stderr[-4000:]
+        import json as _json
+
+        return _json.loads(result.stdout.strip().splitlines()[-1])
+
+    def test_explicit_psycopg2_import_keeps_sync_and_degrades_async(
+            self, tmp_path):
+        import importlib.util
+
+        assert importlib.util.find_spec("asyncpg") is None, (
+            "this control assumes the cached Python has no asyncpg")
+        payload = self._run(
+            tmp_path,
+            "postgresql+psycopg2://atom:pa%40ss@[::1]:5432/atom_probe"
+            "?application_name=installer")
+        assert payload["url"].startswith("postgresql+psycopg2://")  # preserved
+        assert payload["sync_driver"] == "psycopg2"
+        # Optional async dep missing -> graceful flag, NOT an import crash
+        # (the frozen trial previously raised InvalidRequestError: psycopg2
+        # is not an async driver).
+        assert payload["async_available"] is False
+
+    def test_implicit_url_import_pins_sync_driver(self, tmp_path):
+        payload = self._run(
+            tmp_path, "postgresql://atom:pa%40ss@host:5432/atom_probe")
+        assert payload["url"].startswith("postgresql+psycopg2://")
+        assert payload["sync_driver"] == "psycopg2"
+        assert payload["async_available"] is False
 
 
 # ---------------------------------------------------------------------------
