@@ -1,7 +1,7 @@
 # Never-autonomous task baskets — behavior, limits and CI selection
 
 **Status: independently verified locally; merge and exact-head CI pending.**
-Product source `b8e9b592d05beda4e964dda8012653cc33b46859` passed the
+Product source `d271e25ebc1474cc3fa51fda5f6d2acd8650e51d` passed the
 bounded checks below. This is a task-boundary feature qualification, not a
 full-app readiness or model-quality claim. The original 143 claims / 18 goals
 and `app_complete: false` remain unchanged.
@@ -273,7 +273,7 @@ trigger and protection is preserved:
 - Backend source `134fc85f365c3fd895c03d7bd51d69aab2d84b78`:
   all five complete never-autonomous files **78 passed**; nine affected
   approval/checkpoint/2FA/workflow files **163 passed**. No network or live
-  database was available. Backend bytes are unchanged through `b8e9b592d`.
+  database was available. Backend bytes were unchanged through `b8e9b592d`; the later CI integration repair below is separately qualified.
 - The original real second-session rejection race now returns **409**, keeps
   the peer rejection, and grants no durable admission. The rule-update race,
   foreign reviewer refusal, full-material fingerprint, reused-context task
@@ -285,12 +285,12 @@ trigger and protection is preserved:
   approvals-page files **110 passed**; configured TypeScript check
   (`--noEmit --incremental false`) and production webpack build passed using
   cached dependencies with networking denied.
-- Existing agent/assignment/workflow/MCP neighborhood: **298 passed, 2 failed,
+- Existing agent/assignment/workflow/MCP neighborhood at `ef12fdf90`: **298 passed, 2 failed,
   2 skipped**, versus current main `8b48dd84a`: **297 passed, the same 2 failed,
   2 skipped**. The two failures attempt hardcoded `/tmp/w85_cite.txt` and
   `/tmp/evil.pdf` writes outside the root test's permitted temporary tree.
 - Existing five-file Meta-agent selection: **401 passed, 2 failed, 6 skipped**
-  on both candidate and current main. Failure identities and assertions match
+  on both candidate `ef12fdf90` and current main. Failure identities and assertions match
   (`test_spawn_failure_handling`, `test_core_tools_names_constant`, with
   the latter expecting 28 tools where both sources have 30). These are
   recorded paired baseline failures, not represented as a green suite; no
@@ -319,6 +319,34 @@ completed mutations were not replayed. Initial raw-create response capture
 was overwritten by a later read-only observation, so no retained raw-create
 response is claimed. Native extended-edit/conflict responses, UI state,
 approval response and cold-resume adjudication were retained separately.
+
+### CI integration repair and final backend verification
+
+The first PR head `cc5562da8` failed the required backend-core and
+backend-oracle lanes. The merge monitor stopped; no failed check was bypassed.
+Two test doubles still accepted the old governance signature and rejected
+`task_profile`/`never_clearance`, preventing the intended real dispatch
+assertions from running. Their named parameters now mirror the production
+interface; all original outcome and durability assertions remain. The BPE
+fixture additionally checks the exact trusted profile and execution context.
+
+CI also exposed a real ordering defect: admission could stop a resumed task
+before reloading an existing uncertain-effect claim. A policy/storage fault
+then hid reconciliation provenance. The existing uncertainty ledger now loads
+before admission, and an admission stop carries any unresolved operations
+forward. The policy verdict stays blocked/awaiting approval; reconciliation
+metadata cannot grant approval or report success. A new real-claim regression
+combines a matching finance rule, an already-landed uncertain effect and an
+unreadable policy/claim store, preserving both safeguards.
+
+Independent root verification on joined product `d271e25eb`:
+**319 passed, no skips** across all five complete task-rule files, nine
+approval/2FA/workflow files, and the complete BPE, oracle, retry, reconciliation
+and run-admission files. Tests used isolated absolute SQLite databases with
+networking denied. The frontend, API, policy and workflow definitions are
+unchanged by these repairs; earlier frontend/build/browser evidence remains
+bound to its stated source, rather than being relabeled as a rerun. The
+replacement PR head still requires fresh CI/security and main verification.
 
 ## Remaining release and product limits
 

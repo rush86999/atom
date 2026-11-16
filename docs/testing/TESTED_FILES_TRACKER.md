@@ -10144,3 +10144,7 @@ browser-verified claim is made.
 ## 2026-11-16 root — never-autonomous integrated qualification
 
 Product b8e9b592d:110 complete UI tests, configured typecheck, production build; backend134fc85f3 bytes unchanged:78 new-task +163 affected approval tests; CI ef12fdf90 bytes unchanged:642 preservation tests. Scratch SQLite additive migration/idempotence passed. Normal isolated browser CRUD/conflict/restart plus real synthetic exact-task approval and cold-resume/changed-task refusal passed. Broader paired-main failures and precise source limits are recorded in docs/engineering/NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md; not a full-app or model-quality claim. No required check bypass or new skip.
+
+## 2026-11-16 root — PR977 CI integration repair
+
+Firstheadcc5562 required backend-core/oracle failures were reproduced against green actualmain full-file baselines. Joined productd271e25eb root319passed0skips:78 never-task +163 approval +78 complete BPE/oracle/retry/reconcile/admission tests, offline own scratch DBs. Test doubles now mirror named governance parameters; production preserves unresolved effects on early task-admission stops. No policy/CI changes, skipped checks or false green baseline claims. Fresh replacement-head CI required.
