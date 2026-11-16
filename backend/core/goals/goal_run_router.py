@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 
 from core.goals.goal_plan_validation import (
     confidence_is_valid,
+    normalize_wait_spec,
     validate_goal_plan,
     validate_replan_decision,
 )
@@ -377,6 +378,11 @@ class GoalRunRouter:
                 if validate_goal_plan(
                         value, target_step=data.get("target_step")):
                     return None
+            elif kind == "WAIT":
+                # A wait spec is a mapping the wait consumers read; a list or
+                # scalar is not consumable and used to raise inside _coerce.
+                if not isinstance(value, dict):
+                    return None
             elif not isinstance(value, (dict, list)):
                 return None
         confidence = data.get("confidence", 0.5)
@@ -398,9 +404,14 @@ class GoalRunRouter:
             "model": data.get("model"),
         }
         if kind == "WAIT":
-            spec = decision["wait_spec"] or {}
-            decision["wait_spec"] = {"event": spec.get("event", "timer"),
-                                     **{k: v for k, v in spec.items() if k != "event"}}
+            normalized, wait_errors = normalize_wait_spec(
+                decision["wait_spec"])
+            if wait_errors:
+                # An invalid WAIT is unusable output, exactly like malformed
+                # JSON: decide() degrades it to ASK_HUMAN through the
+                # existing fallback. Never invent a timer.
+                return None
+            decision["wait_spec"] = normalized
         return decision
 
     def _fallback(self, reason: str, model: Optional[str] = None) -> Dict[str, Any]:

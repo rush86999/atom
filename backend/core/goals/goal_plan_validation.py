@@ -8,6 +8,7 @@ free of authority-expanding declarations.
 from __future__ import annotations
 
 import math
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 SUPPORTED_STEP_KINDS = (
@@ -49,6 +50,110 @@ def normalize_step_kind(step: Any) -> str:
 
 def is_executable_step_kind(kind: Any) -> bool:
     return normalize_step_kind(kind) in SUPPORTED_STEP_KINDS
+
+
+def normalize_wait_spec(
+        spec: Any, *, now: Optional[datetime] = None,
+        require_consumable_deadline: bool = True,
+) -> "tuple[Optional[Dict[str, Any]], List[str]]":
+    """Validate and normalize one WAIT / ``wait_for`` spec.
+
+    The spec is a material contract the wait consumers execute, not just
+    JSON. ``event`` must be a non-empty string (custom integration event
+    names such as ``email_reply`` or ``human_input`` are preserved, never
+    allow-listed); a ``timer`` must carry something the timer sweep can
+    consume — a parseable ``deadline`` or positive ``timer_seconds``, which
+    is converted once here into ``event=timer`` + an ISO deadline. ``match``
+    / ``match_exact`` must be flat scalar maps so correlation matching
+    compares identifiers rather than stringified nested objects.
+
+    Returns ``(normalized, errors)``. Errors are returned instead of raised
+    so the router can use its existing invalid-output ASK_HUMAN fallback and
+    the service can hold an unexecutable decision for a human instead of
+    crashing or persisting a wait nothing can wake.
+    """
+    if not isinstance(spec, Mapping):
+        return None, ["wait_spec must be an object"]
+
+    errors: List[str] = []
+    normalized: Dict[str, Any] = dict(spec)
+
+    event = normalized.get("event")
+    timer_seconds = normalized.get("timer_seconds")
+    deadline = normalized.get("deadline")
+
+    if event is not None:
+        if not isinstance(event, str) or not event.strip():
+            errors.append("wait_spec.event must be a non-empty string")
+        else:
+            normalized["event"] = event.strip()
+            event = normalized["event"]
+
+    if timer_seconds is not None:
+        seconds: Optional[float] = None
+        if (isinstance(timer_seconds, (int, float))
+                and not isinstance(timer_seconds, bool)):
+            try:
+                seconds = float(timer_seconds)
+            except (OverflowError, ValueError, TypeError):
+                # JSON-shaped huge integers are legal input; converting them
+                # to float/timedelta is not. Reject, never clamp.
+                seconds = None
+        if seconds is None or not math.isfinite(seconds) or seconds <= 0:
+            errors.append(
+                "wait_spec.timer_seconds must be a positive finite number")
+        elif event is not None and str(event).lower() != "timer":
+            errors.append(
+                "wait_spec.timer_seconds cannot be combined with a "
+                "non-timer event")
+        else:
+            normalized["event"] = "timer"
+            event = "timer"
+            if deadline is None:
+                base = now or datetime.now(timezone.utc)
+                try:
+                    normalized["deadline"] = (
+                        base + timedelta(seconds=seconds)
+                    ).isoformat()
+                except (OverflowError, ValueError):
+                    errors.append(
+                        "wait_spec.timer_seconds is outside the "
+                        "representable timer range")
+            normalized.pop("timer_seconds", None)
+
+    if not normalized.get("event"):
+        errors.append("wait_spec requires an event or timer_seconds")
+    deadline = normalized.get("deadline")
+    if deadline is not None:
+        if require_consumable_deadline:
+            # Same parser the timer/watchdog sweeps use, so a deadline we
+            # accept is a deadline they can actually consume.
+            from core.goals.goal_run_events import _parse_deadline
+            if _parse_deadline(deadline) is None:
+                errors.append(
+                    "wait_spec.deadline must be a parseable timestamp")
+    elif (require_consumable_deadline
+          and str(normalized.get("event") or "").lower() == "timer"):
+        errors.append("timer wait requires a deadline or timer_seconds")
+
+    for key in ("match", "match_exact"):
+        constraints = normalized.get(key)
+        if constraints is None:
+            continue
+        # Existing _match_wait stringifies each declared value and compares
+        # it against the event value, so nested/scalar values are already
+        # consumable custom-integration matches. Only the container must be
+        # a mapping here: that is the shape whose .items() we read, and a
+        # list/scalar would crash instead of validating.
+        if not isinstance(constraints, Mapping):
+            errors.append(f"wait_spec.{key} must be an object")
+
+    return (normalized if not errors else None), errors
+
+
+def validate_wait_spec(spec: Any) -> List[str]:
+    """Errors for a WAIT / ``wait_for`` spec (empty when consumable)."""
+    return normalize_wait_spec(spec)[1]
 
 
 def validate_goal_plan(
@@ -132,12 +237,11 @@ def validate_goal_plan(
                 errors.append(f"{where} human_checkpoint requires a title")
         elif kind == "wait_for":
             spec = step.get("wait_spec")
-            if not isinstance(spec, dict):
+            if not isinstance(spec, Mapping):
                 errors.append(f"{where} wait_for requires a wait_spec object")
-            elif not str(
-                    spec.get("event") or spec.get("timer_seconds") or ""):
-                errors.append(
-                    f"{where} wait_spec requires an event or timer_seconds")
+            else:
+                errors.extend(
+                    f"{where} {error}" for error in validate_wait_spec(spec))
         depends = step.get("depends_on")
         if depends is not None:
             if not isinstance(depends, list):
