@@ -39,7 +39,6 @@ semantics:
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import itertools
 import json
 import logging
@@ -52,6 +51,10 @@ from typing import Any, Dict, List, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
+from core.sandbox_runtime.capacity import (
+    CapacityQuarantined, CleanupUncertain, await_teardown,
+    get_capacity_semaphore, quarantine,
+)
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -59,6 +62,7 @@ logger = logging.getLogger(__name__)
 
 # Detect Linux once at import (cheap). Referenced by is_available().
 _IS_LINUX = sys.platform.startswith("linux")
+CAPACITY_SCOPE = "firecracker"
 
 # Guest-side metadata.
 GUEST_CID = 3
@@ -142,6 +146,11 @@ def is_provisioned_for(image: Optional[str] = None) -> bool:
     return True
 
 
+def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
+    quarantine(CAPACITY_SCOPE, reason)
+    return CleanupUncertain(reason)
+
+
 # ===========================================================================
 # Runtime
 # ===========================================================================
@@ -177,21 +186,11 @@ class FirecrackerRuntime:
         self._concurrency_sem: Optional[asyncio.Semaphore] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Lazily create the semaphore against the running loop so it survives
-        # across loop recreations in tests. Python < 3.12 binds primitives via
-        # ``_loop`` (None until first acquire); ``_bound_loop`` only exists on
-        # 3.12+ — probe both, and only recreate when a POSITIVE binding differs
-        # (an unbound semaphore binds to whichever loop acquires it first).
-        sem = self._concurrency_sem
-        if sem is None:
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
-        bound_loop = getattr(sem, "_bound_loop", None)
-        if bound_loop is None:
-            bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != get_event_loop():
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
+        # Shared process-wide across every FirecrackerRuntime instance and
+        # event loop; factories construct new instances, but KVM/RAM is a
+        # process resource. Held for the whole spawn/exchange/teardown lifecycle.
+        sem = get_capacity_semaphore(CAPACITY_SCOPE, _max_concurrency())
+        self._concurrency_sem = sem
         return sem
 
     async def execute_python(
@@ -282,13 +281,40 @@ class FirecrackerRuntime:
         rootfs: str,
         callback_handler: Any = None,
     ) -> SandboxExecResult:
-        """Boot a microVM, exchange a vsock command, tear down.
+        """Hold one shared capacity permit through the complete VM lifecycle."""
+        try:
+            async with self._sem():
+                return await self._run_in_vm_locked(
+                    code, policy=policy, inputs=inputs, rootfs=rootfs,
+                    callback_handler=callback_handler)
+        except CapacityQuarantined:
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    "Firecracker capacity is quarantined after an unconfirmed "
+                    "owned-process cleanup; refusing a new boot"),
+                exit_code=-1,
+                metadata={"backend": "firecracker",
+                          "reason": "capacity_quarantined"})
+        except CleanupUncertain as exc:
+            quarantine(CAPACITY_SCOPE, str(exc))
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    f"Firecracker cleanup unconfirmed: {exc}"),
+                exit_code=-1,
+                metadata={"backend": "firecracker",
+                          "reason": "cleanup_unconfirmed"})
 
-        Concurrency is bounded by ``_concurrency_sem`` (KVM capacity) — VMs
-        boot in parallel up to the cap rather than serializing behind a lock.
-        """
-        async with self._sem():
-            vm_id = f"atom-fc-{os.getpid()}-{next(self._vmid_iter)}"
+    async def _run_in_vm_locked(
+        self,
+        code: str,
+        *,
+        policy: Any,
+        inputs: Optional[Dict[str, Any]],
+        rootfs: str,
+        callback_handler: Any = None,
+    ) -> SandboxExecResult:
+        """Boot a microVM, exchange a vsock command, tear down."""
+        vm_id = f"atom-fc-{os.getpid()}-{next(self._vmid_iter)}"
 
         run_dir = tempfile.mkdtemp(prefix=f"{vm_id}-")
         start = time.time()
@@ -344,17 +370,9 @@ class FirecrackerRuntime:
                     metadata={"backend": "firecracker", "vm_id": vm_id, "timeout": True},
                 )
             finally:
-                # The command channel has completed (or timed out): tear the VM
-                # down. The guest agent sleeps after replying; the host kills
-                # it. We reap the child so a killed firecracker/jailer doesn't
-                # leave a dangling process (a kill without wait would orphan it
-                # and possibly leak the jailer cgroup on the host).
-                if proc.returncode is None:
-                    proc.kill()
-                try:
-                    await proc.wait()
-                except Exception:  # noqa: BLE001
-                    pass
+                # Held until the owned VM process is reaped, even if the
+                # caller is cancelled during teardown.
+                await await_teardown(self._teardown_vm(proc))
 
             stdout_text = stdout_text or ""
             stderr_text = stderr_text or ""
@@ -379,6 +397,23 @@ class FirecrackerRuntime:
                 shutil.rmtree(run_dir, ignore_errors=True)
             except Exception:  # noqa: BLE001
                 pass
+
+    async def _teardown_vm(self, proc) -> None:
+        if proc.returncode is None:
+            try:
+                proc.kill()
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"firecracker kill failed: {type(exc).__name__}") from None
+        try:
+            await proc.wait()
+        except Exception as exc:  # noqa: BLE001
+            if proc.returncode is None:
+                raise _cleanup_uncertain(
+                    f"firecracker wait failed: {type(exc).__name__}") from None
+        if proc.returncode is None:
+            raise _cleanup_uncertain(
+                "firecracker process exit was not confirmed")
 
     async def _exchange(
         self,

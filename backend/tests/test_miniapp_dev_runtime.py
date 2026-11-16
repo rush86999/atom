@@ -384,6 +384,17 @@ class TestContainerArgv:
         async def _fake_exec(*cmd, **kwargs):
             return _FakeProc(cmd)
 
+        # This is an argv-only unit. Declare the dev image prebuilt so the
+        # path never enters _build_image (its run-only FakeProc has no
+        # communicate()), and make any accidental real subprocess.run fail
+        # instead of depending on a local Docker cache/daemon.
+        def _no_real_subprocess(*args, **kwargs):
+            raise AssertionError(
+                "argv-only unit attempted a real subprocess.run: "
+                f"{args[:2]!r}")
+
+        monkeypatch.setattr(dr, "_image_exists", lambda tag: True)
+        monkeypatch.setattr(dr.subprocess, "run", _no_real_subprocess)
         monkeypatch.setattr(dr, "is_available", lambda: True)
         monkeypatch.setattr(dr.asyncio, "create_subprocess_exec", _fake_exec)
         result = asyncio.run(

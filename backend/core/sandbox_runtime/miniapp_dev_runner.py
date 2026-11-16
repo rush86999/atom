@@ -38,12 +38,13 @@ the cache and a dependency change rebuilds:
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
+from core.asyncio_compat import get_event_loop
 import hashlib
 import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -53,6 +54,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
+from core.sandbox_runtime.capacity import (
+    CapacityQuarantined, CleanupUncertain, await_teardown,
+    get_capacity_semaphore, quarantine,
+)
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -73,6 +78,11 @@ _AGENT_IN_CONTAINER = "/opt/atom-guest/agent.py"
 
 _BUILD_TIMEOUT_SECONDS = 900
 _AVAIL_TTL_SECONDS = 10.0
+CAPACITY_SCOPE = "miniapp-docker"
+_RM_CAPTURE_BYTES = 4096
+_REMOVE_TIMEOUT_SECONDS = 5.0
+_REMOVE_CONFIRM_SECONDS = 10.0
+_REMOVE_POLL_INTERVAL = 0.1
 
 # Availability probe TTL cache — ``docker info`` spawns a process (~100ms);
 # the factory + execute path both probe, so cache briefly.
@@ -141,6 +151,106 @@ def _dev_dockerfile(tag: str, deps: List[str]) -> str:
     )
 
 
+class _CaptureOverflow(RuntimeError):
+    pass
+
+
+def _valid_returncode(proc) -> Optional[int]:
+    value = getattr(proc, "returncode", None)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def _removal_in_progress(stdout, stderr, container: str) -> bool:
+    """Docker's exact --rm race line, for this exact case-sensitive target."""
+    try:
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
+    except Exception:  # noqa: BLE001
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+    expected = (
+        "Error response from daemon: removal of container "
+        f"{str(container or '')} is already in progress")
+    return lines[0] == expected
+
+
+def _known_absent_inspect(stdout, stderr, container: str) -> bool:
+    """Inspect-only absence: exact real lowercase form plus documented uppercase.
+
+    Real `docker inspect --format` on this host returns exit 1 with whitespace
+    stdout and exactly: ``error: no such object: <name>``. The command also
+    accepts the existing documented ``No such object/container`` forms. This is
+    intentionally not a global case-insensitive match; the target comparison is
+    exact and case-sensitive.
+    """
+    try:
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
+    except Exception:  # noqa: BLE001
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+    match = re.fullmatch(
+        r"(?:"
+        r"Error response from daemon: No such (?:container|object):\s*(?P<a>\S+)"
+        r"|Error: No such (?:container|object):\s*(?P<b>\S+)"
+        r"|No such (?:container|object):\s*(?P<c>\S+)"
+        r"|error: no such object:\s*(?P<d>\S+)"
+        r")", lines[0])
+    if not match:
+        return False
+    found = next(group for group in match.groupdict().values()
+                 if group is not None)
+    return found == str(container or "")
+
+
+def _known_absent(stdout, stderr, container: str) -> bool:
+    """One complete daemon absence record for the exact case-sensitive name."""
+    try:
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
+    except Exception:  # noqa: BLE001
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+    match = re.fullmatch(
+        r"(?:Error response from daemon:\s*|Error:\s*)?"
+        r"No such (?:container|object):\s*(\S+)", lines[0])
+    return bool(match and match.group(1) == str(container or ""))
+
+
+async def _read_bounded(stream, limit: int = _RM_CAPTURE_BYTES) -> bytes:
+    """Read one owned pipe with a pre-read cap.
+
+    Python's asyncio subprocess guidance is to consume stdout/stderr
+    concurrently so a child cannot block on a full pipe; this helper also
+    bounds the retained bytes instead of allocating the whole output first.
+    https://docs.python.org/3/library/asyncio-subprocess.html
+    """
+    buf = bytearray()
+    while True:
+        chunk = await stream.read(4096)
+        if not chunk:
+            return bytes(buf)
+        if len(buf) + len(chunk) > limit:
+            raise _CaptureOverflow("docker rm output cap")
+        buf.extend(chunk)
+
+
+def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
+    quarantine(CAPACITY_SCOPE, reason)
+    return CleanupUncertain(reason)
+
+
 # ===========================================================================
 # Runtime
 # ===========================================================================
@@ -158,18 +268,11 @@ class MiniAppDevRuntime:
         self._build_lock: Optional[asyncio.Lock] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Same lazy/loop-rebinding pattern as FirecrackerRuntime — Python
-        # < 3.12 binds asyncio primitives to the first acquiring loop.
-        sem = self._concurrency_sem
-        if sem is None:
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
-        bound_loop = getattr(sem, "_bound_loop", None)
-        if bound_loop is None:
-            bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != get_event_loop():
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
+        # Shared process-wide across every MiniAppDevRuntime instance and
+        # event loop. Factories construct new instances; the Docker/VM
+        # capacity is a process resource, held through teardown.
+        sem = get_capacity_semaphore(CAPACITY_SCOPE, _max_concurrency())
+        self._concurrency_sem = sem
         return sem
 
     def _build_sem(self) -> asyncio.Lock:
@@ -281,15 +384,40 @@ class MiniAppDevRuntime:
         tag: str,
         callback_handler: Any = None,
     ) -> SandboxExecResult:
-        """Start the container, exchange the guest protocol, tear down.
+        """Hold one shared capacity permit through the complete container lifecycle."""
+        try:
+            async with self._sem():
+                return await self._run_in_container_locked(
+                    code, policy=policy, inputs=inputs, tag=tag,
+                    callback_handler=callback_handler)
+        except CapacityQuarantined:
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    "docker-dev capacity is quarantined after an unconfirmed "
+                    "owned-process cleanup; refusing a new launch"),
+                exit_code=-1,
+                metadata={"backend": "docker-dev",
+                          "reason": "capacity_quarantined"})
+        except CleanupUncertain as exc:
+            quarantine(CAPACITY_SCOPE, str(exc))
+            return SandboxExecResult(
+                success=False, stdout="", stderr=(
+                    f"docker-dev cleanup unconfirmed: {exc}"),
+                exit_code=-1,
+                metadata={"backend": "docker-dev",
+                          "reason": "cleanup_unconfirmed"})
 
-        Mirrors ``FirecrackerRuntime._run_in_vm``: bounded concurrency,
-        overall timeout (kill on expiry), 64 KiB output caps, state envelope
-        and callback audit carried in metadata. Transport differs only in
-        pipes-for-vsock.
-        """
-        async with self._sem():
-            container = f"{IMAGE_REPO}-run-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+    async def _run_in_container_locked(
+        self,
+        code: str,
+        *,
+        policy: Any,
+        inputs: Optional[Dict[str, Any]],
+        tag: str,
+        callback_handler: Any = None,
+    ) -> SandboxExecResult:
+        """Start the container, exchange the guest protocol, tear down."""
+        container = f"{IMAGE_REPO}-run-{os.getpid()}-{uuid.uuid4().hex[:12]}"
 
         mem_mb = sandbox_config.get_sandbox_vm_mem_mb()
         vcpus = sandbox_config.get_sandbox_vm_vcpus()
@@ -387,29 +515,10 @@ class MiniAppDevRuntime:
                               "image": tag, "reason": "guest_died"},
                 )
         finally:
-            if proc.returncode is None:
-                proc.kill()
-            try:
-                await proc.wait()
-            except Exception:  # noqa: BLE001
-                pass
-            drain_task.cancel()
-            try:
-                await drain_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
-            if proc.returncode not in (0, None):
-                # Non-zero exit without --rm completion (killed/errored run):
-                # best-effort removal so nothing lingers on the dev host.
-                try:
-                    rm = await asyncio.create_subprocess_exec(
-                        "docker", "rm", "-f", container,
-                        stdout=asyncio.subprocess.DEVNULL,
-                        stderr=asyncio.subprocess.DEVNULL,
-                    )
-                    await asyncio.wait_for(rm.wait(), timeout=5)
-                except Exception:  # noqa: BLE001
-                    pass
+            # The permit is held by the wrapper until this completes, even if
+            # the caller is cancelled while the container is draining.
+            await await_teardown(
+                self._teardown_container(proc, container, drain_task))
 
         stdout_text = stdout_text or ""
         stderr_text = stderr_text or ""
@@ -432,6 +541,175 @@ class MiniAppDevRuntime:
             truncated=len(stdout_text) > OUTPUT_CAP or len(stderr_text) > OUTPUT_CAP,
             metadata=meta,
         )
+
+    async def _teardown_container(self, proc, container: str, drain_task) -> None:
+        if proc.returncode is None:
+            try:
+                proc.kill()
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"docker kill failed: {type(exc).__name__}") from None
+        try:
+            await proc.wait()
+        except Exception as exc:  # noqa: BLE001
+            if proc.returncode is None:
+                raise _cleanup_uncertain(
+                    f"docker wait failed: {type(exc).__name__}") from None
+        if proc.returncode is None:
+            raise _cleanup_uncertain("docker process exit was not confirmed")
+        drain_task.cancel()
+        try:
+            await drain_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
+        if proc.returncode not in (0, None):
+            await self._remove_container(container)
+
+    async def _remove_container(self, container: str) -> None:
+        """Confirm the owned container is removed, or fail closed.
+
+        A killed `docker run` client is not proof its container exited. The
+        explicit `docker rm -f` result is authoritative: success means the
+        daemon stopped/removed it; exit 1 is accepted only when the stderr is
+        the daemon's exact-target "No such container/object" absence. Generic
+        exit 1, timeout, connection/daemon errors and unrelated targets are
+        cleanup uncertainty, never success.
+        """
+        deadline = time.monotonic() + _REMOVE_CONFIRM_SECONDS + _REMOVE_TIMEOUT_SECONDS
+        try:
+            rm = await asyncio.create_subprocess_exec(
+                "docker", "rm", "-f", container,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise _cleanup_uncertain(
+                f"docker rm failed: {type(exc).__name__}") from None
+        reads = [asyncio.create_task(_read_bounded(rm.stdout)),
+                 asyncio.create_task(_read_bounded(rm.stderr))]
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*reads, rm.wait(), return_exceptions=True),
+                timeout=_REMOVE_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            for task in reads:
+                task.cancel()
+            await self._reap_rm(rm)
+            raise _cleanup_uncertain("docker rm timed out") from None
+        except Exception as exc:  # noqa: BLE001
+            for task in reads:
+                task.cancel()
+            await self._reap_rm(rm)
+            raise _cleanup_uncertain(
+                f"docker rm failed: {type(exc).__name__}") from None
+        out, err, wait_result = results[0], results[1], results[2]
+        if isinstance(out, BaseException) or isinstance(err, BaseException):
+            await self._reap_rm(rm)
+            if isinstance(out, _CaptureOverflow) or isinstance(err, _CaptureOverflow):
+                raise _cleanup_uncertain("docker rm output cap") from None
+            raise _cleanup_uncertain("docker rm read failed") from None
+
+        wait_failed = isinstance(wait_result, BaseException)
+        if wait_failed:
+            # A failed wait leaves the CLI/container status unresolved: finish
+            # the bounded kill/reap attempt before deciding.
+            await self._reap_rm(rm)
+        rc = _valid_returncode(rm)
+        if wait_failed and rc is None:
+            raise _cleanup_uncertain("docker rm wait failed; exit unknown")
+        if rc == 0:
+            return
+        if rc is None:
+            raise _cleanup_uncertain("docker rm status invalid")
+        if _known_absent(out, err, container):
+            return
+        if wait_failed:
+            raise _cleanup_uncertain("docker rm wait failed")
+        if _removal_in_progress(out, err, container):
+            await self._confirm_container_removed(
+                container, deadline=deadline)
+            return
+        raise _cleanup_uncertain(
+            f"docker rm did not confirm removal (exit {rc})")
+
+    async def _confirm_container_removed(self, container: str, *,
+                                         deadline: float) -> None:
+        """Poll exact owned-target status until absent or the deadline.
+
+        `removal ... already in progress` is NOT absence. Docker --rm can
+        report that race while it finishes removing the container. Confirm via
+        `docker inspect` exact-target absence within the cleanup deadline;
+        persistent present/removing/error/invalid output is uncertainty.
+        """
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _cleanup_uncertain(
+                    "docker removal not confirmed before cleanup deadline")
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "inspect", "--format", "{{.State.Status}}",
+                    container,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise _cleanup_uncertain(
+                    f"docker inspect failed: {type(exc).__name__}") from None
+            reads = [asyncio.create_task(_read_bounded(proc.stdout)),
+                     asyncio.create_task(_read_bounded(proc.stderr))]
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*reads, proc.wait(),
+                                   return_exceptions=True),
+                    timeout=min(2.0, remaining))
+            except asyncio.TimeoutError:
+                for task in reads:
+                    task.cancel()
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect timed out") from None
+            except Exception as exc:  # noqa: BLE001
+                for task in reads:
+                    task.cancel()
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain(
+                    f"docker inspect failed: {type(exc).__name__}") from None
+            out, err, wait_result = results[0], results[1], results[2]
+            if isinstance(out, BaseException) or isinstance(err, BaseException):
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect read failed") from None
+            if isinstance(wait_result, BaseException):
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect wait failed") from None
+            rc = _valid_returncode(proc)
+            if rc is None:
+                await self._reap_rm(proc)
+                raise _cleanup_uncertain("docker inspect status invalid")
+            if rc == 0:
+                status = bytes(out or b"").decode("utf-8", "replace").strip()
+                if status not in ("running", "exited", "paused", "restarting",
+                                  "removing", "created", "dead"):
+                    await self._reap_rm(proc)
+                    raise _cleanup_uncertain(
+                        "docker inspect target status unknown")
+                await asyncio.sleep(_REMOVE_POLL_INTERVAL)
+                continue
+            if _known_absent_inspect(out, err, container):
+                return
+            await self._reap_rm(proc)
+            raise _cleanup_uncertain(
+                f"docker inspect did not confirm absence (exit {rc})")
+
+    async def _reap_rm(self, rm) -> None:
+        try:
+            if rm.returncode is None:
+                rm.kill()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            await asyncio.wait_for(rm.wait(), timeout=2)
+        except BaseException:  # noqa: BLE001 - cleanup must not mask uncertainty
+            pass
 
     async def _ensure_image(self, tag: str, deps: List[str]) -> Optional[str]:
         """Build ``tag`` if absent; return None on success, error text on failure.
