@@ -1,0 +1,78 @@
+{
+  "status": "root_verified_valid_inline_image_browser_restart",
+  "browser_source_sha": "8d98b06899cd8920cfbed02bd8bad10b605d68eb",
+  "production_helper_sha256": "826b49cf68943bff9ba32278c5ecdc02a671edd5897bda440aa9cbc0c59e46fe",
+  "final_local_gate": {
+    "source_sha": "6cbc5412a1ff4b48ab455112bf47362c43826938",
+    "passed": 674,
+    "seconds": 75.82,
+    "scope": "32 complete coediting tests plus642 CI/quickstart contracts; production helper byte-identical to browser source"
+  },
+  "earlier_adjacent_gate": {
+    "passed": 77,
+    "seconds": 41.03,
+    "scope": "coediting plus ownership/tombstone/path controls; earlier malformed PNG was only a drawing-structure fixture"
+  },
+  "baseline_counter": {
+    "source_sha": "3316b0fe71a1203a90e0f4ec856d7eb5a08d2f4a",
+    "valid_decoded_PNG": true,
+    "both_layouts": "referenced drawing1->0, embed reference removed while orphaned media remained"
+  },
+  "repaired_counter": {
+    "source_sha": "8d98b06899cd8920cfbed02bd8bad10b605d68eb",
+    "valid_decoded_PNG": true,
+    "both_layouts": "exact drawing XML/reference/blob and replacement text preserved"
+  },
+  "browser_cases": {
+    "same-run": {
+      "export_sha256": "ff54f77e824615f8e1a9f7d724d7af7cc29d85357f369ea6173389a653aff9f8",
+      "export_bytes": 37160,
+      "drawing_XML_and_embed_refs_exact": true,
+      "decoded_image_valid_and_pixels_unchanged": true,
+      "all_other_ZIP_parts_unchanged": true,
+      "post_restart_same_bytes": true
+    },
+    "picture-only-run": {
+      "export_sha256": "e8881737a8f1cd5911cfbfe83d1a311807257bfb0fc2dcba573c34d9e57b80c2",
+      "export_bytes": 37157,
+      "drawing_XML_and_embed_refs_exact": true,
+      "decoded_image_valid_and_pixels_unchanged": true,
+      "all_other_ZIP_parts_unchanged": true,
+      "post_restart_same_bytes": true
+    }
+  },
+  "image": {
+    "size": [
+      32,
+      32
+    ],
+    "PNG_sha256": "b4fd54b80df8ed1874e0076828c3e367ef25c01e103054d028b4cea564463307",
+    "decoded_pixel_sha256": "75b4e1ab51ed59519cfc89281d3c888d4c89e0d680df0fbb6dab4a970b4e01b6",
+    "decoder_verify_and_full_load": true
+  },
+  "normal_UI": {
+    "form_login_exact_web_session": true,
+    "native_existing_agent_attach_and_filechooser": true,
+    "native_paragraph_save_200": true,
+    "unsigned_download": 401,
+    "unsigned_page": "/login with exact canvas callback and password form"
+  },
+  "same_world_full_API_frontend_restart": true,
+  "each_upload_and_edit_once": true,
+  "post_restart_no_upload_or_edit": true,
+  "all_four_owned_app_PIDs_absent": true,
+  "owned_Chrome_orphans": 0,
+  "malformed_fixture_retained": {
+    "original_68byte_PNG": "bad IDAT checksum; initial drawing-only cases not accepted as valid-image verification",
+    "corrected_unit_fixture": "independently decoded70byte1x1 PNG; fixture checks CRC/decompressed scanline before use; fullsuite32passed",
+    "replacement_browser_inputs": "fresh world/cases, independently decoded123byte32x32 PNG before upload; original case claims never rearmed"
+  },
+  "limits": [
+    "synthetic local inline PNG layouts only",
+    "no floating drawings, external images, rich field/hyperlink or cross-user breadth",
+    "not model-generated document quality or wholeGoal5"
+  ],
+  "app_complete": false,
+  "original_claims": 143,
+  "original_goals": 18
+}
