@@ -694,16 +694,55 @@ class TestDocxInlineDrawingPreservation:
     and ZIP media entry stayed behind as orphans.
     """
 
+    # 1x1 RGBA PNG with valid chunk CRCs and zlib IDAT (replaces the prior
+    # 68-byte fixture whose IDAT CRC failed decoder validation; the old
+    # drawing-reference counter remains valid only as a reference check).
     _PNG = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
-        "/x8AAusB9Wl2nK0AAAAASUVORK5CYII="
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP4"
+        "z8DwHwAFAAH/VscvDQAAAABJRU5ErkJggg=="
     )
+
+    @staticmethod
+    def _assert_valid_png(data: bytes) -> None:
+        """Fail the fixture builder if the synthetic PNG is not decodable.
+
+        Standard library only: signature, per-chunk CRC, IHDR/IDAT/IEND
+        presence/order, and zlib decompression of the image data. This keeps a
+        malformed fixture from silently qualifying drawing assertions.
+        """
+        import struct
+        import zlib
+
+        assert data[:8] == b"\x89PNG\r\n\x1a\n", "bad PNG signature"
+        pos = 8
+        seen = []
+        idat = b""
+        while pos < len(data):
+            assert pos + 12 <= len(data), "truncated PNG chunk"
+            length = struct.unpack(">I", data[pos:pos + 4])[0]
+            ctype = data[pos + 4:pos + 8]
+            payload = data[pos + 8:pos + 8 + length]
+            assert len(payload) == length, "truncated PNG payload"
+            crc = struct.unpack(">I", data[pos + 8 + length:pos + 12 + length])[0]
+            assert crc == (zlib.crc32(ctype + payload) & 0xFFFFFFFF), (
+                f"bad PNG CRC for {ctype!r}")
+            seen.append(ctype)
+            if ctype == b"IDAT":
+                idat += payload
+            pos += 12 + length
+        assert pos == len(data), "trailing PNG bytes"
+        assert seen and seen[0] == b"IHDR", "missing PNG IHDR"
+        assert b"IDAT" in seen, "missing PNG IDAT"
+        assert seen[-1] == b"IEND", "missing PNG IEND"
+        assert zlib.decompress(idat), "PNG IDAT does not decompress"
 
     @staticmethod
     def _docx(path, mode: str):
         from docx import Document
         from docx.shared import Inches
 
+        TestDocxInlineDrawingPreservation._assert_valid_png(
+            TestDocxInlineDrawingPreservation._PNG)
         doc = Document()
         doc.add_paragraph("Before")
         p = doc.add_paragraph()
