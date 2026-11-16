@@ -6,10 +6,10 @@
 >
 > **Browser account lifecycle:** [ordinary signup/session/recovery](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) passed with real local authenticated STARTTLS mail at source 97e43, including consumed-link refusal, old-password denial and new-password web session. SSO/rate-limit/one-hour expiry remain outside that episode; TOTP is verified in the separate record above.
 >
-> **Candidate SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. This candidate has not yet merged; earlier browser evidence retains its original source.
+> **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current release cut:** main `de6f4b2c82bfee8245ab5a8446146ecc55bdf68e` through #970. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Current release cut:** main `75c1edec61b651c43b70937f467b3f64a6ca37bb` through #971. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
