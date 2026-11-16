@@ -11,7 +11,7 @@
 > **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current release cut:** main `75c1edec61b651c43b70937f467b3f64a6ca37bb` through #971. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Current release cut:** main `5176c9e79f3a70e63f7110187f431fff8ab14fed` through #972; all 15 PR checks independently verified successful. Main-branch post-merge CI remains a separate check. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
