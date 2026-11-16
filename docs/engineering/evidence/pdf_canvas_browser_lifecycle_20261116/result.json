@@ -1,0 +1,107 @@
+{
+  "status": "qualified",
+  "source_sha": "bb7017af311312fec03318feac516266ade05e60",
+  "frontend": {
+    "entire_tracked_frontend_tree_equal": true,
+    "backend_source": "bb7017af311312fec03318feac516266ade05e60",
+    "reused_frontend_source": "97e43a6b18a676a867b4e1e86f3b0c22da74461d",
+    "frontend_tree": "a34382b5d78bdf194411383d3805fb149fee39f8"
+  },
+  "initial_upload": {
+    "checks": {
+      "signedIn": true,
+      "welcomeDismissed": true,
+      "galleryAvailable": true,
+      "upload200": true,
+      "viewerLoaded": true,
+      "download200": true,
+      "downloadMatchesFixture": true,
+      "reloadViewerLoaded": true,
+      "reloadDownloadMatchesFixture": true,
+      "unauthorizedFileDenied": true,
+      "unauthorizedUiDenied": true,
+      "pageErrors": true
+    },
+    "observed": {
+      "uploadStatus": 200,
+      "fileStatus": 200,
+      "reloadFileStatus": 200,
+      "unauthorizedFileStatus": 401
+    },
+    "fixture": {
+      "bytes": 2252,
+      "sha256": "2442682c3183c2d1e16618d5730b885dcf739ea07f086b03376679fd7f821002"
+    },
+    "download": {
+      "bytes": 2252,
+      "sha256": "2442682c3183c2d1e16618d5730b885dcf739ea07f086b03376679fd7f821002"
+    },
+    "reload": {
+      "bytes": 2252,
+      "sha256": "2442682c3183c2d1e16618d5730b885dcf739ea07f086b03376679fd7f821002"
+    }
+  },
+  "existing_canvas_edit": {
+    "checks": {
+      "signedIn": true,
+      "welcomeDismissed": true,
+      "galleryAvailable": true,
+      "viewerLoaded": true,
+      "download200": true,
+      "downloadMatchesFixture": true,
+      "reloadViewerLoaded": true,
+      "reloadDownloadMatchesFixture": true,
+      "unauthorizedFileDenied": true,
+      "unauthorizedUiDenied": true,
+      "pageErrors": true,
+      "reopenedExisting": true,
+      "uploadNotRepeated": true,
+      "unsavedDownloadBlocked": true,
+      "rotatedPageRendered": true,
+      "savedNewBytes": true
+    },
+    "observed": {
+      "uploadStatus": null,
+      "fileStatus": 200,
+      "reloadFileStatus": 200,
+      "unauthorizedFileStatus": 401,
+      "saveStatus": 200
+    },
+    "original": {
+      "bytes": 2252,
+      "sha256": "2442682c3183c2d1e16618d5730b885dcf739ea07f086b03376679fd7f821002"
+    },
+    "edited": {
+      "bytes": 1798,
+      "sha256": "d8d6a8385ef5dd77b84f0a95c50a69f6e1857b7db25b10cb1a84aff144e7a2e5"
+    },
+    "reload": {
+      "bytes": 1798,
+      "sha256": "d8d6a8385ef5dd77b84f0a95c50a69f6e1857b7db25b10cb1a84aff144e7a2e5"
+    }
+  },
+  "edited_file_validation": {
+    "pages": 2,
+    "absolute_rotations": [
+      90,
+      0
+    ],
+    "both_original_page_text_markers_preserved": true,
+    "bytes": 1798,
+    "sha256": "d8d6a8385ef5dd77b84f0a95c50a69f6e1857b7db25b10cb1a84aff144e7a2e5"
+  },
+  "visual_review": "two original and two edited pages inspected; page1 correctly rotated90, page2 unchanged; no clipping or missing content",
+  "owned_services_stopped": true,
+  "no_model_calls": true,
+  "scope": "Synthetic two-page PDF, ordinary UI upload/reopen/page rotation/save/download/reload and unauthenticated denial; not all PDF operations, backend restart, Office families or Goal5 completion",
+  "artifact_sha256": {
+    "pdf.result.json": "cb0c3883ae24d7ef03e2ab2420ddee2dd0eb5eb0790c9bc70ee1590d7168d194",
+    "pdf-edit.result.json": "7dfb14812b12a45f13f77a05d8fb9b7cf0520c3d795a486aa64ac56fe0b7f2a0",
+    "fixture-validation.json": "2ac43bd43ef075edd599a597940f68e12adce23f3803500762002537c354a63d",
+    "edited-file-validation.json": "91f57cd1976d74bc138ea08dee6e6794b03b80ec60caa3de8f0a9e3eb84595eb",
+    "frontend-parity.json": "bd8c508db8d41fd406acc9e07a09254a4a8252f90a1375f425e141bb0d04998d",
+    "browser-source-health.json": "52ba670f6bf3dc40dbcd2a0ca3979ab922df0d6848ed21b80080aa6a65533dd0",
+    "browser-network-preflight.json": "ee452d6a3d57212f83d46a3039bd08670b40ab8e48b3453270244ac6067f6c71",
+    "owned-stack-stop.json": "1c48732eb56fb6b79fade1436cf8f266c0a1afaa494795a4d7329607fa1ee423"
+  }
+}

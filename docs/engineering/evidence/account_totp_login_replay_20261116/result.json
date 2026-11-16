@@ -1,0 +1,29 @@
+{
+  "status": "qualified",
+  "source_sha": "268efd405d72361456e759537fa4b47168fa25ea",
+  "ui_enrollment_login_disable_pass": true,
+  "same_step_public_api_replay": {
+    "name": "same_step_public_api_replay",
+    "status": 409,
+    "token_issued": false,
+    "session_present": false
+  },
+  "root_adjacent_tests": "122 passed in 64.40s",
+  "baseline_countercontrols": "3 failed on original code as expected",
+  "real_helper_commit_failure": "503/no token and rollback verified",
+  "owned_services_stopped": true,
+  "no_app_model_calls": true,
+  "scope": "ordinary account TOTP UI and public login replay refusal; not SSO, recovery-code login, production/other profiles, concurrent login race or broad Goal1 completion",
+  "artifacts": {
+    "totp.result.json": "bd79ac069d0c15e55443dc683c9bdaad81f3b04f43e9361b5a855100ba1d8465",
+    "browser-source-health.json": "f856d98a8d378a4067974f81a5809b6e22fbaf80d305ae84106198fd91c51b34",
+    "frontend-parity.json": "1485ea044bca2773e3fc29c002e73d1569ae77e728414f52a4e57b0b31a35f29",
+    "browser-network-preflight.json": "ee452d6a3d57212f83d46a3039bd08670b40ab8e48b3453270244ac6067f6c71",
+    "owned-stack-stop.json": "406f95cae1d9d3fcd76ee31b48df98ad8473ad4e1ee2c95fef03fc3e9b1b2112"
+  },
+  "frontend": {
+    "reused_build_source": "97e43a6b18a676a867b4e1e86f3b0c22da74461d",
+    "tracked_frontend_tree_equal": true,
+    "tree": "a34382b5d78bdf194411383d3805fb149fee39f8"
+  }
+}
