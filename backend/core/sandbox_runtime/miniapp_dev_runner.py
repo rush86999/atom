@@ -179,6 +179,38 @@ def _removal_in_progress(stdout, stderr, container: str) -> bool:
     return lines[0] == expected
 
 
+def _known_absent_inspect(stdout, stderr, container: str) -> bool:
+    """Inspect-only absence: exact real lowercase form plus documented uppercase.
+
+    Real `docker inspect --format` on this host returns exit 1 with whitespace
+    stdout and exactly: ``error: no such object: <name>``. The command also
+    accepts the existing documented ``No such object/container`` forms. This is
+    intentionally not a global case-insensitive match; the target comparison is
+    exact and case-sensitive.
+    """
+    try:
+        if bytes(stdout or b"").strip():
+            return False
+        text = bytes(stderr or b"").decode("utf-8", "strict")
+    except Exception:  # noqa: BLE001
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+    match = re.fullmatch(
+        r"(?:"
+        r"Error response from daemon: No such (?:container|object):\s*(?P<a>\S+)"
+        r"|Error: No such (?:container|object):\s*(?P<b>\S+)"
+        r"|No such (?:container|object):\s*(?P<c>\S+)"
+        r"|error: no such object:\s*(?P<d>\S+)"
+        r")", lines[0])
+    if not match:
+        return False
+    found = next(group for group in match.groupdict().values()
+                 if group is not None)
+    return found == str(container or "")
+
+
 def _known_absent(stdout, stderr, container: str) -> bool:
     """One complete daemon absence record for the exact case-sensitive name."""
     try:
@@ -662,7 +694,7 @@ class MiniAppDevRuntime:
                         "docker inspect target status unknown")
                 await asyncio.sleep(_REMOVE_POLL_INTERVAL)
                 continue
-            if _known_absent(out, err, container):
+            if _known_absent_inspect(out, err, container):
                 return
             await self._reap_rm(proc)
             raise _cleanup_uncertain(

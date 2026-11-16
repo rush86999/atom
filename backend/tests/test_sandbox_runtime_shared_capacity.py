@@ -882,3 +882,61 @@ def test_rm_progress_unrelated_or_malformed_inspect_quarantines(
     assert result.metadata["reason"] == "cleanup_unconfirmed"
     assert capacity.snapshot(scope)["quarantined"]
     assert len(created) == 1
+
+
+def test_real_inspect_lowercase_absence_fixture_succeeds(monkeypatch):
+    import json
+    import uuid
+    from pathlib import Path
+    fixture = json.loads(
+        (Path(__file__).parent / "fixtures" /
+         "miniapp_absent_inspect_response.json").read_text())
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-real-inspect-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    monkeypatch.setattr(dev_mod, "_REMOVE_CONFIRM_SECONDS", 1.0)
+    monkeypatch.setattr(dev_mod, "_REMOVE_POLL_INTERVAL", 0.01)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created = []
+    inspect_calls = []
+
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "rm"):
+            return FakeCLI(returncode=1, stderr=(
+                "Error response from daemon: removal of container "
+                + args[3] + " is already in progress\n").encode())
+        if args[:2] == ("docker", "inspect"):
+            target = args[-1]
+            inspect_calls.append(target)
+            return FakeCLI(
+                returncode=fixture["returncode"],
+                stdout=fixture["stdout"].replace("OWNEDNAME", target).encode(),
+                stderr=fixture["stderr"].replace("OWNEDNAME", target).encode())
+        proc = FakeProc(exit_code=-9)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    result = asyncio.run(_run_dev_task())
+    assert result.success is True
+    assert len(created) == 1
+    assert len(inspect_calls) == 1
+    assert capacity.snapshot(scope)["in_use"] == 0
+    assert not capacity.snapshot(scope)["quarantined"]
+
+
+@pytest.mark.parametrize("stdout,stderr", [
+    (b"\n", b"error: no such object: atom-owned-10\n"),
+    (b"\n", b"error: no such object: ATOM-OWNED-1\n"),
+    (b"\n", b"error: no such object: atom-owned-1\n"
+             b"error: daemon unavailable\n"),
+    (b"not-empty\n", b"error: no such object: atom-owned-1\n"),
+    (b"\n", b"\xff\xfe"),
+    (b"\n", b"error: no such container: atom-owned-1\n"),
+])
+def test_inspect_absence_negative_twins(stdout, stderr):
+    assert dev_mod._known_absent_inspect(
+        stdout, stderr, "atom-owned-1") is False

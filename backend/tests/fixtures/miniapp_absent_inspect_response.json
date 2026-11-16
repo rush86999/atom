@@ -1,0 +1,7 @@
+{
+  "command": "docker inspect --format '{{.State.Status}}' OWNEDNAME",
+  "returncode": 1,
+  "stdout": "\n",
+  "stderr": "error: no such object: OWNEDNAME\n",
+  "note": "Read-only actual-format fixture; target substituted by the regression."
+}
