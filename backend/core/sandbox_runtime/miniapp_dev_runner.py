@@ -171,6 +171,13 @@ def _known_absent(stdout, stderr, container: str) -> bool:
 
 
 async def _read_bounded(stream, limit: int = _RM_CAPTURE_BYTES) -> bytes:
+    """Read one owned pipe with a pre-read cap.
+
+    Python's asyncio subprocess guidance is to consume stdout/stderr
+    concurrently so a child cannot block on a full pipe; this helper also
+    bounds the retained bytes instead of allocating the whole output first.
+    https://docs.python.org/3/library/asyncio-subprocess.html
+    """
     buf = bytearray()
     while True:
         chunk = await stream.read(4096)
