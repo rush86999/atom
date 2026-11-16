@@ -1,5 +1,7 @@
 # Current readiness evidence index — 2026-11-14
 
+> **DOCX inline pictures:** [the source-bound repair and valid-image browser record](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) passed at candidate `8d98b0689`, preserving real drawing XML/references and decoded pixels through native edits and full-stack restart. Final local674 checks passed with unchanged production helper; malformed earlier PNG fixtures remain explicitly unqualified. Broader drawings and full Goal5 remain open.
+
 > **Documents browser lifecycle:** [ordinary upload/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`: full33KB Text/Markdown/JSON downloads, matched provenance, verified deletion, fresh library absence and stale-tab export404. Internal SQLite/cached assets; no Docker or app LLM. Live connected-source and broader file/search qualification remain separate.
 >
 > **Authenticator login and replay:** [ordinary browser TOTP and shared replay fence](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate `268efd405`: enrollment, challenge/no session, wrong-code refusal, valid sign-in, same-step replay409/no token and disabling/reload. Independent122 checks plus an injected commit-exception refusal through the real helper passed. This remains source-bound partial Goal1 evidence.

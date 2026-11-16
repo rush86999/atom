@@ -23,11 +23,14 @@ Gaps covered here:
 """
 
 import asyncio
+import base64
+import io
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import openpyxl
 import pytest
+from docx import Document
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -64,6 +67,7 @@ def test_db():
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 def _make_xlsx(path):
@@ -369,15 +373,86 @@ class TestPresentPersistence:
         )
 
     def test_explicit_canvas_id_respected(self, test_db, xlsx_file):
+        """An explicit id reuses an EXISTING owned active canvas.
+
+        /present intentionally requires the owner gate before explicit-id
+        reuse (`_require_canvas_owner`, b4060236b). The old test supplied a
+        random nonexistent id; production correctly 404'd it. Establish the
+        real owned canvas first, then prove reuse + file binding.
+        """
         from core.models import Canvas
 
         cid = f"canvas_{uuid.uuid4().hex[:12]}"
-        resp = self._client(test_db).post(
-            "/present",
-            json={"file_path": str(xlsx_file), "user_id": "x", "canvas_id": cid},
-        )
-        assert resp.json()["canvas_id"] == cid
-        assert test_db.query(Canvas).filter(Canvas.id == cid).first() is not None
+        test_db.add(Canvas(
+            id=cid, tenant_id="default", workspace_id=None,
+            created_by="u-pres", name="before.xlsx", canvas_type="document",
+            status="active", content={"blocks": []},
+        ))
+        test_db.commit()
+        count_before = test_db.query(Canvas).count()
+
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "x",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["canvas_id"] == cid
+        assert body["canvas_type"] == "sheets"
+
+        row = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        assert row.created_by == "u-pres"  # ownership unchanged
+        assert row.canvas_type == "sheets"  # adopted the real file type
+        assert row.content["office_file"] == str(xlsx_file)  # bound
+        assert row.content["format"] == "xlsx"
+        assert test_db.query(Canvas).count() == count_before  # reused, no mint
+
+    def test_explicit_canvas_id_missing_is_refused(self, test_db, xlsx_file):
+        from core.models import Canvas
+
+        cid = f"canvas_{uuid.uuid4().hex[:12]}"
+        count_before = test_db.query(Canvas).count()
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "x",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 404, resp.text
+        assert resp.json() == {"detail": "Canvas not found"}
+        assert test_db.query(Canvas).filter(Canvas.id == cid).count() == 0
+        assert test_db.query(Canvas).count() == count_before
+
+    def test_explicit_canvas_id_foreign_owner_is_refused(self, test_db, xlsx_file):
+        from core.models import Canvas
+
+        cid = f"canvas_{uuid.uuid4().hex[:12]}"
+        test_db.add(Canvas(
+            id=cid, tenant_id="default", workspace_id=None,
+            created_by="u-other", name="foreign.xlsx", canvas_type="sheets",
+            status="active", content={"office_file": "/elsewhere/foreign.xlsx"},
+        ))
+        test_db.commit()
+        before = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        before_content = dict(before.content)
+        count_before = test_db.query(Canvas).count()
+
+        with self._client(test_db) as client:
+            resp = client.post(
+                "/present",
+                json={"file_path": str(xlsx_file), "user_id": "u-pres",
+                      "canvas_id": cid},
+            )
+        assert resp.status_code == 404, resp.text
+        assert resp.json() == {"detail": "Canvas not found"}  # no oracle
+
+        after = test_db.query(Canvas).filter(Canvas.id == cid).one()
+        assert after.created_by == "u-other"  # ownership unchanged
+        assert dict(after.content) == before_content  # no file rebinding
+        assert after.content.get("office_file") != str(xlsx_file)
+        assert test_db.query(Canvas).count() == count_before
 
     def test_canvas_types_per_format(self, test_db, office_root):
         from core.models import Canvas
@@ -608,3 +683,199 @@ class TestSyncUpdatesCanvasRow:
             edit_type="cell", data={"cell_path": "/Sheet1/B2", "value": 7},
         )
         assert res["success"] is True
+
+
+class TestDocxInlineDrawingPreservation:
+    """Inline drawings must survive text replacement in the shared helper.
+
+    Counter (3316 original): the helper assigned ``run.text`` and blanked
+    every later run, so a run mixing text+image and a later picture-only run
+    both lost their ``<w:drawing>``/``r:embed`` while the image relationship
+    and ZIP media entry stayed behind as orphans.
+    """
+
+    # 1x1 RGBA PNG with valid chunk CRCs and zlib IDAT (replaces the prior
+    # 68-byte fixture whose IDAT CRC failed decoder validation; the old
+    # drawing-reference counter remains valid only as a reference check).
+    _PNG = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP4"
+        "z8DwHwAFAAH/VscvDQAAAABJRU5ErkJggg=="
+    )
+
+    @staticmethod
+    def _assert_valid_png(data: bytes) -> None:
+        """Fail the fixture builder if the synthetic PNG is not decodable.
+
+        Standard library only: signature, per-chunk CRC, IHDR/IDAT/IEND
+        presence/order, and zlib decompression of the image data. This keeps a
+        malformed fixture from silently qualifying drawing assertions.
+        """
+        import struct
+        import zlib
+
+        assert data[:8] == b"\x89PNG\r\n\x1a\n", "bad PNG signature"
+        pos = 8
+        seen = []
+        idat = b""
+        while pos < len(data):
+            assert pos + 12 <= len(data), "truncated PNG chunk"
+            length = struct.unpack(">I", data[pos:pos + 4])[0]
+            ctype = data[pos + 4:pos + 8]
+            payload = data[pos + 8:pos + 8 + length]
+            assert len(payload) == length, "truncated PNG payload"
+            crc = struct.unpack(">I", data[pos + 8 + length:pos + 12 + length])[0]
+            assert crc == (zlib.crc32(ctype + payload) & 0xFFFFFFFF), (
+                f"bad PNG CRC for {ctype!r}")
+            seen.append(ctype)
+            if ctype == b"IDAT":
+                idat += payload
+            pos += 12 + length
+        assert pos == len(data), "trailing PNG bytes"
+        assert seen and seen[0] == b"IHDR", "missing PNG IHDR"
+        assert b"IDAT" in seen, "missing PNG IDAT"
+        assert seen[-1] == b"IEND", "missing PNG IEND"
+        assert zlib.decompress(idat), "PNG IDAT does not decompress"
+
+    @staticmethod
+    def _docx(path, mode: str):
+        from docx import Document
+        from docx.shared import Inches
+
+        TestDocxInlineDrawingPreservation._assert_valid_png(
+            TestDocxInlineDrawingPreservation._PNG)
+        doc = Document()
+        doc.add_paragraph("Before")
+        p = doc.add_paragraph()
+        if mode == "same-run":
+            run = p.add_run("Alpha text")
+            run.bold = True
+            run.add_picture(io.BytesIO(TestDocxInlineDrawingPreservation._PNG),
+                            width=Inches(0.5))
+            p.add_run("tail")
+        elif mode == "picture-only-run":
+            p.add_run("Beta text")
+            p.add_run().add_picture(
+                io.BytesIO(TestDocxInlineDrawingPreservation._PNG),
+                width=Inches(0.5))
+            p.add_run("tail")
+        else:  # drawing-only paragraph
+            p.add_run().add_picture(
+                io.BytesIO(TestDocxInlineDrawingPreservation._PNG),
+                width=Inches(0.5))
+        doc.add_paragraph("After")
+        doc.save(str(path))
+        return doc
+
+    @staticmethod
+    def _inline_refs(path):
+        import re
+        import zipfile
+
+        with zipfile.ZipFile(path) as zf:
+            document = zf.read("word/document.xml").decode("utf-8")
+            rels = zf.read("word/_rels/document.xml.rels").decode("utf-8")
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+        embeds = re.findall(r'r:embed="([^"]+)"', document)
+        rev = re.findall(r'r:link="([^"]+)"', document)
+        return {
+            "drawing": "<w:drawing" in document,
+            "embeds": embeds,
+            "links": rev,
+            "rels": rels,
+            "media": media,
+        }
+
+    def _target(self, path, needle="Alpha"):
+        from docx import Document
+
+        doc = Document(str(path))
+        for p in doc.paragraphs:
+            if needle in p.text:
+                return doc, p
+        raise AssertionError("target paragraph missing")
+
+    def test_text_and_image_in_same_first_run_preserved(self, tmp_path):
+        from core.office_sync_service import OfficeSyncService
+
+        path = tmp_path / "same-run.docx"
+        self._docx(path, "same-run")
+        doc, p = self._target(path)
+        OfficeSyncService._set_paragraph_text(p, "Replacement text")
+        doc.save(str(path))
+
+        doc2, p2 = self._target(path, needle="Replacement")
+        assert p2.text == "Replacement text"
+        assert p2.runs[0].bold is True  # first-run formatting kept
+        assert p2._p.xpath(".//w:drawing")  # drawing kept in the same run
+        refs = self._inline_refs(path)
+        assert refs["drawing"] is True
+        assert len(refs["embeds"]) == 1
+        assert f'Id="{refs["embeds"][0]}"' in refs["rels"]
+        assert refs["media"]
+
+    def test_later_picture_only_run_preserved(self, tmp_path):
+        from core.office_sync_service import OfficeSyncService
+
+        path = tmp_path / "picture-run.docx"
+        self._docx(path, "picture-only-run")
+        doc, p = self._target(path, needle="Beta")
+        OfficeSyncService._set_paragraph_text(p, "Replacement text")
+        doc.save(str(path))
+
+        doc2 = Document(str(path))
+        target = next(p for p in doc2.paragraphs if "Replacement" in p.text)
+        assert target.text == "Replacement text"
+        drawing_runs = [r for r in target.runs if r._r.xpath(".//w:drawing")]
+        assert len(drawing_runs) == 1
+        refs = self._inline_refs(path)
+        assert refs["drawing"] is True and len(refs["embeds"]) == 1
+        assert f'Id="{refs["embeds"][0]}"' in refs["rels"]
+        assert refs["media"]
+
+    def test_drawing_only_paragraph_is_never_emptied(self, tmp_path):
+        from core.office_sync_service import OfficeSyncService
+
+        path = tmp_path / "drawing-only.docx"
+        self._docx(path, "drawing-only")
+        doc = Document(str(path))
+        p = next(p for p in doc.paragraphs if p._p.xpath(".//w:drawing"))
+        OfficeSyncService._set_paragraph_text(p, "")
+        doc.save(str(path))
+
+        doc2 = Document(str(path))
+        p2 = next(p for p in doc2.paragraphs if p._p.xpath(".//w:drawing"))
+        assert p2.text == ""
+        assert len(p2.runs) == 1  # no empty run appended on a blank line
+        refs = self._inline_refs(path)
+        assert refs["drawing"] is True and len(refs["embeds"]) == 1
+
+    def test_tabs_and_shared_run_content_roundtrip(self, tmp_path):
+        from core.office_sync_service import OfficeSyncService
+
+        path = tmp_path / "tabs.docx"
+        self._docx(path, "same-run")
+        doc, p = self._target(path)
+        OfficeSyncService._set_paragraph_text(p, "A\tB")
+        doc.save(str(path))
+
+        doc2, p2 = self._target(path, needle="A")
+        assert p2.text == "A\tB"
+        assert p2._p.xpath(".//w:tab")
+        assert p2._p.xpath(".//w:drawing")
+        assert self._inline_refs(path)["drawing"] is True
+
+    def test_truncation_blanks_text_but_keeps_inline_drawing(self, tmp_path):
+        from core.office_sync_service import OfficeSyncService
+
+        path = tmp_path / "truncate.docx"
+        self._docx(path, "picture-only-run")
+        # One output line only: paragraph 0 is replaced; paragraph 1 (with the
+        # picture-only run) gets empty text but must keep its drawing.
+        OfficeSyncService(MagicMock())._sync_docx_in_place(
+            str(path), "Only first line")
+        doc2 = Document(str(path))
+        assert doc2.paragraphs[0].text == "Only first line"
+        assert doc2.paragraphs[1].text == ""
+        assert doc2.paragraphs[1]._p.xpath(".//w:drawing")
+        refs = self._inline_refs(path)
+        assert refs["drawing"] is True and len(refs["embeds"]) == 1

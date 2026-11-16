@@ -538,5 +538,19 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_login_totp_replay_fence.py tests/test_covpush_w75_auth_endpoints.py tests/test_menubar_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run office canvas co-editing controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-docx-coediting/atom-docx-coediting.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-docx-coediting/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-docx-coediting/office",
+      "PYTHON_DOTENV_DISABLED": "1"
+    },
+    "run": "mkdir -p \"${{ runner.temp }}/atom-docx-coediting/data\" \"${{ runner.temp }}/atom-docx-coediting/office\"\npython -m pytest tests/test_office_canvas_coediting.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
