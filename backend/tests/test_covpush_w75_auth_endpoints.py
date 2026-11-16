@@ -153,8 +153,12 @@ class TestLogin:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = current_user
         client = make_app(db, None)
-        resp = client.post("/api/auth/login", json={
-            "username": "me@example.com", "password": "password1", "totp_code": "000000"})
+        with patch("core.auth_endpoints.verify_login_totp_verified", return_value={
+            "status": "refused", "error_code": "INVALID_2FA_CODE",
+            "http_status": 401, "error": "Invalid two-factor code",
+        }):
+            resp = client.post("/api/auth/login", json={
+                "username": "me@example.com", "password": "password1", "totp_code": "000000"})
         assert resp.status_code == 401
         assert "2FA" in resp.json()["detail"]
         _audit.assert_called_once()
@@ -167,9 +171,12 @@ class TestLogin:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = current_user
         client = make_app(db, None)
-        resp = client.post("/api/auth/login", json={
-            "username": "me@example.com", "password": "password1",
-            "totp_code": pyotp.TOTP(secret).now()})
+        with patch("core.auth_endpoints.verify_login_totp_verified", return_value={
+            "status": "verified", "data": None,
+        }):
+            resp = client.post("/api/auth/login", json={
+                "username": "me@example.com", "password": "password1",
+                "totp_code": pyotp.TOTP(secret).now()})
         assert resp.status_code == 200
         assert resp.json()["access_token"] == FAKE_TOKEN
 

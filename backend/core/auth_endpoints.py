@@ -19,6 +19,7 @@ from core.auth import (
     verify_password,
 )
 from core.config import get_config
+from core.auth_2fa_write_service import verify_login_totp_verified
 from core.database import get_db
 from core.personal_scope import PERSONAL_TENANT_ID
 from core.security.auth_rate_limit import (
@@ -180,7 +181,6 @@ async def login_for_access_token(
 ):
     import traceback
     from fastapi.responses import JSONResponse
-    import pyotp
     try:
         user = db.query(User).filter(User.email == login_data.username).first()
         if not user or not verify_password(login_data.password, user.hashed_password):
@@ -222,29 +222,42 @@ async def login_for_access_token(
                     }
                 )
             
-            # Verify TOTP code
+            # Verify TOTP through the durable shared replay fence. Only a
+            # "verified" result may authorize a session; refusal, conflict,
+            # unknown commit, or any other status fails closed.
             if not two_factor_secret:
                 raise HTTPException(status_code=400, detail="2FA is enabled but no secret is configured")
 
-            totp = pyotp.TOTP(two_factor_secret)
-            if not totp.verify(login_data.totp_code):
-                audit_service.log_event(
-                    db,
-                    event_type=AuditEventType.LOGIN.value,
-                    action="2fa_failed",
-                    description=f"Failed 2FA attempt for user: {user.email}",
-                    user_id=user.id,
-                    user_email=user.email,
-                    security_level=SecurityLevel.MEDIUM.value,
-                    threat_level=ThreatLevel.LOW.value,
-                    success=False,
-                    error_message="Invalid 2FA code",
-                    request=request
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid 2FA code"
-                )
+            factor = verify_login_totp_verified(
+                user=user, code=login_data.totp_code, db=db)
+            if factor.get("status") != "verified":
+                error_code = str(factor.get("error_code") or "")
+                detail = (
+                    "Invalid 2FA code" if error_code == "INVALID_2FA_CODE"
+                    else str(factor.get("error") or factor.get("message")
+                             or "2FA verification unavailable"))
+                try:
+                    audit_service.log_event(
+                        db,
+                        event_type=AuditEventType.LOGIN.value,
+                        action="2fa_failed",
+                        description=f"Failed 2FA attempt for user: {user.email}",
+                        user_id=user.id,
+                        user_email=user.email,
+                        security_level=SecurityLevel.MEDIUM.value,
+                        threat_level=ThreatLevel.LOW.value,
+                        success=False,
+                        error_message=detail,
+                        request=request,
+                    )
+                except Exception:
+                    pass
+                if factor.get("status") == "refused":
+                    raise HTTPException(
+                        status_code=int(factor.get("http_status") or 401),
+                        detail=detail,
+                    )
+                raise HTTPException(status_code=503, detail=detail)
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
