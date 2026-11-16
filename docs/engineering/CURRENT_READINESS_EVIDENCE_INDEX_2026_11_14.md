@@ -1,5 +1,9 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Candidate PostgreSQL fresh bootstrap:** [the bounded record](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) records 371 tables, seven intact revision IDs and 68 independent checks. Existing upgrades, async transport and whole-app PostgreSQL remain unverified.
+>
+> **Real 48-hour follow-through:** [the retained wait result](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) passed restart and authorized answer after 48.0203 hours at source `2f2b376a0`, with one verified effect and duplicate-answer controls. The model/principal were controlled; this does not regrade current-main or whole-goal readiness.
+>
 > **November 16 runtime follow-through:** [Sandbox lifecycle capacity](SANDBOX_LIFECYCLE_CAPACITY_2026_11_16.md) records process-wide capacity, teardown quarantine, 248 passing checks and a single real DEV-container smoke. It does not regrade whole-app readiness.
 >
 > **Latest merge cut:** main `c3eade3c1` through #959; see [current-user grounding context](#17-current-user-evidence-reaches-the-grounding-panel) and [the qualified final-answer follow-through](#18-completed-fleet-answer-and-explicit-verdict-follow-through). Historical scores remain unchanged.
