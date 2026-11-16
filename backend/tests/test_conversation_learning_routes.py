@@ -502,6 +502,211 @@ def test_route_candidate_review_confirm_promote(route_env):
     assert applied.json()["result"]["value"] == "15"
 
 
+def test_route_revise_is_revision_bound_and_clears_confirmation(route_env):
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "owner",
+            "expected_revision": 1,
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+
+    missing_revision = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={
+            "thread_id": "thread-1",
+            "proposed_lesson": "Use the corrected rates workbook.",
+        },
+    )
+    assert missing_revision.status_code == 422, missing_revision.text
+
+    revised = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={
+            "thread_id": "thread-1",
+            "expected_revision": 1,
+            "proposed_lesson": "Use the corrected rates workbook.",
+        },
+    )
+    assert revised.status_code == 200, revised.text
+    body = revised.json()
+    assert body["candidate"]["candidate_id"] == candidate_id
+    assert body["candidate"]["revision"] == 2
+    assert body["candidate"]["status"] == "review_ready"
+    assert body["candidate"]["confirmed_by"] is None
+    assert body["candidate"]["confirmed_revision"] is None
+    assert body["review"]["proposed_lesson"] == (
+        "Use the corrected rates workbook.")
+    # Unedited method and scope survive the correction byte-for-byte.
+    method = body["review"]["method_and_assumptions"]["method"]
+    assert method["operation"] == "multiply_sum"
+    assert [item["column"] for item in method["inputs"]] == ["Qty", "Price"]
+    assert method["rounding"] == {"places": 2, "stage": "final"}
+    assert body["review"]["where_it_applies"]["applies_to"] == ["pricing"]
+
+    stale = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={
+            "thread_id": "thread-1",
+            "expected_revision": 1,
+            "proposed_lesson": "Silent stale overwrite.",
+        },
+    )
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"] == "candidate_revision_changed"
+
+    current = route_env["client"].get(
+        f"/api/conversation-learning/candidates/{candidate_id}",
+        params={"thread_id": "thread-1"},
+    )
+    assert current.status_code == 200, current.text
+    assert current.json()["candidate"]["revision"] == 2
+    assert current.json()["review"]["proposed_lesson"] == (
+        "Use the corrected rates workbook.")
+
+    unconfirmed_promotion = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "owner",
+            "expected_revision": 2,
+            "expected_digest": body["review"]["digest"],
+        },
+    )
+    assert unconfirmed_promotion.status_code == 409, unconfirmed_promotion.text
+    assert "candidate_not_confirmed" in unconfirmed_promotion.json()["detail"]
+
+    reconfirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "owner",
+            "expected_revision": 2,
+        },
+    )
+    assert reconfirmed.status_code == 200, reconfirmed.text
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "owner",
+            "expected_revision": 2,
+            "expected_digest": reconfirmed.json()["review"]["digest"],
+        },
+    )
+    assert promoted.status_code == 200, promoted.text
+
+    from core.student_learning_service import get_agent_lessons
+
+    lessons = [entry.get("lesson") for entry in get_agent_lessons(
+        route_env["db"], "agent-1")]
+    assert "Use the corrected rates workbook." in lessons
+    assert "Use the confirmed rates workbook." not in lessons
+
+
+def test_route_correcting_promoted_lesson_retires_old_guidance(route_env):
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 1},
+    )
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 1,
+              "expected_digest": created["review"]["digest"]},
+    )
+    assert promoted.status_code == 200, promoted.text
+
+    from core.student_learning_service import get_agent_lessons
+
+    assert [entry.get("lesson") for entry in get_agent_lessons(
+        route_env["db"], "agent-1")] == ["Use the confirmed rates workbook."]
+
+    revised = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Use the corrected rates workbook."},
+    )
+    assert revised.status_code == 200, revised.text
+    assert revised.json()["candidate"]["status"] == "review_ready"
+    # The old lesson is no longer work-time usable while the correction is
+    # under review, and the same candidate remains the review handle.
+    assert get_agent_lessons(route_env["db"], "agent-1") == []
+
+    applied = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1",
+              "rows": [{"Qty": 2, "Price": "7.50"}]},
+    )
+    assert applied.status_code == 409, applied.text
+    assert applied.json()["detail"] == "candidate_review_ready_not_promoted"
+
+    reconfirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 2},
+    )
+    assert reconfirmed.status_code == 200, reconfirmed.text
+    repromoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 2,
+              "expected_digest": reconfirmed.json()["review"]["digest"]},
+    )
+    assert repromoted.status_code == 200, repromoted.text
+    assert [entry.get("lesson") for entry in get_agent_lessons(
+        route_env["db"], "agent-1")] == ["Use the corrected rates workbook."]
+
+
+def test_route_revise_denies_terminal_foreign_and_viewer(route_env):
+    rejected = _create_candidate(route_env, lesson="Rejected rates rule.")
+    rejected_id = rejected["candidate"]["candidate_id"]
+    response = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{rejected_id}/reject",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "reason": "not applicable"},
+    )
+    assert response.status_code == 200, response.text
+
+    terminal = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{rejected_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Revive the rejected rule."},
+    )
+    assert terminal.status_code == 409, terminal.text
+    assert terminal.json()["detail"] == "candidate_rejected"
+
+    foreign = _create_candidate(route_env, lesson="Scoped rates rule.")
+    foreign_id = foreign["candidate"]["candidate_id"]
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["empty_user"])
+    hidden = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{foreign_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Overwrite another workspace's lesson."},
+    )
+    assert hidden.status_code == 404, hidden.text
+
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["viewer"])
+    denied = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{foreign_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Viewer overwrite."},
+    )
+    assert denied.status_code == 403, denied.text
+
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["user"])
+
+
 def test_route_rejects_unreviewed_candidate(route_env):
     created = _create_candidate(route_env, lesson="Use the unreviewed rule.")
     candidate_id = created["candidate"]["candidate_id"]

@@ -1664,9 +1664,25 @@ def revise_candidate(
     format_spec: Optional[Dict[str, Any]] = None,
     conditions: Optional[Dict[str, Any]] = None,
     decision_options: Optional[Sequence[str]] = None,
+    expected_revision: Optional[int] = None,
     changed_by: str = "",
 ) -> LearningCandidate:
-    """Change candidate content; any prior approval is no longer valid."""
+    """Change candidate content; any prior approval is no longer valid.
+
+    A correction keeps the candidate identity, source and every field that
+    was not passed, so it cannot silently fork a second proposal. Rejected
+    and invalidated candidates are terminal: their evidence must produce a
+    fresh proposal instead of resurrecting the old one. Revising an already
+    promoted candidate retires the promoted lesson through the existing
+    revalidation channel before the new revision becomes reviewable.
+    """
+    if candidate.status in ("rejected", "invalidated"):
+        raise ValueError(f"candidate_{candidate.status}")
+    if expected_revision is not None and int(expected_revision) != int(
+            candidate.revision):
+        raise ValueError("candidate_revision_changed")
+    if candidate.status == "promoted" and candidate.promoted_entry_id:
+        _mark_promoted_lesson_stale(db, candidate, "candidate_revised")
     if proposed_lesson is not None:
         candidate.proposed_lesson = _bounded(proposed_lesson, 2000)
     if method is not None:

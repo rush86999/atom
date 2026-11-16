@@ -71,6 +71,11 @@ class CandidateCreate(BaseModel):
 class CandidateRevise(BaseModel):
     thread_id: str
     source_kind: str = SOURCE_KIND_EMAIL
+    # A correction must name the revision the reviewer actually saw. Without
+    # this compare-and-swap a stale tab silently overwrites a newer revision.
+    # Optional at parse time so a foreign/private candidate still fails closed
+    # with 404 before an authorized caller receives 422 for the missing guard.
+    expected_revision: Optional[int] = None
     proposed_lesson: Optional[str] = None
     method: Optional[Dict[str, Any]] = None
     method_status: Optional[str] = None
@@ -349,6 +354,14 @@ def revise(candidate_id: str, request: CandidateRevise,
            current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
     candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
+    candidate = _revalidate_source(db, user, candidate)
+    candidate = revalidate_candidate(db, candidate, evidence.resources)
+    if candidate.status == "invalidated":
+        raise HTTPException(status_code=409, detail="candidate_invalidated")
+    if request.expected_revision is None:
+        raise HTTPException(
+            status_code=422, detail="expected_revision_required")
     try:
         revised = revise_candidate(
             db, candidate, proposed_lesson=request.proposed_lesson,
@@ -357,9 +370,16 @@ def revise(candidate_id: str, request: CandidateRevise,
             format_spec=request.format_spec,
             conditions=request.conditions,
             decision_options=request.decision_options,
+            expected_revision=request.expected_revision,
             changed_by=_reviewer(user))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status_code = 409 if detail in {
+            "candidate_revision_changed",
+            "candidate_rejected",
+            "candidate_invalidated",
+        } else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     return _payload(revised)
 
 

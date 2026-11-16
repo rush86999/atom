@@ -17,6 +17,7 @@ import {
   promoteLearningCandidate,
   rejectLearningCandidate,
   resolveLearningDependency,
+  reviseLearningCandidate,
 } from "@/lib/conversation-learning-api";
 
 function errorText(err: any, fallback: string): string {
@@ -86,6 +87,193 @@ function dependencyAnswer(
   return { value: draft };
 }
 
+function parseObjectInput(raw: string, label: string): Record<string, unknown> {
+  if (!raw.trim()) return {};
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${label} must be a JSON object`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
+type LearningEditDraft = {
+  lesson: string;
+  appliesTo: string;
+  guidanceOnly: boolean;
+  operation: string;
+  concept1: string;
+  column1: string;
+  unit1: string;
+  concept2: string;
+  column2: string;
+  unit2: string;
+  formatSpec: string;
+  conditions: string;
+  decisionOptions: string;
+  customer: string;
+  qualification: string;
+};
+
+function editDraftFromReview(review: LearningReview): LearningEditDraft {
+  const method = review.method_and_assumptions.method || {};
+  const inputs = Array.isArray(method.inputs) ? method.inputs : [];
+  const formatSpec = review.artifact_and_protocol?.format_spec || {};
+  const conditions = review.artifact_and_protocol?.conditions || {};
+  const decisionOptions = review.artifact_and_protocol?.decision_options || [];
+  const context = review.where_it_applies.context || {};
+  const second = inputs[1] || {};
+  const first = inputs[0] || {};
+  return {
+    lesson: review.proposed_lesson,
+    appliesTo: (review.where_it_applies.applies_to || []).join(", "),
+    guidanceOnly: !String(method.operation || "") && !inputs.length,
+    operation: String(method.operation || "sum"),
+    concept1: String(first.concept || ""),
+    column1: String(first.column || ""),
+    unit1: String(first.unit || ""),
+    concept2: String(second.concept || ""),
+    column2: String(second.column || ""),
+    unit2: String(second.unit || ""),
+    formatSpec: Object.keys(formatSpec).length
+      ? JSON.stringify(formatSpec, null, 2) : "",
+    conditions: Object.keys(conditions).length
+      ? JSON.stringify(conditions, null, 2) : "",
+    decisionOptions: decisionOptions.join(", "),
+    customer: typeof context.customer === "string" ? context.customer : "",
+    qualification:
+      typeof context.qualification === "string" ? context.qualification : "",
+  };
+}
+
+function contextWithDraft(
+  context: Record<string, unknown>,
+  draft: LearningEditDraft,
+): Record<string, unknown> {
+  const next = { ...(context || {}) };
+  const customer = draft.customer.trim();
+  const qualification = draft.qualification.trim();
+  if (customer) next.customer = customer;
+  else if (typeof next.customer === "string") delete next.customer;
+  if (qualification) next.qualification = qualification;
+  else if (typeof next.qualification === "string") {
+    delete next.qualification;
+  }
+  return next;
+}
+
+function commaList(raw: string): string[] {
+  return raw.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+/**
+ * Build the correction request from the visible edit form.
+ *
+ * Only fields the reviewer actually changed are sent. Everything else is
+ * omitted so the server keeps the candidate's existing method assumptions,
+ * references, dependencies, formatting and context byte-for-byte.
+ */
+function revisionPayload(
+  review: LearningReview,
+  initial: LearningEditDraft,
+  current: LearningEditDraft,
+): Record<string, unknown> | null {
+  const payload: Record<string, unknown> = {};
+  if (current.lesson !== initial.lesson) {
+    payload.proposed_lesson = current.lesson;
+  }
+  if (commaList(current.appliesTo).join("|")
+      !== commaList(initial.appliesTo).join("|")) {
+    payload.applies_to = commaList(current.appliesTo);
+  }
+
+  const baseContext = review.where_it_applies.context || {};
+  const initialContext = contextWithDraft(baseContext, initial);
+  const currentContext = contextWithDraft(baseContext, current);
+  if (JSON.stringify(currentContext) !== JSON.stringify(initialContext)) {
+    payload.context = currentContext;
+  }
+
+  const initialFormat = parseObjectInput(initial.formatSpec, "Format spec");
+  const currentFormat = parseObjectInput(current.formatSpec, "Format spec");
+  if (JSON.stringify(currentFormat) !== JSON.stringify(initialFormat)) {
+    payload.format_spec = currentFormat;
+  }
+
+  const initialConditions = parseObjectInput(initial.conditions, "Conditions");
+  const currentConditions = parseObjectInput(current.conditions, "Conditions");
+  if (JSON.stringify(currentConditions) !== JSON.stringify(initialConditions)) {
+    payload.conditions = currentConditions;
+  }
+
+  const initialDecisions = commaList(initial.decisionOptions);
+  const currentDecisions = commaList(current.decisionOptions);
+  if (JSON.stringify(currentDecisions) !== JSON.stringify(initialDecisions)) {
+    payload.decision_options = currentDecisions;
+  }
+
+  const methodChanged = (
+    current.guidanceOnly !== initial.guidanceOnly
+    || current.operation !== initial.operation
+    || current.concept1 !== initial.concept1
+    || current.column1 !== initial.column1
+    || current.unit1 !== initial.unit1
+    || current.concept2 !== initial.concept2
+    || current.column2 !== initial.column2
+    || current.unit2 !== initial.unit2
+  );
+  if (methodChanged) {
+    if (current.guidanceOnly) {
+      payload.method = {};
+      payload.method_status = "not_applicable";
+    } else {
+      if (!current.concept1.trim()) {
+        throw new Error(
+          "A calculation method needs at least one input concept, or tick "
+          + "Guidance only.",
+        );
+      }
+      const inputs: Array<Record<string, unknown>> = [];
+      if (current.concept1) {
+        inputs.push({
+          concept: current.concept1,
+          column: current.column1,
+          unit: current.unit1,
+          unit_required: true,
+        });
+      }
+      if (current.concept2) {
+        inputs.push({
+          concept: current.concept2,
+          column: current.column2,
+          unit: current.unit2,
+          unit_required: true,
+        });
+      }
+      const baseMethod = review.method_and_assumptions.method || {};
+      const operation = current.operation || "sum";
+      payload.method = {
+        ...baseMethod,
+        intended_outcome: String(baseMethod.intended_outcome || current.lesson),
+        operation,
+        inputs,
+        output_unit: String(
+          baseMethod.output_unit || current.unit2 || current.unit1),
+        transformation: String(
+          baseMethod.transformation
+          || (operation === "sum"
+            ? "sum of the declared input"
+            : "declared by the reviewer")),
+      };
+      payload.method_status =
+        review.method_and_assumptions.method_status === "not_applicable"
+          ? "explicit"
+          : review.method_and_assumptions.method_status;
+    }
+  }
+
+  return Object.keys(payload).length ? payload : null;
+}
+
 export function ConversationLearningReview({
   threadId,
   sourceKind = "email",
@@ -112,6 +300,9 @@ export function ConversationLearningReview({
     qualification: "",
   });
   const [applyResult, setApplyResult] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editInitial, setEditInitial] = useState<LearningEditDraft | null>(null);
+  const [editDraft, setEditDraft] = useState<LearningEditDraft | null>(null);
   const [draft, setDraft] = useState({
     agentId: "",
     lesson: "",
@@ -372,6 +563,66 @@ export function ConversationLearningReview({
     }
   };
 
+  const beginEdit = () => {
+    if (!review) return;
+    const initial = editDraftFromReview(review);
+    setEditInitial(initial);
+    setEditDraft({ ...initial });
+    setEditing(true);
+    setError(null);
+    setNotice(null);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditInitial(null);
+    setEditDraft(null);
+    setError(null);
+    setNotice("Edit cancelled. Nothing was saved.");
+  };
+
+  const saveRevision = async () => {
+    if (!review || !editInitial || !editDraft) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const body = revisionPayload(review, editInitial, editDraft);
+      if (!body) {
+        setNotice("No changes to save.");
+        return;
+      }
+      const wasApproved = review.status === "confirmed"
+        || review.status === "promoted";
+      const revised = await reviseLearningCandidate(
+        threadId,
+        review.candidate_id,
+        { ...body, expected_revision: review.revision },
+        sourceKind,
+      );
+      setPayload(revised);
+      setEditing(false);
+      setEditInitial(null);
+      setEditDraft(null);
+      setNotice(
+        `Revision ${revised.review.revision} saved (${revised.review.status.replace(/_/g, " ")}).`
+        + (wasApproved
+          ? " The previous confirmation was cleared; confirm this revision again before promotion."
+          : ""),
+      );
+    } catch (err: any) {
+      setError(errorText(err, "Could not save the revision"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    setEditing(false);
+    setEditInitial(null);
+    setEditDraft(null);
+  }, [threadId, sourceKind, candidateId]);
+
   return (
     <section className={`space-y-3 text-xs ${className}`} data-testid="conversation-learning-review">
       {error ? (
@@ -494,6 +745,141 @@ export function ConversationLearningReview({
             <span className="text-slate-500">revision {review.revision}</span>
           </div>
 
+          {editing && editDraft && editInitial ? (
+            <div
+              className="space-y-2 rounded border border-sky-200 bg-sky-50 p-3"
+              data-testid="learning-edit-form"
+            >
+              <p className="font-semibold">Correct this lesson</p>
+              <p className="text-slate-600">
+                Saving keeps this candidate and its source, writes a new
+                revision, and clears any earlier confirmation. References,
+                dependencies and fields you do not change stay as they are.
+              </p>
+              <label className="block">
+                Proposed lesson
+                <textarea
+                  className="mt-1 w-full rounded border p-1"
+                  data-testid="learning-edit-lesson"
+                  value={editDraft.lesson}
+                  onChange={(event) => setEditDraft({
+                    ...editDraft, lesson: event.target.value,
+                  })}
+                  rows={2}
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  data-testid="learning-edit-guidance-only"
+                  checked={editDraft.guidanceOnly}
+                  onChange={(event) => setEditDraft({
+                    ...editDraft, guidanceOnly: event.target.checked,
+                  })}
+                />
+                Guidance only (style, protocol, preference or approach — no
+                calculation method)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label>
+                  Applies to
+                  <input
+                    className="mt-1 w-full rounded border p-1"
+                    data-testid="learning-edit-applies-input"
+                    value={editDraft.appliesTo}
+                    onChange={(event) => setEditDraft({
+                      ...editDraft, appliesTo: event.target.value,
+                    })}
+                  />
+                </label>
+                <label>
+                  Operation
+                  <select
+                    className="mt-1 w-full rounded border p-1"
+                    data-testid="learning-edit-operation-select"
+                    value={editDraft.operation}
+                    disabled={editDraft.guidanceOnly}
+                    onChange={(event) => setEditDraft({
+                      ...editDraft, operation: event.target.value,
+                    })}
+                  >
+                    <option value="sum">sum</option>
+                    <option value="count">count</option>
+                    <option value="multiply_sum">multiply_sum</option>
+                    <option value="percentage">percentage</option>
+                    <option value="ratio">ratio</option>
+                  </select>
+                </label>
+              </div>
+              {!editDraft.guidanceOnly ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input className="rounded border p-1" data-testid="learning-edit-concept-1" value={editDraft.concept1} onChange={(e) => setEditDraft({ ...editDraft, concept1: e.target.value })} placeholder="input concept" />
+                    <input className="rounded border p-1" data-testid="learning-edit-column-1" value={editDraft.column1} onChange={(e) => setEditDraft({ ...editDraft, column1: e.target.value })} placeholder="column" />
+                    <input className="rounded border p-1" data-testid="learning-edit-unit-1" value={editDraft.unit1} onChange={(e) => setEditDraft({ ...editDraft, unit1: e.target.value })} placeholder="unit" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input className="rounded border p-1" data-testid="learning-edit-concept-2" value={editDraft.concept2} onChange={(e) => setEditDraft({ ...editDraft, concept2: e.target.value })} placeholder="second input concept (optional)" />
+                    <input className="rounded border p-1" data-testid="learning-edit-column-2" value={editDraft.column2} onChange={(e) => setEditDraft({ ...editDraft, column2: e.target.value })} placeholder="second column" />
+                    <input className="rounded border p-1" data-testid="learning-edit-unit-2" value={editDraft.unit2} onChange={(e) => setEditDraft({ ...editDraft, unit2: e.target.value })} placeholder="second unit" />
+                  </div>
+                </>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                <textarea
+                  className="rounded border p-1"
+                  data-testid="learning-edit-format-input"
+                  value={editDraft.formatSpec}
+                  onChange={(event) => setEditDraft({
+                    ...editDraft, formatSpec: event.target.value,
+                  })}
+                  rows={2}
+                  placeholder='format spec JSON, e.g. {"greeting":"Dear colleague,"}'
+                />
+                <textarea
+                  className="rounded border p-1"
+                  data-testid="learning-edit-conditions-input"
+                  value={editDraft.conditions}
+                  onChange={(event) => setEditDraft({
+                    ...editDraft, conditions: event.target.value,
+                  })}
+                  rows={2}
+                  placeholder='conditions JSON, e.g. {"recipient":"@example.com"}'
+                />
+              </div>
+              <input
+                className="w-full rounded border p-1"
+                data-testid="learning-edit-decisions-input"
+                value={editDraft.decisionOptions}
+                onChange={(event) => setEditDraft({
+                  ...editDraft, decisionOptions: event.target.value,
+                })}
+                placeholder="review decision labels, comma separated (optional)"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input className="rounded border p-1" data-testid="learning-edit-customer-input" value={editDraft.customer} onChange={(event) => setEditDraft({ ...editDraft, customer: event.target.value })} placeholder="customer (optional)" />
+                <input className="rounded border p-1" data-testid="learning-edit-qualification-input" value={editDraft.qualification} onChange={(event) => setEditDraft({ ...editDraft, qualification: event.target.value })} placeholder="qualification (optional)" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  data-testid="learning-revise-save"
+                  disabled={busy || !editDraft.lesson.trim()}
+                  onClick={saveRevision}
+                >
+                  Save revision
+                </Button>
+                <Button
+                  data-testid="learning-revise-cancel"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={cancelEdit}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
           <div className="grid gap-2 md:grid-cols-2">
             <div className="rounded border p-2" data-testid="learning-applies-to">
               <p className="font-semibold">Where it applies</p>
@@ -663,6 +1049,15 @@ export function ConversationLearningReview({
               <XCircle className="mr-1 h-3 w-3" /> Reject
             </Button>
             <Button
+              data-testid="learning-revise"
+              variant="outline"
+              disabled={busy || review.status === "rejected"
+                || review.status === "invalidated"}
+              onClick={beginEdit}
+            >
+              Edit lesson
+            </Button>
+            <Button
               data-testid="learning-new-draft"
               variant="outline"
               disabled={busy}
@@ -734,6 +1129,8 @@ export function ConversationLearningReview({
               <AlertTriangle className="h-3 w-3" /> Resolve the required questions before promotion.
             </p>
           ) : null}
+            </>
+          )}
         </>
       )}
     </section>

@@ -1819,6 +1819,85 @@ def test_changed_candidate_content_invalidates_old_approval(db):
             db, revised, reviewer="owner", expected_revision=1)
 
 
+def test_revising_a_promoted_candidate_retires_old_lesson(db):
+    """Correction keeps identity and untouched fields, retires old guidance.
+
+    The review handle must not fork into a second candidate, and work-time
+    retrieval must not keep applying a lesson whose content is under
+    correction. The journal keeps the old entry with explicit provenance.
+    """
+    from core.student_learning_service import get_agent_lessons
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the original pricing method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+        applies_to=["pricing", "quotes"],
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    old_entry_id = promoted["lesson_id"]
+    assert [entry["lesson"] for entry in get_agent_lessons(
+        db, "agent-1", include_context_bound=True)] == [
+            "Use the original pricing method."]
+
+    revised = revise_candidate(
+        db, candidate, proposed_lesson="Use the corrected pricing method.",
+        expected_revision=1, changed_by="owner")
+
+    assert revised.candidate_id == candidate.candidate_id
+    assert revised.thread_id == "thread-1"
+    assert revised.source_kind == "email"
+    assert revised.revision == 2
+    assert revised.confirmed_by is None
+    assert revised.confirmed_revision is None
+    assert revised.method.operation == "multiply_sum"
+    assert revised.method.rounding == {"places": 2, "stage": "final"}
+    assert revised.context == {
+        "customer": "Customer-A", "qualification": "licensed"}
+    assert revised.applies_to == ["pricing", "quotes"]
+
+    # Work-time retrieval stops using the old wording immediately, while the
+    # append-only journal retains the entry with revalidation provenance.
+    assert get_agent_lessons(
+        db, "agent-1", include_context_bound=True) == []
+    agent = db.query(AgentRegistry).filter(
+        AgentRegistry.id == "agent-1").first()
+    journal = agent.configuration["learning"]["log"]
+    retired = [entry for entry in journal
+               if str(entry.get("id") or "") == str(old_entry_id)]
+    assert retired
+    assert retired[0]["stale"] is True
+    assert retired[0]["details"]["conversation_learning"][
+        "revalidation_required"] is True
+
+    with pytest.raises(ValueError, match="candidate_revision_changed"):
+        revise_candidate(
+            db, revised, proposed_lesson="Silent stale overwrite.",
+            expected_revision=1)
+    assert revised.proposed_lesson == "Use the corrected pricing method."
+
+    confirm_candidate(db, revised, reviewer="owner", expected_revision=2)
+    promote_candidate(db, revised, reviewer="owner", expected_revision=2)
+    assert [entry["lesson"] for entry in get_agent_lessons(
+        db, "agent-1", include_context_bound=True)] == [
+            "Use the corrected pricing method."]
+
+
+def test_terminal_candidates_cannot_be_revised(db):
+    _agent(db)
+    rejected = _candidate(lesson="Rejected guidance.")
+    save_candidate(db, rejected)
+    reject_candidate(db, rejected, reviewer="owner", reason="not applicable")
+    with pytest.raises(ValueError, match="candidate_rejected"):
+        revise_candidate(
+            db, rejected, proposed_lesson="Revive the rejected rule.",
+            expected_revision=1)
+    assert rejected.proposed_lesson == "Rejected guidance."
+
+
 def test_rejecting_a_proposal_has_no_governing_effect(db):
     from core.student_learning_service import get_agent_lessons
 

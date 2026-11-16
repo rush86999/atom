@@ -156,6 +156,29 @@ export async function createLearningCandidate(payload: {
   return data;
 }
 
+export async function reviseLearningCandidate(
+  threadId: string,
+  candidateId: string,
+  payload: Record<string, unknown> & {
+    expected_revision: number;
+    proposed_lesson?: string;
+    method?: Record<string, any>;
+    method_status?: string;
+    applies_to?: string[];
+    context?: Record<string, unknown>;
+    format_spec?: Record<string, unknown>;
+    conditions?: Record<string, unknown>;
+    decision_options?: string[];
+  },
+  sourceKind = "email"
+): Promise<LearningCandidatePayload> {
+  const { data } = await apiClient.post(
+    `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/revise`,
+    { thread_id: threadId, source_kind: sourceKind, ...payload }
+  );
+  return data;
+}
+
 export async function resolveLearningDependency(
   threadId: string,
   candidateId: string,
