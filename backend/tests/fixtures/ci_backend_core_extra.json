@@ -35,6 +35,7 @@
     "Run sandbox runtime lifecycle capacity controls",
     "Run mini-app instance authority and privacy controls",
     "Run goal-run wait specification controls",
-    "Run PostgreSQL driver and fresh-version controls"
+    "Run PostgreSQL driver and fresh-version controls",
+    "Run SMTP certificate validation controls"
   ]
 }
