@@ -1011,6 +1011,55 @@ async def decide_hitl_action(
     if current_user.tenant_id:
         action_query = action_query.filter(
             HITLAction.tenant_id == current_user.tenant_id)
+
+    # A human checkpoint is a decision AND a wake over the run's exact
+    # current wait. Probe its type BEFORE taking the FOR UPDATE lock or
+    # writing the row: the shared claim is itself the atomic guard and must
+    # not be preceded by this surface's status write (a cancelled/stale
+    # request would otherwise leave an approved row with no resume).
+    checkpoint_type = action_query.with_entities(
+        HITLAction.action_type).limit(1).scalar()
+    if checkpoint_type == "goal_run_checkpoint":
+        if req.modified_params:
+            raise router.error_response(
+                "CHECKPOINT_REVIEW_IMMUTABLE",
+                "A checkpoint's reviewed scope cannot be rewritten during "
+                "approval; refresh the run and decide the current checkpoint.",
+                status_code=409,
+            )
+        from core.hitl_resume import resolve_goal_run_checkpoint
+
+        approved = req.decision.strip().lower() == "approved"
+        outcome = await resolve_goal_run_checkpoint(
+            action_id,
+            approved=approved,
+            reviewer_id=str(user.id),
+            guidance=req.feedback,
+            db=db,
+        )
+        if not outcome.get("resumed"):
+            raise router.error_response(
+                str(outcome.get("error_code") or "CHECKPOINT_STALE"),
+                outcome.get("message") or (
+                    "This checkpoint is no longer current; refresh the run."),
+                status_code=int(outcome.get("http_status") or 409),
+            )
+        decision_status = str(
+            (outcome.get("checkpoint") or {}).get("status")
+            or (HITLActionStatus.APPROVED.value if approved
+                else HITLActionStatus.REJECTED.value))
+        await ws_manager.broadcast("workspace:default", {
+            "type": "hitl_decision",
+            "action_id": action_id,
+            "decision": decision_status,
+            "resume": outcome,
+        })
+        return router.success_response(
+            data={"decision": decision_status, "action_id": action_id,
+                  "resume": outcome},
+            message=f"Checkpoint {decision_status} successfully",
+        )
+
     action = action_query.with_for_update().first()
     if not action:
         raise router.not_found_error("HITLAction", action_id)

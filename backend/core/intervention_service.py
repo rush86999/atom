@@ -158,6 +158,52 @@ class InterventionService:
             if denial:
                 return {"success": False, "message": denial}
 
+            # A goal-run checkpoint is not a status-only intervention: its
+            # decision and the run wake are one atomic claim, bound to the
+            # run's exact current wait. Governance/messaging callers reach
+            # this service with arbitrary HITL ids, so this is the shared
+            # guard that keeps them from committing an approved checkpoint
+            # row without resuming (the original defect). Every other
+            # action_type keeps the historical status-write path below.
+            if str(action.action_type or "") == "goal_run_checkpoint":
+                if modified_params is not None:
+                    return {
+                        "success": False,
+                        "message": (
+                            "A checkpoint's reviewed scope cannot be "
+                            "rewritten during approval; refresh the run and "
+                            "decide the current checkpoint."),
+                        "action_id": action.id,
+                        "error_code": "CHECKPOINT_REVIEW_IMMUTABLE",
+                        "http_status": 409,
+                    }
+                from core.hitl_resume import resolve_goal_run_checkpoint
+
+                outcome = await resolve_goal_run_checkpoint(
+                    action_id,
+                    approved=True,
+                    reviewer_id=approver_id,
+                    db=db,
+                )
+                if not outcome.get("resumed"):
+                    return {
+                        "success": False,
+                        "message": outcome.get("message") or (
+                            "This checkpoint is no longer current; refresh "
+                            "the run."),
+                        "action_id": action.id,
+                        "error_code": outcome.get("error_code")
+                        or "CHECKPOINT_STALE",
+                        "http_status": outcome.get("http_status") or 409,
+                    }
+                return {
+                    "success": True,
+                    "message": "Checkpoint approved",
+                    "action_id": action.id,
+                    "resumed": True,
+                    "resume": outcome,
+                }
+
             if modified_params is not None:
                 action.params = modified_params
 
@@ -195,6 +241,35 @@ class InterventionService:
             denial = self._required_role_denial(db, action, approver_id)
             if denial:
                 return {"success": False, "message": denial}
+
+            if str(action.action_type or "") == "goal_run_checkpoint":
+                from core.hitl_resume import resolve_goal_run_checkpoint
+
+                outcome = await resolve_goal_run_checkpoint(
+                    action_id,
+                    approved=False,
+                    reviewer_id=approver_id,
+                    guidance=reason,
+                    db=db,
+                )
+                if not outcome.get("resumed"):
+                    return {
+                        "success": False,
+                        "message": outcome.get("message") or (
+                            "This checkpoint is no longer current; refresh "
+                            "the run."),
+                        "action_id": action.id,
+                        "error_code": outcome.get("error_code")
+                        or "CHECKPOINT_STALE",
+                        "http_status": outcome.get("http_status") or 409,
+                    }
+                return {
+                    "success": True,
+                    "message": "Checkpoint rejected",
+                    "action_id": action.id,
+                    "resumed": True,
+                    "resume": outcome,
+                }
 
             action.status = HITLActionStatus.REJECTED.value
             action.reviewed_by = approver_id

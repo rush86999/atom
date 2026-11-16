@@ -66,26 +66,36 @@ def test_goal_run_decision_approval_resumes(monkeypatch):
     }
 
 
-def test_goal_run_checkpoint_rejection_rewinds(monkeypatch):
+def test_goal_run_checkpoint_claims_before_advancing(monkeypatch):
+    """The bridge must use the same atomic claim as the route, not
+    consume-wake-after-a-status-write: the HITL row and the run wake are one
+    decision, and a valid rejection still rewinds (inside the claim)."""
     calls = {}
 
     class FakeService:
-        def __init__(self, workspace_id, tenant_id):
-            pass
+        def __init__(self, workspace_id, tenant_id, session_factory=None):
+            calls["bound"] = (workspace_id, tenant_id)
 
-        def consume_wake(self, run_id, event):
-            calls["wake"] = (run_id, event)
-            return {"consumed": True}
+        def claim_checkpoint_resolution(self, *, run_id, hitl_id, approved,
+                                        reviewer, guidance):
+            calls["claim"] = dict(
+                run_id=run_id, hitl_id=hitl_id, approved=approved,
+                reviewer=reviewer, guidance=guidance)
+            return {"status": "verified", "resumed": True,
+                    "checkpoint": {"id": hitl_id, "status": "rejected"}}
 
-        def rewind_to_work_before(self, run_id, step_id):
-            calls["rewind"] = (run_id, step_id)
+        def consume_wake(self, *args, **kwargs):  # pragma: no cover
+            calls["wake"] = (args, kwargs)
 
-        def complete_checkpoint(self, run_id, step_id):
-            calls["complete"] = (run_id, step_id)
+        def complete_checkpoint(self, *args, **kwargs):  # pragma: no cover
+            calls["complete"] = (args, kwargs)
+
+        def rewind_to_work_before(self, *args, **kwargs):  # pragma: no cover
+            calls["rewind"] = (args, kwargs)
 
         async def advance(self, run_id, event):
             calls["advance"] = (run_id, event)
-            return {"advanced": True}
+            return {"advanced": True, "run": {"id": run_id, "status": "active"}}
 
     monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="goal_run_checkpoint",
@@ -99,10 +109,54 @@ def test_goal_run_checkpoint_rejection_rewinds(monkeypatch):
         guidance="price is wrong"))
 
     assert result["handled"] is True and result["resumed"] is True
-    assert calls["wake"][1]["approved"] is False
-    assert calls["rewind"] == ("run-1", "cp1")
-    assert "complete" not in calls
+    assert result["kind"] == "checkpoint"
+    assert calls["claim"] == {
+        "run_id": "run-1", "hitl_id": "hitl-1", "approved": False,
+        "reviewer": "lead-1", "guidance": "price is wrong",
+    }
+    assert calls["bound"] == ("default", "default")
     assert calls["advance"][1]["approved"] is False
+    # The claim owns the row + wake; the bridge must not write/move twice.
+    assert "wake" not in calls
+    assert "complete" not in calls
+    assert "rewind" not in calls
+
+
+def test_goal_run_checkpoint_refusal_does_not_advance(monkeypatch):
+    """A cancelled/stale/replayed checkpoint is refused before any write and
+    the bridge must not run the loop."""
+    calls = {}
+
+    class FakeService:
+        def __init__(self, workspace_id, tenant_id, session_factory=None):
+            pass
+
+        def claim_checkpoint_resolution(self, **kwargs):
+            calls["claim"] = kwargs
+            return {"status": "refused", "resumed": False,
+                    "http_status": 409, "error_code": "CHECKPOINT_STALE",
+                    "message": "This checkpoint is no longer current."}
+
+        async def advance(self, *args, **kwargs):  # pragma: no cover
+            calls["advance"] = True
+            return {"advanced": True}
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
+        action_type="goal_run_checkpoint",
+        params={"run_id": "run-1", "step_id": "cp1"},
+    ))
+    monkeypatch.setattr(
+        "core.goals.goal_run_service.GoalRunService", FakeService)
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=True, reviewer_id="lead-1"))
+
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["refused"] is True
+    assert result["http_status"] == 409
+    assert result["error_code"] == "CHECKPOINT_STALE"
+    assert "advance" not in calls
 
 
 def test_workflow_approval_resumes_execution(monkeypatch):
