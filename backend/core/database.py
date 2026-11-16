@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from core.local_paths import (
     normalize_postgres_driver,
     postgres_asyncpg_url,
+    postgres_native_asyncpg_dsn,
 )
 
 load_dotenv()
