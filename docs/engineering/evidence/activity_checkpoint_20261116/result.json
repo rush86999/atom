@@ -1,0 +1,69 @@
+{
+  "status": "root_verified_checkpoint_atomicity_authority_policy_and_restart",
+  "final_product_source": "1f70c17080084d0e25ed917a43f94d11fea2b14d",
+  "root_affected_backend_tests": {
+    "checkpoint": 118,
+    "active_intervention": 27,
+    "two_factor_writes": 18,
+    "authority_neighbors": 71,
+    "total": 234
+  },
+  "frontend": {
+    "tests": 68,
+    "source": "c8dd2d38163f3b00fe4d70bf32cc0a2572cea80c",
+    "whole_tracked_frontend_identical_at_final": true,
+    "production_build_reused_with_same_API_origin": true
+  },
+  "workflow_wire_contracts": {
+    "passed": 644,
+    "source": "c8dd2d38163f3b00fe4d70bf32cc0a2572cea80c",
+    "workflow_inventory_unchanged_through_final": true
+  },
+  "independent_counters": {
+    "foreign_workspace_governance": {
+      "http": 404,
+      "HITL": "pending",
+      "reviewed_by": null,
+      "run": "waiting"
+    },
+    "noncheckpoint_column_member_snapshot_admin": "team_lead denied; both persisted policies enforced"
+  },
+  "final_browser": {
+    "source": "1f70c17080084d0e25ed917a43f94d11fea2b14d",
+    "normal_form_login_exact_web_session": true,
+    "new_synthetic_owner_approve_and_reject_each_once": true,
+    "actual_goal_evaluator_already_achieved_fastpath": true,
+    "no_provider_or_model_quality_claim": true,
+    "full_stack_restart_fresh_login_read_only": true,
+    "post_restart_goal_mutations": 0,
+    "durable_HITL_and_run_SQL_verified": true,
+    "unsigned_API": 401,
+    "unsigned_page_exact_callback": true,
+    "owned_apps_stopped": true
+  },
+  "historical_browser": {
+    "decision_cancel_stale_restart_source": "2df00347f5a1a4b8cc0e2fd8aa3e59f25152932e",
+    "production_stale_message_source": "c8dd2d38163f3b00fe4d70bf32cc0a2572cea80c",
+    "scope": "source-bound prior worlds; not rerun or relabeled final-source evidence"
+  },
+  "retained_failures": [
+    "C8 foreign-governance accepted before authority fix",
+    "d5e noncheckpoint stricter snapshot bypass before shared role fix",
+    "historical fixture/welcome/error-envelope diagnostics retained; no completed action replay"
+  ],
+  "legacy_comparison": {
+    "source": "C8 vs matched main-equivalent",
+    "result": "same 19 failures and 245 passes; never claimed green",
+    "scope": "historical comparison does not qualify final authority changes"
+  },
+  "scope": {
+    "claims": 143,
+    "goals": 18,
+    "app_complete": false
+  },
+  "limitations": [
+    "synthetic goal states; dispatch/persistence is qualified, model work completion is not",
+    "no live PostgreSQL concurrency or every integration approval acceptance",
+    "historical browser episodes retain exact original source"
+  ]
+}
