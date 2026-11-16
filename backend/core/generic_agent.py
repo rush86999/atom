@@ -437,6 +437,14 @@ class GenericAgent:
         context.setdefault("execution_id", _run_uuid)
         context.setdefault("agent_id", self.id)
 
+        # TASK-LEVEL never-autonomous admission: before memory recall, model
+        # calls, tool dispatch or any final output. A matching basket is
+        # reviewed even when the task only reads/analyses and calls no tools.
+        _never_admission = await self._admit_never_autonomous_task(
+            task_input, context, step_callback)
+        if _never_admission is not None:
+            return _never_admission
+
         # Per-run uncertainty ledger for declared mutations whose post-dispatch
         # outcome was not independently confirmed. Preserve an authoritative
         # pending entry for the SAME durable execution (a cold resumed pass
@@ -3518,7 +3526,8 @@ What is your next step?"""
 
                     auth_check = await gov.can_perform_action_async(
                         self.id, tool_name,
-                        task_profile=current_task_profile())
+                        task_profile=current_task_profile(),
+                        never_clearance=context)
 
                     if auth_check.get("requires_human_approval"):
                         # Create HITL Action
@@ -3574,9 +3583,26 @@ What is your next step?"""
                             from core.autonomy_policy import (
                                 grant_never_autonomous_clearance,
                             )
+                            from core.task_classification import (
+                                current_task_profile,
+                            )
 
+                            _never_ctx = context if isinstance(context, dict) else {}
+                            _never_grants = auth_check["never_autonomous"]
+                            # One approval may surface an existing task-level
+                            # clearance; grant only the reviewed rule bindings.
                             grant_never_autonomous_clearance(
-                                context, auth_check["never_autonomous"])
+                                _never_ctx,
+                                _never_grants,
+                                task_profile=current_task_profile(),
+                                execution_id=(
+                                    _never_ctx.get("execution_id")
+                                    or _never_ctx.get("run_id")),
+                                tenant_id=getattr(self, "tenant_id", None),
+                                workspace_id=(
+                                    getattr(self, "workspace_id", None)
+                                    or "default"),
+                            )
 
                     elif not auth_check["allowed"]:
                         _mark_dispatch_refused(
@@ -4109,6 +4135,181 @@ What is your next step?"""
             except Exception as e:
                 logger.error(f"Failed to record governance outcome: {e}", exc_info=True)
 
+    async def _admit_never_autonomous_task(
+        self,
+        task_input: str,
+        context: Dict[str, Any],
+        step_callback: Optional[callable] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """TASK-LEVEL never-autonomous admission before any autonomous work.
+
+        Runs before the first model call / output, so a matching basket is
+        reviewed even for a pure analysis/QA/math/extraction task that uses
+        no tools. Approval is bound to this exact task execution; within the
+        approved task, tool governance still applies every independent
+        maturity/budget/recursion guard. Returns a result payload when the
+        run must not proceed, or None when admitted.
+        """
+        from core.autonomy_policy import (
+            NEVER_TASK_ADMISSION_ACTION,
+            decision_covers,
+            evaluate_task_admission,
+            grant_never_autonomous_clearance,
+            task_admission_params,
+        )
+        from core.task_classification import current_task_profile
+
+        profile = current_task_profile()
+        if profile is None:
+            return None
+        execution_id = str(
+            context.get("execution_id") or context.get("run_id") or "")
+        workspace_id = (
+            context.get("workspace_id")
+            or getattr(self, "workspace_id", None) or "default")
+        tenant_id = (
+            context.get("tenant_id")
+            or getattr(self, "tenant_id", None))
+        try:
+            with get_db_session() as db:
+                if db is None:
+                    # Synthetic/internal caller with no policy store: no
+                    # durable rule can exist. Real runs always have a session.
+                    return None
+                gov = AgentGovernanceService(
+                    db, workspace_id=workspace_id, tenant_id=tenant_id)
+                agent_row = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == self.id).first()
+                owner_user_id = (
+                    profile.owner_user_id
+                    or context.get("user_id")
+                    or context.get("actor_id")
+                    or getattr(agent_row, "user_id", None))
+                decision = evaluate_task_admission(
+                    db,
+                    profile,
+                    task_material=task_input,
+                    agent_id=self.id,
+                    user_id=owner_user_id,
+                    execution_id=execution_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+                if decision.get("outcome") != "review":
+                    return None
+                durable = decision.get("durable_admission") or {}
+                action_id = durable.get("hitl_action_id")
+                if action_id:
+                    # Reuse the exact durable approval after a restart/resume;
+                    # re-evaluate current rule revisions before granting.
+                    logger.info(
+                        "never-autonomous task admission reused durable HITL "
+                        "%s for execution %s", action_id, execution_id)
+                else:
+                    action_id = gov.request_approval(
+                        agent_id=self.id,
+                        action_type=NEVER_TASK_ADMISSION_ACTION,
+                        params=task_admission_params(
+                            decision,
+                            execution_id=execution_id,
+                            profile=profile,
+                            extra={"task_input": str(task_input)[:2000]},
+                        ),
+                        reason=decision.get("reason") or (
+                            "A never-autonomous task rule matched this task; "
+                            "a human must approve this execution."),
+                        execution_context=context,
+                        user_id=owner_user_id,
+                    )
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": NEVER_TASK_ADMISSION_ACTION,
+                            "reason": decision.get("reason"),
+                            "task_level": True,
+                        })
+
+            if not durable.get("hitl_action_id"):
+                approved = await self._wait_for_approval(action_id)
+                if not approved:
+                    return {
+                        "output": (
+                            "Governance Error: this task matches a "
+                            "never-autonomous rule and was not approved."),
+                        "steps": [],
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "hitl_action_id": action_id,
+                        "reason": decision.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": decision,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+
+            # The approval reviewed a specific policy revision. Re-read the
+            # rules now; a rule edited/added while waiting is NOT covered.
+            with get_db_session() as db:
+                fresh = evaluate_task_admission(
+                    db,
+                    profile,
+                    task_material=task_input,
+                    agent_id=self.id,
+                    user_id=owner_user_id,
+                    execution_id=execution_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+            if fresh.get("outcome") == "review":
+                if not decision_covers(decision, fresh):
+                    return {
+                        "output": (
+                            "Governance Error: the never-autonomous policy "
+                            "changed while waiting for approval; a fresh "
+                            "human review is required."),
+                        "steps": [],
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "reason": fresh.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                if not grant_never_autonomous_clearance(
+                        context, fresh, task_profile=profile,
+                        execution_id=execution_id,
+                        tenant_id=tenant_id, workspace_id=workspace_id):
+                    return {
+                        "output": (
+                            "Governance Error: the never-autonomous approval "
+                            "could not be bound to this task execution."),
+                        "steps": [],
+                        "status": "blocked",
+                        "requires_human_approval": True,
+                        "reason": fresh.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+            return None
+        except Exception as exc:  # noqa: BLE001 — configured policy fails CLOSED
+            logger.warning(
+                "never-autonomous task admission unavailable for %s: %s",
+                self.id, exc)
+            return {
+                "output": (
+                    "Governance Error: never-autonomous task policy could "
+                    "not be evaluated; human review is required."),
+                "steps": [],
+                "status": "blocked",
+                "requires_human_approval": True,
+                "reason": (
+                    "Never-autonomous task policy could not be evaluated; "
+                    "human review is required."),
+                "execution_id": execution_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
     async def _wait_for_approval(self, action_id: str) -> bool:
         """Poll for HITL decision"""
         max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
@@ -4214,7 +4415,8 @@ What is your next step?"""
 
                 auth_check = await gov.can_perform_action_async(
                     self.id, act.tool,
-                    task_profile=current_task_profile())
+                    task_profile=current_task_profile(),
+                    never_clearance=context)
                 if auth_check.get("requires_human_approval"):
                     action_id = gov.request_approval(
                         agent_id=self.id,
@@ -4277,9 +4479,18 @@ What is your next step?"""
                     for a in parallel_actions
                 ]
             from core.autonomy_policy import grant_never_autonomous_clearance
+            from core.task_classification import current_task_profile
 
             for decision in never_decisions:
-                grant_never_autonomous_clearance(context, decision)
+                grant_never_autonomous_clearance(
+                    context, decision,
+                    task_profile=current_task_profile(),
+                    execution_id=(
+                        context.get("execution_id") or context.get("run_id")),
+                    tenant_id=getattr(self, "tenant_id", None),
+                    workspace_id=(
+                        getattr(self, "workspace_id", None) or "default"),
+                )
 
         # 2. Execute the parallel batch. Governance already granted above.
         # Every tool gets its own envelope so concurrent dispatches cannot

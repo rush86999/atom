@@ -251,7 +251,11 @@ def test_approval_clearance_is_per_execution(store):
     assert decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
 
     approved_context = {}
-    ap.grant_never_autonomous_clearance(approved_context, decision)
+    from core.task_classification import bind_task_profile
+
+    bind_task_profile(approved_context, profile)
+    assert ap.grant_never_autonomous_clearance(
+        approved_context, decision) is True
     assert ap.has_never_autonomous_clearance(approved_context) is True
 
     # A different execution has no clearance and re-evaluates to review.
@@ -271,9 +275,9 @@ def test_approval_clearance_is_per_execution(store):
     fresh = ap.evaluate_never_autonomous(db, "u1", profile)
     assert fresh["outcome"] == ap.NEVER_OUTCOME_REVIEW
     assert ap.has_never_autonomous_clearance(
-        approved_context, required_rule_ids=fresh["rule_ids"]) is False
+        approved_context, decision=fresh) is False
     assert ap.has_never_autonomous_clearance(
-        approved_context, required_rule_ids=decision["rule_ids"]) is True
+        approved_context, decision=decision) is True
 
 
 # ---------------------------------------------------------------------------

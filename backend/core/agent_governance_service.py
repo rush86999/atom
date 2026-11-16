@@ -939,6 +939,7 @@ class AgentGovernanceService:
         chain_id: Optional[str] = None,
         include_global_agent_id: Optional[str] = None,
         task_profile: Any = None,
+        never_clearance: Any = None,
     ) -> Dict[str, Any]:
         """Async governance API over the shared local-ledger decision.
 
@@ -956,6 +957,7 @@ class AgentGovernanceService:
             chain_id=chain_id, _skip_budget=True,
             include_global_agent_id=include_global_agent_id,
             task_profile=task_profile,
+            never_clearance=never_clearance,
         )
         # A reviewable maturity denial is not a final refusal: callers may
         # offer action approval. Check its budget before offering that path,
@@ -981,16 +983,18 @@ class AgentGovernanceService:
         _skip_budget: bool = False,  # internal: used by can_perform_action_async
         include_global_agent_id: Optional[str] = None,
         task_profile: Any = None,
+        never_clearance: Any = None,
     ) -> Dict[str, Any]:
         """Hybrid maturity check with complexity-based enforcement.
 
         ``task_profile`` is the optional server-owned classification snapshot
         for the current execution. When supplied, the owner's enabled
         never-autonomous baskets are evaluated independently of maturity and
-        can force review even for an AUTONOMOUS hire. Callers that have no
-        task execution in scope leave it ``None`` (unchanged behavior); the
-        shared MCP dispatch still fails closed for effectful tools when an
-        owner has configured rules but no trusted profile reached it.
+        of the governance action complexity — a pure read/analysis task the
+        owner placed in a never-autonomous basket still requires review.
+        ``never_clearance`` is the server-issued clearance for the CURRENT
+        task (context dict or raw value); it can only clear the never policy,
+        never the maturity/budget/recursion guards below.
         """
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
@@ -1087,7 +1091,21 @@ class AgentGovernanceService:
                     "metadata_state": "policy_unavailable",
                 }
             if never.get("outcome") == "review":
-                approval_needed = True
+                from core.autonomy_policy import (
+                    has_never_autonomous_clearance,
+                )
+
+                if not has_never_autonomous_clearance(
+                    never_clearance,
+                    decision=never,
+                    task_profile=task_profile,
+                    tenant_id=getattr(self, "tenant_id", None),
+                    workspace_id=getattr(self, "workspace_id", None),
+                ):
+                    approval_needed = True
+                else:
+                    never = dict(never)
+                    never["cleared"] = True
 
         # Sync callers also exist inside async routes/workflow consumers.
         # Check the same local-ledger decision instead of merely warning and

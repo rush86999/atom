@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -52,6 +53,11 @@ class TaskProfile:
     #: Server-bound task owner (the human on whose behalf the run executes).
     #: Never accepted from a request body or model tool argument.
     owner_user_id: Optional[str] = None
+    #: Opaque per-task-start identity. Every server-built profile gets a new
+    #: value, so a clearance granted for one task can never authorize another
+    #: task that happens to reuse the same context dict, owner, or rule ids.
+    #: Never serialized into prompts or accepted from caller/model material.
+    task_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     def as_dict(self) -> Dict[str, Any]:
         data = {
@@ -234,15 +240,41 @@ def bind_task_profile(context: Any, profile: TaskProfile) -> Token:
     Returns the ContextVar token for ``reset_task_profile`` in a finally
     block. The dict key is an object (not serializable), so a request body or
     model-produced tool argument cannot forge it.
+
+    A new task start also invalidates any clearance left over from a prior
+    task on the same (reused) context dict: the clearance names the profile's
+    per-task identity and the previous identity no longer matches.
     """
     if isinstance(context, dict):
+        # Import lazily: autonomy_policy imports this module at call time.
+        from core.autonomy_policy import NEVER_CLEARANCE_CONTEXT_KEY
+
+        context.pop(NEVER_CLEARANCE_CONTEXT_KEY, None)
         context[TASK_PROFILE_CONTEXT_KEY] = profile
+    try:
+        from core.autonomy_policy import clear_current_never_autonomous_clearance
+
+        clear_current_never_autonomous_clearance()
+    except Exception:  # noqa: BLE001 — clearance invalidation is best effort
+        pass
     return _CURRENT_TASK_PROFILE.set(profile)
 
 
 def reset_task_profile(token: Optional[Token], context: Any = None) -> None:
     if context is not None and isinstance(context, dict):
         context.pop(TASK_PROFILE_CONTEXT_KEY, None)
+        try:
+            from core.autonomy_policy import NEVER_CLEARANCE_CONTEXT_KEY
+
+            context.pop(NEVER_CLEARANCE_CONTEXT_KEY, None)
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        from core.autonomy_policy import clear_current_never_autonomous_clearance
+
+        clear_current_never_autonomous_clearance()
+    except Exception:  # noqa: BLE001
+        pass
     if token is not None:
         try:
             _CURRENT_TASK_PROFILE.reset(token)

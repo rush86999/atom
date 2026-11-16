@@ -41,7 +41,10 @@ Autonomy tab on a canvas leads with the topics that canvas's type actually
 exercises (an email canvas → sends/CRM; every other surface → edits/tasks),
 while still exposing the full general set.
 """
+import hashlib
+import json
 import logging
+from contextvars import ContextVar
 from typing import Any, Dict, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -60,9 +63,9 @@ NEVER_OUTCOME_UNAFFECTED = "unaffected"
 NEVER_DIMENSIONS = ("difficulty", "category", "domain")
 NEVER_RULE_MAX_NAMES = 5
 NEVER_RULE_MAX_VALUES = 20
-# Only effectful actions are execution. Reads (governance complexity 1) are
-# not side effects and keep their pre-existing behavior.
-NEVER_EFFECTFUL_MIN_COMPLEXITY = 2
+#: HITL action type used for TASK-LEVEL admission (before the first model
+#: call / output), not a per-tool effect approval.
+NEVER_TASK_ADMISSION_ACTION = "never_autonomous_task"
 
 
 def mode_allows_autonomy(mode: str) -> bool:
@@ -774,40 +777,427 @@ def _load_enabled_never_rows(
 _NEVER_CLEARANCE_TOKEN = object()
 NEVER_CLEARANCE_CONTEXT_KEY = "_never_autonomous_clearance"
 
+#: Run-scoped clearance. The context dict is the primary carrier (copied into
+#: workflow/MCP dispatch contexts); this ContextVar lets a run-level task
+#: admission cover the whole run without threading a dict through every
+#: nested helper. It is still validated against the CURRENT profile's
+#: per-task identity, so a new task can never inherit it.
+_CURRENT_NEVER_CLEARANCE: ContextVar[Optional[Mapping[str, Any]]] = ContextVar(
+    "atom_current_never_clearance", default=None)
 
-def grant_never_autonomous_clearance(context: Any, decision: Any) -> None:
-    """Mark ONE execution as human-approved for the matched rules.
 
-    The value carries a process-local opaque object, so a JSON request body
-    or model tool argument can never forge clearance. It is per-execution
-    state, not a rule mutation and not a durable blanket waiver.
+def _binding_tuple(rule_id: Any, revision: Any) -> Optional[tuple]:
+    if not rule_id:
+        return None
+    try:
+        clean_revision = int(revision) if revision is not None else 0
+    except (TypeError, ValueError):
+        clean_revision = 0
+    return (str(rule_id), clean_revision)
+
+
+def _decision_bindings(decision: Any) -> set:
+    """(rule_id, revision) pairs a decision was evaluated against."""
+    if not isinstance(decision, Mapping):
+        return set()
+    bindings = decision.get("rule_bindings")
+    out = set()
+    if isinstance(bindings, (list, tuple)):
+        for entry in bindings:
+            if isinstance(entry, Mapping):
+                binding = _binding_tuple(
+                    entry.get("id") or entry.get("rule_id"),
+                    entry.get("revision"))
+                if binding:
+                    out.add(binding)
+    if out:
+        return out
+    # Defensive fallback for a decision produced before rule_bindings was
+    # added: id-only bindings cannot prove a revision is current, so they are
+    # recorded as revision 0 and will not cover a fresh (revision >= 1) match.
+    for rule_id in decision.get("rule_ids") or []:
+        binding = _binding_tuple(rule_id, 0)
+        if binding:
+            out.add(binding)
+    return out
+
+
+def decision_covers(approved: Any, current: Any) -> bool:
+    """True when ``approved`` reviewed every rule binding ``current`` has.
+
+    Bindings are (rule_id, rule_revision) pairs, so editing a rule under the
+    same id (new revision) never reuses the older review.
     """
+    if not isinstance(current, Mapping):
+        return False
+    if current.get("outcome") != NEVER_OUTCOME_REVIEW:
+        return True
+    wanted = _decision_bindings(current)
+    have = _decision_bindings(approved)
+    if not wanted or not have:
+        return False
+    return wanted.issubset(have)
+
+
+def _clearance_value(source: Any) -> Optional[Mapping[str, Any]]:
+    """Extract the opaque clearance from a context dict or raw value."""
+    if not isinstance(source, Mapping):
+        return None
+    if NEVER_CLEARANCE_CONTEXT_KEY in source:
+        candidate = source.get(NEVER_CLEARANCE_CONTEXT_KEY)
+    elif source.get("token") is _NEVER_CLEARANCE_TOKEN:
+        candidate = source
+    else:
+        candidate = None
+    if isinstance(candidate, Mapping) and (
+            candidate.get("token") is _NEVER_CLEARANCE_TOKEN):
+        return candidate
+    return None
+
+
+def current_never_autonomous_clearance() -> Optional[Mapping[str, Any]]:
+    value = _CURRENT_NEVER_CLEARANCE.get()
+    return value if isinstance(value, Mapping) else None
+
+
+def clear_current_never_autonomous_clearance() -> None:
+    _CURRENT_NEVER_CLEARANCE.set(None)
+
+
+def grant_never_autonomous_clearance(
+    context: Any,
+    decision: Any,
+    *,
+    task_profile: Any = None,
+    execution_id: Any = None,
+    tenant_id: Any = None,
+    workspace_id: Any = None,
+) -> bool:
+    """Mark ONE task execution as human-approved for the matched rules.
+
+    The grant is bound to the server-built profile's per-task identity, the
+    reviewed rule ids AND revisions, and the owner/scope/execution identity.
+    A process-local opaque token means a JSON request body or model tool
+    argument can never forge it. It is per-task state, not a rule mutation and
+    not a durable blanket waiver. Returns True only when a trustworthy grant
+    was actually recorded.
+    """
+    from core.task_classification import (
+        current_task_profile,
+        is_trusted_task_profile,
+        task_profile_from_context,
+    )
+
     if not isinstance(context, dict) or not isinstance(decision, Mapping):
-        return
+        return False
     if decision.get("outcome") != NEVER_OUTCOME_REVIEW:
-        return
-    context[NEVER_CLEARANCE_CONTEXT_KEY] = {
+        return False
+    profile = (
+        task_profile
+        or task_profile_from_context(context)
+        or current_task_profile())
+    if not is_trusted_task_profile(profile):
+        logger.warning(
+            "never-autonomous clearance refused: no trusted task profile")
+        return False
+    task_id = str(getattr(profile, "task_id", "") or "")
+    if not task_id:
+        return False
+    bindings = sorted(_decision_bindings(decision))
+    if not bindings:
+        # A policy outage has no reviewed revision to bind. Refuse rather
+        # than mint a clearance that could later cover an unreviewed rule.
+        logger.warning(
+            "never-autonomous clearance refused: no reviewed rule revision")
+        return False
+    if task_profile is None:
+        tenant_id = (
+            tenant_id if tenant_id is not None
+            else (context.get("tenant_id") if isinstance(context, dict) else None))
+        workspace_id = (
+            workspace_id if workspace_id is not None
+            else (context.get("workspace_id") if isinstance(context, dict) else None))
+    if execution_id is None and isinstance(context, dict):
+        execution_id = context.get("execution_id") or context.get("run_id")
+    value = {
         "token": _NEVER_CLEARANCE_TOKEN,
-        "rule_ids": list(decision.get("rule_ids") or []),
+        "task_id": task_id,
+        "execution_id": (
+            str(execution_id) if execution_id not in (None, "") else None),
+        "user_id": (
+            decision.get("owner_user_id")
+            or getattr(profile, "owner_user_id", None)),
+        "tenant_id": str(tenant_id) if tenant_id not in (None, "") else None,
+        "workspace_id": (
+            str(workspace_id) if workspace_id not in (None, "") else None),
+        "rule_bindings": [
+            {"id": rule_id, "revision": revision}
+            for rule_id, revision in bindings
+        ],
     }
+    context[NEVER_CLEARANCE_CONTEXT_KEY] = value
+    if current_task_profile() is profile:
+        _CURRENT_NEVER_CLEARANCE.set(value)
+    return True
 
 
 def has_never_autonomous_clearance(
-    context: Any, required_rule_ids: Any = None,
+    context: Any,
+    required_rule_ids: Any = None,
+    *,
+    decision: Any = None,
+    task_profile: Any = None,
+    tenant_id: Any = None,
+    workspace_id: Any = None,
+    execution_id: Any = None,
 ) -> bool:
-    if not isinstance(context, Mapping):
+    """Validate a server-issued clearance for the CURRENT task.
+
+    Strict on purpose: the clearance must name the currently bound trusted
+    task profile (per-task identity), the reviewed rule revisions, the owner
+    and — when supplied — the execution/scope identity. Approving one task
+    can therefore never waive a later matching task even when the caller
+    reuses the same dict, agent and rule.
+    """
+    from core.task_classification import (
+        current_task_profile,
+        is_trusted_task_profile,
+        task_profile_from_context,
+    )
+
+    value = _clearance_value(context)
+    if value is None and context is None:
+        # Run-level clearance: only when the caller did not supply a
+        # (different) context that simply lacks one.
+        value = current_never_autonomous_clearance()
+    if value is None:
         return False
-    value = context.get(NEVER_CLEARANCE_CONTEXT_KEY)
-    if not (isinstance(value, Mapping)
-            and value.get("token") is _NEVER_CLEARANCE_TOKEN):
+
+    profile = (
+        task_profile
+        or task_profile_from_context(context)
+        or current_task_profile())
+    if not is_trusted_task_profile(profile):
         return False
+    task_id = str(getattr(profile, "task_id", "") or "")
+    if not task_id or str(value.get("task_id") or "") != task_id:
+        return False
+
+    if isinstance(decision, Mapping):
+        if decision.get("outcome") != NEVER_OUTCOME_REVIEW:
+            # Nothing needs clearing; absence of a block is not a clearance.
+            return True
+        if not decision_covers(value, decision):
+            return False
+        owner = decision.get("owner_user_id")
+        granted_owner = value.get("user_id")
+        if owner and granted_owner and str(owner) != str(granted_owner):
+            return False
+        if owner and not granted_owner:
+            return False
+        # A clearance granted for an execution must be used by that execution.
+        required_execution = execution_id
+        if required_execution in (None, "") and isinstance(context, Mapping):
+            required_execution = (
+                context.get("execution_id") or context.get("run_id"))
+        granted_execution = value.get("execution_id")
+        if (required_execution not in (None, "")
+                and granted_execution not in (None, "")
+                and str(required_execution) != str(granted_execution)):
+            return False
     required = {
         str(rule_id) for rule_id in (required_rule_ids or []) if rule_id
     }
-    if not required:
-        return True
-    cleared = {str(rule_id) for rule_id in value.get("rule_ids") or []}
-    return required.issubset(cleared)
+    if required:
+        cleared = {
+            str(entry.get("id"))
+            for entry in value.get("rule_bindings") or []
+            if isinstance(entry, Mapping)
+        }
+        if not required.issubset(cleared):
+            return False
+
+    granted_tenant = value.get("tenant_id")
+    if (tenant_id not in (None, "") and granted_tenant not in (None, "")
+            and str(tenant_id) != str(granted_tenant)):
+        return False
+    granted_workspace = value.get("workspace_id")
+    if (workspace_id not in (None, "")
+            and granted_workspace not in (None, "")
+            and str(workspace_id) != str(granted_workspace)):
+        return False
+    return True
+
+
+def task_admission_fingerprint(task_material: Any, profile: Any) -> str:
+    """Stable fingerprint of the exact task a human admitted.
+
+    Used ONLY to reuse an existing durable HITL task admission on a cold
+    resume. It hashes the full task material plus the server-resolved profile
+    (never a caller-supplied boolean), so a different task or reclassified
+    task cannot inherit a prior admission.
+    """
+    profile_data = profile.as_dict() if hasattr(profile, "as_dict") else {}
+    payload = {
+        "task": str(task_material or "")[:8000],
+        "profile": {
+            key: profile_data.get(key)
+            for key in ("difficulty", "category", "domain")
+        },
+        "owner": profile_data.get("owner_user_id"),
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def find_approved_task_admission(
+    db: Any,
+    *,
+    agent_id: Optional[str],
+    execution_id: Optional[str],
+    fingerprint: str,
+    decision: Any,
+    tenant_id: Any = None,
+    workspace_id: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """Re-read an approved durable TASK admission for this exact execution.
+
+    Mirrors the workflow step resumption contract: the persisted HITL row is
+    the authority; a boolean in the resume payload is not. The row must name
+    the same execution, task fingerprint, scope and still-current reviewed
+    rule revisions.
+    """
+    if not execution_id or not fingerprint:
+        return None
+    try:
+        from core.models import HITLAction
+
+        query = db.query(HITLAction).filter(
+            HITLAction.action_type == NEVER_TASK_ADMISSION_ACTION,
+            HITLAction.status.in_(("approved", "executed")),
+        )
+        if agent_id:
+            query = query.filter(HITLAction.agent_id == str(agent_id))
+        rows = query.order_by(HITLAction.created_at.desc()).limit(50).all()
+        for row in rows:
+            params = row.params if isinstance(row.params, dict) else {}
+            snapshot = (
+                row.context_snapshot
+                if isinstance(row.context_snapshot, dict) else {})
+            bound_execution = (
+                params.get("execution_id")
+                or snapshot.get("execution_id")
+                or snapshot.get("run_id"))
+            if str(bound_execution or "") != str(execution_id):
+                continue
+            if str(params.get("task_fingerprint") or "") != str(fingerprint):
+                continue
+            reviewed = {
+                "outcome": NEVER_OUTCOME_REVIEW,
+                "rule_bindings": params.get("rule_bindings") or [],
+                "owner_user_id": params.get("owner_user_id"),
+            }
+            if not decision_covers(reviewed, decision):
+                continue
+            reviewed_owner = params.get("owner_user_id")
+            current_owner = (
+                decision.get("owner_user_id")
+                if isinstance(decision, Mapping) else None)
+            if (reviewed_owner and current_owner
+                    and str(reviewed_owner) != str(current_owner)):
+                continue
+            if (tenant_id not in (None, "")
+                    and row.tenant_id not in (None, "")
+                    and str(row.tenant_id) != str(tenant_id)):
+                continue
+            if (workspace_id not in (None, "")
+                    and getattr(row, "workspace_id", None) not in (None, "")
+                    and str(row.workspace_id) != str(workspace_id)):
+                continue
+            return {
+                "hitl_action_id": str(row.id),
+                "params": params,
+                "approved_by": (
+                    row.reviewed_by or getattr(row, "resolver_id", None)),
+                "resolved_at": (
+                    row.reviewed_at.isoformat()
+                    if getattr(row, "reviewed_at", None) else None),
+            }
+    except Exception as exc:  # noqa: BLE001 — absence is not authority
+        logger.warning(
+            "never-autonomous task admission lookup failed: %s", exc)
+    return None
+
+
+def evaluate_task_admission(
+    db: Any,
+    profile: Any,
+    *,
+    task_material: Any = None,
+    agent_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    execution_id: Any = None,
+    tenant_id: Any = None,
+    workspace_id: Any = None,
+) -> Dict[str, Any]:
+    """Evaluate the TASK-level never-autonomous admission.
+
+    Deliberately no action type/complexity: the boundary is the task basket,
+    not a particular effect. A matched decision also reports whether an
+    existing durable HITL approval for this exact execution/task already
+    exists, so a cold resume reuses its provenance instead of prompting again.
+    """
+    decision = evaluate_never_autonomous(
+        db,
+        user_id,
+        profile,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        action_complexity=None,
+    )
+    if decision.get("outcome") != NEVER_OUTCOME_REVIEW:
+        return decision
+    fingerprint = task_admission_fingerprint(task_material, profile)
+    decision["task_fingerprint"] = fingerprint
+    decision["durable_admission"] = find_approved_task_admission(
+        db,
+        agent_id=agent_id,
+        execution_id=execution_id,
+        fingerprint=fingerprint,
+        decision=decision,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    return decision
+
+
+def task_admission_params(
+    decision: Any,
+    *,
+    execution_id: Any = None,
+    profile: Any = None,
+    extra: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    """HITL params for a task-level admission (server-owned payload)."""
+    params: Dict[str, Any] = {
+        "execution_id": (
+            str(execution_id) if execution_id not in (None, "") else None),
+        "task_fingerprint": (
+            decision.get("task_fingerprint")
+            if isinstance(decision, Mapping) else None),
+        "rule_ids": list(
+            (decision or {}).get("rule_ids") or []),
+        "rule_bindings": list(
+            (decision or {}).get("rule_bindings") or []),
+        "owner_user_id": (
+            (decision or {}).get("owner_user_id")
+            if isinstance(decision, Mapping) else None),
+        "task_profile": (
+            profile.as_dict() if hasattr(profile, "as_dict") else None),
+    }
+    if extra:
+        params.update(dict(extra))
+    return params
 
 
 def invalidate_never_autonomous_cache(*_args: Any, **_kwargs: Any) -> None:
@@ -986,19 +1376,30 @@ def evaluate_never_autonomous(
         "outcome": NEVER_OUTCOME_UNAFFECTED,
         "rule_ids": [],
         "rule_names": [],
+        "rule_bindings": [],
         "reason": None,
         "profile": None,
         "metadata_state": "not_required",
         "action_complexity": complexity,
+        "owner_user_id": None,
         "error": None,
     }
-    # Reads are not execution and keep their prior behavior.
-    if complexity is not None and complexity < NEVER_EFFECTFUL_MIN_COMPLEXITY:
-        return out
-
+    # Never-autonomous baskets are TASK-level boundaries. They are NOT
+    # narrowed to effectful actions: a pure analysis/QA/math/extraction task
+    # that produces an autonomous answer (no writes, no tools) is still the
+    # task the owner forbade. Callers that are not autonomous task boundaries
+    # (ordinary manual API/UI browse) never reach this policy at all.
     profile = task_profile if is_trusted_task_profile(task_profile) else None
     resolved_user_id = user_id or (
         getattr(profile, "owner_user_id", None) if profile else None)
+    out["owner_user_id"] = resolved_user_id
+    if db is None:
+        # No policy store handle at all (synthetic/internal caller): no
+        # durable rule can exist, so this is the never-provisioned case, not
+        # a policy outage. Real runtime authorization paths always pass a
+        # live session.
+        out["metadata_state"] = "policy_store_absent"
+        return out
     try:
         rows = _load_enabled_never_rows(
             db, resolved_user_id, tenant_id=tenant_id,
@@ -1062,6 +1463,7 @@ def evaluate_never_autonomous(
         entry = {
             "id": str(getattr(row, "id", "")),
             "name": str(getattr(row, "name", "") or ""),
+            "revision": int(getattr(row, "revision", 1) or 1),
         }
         if state == "match":
             definite.append(entry)
@@ -1083,6 +1485,10 @@ def evaluate_never_autonomous(
         outcome=NEVER_OUTCOME_REVIEW,
         rule_ids=rule_ids,
         rule_names=rule_names[:NEVER_RULE_MAX_NAMES],
+        rule_bindings=[
+            {"id": entry["id"], "revision": entry.get("revision", 1)}
+            for entry in selected
+        ],
     )
     names = ", ".join(f"“{name}”" for name in out["rule_names"]) or "rule"
     if definite:

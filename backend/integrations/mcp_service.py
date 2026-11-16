@@ -1412,7 +1412,13 @@ class MCPService(IntegrationService):
                 if never.get("outcome") == "review" and not (
                         has_never_autonomous_clearance(
                             context,
-                            required_rule_ids=never.get("rule_ids"),
+                            decision=never,
+                            task_profile=profile,
+                            tenant_id=(context or {}).get("tenant_id"),
+                            workspace_id=(context or {}).get("workspace_id"),
+                            execution_id=(
+                                (context or {}).get("execution_id")
+                                or (context or {}).get("run_id")),
                         )):
                     return {
                         "success": False,
