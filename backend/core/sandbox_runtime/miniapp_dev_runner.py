@@ -146,6 +146,18 @@ def _dev_dockerfile(tag: str, deps: List[str]) -> str:
     )
 
 
+def _known_absent(stderr, container: str) -> bool:
+    """Exact-target daemon absence only; never generic docker failure text."""
+    try:
+        text = bytes(stderr or b"")[-4096:].decode("utf-8", "replace").lower()
+    except Exception:  # noqa: BLE001
+        return False
+    target = str(container or "").lower()
+    if not target or target not in text:
+        return False
+    return ("no such container" in text) or ("no such object" in text)
+
+
 def _cleanup_uncertain(reason: str) -> "CleanupUncertain":
     quarantine(CAPACITY_SCOPE, reason)
     return CleanupUncertain(reason)
@@ -463,15 +475,45 @@ class MiniAppDevRuntime:
         except (asyncio.CancelledError, Exception):  # noqa: BLE001
             pass
         if proc.returncode not in (0, None):
+            await self._remove_container(container)
+
+    async def _remove_container(self, container: str) -> None:
+        """Confirm the owned container is removed, or fail closed.
+
+        A killed `docker run` client is not proof its container exited. The
+        explicit `docker rm -f` result is authoritative: success means the
+        daemon stopped/removed it; exit 1 is accepted only when the stderr is
+        the daemon's exact-target "No such container/object" absence. Generic
+        exit 1, timeout, connection/daemon errors and unrelated targets are
+        cleanup uncertainty, never success.
+        """
+        try:
+            rm = await asyncio.create_subprocess_exec(
+                "docker", "rm", "-f", container,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise _cleanup_uncertain(
+                f"docker rm failed: {type(exc).__name__}") from None
+        try:
+            out, err = await asyncio.wait_for(rm.communicate(), timeout=5)
+        except asyncio.TimeoutError:
             try:
-                rm = await asyncio.create_subprocess_exec(
-                    "docker", "rm", "-f", container,
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await asyncio.wait_for(rm.wait(), timeout=5)
+                rm.kill()
             except Exception:  # noqa: BLE001
                 pass
+            raise _cleanup_uncertain("docker rm timed out") from None
+        except Exception as exc:  # noqa: BLE001
+            raise _cleanup_uncertain(
+                f"docker rm wait failed: {type(exc).__name__}") from None
+        if int(getattr(rm, "returncode", 1)) == 0:
+            return
+        if _known_absent((err or b"") + (out or b""), container):
+            return
+        raise _cleanup_uncertain(
+            f"docker rm did not confirm removal (exit "
+            f"{int(getattr(rm, 'returncode', 1))})")
 
     async def _ensure_image(self, tag: str, deps: List[str]) -> Optional[str]:
         """Build ``tag`` if absent; return None on success, error text on failure.

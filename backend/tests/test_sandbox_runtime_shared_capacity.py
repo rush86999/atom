@@ -22,8 +22,9 @@ class _QuietStderr:
 
 class FakeProc:
     def __init__(self, cleanup_event=None, *, wait_error=None,
-                 kill_error=None):
+                 kill_error=None, exit_code=0):
         self.returncode = None
+        self._exit_code = exit_code
         self.stdout = None
         self.stdin = None
         self.stderr = _QuietStderr()
@@ -47,8 +48,26 @@ class FakeProc:
             raise self._wait_error
         if self._cleanup_event is not None:
             await self._cleanup_event.wait()
-        self.returncode = 0
-        return 0
+        self.returncode = self._exit_code
+        return self._exit_code
+
+
+class FakeCLI:
+    def __init__(self, returncode=0, stdout=b"", stderr=b"", *,
+                 communicate_error=None):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        self._communicate_error = communicate_error
+        self.killed = False
+
+    async def communicate(self):
+        if self._communicate_error is not None:
+            raise self._communicate_error
+        return self.stdout, self.stderr
+
+    def kill(self):
+        self.killed = True
 
 
 def _install_proc(p, cleanup_event=None, *, wait_error=None, kill_error=None):
@@ -461,3 +480,117 @@ async def _run_one(runtime, kind):
             "print(1)", policy=_Policy(), inputs={}, tag="img")
     return await runtime._run_in_vm(
         "print(1)", policy=_Policy(), inputs={}, rootfs="/tmp/fake.ext4")
+
+
+def _install_docker_cli(monkeypatch, *, exit_code=-9, rm_rc=0,
+                        rm_stderr=b"", rm_error=None):
+    created = []
+    rm_calls = []
+
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "rm"):
+            target = args[3]
+            rm_calls.append(target)
+            stderr = rm_stderr.replace(b"{target}", target.encode())
+            return FakeCLI(returncode=rm_rc, stderr=stderr,
+                           communicate_error=rm_error)
+        proc = FakeProc(exit_code=exit_code)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    return created, rm_calls
+
+
+def _run_dev():
+    return dev_mod.MiniAppDevRuntime()._run_in_container(
+        "print(1)", policy=_Policy(), inputs={}, tag="img")
+
+
+@pytest.mark.parametrize("rm_rc,rm_stderr,rm_error,success", [
+    (0, b"", None, True),
+    (1, b"Error response from daemon: remove target: container is running",
+     None, False),
+    (1, b"Cannot connect to the Docker daemon", None, False),
+    (1, b"Error response from daemon: No such container: other-container",
+     None, False),
+    (1, b"Error response from daemon: No such container: {target}",
+     None, True),
+    (0, b"", asyncio.TimeoutError(), False),
+])
+def test_container_removal_must_be_confirmed(monkeypatch, rm_rc, rm_stderr,
+                                             rm_error, success):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+    created, rm_calls = _install_docker_cli(
+        monkeypatch, rm_rc=rm_rc, rm_stderr=rm_stderr, rm_error=rm_error)
+
+    result = asyncio.run(_run_dev())
+    assert result.success is success, result
+    assert len(created) == 1
+    assert len(rm_calls) == 1
+    snapshot = capacity.snapshot(scope)
+    if success:
+        assert result.exit_code == 0
+        assert not snapshot["quarantined"]
+        assert snapshot["in_use"] == 0
+    else:
+        assert result.exit_code == -1
+        assert result.metadata["reason"] == "cleanup_unconfirmed"
+        assert snapshot["quarantined"]
+        second = asyncio.run(_run_dev())
+        assert second.success is False
+        assert second.metadata["reason"] == "capacity_quarantined"
+        assert len(created) == 1
+
+
+def test_rm_failure_refuses_queued_caller(monkeypatch):
+    import uuid
+    monkeypatch.setenv("ATOM_SANDBOX_VM_MAX_CONCURRENCY", "1")
+    scope = "test-rm-queue-" + uuid.uuid4().hex
+    monkeypatch.setattr(dev_mod, "CAPACITY_SCOPE", scope)
+
+    async def exchange(*a, **k):
+        return "", "", 0, None, None
+    monkeypatch.setattr(dev_mod, "_guest_exchange", exchange)
+
+    rm_started = asyncio.Event()
+    rm_release = asyncio.Event()
+    created = []
+
+    class BlockingRm(FakeCLI):
+        async def communicate(self):
+            rm_started.set()
+            await rm_release.wait()
+            return b"", b"Error response from daemon: daemon unavailable"
+
+    async def fake_exec(*args, **kwargs):
+        if args[:2] == ("docker", "rm"):
+            return BlockingRm(returncode=1)
+        proc = FakeProc(exit_code=-9)
+        created.append(proc)
+        return proc
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    async def call():
+        return await dev_mod.MiniAppDevRuntime()._run_in_container(
+            "print(1)", policy=_Policy(), inputs={}, tag="img")
+
+    async def scenario():
+        first = asyncio.create_task(call())
+        await asyncio.wait_for(rm_started.wait(), timeout=2)
+        second = asyncio.create_task(call())
+        await asyncio.sleep(0.05)
+        assert not second.done()
+        rm_release.set()
+        a, b = await asyncio.gather(first, second)
+        assert a.success is False and a.metadata["reason"] == "cleanup_unconfirmed"
+        assert b.success is False
+        assert b.metadata["reason"] == "capacity_quarantined"
+        assert len(created) == 1
+
+    asyncio.run(scenario())
