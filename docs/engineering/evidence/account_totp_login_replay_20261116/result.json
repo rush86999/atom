@@ -33,5 +33,26 @@
     "outcome": "503; token mint not called; consumed-step update rolled back",
     "production_code_changed": false,
     "physical_storage_fault_claimed": false
+  },
+  "fixture_compatibility": {
+    "test_only_commit": "6db16d3885eaeec3205973d825535f32112fe480",
+    "hosted_failure": "PyOTP2.12 rejected80bit synthetic fixture before production code;4failed64passed",
+    "fixture": "public RFC6238 160bit synthetic vector",
+    "independent_exact_selection": [
+      {
+        "pyotp": "2.10.0",
+        "passed": 69,
+        "seconds": 23.27
+      },
+      {
+        "pyotp": "2.12.0",
+        "passed": 69,
+        "seconds": 23.38
+      }
+    ],
+    "official_wheel_hash_verified": true,
+    "installed_environments_unchanged": true,
+    "production_validation_unchanged": true,
+    "original_failure_retained": true
   }
 }

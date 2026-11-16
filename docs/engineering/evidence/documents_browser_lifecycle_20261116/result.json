@@ -1,0 +1,136 @@
+{
+  "status": "qualified",
+  "source": "ed6ae3c9883d092321490c21c2397fa452225767",
+  "backend_clean_source": true,
+  "frontend_reused_build_source": "97e43a6b18a676a867b4e1e86f3b0c22da74461d",
+  "entire_tracked_frontend_tree_equal": true,
+  "fixture": {
+    "synthetic": true,
+    "bytes": 33163,
+    "sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1",
+    "chunks": 67
+  },
+  "stages": [
+    {
+      "name": "login",
+      "status": "dashboard"
+    },
+    {
+      "name": "onboarding",
+      "status": "escape_closed"
+    },
+    {
+      "name": "onboarding",
+      "status": "not_shown"
+    },
+    {
+      "name": "upload",
+      "status": 200,
+      "document_id_present": true,
+      "chunk_count": 67,
+      "source_version_matched": true
+    },
+    {
+      "name": "detail_reload",
+      "status": "same_id"
+    },
+    {
+      "name": "secondary_tab_onboarding",
+      "visible": true
+    },
+    {
+      "name": "onboarding",
+      "status": "escape_closed"
+    },
+    {
+      "name": "unauth_export",
+      "status": 401
+    },
+    {
+      "name": "export_text",
+      "status": 200,
+      "bytes": 33163,
+      "sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1"
+    },
+    {
+      "name": "export_markdown",
+      "status": 200,
+      "bytes": 33163,
+      "sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1"
+    },
+    {
+      "name": "export_json",
+      "status": 200,
+      "bytes": 34242,
+      "sha256": "bda7f2548a567b57dd3a6ffda3d032c8eca1bab5db10d219715ab70bf60ea9e4"
+    },
+    {
+      "name": "delete_transport",
+      "status": 200,
+      "receipt_confirmed": true
+    },
+    {
+      "name": "deleted_library_reload",
+      "status": 200,
+      "target_absent": true
+    },
+    {
+      "name": "delete",
+      "status": 200,
+      "document_gone": true
+    },
+    {
+      "name": "onboarding",
+      "status": "not_shown"
+    },
+    {
+      "name": "old_export_denied",
+      "status": 404
+    }
+  ],
+  "downloads": {
+    "text": {
+      "status": 200,
+      "bytes": 33163,
+      "sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1"
+    },
+    "markdown": {
+      "status": 200,
+      "bytes": 33163,
+      "sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1"
+    },
+    "json": {
+      "status": 200,
+      "bytes": 34242,
+      "sha256": "bda7f2548a567b57dd3a6ffda3d032c8eca1bab5db10d219715ab70bf60ea9e4"
+    }
+  },
+  "delete_receipt": {
+    "success": true,
+    "target_matches": true,
+    "status": "verified",
+    "complete": true,
+    "deleted": true,
+    "cors_origin_matches": true
+  },
+  "independent_download_checks": {
+    "text_and_markdown_equal_full_fixture": true,
+    "JSON_fulltext_bytes_hash_revision_provenance_matched": true,
+    "tail_marker_present_beyond20KB": true,
+    "fixture_bytes": 33163,
+    "fixture_sha256": "82dafeae07da0c43b1f034345c005c96d0a7161563d03520cef50186586f3dc1"
+  },
+  "request_failures": [],
+  "no_app_LLM_or_Docker_calls": true,
+  "all_assets_internal_while_portable_drive_absent": true,
+  "owned_services_stopped_and_absent": true,
+  "earlier_harness_failures_preserved": true,
+  "scope": "stored-text syntheticTXT only; not originalbinary/search/connectedsource/serverrestart/modelquality/wholeGoal3",
+  "artifact_sha256": {
+    "documents-v5.result.json": "e1a62e864974b9f82c279e182ace28c936961f33c83b5065ec8f6cab44fb5f21",
+    "frontend-parity.json": "0e9abadab314573e3a333d4668c8da58f7cdc0455e37f7932cb39195c01d87f6",
+    "internal-storage-preflight.json": "b1c371af8041a3a6ce95cc49efc5c36c1f3a0e9ea64ba08027a527662d200c4d",
+    "browser-network-preflight.json": "ee452d6a3d57212f83d46a3039bd08670b40ab8e48b3453270244ac6067f6c71",
+    "owned-stack-stop.json": "161b10ff9f9cd712e37dd4ddac12503b44ad3e72d91d8c278e55860cdfa06e6a"
+  }
+}

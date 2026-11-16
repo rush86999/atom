@@ -1,5 +1,7 @@
 # Current readiness evidence index — 2026-11-14
 
+> **Documents browser lifecycle:** [ordinary upload/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`: full33KB Text/Markdown/JSON downloads, matched provenance, verified deletion, fresh library absence and stale-tab export404. Internal SQLite/cached assets; no Docker or app LLM. Live connected-source and broader file/search qualification remain separate.
+>
 > **Authenticator login and replay:** [ordinary browser TOTP and shared replay fence](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at candidate `268efd405`: enrollment, challenge/no session, wrong-code refusal, valid sign-in, same-step replay409/no token and disabling/reload. Independent122 checks plus an injected commit-exception refusal through the real helper passed. This remains source-bound partial Goal1 evidence.
 >
 > **PDF editing in the browser:** [PDF lifecycle](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed upload, both-page rendering, byte-identical download/reload, gallery reopen, native page rotation/save, edited-byte reload and signed-out denial at `bb7017af3`. One synthetic PDF; not all Canvas families or Goal5 completion.
@@ -346,17 +348,19 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 ### Goal 3 — Authorized common data and search
 
 - **Audit state:** accepted-bounded.
-- **Current state:** bounded. WorkDrive code and live receipts exist, but the
-  live 52-check and 56/56 receipts are bound to earlier PR heads, not
-  current main `a868435fd`. Document delete truth and joined lifecycle are now
-  hosted-CI selected; hosted selection is not a live signed-in replay.
+- **Current state:** bounded. Earlier WorkDrive live receipts retain their
+  original PR sources. [Ordinary Documents upload/detail/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md)
+  passed at `ed6ae3c98` with a full33KB synthetic TXT, all three downloads,
+  matched provenance, verified removal/readback and stale-tab refusal. This
+  does not requalify live WorkDrive or semantic-search quality.
 - **Exact sources:** `#911` `04cb6ad6d` and `#921` `9062bb71e` (WorkDrive
   delivery; 56/56 private replay bound to `24794f257`); `#912` `9a0fc333d`
   (joined lifecycle selector); `#938` `471494e5d` (delete-truth selector at
   `.github/workflows/ci.yml`); `INT-09` remains external-blocked.
 - **Remaining user-boundary acceptance:** a fresh signed-in WorkDrive replay on
-  current main with a fresh grant; ordinary UI upload/open/search/export/delete
-  and grounding; live connector qualification. `INT-09` remains external.
+  current main with a fresh grant; broader file-family upload/open/search/export/delete
+  and grounding; live connector qualification. The synthetic TXT browser
+  lifecycle is covered by the newer source-bound record. `INT-09` remains external.
 - **Preserved negatives:** `test_document_delete_truth.py` was **not** hosted-
   selected before `#938`; the WorkDrive 56/56 receipt is not a current-main
   run; live provider/account breadth was never granted in the audit.
@@ -1028,7 +1032,7 @@ reassignment; other workers own the lanes noted.
 | 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
 | 4 | **Goal 6 automatic skill invocation** | `#945` merged: `skills.list`/`skills.execute` are advertised and dispatched by the ordinary `GenericAgent` loop, with a joined deterministic model run and pre-dispatch denial twins; no mechanism gap remains. | No further mechanism implementation. Independent real-model selection quality and fresh real-Docker evidence at the current source remain separate bounded evidence questions, not a new whole-goal claim. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
-| 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; delete truth now hosted-selected; no current-main signed-in replay. | Fresh signed-in WorkDrive/document journey at `b4370d0d4` or later, ordinary upload/open/search/export/delete readback. |
+| 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; [ordinary synthetic TXT browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`. | Fresh-grant live WorkDrive and broader file/search/grounding journeys; synthetic TXT upload/export/delete is separately covered. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic 24-sheet replay at `6ad2738ed`; full-population 34,533.00; no live connected source or browser. | Ordinary browser + live connected source; exact export/restart values; ambiguous-request refusal. |
 | 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [ordinary PDF upload/edit/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; full D2 open. | Remaining Canvas families and PDF operations, server-restart persistence and KVM/microVM where applicable. |
 | 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
