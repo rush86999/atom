@@ -38,7 +38,7 @@ the cache and a dependency change rebuilds:
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
+from core.asyncio_compat import get_event_loop
 import hashlib
 import itertools
 import json
@@ -53,6 +53,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
+from core.sandbox_runtime.capacity import get_capacity_semaphore
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -158,18 +159,11 @@ class MiniAppDevRuntime:
         self._build_lock: Optional[asyncio.Lock] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Same lazy/loop-rebinding pattern as FirecrackerRuntime — Python
-        # < 3.12 binds asyncio primitives to the first acquiring loop.
-        sem = self._concurrency_sem
-        if sem is None:
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
-        bound_loop = getattr(sem, "_bound_loop", None)
-        if bound_loop is None:
-            bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != get_event_loop():
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
+        # Shared across every MiniAppDevRuntime instance on this event loop.
+        # Factories construct new instances; the Docker/VM capacity is
+        # process-wide, and this permit is held through teardown.
+        sem = get_capacity_semaphore("miniapp-docker", _max_concurrency())
+        self._concurrency_sem = sem
         return sem
 
     def _build_sem(self) -> asyncio.Lock:
@@ -281,15 +275,23 @@ class MiniAppDevRuntime:
         tag: str,
         callback_handler: Any = None,
     ) -> SandboxExecResult:
-        """Start the container, exchange the guest protocol, tear down.
-
-        Mirrors ``FirecrackerRuntime._run_in_vm``: bounded concurrency,
-        overall timeout (kill on expiry), 64 KiB output caps, state envelope
-        and callback audit carried in metadata. Transport differs only in
-        pipes-for-vsock.
-        """
+        """Hold one shared capacity permit through the complete container lifecycle."""
         async with self._sem():
-            container = f"{IMAGE_REPO}-run-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+            return await self._run_in_container_locked(
+                code, policy=policy, inputs=inputs, tag=tag,
+                callback_handler=callback_handler)
+
+    async def _run_in_container_locked(
+        self,
+        code: str,
+        *,
+        policy: Any,
+        inputs: Optional[Dict[str, Any]],
+        tag: str,
+        callback_handler: Any = None,
+    ) -> SandboxExecResult:
+        """Start the container, exchange the guest protocol, tear down."""
+        container = f"{IMAGE_REPO}-run-{os.getpid()}-{uuid.uuid4().hex[:12]}"
 
         mem_mb = sandbox_config.get_sandbox_vm_mem_mb()
         vcpus = sandbox_config.get_sandbox_vm_vcpus()

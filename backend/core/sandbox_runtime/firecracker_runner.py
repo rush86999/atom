@@ -39,7 +39,6 @@ semantics:
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import itertools
 import json
 import logging
@@ -52,6 +51,7 @@ from typing import Any, Dict, List, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
+from core.sandbox_runtime.capacity import get_capacity_semaphore
 from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
 from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
@@ -177,21 +177,11 @@ class FirecrackerRuntime:
         self._concurrency_sem: Optional[asyncio.Semaphore] = None
 
     def _sem(self) -> asyncio.Semaphore:
-        # Lazily create the semaphore against the running loop so it survives
-        # across loop recreations in tests. Python < 3.12 binds primitives via
-        # ``_loop`` (None until first acquire); ``_bound_loop`` only exists on
-        # 3.12+ — probe both, and only recreate when a POSITIVE binding differs
-        # (an unbound semaphore binds to whichever loop acquires it first).
-        sem = self._concurrency_sem
-        if sem is None:
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
-        bound_loop = getattr(sem, "_bound_loop", None)
-        if bound_loop is None:
-            bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != get_event_loop():
-            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-            return self._concurrency_sem
+        # Shared across every FirecrackerRuntime instance on this event loop:
+        # factories construct new instances, but the KVM/RAM resource is
+        # process-wide. Held for the whole spawn/exchange/teardown lifecycle.
+        sem = get_capacity_semaphore("firecracker", _max_concurrency())
+        self._concurrency_sem = sem
         return sem
 
     async def execute_python(
@@ -282,13 +272,23 @@ class FirecrackerRuntime:
         rootfs: str,
         callback_handler: Any = None,
     ) -> SandboxExecResult:
-        """Boot a microVM, exchange a vsock command, tear down.
-
-        Concurrency is bounded by ``_concurrency_sem`` (KVM capacity) — VMs
-        boot in parallel up to the cap rather than serializing behind a lock.
-        """
+        """Hold one shared capacity permit through the complete VM lifecycle."""
         async with self._sem():
-            vm_id = f"atom-fc-{os.getpid()}-{next(self._vmid_iter)}"
+            return await self._run_in_vm_locked(
+                code, policy=policy, inputs=inputs, rootfs=rootfs,
+                callback_handler=callback_handler)
+
+    async def _run_in_vm_locked(
+        self,
+        code: str,
+        *,
+        policy: Any,
+        inputs: Optional[Dict[str, Any]],
+        rootfs: str,
+        callback_handler: Any = None,
+    ) -> SandboxExecResult:
+        """Boot a microVM, exchange a vsock command, tear down."""
+        vm_id = f"atom-fc-{os.getpid()}-{next(self._vmid_iter)}"
 
         run_dir = tempfile.mkdtemp(prefix=f"{vm_id}-")
         start = time.time()
