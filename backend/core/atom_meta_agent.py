@@ -936,6 +936,27 @@ class AtomMetaAgent:
         if "original_request" not in context:
             context["original_request"] = request
 
+        # Canonical task profile for this run. It lives in the dispatch
+        # context as a server-only object; governance and the shared MCP gate
+        # read it, while model tool args cannot forge or replace it.
+        try:
+            from core.task_classification import (
+                TASK_PROFILE_CONTEXT_KEY,
+                build_task_profile,
+            )
+
+            # Always rebuild for THIS request: a reused caller context must
+            # never carry a prior run's classification into a new task.
+            context[TASK_PROFILE_CONTEXT_KEY] = build_task_profile(
+                request,
+                steps=(context.get("task_steps")
+                       or context.get("steps") or []),
+                user_id=(context.get("user_id")
+                         or context.get("actor_id")),
+            )
+        except Exception as _profile_err:  # noqa: BLE001
+            logger.debug("meta-agent task profile skipped: %s", _profile_err)
+
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
 
         # Tier-2 semantic recall — called ONCE per execute(), not per ReAct step.
@@ -2868,7 +2889,11 @@ What is your next step?"""
                     # 1. Governance Check (async variant: the sync can_perform_action
                     # can't await the budget check inside a running loop, so it
                     # would skip budget enforcement entirely — a spend bypass).
-                    auth_check = await gov.can_perform_action_async("atom_main", tool_name)
+                    from core.task_classification import task_profile_from_context
+
+                    auth_check = await gov.can_perform_action_async(
+                        "atom_main", tool_name,
+                        task_profile=task_profile_from_context(context))
 
                     # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
                     # The user must accept or modify any state-changing task.
@@ -2902,6 +2927,13 @@ What is your next step?"""
                         approved = await self._wait_for_approval(action_id)
                         if not approved:
                             return f"Action {tool_name} was REJECTED or timed out."
+                        if auth_check.get("never_autonomous"):
+                            from core.autonomy_policy import (
+                                grant_never_autonomous_clearance,
+                            )
+
+                            grant_never_autonomous_clearance(
+                                context, auth_check["never_autonomous"])
 
                     elif not auth_check["allowed"]:
                         return f"Governance blocked: {auth_check['reason']}"
@@ -3708,10 +3740,15 @@ Provide your Mentorship Guidance:"""
         # 1. Governance pre-check for the whole batch (all-or-nothing).
         action_ids: List[str] = []
         blocked: List["ToolCall"] = []
+        never_decisions: List[Dict[str, Any]] = []
         with SessionLocal() as db:
             gov = AgentGovernanceService(db)
+            from core.task_classification import task_profile_from_context
+
             for act in parallel_actions:
-                auth_check = await gov.can_perform_action_async("atom_main", act.tool)
+                auth_check = await gov.can_perform_action_async(
+                    "atom_main", act.tool,
+                    task_profile=task_profile_from_context(context))
                 complexity = auth_check.get("action_complexity", 2)
                 if complexity > 1:
                     auth_check["requires_human_approval"] = True
@@ -3727,6 +3764,9 @@ Provide your Mentorship Guidance:"""
                         reason=auth_check["reason"],
                     )
                     action_ids.append(action_id)
+                    if auth_check.get("never_autonomous"):
+                        never_decisions.append(
+                            auth_check["never_autonomous"])
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -3764,6 +3804,10 @@ Provide your Mentorship Guidance:"""
                     }
                     for a in parallel_actions
                 ]
+            from core.autonomy_policy import grant_never_autonomous_clearance
+
+            for decision in never_decisions:
+                grant_never_autonomous_clearance(context, decision)
 
         # 2. Execute the parallel batch. Governance already granted above.
         results = await asyncio.gather(

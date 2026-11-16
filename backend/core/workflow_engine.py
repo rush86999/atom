@@ -812,6 +812,27 @@ class WorkflowEngine:
         return True
 
     async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]) -> None:
+        """Bind the workflow's canonical task profile for the whole run.
+
+        The profile is an in-process object bound through the same context
+        variable the topic gates and governance use; it is not written into
+        the persisted workflow definition. The body keeps the existing
+        execution loop unchanged.
+        """
+        from core.task_classification import (
+            bind_task_profile,
+            build_workflow_task_profile,
+            reset_task_profile,
+        )
+
+        token = bind_task_profile(
+            None, build_workflow_task_profile(workflow))
+        try:
+            await self._run_execution_body(execution_id, workflow)
+        finally:
+            reset_task_profile(token)
+
+    async def _run_execution_body(self, execution_id: str, workflow: Dict[str, Any]) -> None:
         """Main execution loop"""
         ws_manager = get_connection_manager()
         # Import here to avoid circular imports if any
@@ -949,16 +970,41 @@ class WorkflowEngine:
                             agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                         
                         # Governance applies only to registry-backed agents;
-                        # unbound system_agent workflows have no identity to
-                        # govern. Use the async variant (the sync method
-                        # cannot await the budget check inside a running loop)
-                        # with the correct action_type kwarg; the result is a
-                        # dict {"allowed": bool, "reason": str}.
+                        # unbound system_agent workflows still honor the
+                        # workflow owner's never-autonomous baskets even
+                        # though they have no maturity row to govern.
+                        from core.task_classification import (
+                            current_task_profile,
+                        )
+
                         if agent_record is not None:
                             can_perform_result = await governance.can_perform_action_async(
                                 agent_id=agent_id,
                                 action_type=step.get("action", "default"),
+                                task_profile=current_task_profile(),
                             )
+                        else:
+                            from core.autonomy_policy import (
+                                evaluate_never_autonomous,
+                            )
+
+                            _profile = current_task_profile()
+                            _never = evaluate_never_autonomous(
+                                db,
+                                user_id,
+                                _profile,
+                                tenant_id=tenant_id,
+                                workspace_id=workspace_id,
+                                action_type=step.get("action", "default"),
+                            )
+                            can_perform_result = {
+                                "allowed": _never.get("outcome") != "review",
+                                "requires_human_approval": (
+                                    _never.get("outcome") == "review"),
+                                "reason": _never.get("reason"),
+                                "never_autonomous": _never,
+                            }
+                        if can_perform_result is not None:
                             can_perform = (
                                 can_perform_result.get("allowed", False)
                                 if isinstance(can_perform_result, dict)
@@ -969,7 +1015,11 @@ class WorkflowEngine:
                                 if isinstance(can_perform_result, dict)
                                 else ""
                             )
-                            if not can_perform:
+                            _never_review = bool(
+                                isinstance(can_perform_result, dict)
+                                and (can_perform_result.get("never_autonomous") or {}).get(
+                                    "outcome") == "review")
+                            if not can_perform or _never_review:
                                 # Trust policy / maturity gate: the agent is
                                 # not autonomous enough for this action. A
                                 # resume carrying the approval for THIS exact
@@ -1031,6 +1081,17 @@ class WorkflowEngine:
                                         "durable HITL %s", execution_id,
                                         step_id,
                                         approved_binding["hitl_action_id"])
+                                    if isinstance(can_perform_result, dict) and (
+                                            can_perform_result.get(
+                                                "never_autonomous")):
+                                        from core.autonomy_policy import (
+                                            grant_never_autonomous_clearance,
+                                        )
+
+                                        grant_never_autonomous_clearance(
+                                            step,
+                                            can_perform_result[
+                                                "never_autonomous"])
                                 else:
                                     # No matching durable approval yet: pause
                                     # durably and file the exact effect for a
@@ -2220,6 +2281,31 @@ class WorkflowEngine:
                 tier = params.get("tier") or step.get("tier")
                 if tier:
                     context["tier_at_issuance"] = tier
+                # The run-level canonical profile + any per-step durable HITL
+                # clearance are server-only objects. Copying the opaque
+                # clearance is what lets an approved step reach the effect
+                # without re-pausing, while a different step still re-gates.
+                try:
+                    from core.autonomy_policy import (
+                        NEVER_CLEARANCE_CONTEXT_KEY,
+                    )
+                    from core.task_classification import (
+                        TASK_PROFILE_CONTEXT_KEY,
+                        current_task_profile,
+                    )
+
+                    profile = current_task_profile()
+                    if profile is not None:
+                        context[TASK_PROFILE_CONTEXT_KEY] = profile
+                        context.setdefault(
+                            "user_id", getattr(profile, "owner_user_id", None))
+                    clearance = step.get(NEVER_CLEARANCE_CONTEXT_KEY)
+                    if clearance is not None:
+                        context[NEVER_CLEARANCE_CONTEXT_KEY] = clearance
+                except Exception as _profile_err:  # noqa: BLE001
+                    logger.debug(
+                        "workflow task profile attach skipped: %s",
+                        _profile_err)
 
             # Execute MCP tool through the gated entry point
             result = await mcp_service.call_tool(tool_name, tool_args, context)

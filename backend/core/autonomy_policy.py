@@ -42,7 +42,7 @@ exercises (an email canvas → sends/CRM; every other surface → edits/tasks),
 while still exposing the full general set.
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,16 @@ _MODES = (MODE_HUMAN_ALWAYS, MODE_AUTO_IF_MATURE, MODE_AUTO_UNTIL_CORRECTED)
 
 OUTCOME_EXECUTE = "execute"
 OUTCOME_PROPOSE = "propose"
+
+# Never-autonomous task-basket outcomes (additive to topic outcomes above).
+NEVER_OUTCOME_REVIEW = "review"
+NEVER_OUTCOME_UNAFFECTED = "unaffected"
+NEVER_DIMENSIONS = ("difficulty", "category", "domain")
+NEVER_RULE_MAX_NAMES = 5
+NEVER_RULE_MAX_VALUES = 20
+# Only effectful actions are execution. Reads (governance complexity 1) are
+# not side effects and keep their pre-existing behavior.
+NEVER_EFFECTFUL_MIN_COMPLEXITY = 2
 
 
 def mode_allows_autonomy(mode: str) -> bool:
@@ -572,6 +582,546 @@ def revocation_check(db: Any, agent_id: Optional[str], topic: str) -> Dict[str, 
     return out
 
 
+class NeverRuleValidationError(ValueError):
+    """A rule body is malformed or names an unsupported dimension value."""
+
+
+class NeverRuleNotFound(LookupError):
+    """No rule with this id belongs to the authenticated owner."""
+
+
+class NeverRuleConflict(RuntimeError):
+    """An optimistic-concurrency revision no longer matches the row."""
+
+    def __init__(self, current_revision: int):
+        super().__init__("rule_revision_conflict")
+        self.current_revision = int(current_revision)
+
+
+def _normalize_dimension_values(dimension: str, values: Any) -> List[str]:
+    from core.task_classification import (
+        CATEGORY_VALUES,
+        DIFFICULTY_VALUES,
+        is_valid_domain_slug,
+    )
+
+    if values is None:
+        return []
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple, set)):
+        raise NeverRuleValidationError(
+            f"match.{dimension} must be a list of strings")
+    cleaned: List[str] = []
+    for raw in values:
+        text = str(raw or "").strip().lower()
+        if not text:
+            continue
+        if dimension == "difficulty" and text not in DIFFICULTY_VALUES:
+            raise NeverRuleValidationError(
+                f"unknown difficulty '{text}' (expected one of "
+                f"{', '.join(DIFFICULTY_VALUES)})")
+        if dimension == "category" and text not in CATEGORY_VALUES:
+            raise NeverRuleValidationError(
+                f"unknown category '{text}' (expected one of "
+                f"{', '.join(CATEGORY_VALUES)})")
+        if dimension == "domain" and not is_valid_domain_slug(text):
+            raise NeverRuleValidationError(
+                f"invalid domain slug '{text}'")
+        if text not in cleaned:
+            cleaned.append(text)
+        if len(cleaned) >= NEVER_RULE_MAX_VALUES:
+            break
+    return cleaned
+
+
+def normalize_never_match(match: Any) -> Dict[str, List[str]]:
+    """Validate/normalize rule dimensions.
+
+    All specified dimensions are ANDed; values inside one dimension are
+    alternatives (OR). At least one non-empty dimension is required.
+    """
+    if match is None:
+        raise NeverRuleValidationError("match is required")
+    if not isinstance(match, Mapping):
+        raise NeverRuleValidationError("match must be an object")
+    unknown = set(match) - set(NEVER_DIMENSIONS)
+    if unknown:
+        raise NeverRuleValidationError(
+            f"unknown match dimension(s): {', '.join(sorted(unknown))}")
+    normalized: Dict[str, List[str]] = {}
+    for dimension in NEVER_DIMENSIONS:
+        values = _normalize_dimension_values(dimension, match.get(dimension))
+        if values:
+            normalized[dimension] = values
+    if not normalized:
+        raise NeverRuleValidationError(
+            "match must specify at least one non-empty difficulty, "
+            "category, or domain")
+    return normalized
+
+
+def _rule_scope_matches(rule: Any, tenant_id: Optional[str],
+                        workspace_id: Optional[str]) -> bool:
+    """NULL scope is the Personal/default scope.
+
+    A non-null rule scope is narrowed further only when the runtime supplies
+    the corresponding scope. When the runtime has no scope value we cannot
+    prove the rule inapplicable, so the rule stays eligible (same user only).
+    """
+    rule_tenant = getattr(rule, "tenant_id", None)
+    rule_workspace = getattr(rule, "workspace_id", None)
+    # "default" is the Personal edition's unnamed scope, equivalent to NULL
+    # for narrowing purposes: it cannot prove the rule inapplicable.
+    runtime_tenant = (
+        None if str(tenant_id or "").strip().lower() in ("", "default")
+        else tenant_id)
+    runtime_workspace = (
+        None if str(workspace_id or "").strip().lower() in ("", "default")
+        else workspace_id)
+    if rule_tenant and runtime_tenant and str(
+            rule_tenant) != str(runtime_tenant):
+        return False
+    if rule_workspace and runtime_workspace and str(
+            rule_workspace) != str(runtime_workspace):
+        return False
+    return True
+
+
+def _serialize_never_rule(rule: Any) -> Dict[str, Any]:
+    try:
+        match = normalize_never_match(getattr(rule, "match_json", None))
+    except Exception:
+        # Corrupt persisted configuration is surfaced as-is (empty) and is
+        # treated as potential at evaluation; it is never silently dropped.
+        match = {}
+    def _iso(value: Any) -> Optional[str]:
+        return value.isoformat() if hasattr(value, "isoformat") else (
+            str(value) if value else None)
+    return {
+        "id": str(getattr(rule, "id", "")),
+        "name": str(getattr(rule, "name", "") or ""),
+        "enabled": bool(getattr(rule, "enabled", False)),
+        "match": match,
+        "scope": {
+            "user_id": getattr(rule, "user_id", None),
+            "workspace_id": getattr(rule, "workspace_id", None),
+            "tenant_id": getattr(rule, "tenant_id", None),
+        },
+        "revision": int(getattr(rule, "revision", 1) or 1),
+        "created_at": _iso(getattr(rule, "created_at", None)),
+        "updated_at": _iso(getattr(rule, "updated_at", None)),
+    }
+
+
+def list_never_rules(
+    db: Any,
+    user_id: Optional[str],
+    *,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    enabled_only: bool = False,
+) -> List[Dict[str, Any]]:
+    """All rules owned by ``user_id`` in the applicable scope.
+
+    API/list views pass no scope so the owner can edit every rule; runtime
+    authorization passes the task's scope. Cross-user reads are impossible:
+    ``user_id`` is a required filter, with no fallback to another owner.
+    """
+    if not user_id:
+        return []
+    from core.models import ActionAutonomyRule
+
+    query = db.query(ActionAutonomyRule).filter(
+        ActionAutonomyRule.user_id == str(user_id))
+    if enabled_only:
+        query = query.filter(ActionAutonomyRule.enabled.is_(True))
+    rows = query.order_by(ActionAutonomyRule.created_at,
+                          ActionAutonomyRule.id).all()
+    return [
+        _serialize_never_rule(row)
+        for row in rows
+        if _rule_scope_matches(row, tenant_id, workspace_id)
+    ]
+
+
+def _load_enabled_never_rows(
+    db: Any,
+    user_id: Optional[str],
+    *,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> List[Any]:
+    if not user_id:
+        return []
+    from core.models import ActionAutonomyRule
+
+    rows = (
+        db.query(ActionAutonomyRule)
+        .filter(
+            ActionAutonomyRule.user_id == str(user_id),
+            ActionAutonomyRule.enabled.is_(True),
+        )
+        .order_by(ActionAutonomyRule.created_at, ActionAutonomyRule.id)
+        .all()
+    )
+    return [
+        row for row in rows
+        if _rule_scope_matches(row, tenant_id, workspace_id)
+    ]
+
+
+_NEVER_CLEARANCE_TOKEN = object()
+NEVER_CLEARANCE_CONTEXT_KEY = "_never_autonomous_clearance"
+
+
+def grant_never_autonomous_clearance(context: Any, decision: Any) -> None:
+    """Mark ONE execution as human-approved for the matched rules.
+
+    The value carries a process-local opaque object, so a JSON request body
+    or model tool argument can never forge clearance. It is per-execution
+    state, not a rule mutation and not a durable blanket waiver.
+    """
+    if not isinstance(context, dict) or not isinstance(decision, Mapping):
+        return
+    if decision.get("outcome") != NEVER_OUTCOME_REVIEW:
+        return
+    context[NEVER_CLEARANCE_CONTEXT_KEY] = {
+        "token": _NEVER_CLEARANCE_TOKEN,
+        "rule_ids": list(decision.get("rule_ids") or []),
+    }
+
+
+def has_never_autonomous_clearance(
+    context: Any, required_rule_ids: Any = None,
+) -> bool:
+    if not isinstance(context, Mapping):
+        return False
+    value = context.get(NEVER_CLEARANCE_CONTEXT_KEY)
+    if not (isinstance(value, Mapping)
+            and value.get("token") is _NEVER_CLEARANCE_TOKEN):
+        return False
+    required = {
+        str(rule_id) for rule_id in (required_rule_ids or []) if rule_id
+    }
+    if not required:
+        return True
+    cleared = {str(rule_id) for rule_id in value.get("rule_ids") or []}
+    return required.issubset(cleared)
+
+
+def invalidate_never_autonomous_cache(*_args: Any, **_kwargs: Any) -> None:
+    """Invalidation hook for any process-local memo.
+
+    Runtime authorization deliberately reads the durable rows afresh (the
+    small indexed query is cheaper than a stale security decision), so there
+    is no long-lived policy cache to clear. Writes call this hook anyway so a
+    future memo cannot silently shadow a durable edit.
+    """
+    return None
+
+
+def create_never_rule(
+    db: Any,
+    user_id: str,
+    *,
+    name: str,
+    match: Any,
+    enabled: bool = True,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    from core.models import ActionAutonomyRule
+
+    clean_name = str(name or "").strip()
+    if not clean_name or len(clean_name) > 120:
+        raise NeverRuleValidationError(
+            "name must be 1-120 characters")
+    clean_match = normalize_never_match(match)
+    row = ActionAutonomyRule(
+        user_id=str(user_id),
+        tenant_id=str(tenant_id) if tenant_id else None,
+        workspace_id=str(workspace_id) if workspace_id else None,
+        name=clean_name,
+        enabled=bool(enabled),
+        match_json=clean_match,
+        revision=1,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    invalidate_never_autonomous_cache(user_id=user_id)
+    return _serialize_never_rule(row)
+
+
+def update_never_rule(
+    db: Any,
+    user_id: str,
+    rule_id: str,
+    *,
+    name: str,
+    match: Any,
+    enabled: bool = True,
+    expected_revision: Optional[int] = None,
+) -> Dict[str, Any]:
+    from core.models import ActionAutonomyRule
+
+    row = (
+        db.query(ActionAutonomyRule)
+        .filter(
+            ActionAutonomyRule.id == str(rule_id),
+            ActionAutonomyRule.user_id == str(user_id),
+        )
+        .first()
+    )
+    if row is None:
+        raise NeverRuleNotFound(rule_id)
+    if (expected_revision is not None
+            and int(expected_revision) != int(row.revision or 1)):
+        raise NeverRuleConflict(int(row.revision or 1))
+    clean_name = str(name or "").strip()
+    if not clean_name or len(clean_name) > 120:
+        raise NeverRuleValidationError("name must be 1-120 characters")
+    clean_match = normalize_never_match(match)
+    row.name = clean_name
+    row.enabled = bool(enabled)
+    row.match_json = clean_match
+    row.revision = int(row.revision or 1) + 1
+    db.commit()
+    db.refresh(row)
+    invalidate_never_autonomous_cache(user_id=user_id)
+    return _serialize_never_rule(row)
+
+
+def delete_never_rule(db: Any, user_id: str, rule_id: str) -> bool:
+    from core.models import ActionAutonomyRule
+
+    row = (
+        db.query(ActionAutonomyRule)
+        .filter(
+            ActionAutonomyRule.id == str(rule_id),
+            ActionAutonomyRule.user_id == str(user_id),
+        )
+        .first()
+    )
+    if row is None:
+        raise NeverRuleNotFound(rule_id)
+    db.delete(row)
+    db.commit()
+    invalidate_never_autonomous_cache(user_id=user_id)
+    return True
+
+
+def _action_complexity(action_type: Optional[str]) -> Optional[int]:
+    if not action_type:
+        return None
+    try:
+        from core.agent_governance_service import AgentGovernanceService
+
+        action = str(action_type).strip().lower()
+        # Task-lifecycle read classes mutate no external system.
+        if action in ("retrieve", "present", "calculate", "stop"):
+            return 1
+        if action in AgentGovernanceService.ACTION_COMPLEXITY:
+            return int(AgentGovernanceService.ACTION_COMPLEXITY[action])
+        matches = [
+            level for name, level in
+            AgentGovernanceService.ACTION_COMPLEXITY.items()
+            if name in action
+        ]
+        return max(matches) if matches else 2
+    except Exception as exc:  # noqa: BLE001 — unknown is effectful/fail-closed
+        logger.debug("action complexity lookup skipped: %s", exc)
+        return None
+
+
+def _match_rule_dimensions(
+    match: Mapping[str, List[str]], profile: Any,
+) -> tuple:
+    """Return (state, missing_dimensions) for one normalized rule."""
+    missing: List[str] = []
+    for dimension in NEVER_DIMENSIONS:
+        alternatives = match.get(dimension) or []
+        if not alternatives:
+            continue
+        task_value = getattr(profile, dimension, None) if profile else None
+        if not task_value:
+            missing.append(dimension)
+            continue
+        if str(task_value).strip().lower() not in alternatives:
+            return "nonmatch", missing
+    return ("potential" if missing else "match"), missing
+
+
+def evaluate_never_autonomous(
+    db: Any,
+    user_id: Optional[str],
+    task_profile: Any = None,
+    *,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    action_type: Optional[str] = None,
+    action_complexity: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Evaluate the owner's enabled never-autonomous baskets.
+
+    This is the single matching algorithm used by the topic gate, governance
+    dispatch, the assignment re-check and the MCP guard. It is independent of
+    agent maturity/graduation/trust/model/route state.
+
+    Missing metadata is not a wildcard: if the profile (or a dimension a rule
+    constrains) is unavailable, the rule is a **potential** match and review
+    is required. Only a present, trusted value can prove a nonmatch.
+    """
+    from core.task_classification import is_trusted_task_profile
+
+    complexity = (
+        int(action_complexity) if action_complexity is not None
+        else _action_complexity(action_type)
+    )
+    out: Dict[str, Any] = {
+        "applicable": False,
+        "matched": False,
+        "potential": False,
+        "outcome": NEVER_OUTCOME_UNAFFECTED,
+        "rule_ids": [],
+        "rule_names": [],
+        "reason": None,
+        "profile": None,
+        "metadata_state": "not_required",
+        "action_complexity": complexity,
+        "error": None,
+    }
+    # Reads are not execution and keep their prior behavior.
+    if complexity is not None and complexity < NEVER_EFFECTFUL_MIN_COMPLEXITY:
+        return out
+
+    profile = task_profile if is_trusted_task_profile(task_profile) else None
+    resolved_user_id = user_id or (
+        getattr(profile, "owner_user_id", None) if profile else None)
+    try:
+        rows = _load_enabled_never_rows(
+            db, resolved_user_id, tenant_id=tenant_id,
+            workspace_id=workspace_id)
+    except Exception as exc:  # noqa: BLE001 — configured policy fails CLOSED
+        # A store that has never been provisioned cannot contain a configured
+        # rule (fresh installs create it via create_all, PostgreSQL via the
+        # additive migration). Treat only that exact absence as "no policy";
+        # every other read failure is a fail-closed policy outage.
+        _error_text = str(exc).lower()
+        if ("action_autonomy_rules" in _error_text
+                and ("no such table" in _error_text
+                     or "does not exist" in _error_text)):
+            out["metadata_state"] = "policy_store_absent"
+            return out
+        logger.warning("never-autonomous policy unavailable: %s", exc)
+        out.update(
+            applicable=True,
+            matched=False,
+            potential=True,
+            outcome=NEVER_OUTCOME_REVIEW,
+            metadata_state="policy_unavailable",
+            error=f"{type(exc).__name__}: {exc}"[:200],
+            reason=(
+                "Never-autonomous policy could not be evaluated "
+                f"({type(exc).__name__}); human review is required."),
+        )
+        return out
+
+    if not rows:
+        return out
+
+    out["applicable"] = True
+    if profile is not None:
+        out["profile"] = profile.as_dict()
+        out["metadata_state"] = (
+            "available" if not profile.missing_dimensions()
+            else "partial")
+    elif task_profile is None:
+        out["metadata_state"] = "missing"
+    else:
+        out["metadata_state"] = "untrusted"
+
+    definite: List[Dict[str, Any]] = []
+    potential: List[Dict[str, Any]] = []
+    missing_union: List[str] = []
+    for row in rows:
+        try:
+            match = normalize_never_match(getattr(row, "match_json", None))
+        except Exception as exc:  # noqa: BLE001 — corrupt rule fails CLOSED
+            potential.append({
+                "id": str(getattr(row, "id", "")),
+                "name": str(getattr(row, "name", "") or "unreadable rule"),
+                "invalid": True,
+                "error": str(exc)[:120],
+            })
+            continue
+        state, missing = _match_rule_dimensions(match, profile)
+        if state == "nonmatch":
+            continue
+        entry = {
+            "id": str(getattr(row, "id", "")),
+            "name": str(getattr(row, "name", "") or ""),
+        }
+        if state == "match":
+            definite.append(entry)
+        else:
+            potential.append(entry)
+            for dimension in missing:
+                if dimension not in missing_union:
+                    missing_union.append(dimension)
+
+    selected = definite or potential
+    if not selected:
+        return out
+
+    rule_ids = [entry["id"] for entry in selected]
+    rule_names = [entry["name"] for entry in selected if entry.get("name")]
+    out.update(
+        matched=True,
+        potential=bool(potential) and not definite,
+        outcome=NEVER_OUTCOME_REVIEW,
+        rule_ids=rule_ids,
+        rule_names=rule_names[:NEVER_RULE_MAX_NAMES],
+    )
+    names = ", ".join(f"“{name}”" for name in out["rule_names"]) or "rule"
+    if definite:
+        out["reason"] = (
+            f"Never-autonomous {names} matched this task — "
+            "a human must approve this execution.")
+    else:
+        missing_text = (
+            ", ".join(missing_union) if missing_union else "task metadata")
+        out["reason"] = (
+            f"Never-autonomous {names} may apply, but {missing_text} "
+            "is unavailable/untrusted — a human must review this execution.")
+    return out
+
+
+def never_autonomous_diagnostics(
+    db: Any,
+    user_id: Optional[str],
+    *,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Read-only ceiling projection for existing qualification diagnostics."""
+    rules = list_never_rules(
+        db, user_id, tenant_id=tenant_id, workspace_id=workspace_id,
+        enabled_only=True)
+    return {
+        "career_level": None,  # caller fills from AgentRegistry.status
+        "scope": "user",
+        "never_autonomous_rules": [
+            {"id": rule["id"], "name": rule["name"], "enabled": True}
+            for rule in rules
+        ],
+        "note": (
+            "Career graduation is agent-wide; these task baskets still "
+            "require human review and do not demote unrelated tasks."),
+    }
+
+
 def _gate_reason(
     label: str,
     mode_ok: bool,
@@ -580,6 +1130,7 @@ def _gate_reason(
     cycle: Optional[Dict[str, Any]] = None,
     calibration: Optional[Dict[str, Any]] = None,
     revocation: Optional[Dict[str, Any]] = None,
+    never: Optional[Dict[str, Any]] = None,
 ) -> str:
     if revocation is not None and not revocation["ok"]:
         if revocation.get("unavailable"):
@@ -592,6 +1143,10 @@ def _gate_reason(
             f"{label} autonomy was revoked after a verified regression "
             f"({revocation.get('reason')}); the hire must re-earn it."
         )
+    if never is not None and never.get("outcome") == NEVER_OUTCOME_REVIEW:
+        return never.get("reason") or (
+            "A never-autonomous task rule matched this action — a human "
+            "must approve this execution.")
     if not mode_ok:
         return f"You asked to approve every {label.lower()} — the hire proposes only."
     if cycle is not None and not cycle["ok"]:
@@ -627,17 +1182,27 @@ def gate_for_topic(
     user_id: Optional[str],
     topic: str,
     agent_id: Optional[str] = None,
+    *,
+    task_profile: Any = None,
 ) -> Dict[str, Any]:
     """The one gate: owner mode × governance maturity × skill-scoped trust
-    (× correction cycle under ``auto_until_corrected``).
+    (× correction cycle under ``auto_until_corrected``) × never-autonomous
+    task baskets.
 
     ``execute`` only when the owner allowed autonomy AND the hire's tier
     clears the topic's governance bar AND (when the trust flag is on) the
     hire's verified trust clears the threshold AND — in until-corrected
-    mode — no human correction has reset the hire's earned cycle. Everything
-    else proposes — the runtime paths enforce exactly this, so the panel is
-    a projection of runtime behavior, not a parallel truth.
+    mode — no human correction has reset the hire's earned cycle AND no
+    enabled never-autonomous basket matches the task. Everything else
+    proposes — the runtime paths enforce exactly this, so the panel is a
+    projection of runtime behavior, not a parallel truth.
+
+    ``task_profile`` is the server-built profile for this execution. When
+    omitted, the profile bound for the run (``core.task_classification``)
+    is used; a missing profile only affects owners who configured rules.
     """
+    from core.task_classification import current_task_profile
+
     mode = get_effective_mode(db, user_id, topic)
     maturity = maturity_check(db, agent_id, topic)
     trust = trust_check(db, agent_id, topic)
@@ -649,6 +1214,14 @@ def gate_for_topic(
         else None
     )
     calibration = trust_calibration_check(db)
+    resolved_profile = (
+        task_profile if task_profile is not None else current_task_profile())
+    never = evaluate_never_autonomous(
+        db,
+        user_id,
+        resolved_profile,
+        action_type=TOPIC_GATES.get(topic, {}).get("governance_action"),
+    )
     execute = (
         mode_ok
         and maturity["ok"]
@@ -656,6 +1229,7 @@ def gate_for_topic(
         and (cycle is None or cycle["ok"])
         and calibration["ok"]
         and revocation["ok"]
+        and never["outcome"] != NEVER_OUTCOME_REVIEW
     )
     label = TOPICS.get(topic, {}).get("label", topic)
     return {
@@ -666,9 +1240,11 @@ def gate_for_topic(
         "cycle": cycle,
         "calibration": calibration,
         "revocation": revocation,
+        "never_autonomous": never,
         "outcome": OUTCOME_EXECUTE if execute else OUTCOME_PROPOSE,
         "reason": _gate_reason(
-            label, mode_ok, maturity, trust, cycle, calibration, revocation),
+            label, mode_ok, maturity, trust, cycle, calibration, revocation,
+            never),
     }
 
 

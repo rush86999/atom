@@ -431,6 +431,28 @@ async def get_agent_maturity_guide(
                 "message": str(exc)[:500],
             }
 
+    # Scoped runtime ceiling: an agent-wide career tier stays intact; these
+    # never-autonomous baskets only force human review for matching tasks.
+    try:
+        from core.autonomy_policy import never_autonomous_diagnostics
+
+        runtime_ceiling = never_autonomous_diagnostics(
+            db,
+            str(current_user.id),
+            tenant_id=getattr(current_user, "tenant_id", None),
+            workspace_id=getattr(current_user, "workspace_id", None),
+        )
+        runtime_ceiling["career_level"] = status
+    except Exception as exc:  # pragma: no cover — never 500 the guide
+        runtime_ceiling = {
+            "career_level": status,
+            "scope": "user",
+            "never_autonomous_rules": [],
+            "note": (
+                "Task-basket policy could not be read; existing maturity "
+                f"behavior is unchanged ({str(exc)[:120]})."),
+        }
+
     return router.success_response(
         data={
             "agent_id": agent.id,
@@ -451,6 +473,7 @@ async def get_agent_maturity_guide(
             "mastery": mastery,
             "readiness": readiness,
             "assessment": assessment,
+            "runtime_ceiling": runtime_ceiling,
             "next_level": next_level,
             "how_to_advance": _ADVANCEMENT.get(status, "Top maturity level reached."),
         },

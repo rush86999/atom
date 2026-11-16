@@ -938,6 +938,7 @@ class AgentGovernanceService:
         require_approval: bool = False,
         chain_id: Optional[str] = None,
         include_global_agent_id: Optional[str] = None,
+        task_profile: Any = None,
     ) -> Dict[str, Any]:
         """Async governance API over the shared local-ledger decision.
 
@@ -954,6 +955,7 @@ class AgentGovernanceService:
             agent_id, action_type, require_approval=require_approval,
             chain_id=chain_id, _skip_budget=True,
             include_global_agent_id=include_global_agent_id,
+            task_profile=task_profile,
         )
         # A reviewable maturity denial is not a final refusal: callers may
         # offer action approval. Check its budget before offering that path,
@@ -978,8 +980,18 @@ class AgentGovernanceService:
         chain_id: Optional[str] = None, # NEW Phase 10
         _skip_budget: bool = False,  # internal: used by can_perform_action_async
         include_global_agent_id: Optional[str] = None,
+        task_profile: Any = None,
     ) -> Dict[str, Any]:
-        """Hybrid maturity check with complexity-based enforcement"""
+        """Hybrid maturity check with complexity-based enforcement.
+
+        ``task_profile`` is the optional server-owned classification snapshot
+        for the current execution. When supplied, the owner's enabled
+        never-autonomous baskets are evaluated independently of maturity and
+        can force review even for an AUTONOMOUS hire. Callers that have no
+        task execution in scope leave it ``None`` (unchanged behavior); the
+        shared MCP dispatch still fails closed for effectful tools when an
+        owner has configured rules but no trusted profile reached it.
+        """
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
             self._agent_scope_condition(include_global_agent_id)
@@ -1035,6 +1047,48 @@ class AgentGovernanceService:
 
         approval_needed = not allowed or (stored_status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
+        # Never-autonomous task baskets are an independent FORBID-overrides-
+        # permit layer: a matching enabled rule forces review even when the
+        # maturity decision allowed execution. Only a trusted, server-built
+        # profile participates; a caller-supplied dict cannot relax anything.
+        never: Optional[Dict[str, Any]] = None
+        if task_profile is not None:
+            try:
+                from core.autonomy_policy import evaluate_never_autonomous
+                from core.task_classification import is_trusted_task_profile
+
+                task_owner = (
+                    getattr(task_profile, "owner_user_id", None)
+                    if is_trusted_task_profile(task_profile) else None
+                )
+                never = evaluate_never_autonomous(
+                    self.db,
+                    task_owner or getattr(agent, "user_id", None),
+                    task_profile,
+                    tenant_id=getattr(self, "tenant_id", None),
+                    workspace_id=getattr(self, "workspace_id", None),
+                    action_type=action_type,
+                    action_complexity=complexity,
+                )
+            except Exception as exc:  # noqa: BLE001 — configured policy fails CLOSED
+                logger.warning(
+                    "never-autonomous policy check unavailable for %s/%s: %s",
+                    agent_id, action_type, exc)
+                never = {
+                    "applicable": True,
+                    "matched": False,
+                    "potential": True,
+                    "outcome": "review",
+                    "rule_ids": [],
+                    "rule_names": [],
+                    "reason": (
+                        "Never-autonomous policy could not be evaluated; "
+                        "human review is required."),
+                    "metadata_state": "policy_unavailable",
+                }
+            if never.get("outcome") == "review":
+                approval_needed = True
+
         # Sync callers also exist inside async routes/workflow consumers.
         # Check the same local-ledger decision instead of merely warning and
         # allowing a configured limit to be skipped. Outside an event loop,
@@ -1083,15 +1137,23 @@ class AgentGovernanceService:
                         "status_code": "RECURSION_LIMIT"
                     }
 
-        return {
+        reason = (
+            f"Maturity check failed. Required: {required_status.value}"
+            if not allowed else "Maturity check passed.")
+        if never is not None and never.get("outcome") == "review":
+            reason = never.get("reason") or reason
+        result = {
             "allowed": allowed,
-            "reason": f"Maturity check failed. Required: {required_status.value}" if not allowed else "Maturity check passed.",
+            "reason": reason,
             "agent_status": agent.status,
             "action_complexity": complexity,
             "required_status": required_status.value,
             "requires_human_approval": approval_needed,
             "confidence": agent.confidence_score or 0.5
         }
+        if never is not None:
+            result["never_autonomous"] = never
+        return result
 
     def get_agent_capabilities(self, agent_id: str) -> Optional[Dict[str, Any]]:
         """Return the governance capabilities/maturity for an agent.

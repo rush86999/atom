@@ -205,3 +205,26 @@ def test_read_does_not_mutate_agent_or_learning(world):
             c, world.token(world.user_a), world.agent_a)
     assert response.status_code == 200
     assert world.snapshot_agent(world.agent_a) == before
+
+
+def test_runtime_ceiling_shows_never_autonomous_baskets_without_demotion(world):
+    """Career level is agent-wide; matching baskets are a scoped ceiling."""
+    from core import autonomy_policy as ap
+
+    with world.Session() as db:
+        created = ap.create_never_rule(
+            db, world.user_a, name="Finance advanced",
+            match={"difficulty": ["advanced"], "domain": ["finance"]})
+        before = db.query(AgentRegistry).filter(
+            AgentRegistry.id == world.agent_a).one().status
+    with world.client() as c:
+        response = world.guide(
+            c, world.token(world.user_a), world.agent_a)
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    ceiling = data["runtime_ceiling"]
+    assert data["current_level"] == before
+    assert ceiling["career_level"] == before
+    assert [r["id"] for r in ceiling["never_autonomous_rules"]] == [
+        created["id"]]
+    assert "do not demote" in ceiling["note"]

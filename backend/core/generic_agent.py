@@ -367,9 +367,37 @@ class GenericAgent:
             )
         except Exception:
             pass
+        # Canonical task classification is bound for this run so every nested
+        # topic gate and governance check evaluates the SAME trusted profile.
+        # A model cannot forge it: it is an in-process object, not a tool arg.
+        _task_profile_token = None
+        try:
+            from core.task_classification import (
+                bind_task_profile,
+                build_task_profile,
+                reset_task_profile,
+            )
+
+            _profile = build_task_profile(
+                task_input,
+                steps=(context.get("task_steps")
+                       or context.get("steps") or []),
+                user_id=(context.get("user_id")
+                         or context.get("actor_id")
+                         or getattr(self, "user_id", None)),
+            )
+            _task_profile_token = bind_task_profile(context, _profile)
+        except Exception as _profile_err:  # noqa: BLE001 — policy handles missing
+            logger.debug("task profile bind skipped: %s", _profile_err)
         try:
             return await self._execute_impl(task_input, context, step_callback)
         finally:
+            try:
+                from core.task_classification import reset_task_profile
+
+                reset_task_profile(_task_profile_token, context)
+            except Exception:
+                pass
             if _audit_tokens is not None:
                 from core.chat_session_context import reset_chat_context
 
@@ -3486,7 +3514,11 @@ What is your next step?"""
                     )
                     # Async variant: the sync can_perform_action can't await the
                     # budget check inside a running loop (spend-limit bypass).
-                    auth_check = await gov.can_perform_action_async(self.id, tool_name)
+                    from core.task_classification import current_task_profile
+
+                    auth_check = await gov.can_perform_action_async(
+                        self.id, tool_name,
+                        task_profile=current_task_profile())
 
                     if auth_check.get("requires_human_approval"):
                         # Create HITL Action
@@ -3538,6 +3570,13 @@ What is your next step?"""
                             return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
 
                         logger.info(f"Action {tool_name} APPROVED. Proceeding...")
+                        if auth_check.get("never_autonomous"):
+                            from core.autonomy_policy import (
+                                grant_never_autonomous_clearance,
+                            )
+
+                            grant_never_autonomous_clearance(
+                                context, auth_check["never_autonomous"])
 
                     elif not auth_check["allowed"]:
                         _mark_dispatch_refused(
@@ -4163,6 +4202,7 @@ What is your next step?"""
 
         # 1. Governance pre-check for the whole batch (all-or-nothing).
         action_ids: List[str] = []
+        never_decisions: List[Dict[str, Any]] = []
         with get_db_session() as db:
             gov = AgentGovernanceService(
                 db,
@@ -4170,7 +4210,11 @@ What is your next step?"""
                 tenant_id=getattr(self, "tenant_id", None),
             )
             for act in parallel_actions:
-                auth_check = await gov.can_perform_action_async(self.id, act.tool)
+                from core.task_classification import current_task_profile
+
+                auth_check = await gov.can_perform_action_async(
+                    self.id, act.tool,
+                    task_profile=current_task_profile())
                 if auth_check.get("requires_human_approval"):
                     action_id = gov.request_approval(
                         agent_id=self.id,
@@ -4181,6 +4225,9 @@ What is your next step?"""
                         user_id=(context or {}).get("user_id"),
                     )
                     action_ids.append(action_id)
+                    if auth_check.get("never_autonomous"):
+                        never_decisions.append(
+                            auth_check["never_autonomous"])
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -4229,6 +4276,10 @@ What is your next step?"""
                     }
                     for a in parallel_actions
                 ]
+            from core.autonomy_policy import grant_never_autonomous_clearance
+
+            for decision in never_decisions:
+                grant_never_autonomous_clearance(context, decision)
 
         # 2. Execute the parallel batch. Governance already granted above.
         # Every tool gets its own envelope so concurrent dispatches cannot

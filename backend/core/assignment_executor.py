@@ -7464,8 +7464,6 @@ class AssignmentExecutor:
         provider response identity demotes the effect to approval.
         """
         topic = self._autonomy_topic_for_step(step)
-        if not topic:
-            return None
         provenance = assignment.get("provenance") or {}
         agent_id = str(provenance.get("agent_id") or "").strip() or None
         user_id = (
@@ -7474,11 +7472,35 @@ class AssignmentExecutor:
             or None)
         try:
             from core.autonomy_policy import (
-                OUTCOME_EXECUTE, gate_for_topic,
+                OUTCOME_EXECUTE, OUTCOME_PROPOSE, evaluate_never_autonomous,
+                gate_for_topic,
             )
+            from core.task_classification import build_assignment_task_profile
 
+            profile = build_assignment_task_profile(assignment)
             with self.lifecycle.runs._sessions()() as db:
-                gate = gate_for_topic(db, user_id, topic, agent_id)
+                if not topic:
+                    # A step without a mapped topic still cannot bypass an
+                    # owner's never-autonomous baskets. Only effectful
+                    # operations reach this check (the executor calls it
+                    # before an effect claim).
+                    never = evaluate_never_autonomous(
+                        db, user_id, profile,
+                        tenant_id=assignment.get("tenant_id"),
+                        workspace_id=assignment.get("workspace_id"),
+                        action_type=str(step.get("operation_type") or ""),
+                    )
+                    if never.get("outcome") != "review":
+                        return None
+                    return {
+                        "topic": None,
+                        "outcome": OUTCOME_PROPOSE,
+                        "reason": never.get("reason"),
+                        "never_autonomous": never,
+                        "source": "never_autonomous_recheck",
+                    }
+                gate = gate_for_topic(
+                    db, user_id, topic, agent_id, task_profile=profile)
                 if gate.get("outcome") == OUTCOME_EXECUTE:
                     route_revalidation = self._repeat_task_route_revalidation(
                         db, run_id, agent_id, topic, assignment=assignment)

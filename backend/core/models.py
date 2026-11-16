@@ -1740,6 +1740,48 @@ class ActionAutonomyPolicy(Base):
     )
 
 
+class ActionAutonomyRule(Base):
+    """Opt-in "never autonomous" task-basket rule for one user.
+
+    A rule names task shapes (difficulty/category/domain) that ALWAYS require
+    a human decision, independent of agent maturity, graduation, trust or
+    route. Dimensions are ANDed across the dimensions the rule specifies;
+    alternatives inside one dimension are ORed. An empty/disabled rule list is
+    the default, so existing topic policy behavior is unchanged until the
+    owner explicitly opts in.
+
+    Scope columns are nullable to preserve the Personal-first single-tenant
+    model: NULL means default/personal scope. ``user_id`` is always the
+    authoritative owner; runtime never reads another user's rows.
+    """
+    __tablename__ = "action_autonomy_rules"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    name = Column(String(120), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    # {"difficulty": [...], "category": [...], "domain": [...]}; omitted
+    # dimensions are unspecified (wildcards), never "match everything".
+    match_json = Column(JSONColumn, nullable=False, default=dict)
+    revision = Column(Integer, nullable=False, default=1)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        Index("ix_action_autonomy_rules_owner_scope",
+              "user_id", "tenant_id", "workspace_id"),
+    )
+
+
 class ActionProposal(Base):
     """Represents an agent action proposal awaiting user approval (Canvas Workflow)"""
     __tablename__ = "action_proposals"
