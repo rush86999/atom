@@ -21,6 +21,52 @@ def resolve_local_path(value: str | os.PathLike) -> Path:
     return path.resolve()
 
 
+#: The PostgreSQL DBAPI declared by ``requirements.txt`` /
+#: ``pyproject.toml`` (``psycopg2-binary``). SQLAlchemy 2.1 changed the
+#: DEFAULT driver for a driver-less ``postgresql://`` URL to psycopg (psycopg3)
+#: — https://docs.sqlalchemy.org/en/21/dialects/postgresql.html#module-sqlalchemy.dialects.postgresql.psycopg2
+#: — so an implicit URL would fail at engine construction on an installation
+#: that only has the declared psycopg2 driver.
+DECLARED_POSTGRES_DRIVER = "psycopg2"
+
+
+def normalize_postgres_driver(value: str) -> str:
+    """Pin a DRIVER-LESS PostgreSQL URL to the declared psycopg2 driver.
+
+    Only the scheme token changes; the rest of the URL is preserved VERBATIM,
+    so credentials escaping, IPv6 hosts, ports, database names and query
+    strings (including SQLAlchemy's ``host``/``port`` query overrides) keep
+    their existing semantics. Explicit driver choices are never rewritten:
+
+    * ``postgresql://…`` / ``postgres://…`` → ``postgresql+psycopg2://…``
+    * ``postgresql+psycopg2://``, ``postgresql+psycopg://``,
+      ``postgresql+asyncpg://``, ``postgresql+pg8000://`` … unchanged
+    * SQLite / redis / empty / ``None`` unchanged
+    """
+    if not value or not isinstance(value, str):
+        return value
+    for implicit in ("postgresql://", "postgres://"):
+        if value.startswith(implicit):
+            return (f"postgresql+{DECLARED_POSTGRES_DRIVER}://"
+                    + value[len(implicit):])
+    return value
+
+
+def postgres_asyncpg_url(value: str) -> str:
+    """PostgreSQL URL for asyncpg consumers (NOTIFY/LISTEN, async engine).
+
+    Converts only driver-less URLs and the declared-default psycopg2 form
+    produced by :func:`normalize_postgres_driver`; an explicit async or other
+    driver is returned unchanged so callers keep their own choice.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    for prefix in ("postgresql+psycopg2://", "postgresql://", "postgres://"):
+        if value.startswith(prefix):
+            return "postgresql+asyncpg://" + value[len(prefix):]
+    return value
+
+
 def anchor_sqlite_url(value: str, backend_root: Path | str | None = None) -> str:
     """Anchor a relative SQLAlchemy SQLite file URL to the backend directory.
 

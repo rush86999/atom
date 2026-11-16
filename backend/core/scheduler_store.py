@@ -125,9 +125,14 @@ def resolve_scheduler_job_store_url(
     """Resolve the effective APScheduler SQLAlchemy URL.
 
     Relative SQLite file paths anchor to ``backend/``. Absolute paths,
-    ``:memory:``, ``file:`` URIs and non-SQLite URLs are returned unchanged.
+    ``:memory:``, ``file:`` URIs are returned unchanged. A driver-less
+    PostgreSQL URL is pinned to the declared ``psycopg2`` driver (SQLAlchemy
+    2.1 defaults to psycopg3, which this install does not ship); explicit
+    drivers and all non-PostgreSQL/non-SQLite URLs pass through unchanged.
     """
-    return anchor_sqlite_url(url, root)
+    from core.local_paths import normalize_postgres_driver
+
+    return normalize_postgres_driver(anchor_sqlite_url(url, root))
 
 
 def _sqlite_file_path(url: str) -> Optional[Path]:
