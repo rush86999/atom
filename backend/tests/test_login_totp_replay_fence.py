@@ -6,6 +6,7 @@ sink, and the login rate-limiter dependency are controlled seams.
 """
 from __future__ import annotations
 
+import base64
 from unittest.mock import patch
 
 import pyotp
@@ -23,7 +24,11 @@ from core.database import Base, get_db
 from core.models import User, UserStatus
 from core.security.auth_rate_limit import login_rate_limit
 
-TEST_SECRET = "JBSWY3DPEHPK3PXP"
+# Public RFC 6238 synthetic fixture bytes (not a real credential). base32
+# encoding is 160 bits so current pyotp (2.12+) accepts it; the former literal
+# decoded to only 80 bits and pyotp 2.12 rejects secrets below 112 bits.
+TEST_SECRET = base64.b32encode(
+    b"12345678901234567890").decode("ascii")
 
 
 @pytest.fixture()
@@ -58,6 +63,11 @@ def env():
         client.close()
         db.close()
         engine.dispose()
+
+
+def test_replay_fixture_secret_is_public_and_at_least_20_bytes():
+    assert base64.b32decode(TEST_SECRET) == b"12345678901234567890"
+    assert len(base64.b32decode(TEST_SECRET)) >= 20
 
 
 def _login(client, code=None):
