@@ -509,8 +509,246 @@ describe("Self-directed graduation queue", () => {
     expect(mockFetch.mock.calls.filter((c: any[]) =>
       String(c[0]).includes("/episodes/graduation/promote"))).toHaveLength(1);
   });
+});
 
+describe("Never-autonomous task admission presentation", () => {
+  const baseAdmission = {
+    id: "nt-1",
+    agent_id: "agent-finance-12345678",
+    action_type: "never_autonomous_task",
+    reason:
+      "Never-autonomous “Finance January close” matched this task — a human must approve this execution.",
+    created_at: "2026-01-05T10:00:00Z",
+    params: {
+      execution_id: "exec-abc-123",
+      task_fingerprint: "sha256:feedfacecafebeef",
+      rule_ids: ["rule-fin-jan-close"],
+      rule_bindings: [{ id: "rule-fin-jan-close", revision: 7 }],
+      owner_user_id: "7bcb8b3c-owner",
+      task_profile: {
+        difficulty: "complex",
+        category: "extraction",
+        domain: "finance",
+        source: "server",
+        signals: {
+          difficulty_source: "query_complexity",
+          category_source: "task_domain",
+          domain_source: "domain_attribution",
+        },
+      },
+      task_input: "Prepare the January finance close and reconcile every ledger account.",
+    },
+  };
 
+  const taskAdmission = (overrides: any = {}) => ({
+    ...baseAdmission,
+    ...overrides,
+    params: { ...baseAdmission.params, ...(overrides.params || {}) },
+  });
+
+  const mockPending = (actions: any[]) => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [] }));
+      }
+      return Promise.resolve(okJson(actions));
+    });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseActionProposals.mockReturnValue(actionQueryState());
+    localStorage.setItem("auth_token", "tok");
+    global.fetch = mockFetch as any;
+  });
+
+  it("shows the full readable task, server classification and one-execution wording without ids in the primary flow", async () => {
+    const visibleMarker = "VISIBLE_MARKER_AFTER_OLD_TRUNCATION";
+    const hiddenTailMarker = "HIDDEN_TAIL_MARKER";
+    const longTask =
+      "Prepare the January finance close. ".padEnd(300, ".") +
+      `${visibleMarker} ${"x".repeat(1100)} ${hiddenTailMarker}`;
+    mockPending([taskAdmission({ params: { task_input: longTask } })]);
+
+    render(<ApprovalsPage />);
+
+    const card = await screen.findByTestId("approval-action-nt-1");
+    expect(within(card).getByText("Task execution admission")).toBeInTheDocument();
+
+    const preview = within(card).getByTestId("task-admission-task-input");
+    expect(preview).toHaveTextContent(visibleMarker);
+    expect(preview).not.toHaveTextContent(hiddenTailMarker);
+    expect(within(card).getByText(/Preview truncated/)).toBeInTheDocument();
+
+    expect(within(card).getByText("Difficulty: complex")).toBeInTheDocument();
+    expect(within(card).getByText("Category: extraction")).toBeInTheDocument();
+    expect(within(card).getByText("Domain: finance")).toBeInTheDocument();
+    expect(within(card).getByText(/Finance January close/)).toBeInTheDocument();
+
+    const oneExecution = within(card).getByTestId("task-admission-one-execution");
+    expect(oneExecution).toHaveTextContent("Approving admits this one task execution only.");
+    expect(oneExecution).toHaveTextContent("no Modify step");
+
+    const primary = within(card).getByTestId("task-admission-primary");
+    expect(primary).not.toHaveTextContent("exec-abc-123");
+    expect(primary).not.toHaveTextContent("sha256:feedfacecafebeef");
+    expect(primary).not.toHaveTextContent("rule-fin-jan-close");
+    expect(within(card).queryByText(/^never_autonomous_task$/)).not.toBeInTheDocument();
+
+    const binding = within(card).getByTestId("task-admission-binding");
+    expect((binding as HTMLDetailsElement).open).toBe(false);
+    expect(binding).toHaveTextContent("exec-abc-123");
+    expect(binding).toHaveTextContent("sha256:feedfacecafebeef");
+    expect(binding).toHaveTextContent("rule-fin-jan-close");
+    expect(binding).toHaveTextContent("revision 7");
+
+    expect(within(card).queryByRole("button", { name: "Modify" })).not.toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Approve this execution" }));
+
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/agents/approvals/nt-1"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ decision: "approved" }),
+        })
+      )
+    );
+  });
+
+  it("renders hostile task text as escaped literal text, never markup", async () => {
+    const hostileTask =
+      '<script>window.__pwned=1</script><img src=x onerror="alert(1)"> & <b>literal</b>';
+    mockPending([
+      taskAdmission({
+        params: { task_input: hostileTask },
+        reason:
+          'Never-autonomous “<img src=x onerror="alert(2)">” matched this task — a human must approve this execution.',
+      }),
+    ]);
+
+    render(<ApprovalsPage />);
+
+    const card = await screen.findByTestId("approval-action-nt-1");
+    const preview = within(card).getByTestId("task-admission-task-input");
+    expect(preview.textContent).toBe(hostileTask);
+    expect(preview.querySelector("script")).toBeNull();
+    expect(preview.querySelector("img")).toBeNull();
+    expect(card.querySelector("script")).toBeNull();
+    expect(card.querySelector("img")).toBeNull();
+    expect(card.textContent).toContain('<img src=x onerror="alert(2)">');
+    expect((window as any).__pwned).toBeUndefined();
+  });
+
+  it("states task text and classification are unavailable instead of inventing them", async () => {
+    mockPending([
+      taskAdmission({
+        id: "nt-missing",
+        reason: undefined,
+        params: {
+          execution_id: "exec-missing",
+          task_fingerprint: "sha256:missing",
+          owner_user_id: "owner-missing",
+          rule_ids: [],
+          rule_bindings: [],
+          task_profile: undefined,
+          task_input: undefined,
+        },
+      }),
+    ]);
+
+    render(<ApprovalsPage />);
+
+    const card = await screen.findByTestId("approval-action-nt-missing");
+    expect(
+      within(card).getByTestId("task-admission-task-input-missing")
+    ).toHaveTextContent("Task text unavailable");
+    expect(
+      within(card).getByTestId("task-admission-classification-missing")
+    ).toHaveTextContent("Task classification unavailable");
+    expect(within(card).queryByText(/^Difficulty:/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/^Category:/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/^Domain:/)).not.toBeInTheDocument();
+    expect(
+      within(card).getByText(/server did not provide a reason/)
+    ).toBeInTheDocument();
+
+    const binding = within(card).getByTestId("task-admission-binding");
+    expect(binding).toHaveTextContent("No reviewed rule IDs or revisions were recorded");
+    expect(binding).toHaveTextContent("exec-missing");
+    expect(within(card).queryByRole("button", { name: "Modify" })).not.toBeInTheDocument();
+    expect(
+      within(card).getByRole("button", { name: "Approve this execution" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Modify and exact-id decisions for other approval kinds beside an immutable task admission", async () => {
+    const ordinaryAction = {
+      ...pendingActions,
+      id: "act-keep",
+      action_type: "send_message",
+      params: { channel: "slack", body: "Keep this ordinary approval editable." },
+    };
+    mockPending([
+      taskAdmission({ id: "nt-keep" }),
+      ordinaryAction,
+    ]);
+
+    render(<ApprovalsPage />);
+
+    const taskCard = await screen.findByTestId("approval-action-nt-keep");
+    const ordinaryCard = await screen.findByTestId("approval-action-act-keep");
+    expect(within(ordinaryCard).getByText("send_message")).toBeInTheDocument();
+    expect(within(ordinaryCard).getByText(/Keep this ordinary approval editable/)).toBeInTheDocument();
+
+    expect(within(taskCard).queryByRole("button", { name: "Modify" })).not.toBeInTheDocument();
+    expect(within(ordinaryCard).getByRole("button", { name: "Modify" })).toBeInTheDocument();
+
+    fireEvent.click(within(ordinaryCard).getByRole("button", { name: "Modify" }));
+    expect(
+      within(ordinaryCard).getByRole("button", { name: "Approve modified" })
+    ).toBeInTheDocument();
+    fireEvent.click(within(ordinaryCard).getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(within(taskCard).getByRole("button", { name: "Reject" }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/agents/approvals/nt-keep"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ decision: "rejected" }),
+        })
+      )
+    );
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/agents/approvals/act-keep"),
+      expect.objectContaining({ method: "POST" })
+    );
+
+    fireEvent.click(within(ordinaryCard).getByRole("button", { name: "Approve" }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/agents/approvals/act-keep"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ decision: "approved" }),
+        })
+      )
+    );
+  });
+});
+
+describe("Self-directed graduation queue — qualification details", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseActionProposals.mockReturnValue(actionQueryState());
+    localStorage.setItem("auth_token", "tok");
+    global.fetch = mockFetch as any;
+  });
 
   it('renders qualification rubric and scoped evidence details', async () => {
     mockFetch.mockImplementation((url: any) => {

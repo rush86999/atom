@@ -10118,3 +10118,25 @@ was not run here because
 DB/server/browser/credential/network/model provider was used. This is CI
 selection and documentation only; root browser, final broader suites and merge
 remain pending, and no verified/shipped claim is made.
+
+## Session 2026-11-16 — never-autonomous task admission readability (Approvals UI)
+
+**Files**: `frontend-nextjs/pages/approvals.tsx` (dedicated task-admission card:
+human title, escaped server task text with an honest 1,200-character preview
+state, server difficulty/category/domain chips, server reason/matching-rule
+note, explicit one-execution wording, and collapsed execution/fingerprint/rule-
+revision audit details; Modify is hidden only for `never_autonomous_task`) and
+`frontend-nextjs/tests/pages/approvals-page.test.tsx` (four full-page
+regressions: a task beyond the old 160-character truncation with its tail hidden
+and a truncation notice, hostile markup rendered as literal text, missing task
+text/classification states, and a mixed ordinary approval preserving Modify plus
+exact-id approve/reject calls). No backend, authority, or CI-surface edit.
+
+**Verification**: `npx jest tests/pages/approvals-page.test.tsx --runInBand
+--no-coverage --watchman=false` → **24 passed** (20 before); the existing
+"Graduation outcome and client retry regression tests" CI selection (same six
+files, no CI edit) → **144 passed**; `npx tsc --noEmit --skipLibCheck` → clean.
+Cached `node_modules` was symlinked read-only; no install, live DB/server/browser,
+credential, network, or model provider call. Root browser verification, the
+broader app/build suites, and merge remain pending; no full-app-done or new
+browser-verified claim is made.
