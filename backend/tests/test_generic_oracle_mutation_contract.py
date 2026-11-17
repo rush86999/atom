@@ -1123,6 +1123,147 @@ def test_mark_status_expected_status_is_database_cas(tmp_path):
         assert db.get(TaskOperationRecord, "r").status == claims.DISPATCHING
 
 
+def _terminal_record_factory(tmp_path):
+    from sqlalchemy.orm import sessionmaker
+
+    from core.models import TaskOperationRecord
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'terminal-record.db'}")
+    TaskOperationRecord.__table__.create(engine)
+    Session = sessionmaker(bind=engine)
+
+    @contextmanager
+    def _factory():
+        with Session() as db:
+            yield db
+
+    return Session, _factory
+
+
+def test_terminal_no_effect_is_a_single_final_insert(tmp_path):
+    """A terminal refusal is inserted directly as failed_before_effect.
+
+    The two-transaction shape (claim committed as ``claimed``, then CAS to
+    ``failed_before_effect``) can be interrupted between the commits and strand
+    an unresolved claim for an operation that never dispatched. The durable
+    record must therefore be one insert of the final state, and repeating it
+    must never duplicate or overwrite the arbiter row.
+    """
+    from core import outbound_operation_claim as claims
+    from core.models import TaskOperationRecord
+
+    Session, factory = _terminal_record_factory(tmp_path)
+    kwargs = dict(
+        workspace_id="w", tenant_id="t", operation_id="op-terminal",
+        action="tasks.create", payload_hash="p",
+        execution_id="exec-terminal", db_factory=factory)
+
+    first = claims.record_failed_before_effect(**kwargs)
+    assert first["recorded"] is True, first
+    assert first["won"] is True, first
+    assert first["status"] == claims.FAILED_BEFORE_EFFECT, first
+
+    with Session() as db:
+        rows = db.query(TaskOperationRecord).all()
+    assert len(rows) == 1, rows
+    assert rows[0].status == claims.FAILED_BEFORE_EFFECT, rows[0].status
+    assert rows[0].run_id == "exec-terminal"
+    assert rows[0].idempotency_key == "op-terminal"
+    assert rows[0].operation_id == "op-terminal"
+    assert rows[0].operation_type == "generic:agent:tasks.create"
+
+    again = claims.record_failed_before_effect(**kwargs)
+    assert again["recorded"] is False, again
+    assert again["status"] == claims.FAILED_BEFORE_EFFECT, again
+    assert again["record_id"] == first["record_id"], again
+    with Session() as db:
+        rows = db.query(TaskOperationRecord).all()
+    assert len(rows) == 1, rows
+    assert rows[0].id == first["record_id"]
+
+
+def test_terminal_no_effect_never_overwrites_an_existing_operation_row(tmp_path):
+    """An existing claimed/dispatching row remains authoritative.
+
+    A terminal refusal must never transition a row it did not create: a live
+    claim may describe a concurrent dispatch, and rewriting it would erase the
+    only arbitration record for that effect.
+    """
+    from core import outbound_operation_claim as claims
+    from core.models import TaskOperationRecord
+
+    Session, factory = _terminal_record_factory(tmp_path)
+    with Session() as db:
+        db.add(TaskOperationRecord(
+            id="existing", workspace_id="w", tenant_id="t",
+            run_id="exec-existing", idempotency_key="op-existing",
+            payload_sha256="p", operation_id="op-existing",
+            operation_type="generic:agent:tasks.create",
+            status=claims.DISPATCHING))
+        db.commit()
+
+    result = claims.record_failed_before_effect(
+        workspace_id="w", tenant_id="t", operation_id="op-existing",
+        action="tasks.create", payload_hash="p",
+        execution_id="exec-existing", db_factory=factory)
+    assert result["recorded"] is False, result
+    assert result["won"] is False, result
+    assert result["status"] == claims.DISPATCHING, result
+
+    with Session() as db:
+        row = db.get(TaskOperationRecord, "existing")
+        assert row is not None
+        assert row.status == claims.DISPATCHING
+        assert db.query(TaskOperationRecord).count() == 1
+
+
+def test_terminal_no_effect_identity_matches_the_generic_claim(tmp_path):
+    """Same key/scope/type as a generic claim, including the scope fallbacks."""
+    from core import outbound_operation_claim as claims
+    from core.models import TaskOperationRecord
+
+    Session, factory = _terminal_record_factory(tmp_path)
+    for operation_id, execution_id, scope_id, expected_run in (
+        ("op-exec", "exec-1", "legacy-scope", "exec-1"),
+        ("op-scope", None, "legacy-scope", "legacy-scope"),
+        ("op-fallback", None, None, "operation:op-fallback"),
+    ):
+        result = claims.record_failed_before_effect(
+            workspace_id="w", tenant_id="t", operation_id=operation_id,
+            action="tasks.create", payload_hash="p",
+            execution_id=execution_id, scope_id=scope_id,
+            db_factory=factory)
+        assert result["recorded"] is True, result
+    with Session() as db:
+        rows = {
+            row.operation_id: row
+            for row in db.query(TaskOperationRecord).all()
+        }
+    assert rows["op-exec"].run_id == "exec-1"
+    assert rows["op-scope"].run_id == "legacy-scope"
+    assert rows["op-fallback"].run_id == "operation:op-fallback"
+    for row in rows.values():
+        assert row.idempotency_key == row.operation_id
+        assert row.operation_type == "generic:agent:tasks.create"
+
+
+def test_terminal_no_effect_store_failure_is_reported_not_raised():
+    """A store failure cannot turn the refusal into an effect or an exception."""
+    from core import outbound_operation_claim as claims
+
+    def _broken_factory():
+        raise RuntimeError("scratch store unavailable")
+
+    result = claims.record_failed_before_effect(
+        workspace_id="w", tenant_id="t", operation_id="op-broken",
+        action="tasks.create", payload_hash="p",
+        execution_id="exec-broken", db_factory=_broken_factory)
+    assert result["recorded"] is False, result
+    assert result["won"] is False, result
+    assert result["status"] == "unavailable", result
+    assert "scratch store unavailable" in result["error"]
+
+
 # ---------------------------------------------------------------------------
 # Public GenericAgent execution finalization
 # ---------------------------------------------------------------------------

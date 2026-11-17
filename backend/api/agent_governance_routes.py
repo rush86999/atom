@@ -742,9 +742,17 @@ async def submit_agent_feedback(
 
 async def list_pending_approvals(
 
-    approver_id: Optional[str] = Query(None, description="Filter by approver"),
+    approver_id: Optional[str] = Query(
+        None,
+        description=(
+            "Legacy compatibility parameter. It is NOT a scope source; the "
+            "queue is always scoped to the current durable actor."),
+        deprecated=True,
+    ),
 
     current_user: User = Depends(get_current_user),
+
+    db: Session = Depends(get_db),
 
 ):
 
@@ -754,15 +762,36 @@ async def list_pending_approvals(
 
     Used by team leads/admins to review and approve workflows.
 
+    The queue is scoped to the CURRENT durable actor's exact canonical
+    tenant/workspace (re-read inside the service), never to the optional
+    ``approver_id`` query value. HITLAction has no pending "approver"
+    assignment column; the old positional call bound that value to
+    ``workspace_id``, which was a cross-tenant read. A default/None scope is
+    the Personal/default grouping, not a wildcard.
+
     """
 
     try:
 
-        # Use intervention service to get real pending actions
+        result = intervention_service.get_pending_interventions_for_actor(
 
-        pending = intervention_service.get_pending_interventions(approver_id)
+            actor_id=current_user.id, db=db)
 
-        
+        if not result.get("success"):
+
+            raise router.error_response(
+
+                str(result.get("error_code")
+
+                    or "PENDING_APPROVALS_UNAVAILABLE"),
+
+                str(result.get("message") or "Pending approvals unavailable"),
+
+                status_code=int(result.get("http_status") or 503),
+
+            )
+
+        pending = result.get("pending", [])
 
         return {
 
@@ -774,7 +803,9 @@ async def list_pending_approvals(
 
         }
 
-    
+    except HTTPException:
+
+        raise
 
     except Exception as e:
 

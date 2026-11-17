@@ -30,6 +30,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal, get_db, get_db_session
 from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enterprise_security
 from core.governance_tier import canonical_governance_tier
+from core.intervention_service import intervention_service
 from core.models import (
     AgentExecution,
     AgentFeedback,
@@ -963,30 +964,37 @@ async def list_pending_approvals(
 ):
     """List actions waiting for human approval.
 
-    SECURITY: capped at 1000 rows to prevent DoS via pending-action
-    flooding. Caller can paginate with limit + offset if needed.
+    SECURITY: the queue is scoped to the CURRENT durable actor's exact
+    canonical tenant/workspace (re-read from the DB inside the service), not
+    to the optional request object's raw values. NULL/""/"default" is the one
+    Personal/default scope, never an unscoped wildcard. Capped at 1000 rows to
+    prevent DoS via pending-action flooding.
     """
     # Clamp limit server-side regardless of caller input
     if limit < 1 or limit > 1000:
         limit = 100
-    actions_query = db.query(HITLAction).filter(
-        HITLAction.status == HITLActionStatus.PENDING.value)
-    if current_user.workspace_id:
-        actions_query = actions_query.filter(
-            HITLAction.workspace_id == current_user.workspace_id)
-    if current_user.tenant_id:
-        actions_query = actions_query.filter(
-            HITLAction.tenant_id == current_user.tenant_id)
-    actions = actions_query.order_by(
-        HITLAction.created_at.desc()).limit(limit).all()
+    result = intervention_service.get_pending_interventions_for_actor(
+        actor_id=current_user.id, db=db, limit=limit)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "PENDING_APPROVALS_UNAVAILABLE",
+                    "message": result.get(
+                        "message", "Pending approvals unavailable"),
+                },
+            },
+        )
     return [{
-        "id": a.id,
-        "agent_id": a.agent_id,
-        "action_type": a.action_type,
-        "params": a.params,
-        "reason": a.reason,
-        "created_at": a.created_at.isoformat() if a.created_at else None
-    } for a in actions]
+        "id": a["id"],
+        "agent_id": a["agent_id"],
+        "action_type": a["action_type"],
+        "params": a["params"],
+        "reason": a["reason"],
+        "created_at": a.get("created_at"),
+    } for a in result.get("pending", [])]
 
 @router.post("/approvals/{action_id}")
 async def decide_hitl_action(
@@ -1239,24 +1247,67 @@ async def decide_hitl_action(
         db.commit()
         db.refresh(action)
     else:
-        if req.decision.lower() == "approved":
-            action.status = HITLActionStatus.APPROVED.value
-            # Supervisor modification: the resumed action runs with these params
-            # instead of the agent's originals (real-world training loop: edit,
-            # approve, and the agent learns from the diff via user_feedback).
-            if req.modified_params:
-                try:
-                    merged = dict(action.params or {})
-                    merged.update(req.modified_params)
-                    action.params = merged
-                except Exception as params_err:
-                    logger.warning(f"HITL modified_params merge failed, keeping originals: {params_err}")
-        else:
-            action.status = HITLActionStatus.REJECTED.value
+        # Both mounted approval surfaces (this legacy handler and
+        # InterventionService) share ONE atomic decision claim. The reviewer's
+        # CURRENT active role/scope/required_role is resolved from a fresh
+        # read, fenced in this transaction, and the status/effective params/
+        # reviewer/history are committed only if the row is STILL pending and
+        # still the exact reviewed row. A peer decision or a role/scope/payload
+        # change after the load gets an honest 409 instead of overwriting the
+        # winner. This surface keeps its historical MERGE semantics for
+        # modified_params; the alias/service surface keeps REPLACE.
+        from core.intervention_service import (
+            claim_pending_decision,
+            resolve_decision_reviewer,
+        )
 
-        action.user_feedback = req.feedback
-        action.reviewed_at = datetime.datetime.now()
-        action.reviewed_by = user.id
+        authority = resolve_decision_reviewer(db, action, str(user.id))
+        if not authority.get("ok"):
+            raise router.error_response(
+                authority["error_code"], authority["message"],
+                status_code=int(authority["http_status"]))
+
+        from core.goal_run_decision_service import claim_fresh_reviewer
+
+        if not claim_fresh_reviewer(db, authority["authority"]):
+            db.rollback()
+            raise router.error_response(
+                "AUTHORITY_CHANGED",
+                "Reviewer authority changed; refresh and retry.",
+                status_code=409,
+            )
+
+        approved = req.decision.lower() == "approved"
+        claim_kwargs: Dict[str, Any] = {
+            "status": (
+                HITLActionStatus.APPROVED.value if approved
+                else HITLActionStatus.REJECTED.value),
+            "reviewer_id": str(user.id),
+            "user_feedback": req.feedback,
+            "reason": req.feedback,
+            "record_history": approved,
+        }
+        if approved and req.modified_params:
+            # Supervisor modification: the resumed action runs with the merged
+            # params instead of the agent's originals (real-world training
+            # loop: edit, approve, and the agent learns from the diff).
+            try:
+                merged = dict(action.params or {})
+                merged.update(req.modified_params)
+                claim_kwargs["effective_params"] = merged
+            except Exception as params_err:
+                logger.warning(
+                    f"HITL modified_params merge failed, keeping originals: "
+                    f"{params_err}")
+
+        if not claim_pending_decision(db, action, **claim_kwargs):
+            db.rollback()
+            raise router.error_response(
+                "DECISION_CONFLICT",
+                "This approval was already decided, or its reviewed "
+                "payload/authority changed; refresh and retry.",
+                status_code=409,
+            )
 
         db.commit()
 

@@ -565,7 +565,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_public_http_exception_wire_format.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_public_http_exception_wire_format.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_hitl_parameter_history.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run reviewed lesson correction conversation learning controls",
@@ -637,6 +637,47 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${RUNNER_TEMP}/atom-explicit-collaboration\"\npython -m pytest tests/test_collaboration_public_http_contract.py tests/test_explicit_collaboration_semantics.py tests/test_collaboration_pending_authority.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run generic approved-material consumption controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "PYTEST_CURRENT_TEST": "generic_approved_material_ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-approved-material/approved-material.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-approved-material/data",
+      "HF_HOME": "${{ runner.temp }}/atom-approved-material/hf-home",
+      "HF_HUB_CACHE": "${{ runner.temp }}/atom-approved-material/hf-hub",
+      "FASTEMBED_CACHE_PATH": "${{ runner.temp }}/atom-approved-material/fastembed-cache",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-approved-material/data\"\npython -m pytest tests/test_generic_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run Meta approved-material consumption controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "PYTEST_CURRENT_TEST": "meta_approved_material_ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-meta-approved-material/meta-approved-material.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-meta-approved-material/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-meta-approved-material/office",
+      "HF_HOME": "${{ runner.temp }}/atom-meta-approved-material/hf-home",
+      "HF_HUB_CACHE": "${{ runner.temp }}/atom-meta-approved-material/hf-hub",
+      "FASTEMBED_CACHE_PATH": "${{ runner.temp }}/atom-meta-approved-material/fastembed-cache",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-meta-approved-material/data\" \"${RUNNER_TEMP}/atom-meta-approved-material/office\"\npython -m pytest tests/test_meta_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run M3 canonical chat delivery contract controls",

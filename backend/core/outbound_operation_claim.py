@@ -239,6 +239,17 @@ def claim_or_replay(
         return {"won": False, "status": "unavailable", "error": str(exc)[:500]}
 
 
+def _generic_operation_scope(
+    execution_id: Optional[str],
+    scope_id: Optional[str],
+    operation_id: str,
+) -> str:
+    """The durable ``run_id`` for a generic operation (shared identity)."""
+    execution = str(execution_id or "").strip()
+    return execution or str(scope_id or "").strip() or (
+        f"operation:{str(operation_id).strip()}")
+
+
 def claim_generic_operation(
     *,
     workspace_id: str,
@@ -275,9 +286,7 @@ def claim_generic_operation(
             "status": "unsupported",
             "error": "generic operation requires an explicit workspace and operation id",
         }
-    execution = str(execution_id or "").strip()
-    run_id = execution or str(scope_id or "").strip() or (
-        f"operation:{str(operation_id).strip()}")
+    run_id = _generic_operation_scope(execution_id, scope_id, operation_id)
     key = str(operation_id).strip()
     record_id = str(uuid.uuid4())
     try:
@@ -327,6 +336,115 @@ def claim_generic_operation(
     except Exception as exc:  # noqa: BLE001 — fail closed, no transport
         logger.error("generic operation claim failed: %s", exc)
         return {"won": False, "status": "unavailable", "error": str(exc)[:500]}
+
+
+def record_failed_before_effect(
+    *,
+    workspace_id: str,
+    tenant_id: Optional[str],
+    operation_id: str,
+    action: str,
+    payload_hash: str,
+    execution_id: Optional[str] = None,
+    scope_id: Optional[str] = None,
+    db_factory=None,
+) -> Dict[str, Any]:
+    """Atomically persist a terminal no-effect decision for one operation.
+
+    This is the single-write counterpart of
+    :func:`claim_generic_operation` + :func:`mark_status`: the row is inserted
+    directly in its FINAL ``failed_before_effect`` state. There is no
+    intermediate ``claimed`` transaction, so an interruption can never strand
+    a claim that later reads as unresolved/uncertain for an operation that was
+    always a terminal refusal.
+
+    The arbiter is the same ``TaskOperationRecord`` uniqueness key
+    ``(workspace_id, run_id, idempotency_key)`` and the same identity/fingerprint
+    material as a generic claim. An existing row is NEVER transitioned or
+    overwritten: it is the authoritative record of that logical operation, so a
+    repeated refusal or a concurrent dispatch attempt is reported back exactly
+    as it stands. ``won``/``recorded`` are true only when THIS call created the
+    terminal row. Store failure is reported, never raised.
+    """
+    from sqlalchemy.exc import IntegrityError, OperationalError
+
+    from core.models import TaskOperationRecord
+
+    if not str(workspace_id or "").strip() or not str(operation_id or "").strip():
+        return {
+            "won": False,
+            "recorded": False,
+            "status": "unsupported",
+            "error": "generic operation requires an explicit workspace and operation id",
+        }
+    run_id = _generic_operation_scope(execution_id, scope_id, operation_id)
+    key = str(operation_id).strip()
+    record_id = str(uuid.uuid4())
+    try:
+        with _factory(db_factory)() as db:
+            try:
+                db.add(TaskOperationRecord(
+                    id=record_id,
+                    workspace_id=str(workspace_id or ""),
+                    tenant_id=tenant_id,
+                    run_id=run_id,
+                    idempotency_key=key,
+                    payload_sha256=payload_hash,
+                    operation_id=str(operation_id),
+                    operation_type=f"generic:agent:{str(action or '').strip()}",
+                    status=FAILED_BEFORE_EFFECT,
+                ))
+                db.commit()
+                return {
+                    "won": True,
+                    "recorded": True,
+                    "status": FAILED_BEFORE_EFFECT,
+                    "record_id": record_id,
+                    "payload_sha256": payload_hash,
+                    "operation_id": str(operation_id),
+                }
+            except IntegrityError:
+                # The operation already has an authoritative row; read it,
+                # never replace it (even a terminal row may be a peer's).
+                db.rollback()
+            except OperationalError as exc:
+                db.rollback()
+                logger.debug(
+                    "terminal no-effect record contention: %s", exc)
+            row = (
+                db.query(TaskOperationRecord)
+                .filter(
+                    TaskOperationRecord.workspace_id == str(workspace_id or ""),
+                    TaskOperationRecord.run_id == run_id,
+                    TaskOperationRecord.idempotency_key == key,
+                )
+                .first()
+            )
+            if row is None:
+                return {
+                    "won": False,
+                    "recorded": False,
+                    "status": "unavailable",
+                    "error": "terminal record not visible after contention",
+                }
+            if row.payload_sha256 != payload_hash:
+                return {
+                    "won": False,
+                    "recorded": False,
+                    "status": "conflict",
+                    "record_id": row.id,
+                    "operation_id": str(operation_id),
+                    "error": "operation id is bound to different material",
+                }
+            return {"won": False, "recorded": False, **_row_dict(row)}
+    except Exception as exc:  # noqa: BLE001 — fail closed, no transport
+        logger.error("terminal no-effect record failed: %s", exc)
+        return {
+            "won": False,
+            "recorded": False,
+            "status": "unavailable",
+            "error": str(exc)[:500],
+        }
 
 
 def mark_status(
