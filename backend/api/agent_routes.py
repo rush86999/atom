@@ -1067,6 +1067,26 @@ async def decide_hitl_action(
 
     _validate_assignment_approval_payload(action, req.modified_params)
 
+    # A never-autonomous task admission is a human decision for ONE exact
+    # task execution. Check the CURRENT reviewer's scope/owner/supervisor and
+    # both persisted required_role locations, and refuse any rewrite of the
+    # server-owned task/rule binding, BEFORE the row can move. The same
+    # authority is fenced again immediately before the status write below.
+    task_admission_authority = None
+    if str(action.action_type or "") == "never_autonomous_task":
+        from core.review_decision_authority import (
+            authorize_task_admission_decision,
+        )
+
+        check = authorize_task_admission_decision(
+            db, action, str(user.id),
+            modified_params=req.modified_params)
+        if not check.get("ok"):
+            raise router.error_response(
+                check["error_code"], check["message"],
+                status_code=int(check["http_status"]))
+        task_admission_authority = check["authority"]
+
     # Idempotent: already-resolved actions return current state, don't double-apply
     already_resolved = action.status in (
         HITLActionStatus.APPROVED.value,
@@ -1178,26 +1198,67 @@ async def decide_hitl_action(
                 status_code=409,
             )
 
-    if req.decision.lower() == "approved":
-        action.status = HITLActionStatus.APPROVED.value
-        # Supervisor modification: the resumed action runs with these params
-        # instead of the agent's originals (real-world training loop: edit,
-        # approve, and the agent learns from the diff via user_feedback).
-        if req.modified_params:
-            try:
-                merged = dict(action.params or {})
-                merged.update(req.modified_params)
-                action.params = merged
-            except Exception as params_err:
-                logger.warning(f"HITL modified_params merge failed, keeping originals: {params_err}")
+    if task_admission_authority is not None:
+        from core.review_decision_authority import (
+            claim_task_admission_reviewer,
+        )
+
+        if not claim_task_admission_reviewer(db, task_admission_authority):
+            db.rollback()
+            raise router.error_response(
+                "AUTHORITY_CHANGED",
+                "Reviewer authority changed; refresh and retry.",
+                status_code=409,
+            )
+
+        # The decision itself is a second, independent claim: the row must
+        # still be pending AND its immutable execution/task/owner/rule/
+        # profile binding must equal the one this reviewer's authority was
+        # checked against. A peer rejection/approval or binding rewrite
+        # committed after the load makes the UPDATE miss, so one decision
+        # wins and this stale one answers 409 without touching the row.
+        from core.review_decision_authority import (
+            claim_task_admission_decision,
+        )
+
+        decision_status = (
+            HITLActionStatus.APPROVED.value
+            if req.decision.lower() == "approved"
+            else HITLActionStatus.REJECTED.value)
+        if not claim_task_admission_decision(
+                db, action, status=decision_status,
+                reviewer_id=str(user.id),
+                user_feedback=req.feedback):
+            db.rollback()
+            raise router.error_response(
+                "TASK_ADMISSION_DECISION_CONFLICT",
+                "This task admission was decided or its reviewed task "
+                "binding changed; refresh and retry.",
+                status_code=409,
+            )
+        db.commit()
+        db.refresh(action)
     else:
-        action.status = HITLActionStatus.REJECTED.value
+        if req.decision.lower() == "approved":
+            action.status = HITLActionStatus.APPROVED.value
+            # Supervisor modification: the resumed action runs with these params
+            # instead of the agent's originals (real-world training loop: edit,
+            # approve, and the agent learns from the diff via user_feedback).
+            if req.modified_params:
+                try:
+                    merged = dict(action.params or {})
+                    merged.update(req.modified_params)
+                    action.params = merged
+                except Exception as params_err:
+                    logger.warning(f"HITL modified_params merge failed, keeping originals: {params_err}")
+        else:
+            action.status = HITLActionStatus.REJECTED.value
 
-    action.user_feedback = req.feedback
-    action.reviewed_at = datetime.datetime.now()
-    action.reviewed_by = user.id
+        action.user_feedback = req.feedback
+        action.reviewed_at = datetime.datetime.now()
+        action.reviewed_by = user.id
 
-    db.commit()
+        db.commit()
 
     # A decision is not the end of the journey: goal runs and workflows are
     # waiting on this row. Resume the durable work before answering the UI so

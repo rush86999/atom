@@ -957,6 +957,78 @@ def test_cold_resume_with_unreadable_claim_store_stays_unresolved(
     assert result.get("uncertain_operations"), result
 
 
+def test_dual_policy_and_claim_store_outage_keeps_both_fail_closed(
+        monkeypatch, scratch_db):
+    """A policy match plus an unreadable claim store must preserve BOTH
+    safety properties: no autonomous run without the policy verdict, and no
+    clean result that hides a prior uncertain effect."""
+    import core.generic_agent as ga
+    from core import autonomy_policy as ap
+    from core.react_models import ReActStep
+    from core.task_classification import build_task_profile
+    from sqlalchemy.orm import sessionmaker
+
+    task = (
+        "Analyse the January finance invoice expense and accounting records "
+        "and summarize the reconciled totals for the finance team")
+    name = "test.generic.dual-outage." + uuid.uuid4().hex
+
+    async def leaf(tool, args, context=None):
+        with sqlite3.connect(scratch_db["path"]) as raw:
+            raw.execute("insert into effects values (?,?)", ("one", "landed"))
+        raise TimeoutError("confirmation unavailable")
+
+    _register_action(name, leaf, effects=[{"effect": "create", "scope": "local"}])
+    ctx = _claim_context("dual-outage-" + uuid.uuid4().hex)
+    first = asyncio.run(_agent(leaf)._step_act_unaudited(
+        name, {}, context=dict(ctx), pre_approved=True))
+    assert first.get("requires_reconciliation") is True, first
+    assert _claim_row(scratch_db["path"], ctx["operation_id"])[0] == (
+        "uncertain_effect")
+
+    # A real, matching never-autonomous rule exists for this task owner.
+    Session = sessionmaker(bind=scratch_db["engine"])
+    with Session() as db:
+        ap.create_never_rule(
+            db, ctx["user_id"], name="Review January finance",
+            match={"domain": ["finance"]},
+            workspace_id=ctx["workspace_id"])
+    profile = build_task_profile(task, user_id=ctx["user_id"])
+    with Session() as db:
+        decision = ap.evaluate_task_admission(
+            db, profile, task_material=task, agent_id="scratch-agent",
+            user_id=ctx["user_id"], execution_id=ctx["execution_id"],
+            tenant_id=ctx["tenant_id"], workspace_id=ctx["workspace_id"])
+    assert decision.get("outcome") == ap.NEVER_OUTCOME_REVIEW, decision
+
+    agent = _build_execute_agent(scratch_db, monkeypatch)
+    agent.mcp = SimpleNamespace(
+        call_tool=AsyncMock(), get_all_tools=AsyncMock(return_value=[]))
+    agent._react_step = AsyncMock(return_value=ReActStep(
+        thought="finished", final_answer="Everything done."))
+
+    @contextmanager
+    def _unavailable():
+        raise RuntimeError("operation-store read unavailable")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(ga, "get_db_session", _unavailable)
+    result = asyncio.run(agent.execute(task, context=dict(ctx)))
+
+    agent.mcp.call_tool.assert_not_awaited()
+    # The policy store is also unreadable, so admission must fail closed to a
+    # human instead of admitting the run or reusing an unverified approval.
+    assert result.get("status") == "blocked", result
+    assert result.get("requires_human_approval") is True, result
+    # The already-landed uncertain effect is not erased by that stop.
+    assert result.get("requires_reconciliation") is True, result
+    operations = result.get("uncertain_operations") or []
+    assert any(
+        op.get("tool") == "operation-store"
+        and "unavailable" in str(op.get("evidence"))
+        for op in operations), result
+
+
 def test_zero_claim_read_only_execution_stays_success(
         monkeypatch, scratch_db):
     """Authoritative zero claims is not uncertainty: a read-only/final-answer
@@ -1097,7 +1169,14 @@ def _build_execute_agent(scratch_db, monkeypatch):
             self.workspace_id = workspace_id
             self.tenant_id = tenant_id
 
-        async def can_perform_action_async(self, agent_id, tool_name):
+        async def can_perform_action_async(
+            self, agent_id, tool_name, *,
+            task_profile=None, never_clearance=None,
+        ):
+            # Mirror the real async governance surface: GenericAgent passes
+            # the bound task profile plus the run context so the
+            # never-autonomous gate can evaluate this exact execution. A bare
+            # (agent_id, tool_name) double raises on every dispatch.
             return {"allowed": True, "requires_human_approval": False}
 
         async def record_outcome(self, *args, **kwargs):

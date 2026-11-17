@@ -1379,6 +1379,72 @@ class MCPService(IntegrationService):
         except Exception as sandbox_err:  # pragma: no cover - fail-open
             logger.debug("sandbox gate skipped: %s", sandbox_err)
 
+        # NEVER-AUTONOMOUS TASK BASKETS (final fail-closed guard).
+        # The topic gate and governance check run before most dispatches, but
+        # this shared entry point is the last place every caller (agent loop,
+        # workflow, fleet, business agents) converges. A human-approved
+        # execution carries a server-only clearance object in context; model
+        # args or a JSON body cannot forge it.
+        try:
+            from core.autonomy_policy import (
+                evaluate_never_autonomous,
+                has_never_autonomous_clearance,
+            )
+            from core.task_classification import task_profile_from_context
+
+            profile = task_profile_from_context(context)
+            user_id = (
+                getattr(profile, "owner_user_id", None) if profile else None
+            ) or (context or {}).get("user_id") or (
+                context or {}).get("actor_id")
+            if user_id:
+                from core.database import get_db_session
+
+                with get_db_session() as _never_db:
+                    never = evaluate_never_autonomous(
+                        _never_db,
+                        user_id,
+                        profile,
+                        tenant_id=(context or {}).get("tenant_id"),
+                        workspace_id=(context or {}).get("workspace_id"),
+                        action_type=tool_name,
+                    )
+                if never.get("outcome") == "review" and not (
+                        has_never_autonomous_clearance(
+                            context,
+                            decision=never,
+                            task_profile=profile,
+                            tenant_id=(context or {}).get("tenant_id"),
+                            workspace_id=(context or {}).get("workspace_id"),
+                            execution_id=(
+                                (context or {}).get("execution_id")
+                                or (context or {}).get("run_id")),
+                        )):
+                    return {
+                        "success": False,
+                        "status": "BLOCKED",
+                        "blocked_by": "never_autonomous",
+                        "requires_human_approval": True,
+                        "reason": never.get("reason"),
+                        "never_autonomous": never,
+                        "error": (
+                            "Never-autonomous task policy requires "
+                            "human approval before this tool may run."),
+                    }
+        except Exception as never_err:  # noqa: BLE001 — configured policy fails CLOSED
+            logger.warning(
+                "never-autonomous MCP guard unavailable for %s: %s",
+                tool_name, never_err)
+            return {
+                "success": False,
+                "status": "BLOCKED",
+                "blocked_by": "never_autonomous",
+                "requires_human_approval": True,
+                "error": (
+                    "Never-autonomous policy could not be evaluated; "
+                    "human review is required."),
+            }
+
         # Entity-bound execution is NOT a gate bypass: it only routes to the
         # entity-aware execution path after the capability and sandbox gates have
         # run, so an entity_id in context cannot disable per-agent scoping.

@@ -367,9 +367,54 @@ class GenericAgent:
             )
         except Exception:
             pass
+        # Canonical task classification is bound for this run so every nested
+        # topic gate and governance check evaluates the SAME trusted profile.
+        # A model cannot forge it: it is an in-process object, not a tool arg.
+        _task_profile_token = None
+        _profile_owner = (
+            context.get("user_id")
+            or context.get("actor_id")
+            or getattr(self, "user_id", None))
+        try:
+            from core.task_classification import (
+                bind_task_profile,
+                build_task_profile,
+                build_unknown_task_profile,
+                reset_task_profile,
+            )
+
+            try:
+                _profile = build_task_profile(
+                    task_input,
+                    steps=(context.get("task_steps")
+                           or context.get("steps") or []),
+                    user_id=_profile_owner,
+                )
+            except Exception as _classify_err:  # noqa: BLE001
+                # Classification unavailable is NOT "no policy applies".
+                # Bind the canonical unknown profile so any configured rule is
+                # a potential match and the task admission below requires
+                # durable human review before the first model call/output.
+                logger.warning(
+                    "task classification unavailable for agent %s (%s); "
+                    "evaluating configured rules against an unknown profile",
+                    self.id, type(_classify_err).__name__)
+                _profile = build_unknown_task_profile(
+                    user_id=_profile_owner,
+                    reason=type(_classify_err).__name__,
+                )
+            _task_profile_token = bind_task_profile(context, _profile)
+        except Exception as _profile_err:  # noqa: BLE001 — policy handles missing
+            logger.debug("task profile bind skipped: %s", _profile_err)
         try:
             return await self._execute_impl(task_input, context, step_callback)
         finally:
+            try:
+                from core.task_classification import reset_task_profile
+
+                reset_task_profile(_task_profile_token, context)
+            except Exception:
+                pass
             if _audit_tokens is not None:
                 from core.chat_session_context import reset_chat_context
 
@@ -413,7 +458,10 @@ class GenericAgent:
         # outcome was not independently confirmed. Preserve an authoritative
         # pending entry for the SAME durable execution (a cold resumed pass
         # must not erase it), and reload the durable claims below instead of
-        # trusting only tools re-called during this pass.
+        # trusting only tools re-called during this pass. This MUST run before
+        # task admission: an admission stop is a terminal result too, and a
+        # policy outage/refusal must not hide an already-landed uncertain
+        # effect from the caller.
         _exec_identity = str(
             context.get("execution_id") or context.get("run_id") or "")
         _existing_uncertain = context.get("_uncertain_operations")
@@ -425,6 +473,18 @@ class GenericAgent:
             context["_uncertain_operations"] = []
         context["_uncertain_operations_execution"] = _exec_identity
         self._reload_uncertain_operations(context)
+
+        # TASK-LEVEL never-autonomous admission: before memory recall, model
+        # calls, tool dispatch or any final output. A matching basket is
+        # reviewed even when the task only reads/analyses and calls no tools.
+        # The policy stop remains authoritative, but any unresolved durable
+        # effect loaded above is carried onto the returned result so a policy
+        # refusal cannot mask a required reconciliation.
+        _never_admission = await self._admit_never_autonomous_task(
+            task_input, context, step_callback)
+        if _never_admission is not None:
+            return self._carry_unresolved_effects(_never_admission, context)
+
         # Governance maturity is NOT the same as the transient execution-state
         # row (``running`` while this admitted job executes). Use only the
         # server-owned tier frozen by admission/dispatch, then let a current
@@ -2688,6 +2748,34 @@ What is your next step?"""
                 context, "operation-store", "",
                 f"operation claim store unavailable ({unavailable})")
 
+    def _carry_unresolved_effects(
+        self, result: Any, context: Dict,
+    ) -> Any:
+        """Keep unresolved-effect provenance on a pre-execution policy stop.
+
+        Task admission can refuse the run before the first model or tool
+        call. That refusal is still the caller-visible terminal result, so it
+        must not read as a clean ``nothing happened`` state when this
+        execution has a claimed/dispatching/uncertain effect (or the claim
+        store could not be read). The policy verdict stays authoritative;
+        reconciliation metadata is additive and cannot turn the stop into an
+        approval or a success.
+        """
+        if not isinstance(result, dict):
+            return result
+        pending = list((context or {}).get("_uncertain_operations") or [])
+        if not pending:
+            return result
+        out = dict(result)
+        existing = out.get("uncertain_operations")
+        merged = list(existing) if isinstance(existing, list) else []
+        for entry in pending:
+            if entry not in merged:
+                merged.append(entry)
+        out["uncertain_operations"] = merged
+        out["requires_reconciliation"] = True
+        return out
+
     def _finalize_mutation_result(
         self, tool_name: str, result: Any, expected: Dict,
         operation_id: str, context: Dict = None, claim: Dict = None,
@@ -3486,7 +3574,12 @@ What is your next step?"""
                     )
                     # Async variant: the sync can_perform_action can't await the
                     # budget check inside a running loop (spend-limit bypass).
-                    auth_check = await gov.can_perform_action_async(self.id, tool_name)
+                    from core.task_classification import current_task_profile
+
+                    auth_check = await gov.can_perform_action_async(
+                        self.id, tool_name,
+                        task_profile=current_task_profile(),
+                        never_clearance=context)
 
                     if auth_check.get("requires_human_approval"):
                         # Create HITL Action
@@ -3538,6 +3631,30 @@ What is your next step?"""
                             return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
 
                         logger.info(f"Action {tool_name} APPROVED. Proceeding...")
+                        if auth_check.get("never_autonomous"):
+                            from core.autonomy_policy import (
+                                grant_never_autonomous_clearance,
+                            )
+                            from core.task_classification import (
+                                current_task_profile,
+                            )
+
+                            _never_ctx = context if isinstance(context, dict) else {}
+                            _never_grants = auth_check["never_autonomous"]
+                            # One approval may surface an existing task-level
+                            # clearance; grant only the reviewed rule bindings.
+                            grant_never_autonomous_clearance(
+                                _never_ctx,
+                                _never_grants,
+                                task_profile=current_task_profile(),
+                                execution_id=(
+                                    _never_ctx.get("execution_id")
+                                    or _never_ctx.get("run_id")),
+                                tenant_id=getattr(self, "tenant_id", None),
+                                workspace_id=(
+                                    getattr(self, "workspace_id", None)
+                                    or "default"),
+                            )
 
                     elif not auth_check["allowed"]:
                         _mark_dispatch_refused(
@@ -4070,6 +4187,241 @@ What is your next step?"""
             except Exception as e:
                 logger.error(f"Failed to record governance outcome: {e}", exc_info=True)
 
+    async def _admit_never_autonomous_task(
+        self,
+        task_input: str,
+        context: Dict[str, Any],
+        step_callback: Optional[callable] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """TASK-LEVEL never-autonomous admission before any autonomous work.
+
+        Runs before the first model call / output, so a matching basket is
+        reviewed even for a pure analysis/QA/math/extraction task that uses
+        no tools. Approval is bound to this exact task execution; within the
+        approved task, tool governance still applies every independent
+        maturity/budget/recursion guard. Returns a result payload when the
+        run must not proceed, or None when admitted.
+        """
+        from core.autonomy_policy import (
+            NEVER_TASK_ADMISSION_ACTION,
+            evaluate_task_admission,
+            grant_never_autonomous_clearance,
+            task_admission_params,
+            warm_task_admission_receipt_denial,
+        )
+        from core.task_classification import (
+            build_unknown_task_profile,
+            current_task_profile,
+        )
+
+        profile = current_task_profile()
+        execution_id = str(
+            context.get("execution_id") or context.get("run_id") or "")
+        workspace_id = (
+            context.get("workspace_id")
+            or getattr(self, "workspace_id", None) or "default")
+        tenant_id = (
+            context.get("tenant_id")
+            or getattr(self, "tenant_id", None))
+        owner_user_id = (
+            (profile.owner_user_id if profile is not None else None)
+            or context.get("user_id")
+            or context.get("actor_id")
+        )
+        if profile is None:
+            # A missing profile (unbound/builder outage) is not proof that no
+            # rule applies. Review against the canonical unknown profile so a
+            # configured potentially-applicable rule still gates the task.
+            try:
+                profile = build_unknown_task_profile(
+                    user_id=owner_user_id, reason="profile_unavailable")
+                logger.warning(
+                    "agent %s: task profile unavailable at admission; "
+                    "evaluating configured rules against an unknown profile",
+                    self.id)
+            except Exception:  # noqa: BLE001 — policy below fails closed
+                profile = None
+        try:
+            with get_db_session() as db:
+                if db is None:
+                    # Synthetic/internal caller with no policy store: no
+                    # durable rule can exist. Real runs always have a session.
+                    return None
+                gov = AgentGovernanceService(
+                    db, workspace_id=workspace_id, tenant_id=tenant_id)
+                agent_row = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == self.id).first()
+                owner_user_id = (
+                    owner_user_id
+                    or (profile.owner_user_id if profile is not None else None)
+                    or getattr(agent_row, "user_id", None))
+                decision = evaluate_task_admission(
+                    db,
+                    profile,
+                    task_material=task_input,
+                    agent_id=self.id,
+                    user_id=owner_user_id,
+                    execution_id=execution_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+                if decision.get("outcome") != "review":
+                    return None
+                durable = decision.get("durable_admission") or {}
+                action_id = durable.get("hitl_action_id")
+                if action_id:
+                    # Reuse the exact durable approval after a restart/resume;
+                    # re-evaluate current rule revisions before granting.
+                    logger.info(
+                        "never-autonomous task admission reused durable HITL "
+                        "%s for execution %s", action_id, execution_id)
+                else:
+                    action_id = gov.request_approval(
+                        agent_id=self.id,
+                        action_type=NEVER_TASK_ADMISSION_ACTION,
+                        params=task_admission_params(
+                            decision,
+                            execution_id=execution_id,
+                            profile=profile,
+                            extra={"task_input": str(task_input)[:2000]},
+                        ),
+                        reason=decision.get("reason") or (
+                            "A never-autonomous task rule matched this task; "
+                            "a human must approve this execution."),
+                        execution_context=context,
+                        user_id=owner_user_id,
+                    )
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": NEVER_TASK_ADMISSION_ACTION,
+                            "reason": decision.get("reason"),
+                            "task_level": True,
+                        })
+
+            if profile is None:
+                # Neither the real classifier nor the trusted unknown-profile
+                # fallback was available, so there is no server-owned task
+                # identity a human approval could bind to. The HITL row is
+                # still filed for the record, but this run is explicitly
+                # blocked: waiting for an approval that can never authorize
+                # THIS task would be an unbounded pause, not a safe gate.
+                return {
+                    "output": (
+                        "Governance Error: the never-autonomous task "
+                        "identity could not be bound; human review is "
+                        "required before this task can run."),
+                    "steps": [],
+                    "status": "blocked",
+                    "requires_human_approval": True,
+                    "hitl_action_id": action_id,
+                    "reason": decision.get("reason"),
+                    "execution_id": execution_id,
+                    "never_autonomous": decision,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+
+            if not durable.get("hitl_action_id"):
+                approved = await self._wait_for_approval(action_id)
+                if not approved:
+                    return {
+                        "output": (
+                            "Governance Error: this task matches a "
+                            "never-autonomous rule and was not approved."),
+                        "steps": [],
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "hitl_action_id": action_id,
+                        "reason": decision.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": decision,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+
+            # The approval reviewed a specific policy revision. Re-read the
+            # rules now; a rule edited/added while waiting is NOT covered.
+            with get_db_session() as db:
+                fresh = evaluate_task_admission(
+                    db,
+                    profile,
+                    task_material=task_input,
+                    agent_id=self.id,
+                    user_id=owner_user_id,
+                    execution_id=execution_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                    admission_action_id=action_id,
+                )
+            if fresh.get("outcome") == "review":
+                denial = warm_task_admission_receipt_denial(
+                    decision, fresh, hitl_action_id=action_id)
+                if denial == "policy_changed":
+                    return {
+                        "output": (
+                            "Governance Error: the never-autonomous policy "
+                            "changed while waiting for approval; a fresh "
+                            "human review is required."),
+                        "steps": [],
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "reason": fresh.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                if denial:
+                    return {
+                        "output": (
+                            "Governance Error: this task's approval could "
+                            "not be verified against the durable authorized "
+                            "receipt; a fresh human review is required."),
+                        "steps": [],
+                        "status": "awaiting_approval",
+                        "requires_human_approval": True,
+                        "reason": (
+                            "The never-autonomous approval for this exact "
+                            "task execution was not authorized or no longer "
+                            "matches it."),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                if not grant_never_autonomous_clearance(
+                        context, fresh, task_profile=profile,
+                        execution_id=execution_id,
+                        tenant_id=tenant_id, workspace_id=workspace_id):
+                    return {
+                        "output": (
+                            "Governance Error: the never-autonomous approval "
+                            "could not be bound to this task execution."),
+                        "steps": [],
+                        "status": "blocked",
+                        "requires_human_approval": True,
+                        "reason": fresh.get("reason"),
+                        "execution_id": execution_id,
+                        "never_autonomous": fresh,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+            return None
+        except Exception as exc:  # noqa: BLE001 — configured policy fails CLOSED
+            logger.warning(
+                "never-autonomous task admission unavailable for %s: %s",
+                self.id, exc)
+            return {
+                "output": (
+                    "Governance Error: never-autonomous task policy could "
+                    "not be evaluated; human review is required."),
+                "steps": [],
+                "status": "blocked",
+                "requires_human_approval": True,
+                "reason": (
+                    "Never-autonomous task policy could not be evaluated; "
+                    "human review is required."),
+                "execution_id": execution_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
     async def _wait_for_approval(self, action_id: str) -> bool:
         """Poll for HITL decision"""
         max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
@@ -4163,6 +4515,7 @@ What is your next step?"""
 
         # 1. Governance pre-check for the whole batch (all-or-nothing).
         action_ids: List[str] = []
+        never_decisions: List[Dict[str, Any]] = []
         with get_db_session() as db:
             gov = AgentGovernanceService(
                 db,
@@ -4170,7 +4523,12 @@ What is your next step?"""
                 tenant_id=getattr(self, "tenant_id", None),
             )
             for act in parallel_actions:
-                auth_check = await gov.can_perform_action_async(self.id, act.tool)
+                from core.task_classification import current_task_profile
+
+                auth_check = await gov.can_perform_action_async(
+                    self.id, act.tool,
+                    task_profile=current_task_profile(),
+                    never_clearance=context)
                 if auth_check.get("requires_human_approval"):
                     action_id = gov.request_approval(
                         agent_id=self.id,
@@ -4181,6 +4539,9 @@ What is your next step?"""
                         user_id=(context or {}).get("user_id"),
                     )
                     action_ids.append(action_id)
+                    if auth_check.get("never_autonomous"):
+                        never_decisions.append(
+                            auth_check["never_autonomous"])
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -4229,6 +4590,19 @@ What is your next step?"""
                     }
                     for a in parallel_actions
                 ]
+            from core.autonomy_policy import grant_never_autonomous_clearance
+            from core.task_classification import current_task_profile
+
+            for decision in never_decisions:
+                grant_never_autonomous_clearance(
+                    context, decision,
+                    task_profile=current_task_profile(),
+                    execution_id=(
+                        context.get("execution_id") or context.get("run_id")),
+                    tenant_id=getattr(self, "tenant_id", None),
+                    workspace_id=(
+                        getattr(self, "workspace_id", None) or "default"),
+                )
 
         # 2. Execute the parallel batch. Governance already granted above.
         # Every tool gets its own envelope so concurrent dispatches cannot

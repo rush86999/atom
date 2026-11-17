@@ -629,6 +629,34 @@ jobs:
             python -m pytest tests/test_assignment_routes.py \
             -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Never-autonomous task baskets (additive): all five complete backend
+      # files are gated together — rules/matching, task-level scope and
+      # clearance, durable rule-write fences, reviewer authority, and entry
+      # identity. Each file runs in its own python process with its own
+      # absolute runner-temp SQLite file so one file cannot be certified by
+      # state another left behind; TESTING/PYTHON_DOTENV_DISABLED keep the
+      # lane off .env and the repo dev DB. Complete files only: no node-id
+      # subsets, deselect, skip or continue-on-error. No previous selection
+      # in this job is changed.
+      - name: Run never-autonomous task boundary controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-never-autonomous/base.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-never-autonomous/data"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          never_root=$(mktemp -d "${RUNNER_TEMP}/never-autonomous-XXXXXX")
+          mkdir -p "${never_root}/data"
+          for never_file in rules task_scope rule_write_fences review_authority entry_identity; do
+            DATABASE_URL="sqlite:///${never_root}/${never_file}.db" \
+              ATOM_DATA_DIR="${never_root}/data" \
+              python -m pytest "tests/test_never_autonomous_${never_file}.py" \
+              -q --tb=short --timeout=300 --timeout-method=thread
+          done
+
 
   backend-core-extra:
     runs-on: ubuntu-latest
@@ -1649,4 +1677,13 @@ jobs:
       # while another host still loses the edit. Complete files only.
       - name: Run reviewed lesson correction learning UI controls
         run: npx jest tests/components/ConversationLearningReview.test.tsx tests/lib/conversation-learning-api-revise.test.ts tests/pages/learning.test.tsx components/learning/__tests__/ConversationLearningReview.test.tsx --runInBand --no-coverage --watchman=false
+
+      # Never-autonomous task-basket UI (additive end step): the complete
+      # AutonomyPanel contract, including the pre-existing three topic modes,
+      # opt-in rule CRUD/revision conflicts, conservative never-gate rendering
+      # and accessibility. The canvas host integration remains in the existing
+      # "Native canvas save and uncertain-outcome controls" step. Complete
+      # file only; no selectors, deselection or continue-on-error.
+      - name: Run never-autonomous task basket UI controls
+        run: npx jest components/canvas/__tests__/AutonomyPanel.test.tsx --runInBand --no-coverage --watchman=false
 

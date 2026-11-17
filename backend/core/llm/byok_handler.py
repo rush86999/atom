@@ -2346,6 +2346,86 @@ def key_store_signature():
         return None
 
 
+def classify_query_complexity(
+    prompt: str, task_type: Optional[str] = None,
+) -> QueryComplexity:
+    """Canonical task-difficulty classifier shared by routing and policy.
+
+    This is the exact heuristic previously embedded in
+    ``BYOKHandler.analyze_query_complexity``. It is a module-level pure
+    function so task-autonomy policy can reuse the SAME difficulty
+    classification without constructing a provider handler or maintaining a
+    second classifier. The method below delegates here, preserving every
+    existing caller.
+    """
+    # 1. Length-based scoring (estimated tokens)
+    estimated_tokens = len(prompt) / 4
+    complexity_score = 0
+
+    if estimated_tokens >= 2000:
+        complexity_score += 3
+    elif estimated_tokens >= 500:
+        complexity_score += 2
+    elif estimated_tokens >= 100:
+        complexity_score += 1
+
+    # 2. Regex-based vocabulary analysis
+    # Using word boundaries \b to avoid matches inside other words
+    # Code vocabulary: words that double as everyday English ("try",
+    # "return", "import", "class", "print", "final"…) were removed after
+    # "try again" scored +3 and routed a trivial chat turn to the premium
+    # tier. What remains is unambiguous in business chat; the leftover
+    # weight still requires corroboration (code fence or a 2nd match).
+    patterns = {
+        "simple": (r"\b(hello|hi|thanks|greetings|summarize|translate|list|what is|who is|define|how do i|simplify|brief|basic|short|quick|simple)\b", -2),
+        "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
+        "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
+        "code": (r"\b(code|coding|debug|debugging|optimize|optimization|refactor|refactoring|snippet|api|endpoint|webhook|sql|postgresql|mongodb|redis|json|xml|yaml|docker|kubernetes|aws|lambda|gcp|azure|async|await|typedef)\b", 3),
+        "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|purchase orders)\b", 5)
+    }
+
+    # Check for code blocks (significant weight)
+    has_code_fence = "```" in prompt
+    if has_code_fence:
+        complexity_score += 3
+
+    code_vocab_matches = len(re.findall(patterns["code"][0], prompt, re.IGNORECASE))
+    for name, (pattern, weight) in patterns.items():
+        if not re.search(pattern, prompt, re.IGNORECASE):
+            continue
+        if name == "code" and not has_code_fence and code_vocab_matches < 2:
+            # A lone technical word ("send the api docs") must not flip the
+            # tier on its own — require a code fence or a second match.
+            continue
+        complexity_score += weight
+
+    # 3. Task type override
+    if task_type:
+        if task_type == "computer_use":
+            # Desktop actuation is the highest-difficulty workload the
+            # router sees: irreversible real-world actions decided from
+            # pixels, needing frontier vision+reasoning. This also carries
+            # the frontier-reserved gate's difficulty signal — anything
+            # lower would drop gpt-6-astra from its own computer-use
+            # candidates (FRONTIER_RESERVED_MIN_COMPLEXITY).
+            return QueryComplexity.ADVANCED
+        if task_type in ["code", "analysis", "reasoning"]:
+            complexity_score += 2
+        elif task_type in ["chat", "general"]:
+            complexity_score -= 1
+
+    # 4. Map score to complexity level
+    # Refined ranges: 2+ is COMPLEX, 5+ is ADVANCED
+    if complexity_score <= 0:
+        return QueryComplexity.SIMPLE
+    elif complexity_score == 1:
+        return QueryComplexity.MODERATE
+    elif complexity_score <= 4:
+        return QueryComplexity.COMPLEX
+    else:
+        return QueryComplexity.ADVANCED
+
+
 class BYOKHandler:
     """
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
@@ -5637,73 +5717,11 @@ class BYOKHandler:
         """
         Analyze query complexity to determine optimal provider routing.
         Uses a robust regex-based heuristic with expanded vocabulary.
+
+        Delegates to the module-level canonical classifier so policy and
+        routing cannot drift.
         """
-        # 1. Length-based scoring (estimated tokens)
-        estimated_tokens = len(prompt) / 4
-        complexity_score = 0
-        
-        if estimated_tokens >= 2000:
-            complexity_score += 3
-        elif estimated_tokens >= 500:
-            complexity_score += 2
-        elif estimated_tokens >= 100:
-            complexity_score += 1
-
-        # 2. Regex-based vocabulary analysis
-        # Using word boundaries \b to avoid matches inside other words
-        # Code vocabulary: words that double as everyday English ("try",
-        # "return", "import", "class", "print", "final"…) were removed after
-        # "try again" scored +3 and routed a trivial chat turn to the premium
-        # tier. What remains is unambiguous in business chat; the leftover
-        # weight still requires corroboration (code fence or a 2nd match).
-        patterns = {
-            "simple": (r"\b(hello|hi|thanks|greetings|summarize|translate|list|what is|who is|define|how do i|simplify|brief|basic|short|quick|simple)\b", -2),
-            "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
-            "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
-            "code": (r"\b(code|coding|debug|debugging|optimize|optimization|refactor|refactoring|snippet|api|endpoint|webhook|sql|postgresql|mongodb|redis|json|xml|yaml|docker|kubernetes|aws|lambda|gcp|azure|async|await|typedef)\b", 3),
-            "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|purchase orders)\b", 5)
-        }
-
-        # Check for code blocks (significant weight)
-        has_code_fence = "```" in prompt
-        if has_code_fence:
-            complexity_score += 3
-
-        code_vocab_matches = len(re.findall(patterns["code"][0], prompt, re.IGNORECASE))
-        for name, (pattern, weight) in patterns.items():
-            if not re.search(pattern, prompt, re.IGNORECASE):
-                continue
-            if name == "code" and not has_code_fence and code_vocab_matches < 2:
-                # A lone technical word ("send the api docs") must not flip the
-                # tier on its own — require a code fence or a second match.
-                continue
-            complexity_score += weight
-
-        # 3. Task type override
-        if task_type:
-            if task_type == "computer_use":
-                # Desktop actuation is the highest-difficulty workload the
-                # router sees: irreversible real-world actions decided from
-                # pixels, needing frontier vision+reasoning. This also carries
-                # the frontier-reserved gate's difficulty signal — anything
-                # lower would drop gpt-6-astra from its own computer-use
-                # candidates (FRONTIER_RESERVED_MIN_COMPLEXITY).
-                return QueryComplexity.ADVANCED
-            if task_type in ["code", "analysis", "reasoning"]:
-                complexity_score += 2
-            elif task_type in ["chat", "general"]:
-                complexity_score -= 1
-
-        # 4. Map score to complexity level
-        # Refined ranges: 2+ is COMPLEX, 5+ is ADVANCED
-        if complexity_score <= 0:
-            return QueryComplexity.SIMPLE
-        elif complexity_score == 1:
-            return QueryComplexity.MODERATE
-        elif complexity_score <= 4:
-            return QueryComplexity.COMPLEX
-        else:
-            return QueryComplexity.ADVANCED
+        return classify_query_complexity(prompt, task_type)
 
     def get_optimal_provider(
         self, 

@@ -7447,6 +7447,76 @@ class AssignmentExecutor:
                 return "crm_write"
         return None
 
+    def _never_autonomy_gate(
+        self,
+        assignment: Dict[str, Any],
+        step: Dict[str, Any],
+        run_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """TASK-level never-autonomous recheck, independent of approval mode.
+
+        Unlike ``_autonomy_gate`` this runs even when a standing grant or an
+        explicit approval requirement already exists: a never-autonomous task
+        basket must never be waived by another authority path. It covers
+        read/analysis operations too.
+        """
+        provenance = assignment.get("provenance") or {}
+        user_id = (
+            str(provenance.get("user_id") or "").strip()
+            or str(assignment.get("employee_id") or "").strip()
+            or None)
+        try:
+            from core.autonomy_policy import evaluate_never_autonomous
+            from core.task_classification import (
+                build_assignment_task_profile,
+                build_unknown_task_profile,
+            )
+
+            try:
+                profile = build_assignment_task_profile(assignment)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Classification unavailability is not a nonmatch: keep every
+                # dimension unknown so a configured rule still requires the
+                # durable human review this gate produces.
+                logger.warning(
+                    "assignment %s: task classification unavailable for %s "
+                    "(%s); evaluating configured rules against an unknown "
+                    "profile", assignment.get("assignment_id"),
+                    step.get("step_id"), type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=user_id,
+                    reason=type(_classify_err).__name__,
+                )
+            with self.lifecycle.runs._sessions()() as db:
+                never = evaluate_never_autonomous(
+                    db, user_id, profile,
+                    tenant_id=assignment.get("tenant_id"),
+                    workspace_id=assignment.get("workspace_id"),
+                    action_complexity=None,
+                )
+            if never.get("outcome") != "review":
+                return None
+            return {
+                "topic": None,
+                "outcome": "propose",
+                "reason": never.get("reason"),
+                "never_autonomous": never,
+                "source": "never_autonomous_task_recheck",
+            }
+        except Exception as exc:  # noqa: BLE001 — mutating work fails closed
+            logger.warning(
+                "assignment %s: never-autonomous task gate unavailable for "
+                "%s: %s", assignment.get("assignment_id"),
+                step.get("step_id"), exc)
+            return {
+                "topic": None,
+                "outcome": "propose",
+                "reason": (
+                    "Never-autonomous task policy could not be re-verified; "
+                    "human approval is required."),
+                "source": "never_autonomous_task_recheck",
+            }
+
     def _autonomy_gate(
         self,
         assignment: Dict[str, Any],
@@ -7464,8 +7534,6 @@ class AssignmentExecutor:
         provider response identity demotes the effect to approval.
         """
         topic = self._autonomy_topic_for_step(step)
-        if not topic:
-            return None
         provenance = assignment.get("provenance") or {}
         agent_id = str(provenance.get("agent_id") or "").strip() or None
         user_id = (
@@ -7474,11 +7542,51 @@ class AssignmentExecutor:
             or None)
         try:
             from core.autonomy_policy import (
-                OUTCOME_EXECUTE, gate_for_topic,
+                OUTCOME_EXECUTE, OUTCOME_PROPOSE, evaluate_never_autonomous,
+                gate_for_topic,
+            )
+            from core.task_classification import (
+                build_assignment_task_profile,
+                build_unknown_task_profile,
             )
 
+            try:
+                profile = build_assignment_task_profile(assignment)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Keep configured rules potential (not a silent nonmatch)
+                # when classification is unavailable before an effect.
+                logger.warning(
+                    "assignment %s: task classification unavailable for %s "
+                    "(%s); evaluating configured rules against an unknown "
+                    "profile", assignment.get("assignment_id"),
+                    step.get("step_id"), type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=user_id,
+                    reason=type(_classify_err).__name__,
+                )
             with self.lifecycle.runs._sessions()() as db:
-                gate = gate_for_topic(db, user_id, topic, agent_id)
+                if not topic:
+                    # A step without a mapped topic still cannot bypass an
+                    # owner's never-autonomous baskets. Only effectful
+                    # operations reach this check (the executor calls it
+                    # before an effect claim).
+                    never = evaluate_never_autonomous(
+                        db, user_id, profile,
+                        tenant_id=assignment.get("tenant_id"),
+                        workspace_id=assignment.get("workspace_id"),
+                        action_type=str(step.get("operation_type") or ""),
+                    )
+                    if never.get("outcome") != "review":
+                        return None
+                    return {
+                        "topic": None,
+                        "outcome": OUTCOME_PROPOSE,
+                        "reason": never.get("reason"),
+                        "never_autonomous": never,
+                        "source": "never_autonomous_recheck",
+                    }
+                gate = gate_for_topic(
+                    db, user_id, topic, agent_id, task_profile=profile)
                 if gate.get("outcome") == OUTCOME_EXECUTE:
                     route_revalidation = self._repeat_task_route_revalidation(
                         db, run_id, agent_id, topic, assignment=assignment)
@@ -7820,8 +7928,33 @@ class AssignmentExecutor:
         external = step.get("effect") == "external"
         approval = step.get("approval") or {}
         standing = str(step.get("standing_authorization") or "").strip()
+        # A never-autonomous TASK basket is independent of every other
+        # authority path: a standing grant or an already-required approval
+        # neither waives nor replaces it, and read/analysis steps are in
+        # scope just like writes.
+        never_gate = self._never_autonomy_gate(assignment, step, run_id=run_id)
+        never_required = never_gate is not None
+        if never_required:
+            approval = {
+                **approval,
+                "required": True,
+                "purpose": (
+                    never_gate.get("reason")
+                    or "Never-autonomous task policy requires human review."),
+                "source": "never_autonomous_task_recheck",
+            }
+            # A never basket must not SHADOW the independent general autonomy
+            # guard: still evaluate topic/maturity/route and carry its reason
+            # into the same human decision.
+            general_gate = self._autonomy_gate(
+                assignment, step, run_id=run_id)
+            if general_gate is not None and general_gate.get("reason"):
+                general_reason = str(general_gate.get("reason"))
+                if general_reason and general_reason != approval["purpose"]:
+                    approval["purpose"] = (
+                        f"{approval['purpose']} {general_reason}")
         standing_reservation = None
-        if self._standing_grant_covers(assignment, step):
+        if not never_required and self._standing_grant_covers(assignment, step):
             try:
                 prepared = self._prepare_effect(assignment, step, record)
             except Exception as exc:  # noqa: BLE001 — fall back to approval
@@ -7898,7 +8031,7 @@ class AssignmentExecutor:
                     "source": "autonomy_recheck",
                 }
 
-        if approval.get("required") and not authorized_by_grant:
+        if approval.get("required") and (never_required or not authorized_by_grant):
             operation = _operation_by_id(
                 self.lifecycle.get_task(run_id) or record, operation_id) or operation
             if operation.get("status") == "awaiting_approval":

@@ -910,13 +910,32 @@ def test_execute_closeout_preserves_unresolved_note(
         ReActStep(thought="done", final_answer="Recorded the note."),
     ])
 
+    gov_calls = []
+
     class _Gov:
         def __init__(self, db, workspace_id="default", tenant_id=None):
             self.db = db
             self.workspace_id = workspace_id
             self.tenant_id = tenant_id
 
-        async def can_perform_action_async(self, agent_id, tool_name):
+        async def can_perform_action_async(
+                self, agent_id, action_type, require_approval=False,
+                chain_id=None, include_global_agent_id=None,
+                task_profile=None, never_clearance=None):
+            # Mirror the real signature so production's keyword propagation is
+            # exercised instead of being absorbed by a permissive **kwargs.
+            # Snapshot the context: execute() strips its trusted keys in the
+            # finally block, and the double must see what was passed AT call
+            # time, not the post-run mutated dict.
+            gov_calls.append({
+                "agent_id": agent_id,
+                "action_type": action_type,
+                "task_profile": task_profile,
+                "never_clearance": (
+                    dict(never_clearance)
+                    if isinstance(never_clearance, dict)
+                    else never_clearance),
+            })
             return {"allowed": True, "requires_human_approval": False}
 
         async def record_outcome(self, *args, **kwargs):
@@ -942,6 +961,27 @@ def test_execute_closeout_preserves_unresolved_note(
         state["workspace_id"], state["agent_id"], state["scope_key"])
     assert restored["pending_notes"] == [content]
     assert restored["experience"]["skills"] == []
+
+    # Governance received the same server-owned material production sends:
+    # the trusted classification profile plus the live execution context, and
+    # the context carries that exact profile object (not a re-derived copy).
+    from core.task_classification import (
+        TASK_PROFILE_CONTEXT_KEY,
+        is_trusted_task_profile,
+    )
+
+    note_calls = [c for c in gov_calls if c["action_type"] == NOTE]
+    assert note_calls, gov_calls
+    for call in note_calls:
+        assert call["agent_id"] == AGENT, call
+        assert is_trusted_task_profile(call["task_profile"]), call
+        clearance = call["never_clearance"]
+        assert isinstance(clearance, dict), clearance
+        assert clearance["execution_id"] == EXECUTION, clearance
+        assert clearance["run_id"] == EXECUTION, clearance
+        assert clearance["session_id"] == SESSION, clearance
+        assert clearance[TASK_PROFILE_CONTEXT_KEY] is call["task_profile"], (
+            clearance)
 
 
 def test_durable_readback_shape_is_plain_json(scratch, bpe_data):

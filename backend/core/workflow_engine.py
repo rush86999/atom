@@ -811,7 +811,219 @@ class WorkflowEngine:
         await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
+    async def _admit_never_autonomous_task(
+        self,
+        execution_id: str,
+        workflow: Dict[str, Any],
+        state: Dict[str, Any],
+        user_id: str,
+        workspace_id: str,
+        tenant_id: str,
+    ) -> Optional[str]:
+        """TASK-LEVEL admission before the workflow's first step/model call.
+
+        Returns ``"paused"`` when the run must stop for human review. A
+        previously approved durable task admission for THIS execution is
+        re-read and reused on resume; a boolean in the resume payload is never
+        authority. The granted clearance covers only this task and only the
+        reviewed rule revisions.
+        """
+        from core.autonomy_policy import (
+            NEVER_TASK_ADMISSION_ACTION,
+            evaluate_task_admission,
+            grant_never_autonomous_clearance,
+            task_admission_params,
+            warm_task_admission_receipt_denial,
+        )
+        from core.task_classification import (
+            build_unknown_task_profile,
+            current_task_profile,
+        )
+
+        profile = current_task_profile()
+        task_material = " ".join(
+            str(value) for value in (
+                workflow.get("name"), workflow.get("description"),
+                workflow.get("goal"), workflow.get("objective"),
+            ) if value
+        )
+        agent_id = str(workflow.get("agent_id") or "system_agent")
+        owner_user_id = (
+            (profile.owner_user_id if profile is not None else None)
+            or workflow.get("created_by")
+            or user_id)
+        if profile is None:
+            # Missing classification cannot prove a configured rule
+            # inapplicable; review against the canonical unknown profile
+            # before the workflow's first step/model call.
+            try:
+                profile = build_unknown_task_profile(
+                    user_id=owner_user_id, reason="profile_unavailable")
+                logger.warning(
+                    "workflow %s: task profile unavailable at admission; "
+                    "evaluating configured rules against an unknown profile",
+                    execution_id)
+            except Exception:  # noqa: BLE001 — policy below fails closed
+                profile = None
+        try:
+            with get_db_session() as db:
+                governance = ServiceFactory.get_governance_service(
+                    db, workspace_id=workspace_id, tenant_id=tenant_id)
+                decision = evaluate_task_admission(
+                    db,
+                    profile,
+                    task_material=task_material,
+                    agent_id=agent_id,
+                    user_id=owner_user_id,
+                    execution_id=execution_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+                if decision.get("outcome") != "review":
+                    return None
+                durable = decision.get("durable_admission") or {}
+                if durable.get("hitl_action_id"):
+                    if warm_task_admission_receipt_denial(
+                            decision, decision,
+                            hitl_action_id=durable.get("hitl_action_id")):
+                        return "paused"
+                    holder: Dict[str, Any] = {}
+                    if not grant_never_autonomous_clearance(
+                            holder, decision, task_profile=profile,
+                            execution_id=execution_id,
+                            tenant_id=tenant_id,
+                            workspace_id=workspace_id):
+                        return "paused"
+                    logger.info(
+                        "workflow %s: reused durable task admission %s",
+                        execution_id, durable.get("hitl_action_id"))
+                    return None
+
+                # Reuse an existing PENDING admission instead of filing a new
+                # decision every resume attempt for the same execution/task.
+                from core.models import HITLAction
+
+                pending = (
+                    db.query(HITLAction)
+                    .filter(
+                        HITLAction.action_type == NEVER_TASK_ADMISSION_ACTION,
+                        HITLAction.status == "pending",
+                        HITLAction.agent_id == agent_id,
+                    )
+                    .order_by(HITLAction.created_at.desc())
+                    .limit(20)
+                    .all()
+                )
+                analytics_task = None
+                for row in pending:
+                    params = row.params if isinstance(row.params, dict) else {}
+                    snapshot = (
+                        row.context_snapshot
+                        if isinstance(row.context_snapshot, dict) else {})
+                    if (str(params.get("execution_id")
+                            or snapshot.get("execution_id") or "")
+                            == str(execution_id)
+                            and str(params.get("task_fingerprint") or "")
+                            == str(decision.get("task_fingerprint") or "")):
+                        analytics_task = row
+                        break
+                if analytics_task is None:
+                    decision_params = task_admission_params(
+                        decision,
+                        execution_id=execution_id,
+                        profile=profile,
+                        extra={"workflow_id": workflow.get("id")},
+                    )
+                    decision_params["task_input"] = str(task_material)[:2000]
+                    action_id = governance.request_approval(
+                        agent_id=agent_id,
+                        action_type=NEVER_TASK_ADMISSION_ACTION,
+                        params=decision_params,
+                        reason=decision.get("reason") or (
+                            "A never-autonomous task rule matched this "
+                            "workflow; a human must approve this execution."),
+                        execution_context={
+                            "execution_id": execution_id,
+                            "workspace_id": workspace_id,
+                            "tenant_id": tenant_id,
+                            "user_id": owner_user_id,
+                        },
+                        user_id=owner_user_id,
+                    )
+                else:
+                    action_id = analytics_task.id
+            reason = decision.get("reason") or (
+                "A never-autonomous task rule matched this workflow.")
+            await self.state_manager.update_execution_status(
+                execution_id, "PAUSED", error=reason)
+            await get_connection_manager().notify_workflow_status(
+                user_id, execution_id, "PAUSED",
+                {"reason": "never_autonomous", "hitl_action_id": action_id,
+                 "task_level": True})
+            self._notify_workflow_paused(
+                workflow, execution_id, "never_autonomous", user_id,
+                reason=reason,
+            )
+            return "paused"
+        except Exception as exc:  # noqa: BLE001 — configured policy fails CLOSED
+            logger.warning(
+                "workflow %s: never-autonomous task admission unavailable: %s",
+                execution_id, exc)
+            reason = (
+                "Never-autonomous task policy could not be evaluated; "
+                "human review is required.")
+            await self.state_manager.update_execution_status(
+                execution_id, "PAUSED", error=reason)
+            return "paused"
+
     async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]) -> None:
+        """Bind the workflow's canonical task profile for the whole run.
+
+        The profile is an in-process object bound through the same context
+        variable the topic gates and governance use; it is not written into
+        the persisted workflow definition. The body keeps the existing
+        execution loop unchanged.
+        """
+        token = None
+        try:
+            from core.task_classification import (
+                bind_task_profile,
+                build_unknown_task_profile,
+                build_workflow_task_profile,
+                reset_task_profile,
+            )
+
+            try:
+                profile = build_workflow_task_profile(workflow)
+            except Exception as _classify_err:  # noqa: BLE001
+                # Bind the canonical unknown profile rather than letting the
+                # run skip task admission entirely. Configured rules become
+                # potential matches (durable review before the first step).
+                logger.warning(
+                    "workflow %s: task classification unavailable (%s); "
+                    "evaluating configured rules against an unknown profile",
+                    execution_id, type(_classify_err).__name__)
+                profile = build_unknown_task_profile(
+                    user_id=(
+                        workflow.get("created_by")
+                        or workflow.get("user_id")),
+                    reason=type(_classify_err).__name__,
+                )
+            token = bind_task_profile(None, profile)
+        except Exception as _profile_err:  # noqa: BLE001
+            logger.debug(
+                "workflow %s: task profile bind skipped: %s",
+                execution_id, _profile_err)
+        try:
+            await self._run_execution_body(execution_id, workflow)
+        finally:
+            if token is not None:
+                try:
+                    reset_task_profile(token)
+                except Exception:  # noqa: BLE001
+                    pass
+
+    async def _run_execution_body(self, execution_id: str, workflow: Dict[str, Any]) -> None:
         """Main execution loop"""
         ws_manager = get_connection_manager()
         # Import here to avoid circular imports if any
@@ -829,6 +1041,14 @@ class WorkflowEngine:
             # Prefer the scope frozen at start (durable across restarts);
             # fall back to the definition's own scope for seeded/scheduled runs.
             workspace_id, tenant_id = self._execution_scope(workflow, state)
+
+            # TASK-LEVEL never-autonomous admission BEFORE the first step,
+            # model call or output. Reuses a durable approved task HITL on
+            # resume; independent per-step guards still run afterwards.
+            if await self._admit_never_autonomous_task(
+                    execution_id, workflow, state, user_id,
+                    workspace_id, tenant_id) == "paused":
+                return
 
             # Decide execution mode based on conditional connections
             if self._has_conditional_connections(workflow):
@@ -949,16 +1169,52 @@ class WorkflowEngine:
                             agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                         
                         # Governance applies only to registry-backed agents;
-                        # unbound system_agent workflows have no identity to
-                        # govern. Use the async variant (the sync method
-                        # cannot await the budget check inside a running loop)
-                        # with the correct action_type kwarg; the result is a
-                        # dict {"allowed": bool, "reason": str}.
+                        # unbound system_agent workflows still honor the
+                        # workflow owner's never-autonomous baskets even
+                        # though they have no maturity row to govern.
+                        from core.task_classification import (
+                            current_task_profile,
+                        )
+
                         if agent_record is not None:
                             can_perform_result = await governance.can_perform_action_async(
                                 agent_id=agent_id,
                                 action_type=step.get("action", "default"),
+                                task_profile=current_task_profile(),
                             )
+                        else:
+                            from core.autonomy_policy import (
+                                evaluate_never_autonomous,
+                                has_never_autonomous_clearance,
+                            )
+
+                            _profile = current_task_profile()
+                            _never = evaluate_never_autonomous(
+                                db,
+                                user_id,
+                                _profile,
+                                tenant_id=tenant_id,
+                                workspace_id=workspace_id,
+                                action_type=step.get("action", "default"),
+                            )
+                            if (_never.get("outcome") == "review"
+                                    and has_never_autonomous_clearance(
+                                        None,
+                                        decision=_never,
+                                        task_profile=_profile,
+                                        tenant_id=tenant_id,
+                                        workspace_id=workspace_id,
+                                        execution_id=execution_id)):
+                                _never = dict(_never)
+                                _never["cleared"] = True
+                            can_perform_result = {
+                                "allowed": _never.get("outcome") != "review",
+                                "requires_human_approval": (
+                                    _never.get("outcome") == "review"),
+                                "reason": _never.get("reason"),
+                                "never_autonomous": _never,
+                            }
+                        if can_perform_result is not None:
                             can_perform = (
                                 can_perform_result.get("allowed", False)
                                 if isinstance(can_perform_result, dict)
@@ -969,7 +1225,11 @@ class WorkflowEngine:
                                 if isinstance(can_perform_result, dict)
                                 else ""
                             )
-                            if not can_perform:
+                            _never_review = bool(
+                                isinstance(can_perform_result, dict)
+                                and (can_perform_result.get("never_autonomous") or {}).get(
+                                    "outcome") == "review")
+                            if not can_perform or _never_review:
                                 # Trust policy / maturity gate: the agent is
                                 # not autonomous enough for this action. A
                                 # resume carrying the approval for THIS exact
@@ -1031,6 +1291,22 @@ class WorkflowEngine:
                                         "durable HITL %s", execution_id,
                                         step_id,
                                         approved_binding["hitl_action_id"])
+                                    if isinstance(can_perform_result, dict) and (
+                                            can_perform_result.get(
+                                                "never_autonomous")):
+                                        from core.autonomy_policy import (
+                                            grant_never_autonomous_clearance,
+                                        )
+
+                                        grant_never_autonomous_clearance(
+                                            step,
+                                            can_perform_result[
+                                                "never_autonomous"],
+                                            task_profile=current_task_profile(),
+                                            execution_id=execution_id,
+                                            tenant_id=tenant_id,
+                                            workspace_id=workspace_id,
+                                        )
                                 else:
                                     # No matching durable approval yet: pause
                                     # durably and file the exact effect for a
@@ -2220,6 +2496,34 @@ class WorkflowEngine:
                 tier = params.get("tier") or step.get("tier")
                 if tier:
                     context["tier_at_issuance"] = tier
+                # The run-level canonical profile + any per-step durable HITL
+                # clearance are server-only objects. Copying the opaque
+                # clearance is what lets an approved step reach the effect
+                # without re-pausing, while a different step still re-gates.
+                try:
+                    from core.autonomy_policy import (
+                        NEVER_CLEARANCE_CONTEXT_KEY,
+                        current_never_autonomous_clearance,
+                    )
+                    from core.task_classification import (
+                        TASK_PROFILE_CONTEXT_KEY,
+                        current_task_profile,
+                    )
+
+                    profile = current_task_profile()
+                    if profile is not None:
+                        context[TASK_PROFILE_CONTEXT_KEY] = profile
+                        context.setdefault(
+                            "user_id", getattr(profile, "owner_user_id", None))
+                    clearance = (
+                        step.get(NEVER_CLEARANCE_CONTEXT_KEY)
+                        or current_never_autonomous_clearance())
+                    if clearance is not None:
+                        context[NEVER_CLEARANCE_CONTEXT_KEY] = clearance
+                except Exception as _profile_err:  # noqa: BLE001
+                    logger.debug(
+                        "workflow task profile attach skipped: %s",
+                        _profile_err)
 
             # Execute MCP tool through the gated entry point
             result = await mcp_service.call_tool(tool_name, tool_args, context)

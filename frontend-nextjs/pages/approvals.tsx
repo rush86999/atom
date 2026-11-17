@@ -67,6 +67,237 @@ type SessionCanvas = {
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
+const TASK_ADMISSION_ACTION = "never_autonomous_task";
+const TASK_PREVIEW_LIMIT = 1200;
+const TASK_CLASSIFICATION_DIMENSIONS: Array<{ key: string; label: string }> = [
+  { key: "difficulty", label: "Difficulty" },
+  { key: "category", label: "Category" },
+  { key: "domain", label: "Domain" },
+];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function asIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
+  );
+}
+
+type ReviewedRuleBinding = { id: string; revision: string | null };
+
+function readRuleBindings(params: Record<string, unknown>): ReviewedRuleBinding[] {
+  if (!Array.isArray(params.rule_bindings)) return [];
+  const bindings: ReviewedRuleBinding[] = [];
+  for (const raw of params.rule_bindings) {
+    const entry = asRecord(raw);
+    const id = asText(entry?.id);
+    if (!entry || !id) continue;
+    const revisionValue = entry.revision;
+    const revision =
+      typeof revisionValue === "number" || typeof revisionValue === "string"
+        ? String(revisionValue)
+        : null;
+    bindings.push({ id, revision });
+  }
+  return bindings;
+}
+
+/**
+ * A never-autonomous task admission is a human decision on ONE exact task
+ * execution. The server owns the task text, classification and rule match;
+ * this card only renders what the server recorded. It never re-derives a
+ * match, and it keeps hashes/ids out of the primary reading flow because
+ * they are audit evidence, not something a reviewer reads to decide.
+ */
+function TaskAdmissionReview({ action }: { action: PendingAction }) {
+  const params = asRecord(action.params) ?? {};
+  const taskInput = asText(params.task_input);
+  const profile = asRecord(params.task_profile);
+  const bindings = readRuleBindings(params);
+  const recordedRuleIds = bindings.length
+    ? bindings.map((binding) => binding.id)
+    : asIdList(params.rule_ids);
+  const executionId = asText(params.execution_id);
+  const taskFingerprint = asText(params.task_fingerprint);
+  const ownerUserId = asText(params.owner_user_id);
+  const preview = taskInput ? taskInput.slice(0, TASK_PREVIEW_LIMIT) : "";
+  const previewTruncated = Boolean(taskInput && taskInput.length > TASK_PREVIEW_LIMIT);
+  const classification = TASK_CLASSIFICATION_DIMENSIONS.map((dimension) => ({
+    ...dimension,
+    value: profile ? asText(profile[dimension.key]) : null,
+  }));
+  const missingClassification = classification.some((entry) => !entry.value);
+
+  return (
+    <div>
+      <div data-testid="task-admission-primary">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <div className="font-medium text-amber-300">Task execution admission</div>
+          {action.agent_id && (
+            <span className="text-xs text-gray-500">
+              agent {String(action.agent_id).slice(0, 8)}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          A server-owned rule matched this task before autonomous work began. Review
+          the exact task and classification below.
+        </div>
+
+        <div className="mt-3 rounded-lg border border-amber-700/60 bg-amber-950/20 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-amber-200">
+            Task to approve
+          </div>
+          {taskInput ? (
+            <>
+              <pre
+                data-testid="task-admission-task-input"
+                className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-sm text-gray-100"
+              >
+                {preview}
+              </pre>
+              <p className="mt-2 text-xs text-gray-500">
+                {previewTruncated
+                  ? `Preview truncated — showing the first ${TASK_PREVIEW_LIMIT.toLocaleString()} of ${taskInput.length.toLocaleString()} recorded characters. The approval binds the complete task; the fingerprint is in the technical details.`
+                  : "Server-recorded task preview (up to 2,000 characters). The approval binds the complete task."}
+              </p>
+            </>
+          ) : (
+            <p data-testid="task-admission-task-input-missing" className="mt-2 text-sm text-amber-200">
+              Task text unavailable — the server recorded no readable task preview for
+              this admission. Reject and request a fresh review if you cannot verify
+              the task.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Server classification
+          </div>
+          {profile ? (
+            <>
+              <div
+                data-testid="task-admission-classification"
+                className="mt-2 flex flex-wrap gap-2 text-xs"
+              >
+                {classification.map((entry) => (
+                  <span
+                    key={entry.key}
+                    className={`px-2 py-0.5 rounded-full ${
+                      entry.value
+                        ? "bg-sky-900/40 text-sky-200"
+                        : "bg-gray-800 text-gray-400"
+                    }`}
+                  >
+                    {entry.label}: {entry.value ?? "not classified"}
+                  </span>
+                ))}
+              </div>
+              {missingClassification && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Some classification values are unavailable. Missing values are not
+                  treated as a safe match.
+                </p>
+              )}
+            </>
+          ) : (
+            <p
+              data-testid="task-admission-classification-missing"
+              className="mt-2 text-sm text-amber-200"
+            >
+              Task classification unavailable — the server recorded no trusted task
+              profile. Missing classification is not evidence that the task is safe.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-3 text-sm text-gray-300">
+          <span className="font-semibold text-gray-200">Why this paused:</span>{" "}
+          {asText(action.reason) || "The server did not provide a reason for this review."}
+        </div>
+        {asText(action.reason) && (
+          <div className="mt-1 text-xs text-gray-500">
+            Rule matching is decided by the server; this page does not re-evaluate or
+            widen it. Any matched rule name is reported in the server reason above.
+          </div>
+        )}
+
+        <div
+          data-testid="task-admission-one-execution"
+          className="mt-3 rounded-lg border border-indigo-800/60 bg-indigo-950/30 p-3 text-sm text-indigo-100"
+        >
+          <span className="font-semibold">
+            Approving admits this one task execution only.
+          </span>{" "}
+          It does not edit the rule, disable future reviews, or authorize any other
+          task. The task text and rule binding are immutable here, so this card has
+          no Modify step; prepare a new task if the scope must change.
+        </div>
+      </div>
+
+      <details
+        data-testid="task-admission-binding"
+        className="mt-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3 text-xs text-gray-400"
+      >
+        <summary className="cursor-pointer text-gray-300">
+          Technical binding (audit details)
+        </summary>
+        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-3">
+          <dt className="text-gray-500">Execution ID</dt>
+          <dd className="font-mono break-all sm:col-span-2">
+            {executionId ?? "Not recorded"}
+          </dd>
+          <dt className="text-gray-500">Task fingerprint</dt>
+          <dd className="font-mono break-all sm:col-span-2">
+            {taskFingerprint ?? "Not recorded"}
+          </dd>
+          <dt className="text-gray-500">Owner user ID</dt>
+          <dd className="font-mono break-all sm:col-span-2">
+            {ownerUserId ?? "Not recorded"}
+          </dd>
+        </dl>
+        <div className="mt-2 font-semibold text-gray-400">
+          Reviewed rule revisions
+        </div>
+        {bindings.length > 0 ? (
+          <ul className="mt-1 space-y-0.5">
+            {bindings.map((binding) => (
+              <li key={`${binding.id}:${binding.revision ?? "unknown"}`}>
+                <span className="font-mono">{binding.id}</span>
+                {binding.revision === null
+                  ? " — revision not recorded"
+                  : ` — revision ${binding.revision}`}
+              </li>
+            ))}
+          </ul>
+        ) : recordedRuleIds.length > 0 ? (
+          <ul className="mt-1 space-y-0.5">
+            {recordedRuleIds.map((ruleId) => (
+              <li key={ruleId}>
+                <span className="font-mono">{ruleId}</span> — revision not recorded
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1">
+            No reviewed rule IDs or revisions were recorded in this approval.
+          </p>
+        )}
+      </details>
+    </div>
+  );
+}
+
 /** First-time walkthrough for the very first training session, login to
  * graduation. Dismissible; remembers dismissal for the browser. */
 const TRAINING_GUIDE_KEY = "atom_training_guide_dismissed";
@@ -609,40 +840,50 @@ export default function ApprovalsPage() {
         ) : (
           <div className="space-y-3">
             {actions.map((a) => (
-              <div key={a.id} className="rounded-xl border border-amber-800/60 bg-gray-900 p-4">
+              <div
+                key={a.id}
+                data-testid={`approval-action-${a.id}`}
+                className="rounded-xl border border-amber-800/60 bg-gray-900 p-4"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium text-amber-300">
-                      {a.action_type === "agent_qualification_review"
-                        ? "Capability qualification review"
-                        : a.action_type}
-                      {a.agent_id && <span className="ml-2 text-xs text-gray-500">agent {String(a.agent_id).slice(0, 8)}</span>}
-                    </div>
-                    {a.reason && <div className="text-sm text-gray-400 mt-1">{a.reason}</div>}
-                    {a.action_type === "agent_qualification_review" && (
-                      <div className="mt-2 rounded border border-gray-700 p-2 text-xs space-y-1">
-                        <p className="font-medium text-gray-300">Frozen rubric</p>
-                        {((a.params?.rubric_criteria as Array<Record<string, unknown>> | undefined) || []).map((criterion) => (
-                          <div key={String(criterion.id)} className="text-gray-400">
-                            {String(criterion.id)}: {String(criterion.label)}
+                    {a.action_type === TASK_ADMISSION_ACTION ? (
+                      <TaskAdmissionReview action={a} />
+                    ) : (
+                      <>
+                        <div className="font-medium text-amber-300">
+                          {a.action_type === "agent_qualification_review"
+                            ? "Capability qualification review"
+                            : a.action_type}
+                          {a.agent_id && <span className="ml-2 text-xs text-gray-500">agent {String(a.agent_id).slice(0, 8)}</span>}
+                        </div>
+                        {a.reason && <div className="text-sm text-gray-400 mt-1">{a.reason}</div>}
+                        {a.action_type === "agent_qualification_review" && (
+                          <div className="mt-2 rounded border border-gray-700 p-2 text-xs space-y-1">
+                            <p className="font-medium text-gray-300">Frozen rubric</p>
+                            {((a.params?.rubric_criteria as Array<Record<string, unknown>> | undefined) || []).map((criterion) => (
+                              <div key={String(criterion.id)} className="text-gray-400">
+                                {String(criterion.id)}: {String(criterion.label)}
+                              </div>
+                            ))}
+                            <p className="font-medium text-gray-300 pt-1">Scoped evidence</p>
+                            {((a.params?.evidence as Array<Record<string, unknown>> | undefined) || []).map((item) => (
+                              <div key={`${String(item.kind)}:${String(item.id)}`} className="text-gray-400">
+                                <div>{String(item.kind)}:{String(item.id)}</div>
+                                <div>Task: {String(item.task_preview || "")}</div>
+                                <div>Output: {String(item.output_preview || "")}</div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                        <p className="font-medium text-gray-300 pt-1">Scoped evidence</p>
-                        {((a.params?.evidence as Array<Record<string, unknown>> | undefined) || []).map((item) => (
-                          <div key={`${String(item.kind)}:${String(item.id)}`} className="text-gray-400">
-                            <div>{String(item.kind)}:{String(item.id)}</div>
-                            <div>Task: {String(item.task_preview || "")}</div>
-                            <div>Output: {String(item.output_preview || "")}</div>
-                          </div>
-                        ))}
-                      </div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1 font-mono break-all">{fmtParams(a.params)}</div>
+                      </>
                     )}
-                    <div className="text-xs text-gray-500 mt-1 font-mono break-all">{fmtParams(a.params)}</div>
                     <div className="text-xs text-gray-600 mt-1">
                       {a.created_at ? new Date(a.created_at).toLocaleString() : ""}
                     </div>
                   </div>
-                  {editingAction === a.id && (
+                  {editingAction === a.id && a.action_type !== TASK_ADMISSION_ACTION && (
                     <div className="mt-3">
                       <div className="text-xs text-gray-400 mb-1">
                         Modify the task before approving — the agent resumes with these params:
@@ -659,7 +900,7 @@ export default function ApprovalsPage() {
                   )}
                   <div className="flex gap-2 shrink-0" title={canDecide ? undefined : "Supervisor (team_lead+) role required"}>
                     {canDecide ? (
-                    editingAction === a.id ? (
+                    editingAction === a.id && a.action_type !== TASK_ADMISSION_ACTION ? (
                       <>
                         <button
                           onClick={() => {
@@ -684,23 +925,25 @@ export default function ApprovalsPage() {
                       </>
                     ) : (
                       <>
-                        <button
-                          onClick={() => {
-                            setEditingAction(a.id);
-                            setEditedParams((prev) => ({
-                              ...prev,
-                              [a.id]: JSON.stringify(a.params ?? {}, null, 2),
-                            }));
-                          }}
-                          className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium"
-                        >
-                          Modify
-                        </button>
+                        {a.action_type !== TASK_ADMISSION_ACTION && (
+                          <button
+                            onClick={() => {
+                              setEditingAction(a.id);
+                              setEditedParams((prev) => ({
+                                ...prev,
+                                [a.id]: JSON.stringify(a.params ?? {}, null, 2),
+                              }));
+                            }}
+                            className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium"
+                          >
+                            Modify
+                          </button>
+                        )}
                         <button
                           onClick={() => decide(a.id, "approved")}
                           className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
                         >
-                          Approve
+                          {a.action_type === TASK_ADMISSION_ACTION ? "Approve this execution" : "Approve"}
                         </button>
                         <button
                           onClick={() => decide(a.id, "rejected")}

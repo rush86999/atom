@@ -428,6 +428,20 @@ describe("CanvasDetailPage", () => {
     // each topic shows the hire's live gate outcome (what a turn would
     // actually enforce today).
     mockGet.mockImplementation((url: string) => {
+      if (String(url) === "/api/autonomy/never-rules") {
+        return Promise.resolve({
+          data: {
+            rules: [],
+            count: 0,
+            dimensions: {
+              difficulty: ["simple", "moderate", "complex", "advanced"],
+              category: ["code", "math", "qa", "extraction", "planning", "prose"],
+              domain: ["finance", "hr", "marketing", "operations", "sales", "support"],
+            },
+            scope: { user_id: "user-1", workspace_id: null, tenant_id: null },
+          },
+        });
+      }
       if (String(url).startsWith("/api/autonomy/topics")) {
         return Promise.resolve({
           data: {
@@ -451,6 +465,12 @@ describe("CanvasDetailPage", () => {
                   outcome: "propose", reason: "You asked to approve every CRM writes — the hire proposes only.",
                   maturity: { known: true, maturity_level: "autonomous", required: "supervised", ok: true },
                   trust: { enabled: false, trust: null, threshold: 0.6, cold_start: null, ok: true },
+                  never_autonomous: {
+                    applicable: true, matched: true, potential: false, outcome: "review",
+                    rule_ids: ["nar_1"], rule_names: ["CRM reconciliation"],
+                    reason: "Never-autonomous rule “CRM reconciliation” matched this task.",
+                    profile: { difficulty: "advanced", category: "extraction", domain: "finance" },
+                  },
                 },
               },
               {
@@ -478,19 +498,32 @@ describe("CanvasDetailPage", () => {
       expect(screen.getByTestId("autonomy-canvas-section")).toBeInTheDocument()
     );
     expect(screen.getByTestId("autonomy-general-section")).toBeInTheDocument();
+    // Owner-global task baskets live in the same tab and start opt-in/empty.
+    expect(screen.getByTestId("autonomy-never-section")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("autonomy-never-empty")).toBeInTheDocument());
     // Canvas-primary topics first, general ones still present
     expect(screen.getByTestId("autonomy-send_email")).toBeInTheDocument();
     expect(screen.getByTestId("autonomy-canvas_edit")).toBeInTheDocument();
     // Live gate outcome per topic
     expect(screen.getAllByTestId("autonomy-gate-execute").length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("autonomy-gate-propose").length).toBeGreaterThan(0);
-    // The topics request carried the canvas + hire identity
+    // The additive never-autonomous verdict renders without breaking topic gates.
+    expect(screen.getByTestId("autonomy-gate-never")).toHaveTextContent("CRM reconciliation");
+    // The topics request carried the canvas + hire identity.
     await waitFor(() => {
       const autonomyCall = mockGet.mock.calls.find((c: any[]) =>
         String(c[0]).startsWith("/api/autonomy/topics")
       );
       expect(String(autonomyCall[0])).toContain("canvas_id=cv1");
     });
+    // Rule reads are owner-scoped by the bearer token only — no client scope.
+    const rulesCall = mockGet.mock.calls.find(
+      (c: any[]) => String(c[0]) === "/api/autonomy/never-rules"
+    );
+    expect(rulesCall).toBeTruthy();
+    for (const forbidden of ["user_id", "owner_id", "tenant_id", "workspace_id", "agent_id", "canvas_id"]) {
+      expect(String(rulesCall![0])).not.toContain(forbidden);
+    }
   });
 
   test("chat: canvas agent resolved on load is sent with the turn", async () => {

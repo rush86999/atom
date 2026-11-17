@@ -10056,3 +10056,95 @@ A separate fresh normal-startup HTTP test confirmed public failure, failed
 chain/two links, no orphan running run or duplicate working task, and matching
 assistant metadata; catalog unavailability yielded zero provider HTTP calls.
 This is synthetic failure-path evidence, not live quality or app completion.
+
+## Session 2026-11-16 — never-autonomous task baskets (frontend)
+
+**Files**: `frontend-nextjs/components/canvas/AutonomyPanel.tsx` (opt-in
+difficulty/category/domain task-basket section, per-rule revisioned CRUD,
+409 conflict reload, additive `never_autonomous` gate chip/profile),
+`frontend-nextjs/components/canvas/__tests__/AutonomyPanel.test.tsx`
+(component/RTL contract coverage incl. axe) and
+`frontend-nextjs/tests/pages/canvas-detail.test.tsx` (host tab + rule GET +
+gate integration). No topic-mode/default changes and no backend edits.
+
+**Verification**: `npx jest components/canvas/__tests__/AutonomyPanel.test.tsx
+tests/pages/canvas-detail.test.tsx --runInBand` → **86 passed / 2 suites**;
+`npx tsc --noEmit` → clean. Cached `node_modules` symlinked read-only; no
+install, browser, live API/DB, or provider calls. Browser/real-backend UAT is
+left to ROOT after the backend worker is ready.
+
+## Session 2026-11-16 — never-autonomous task baskets (CI selection + docs)
+
+**Files**: `.github/workflows/ci.yml` (two additive steps:
+`backend-core` → "Run never-autonomous task boundary controls" and
+`frontend-typecheck` → "Run never-autonomous task basket UI controls"),
+`backend/tests/fixtures/ci_backend_additions.json` (the parsed backend step
+appended to the lane ledger), `docs/engineering/NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md`
+(route, empty default, AND/OR dimensions, one-execution approval, fail-closed
+unknown, independent autonomy controls, classifier limits, migration and CI
+selection) and the readiness index link. No product file, product test,
+existing CI selection, policy, required check or trigger was edited.
+
+**Backend selection**: all five complete files run in separate processes with
+per-file absolute runner-temp SQLite and
+`TESTING=1 PYTEST_VERSION=ci PYTHON_DOTENV_DISABLED=1`:
+`tests/test_never_autonomous_rules.py`,
+`tests/test_never_autonomous_task_scope.py`,
+`tests/test_never_autonomous_rule_write_fences.py`,
+`tests/test_never_autonomous_review_authority.py`,
+`tests/test_never_autonomous_entry_identity.py`. No node-id subsets,
+deselection, skip or `continue-on-error`.
+
+**UI selection**: the complete
+`components/canvas/__tests__/AutonomyPanel.test.tsx` file. The already-selected
+`tests/pages/canvas-detail.test.tsx` host coverage stays in the existing
+"Native canvas save and uncertain-outcome controls" step, unchanged.
+
+**Verification actually run in this worktree**: `tests/test_ci_backend_lane_contract.py
+tests/test_quickstart_matrix_contract.py` → **642 passed** with an absolute
+scratch DB; `bash -n` on both new run blocks → clean. The exact CI-shaped
+per-file backend loop against isolated scratch SQLite → **4 failed, 68 passed**
+(five separate processes); the entry-identity file alone → **4 failed, 14
+passed**; the other four files → **54 passed**. The failures are the
+approval-receipt/outage branches owned by the separate approval-atomicity
+worker (`changed_suffix_beyond_8000`, `identical_full_task_cold_resume`,
+`ungrantable_classification_outage`, `recovery_requires_fresh_review`). A
+single-process diagnostic run of all five files additionally failed
+`workflow_unbound_profile_still_pauses` (5 failed, 67 passed); that
+cross-file ordering interaction is why the CI step keeps one process per file.
+Everything is recorded, not skipped, deselected or bypassed. The UI Jest file
+was not run here because
+`frontend-nextjs/node_modules` is absent; no install was attempted. No live
+DB/server/browser/credential/network/model provider was used. This is CI
+selection and documentation only; root browser, final broader suites and merge
+remain pending, and no verified/shipped claim is made.
+
+## Session 2026-11-16 — never-autonomous task admission readability (Approvals UI)
+
+**Files**: `frontend-nextjs/pages/approvals.tsx` (dedicated task-admission card:
+human title, escaped server task text with an honest 1,200-character preview
+state, server difficulty/category/domain chips, server reason/matching-rule
+note, explicit one-execution wording, and collapsed execution/fingerprint/rule-
+revision audit details; Modify is hidden only for `never_autonomous_task`) and
+`frontend-nextjs/tests/pages/approvals-page.test.tsx` (four full-page
+regressions: a task beyond the old 160-character truncation with its tail hidden
+and a truncation notice, hostile markup rendered as literal text, missing task
+text/classification states, and a mixed ordinary approval preserving Modify plus
+exact-id approve/reject calls). No backend, authority, or CI-surface edit.
+
+**Verification**: `npx jest tests/pages/approvals-page.test.tsx --runInBand
+--no-coverage --watchman=false` → **24 passed** (20 before); the existing
+"Graduation outcome and client retry regression tests" CI selection (same six
+files, no CI edit) → **144 passed**; `npx tsc --noEmit --skipLibCheck` → clean.
+Cached `node_modules` was symlinked read-only; no install, live DB/server/browser,
+credential, network, or model provider call. Root browser verification, the
+broader app/build suites, and merge remain pending; no full-app-done or new
+browser-verified claim is made.
+
+## 2026-11-16 root — never-autonomous integrated qualification
+
+Product b8e9b592d:110 complete UI tests, configured typecheck, production build; backend134fc85f3 bytes unchanged:78 new-task +163 affected approval tests; CI ef12fdf90 bytes unchanged:642 preservation tests. Scratch SQLite additive migration/idempotence passed. Normal isolated browser CRUD/conflict/restart plus real synthetic exact-task approval and cold-resume/changed-task refusal passed. Broader paired-main failures and precise source limits are recorded in docs/engineering/NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md; not a full-app or model-quality claim. No required check bypass or new skip.
+
+## 2026-11-16 root — PR977 CI integration repair
+
+Firstheadcc5562 required backend-core/oracle failures were reproduced against green actualmain full-file baselines. Joined productd271e25eb root319passed0skips:78 never-task +163 approval +78 complete BPE/oracle/retry/reconcile/admission tests, offline own scratch DBs. Test doubles now mirror named governance parameters; production preserves unresolved effects on early task-admission stops. No policy/CI changes, skipped checks or false green baseline claims. Fresh replacement-head CI required.
