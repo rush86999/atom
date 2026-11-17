@@ -593,6 +593,7 @@ jobs:
             tests/test_goal_run_routes.py \
             tests/test_hitl_resume.py \
             tests/test_hitl_approvals_journey.py \
+            tests/test_hitl_parameter_history.py \
             tests/test_goal_run_decision_contract.py \
             -q --tb=short --timeout=300 --timeout-method=thread
           DATABASE_URL="sqlite:///${checkpoint_root}/active-intervention.db" \

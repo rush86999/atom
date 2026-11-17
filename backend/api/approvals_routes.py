@@ -20,14 +20,18 @@ per-action ``required_role`` enforced inside the service).
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.intervention_service import intervention_service
+from core.intervention_service import (
+    get_decision_history,
+    intervention_service,
+    list_recent_decisions,
+)
 from core.models import HITLAction, UserRole
 from core.security.rbac import user_meets_role
 
@@ -75,19 +79,90 @@ def _validate_assignment_approval_payload(
 @router.get("/pending")
 async def list_pending_approvals(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Pending HITL actions as a plain array — the shape the Approvals page
     and chat widget have always expected.
 
-    Scoped to the authenticated user's workspace/tenant: a pending action
-    from another workspace must not be listable, and a guessed id must not
-    be decidable.
+    Scoped to the CURRENT durable actor's exact canonical tenant/workspace
+    (re-read inside the service). NULL/""/"default" is the one Personal/
+    default scope, never a wildcard: a pending action from another named
+    tenant/workspace must not be listable, and a guessed id must not be
+    decidable. Storage failure is a 503, not an empty success.
     """
-    return intervention_service.get_pending_interventions(
-        workspace_id=current_user.workspace_id,
-        tenant_id=current_user.tenant_id,
-    )
+    result = intervention_service.get_pending_interventions_for_actor(
+        actor_id=current_user.id, db=db)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "PENDING_APPROVALS_UNAVAILABLE",
+                    "message": result.get(
+                        "message", "Pending approvals unavailable"),
+                },
+            },
+        )
+    return result.get("pending", [])
+
+
+@router.get("/recent")
+async def list_recent_approval_decisions(
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+):
+    """Bounded recent decisions the caller may audit (discoverability only).
+
+    Nothing here trusts a client-supplied owner/scope/role: the caller is
+    resolved from the database, and the service applies the same scope +
+    supervisor/own-subject-or-reviewer policy as the per-decision history.
+    No params or snapshots are returned — those are fetched lazily per row.
+    """
+    result = list_recent_decisions(current_user.id, limit=limit)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "HISTORY_UNAVAILABLE",
+                    "message": result.get(
+                        "message", "Decision history unavailable"),
+                },
+            },
+        )
+    return result.get("decisions", [])
+
+
+@router.get("/{approval_id}/history")
+async def get_approval_decision_history(
+    approval_id: str,
+    revision_limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+):
+    """Redacted reviewed-vs-approved parameter history for ONE decision.
+
+    A foreign/guessed id is a 404 (never confirmed), an in-scope member who is
+    neither the subject nor the reviewer is a 403, unavailable storage is a
+    503 — never an empty success. This is an audit projection: it is not
+    signed, does not certify the record, and does not claim execution
+    happened or was verified.
+    """
+    result = get_decision_history(
+        approval_id, current_user.id, revision_limit=revision_limit)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "HISTORY_UNAVAILABLE",
+                    "message": result.get(
+                        "message", "Decision history unavailable"),
+                },
+            },
+        )
+    return result["history"]
 
 
 @router.post("/{approval_id}")

@@ -1044,11 +1044,20 @@ class TestInterventionService:
     def test_get_pending_resolves_agent_name(self):
         db = self._db_fixture()
         action = self._fake_action()
-        db.query.return_value.filter.return_value.all.return_value = [action]
-        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(name="Sales Bot")
+        # status + workspace + user filters (three chained .filter calls)
+        query_chain = (
+            db.query.return_value.filter.return_value.filter.return_value
+            .filter.return_value)
+        query_chain.all.return_value = [action]
+        # AgentRegistry lookup is a separate one-filter chain.
+        db.query.return_value.filter.return_value.first.return_value = (
+            SimpleNamespace(name="Sales Bot"))
         with patch("core.intervention_service.HITLAction", new=MagicMock()), \
              patch("core.intervention_service.AgentRegistry", new=MagicMock()):
-            results = InterventionService().get_pending_interventions(workspace_id="default", user_id="u-1")
+            # Named scope keeps this mock-only serialization test on the
+            # simple SQL predicate; real canonical default grouping is locked
+            # by the file-SQLite pending controls.
+            results = InterventionService().get_pending_interventions(workspace_id="ws-9", user_id="u-1")
         assert results[0]["agent_name"] == "Sales Bot"
 
     def test_get_pending_empty(self):

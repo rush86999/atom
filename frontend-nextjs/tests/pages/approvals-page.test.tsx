@@ -794,3 +794,254 @@ describe("Self-directed graduation queue — qualification details", () => {
     expect(screen.getByText(/Decision: approve/)).toBeInTheDocument();
   });
 });
+
+describe("Decision history readback", () => {
+  const decidedAction = {
+    id: "dec-1",
+    action_type: "send_email",
+    status: "approved",
+    reviewed_by: "lead-1",
+    reviewed_at: "2026-01-06T12:00:00Z",
+    created_at: "2026-01-06T11:00:00Z",
+    has_parameter_history: true,
+  };
+
+  const decisionHistory = (overrides: any = {}) => ({
+    approval_id: "dec-1",
+    action_type: "send_email",
+    status: "approved",
+    original_known: true,
+    original_params: { to: "reviewed@example.com", nested: { id: 1 } },
+    effective_params: { to: "approved@example.com", nested: { id: 2 } },
+    modified: true,
+    revision: 1,
+    modified_by: "lead-1",
+    modified_at: "2026-01-06T12:00:00Z",
+    reason: "recipient corrected",
+    reviewed_by: "lead-1",
+    reviewed_at: "2026-01-06T12:00:00Z",
+    history_entries: 1,
+    legacy_unrecorded: false,
+    history_complete: true,
+    malformed_history_entries: 0,
+    revisions: [
+      {
+        revision: 1,
+        reviewed_params: { to: "reviewed@example.com" },
+        approved_params: { to: "approved@example.com" },
+        modified: true,
+        modified_by: "lead-1",
+        modified_at: "2026-01-06T12:00:00Z",
+        reason: "recipient corrected",
+      },
+    ],
+    revisions_truncated: false,
+    redacted: true,
+    ...overrides,
+  });
+
+  const mockHistoryEndpoints = (config: {
+    recent?: { status: number; body?: any };
+    history?: { status: number; body?: any };
+  } = {}) => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [] }));
+      }
+      if (u.includes("/api/agents/approvals/recent")) {
+        const recent = config.recent ?? { status: 200, body: [decidedAction] };
+        return Promise.resolve(
+          recent.status === 200
+            ? okJson(recent.body)
+            : { ok: false, status: recent.status, statusText: "ERR", json: async () => ({}) }
+        );
+      }
+      if (u.includes("/history")) {
+        const history = config.history ?? { status: 200, body: decisionHistory() };
+        return Promise.resolve(
+          history.status === 200
+            ? okJson(history.body)
+            : { ok: false, status: history.status, statusText: "ERR", json: async () => ({}) }
+        );
+      }
+      return Promise.resolve(okJson([pendingActions]));
+    });
+  };
+
+  const openHistory = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Show decision history" }));
+    const row = await screen.findByTestId("decision-history-row-dec-1");
+    fireEvent.click(within(row).getByRole("button", { name: "Show parameter history" }));
+    return row;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseActionProposals.mockReturnValue(actionQueryState());
+    localStorage.setItem("auth_token", "tok");
+    global.fetch = mockFetch as any;
+    mockHistoryEndpoints();
+  });
+
+  it("performs no history reads until the section is opened, and no per-row read until asked", async () => {
+    render(<ApprovalsPage />);
+    await waitFor(() => expect(screen.getByText("send_message")).toBeInTheDocument());
+
+    expect(mockFetch.mock.calls.some((call: any[]) =>
+      String(call[0]).includes("/api/agents/approvals/recent"))).toBe(false);
+    expect(mockFetch.mock.calls.some((call: any[]) =>
+      String(call[0]).includes("/history"))).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show decision history" }));
+    await screen.findByTestId("decision-history-row-dec-1");
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/agents/approvals/recent?limit=20"),
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer tok" }) })
+    );
+    expect(mockFetch.mock.calls.some((call: any[]) =>
+      String(call[0]).includes("/history"))).toBe(false);
+  });
+
+  it("shows redacted reviewed/effective params, actor, reason and keeps execution distinct", async () => {
+    render(<ApprovalsPage />);
+    await openHistory();
+
+    expect(await screen.findByTestId("parameter-history")).toBeInTheDocument();
+    expect(screen.getByTestId("parameter-history-status")).toHaveTextContent("approved");
+    expect(screen.getByTestId("parameter-history-original")).toHaveTextContent("reviewed@example.com");
+    expect(screen.getByTestId("parameter-history-effective")).toHaveTextContent("approved@example.com");
+    expect(screen.getByTestId("parameter-history-actor")).toHaveTextContent("lead-1");
+    expect(screen.getByTestId("parameter-history-reason")).toHaveTextContent("recipient corrected");
+    expect(screen.getByTestId("parameter-history-modified")).toHaveTextContent(/modified before approval/i);
+    expect(screen.getByTestId("parameter-history-execution")).toHaveTextContent(/does not confirm that the action executed/i);
+    expect(screen.getByTestId("parameter-history-redaction")).toHaveTextContent(/not a signed or certified record/i);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/agents/approvals/dec-1/history?revision_limit=10"),
+      expect.anything()
+    );
+  });
+
+  it("marks an executed row separately instead of claiming verification", async () => {
+    mockHistoryEndpoints({
+      history: { status: 200, body: decisionHistory({ status: "executed" }) },
+    });
+    render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-execution")).toHaveTextContent(
+      /does not verify its outcome/i
+    );
+  });
+
+  it("reports a pre-history original as unknown instead of reconstructing it", async () => {
+    mockHistoryEndpoints({
+      history: {
+        status: 200,
+        body: decisionHistory({
+          original_known: false,
+          original_params: null,
+          modified: null,
+          legacy_unrecorded: true,
+          revisions: [],
+          history_entries: 0,
+        }),
+      },
+    });
+    render(<ApprovalsPage />);
+    await openHistory();
+
+    expect(await screen.findByTestId("parameter-history-original-unknown")).toHaveTextContent(
+      /predates parameter history/i
+    );
+    expect(screen.queryByTestId("parameter-history-original")).not.toBeInTheDocument();
+    expect(screen.getByTestId("parameter-history-legacy")).toHaveTextContent(/unknown/i);
+  });
+
+  it("distinguishes denied history from unavailable history and from not found", async () => {
+    mockHistoryEndpoints({ history: { status: 403 } });
+    const first = render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-denied")).toHaveTextContent(
+      /not authorized/i
+    );
+    first.unmount();
+
+    mockHistoryEndpoints({ history: { status: 503 } });
+    const second = render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-unavailable")).toHaveTextContent(
+      /unavailable/i
+    );
+    second.unmount();
+
+    mockHistoryEndpoints({ history: { status: 404 } });
+    render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-notfound")).toHaveTextContent(
+      /not found/i
+    );
+  });
+
+  it("reports a denied or unavailable recent list honestly", async () => {
+    mockHistoryEndpoints({ recent: { status: 403 } });
+    const first = render(<ApprovalsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Show decision history" }));
+    expect(await screen.findByTestId("decision-history-denied")).toHaveTextContent(/not permitted/i);
+    first.unmount();
+
+    mockHistoryEndpoints({ recent: { status: 503 } });
+    render(<ApprovalsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Show decision history" }));
+    expect(await screen.findByTestId("decision-history-unavailable")).toBeInTheDocument();
+  });
+
+  it("renders hostile parameter text as literal text, never markup", async () => {
+    const hostile = '<img src=x onerror="alert(1)"> & <script>window.__pwned=1</script>';
+    mockHistoryEndpoints({
+      history: {
+        status: 200,
+        body: decisionHistory({
+          original_params: { note: hostile },
+          effective_params: { note: hostile },
+        }),
+      },
+    });
+    render(<ApprovalsPage />);
+    await openHistory();
+
+    const original = await screen.findByTestId("parameter-history-original");
+    expect(original.textContent).toContain("<img src=x");
+    expect(original.textContent).toContain("window.__pwned=1");
+    expect(original.querySelector("img")).toBeNull();
+    expect(original.querySelector("script")).toBeNull();
+    expect(document.querySelector("script[src], img[onerror]")).toBeNull();
+    expect((window as any).__pwned).toBeUndefined();
+  });
+
+  it("keeps the review readable after a page reload and bounds revisions", async () => {
+    mockHistoryEndpoints({
+      history: {
+        status: 200,
+        body: decisionHistory({ revisions_truncated: true, history_entries: 5 }),
+      },
+    });
+    const first = render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-original")).toHaveTextContent("reviewed@example.com");
+    expect(screen.getByTestId("parameter-history-truncated")).toHaveTextContent(/most recent 1 revisions/i);
+    first.unmount();
+
+    render(<ApprovalsPage />);
+    await openHistory();
+    expect(await screen.findByTestId("parameter-history-original")).toHaveTextContent("reviewed@example.com");
+    const historyCalls = mockFetch.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("/api/agents/approvals/dec-1/history")
+    );
+    expect(historyCalls).toHaveLength(2);
+    expect(mockFetch.mock.calls.some((call: any[]) =>
+      String(call[0]).includes("/api/agents/approvals/recent?limit=20"))).toBe(true);
+  });
+});

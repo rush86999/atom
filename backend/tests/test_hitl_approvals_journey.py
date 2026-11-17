@@ -316,9 +316,14 @@ def alias_svc(hitl_db, monkeypatch):
 
 class TestApprovalsAliasSurface:
     def test_pending_returns_plain_array(self, hitl_db, alias_svc):
+        # The seeded lead is Personal/default (tenant_id/workspace_id None).
+        # A default actor's exact canonical scope is the NULL/""/"default"
+        # grouping, so this row must be default-scoped to be legitimately
+        # listable; a named "ws-1" row is covered by the pending scope tests.
         hitl_db.add(
             HITLAction(
-                workspace_id="ws-1",
+                workspace_id=None,
+                tenant_id=None,
                 action_type="send_email",
                 platform="governance_policy",
                 params={"to": "x@y.com"},
