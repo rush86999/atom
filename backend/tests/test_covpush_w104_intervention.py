@@ -4,9 +4,9 @@
 HITL intervention lifecycle against an in-memory SQLite DB:
 - request_intervention: success (PAUSED + requires_approval), persistence
   failure -> ERROR envelope.
-- get_pending_interventions: pending-only filter, workspace filtering
-  (specific + "default" no-filter), agent-name resolution (found / missing
-  agent / missing agent_id -> "Unknown Agent").
+- get_pending_interventions: pending-only filter, exact workspace scoping
+  (named + canonical "default" grouping), agent-name resolution (found /
+  missing agent / missing agent_id -> "Unknown Agent").
 - approve_intervention: missing action, non-pending action, success
   (status/reviewed_by/reviewed_at persisted).
 - reject_intervention: missing action, success (user_feedback persisted).
@@ -143,10 +143,15 @@ class TestGetPendingInterventions:
         assert len(results) == 1
         assert results[0]["action_type"] == "send_message"
 
-    def test_default_workspace_no_filter(self, svc):
+    def test_default_workspace_is_canonical_grouping(self, svc):
         _request(svc, workspace_id="ws-1")
         _request(svc, workspace_id="ws-2")
-        assert len(svc.get_pending_interventions(workspace_id="default")) == 2
+        _request(svc, workspace_id=None)
+        # "default" is one legitimate Personal/default scope (NULL/""/"default"),
+        # never a wildcard for the named workspaces. The no-arg compatibility
+        # path still returns all (public reads use the actor-scoped helper).
+        assert len(svc.get_pending_interventions(workspace_id="default")) == 1
+        assert len(svc.get_pending_interventions()) == 3
 
     def test_serialized_shape(self, svc, db_session):
         _request(svc, agent_id="agent-1", user_id="u1")

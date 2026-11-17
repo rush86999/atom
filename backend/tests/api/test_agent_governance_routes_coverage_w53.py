@@ -180,7 +180,8 @@ class TestSubmitForApproval:
 class TestPendingApprovals:
     def test_list_all(self, client):
         svc = MagicMock()
-        svc.get_pending_interventions.return_value = [{"id": "a1"}]
+        svc.get_pending_interventions_for_actor.return_value = {
+            "success": True, "pending": [{"id": "a1"}], "count": 1}
         with patch("api.agent_governance_routes.intervention_service", svc):
             response = client.get("/api/agent-governance/pending-approvals")
         assert response.status_code == 200
@@ -188,7 +189,8 @@ class TestPendingApprovals:
 
     def test_list_by_approver(self, client):
         svc = MagicMock()
-        svc.get_pending_interventions.return_value = []
+        svc.get_pending_interventions_for_actor.return_value = {
+            "success": True, "pending": [], "count": 0}
         with patch("api.agent_governance_routes.intervention_service", svc):
             response = client.get(
                 "/api/agent-governance/pending-approvals?approver_id=lead-1")
@@ -197,7 +199,8 @@ class TestPendingApprovals:
 
     def test_list_exception_500(self, client):
         svc = MagicMock()
-        svc.get_pending_interventions.side_effect = RuntimeError("boom")
+        svc.get_pending_interventions_for_actor.side_effect = RuntimeError(
+            "boom")
         with patch("api.agent_governance_routes.intervention_service", svc):
             response = client.get("/api/agent-governance/pending-approvals")
         assert response.status_code == 500

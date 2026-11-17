@@ -3404,7 +3404,7 @@ What is your next step?"""
         except Exception:  # never break the tool result path
             return False
 
-    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None) -> Any:
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None, approval_action_id: Optional[str] = None, approval_reviewed_check: Optional[Dict[str, Any]] = None) -> Any:
         """Auditing wrapper around every tool invocation (R84c).
 
         Ledgers success, error-string results, and exceptions into the
@@ -3416,6 +3416,12 @@ What is your next step?"""
         mutates only when the handler is actually invoked. It is retained on
         the step and in the companion audit row so a retained tool name is
         never mistaken for proof that the tool ran.
+
+        ``approval_action_id`` names a durable HITL approval this step must
+        consume. ``approval_reviewed_check`` is the governance verdict the
+        human reviewed (the parallel batch pre-check); supplying it lets the
+        consumer prove the CURRENT decision still has the same risk/never
+        shape instead of trusting a batch boolean.
         """
         import time as _time
 
@@ -3431,6 +3437,8 @@ What is your next step?"""
             result = await self._step_act_unaudited(
                 tool_name, args, context, step_callback, pre_approved,
                 dispatch_evidence=evidence,
+                approval_action_id=approval_action_id,
+                approval_reviewed_check=approval_reviewed_check,
             )
         except Exception as tool_err:
             self._record_tool_failure(tool_name, tool_err, context)
@@ -3490,12 +3498,14 @@ What is your next step?"""
             pass
         return result
 
-    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None) -> Any:
+    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False, dispatch_evidence: Optional[Dict[str, Any]] = None, approval_action_id: Optional[str] = None, approval_reviewed_check: Optional[Dict[str, Any]] = None) -> Any:
         """Execute a tool via MCP with Governance Check
 
-        ``pre_approved`` (Workstream G): when True, the governance/HITL check is
-        skipped — the caller (the parallel-tools batch) has already run it and
-        obtained all-or-nothing approval for the whole batch.
+        ``pre_approved`` (Workstream G): when True, the caller (the
+        parallel-tools batch) already ran the up-front governance check. When
+        an action needed human review, the caller must also pass
+        ``approval_action_id``; this consumer then re-reads that durable row
+        and re-runs the independent gates instead of trusting the boolean.
 
         ``dispatch_evidence`` is stamped ``dispatched=True`` immediately before
         the actual local/MCP handler call and left false on every refusal path
@@ -3522,64 +3532,25 @@ What is your next step?"""
             except Exception as e:
                 logger.debug(f"Custom action {tool_name} raised: {e}")
                 return f"Error: Custom action '{tool_name}' failed: {e}"
-        # Freeze the authorized request BEFORE governance/handler: the tool
+        # Freeze the reviewed request BEFORE governance/handler: the tool
         # receives a deep copy, so an in-place mutation can neither rewrite the
-        # caller's dict nor the oracle/claim material computed here.
-        authorized, expected, operation_id = self._freeze_authorized_request(
-            args, context)
+        # caller's dict nor the original request preserved for audit.
+        authorized, _unused_expected, operation_id = (
+            self._freeze_authorized_request(args, context))
+        reviewed_request = copy.deepcopy(authorized)
         mutating = self._declared_mutation(tool_name)
-        # Server-owned logical operation identity for claim/no-resend. The
-        # model's tool+params cannot mint it; the durable execution scope can.
-        claim_operation_id = str((context or {}).get("operation_id") or "")
-        server_slot = str(
-            (context or {}).get("operation_slot")
-            or (context or {}).get("intent_id")
-            or (context or {}).get("authorization_id") or "")
-        if mutating and not claim_operation_id and not server_slot:
-            prior = self._unresolved_prior_operation(tool_name, context)
-            if isinstance(prior, dict) and prior.get("unavailable"):
-                _evidence_text = (
-                    "operation claim store unavailable before dispatch "
-                    f"({prior.get('unavailable')})")
-                _mark_dispatch_refused(
-                    evidence, status="not_dispatched",
-                    reason=_evidence_text)
-                self._record_uncertain_operation(
-                    context, tool_name, "", _evidence_text)
-                return {
-                    "success": False,
-                    "status": "failed_before_effect",
-                    "action_result": "not_applied",
-                    "business_success": False,
-                    "effect_state": "none",
-                    "durable_claim": False,
-                    "error_class": "operation_store_unavailable",
-                    "requires_reconciliation": False,
-                    "retryable": False,
-                    "message": (
-                        "Refusing to dispatch a declared mutation because the "
-                        "durable operation state could not be read; no effect "
-                        "was attempted."),
-                }
-            if prior:
-                claim_operation_id = str(prior.get("operation_id") or "")
-        if mutating and not claim_operation_id:
-            claim_operation_id = self._server_operation_id(
-                tool_name, authorized, context)
-        if not operation_id and claim_operation_id:
-            operation_id = claim_operation_id
-        # Freeze the proof material from the ACCEPTED business request plus
-        # the server-owned runtime identity, before any handler can run.  The
-        # builder is the same one the assignment adapter uses; model-supplied
-        # ``_oracle_expected_*`` fields were stripped above and cannot become
-        # authority.  A result envelope is merged underneath this snapshot.
-        expected = self._frozen_request_expectations(
-            tool_name, authorized, context,
-            claim_operation_id or operation_id, mutating)
         claim: Optional[Dict] = None
         dispatch_started = False
+        approval_material: Optional[Dict[str, Any]] = None
         try:
-            # 1. Governance Maturity Check
+            # 1. Governance + durable human approval.
+            #
+            # An approval is a REVIEW of one exact request, never a boolean
+            # waiver. Consumption re-reads the durable row and binds
+            # agent/tool/actor/scope/execution/reviewer/material; the
+            # independent maturity/budget/never gates are then re-run against
+            # the CURRENT state. Only after both steps may the approved
+            # payload replace the frozen request for dispatch and proof.
             if not pre_approved:
                 with get_db_session() as db:
                     gov = AgentGovernanceService(
@@ -3597,7 +3568,7 @@ What is your next step?"""
                         never_clearance=context)
 
                     if auth_check.get("requires_human_approval"):
-                        # Create HITL Action
+                        # Create HITL Action with the exact reviewed request.
                         action_id = gov.request_approval(
                             agent_id=self.id,
                             action_type=tool_name,
@@ -3645,7 +3616,46 @@ What is your next step?"""
                                 reason="approval_rejected_or_timed_out")
                             return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
 
+                        # The human decision (and any edit-before-approve
+                        # payload) is durable; consume exactly that material.
+                        approval_material = self._consume_approved_material(
+                            action_id, tool_name, reviewed_request, context)
+                        if not approval_material.get("ok"):
+                            return self._refuse_approved_material(
+                                tool_name, evidence, approval_material,
+                                mutating, context, reviewed_request)
+                        governance_reason = (
+                            await self._revalidate_approved_action(
+                                tool_name, auth_check, context))
+                        if governance_reason:
+                            return self._refuse_approved_material(
+                                tool_name, evidence,
+                                {"code": "approval_governance_changed",
+                                 "message": governance_reason},
+                                mutating, context, reviewed_request)
+                        # Last safe-point fence AFTER the awaited re-check:
+                        # scope/revocation/material changes that happened
+                        # during that await must not reach the handler.
+                        fenced_material = self._fence_approved_material(
+                            action_id, tool_name, reviewed_request, context,
+                            approval_material)
+                        if not fenced_material.get("ok"):
+                            return self._refuse_approved_material(
+                                tool_name, evidence, fenced_material,
+                                mutating, context, reviewed_request)
+                        approval_material = fenced_material
+                        authorized = copy.deepcopy(
+                            approval_material["effective_params"])
+                        operation_id = str(
+                            authorized.get("operation_id")
+                            or (context or {}).get("operation_id") or "")
+                        self._stamp_approval_evidence(
+                            evidence, approval_material)
                         logger.info(f"Action {tool_name} APPROVED. Proceeding...")
+
+                        # Grant only AFTER the approval binding and the
+                        # independent gates were re-verified, so a rejected
+                        # approval can never leave a task clearance behind.
                         if auth_check.get("never_autonomous"):
                             from core.autonomy_policy import (
                                 grant_never_autonomous_clearance,
@@ -3676,8 +3686,117 @@ What is your next step?"""
                             evidence, status="denied",
                             reason=auth_check.get("reason"))
                         return f"Governance Error: {auth_check['reason']}"
+            elif approval_action_id:
+                # Parallel-batch consumer: the up-front check already filed
+                # the HITL row, but the dispatch still consumes the durable
+                # decision and re-runs the gates. ``pre_approved`` alone is
+                # never authority for a reviewed action.
+                approval_material = self._consume_approved_material(
+                    approval_action_id, tool_name, reviewed_request, context)
+                if not approval_material.get("ok"):
+                    return self._refuse_approved_material(
+                        tool_name, evidence, approval_material, mutating,
+                        context, reviewed_request)
+                governance_reason = await self._revalidate_approved_action(
+                    tool_name, approval_reviewed_check, context)
+                if governance_reason:
+                    return self._refuse_approved_material(
+                        tool_name, evidence,
+                        {"code": "approval_governance_changed",
+                         "message": governance_reason},
+                        mutating, context, reviewed_request)
+                # Same last safe-point fence as the sequential consumer.
+                fenced_material = self._fence_approved_material(
+                    approval_action_id, tool_name, reviewed_request, context,
+                    approval_material)
+                if not fenced_material.get("ok"):
+                    return self._refuse_approved_material(
+                        tool_name, evidence, fenced_material, mutating,
+                        context, reviewed_request)
+                approval_material = fenced_material
+                authorized = copy.deepcopy(
+                    approval_material["effective_params"])
+                operation_id = str(
+                    authorized.get("operation_id")
+                    or (context or {}).get("operation_id") or "")
+                self._stamp_approval_evidence(evidence, approval_material)
+                _reviewed_never = (
+                    (approval_reviewed_check or {}).get("never_autonomous")
+                    if isinstance(approval_reviewed_check, dict) else None)
+                if _reviewed_never:
+                    from core.autonomy_policy import (
+                        grant_never_autonomous_clearance,
+                    )
+                    from core.task_classification import current_task_profile
 
-            # 2. Durable operation claim BEFORE the leaf: a declared mutation
+                    _never_ctx = context if isinstance(context, dict) else {}
+                    grant_never_autonomous_clearance(
+                        _never_ctx,
+                        _reviewed_never,
+                        task_profile=current_task_profile(),
+                        execution_id=(
+                            _never_ctx.get("execution_id")
+                            or _never_ctx.get("run_id")),
+                        tenant_id=getattr(self, "tenant_id", None),
+                        workspace_id=(
+                            getattr(self, "workspace_id", None) or "default"),
+                    )
+
+            # 2. Server-owned logical operation identity, recomputed from the
+            # ACTUAL accepted (possibly human-edited) material. The model's
+            # tool+params cannot mint it; the durable execution scope can. A
+            # prior claimed/dispatching/uncertain operation for this action in
+            # this execution is adopted, so changed material is a conflict and
+            # an already dispatched effect is never resent.
+            claim_operation_id = str((context or {}).get("operation_id") or "")
+            server_slot = str(
+                (context or {}).get("operation_slot")
+                or (context or {}).get("intent_id")
+                or (context or {}).get("authorization_id") or "")
+            if mutating and not claim_operation_id and not server_slot:
+                prior = self._unresolved_prior_operation(tool_name, context)
+                if isinstance(prior, dict) and prior.get("unavailable"):
+                    _evidence_text = (
+                        "operation claim store unavailable before dispatch "
+                        f"({prior.get('unavailable')})")
+                    _mark_dispatch_refused(
+                        evidence, status="not_dispatched",
+                        reason=_evidence_text)
+                    self._record_uncertain_operation(
+                        context, tool_name, "", _evidence_text)
+                    return {
+                        "success": False,
+                        "status": "failed_before_effect",
+                        "action_result": "not_applied",
+                        "business_success": False,
+                        "effect_state": "none",
+                        "durable_claim": False,
+                        "error_class": "operation_store_unavailable",
+                        "requires_reconciliation": False,
+                        "retryable": False,
+                        "message": (
+                            "Refusing to dispatch a declared mutation because the "
+                            "durable operation state could not be read; no effect "
+                            "was attempted."),
+                    }
+                if prior:
+                    claim_operation_id = str(prior.get("operation_id") or "")
+            if mutating and not claim_operation_id:
+                claim_operation_id = self._server_operation_id(
+                    tool_name, authorized, context)
+            if not operation_id and claim_operation_id:
+                operation_id = claim_operation_id
+            # Freeze the proof material from the ACCEPTED business request
+            # plus the server-owned runtime identity, before any handler can
+            # run. The builder is the same one the assignment adapter uses;
+            # model-supplied ``_oracle_expected_*`` fields were stripped above
+            # and cannot become authority. A result envelope is merged
+            # underneath this snapshot.
+            expected = self._frozen_request_expectations(
+                tool_name, authorized, context,
+                claim_operation_id or operation_id, mutating)
+
+            # 3. Durable operation claim BEFORE the leaf: a declared mutation
             # with an explicit logical operation id is arbitrated by the
             # existing TaskOperationRecord table. The same id with changed
             # material is a conflict; an id already claimed/dispatched is never
@@ -3740,7 +3859,7 @@ What is your next step?"""
                                 "dispatch state; no effect was attempted."),
                         }
 
-            # 3. Execute via MCP Service (Dynamic Resolution)
+            # 4. Execute via MCP Service (Dynamic Resolution)
             dispatch_started = True
             # Handlers receive the SAME server-owned operation identity so a
             # durable producer receipt can bind to it, but never the caller's
@@ -3778,7 +3897,7 @@ What is your next step?"""
                 evidence, operation_id=durable_dispatch_id or None)
             result = await self.mcp.call_tool(
                 tool_name, copy.deepcopy(authorized), context=handler_context)
-            # 4. Default-on outcome verification (W2): for actions with a
+            # 5. Default-on outcome verification (W2): for actions with a
             # registered postcondition verifier, re-derive success against the
             # system of record and stamp the observation with the oracle's
             # verdict — the tool never grades its own work.
@@ -4441,6 +4560,372 @@ What is your next step?"""
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+    def _consume_approved_material(
+        self, action_id: str, tool_name: str, reviewed_request: Dict,
+        context: Dict = None,
+    ) -> Dict[str, Any]:
+        """Re-read the durable human decision and return its effective material.
+
+        The generic consumer must execute what the human approved, not the
+        model's original call. The binding/validator is the shared
+        ``core.approved_action_material`` seam (existing HITL receipt +
+        reviewer/role/scope authority), and the db factory is this module's
+        ``get_db_session`` so callers/test harnesses that bind the module keep
+        the same scratch store.
+        """
+        from core.approved_action_material import load_approved_material
+
+        identity = self._server_request_identity(context)
+        ctx = context or {}
+        return load_approved_material(
+            action_id,
+            # The HITL row was filed by THIS runtime agent. A context
+            # ``agent_id`` can name a parent/orchestrator; it must not
+            # re-target the approval binding.
+            agent_id=str(getattr(self, "id", "") or ""),
+            action_type=tool_name,
+            reviewed_params=reviewed_request,
+            actor_id=identity["actor_id"],
+            tenant_id=identity["tenant_id"],
+            workspace_id=identity["workspace_id"],
+            execution_id=str(ctx.get("execution_id") or ""),
+            run_id=str(ctx.get("run_id") or ""),
+            db_factory=get_db_session,
+        )
+
+    def _fence_approved_material(
+        self, action_id: str, tool_name: str, reviewed_request: Dict,
+        context: Dict, consumed: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Last safe-point authority/material fence after awaited work.
+
+        The first consumption happens BEFORE the awaited independent
+        governance revalidation. That await yields the event loop, so the
+        durable requester (active/tenant/workspace), the approval decision or
+        the approved payload can change while this task is suspended. Re-read
+        the SAME approval from the durable store after the await; the fresh
+        reviewer/actor resolution inside ``load_approved_material`` is the
+        fresh-actor fence and this read is the explicit linearization point
+        for dispatch. Nothing is held across the await (no long transaction),
+        and there is no further await between this fence and the handler.
+
+        The re-read must describe exactly the material the task already
+        accepted; a changed effective/reviewed payload, reviewer decision or
+        approval identity is a conflict that needs a fresh review, never a
+        silent substitution.
+        """
+        fresh = self._consume_approved_material(
+            action_id, tool_name, reviewed_request, context)
+        if not fresh.get("ok"):
+            return fresh
+        for key in (
+            "action_id", "reviewed_sha256", "effective_sha256",
+            "approved_by", "reviewed_at", "binding",
+        ):
+            if fresh.get(key) != consumed.get(key):
+                return {
+                    "ok": False,
+                    "code": "approval_material_changed",
+                    "message": (
+                        "The durable approval changed after the independent "
+                        "gates were re-checked; a fresh review is required."),
+                }
+        return fresh
+
+    @staticmethod
+    def _stamp_approval_evidence(
+        evidence: Optional[Dict[str, Any]], material: Dict[str, Any],
+    ) -> None:
+        """Keep the reviewed original and the exact executed payload on the step.
+
+        ``evidence`` is the caller-owned dispatch envelope that the audit row
+        and the parallel batch retain. The original request is preserved even
+        though dispatch uses the approved edit.
+        """
+        if not isinstance(evidence, dict) or not material.get("ok"):
+            return
+        evidence["approval"] = {
+            "action_id": str(material.get("action_id") or ""),
+            "approved_by": str(material.get("approved_by") or ""),
+            "approved_role": str(material.get("approved_role") or ""),
+            "reviewed_at": material.get("reviewed_at"),
+            "original_known": bool(material.get("original_known", True)),
+            "material_changed": bool(material.get("material_changed")),
+            "reviewed_sha256": str(material.get("reviewed_sha256") or ""),
+            "effective_sha256": str(material.get("effective_sha256") or ""),
+            # A legacy receipt has NO recorded original: keep it null rather
+            # than manufacturing one. The request this dispatch reviewed is
+            # still retained separately for audit.
+            "original_params": (
+                copy.deepcopy(material.get("original_params"))
+                if material.get("original_known", True) else None),
+            "reviewed_params": copy.deepcopy(
+                material.get("reviewed_params")
+                or material.get("original_params") or {}),
+            "effective_params": copy.deepcopy(
+                material.get("effective_params") or {}),
+        }
+
+    def _refuse_approved_material(
+        self, tool_name: str, evidence: Optional[Dict[str, Any]],
+        refusal: Dict[str, Any], mutating: bool, context: Dict = None,
+        authorized: Optional[Dict] = None,
+    ) -> Any:
+        """Build an approval refusal and keep terminal actor denials durable."""
+        out = self._approved_material_refusal(
+            tool_name, evidence, refusal, mutating)
+        if isinstance(out, dict) and out.get("terminal_authority_denial"):
+            self._record_terminal_authority_denial(context, tool_name, out)
+            if mutating:
+                self._record_refused_mutation_claim(
+                    tool_name, authorized or {}, context)
+        return out
+
+    def _record_refused_mutation_claim(
+        self, tool_name: str, authorized: Dict, context: Dict = None,
+    ) -> None:
+        """Atomically persist a terminal no-effect refusal for this operation.
+
+        A terminal actor/scope denial is a final, non-retryable decision for
+        this logical operation: the handler never ran, so the existing durable
+        operation arbiter records ``failed_before_effect`` directly. The write
+        is a SINGLE insert of the final state (never
+        ``claimed`` -> ``failed_before_effect``): an interruption cannot strand
+        an unresolved claim that would later be reported as uncertainty. An
+        existing row is never transitioned or overwritten -- it remains the
+        arbiter's authoritative record. Nothing is dispatched, and a store
+        failure is logged without changing the refusal.
+        """
+        try:
+            from core import outbound_operation_claim as claims
+
+            ctx = context or {}
+            # Same server-owned identity the dispatcher would use: an explicit
+            # admitted operation id, else an adopted unresolved operation of
+            # this action in this execution, else the minted auto id. Model
+            # material alone never licenses the identity.
+            operation_id = str(ctx.get("operation_id") or "")
+            if not operation_id:
+                slot = str(
+                    ctx.get("operation_slot") or ctx.get("intent_id")
+                    or ctx.get("authorization_id") or "")
+                if not slot:
+                    prior = self._unresolved_prior_operation(tool_name, ctx)
+                    if isinstance(prior, dict) and prior.get("unavailable"):
+                        return
+                    if prior:
+                        operation_id = str(prior.get("operation_id") or "")
+            if not operation_id:
+                operation_id = self._server_operation_id(
+                    tool_name, authorized or {}, ctx)
+            identity = self._operation_claim_identity(
+                tool_name, authorized or {}, ctx, operation_id)
+            if identity is None:
+                return
+            payload_hash = claims.operation_payload_sha256(
+                workspace_id=identity["workspace_id"],
+                tenant_id=identity["tenant_id"],
+                actor_id=identity["actor_id"],
+                actor_kind=identity["actor_kind"],
+                agent_id=identity["agent_id"],
+                execution_id=identity["execution_id"],
+                execution_kind=identity["execution_kind"],
+                action=identity["action"],
+                frozen_args=identity["frozen_args"],
+            )
+            record = claims.record_failed_before_effect(
+                workspace_id=identity["workspace_id"],
+                tenant_id=identity["tenant_id"],
+                operation_id=identity["operation_id"],
+                action=identity["action"],
+                payload_hash=payload_hash,
+                execution_id=identity["execution_id"],
+                scope_id=identity["claim_scope"],
+                db_factory=get_db_session,
+            )
+            if not record.get("recorded"):
+                logger.debug(
+                    "terminal refusal not re-recorded for %s (%s): %s",
+                    tool_name, operation_id, record.get("status"))
+        except Exception as exc:  # noqa: BLE001 - refusal stays authoritative
+            logger.debug(
+                "refused mutation claim not recorded for %s: %s",
+                tool_name, exc)
+
+    @staticmethod
+    def _approved_material_refusal(
+        tool_name: str, evidence: Optional[Dict[str, Any]],
+        refusal: Dict[str, Any], mutating: bool,
+    ) -> Any:
+        """Honest non-effect outcome when a durable approval cannot authorize.
+
+        A refused approval never ran the handler. Reads keep the historical
+        governance-error string; a declared mutation returns the typed
+        ``failed_before_effect`` envelope (not applied, no reconciliation
+        needed, not retryable), so a caller can never read a refusal as an
+        ambiguous effect.
+        """
+        code = str((refusal or {}).get("code") or "approval_refused")
+        message = str((refusal or {}).get("message") or "Approval refused.")
+        # An inactive/foreign admitted actor is external authority revocation,
+        # not a repairable tool error. Emit the producer-owned typed denial so
+        # a later model final answer cannot turn the refused effect into a
+        # business success (same semantics as the leaf's own denial).
+        terminal = code in {
+            "approval_actor_inactive", "approval_actor_scope_denied",
+            "approval_actor_unavailable"}
+        if isinstance(evidence, dict):
+            evidence["dispatched"] = False
+            evidence["status"] = "denied"
+            evidence["reason"] = f"{code}: {message}"[:300]
+            evidence.setdefault("approval", {})
+            if isinstance(evidence.get("approval"), dict):
+                evidence["approval"].update({
+                    "consumed": False,
+                    "refusal_code": code,
+                    "refusal": message[:500],
+                })
+        if terminal:
+            return {
+                "success": False,
+                "status": "failed_before_effect",
+                "action_result": "not_applied",
+                "business_success": False,
+                "effect_state": "none",
+                "durable_claim": False,
+                "oracle_verified": False,
+                "terminal_authority_denial": True,
+                "denial_kind": code,
+                "denial_scope": "actor",
+                "code": code,
+                "error_class": code,
+                "requires_reconciliation": False,
+                "retryable": False,
+                "message": (
+                    f"Refusing to run {tool_name} for an actor whose "
+                    f"authority is no longer valid ({code}): {message} No "
+                    f"effect was attempted."),
+            }
+        if mutating:
+            return {
+                "success": False,
+                "status": "failed_before_effect",
+                "action_result": "not_applied",
+                "business_success": False,
+                "effect_state": "none",
+                "durable_claim": False,
+                "oracle_verified": False,
+                "error_class": code,
+                "requires_reconciliation": False,
+                "retryable": False,
+                "message": (
+                    f"Refusing to run {tool_name} from an approval that does "
+                    f"not bind this call ({code}): {message} No effect was "
+                    f"attempted."),
+            }
+        return (
+            f"Governance Error: approval for {tool_name} could not authorize "
+            f"this call ({code}): {message}")
+
+    async def _revalidate_approved_action(
+        self, tool_name: str, reviewed_check: Optional[Dict[str, Any]],
+        context: Dict = None,
+    ) -> Optional[str]:
+        """Re-run independent gates for a human-approved action.
+
+        The approval satisfies the human-review requirement it was filed for,
+        but it cannot waive maturity status, budget, recursion or a changed
+        never-autonomous rule set. Returns ``None`` only when the current
+        verdict is either allowed or is the SAME review requirement the human
+        reviewed; otherwise returns the honest refusal reason.
+
+        ``reviewed_check`` is the in-memory pre-request verdict (sequential)
+        or the batch pre-check verdict (parallel). If it is unavailable, a
+        current review requirement cannot be proven to be the reviewed one and
+        is refused.
+        """
+        try:
+            from core.task_classification import current_task_profile
+
+            with get_db_session() as db:
+                gov = AgentGovernanceService(
+                    db,
+                    workspace_id=(
+                        getattr(self, "workspace_id", None) or "default"),
+                    tenant_id=getattr(self, "tenant_id", None),
+                )
+                fresh = await gov.can_perform_action_async(
+                    self.id, tool_name,
+                    task_profile=current_task_profile(),
+                    never_clearance=context)
+        except Exception as exc:  # noqa: BLE001 - unreadable fails closed
+            logger.warning(
+                "approved action governance recheck unavailable for %s: %s",
+                tool_name, type(exc).__name__)
+            return (
+                "The independent governance decision could not be re-read; "
+                "a fresh review is required.")
+
+        status_code = str(fresh.get("status_code") or "")
+        if status_code in ("BUDGET_EXCEEDED", "RECURSION_LIMIT"):
+            return str(
+                fresh.get("reason")
+                or "An independent budget/recursion limit now refuses this "
+                   "action; a fresh review is required.")
+
+        # A never-autonomous rule set that changed while waiting is not
+        # covered by the old review, even if another gate would allow it.
+        try:
+            from core.autonomy_policy import (
+                NEVER_OUTCOME_REVIEW,
+                decision_covers,
+            )
+
+            reviewed_never = (
+                (reviewed_check or {}).get("never_autonomous")
+                if isinstance(reviewed_check, dict) else None)
+            fresh_never = fresh.get("never_autonomous")
+            if (
+                isinstance(fresh_never, dict)
+                and fresh_never.get("outcome") == NEVER_OUTCOME_REVIEW
+                and not decision_covers(reviewed_never, fresh_never)
+            ):
+                return (
+                    "The never-autonomous policy changed while waiting for "
+                    "approval; a fresh human review is required.")
+        except Exception:  # noqa: BLE001 - cannot prove coverage -> refuse
+            return (
+                "The never-autonomous policy could not be re-checked; a "
+                "fresh human review is required.")
+
+        if fresh.get("allowed") is True:
+            return None
+        if not fresh.get("requires_human_approval"):
+            return str(
+                fresh.get("reason")
+                or "Independent governance now refuses this action.")
+
+        if not isinstance(reviewed_check, dict) or not (
+                reviewed_check.get("requires_human_approval")):
+            return (
+                "The current governance verdict requires review, but the "
+                "reviewed verdict is unavailable; a fresh human review is "
+                "required.")
+
+        # The review requirement may remain (maturity review is not consumed
+        # by a single action approval), but its risk shape must be unchanged.
+        for key in ("action_complexity", "required_status", "agent_status"):
+            if key in reviewed_check and key in fresh:
+                if reviewed_check.get(key) != fresh.get(key):
+                    return (
+                        f"The {key.replace('_', ' ')} changed while waiting "
+                        f"for approval; a fresh human review is required.")
+        if "agent_status" in reviewed_check and "agent_status" not in fresh:
+            return (
+                "The agent's governance status is no longer readable; a "
+                "fresh human review is required.")
+        return None
+
     async def _wait_for_approval(self, action_id: str) -> bool:
         """Poll for HITL decision"""
         max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
@@ -4533,8 +5018,11 @@ What is your next step?"""
         parallel_actions = [a for a in actions if a.tool != "mcp_tool_search"][:max_tools]
 
         # 1. Governance pre-check for the whole batch (all-or-nothing).
-        action_ids: List[str] = []
-        never_decisions: List[Dict[str, Any]] = []
+        # A tool that needs human review gets its own durable HITL row; the
+        # dispatch below must consume that row (and re-run the gates) instead
+        # of treating the batch boolean as authority.
+        approval_ids: Dict[int, str] = {}
+        approval_checks: Dict[int, Dict[str, Any]] = {}
         with get_db_session() as db:
             gov = AgentGovernanceService(
                 db,
@@ -4549,18 +5037,20 @@ What is your next step?"""
                     task_profile=current_task_profile(),
                     never_clearance=context)
                 if auth_check.get("requires_human_approval"):
+                    from core.oracle.request_expectations import (
+                        strip_expected_fields,
+                    )
+
                     action_id = gov.request_approval(
                         agent_id=self.id,
                         action_type=act.tool,
-                        params=act.params,
+                        params=strip_expected_fields(act.params or {}),
                         reason=auth_check["reason"],
                         execution_context=context,
                         user_id=(context or {}).get("user_id"),
                     )
-                    action_ids.append(action_id)
-                    if auth_check.get("never_autonomous"):
-                        never_decisions.append(
-                            auth_check["never_autonomous"])
+                    approval_ids[id(act)] = action_id
+                    approval_checks[id(act)] = auth_check
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -4588,8 +5078,9 @@ What is your next step?"""
                         for a in parallel_actions
                     ]
 
-        if action_ids:
-            approved = await self._wait_for_all_approvals(action_ids)
+        if approval_ids:
+            approved = await self._wait_for_all_approvals(
+                list(approval_ids.values()))
             if not approved:
                 return [
                     {
@@ -4609,23 +5100,11 @@ What is your next step?"""
                     }
                     for a in parallel_actions
                 ]
-            from core.autonomy_policy import grant_never_autonomous_clearance
-            from core.task_classification import current_task_profile
 
-            for decision in never_decisions:
-                grant_never_autonomous_clearance(
-                    context, decision,
-                    task_profile=current_task_profile(),
-                    execution_id=(
-                        context.get("execution_id") or context.get("run_id")),
-                    tenant_id=getattr(self, "tenant_id", None),
-                    workspace_id=(
-                        getattr(self, "workspace_id", None) or "default"),
-                )
-
-        # 2. Execute the parallel batch. Governance already granted above.
-        # Every tool gets its own envelope so concurrent dispatches cannot
-        # overwrite one another's proof.
+        # 2. Execute the batch. Actions that needed review carry their own
+        # durable approval id; every other action was allowed by the pre-check
+        # above. Every tool gets its own envelope so concurrent dispatches
+        # cannot overwrite one another's proof.
         dispatch_envelopes = {
             id(a): _new_dispatch_evidence(a.tool) for a in parallel_actions}
         results = await asyncio.gather(
@@ -4633,6 +5112,8 @@ What is your next step?"""
                 self._step_act(
                     a.tool, a.params, context, step_callback, pre_approved=True,
                     dispatch_evidence=dispatch_envelopes[id(a)],
+                    approval_action_id=approval_ids.get(id(a)),
+                    approval_reviewed_check=approval_checks.get(id(a)),
                 )
                 for a in parallel_actions
             ],

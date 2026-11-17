@@ -65,13 +65,23 @@ def _approval_client(user_obj):
 def intervention():
     """Mock intervention_service at the routes-module level."""
     svc = MagicMock()
-    svc.get_pending_interventions.return_value = [
-        {"id": "act-1", "agent_id": "sales-agent", "status": "pending"}
-    ]
+    svc.get_pending_interventions_for_actor.return_value = {
+        "success": True,
+        "pending": [
+            {"id": "act-1", "agent_id": "sales-agent", "status": "pending"}
+        ],
+        "count": 1,
+    }
     svc.approve_intervention = AsyncMock(return_value={"success": True})
     svc.reject_intervention = AsyncMock(return_value={"success": True})
     with patch("api.agent_governance_routes.intervention_service", svc):
         yield svc
+
+
+@pytest.fixture
+def pending_client():
+    """Client with a mock DB session for the actor-scoped pending read."""
+    return TestClient(_make_app(db_session=MagicMock()))
 
 
 class _ExplodingAgents(dict):
@@ -278,26 +288,33 @@ class TestSubmitFeedback:
 # ===========================================================================
 
 class TestPendingApprovals:
-    def test_no_filter(self, client, intervention):
-        response = client.get("/api/agent-governance/pending-approvals")
+    def test_no_filter(self, pending_client, intervention):
+        response = pending_client.get("/api/agent-governance/pending-approvals")
         assert response.status_code == 200
         body = response.json()
         assert body["count"] == 1
         assert body["pending_approvals"][0]["id"] == "act-1"
-        intervention.get_pending_interventions.assert_called_once_with(None)
+        intervention.get_pending_interventions_for_actor.assert_called_once()
+        kwargs = intervention.get_pending_interventions_for_actor.call_args.kwargs
+        assert kwargs["actor_id"] == USER.id
+        assert "db" in kwargs
 
-    def test_filter_by_approver(self, client, intervention):
-        response = client.get(
+    def test_filter_by_approver(self, pending_client, intervention):
+        response = pending_client.get(
             "/api/agent-governance/pending-approvals",
             params={"approver_id": "u-1"},
         )
         assert response.status_code == 200
         assert response.json()["count"] == 1
-        intervention.get_pending_interventions.assert_called_once_with("u-1")
+        kwargs = intervention.get_pending_interventions_for_actor.call_args.kwargs
+        assert kwargs["actor_id"] == USER.id
+        assert "approver_id" not in kwargs
 
-    def test_internal_error(self, client, intervention):
-        intervention.get_pending_interventions.side_effect = RuntimeError("boom")
-        response = client.get("/api/agent-governance/pending-approvals")
+    def test_internal_error(self, pending_client, intervention):
+        intervention.get_pending_interventions_for_actor.side_effect = (
+            RuntimeError("boom"))
+        response = pending_client.get(
+            "/api/agent-governance/pending-approvals")
         assert response.status_code == 500
 
 

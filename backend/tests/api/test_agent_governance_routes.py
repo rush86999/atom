@@ -137,7 +137,8 @@ def mock_admin_user(db: Session):
 def mock_intervention_service():
     """Mock intervention service for approval tests."""
     with patch('api.agent_governance_routes.intervention_service') as mock:
-        mock.get_pending_interventions = MagicMock(return_value=[])
+        mock.get_pending_interventions_for_actor = MagicMock(
+            return_value={"success": True, "pending": [], "count": 0})
         mock.approve_intervention = AsyncMock(return_value={"success": True})
         mock.reject_intervention = AsyncMock(return_value={"success": True})
         yield mock
@@ -731,20 +732,24 @@ class TestPendingApprovals:
 
     def test_list_pending_approvals_success(self, client: TestClient, mock_intervention_service):
         """Test listing pending approvals."""
-        mock_intervention_service.get_pending_interventions.return_value = [
-            {
-                "approval_id": "apr_001",
-                "agent_id": "sales-agent",
-                "workflow_name": "Lead Workflow",
-                "status": "pending"
-            },
-            {
-                "approval_id": "apr_002",
-                "agent_id": "marketing-agent",
-                "workflow_name": "Campaign Workflow",
-                "status": "pending"
-            }
-        ]
+        mock_intervention_service.get_pending_interventions_for_actor.return_value = {
+            "success": True,
+            "pending": [
+                {
+                    "approval_id": "apr_001",
+                    "agent_id": "sales-agent",
+                    "workflow_name": "Lead Workflow",
+                    "status": "pending"
+                },
+                {
+                    "approval_id": "apr_002",
+                    "agent_id": "marketing-agent",
+                    "workflow_name": "Campaign Workflow",
+                    "status": "pending"
+                },
+            ],
+            "count": 2,
+        }
 
         response = client.get("/api/agent-governance/pending-approvals")
 
@@ -756,12 +761,15 @@ class TestPendingApprovals:
         assert len(result["pending_approvals"]) == 2
         assert "message" in result
 
-        # Verify service was called
-        mock_intervention_service.get_pending_interventions.assert_called_once_with(None)
+        # Verify the current actor (not a client approver value) names scope
+        kwargs = mock_intervention_service.get_pending_interventions_for_actor.call_args.kwargs
+        assert kwargs["actor_id"] == "test-user"
+        assert "db" in kwargs
 
     def test_list_pending_approvals_empty(self, client: TestClient, mock_intervention_service):
         """Test listing pending approvals when none exist."""
-        mock_intervention_service.get_pending_interventions.return_value = []
+        mock_intervention_service.get_pending_interventions_for_actor.return_value = {
+            "success": True, "pending": [], "count": 0}
 
         response = client.get("/api/agent-governance/pending-approvals")
 
@@ -775,9 +783,13 @@ class TestPendingApprovals:
     def test_list_pending_approvals_filtered_by_approver(self, client: TestClient, mock_intervention_service):
         """Test listing pending approvals filtered by approver."""
         test_approver_id = str(uuid.uuid4())
-        mock_intervention_service.get_pending_interventions.return_value = [
-            {"approval_id": "apr_001", "approver_id": test_approver_id}
-        ]
+        mock_intervention_service.get_pending_interventions_for_actor.return_value = {
+            "success": True,
+            "pending": [
+                {"approval_id": "apr_001", "approver_id": test_approver_id}
+            ],
+            "count": 1,
+        }
 
         response = client.get(
             f"/api/agent-governance/pending-approvals?approver_id={test_approver_id}"
@@ -785,10 +797,10 @@ class TestPendingApprovals:
 
         assert response.status_code == 200
 
-        # Verify service was called with filter
-        mock_intervention_service.get_pending_interventions.assert_called_once_with(
-            test_approver_id
-        )
+        # The client value is not forwarded as scope; the current actor is.
+        kwargs = mock_intervention_service.get_pending_interventions_for_actor.call_args.kwargs
+        assert kwargs["actor_id"] == "test-user"
+        assert "approver_id" not in kwargs
 
 
 # ============================================================================
