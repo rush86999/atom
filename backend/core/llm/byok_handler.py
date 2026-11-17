@@ -69,6 +69,10 @@ from core.llm.model_provenance import (
     set_routing_profile,
     set_served_route,
 )
+from core.llm.wire_capabilities import (
+    STRUCTURED_PROTOCOL_JSON,
+    resolve_structured_wire_contract,
+)
 
 
 # Dedicated daemon loop for __init__-time credential resolution. FastAPI async
@@ -131,6 +135,13 @@ _MODEL_TEMPERATURE: Dict[str, float] = {}
 # Memoized + persisted like the other pair constraints.
 _STRUCTURED_PROTOCOL_UNSUPPORTED: set = set()
 
+# (provider, model) pairs whose endpoint rejects the documented thinking
+# disable switch our wire-capability declaration selected (for example a
+# gateway that forwards chat fields selectively). Memoized like the other
+# pair constraints so a deterministic compatibility 400 is paid at most once:
+# later structured calls keep the supported JSON protocol but omit the switch.
+_THINKING_SWITCH_UNSUPPORTED: set = set()
+
 # OPERATION-KEYED PROTOCOL INCOMPATIBILITY (2026-10-08 owner assignment 2).
 # A protocol rejection is a fact about ONE (route, operation) combination,
 # not about the provider and not about the model as a whole: the same model
@@ -183,6 +194,8 @@ def _save_pair_memos() -> None:
                 "temperature": dict(_MODEL_TEMPERATURE),
                 "toolchoice_unsupported": sorted(_TOOLCHOICE_UNSUPPORTED),
                 "reasoning_mandatory": sorted(_REASONING_MANDATORY),
+                "thinking_switch_unsupported": sorted(
+                    _THINKING_SWITCH_UNSUPPORTED),
                 "logprobs_unsupported": sorted(_LOGPROBS_UNSUPPORTED),
                 "auth_failed": sorted(_AUTH_FAILED),
                 "structured_protocol_unsupported": sorted(
@@ -232,6 +245,8 @@ def _load_pair_memos() -> None:
         _STRUCTURED_PROTOCOL_UNSUPPORTED.update(
             payload.get("structured_protocol_unsupported") or [])
         _REASONING_MANDATORY.update(payload.get("reasoning_mandatory") or [])
+        _THINKING_SWITCH_UNSUPPORTED.update(
+            payload.get("thinking_switch_unsupported") or [])
         _LOGPROBS_UNSUPPORTED.update(payload.get("logprobs_unsupported") or [])
         _AUTH_FAILED.update(payload.get("auth_failed") or [])
         _MODEL_STRUCTURED_LATENCY.update(
@@ -252,9 +267,11 @@ def _load_pair_memos() -> None:
             })
         logger.info(
             "pair-constraint memos loaded: %d temperature, %d toolchoice, "
-            "%d reasoning, %d logprobs, %d auth, %d latency",
+            "%d reasoning, %d thinking-switch, %d logprobs, %d auth, "
+            "%d latency",
             len(_MODEL_TEMPERATURE), len(_TOOLCHOICE_UNSUPPORTED),
-            len(_REASONING_MANDATORY), len(_LOGPROBS_UNSUPPORTED),
+            len(_REASONING_MANDATORY), len(_THINKING_SWITCH_UNSUPPORTED),
+            len(_LOGPROBS_UNSUPPORTED),
             len(_AUTH_FAILED), len(_MODEL_STRUCTURED_LATENCY))
     except Exception:  # noqa: BLE001 — a corrupt file costs one retry
         logger.debug("pair-memo load skipped")
@@ -10616,9 +10633,20 @@ class BYOKHandler:
                         _structured_skipped += 1
                         failed_providers.add(provider_id)
                         continue
+                    _wire_contract = resolve_structured_wire_contract(
+                        provider_id, model)
+                    _wire_protocol = (
+                        _wire_contract.protocol if _wire_contract else None)
                     _json_mode = (
                         str(output_mode or "").strip().lower() == "json"
-                        or f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED)
+                        or _wire_protocol == STRUCTURED_PROTOCOL_JSON
+                        or f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED
+                        or (
+                            _wire_contract is not None
+                            and _wire_contract.requires_thinking_disabled
+                            and f"{provider_id}/{model}"
+                            in _THINKING_SWITCH_UNSUPPORTED
+                        ))
                     # ONE ADMISSION PER WIRE CALL. The call-scoped admission
                     # below covers the FIRST physical request; Instructor's
                     # own internal retry (default for unprofiled calls) is
@@ -10769,15 +10797,37 @@ class BYOKHandler:
                     # _LOGPROBS_UNSUPPORTED). Defined BEFORE them because the
                     # extra_body decision already consults the reasoning memo.
                     _logprobs_key = f"{provider_id}/{model}"
-                    if disable_reasoning:
-                        # OpenRouter unified reasoning switch: a reasoning
-                        # model burns 1,200–2,000 hidden tokens (30–60s)
-                        # BEFORE a 60-line planning answer — measured on
-                        # minimax-m3 for the canvas editor + tool planner
-                        # (2026-09-01). Planning prompts need no thinking;
-                        # this turns minute-long stages into seconds.
-                        # extra_body, because the typed SDK create() rejects
-                        # provider-extension kwargs directly.
+                    # PROVIDER/MODEL WIRE CONTRACT (2026-11-17): a declared
+                    # route gets the thinking switch its vendor documents,
+                    # not the OpenRouter extension. DeepSeek's API enables
+                    # thinking by default and rejects forced/named
+                    # tool_choice in that mode; its documented OpenAI-format
+                    # switch is reasoning_effort="none".
+                    # Undeclared routes keep the historical extension below.
+                    _structured_thinking_extra: Optional[Dict[str, Any]] = None
+                    _structured_thinking_key: Optional[str] = None
+                    if _wire_contract is not None:
+                        _structured_thinking_key = (
+                            _wire_contract.thinking_disable_key)
+                        if (
+                            _wire_contract.requires_thinking_disabled
+                            or disable_reasoning
+                        ) and _logprobs_key not in _THINKING_SWITCH_UNSUPPORTED:
+                            _structured_thinking_extra = (
+                                _wire_contract.extra_body())
+                        if _structured_thinking_extra:
+                            # extra_body, because the typed SDK create()
+                            # rejects provider-extension kwargs directly.
+                            _create_kwargs["extra_body"] = (
+                                _structured_thinking_extra)
+                    elif disable_reasoning:
+                        # Legacy (undeclared route): OpenRouter unified
+                        # reasoning switch. A reasoning model burns
+                        # 1,200–2,000 hidden tokens (30–60s) BEFORE a 60-line
+                        # planning answer — measured on minimax-m3 for the
+                        # canvas editor + tool planner (2026-09-01).
+                        # Planning prompts need no thinking; this turns
+                        # minute-long stages into seconds.
                         #
                         # Skipped entirely for a pair already memoized as
                         # reasoning-MANDATORY (see _REASONING_MANDATORY): sending
@@ -10787,7 +10837,13 @@ class BYOKHandler:
                                 "reasoning": {"enabled": False, "exclude": True},
                             }
                     if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
-                        _create_kwargs["logprobs"] = True
+                        # A declared route that documents/observes logprobs
+                        # rejection skips the optional field before dispatch:
+                        # it only weights soft-SC samples, never validates,
+                        # so paying a deterministic 400 for it is pure waste.
+                        if (_wire_contract is None
+                                or _wire_contract.supports_logprobs):
+                            _create_kwargs["logprobs"] = True
                     # Request-kwarg recovery loop. Each recoverable rejection
                     # (thinking-mode tool_choice, reasoning-mandatory 400,
                     # unsupported logprobs) strips the offending kwarg ONCE and
@@ -10949,12 +11005,17 @@ class BYOKHandler:
                             logger.info(
                                 "[structured-dispatch] %s/%s route=%s "
                                 "attempt=%d prompt_chars=%d cap=%s "
-                                "instructor_retries=%s",
+                                "instructor_retries=%s wire_protocol=%s "
+                                "thinking_switch=%s logprobs=%s",
                                 provider_id, model,
                                 route_trace_id or "-", _attempt_count,
                                 _dispatch_prompt_chars,
                                 _create_kwargs.get("max_tokens"),
-                                _create_kwargs.get("max_retries", "default"))
+                                _create_kwargs.get("max_retries", "default"),
+                                "json" if _json_mode else "tools",
+                                (_structured_thinking_key
+                                 if _structured_thinking_extra else "none"),
+                                bool(_create_kwargs.get("logprobs")))
                             try:
                                 result = await _to_thread_safe(
                                     instructor_client.chat.completions.create,
@@ -11109,6 +11170,42 @@ class BYOKHandler:
                                 )
                                 instructor_client = instructor.from_openai(
                                     _dispatch_client, mode=instructor.Mode.JSON)
+                                _json_mode = True
+                                continue
+
+                            # (1a) A declared provider's documented thinking
+                            # switch was rejected. This is a deterministic
+                            # compatibility 400, not a schema failure: drop
+                            # the switch once (memoize the pair) and, when
+                            # forced tool_choice needed it, move to JSON mode
+                            # so the retry is a DIFFERENT, supported payload
+                            # rather than an identical repeat.
+                            if (
+                                _structured_thinking_extra is not None
+                                and _structured_thinking_key
+                                and _structured_thinking_key in _err_txt
+                                and any(marker in _err_txt for marker in (
+                                    "not supported", "unsupported", "unknown",
+                                    "unrecognized", "not allowed",
+                                    "extra inputs", "unexpected"))
+                                and "thinking_switch" not in _recovered
+                            ):
+                                _recovered.add("thinking_switch")
+                                _THINKING_SWITCH_UNSUPPORTED.add(
+                                    _logprobs_key)
+                                _save_pair_memos()
+                                _create_kwargs.pop("extra_body", None)
+                                if not _json_mode:
+                                    instructor_client = instructor.from_openai(
+                                        _dispatch_client,
+                                        mode=instructor.Mode.JSON)
+                                    _json_mode = True
+                                logger.warning(
+                                    f"{provider_id}/{model} rejects the "
+                                    f"thinking disable switch "
+                                    f"({_structured_thinking_key}) — "
+                                    f"retrying once without it in JSON mode "
+                                    f"and memoizing the pair")
                                 continue
 
                             # (1b) MODEL-PROTOCOL-UNSUPPORTED endpoints

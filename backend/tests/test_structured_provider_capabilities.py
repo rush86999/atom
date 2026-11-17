@@ -1,0 +1,482 @@
+"""Offline wire-boundary regressions for structured-provider capabilities.
+
+The structured path has two documented transports: Instructor's forced
+function-call scaffold (``tools`` + one synthetic tool + forced
+``tool_choice``) and its schema-in-prompt JSON mode. Which one is legal is a
+provider/model capability, not something to discover by paying the same HTTP
+400 on every stage.
+
+These tests use a REAL ``openai.OpenAI`` client over ``httpx.MockTransport``
+and the real Instructor wrapper, so they assert the constructed outbound SDK
+payload rather than a forwarded keyword. The twins implement the documented
+behavior:
+
+* OpenAI accepts forced/named tool choice and documents no generic chat
+  ``thinking`` disable field;
+* DeepSeek enables thinking by default, rejects forced/named tool choice
+  while it is on, accepts ``reasoning_effort: "none"`` to disable it, and
+  documents ``response_format: {"type": "json_object"}``;
+* an unknown OpenAI-compatible endpoint gets the historical payload
+  unchanged and the existing typed-error recovery (one changed retry, then a
+  pair memo — never an identical repeat).
+
+No live provider, model, key or network call is used.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+
+os.environ.setdefault("TESTING", "1")
+
+import httpx
+import openai
+import pytest
+from pydantic import BaseModel
+from unittest.mock import MagicMock
+
+from core.llm.byok_handler import AwaitableResult, BYOKHandler
+from tests.test_oracle_mini_app_host_mutations import host  # noqa: F401
+from tests.test_reasoning_mandatory_retry import _handler as _minimal_handler
+
+
+class _WireProbe(BaseModel):
+    value: str
+
+
+def _completion_body(body: dict, content: dict, model: str) -> dict:
+    """A valid OpenAI-compatible completion for whichever mode was sent."""
+    if body.get("tools"):
+        tool_name = (
+            (body["tools"][0].get("function") or {}).get("name") or "response")
+        message = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [{
+                "id": "call_wire",
+                "type": "function",
+                "function": {
+                    "name": tool_name,
+                    "arguments": json.dumps(content),
+                },
+            }],
+        }
+        finish = "tool_calls"
+    else:
+        message = {"role": "assistant", "content": json.dumps(content)}
+        finish = "stop"
+    return {
+        "id": "chatcmpl-wire", "object": "chat.completion", "created": 1,
+        "model": model,
+        "choices": [{
+            "index": 0, "finish_reason": finish, "message": message,
+        }],
+        "usage": {
+            "prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15,
+        },
+    }
+
+
+def _error(status: int, message: str) -> httpx.Response:
+    return httpx.Response(status, json={
+        "error": {
+            "message": message,
+            "type": "invalid_request_error",
+            "code": "invalid_request_error",
+        },
+    })
+
+
+def _client(responder, provider_id: str) -> openai.OpenAI:
+    transport = httpx.MockTransport(responder)
+    base = "https://api.deepseek.com/v1" if provider_id == "deepseek" else (
+        "https://opencode.ai/inference/go/openai/v1"
+        if provider_id == "opencode-go" else "http://localhost:11434/v1")
+    return openai.OpenAI(
+        base_url=base, api_key="offline-test",
+        http_client=httpx.Client(transport=transport))
+
+
+def _handler_for(provider_id: str, model: str, responder) -> BYOKHandler:
+    handler = _minimal_handler()
+    handler.get_ranked_providers = MagicMock(
+        return_value=AwaitableResult([(provider_id, model)]))
+    handler.clients = {provider_id: _client(responder, provider_id)}
+    handler.async_clients = {}
+    # The wire tests double the accounting boundary; the durable ledger
+    # contract has its own regression below with the full scratch handler.
+    handler._admit_physical_attempt = MagicMock(return_value=0.0)
+    handler._settle_physical_response = MagicMock(return_value=0.0)
+    return handler
+
+
+def _clear_pair_memos(provider_id: str, model: str) -> None:
+    from core.llm import byok_handler as bh
+
+    pair = f"{provider_id}/{model}"
+    bh._REASONING_MANDATORY.discard(pair)
+    bh._TOOLCHOICE_UNSUPPORTED.discard(pair)
+    bh._THINKING_SWITCH_UNSUPPORTED.discard(pair)
+    bh._AUTH_FAILED.discard(pair)
+    bh._MODEL_TEMPERATURE.pop(pair, None)
+    bh._STRUCTURED_PROTOCOL_UNSUPPORTED.discard(pair)
+    bh._PROVIDER_COOLDOWN_UNTIL.pop(provider_id, None)
+
+
+def _call(handler, *, disable_reasoning: bool, messages=None):
+    kwargs = {}
+    if messages is not None:
+        kwargs["messages"] = messages
+    return asyncio.run(handler.generate_structured_response(
+        prompt="Return the requested object.",
+        system_instruction="You return only the requested JSON object.",
+        response_model=_WireProbe,
+        task_type="planning",
+        temperature=0.0,
+        disable_reasoning=disable_reasoning,
+        allow_moa=False,
+        max_tokens=1000,
+        **kwargs,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Valid documented twins
+# ---------------------------------------------------------------------------
+def test_contract_resolution_is_family_scoped_not_exact_model():
+    from core.llm.wire_capabilities import resolve_structured_wire_contract
+
+    gateway = resolve_structured_wire_contract(
+        "opencode-go", "deepseek-v4.1-flash-free")
+    assert gateway is not None
+    assert gateway.protocol == "json"
+    assert gateway.supports_logprobs is False
+
+    vendor_path = resolve_structured_wire_contract(
+        "opencode", "deepseek/deepseek-v4-pro")
+    assert vendor_path is not None
+    assert vendor_path.protocol == "json"
+
+    # Undeclared gateways are not assumed to share DeepSeek semantics.
+    assert resolve_structured_wire_contract(
+        "openrouter", "deepseek/deepseek-v4-pro") is None
+    assert resolve_structured_wire_contract(
+        "mystery-provider", "mystery-model") is None
+
+
+def _deepseek_twin(
+    request: httpx.Request,
+    model: str,
+    *,
+    expect_protocol: str,
+) -> httpx.Response:
+    """Documented DeepSeek behavior for an OpenAI-compatible chat request.
+
+    - unknown extension fields are rejected (the OpenRouter ``reasoning``
+      object is not part of DeepSeek's schema);
+    - thinking is on unless ``reasoning_effort`` is ``none``;
+    - forced/named tool_choice is rejected while thinking is on;
+    - JSON output uses ``response_format={"type": "json_object"}``.
+    """
+    body = json.loads(request.content)
+    if "reasoning" in body:
+        return _error(
+            400, "Unrecognized request argument supplied: reasoning")
+    if expect_protocol == "tools":
+        if not body.get("tools"):
+            return _error(400, "tools are required for this route")
+        if body.get("tool_choice") in (None, "auto", "none"):
+            return _error(400, "a forced tool_choice is required")
+        if body.get("reasoning_effort") != "none":
+            return _error(
+                400, "Thinking mode does not support this tool_choice")
+    else:
+        if body.get("tools"):
+            return _error(
+                400, "Thinking mode does not support this tool_choice")
+        if body.get("response_format") != {"type": "json_object"}:
+            return _error(400, "response_format json_object is required")
+    return httpx.Response(200, json=_completion_body(
+        body, {"value": model + "-ok"}, model))
+
+
+def test_openai_twin_keeps_forced_tool_choice_unchanged():
+    provider, model = "openai", "gpt-4o"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        assert body.get("tools"), body
+        assert body.get("tool_choice") not in (None, "auto", "none"), body
+        # No DeepSeek-only thinking control is invented for an OpenAI route.
+        assert "reasoning_effort" not in body, body
+        assert "thinking" not in body, body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "openai-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    # OpenAI is the undeclared-route control: historical behavior stays.
+    result = _call(handler, disable_reasoning=False)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "openai-ok"
+    assert len(seen) == 1, seen
+
+
+def test_native_deepseek_twin_disables_thinking_for_forced_tool_choice(
+        monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "deepseek", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        return _deepseek_twin(request, model, expect_protocol="tools")
+
+    handler = _handler_for(provider, model, _responder)
+    # The switch is protocol-required, not caller-requested.
+    result = _call(handler, disable_reasoning=False)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == model + "-ok"
+    assert len(seen) == 1, seen
+    assert seen[0].get("reasoning_effort") == "none", seen[0]
+    assert seen[0].get("tool_choice") not in (None, "auto", "none"), seen[0]
+    assert "reasoning" not in seen[0], seen[0]
+    # Current native DeepSeek documents logprobs; the optional weighting is
+    # retained there.
+    assert seen[0].get("logprobs") is True, seen[0]
+
+
+def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
+        monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        if "logprobs" in body:
+            return _error(
+                400, '"logprobs" is not supported by this endpoint')
+        # The Go gateway's DeepSeek route rejected forced tool_choice in
+        # thinking mode live; JSON output is documented upstream and has
+        # working live evidence on this route.
+        return _deepseek_twin(request, model, expect_protocol="json")
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == model + "-ok"
+    assert len(seen) == 1, seen
+    assert "tools" not in seen[0], seen[0]
+    assert "logprobs" not in seen[0], seen[0]
+    assert seen[0].get("response_format") == {"type": "json_object"}, seen[0]
+    assert seen[0].get("reasoning_effort") == "none", seen[0]
+    assert "reasoning" not in seen[0], seen[0]
+
+
+# ---------------------------------------------------------------------------
+# Full caller message history survives the protocol correction
+# ---------------------------------------------------------------------------
+def test_gateway_json_mode_preserves_complete_message_history(monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    _clear_pair_memos(provider, model)
+    messages = [
+        {"role": "system", "content": "You return only JSON."},
+        {"role": "user", "content": "first user turn"},
+        {"role": "assistant", "content": "prior assistant answer"},
+        {"role": "user", "content": "second user turn"},
+    ]
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        return _deepseek_twin(request, model, expect_protocol="json")
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True, messages=messages)
+    assert isinstance(result, _WireProbe), result
+    assert len(seen) == 1, seen
+    wire_messages = seen[0].get("messages") or []
+    roles = [m.get("role") for m in wire_messages if isinstance(m, dict)]
+    assert roles == ["system", "user", "assistant", "user"], roles
+    contents = "\n".join(
+        str(m.get("content") or "") for m in wire_messages
+        if isinstance(m, dict))
+    for expected in (
+            "first user turn", "prior assistant answer", "second user turn"):
+        assert expected in contents, contents
+
+
+# ---------------------------------------------------------------------------
+# Gateway rejects the documented switch: one changed retry, then a memo
+# ---------------------------------------------------------------------------
+def test_gateway_switch_rejection_is_dropped_once_and_memoized(monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode-go", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    bodies: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        bodies.append(body)
+        assert "logprobs" not in body, body
+        if body.get("reasoning_effort") is not None:
+            return _error(
+                400, "Unrecognized request argument supplied: reasoning_effort")
+        assert "tools" not in body, body
+        assert body.get("response_format") == {"type": "json_object"}, body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "switch-retry-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "switch-retry-ok"
+    assert len(bodies) == 2, bodies
+    assert bodies[0].get("reasoning_effort") == "none", bodies[0]
+    # The retry changes the payload (drops the rejected switch) and keeps the
+    # supported JSON protocol. It is not an identical repeat.
+    assert "reasoning_effort" not in bodies[1], bodies[1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._THINKING_SWITCH_UNSUPPORTED
+
+    result2 = _call(handler, disable_reasoning=True)
+    assert isinstance(result2, _WireProbe), result2
+    assert len(bodies) == 3, bodies
+    assert "reasoning_effort" not in bodies[2], bodies[2]
+    _clear_pair_memos(provider, model)
+
+
+# ---------------------------------------------------------------------------
+# Unknown twin: historical behavior + one bounded typed-error recovery
+# ---------------------------------------------------------------------------
+class _UnknownTwin:
+    """Unknown endpoint: rejects forced tool_choice in thinking mode."""
+
+    def __init__(self, model: str):
+        self.model = model
+        self.bodies: list[dict] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        self.bodies.append(body)
+        if body.get("tools") and body.get("tool_choice") not in (
+                None, "auto", "none"):
+            return _error(
+                400, "Thinking mode does not support this tool_choice")
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "unknown-ok"}, self.model))
+
+
+def test_unknown_twin_legacy_shape_recovers_once_and_memoizes():
+    provider, model = "mystery-provider", "mystery-model"
+    _clear_pair_memos(provider, model)
+    twin = _UnknownTwin(model)
+    handler = _handler_for(provider, model, twin)
+
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "unknown-ok"
+    assert len(twin.bodies) == 2, twin.bodies
+    # First attempt is the historical tools + OpenRouter reasoning payload.
+    assert twin.bodies[0].get("tools")
+    assert twin.bodies[0].get("reasoning") == {
+        "enabled": False, "exclude": True}
+    # The retry is a DIFFERENT supported payload (JSON mode), not an
+    # identical repeat of the rejected request.
+    assert "tools" not in twin.bodies[1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+
+    # The pair memo prevents the same deterministic 400 on the next call.
+    result2 = _call(handler, disable_reasoning=True)
+    assert isinstance(result2, _WireProbe), result2
+    assert len(twin.bodies) == 3, twin.bodies
+    assert "tools" not in twin.bodies[2]
+    _clear_pair_memos(provider, model)
+
+
+# ---------------------------------------------------------------------------
+# Physical-attempt budget/settlement across Instructor's internal retry
+# ---------------------------------------------------------------------------
+def test_instructor_retry_admits_and_settles_each_physical_request(
+        host, monkeypatch, tmp_path):
+    from tests.test_goal9_physical_attempts import (
+        _attempt_rows,
+        _make_handler,
+        _reservation_pricing,
+        _seed,
+    )
+
+    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    _clear_pair_memos(provider, model)
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    # Never let the construction-time pricing singleton reach the network in
+    # an offline regression: the sync initializer refreshes provider catalogs.
+    from core.llm import byok_handler as _bh
+    monkeypatch.setattr(
+        _bh, "get_pricing_fetcher_initialized_sync",
+        lambda *a, **k: _bh.get_pricing_fetcher())
+    handler = _make_handler(
+        monkeypatch, tmp_path, {provider: [model]})
+    bodies: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        bodies.append(body)
+        if len(bodies) == 1:
+            # Valid JSON but schema-invalid: Instructor re-asks once.
+            return httpx.Response(200, json=_completion_body(
+                body, {"wrong": "missing value"}, model))
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "settled-ok"}, model))
+
+    handler.clients[provider] = _client(_responder, provider)
+
+    result = asyncio.run(handler.generate_structured_response(
+        prompt="Return the requested object.",
+        system_instruction="You return only the requested JSON object.",
+        response_model=_WireProbe,
+        task_type="planning",
+        temperature=0.0,
+        disable_reasoning=True,
+        provider_model=(provider, model),
+        allow_moa=False,
+        max_tokens=1000,
+    ))
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "settled-ok"
+    assert len(bodies) == 2, bodies
+    for body in bodies:
+        assert "tools" not in body, body
+        assert body.get("response_format") == {"type": "json_object"}, body
+        assert body.get("reasoning_effort") == "none", body
+        assert "reasoning" not in body, body
+        # The optional soft-SC weighting field is skipped on this route.
+        assert "logprobs" not in body, body
+
+    rows = _attempt_rows(host)
+    assert len(rows) == 2, [r.attempt_id for r in rows]
+    assert len({r.attempt_id for r in rows}) == 2
+    assert len({r.request_id for r in rows}) == 1
+    for row in rows:
+        # Each physical request was admitted before dispatch and settled
+        # after its own response; the successful settlement clears the
+        # reservation and records the actual cost.
+        assert row.reservation_status == "settled", (
+            row.attempt_id, row.reservation_status)
+        assert row.billed is True, (row.attempt_id, row.billed)
+        assert float(row.cost_usd or 0.0) > 0.0, (
+            row.attempt_id, row.cost_usd)
+    _clear_pair_memos(provider, model)
