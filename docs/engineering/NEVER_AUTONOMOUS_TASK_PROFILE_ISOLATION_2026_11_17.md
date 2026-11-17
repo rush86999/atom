@@ -1,7 +1,7 @@
 # Never-autonomous entry task-profile isolation — proof and limits
 
 Date: 2026-11-17
-Worktree branch: `codex/task-profile-isolation-20261117` (base `0ef449aea`)
+Worktree branch: `codex/task-profile-isolation-20261117` (original base `0ef449aea`; reconciled with main `708b7ae2d` at `9b502c0bc`)
 Scope: `core/task_classification.py`, `core/generic_agent.py`,
 `core/workflow_engine.py`, `core/autonomy_policy.py` (token helpers only),
 `core/atom_meta_agent.py` (drop the stale dict profile before a rebuild),
@@ -125,3 +125,26 @@ matches the YAML step exactly.
 - The unknown-profile fallback is defensive; its dual failure is synthetic.
   No live app entry was observed hitting the double fault.
 - No frontend/UI or live-server UAT; no model-quality or release claim.
+
+
+## Independent verification of the reconciled source
+
+At `9b502c0bc`, root independently ran the six whole policy files plus CI
+preservation and quickstart contracts: **737 passed** in 150.84 seconds.
+All frozen source, test, CI and proof files remained byte-identical after
+the run. The earlier 737-pass run during worker edits is diagnostic only;
+it is not used to qualify this source.
+
+The separate wider five-file run returned **281 passed / 1 failed**, exactly
+matching unchanged main: `TestErrorHandling::test_spawn_failure_handling`
+expects an exception that does not raise. This is retained as a pre-existing
+failure, not described as a green wider suite. The original independent
+nested-task counter now returns `blocked`, zero model calls and one durable
+pending review row. All **251 original assertions** in the three changed
+existing test files are preserved.
+
+The final gate used fresh absolute scratch SQLite/data/Lance paths, empty
+model cache, offline settings and OS network denial. Removing only the added
+whole-file selector restores the exact previous workflow configuration.
+[Filtered result and limits](evidence/task_profile_isolation_20261117/result.json)
+record the source and bounded evidence; the limitations above remain open.
