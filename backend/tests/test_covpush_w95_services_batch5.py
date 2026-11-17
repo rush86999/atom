@@ -598,7 +598,7 @@ def chat_app():
 @pytest.fixture
 def chat_client(chat_app):
     chat_app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
-        id="user_1", tenant_id="t1")
+        id="user_1", tenant_id="t1", role="admin")
     return TestClient(chat_app)
 
 
@@ -942,9 +942,11 @@ class TestChatHistoryAndSessions:
         lazy = _chat_session()
         orch._get_or_create_session = MagicMock(return_value=lazy)
         row_user = SimpleNamespace(id="m1", role="user", content="q",
-                                   created_at=datetime(2026, 1, 1))
+                                   created_at=datetime(2026, 1, 1),
+                                   metadata_json=None)
         row_asst = SimpleNamespace(id="m2", role="assistant", content="a",
-                                   created_at=datetime(2026, 1, 1))
+                                   created_at=datetime(2026, 1, 1),
+                                   metadata_json=None)
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value \
             .all.return_value = [row_user, row_asst]
@@ -1083,10 +1085,13 @@ class TestZohoInventory:
         assert r["stock_on_hand"] == 5 and r["name"] == "Widget"
         svc.client.get = AsyncMock(side_effect=RuntimeError("net"))
         assert (await svc.check_stock("i1"))["error"] == "Failed to check stock"
-        with pytest.raises(HTTPException):
-            await _zo_svc(access_token=None).check_stock("i1")
-        with pytest.raises(HTTPException):
-            await _zo_svc(organization_id=None).check_stock("i1")
+        # check_stock is documented as "never raises": a missing token/org is
+        # reported as a structured error for pollers to skip.
+        assert (await _zo_svc(access_token=None).check_stock("i1"))["error"] == "no access token"
+        svc_no_org = _zo_svc(organization_id=None, access_token="tok")
+        svc_no_org._inventory_base = AsyncMock(return_value="https://example.invalid/inventory/v1")
+        svc_no_org._resolve_organization = AsyncMock(return_value=None)
+        assert (await svc_no_org.check_stock("i1"))["error"] == "no organization id"
 
     async def test_get_inventory_levels(self):
         svc = _zo_svc()
@@ -1157,7 +1162,9 @@ class TestZohoInventory:
                    return_value="enc2"), \
              patch("core.privsec.token_encryption.stamp_credential_metadata"):
             tok = await svc._get_active_token("t1")
-        assert tok == "enc2"
+        # The row stores ciphertext; the caller receives the decrypted plaintext.
+        assert rec3.access_token == "enc2"
+        assert tok == "rplain"
         assert db2.commit.called
         # expired without refresh token -> None
         rec3.refresh_token = None

@@ -41,7 +41,7 @@ def anon_client(app):
 @pytest.fixture
 def client(app):
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
-        id="user_1", tenant_id="t1")
+        id="user_1", tenant_id="t1", role="admin")
     return TestClient(app)
 
 
@@ -509,8 +509,12 @@ class TestGetChatHistory:
     def test_db_fallback(self, client, orch):
         orch.conversation_sessions = {"s1": make_session(history=[])}
         rows = [
-            SimpleNamespace(id="m1", role="user", content="hi", created_at=datetime(2026, 1, 1, 10)),
-            SimpleNamespace(id="m2", role="assistant", content="hello", created_at=datetime(2026, 1, 1, 10, 1)),
+            SimpleNamespace(id="m1", role="user", content="hi",
+                            created_at=datetime(2026, 1, 1, 10),
+                            metadata_json=None),
+            SimpleNamespace(id="m2", role="assistant", content="hello",
+                            created_at=datetime(2026, 1, 1, 10, 1),
+                            metadata_json=None),
         ]
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = rows

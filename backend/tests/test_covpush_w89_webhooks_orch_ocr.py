@@ -45,7 +45,56 @@ def make_client(db=None):
     app = FastAPI()
     app.include_router(iw.router)
     app.dependency_overrides[get_db] = lambda: db if db is not None else MagicMock()
-    return TestClient(app, raise_server_exceptions=False)
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # R89 re-contract: the zoho/pm-crm/communication/dev-prod families are
+    # fail-closed verified. Sign family requests transparently so the
+    # business-logic tests below exercise dispatch, not auth.
+    import os as _os
+
+    _FAMILY_ENVS = {
+        "/webhooks/zoho/": "ATOM_ZOHO_WEBHOOK_SECRET",
+        "/webhooks/pm-crm/": "ATOM_PMCRM_WEBHOOK_SECRET",
+        "/webhooks/communication/": "ATOM_COMMUNICATION_WEBHOOK_SECRET",
+        "/webhooks/dev-prod/": "ATOM_DEVPROD_WEBHOOK_SECRET",
+    }
+    orig_post = client.post
+
+    def _signing_post(url, **kwargs):
+        for prefix, env_name in _FAMILY_ENVS.items():
+            if url.startswith(prefix):
+                secret = _os.getenv(env_name, "")
+                if secret:
+                    if "json" in kwargs:
+                        body = json.dumps(kwargs.pop("json")).encode()
+                        kwargs["content"] = body
+                    elif "data" in kwargs:
+                        from urllib.parse import urlencode as _urlencode
+
+                        body = _urlencode(kwargs.pop("data")).encode()
+                        kwargs["content"] = body
+                    else:
+                        body = kwargs.get("content") or b""
+                    sig = hmac_mod.new(
+                        secret.encode(), body, hashlib.sha256
+                    ).hexdigest()
+                    headers = kwargs.setdefault("headers", {})
+                    headers["X-Atom-Webhook-Signature"] = sig
+                break
+        return orig_post(url, **kwargs)
+
+    client.post = _signing_post
+    return client
+
+
+@pytest.fixture(autouse=True)
+def _family_secrets(monkeypatch):
+    """R89: the generic webhook families reject unsigned traffic; tests opt
+    in by setting the shared secrets (the signing client above signs)."""
+    monkeypatch.setenv("ATOM_ZOHO_WEBHOOK_SECRET", "test-zoho-secret")
+    monkeypatch.setenv("ATOM_PMCRM_WEBHOOK_SECRET", "test-pmcrm-secret")
+    monkeypatch.setenv("ATOM_COMMUNICATION_WEBHOOK_SECRET", "test-comm-secret")
+    monkeypatch.setenv("ATOM_DEVPROD_WEBHOOK_SECRET", "test-devprod-secret")
 
 
 def _discovery(tenant_id="tenant-1"):
@@ -874,8 +923,13 @@ class TestQwenResponse:
             "success": True, "content": " answer ", "model": "m", "provider": "p"})
         r = await orch._get_qwen_response("hi", [{"message": "q",
                                                   "response": {"message": "a"}}],
-                                          {"tier": "t", "intent": "i"}, ("p", "m"))
-        assert r == {"content": "answer", "model": "m", "provider": "p"}
+                                          {"tier": "t", "intent": "i"},
+                                          sticky_hint=("p", "m"))
+        # Documented minimal contract; the payload also carries optional
+        # memory/provenance context keys.
+        assert r["content"] == "answer"
+        assert r["model"] == "m"
+        assert r["provider"] == "p"
         kw = orch.llm_service.generate_completion.call_args[1]
         assert kw["cognitive_tier"] == "t" and kw["intent_override"] == "i"
         assert kw["sticky_hint"] == ("p", "m")
@@ -1068,26 +1122,33 @@ class TestFeatureHandlers:
         assert r["data"]["message"]
 
     async def test_task_handler_success_and_failure(self, orch):
-        import core.unified_task_endpoints as ute
         from types import SimpleNamespace
-        with patch.object(ute, "create_task",
-                          AsyncMock(return_value={"success": True,
-                                                  "task": SimpleNamespace(id="t9")})):
+        task = SimpleNamespace(id="t9", title="fix the bug",
+                               as_dict=lambda: {"id": "t9"})
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
+        session = {"id": "s1", "user_id": "u1"}
+        with patch("core.user_task_service.create_user_task",
+                   return_value=task):
             r = await orch._handle_task_request(
-                "create a task: fix the bug", {}, {"user_id": "u1"}, None)
+                "create a task: fix the bug", {}, session, None)
         assert r["success"] and r["data"]["task_id"] == "t9"
-        with patch.object(ute, "create_task",
-                          AsyncMock(return_value={"success": False})):
-            r = await orch._handle_task_request("create a task", {}, {}, None)
+        with patch("core.user_task_service.create_user_task",
+                   return_value=task):
+            r = await orch._handle_task_request("create a task", {}, session, None)
+        assert r["success"] is True
+        from core.user_task_service import TaskServiceError
+        with patch("core.user_task_service.create_user_task",
+                   side_effect=TaskServiceError("refused")):
+            r = await orch._handle_task_request("create a task", {}, session, None)
         assert r["success"] is False
-        with patch.object(ute, "create_task",
-                          AsyncMock(side_effect=RuntimeError("boom"))):
-            r = await orch._handle_task_request("create a task", {}, {}, None)
+        with patch("core.user_task_service.create_user_task",
+                   side_effect=RuntimeError("boom")):
+            r = await orch._handle_task_request("create a task", {}, session, None)
         assert r["error"] == "task_creation_failed"
         # long title truncation branch
-        with patch.object(ute, "create_task",
-                          AsyncMock(return_value={"success": False})):
-            r = await orch._handle_task_request("t " * 60, {}, {}, None)
+        with patch("core.user_task_service.create_user_task",
+                   side_effect=TaskServiceError("refused")):
+            r = await orch._handle_task_request("t " * 60, {}, session, None)
         assert r["success"] is False
 
     async def test_workflow_handler(self, orch):
@@ -1271,7 +1332,7 @@ class TestFeatureHandlers:
         assert r["success"] and r["status"] == "success"
         # budget propagation
         atom.execute = AsyncMock(return_value={
-            "final_output": "halted", "failure_reason": "budget cap"})
+            "final_output": "halted", "failure_reason": "budget_exceeded"})
         with patch.object(ama, "get_atom_agent", return_value=atom), \
              patch.object(ama, "AgentTriggerMode",
                           types.SimpleNamespace(MANUAL="manual"), create=True):
@@ -1370,7 +1431,12 @@ class TestSessions:
         import core.websockets as wsx
         with patch.object(wsx, "get_connection_manager", return_value=mgr):
             await orch._emit_agent_step(1, "t", "a", "o")
-        mgr.broadcast_event.assert_awaited_once()
+        channels = orch._workspace_channels()
+        assert channels == ["workspace:default", "workspace:t1"]
+        assert mgr.broadcast_event.await_count == len(channels)
+        sent = mgr.broadcast_event.await_args_list
+        assert {call.args[0] for call in sent} == set(channels)
+        assert {call.args[1] for call in sent} == {"agent_step_update"}
         with patch.object(wsx, "get_connection_manager",
                           side_effect=RuntimeError("ws")):
             await orch._emit_agent_step(1, "t", "a", "o")
