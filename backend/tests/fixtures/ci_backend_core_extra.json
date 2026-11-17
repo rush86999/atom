@@ -37,6 +37,7 @@
     "Run goal-run wait specification controls",
     "Run PostgreSQL driver and fresh-version controls",
     "Run SMTP certificate validation controls",
-    "Run canonical login TOTP replay controls"
+    "Run canonical login TOTP replay controls",
+    "Run document lineage upgrade and knowledge VFS scope controls"
   ]
 }

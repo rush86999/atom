@@ -1111,6 +1111,20 @@ jobs:
         run: |
           python -m pytest tests/test_login_totp_replay_fence.py tests/test_covpush_w75_auth_endpoints.py tests/test_menubar_routes.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      - name: Run document lineage upgrade and knowledge VFS scope controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-document-lineage/document-lineage.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-document-lineage/data"
+          ATOM_OFFICE_DIR: "${{ runner.temp }}/atom-document-lineage/office"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-document-lineage/data" "${RUNNER_TEMP}/atom-document-lineage/office"
+          python -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py -q --tb=short --timeout=300 --timeout-method=thread
+
   backend-oracle:
     runs-on: ubuntu-latest
     defaults:

@@ -593,5 +593,19 @@
       "ENVIRONMENT": "development"
     },
     "run": "never_root=$(mktemp -d \"${RUNNER_TEMP}/never-autonomous-XXXXXX\")\nmkdir -p \"${never_root}/data\"\nfor never_file in rules task_scope rule_write_fences review_authority entry_identity; do\n  DATABASE_URL=\"sqlite:///${never_root}/${never_file}.db\" \\\n    ATOM_DATA_DIR=\"${never_root}/data\" \\\n    python -m pytest \"tests/test_never_autonomous_${never_file}.py\" \\\n    -q --tb=short --timeout=300 --timeout-method=thread\ndone\n"
+  },
+  {
+    "name": "Run document lineage upgrade and knowledge VFS scope controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-document-lineage/document-lineage.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-document-lineage/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-document-lineage/office",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-document-lineage/data\" \"${RUNNER_TEMP}/atom-document-lineage/office\"\npython -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
