@@ -94,7 +94,8 @@
       "Run canonical login TOTP replay controls",
       "Run document lineage upgrade and knowledge VFS scope controls",
       "Run explicit collaboration authority controls",
-      "Run M3 canonical chat delivery contract controls"
+      "Run M3 canonical chat delivery contract controls",
+      "Run chat transcript actor-scope controls"
     ],
     "backend-oracle": [
       "Run shared ORACLE registry verification controls"
@@ -197,7 +198,8 @@
       "Run canonical login TOTP replay controls",
       "Run document lineage upgrade and knowledge VFS scope controls",
       "Run explicit collaboration authority controls",
-      "Run M3 canonical chat delivery contract controls"
+      "Run M3 canonical chat delivery contract controls",
+      "Run chat transcript actor-scope controls"
     ]
   },
   "lineage_owners": {
