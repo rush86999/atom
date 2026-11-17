@@ -281,3 +281,6 @@ blanket qualification of every feature or connector.
 *Last Updated: August 2026*
 
 - [Document source authority and derived-data lifecycle](engineering/DOCUMENT_SOURCE_AUTHORITY_2026_11_17.md) — bounded DOCX/PDF/CSV API evidence and remaining gaps.
+
+- [Common-format document browser and restart evidence](engineering/DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md).
+- [Live fleet case 7: failed workflow and compatibility limits](engineering/FLEET_LIVE_COMPATIBILITY_2026_11_17.md).

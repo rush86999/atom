@@ -1,0 +1,150 @@
+{
+  "status": "passed",
+  "source": "8c142c1019785e0a21b14bda6505bd04a475934e",
+  "scope": "normal browser sign-in, synthetic DOCX/PDF/CSV upload/open/stored-text exports/delete/stale-tab refusal; retainedDOCX across full app restart; deleted UI references remain404",
+  "cases": [
+    {
+      "case": "docx-v3",
+      "document_id": "doc_1d5abe28dcb67c3544145f62",
+      "artifacts": {
+        "text": {
+          "bytes": 64,
+          "sha256": "82118f82b0e183e97ff093f29e5121c0381181305f749e3183545e6a9b818d08"
+        },
+        "markdown": {
+          "bytes": 64,
+          "sha256": "82118f82b0e183e97ff093f29e5121c0381181305f749e3183545e6a9b818d08"
+        },
+        "json": {
+          "bytes": 736,
+          "sha256": "ff2a64bb3fb63d7d6addc1c391b872e589767fd291f30f454905c4bb21afb7c7"
+        }
+      },
+      "phase": "stale_export"
+    },
+    {
+      "case": "pdf-v3",
+      "document_id": "doc_e25b112f8b2fb7125eab2093",
+      "artifacts": {
+        "text": {
+          "bytes": 32,
+          "sha256": "f8c2124ac4f991ad1fc94a461183659de2a7ad3164abaed2e23bb9893f3e6935"
+        },
+        "markdown": {
+          "bytes": 32,
+          "sha256": "f8c2124ac4f991ad1fc94a461183659de2a7ad3164abaed2e23bb9893f3e6935"
+        },
+        "json": {
+          "bytes": 699,
+          "sha256": "eac6e0840f4f0eb8e2737ebf6b61d3e3a16f5900c88dc931d71d43d0265fc302"
+        }
+      },
+      "phase": "stale_export"
+    },
+    {
+      "case": "csv-v3",
+      "document_id": "doc_be22fd97f576ee3630082671",
+      "artifacts": {
+        "text": {
+          "bytes": 80,
+          "sha256": "24bd1f882d7f3b841d02ee599dd1fa2e4b6a76a4734f01423800767dfdc7945a"
+        },
+        "markdown": {
+          "bytes": 80,
+          "sha256": "24bd1f882d7f3b841d02ee599dd1fa2e4b6a76a4734f01423800767dfdc7945a"
+        },
+        "json": {
+          "bytes": 748,
+          "sha256": "d528a9402e671b06768e3a42925633d942f3e00f493fa0cd3cd715d54186149b"
+        }
+      },
+      "phase": "stale_export"
+    },
+    {
+      "case": "restart-v3",
+      "document_id": "doc_206bc87b06f6bfeda09066a9",
+      "artifacts": {
+        "text": {
+          "bytes": 59,
+          "sha256": "5c506b9c172b619d4afc1898e5cd8e3bc0476fd5d03aa45032fe4a7c55860c73"
+        },
+        "markdown": {
+          "bytes": 59,
+          "sha256": "5c506b9c172b619d4afc1898e5cd8e3bc0476fd5d03aa45032fe4a7c55860c73"
+        },
+        "json": {
+          "bytes": 738,
+          "sha256": "6cfa35cbb8a88fa152368caa365d32d05f4c8e7a2601bf104393e5eecfc17b51"
+        }
+      },
+      "phase": "retained_for_restart"
+    },
+    {
+      "case": "restart-post-restart",
+      "document_id": "doc_206bc87b06f6bfeda09066a9",
+      "artifacts": {
+        "text": {
+          "bytes": 59,
+          "sha256": "5c506b9c172b619d4afc1898e5cd8e3bc0476fd5d03aa45032fe4a7c55860c73"
+        },
+        "markdown": {
+          "bytes": 59,
+          "sha256": "5c506b9c172b619d4afc1898e5cd8e3bc0476fd5d03aa45032fe4a7c55860c73"
+        },
+        "json": {
+          "bytes": 738,
+          "sha256": "6cfa35cbb8a88fa152368caa365d32d05f4c8e7a2601bf104393e5eecfc17b51"
+        }
+      },
+      "phase": "stale_export"
+    }
+  ],
+  "same_world_restart": true,
+  "changed_backend_and_frontend_pids": true,
+  "deleted_after_restart": [
+    {
+      "name": "post_restart_deleted_read",
+      "document_id": "doc_1d5abe28dcb67c3544145f62",
+      "status": 404,
+      "export_control_absent": true
+    },
+    {
+      "name": "post_restart_deleted_read",
+      "document_id": "doc_e25b112f8b2fb7125eab2093",
+      "status": 404,
+      "export_control_absent": true
+    },
+    {
+      "name": "post_restart_deleted_read",
+      "document_id": "doc_be22fd97f576ee3630082671",
+      "status": 404,
+      "export_control_absent": true
+    }
+  ],
+  "owned_services_stopped": true,
+  "retained_early_failures": [
+    "missing download directory; no browser/upload stages",
+    "DOCX verifier API/browser filename assumption; existing upload resumed without replay",
+    "artifact verifier default network restriction on stopped-port probe; no product mutation"
+  ],
+  "nonclaims": [
+    "liveWorkDrive",
+    "UI semantic search (core profile deferred)",
+    "cross-user browser breadth",
+    "generative model quality",
+    "originalbinary downloads",
+    "all parser variants",
+    "wholeGoal3/4/app readiness"
+  ],
+  "frontend_build": {
+    "reused": true,
+    "tracked_files_compared": 2005,
+    "web_runtime_package_config_parity": true,
+    "difference_categories": [
+      "coverage artifacts",
+      "generated ambient TypeScript declarations",
+      "native Tauri generated/test fixtures"
+    ],
+    "entire_tracked_tree_identical": false
+  }
+}
