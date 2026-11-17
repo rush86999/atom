@@ -18,13 +18,18 @@ layer over them.
 
 | Fact | Actual source |
 |---|---|
-| Observed main | `4071ef9ba11f68e645c4514ce7621fa9db9403c8` — acceptance-world storage preflight (PR [#991](https://github.com/rush86999/atom/pull/991)); application bytes include #988 `59fa6b64b` and #991 |
-| Merged tree | `52a7dbd66cf28895c3ca87ee42f4fd12d37996a5` |
-| Sole parent | `59fa6b64b672a3a4c35e8db9b4ef97653b0ad930` (PR [#988](https://github.com/rush86999/atom/pull/988)) |
-| #991 exact PR head | `734725186b2d5d41b0fc19b1e451cbfeae6a44fe` — all **17** check runs completed successfully (including `backend-tests` and GitGuardian), with merge/tree identity and unchanged protections recorded in `/private/tmp/atom-pr991-final-merge-receipt.json` |
-| #991 qualified scope | Root re-ran the launcher file as **29 independent storage-preflight tests**; current-main integration preserves all non-CI feature changes and the worker **692** CI-contract checks; no browser run was made. Storage preflight only, not browser acceptance |
-| #988 exact PR head | `4459e680d22fb688191436a81d1a6336e064eaa2` — all **17** check runs completed successfully; merge `59fa6b64b`, tree `b4fd6ed0b`, parent `ba66f5e22`, recorded in `/private/tmp/atom-pr988-final-merge-receipt.json` |
-| #988 qualified scope | Root **706 current-head CI checks** at `4459e680d`; the earlier **1,034-check** synthetic product gate transfers because all **18,927** non-CI tracked entries are exact. Those two counts overlap and are **not** additive. Synthetic campaign evidence only; real served-model quality remains **unknown** |
+| Observed main | `31e2aebf7cec3fe265e131a1ad27374bbe082654` — durable chat ownership and scoped history access (PR [#987](https://github.com/rush86999/atom/pull/987)); application bytes include #988, #991 and #987 |
+| Merged tree | `991cd1cf96aeead642d6455c4352c92e673b8441` |
+| Sole parent | `4071ef9ba11f68e645c4514ce7621fa9db9403c8` (PR [#991](https://github.com/rush86999/atom/pull/991)) |
+| #987 exact PR head | `8b0e5367af0bbf840c173b849e01c9e5888afddb` — all **17** check runs completed successfully (including `backend-tests` and GitGuardian). The squash merge keeps the PR-head tree `991cd1cf`; merge/tree identity and unchanged protections are recorded in `/private/tmp/atom-pr987-final-merge-receipt.json` |
+| #987 qualified scope | **1,483 independent tests** on the pre-merge source `070d1b46b` (tree `ee098d8b1`, the same tracked tree as `395cbb`); after integration with main the non-CI feature patch is independently identical and **692** CI-contract checks pass. There is **no broad replay at the integrated head** |
+| #987 post-merge main | [CI 44192476933](https://github.com/rush86999/atom/actions/runs/44192476933) and [Docker 44192476883](https://github.com/rush86999/atom/actions/runs/44192476883) were **started** at exact `31e2aebf`; no completed, failed or performance result is claimed here |
+| #991 acceptance-world storage preflight (retained) | PR [#991](https://github.com/rush86999/atom/pull/991) → `4071ef9ba` |
+| #991 exact PR head (retained) | `734725186b2d5d41b0fc19b1e451cbfeae6a44fe` — all **17** check runs completed successfully (including `backend-tests` and GitGuardian); merge/tree identity and unchanged protections are recorded in `/private/tmp/atom-pr991-final-merge-receipt.json` |
+| #991 qualified scope (retained) | Root re-ran the launcher file as **29 independent storage-preflight tests**; current-main integration preserves all non-CI feature changes and the worker **692** CI-contract checks; no browser run was made. Storage preflight only, not browser acceptance |
+| #988 graduation evidence binding (retained) | PR [#988](https://github.com/rush86999/atom/pull/988) → `59fa6b64b` |
+| #988 exact PR head (retained) | `4459e680d22fb688191436a81d1a6336e064eaa2` — all **17** check runs completed successfully; merge `59fa6b64b`, tree `b4fd6ed0b`, parent `ba66f5e22`, recorded in `/private/tmp/atom-pr988-final-merge-receipt.json` |
+| #988 qualified scope (retained) | Root **706 current-head CI checks** at `4459e680d`; the earlier **1,034-check** synthetic product gate transfers because all **18,927** non-CI tracked entries are exact. Those two counts overlap and are **not** additive. Synthetic campaign evidence only; real served-model quality remains **unknown** |
 | Structured wire contracts | PR [#980](https://github.com/rush86999/atom/pull/980) → `ecce2df80e1949083405eeb1e56a417dc5bbefee` |
 | PostgreSQL existing-table lineage | PR [#981](https://github.com/rush86999/atom/pull/981) → `0ef449aeae4235b31ba0e1d7d83bdc1f585b07fe` |
 | CI per-test durations | PR [#982](https://github.com/rush86999/atom/pull/982) → `708b7ae2dd1971b34a523a34dc887e9db736a21a` (reporting only) |
@@ -55,33 +60,56 @@ The merge/CI facts above are delivery status only. They do not qualify real-mode
 quality, PostgreSQL migration/runtime, deployment, application performance, or
 any whole goal.
 
-## Open queue at the 2026-11-17 work-order cut — dated and unqualified
+## Open queue at the 2026-11-17 #987 cut — dated and unqualified
 
 These are **open candidates, not merged**, and they carry no acceptance credit
 here. The detail is recorded only because it was current at the stated cut; it
 may be stale and no CI state is asserted by this worker.
 
-- PR #987: remote head `8b0e5367af0bbf840c173b849e01c9e5888afddb` — the feature
-  branch merged with main #991 after a clean union-only CI-ledger
-  reconciliation. It remains **unmerged**, waiting exact-head CI. Its newest
-  independent replay is **1,483 passed** on the pre-merge head `070d1b46b`
-  (tree `ee098d8b1`), recorded in
-  `/private/tmp/atom-root-chat-main988-root-20261117.log`; the result is
-  unqualified for acceptance and does not extend to the merged head.
-- PR #990: review fix `6ca327c21`, pinned-main merge `85fbd6357` (parents
-  `6ca327c21` + `4071ef9ba`). It remains **unmerged**. Root ran **81
-  independent repair tests** on that pinned review head: 19 BPE governance, 24
-  approved-material consumer and 38 oracle-mutation controls, including the
-  four new single-final-insert helpers. All 81 passed with zero failures,
-  errors or skips (`/private/tmp/atom-root-approval-atomic-main991-20261117.xml`).
-  No merge credit.
+- PR #990: latest published head
+  `85fbd6357f7e30efe3718c22fc2782fce94edaa4` (tree `83c72091`, parent
+  `4071ef9ba`) is **unmerged**. Hosted run `44184658257` failed
+  `backend-core-extra-isolated` job `134397829262` in
+  `test_guided_hitl_approval_creates_one_reviewed_agent`: the first guided
+  create returns 200, while the duplicate approval returns 409
+  `DECISION_CONFLICT` where the established alias endpoint contract expects
+  plain 400. The earlier **81** root repair tests at this pinned head remain
+  real but do not cover that path. A local compatibility repair (`007f43b56`,
+  two files) is **unmerged** and has no hosted run: 26 guided, 139 common
+  decision, 167 adjacent approval, 73 checkpoint and 94 regression controls
+  passed; a wider 264-node sweep passed 257 with 7 failures that reproduce
+  identically on an unchanged `85fbd6357` worktree. No hosted green or
+  PostgreSQL claim.
+- Audit member-route candidate `76a3bbc15e029dc293e0ba4e28c7adf39505c4ea`
+  (tree `13ed22d5a5a6dc7227c836e5468ee9d8d70102f`, frontend
+  `3c54891feb4840335ee47f2eb6dd2911d42d90d8`) is **unmerged**. It narrowly
+  moves `/audit-trail` from deferred `governance` to enabled `activity` in the
+  backend route table and the frontend core fallback; `/admin`, forensics,
+  risk, system-status and the harness-evolution dashboard stay
+  governance-only, and the historical acceptance-ledger bytes are unchanged.
+  Root independently ran **83** profile, audit owner-scope/correction and
+  supervisor-gate checks; the worker reports 15 Jest tests and a clean
+  TypeScript check. **Browser and restart acceptance remain open.**
+- Audit/Learning browser **replay2** (pinned source `60a8b7050`, build
+  `j7CZbuv5eLLT0wE6OnYyZ`) got past the earlier sign-in defect but not the
+  route. Real browser same-origin sign-in **passed** with the intended seeded
+  member and secure/httpOnly cookies; the credentials callback returned 200
+  with no CSRF refusal or error and the shell stayed alive. The run then failed
+  its first **route** assertion: `/audit-trail` was served and admitted, but
+  the explorer never mounted and no `/api/audit/*` request was made, because
+  the core product profile classifies `/audit-trail` as deferred `governance`
+  while the sidebar advertises it as `activity`. There is **no browser
+  acceptance and no restart acceptance** for the audit surface; zero audit
+  reads, corrections or provider calls occurred.
 
-Later root review on November 17 retained: #987's broader 16-file replay at
+Earlier root runs remain retained negatives: the broader 16-file replay at
 local `69f12d7388f9a141134dc9434d1244a08e965abe` finished with **1,424 passed
-and 59 failed**, with no errors or skips. Its 12 actor/history cases passed, but
-the broader result remains **unqualified**, with causes under investigation.
-That local head is not published; the newer independent replay above is on the
-pre-merge head `070d1b46b`.
+and 59 failed** of 1,483, with no errors or skips. Those failures were later
+diagnosed as stale legacy test fixtures, not product regressions: every
+failing path was already byte-identical to `ba66`, they were repaired
+tests-only inside #987, and the final pre-merge replay passed all **1,483**.
+The integrated head still has no broad replay, and the failed run is not erased
+by the repair.
 
 Later root CI observation on November 17: main #989's
 [CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691)
@@ -173,6 +201,7 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
 
 | Delivery | Source-bound scope | Does not establish |
 |---|---|---|
+| **#987 durable chat ownership and scoped history access** | `core/chat_message_authority.py` resolves the write authority inside the transcript write transaction and CAS-fences the exact actor and durable `ChatSession`; the admitted actor/scope snapshot is captured at turn entry, so a same-user tenant/workspace move mid-turn, a suspension, deletion or unreadable authority refuses the append while still delivering the answer. External bridge senders keep their declared scope and cannot be adopted by a local caller. One read twin (`resolve_chat_read_scope`) authorizes history/trace/task/memory/details/list/fork/rename/delete/feedback on every request, with the durable owner beating a stale label and an authority outage returning 503 instead of an empty cache. The enabled M3 boundary feeds the same canonical text to WS close, HTTP and the durable row and fails closed when validation is unreadable. Merged at `31e2aebf`, tree `991cd1cf`; exact head `8b0e5367a` had all 17 checks successful; **1,483** independent tests on pre-merge tree `ee098d8b`, feature-patch equivalence and **692** CI-contract checks. | Live database, provider/model, browser, restart, PostgreSQL or multi-worker acceptance; whole-app semantic truth or model quality. `CHAT_FINALIZATION_M3` stays default **OFF** and remains a limited-vocabulary pre-delivery boundary; a frozen legacy claim split across already-released chunks can still reach the live bubble mid-stream (the final carriers are covered), and non-canvas or protocol-rejection turns are unchanged. No chat per-session grant or admin-all-tenant bypass was invented. No broad replay exists at the integrated head. |
 | **#991 acceptance-world storage preflight** | `validate_local_world.resolve_storage_config` is the one resolver shared by the launcher, browser preflight and canvas harness: it calls the guard's own `load_config` (env relocation + guard precedence) and refuses a missing relocated config instead of falling back to the checkout root. Both private parse-and-mkdir bootstraps are removed, the launcher re-checks `assert_worlds_root_usable` immediately before the first world `mkdir`, and `provision_isolated_world_store.py` creates only an empty store root plus an out-of-tree config, refusing the canonical root, bypass, non-empty stores and overwrite. Real shell launcher/guard/validator controls stop at a labelled pre-server boundary; **103 focused tests** passed (new 19 + browser preflight 39 + canvas 10 + guard 35), the lane ledgers register the step exactly once, the lane/quickstart contract passed **711**, and root independently ran the file as **29 passed**. Merged at `4071ef9ba`; exact head `734725186` had all 17 checks successful. | Any browser, login or restart acceptance; an actual acceptance journey from a fresh world; a root that disappears while a world is already running; drive-removal runtime behavior; PostgreSQL, provider/model or whole Goal 16. The canonical worlds root stayed absent throughout, so the fresh-world launch path itself was not exercised end to end. |
 | **#988 graduation evidence binding** | The campaign producer's digest-sealed `benchmark_evidence` becomes the only binding authority: embedded execution id, agent, tenant, workspace and completion time must match; bare identity/dataset/rubric/scope metadata is audit-only; multiple differing records fail closed as `conflict`; bundle enumeration lists bound campaign executions before episode work; v2 receipts bound from bare metadata revalidate as `unresolved_stale` and need a fresh review. A new end-to-end counter test drives producer → canonical validator → review/receipt → promotion → runtime baseline → resolver → real `LLMService`/`BYOKHandler` over `httpx.MockTransport`, with 21 tamper/digest/accuracy/build/receipt/revision/scope/profile/dataset/rubric/scoring/supersession/stale/echo/cooldown/401/concurrency cases. Offline **84** for the migrated plus new files, **231** in the wider graduation neighborhood and **54** decision-contract checks. Merged at `59fa6b64b`; exact head `4459e680d` had all 17 checks successful. | Real served-model quality, an unfamiliar-work qualification, a live campaign, any provider/model call, PostgreSQL, or evidence that the stricter binding improves answer quality. Synthetic campaign journal, in-repo registry and fake transport only. |
 | **#989 CI lineage-preserving lanes** | Four backend core lanes (19 / 20 / 14 / 26 post-setup steps) with all 79 existing step dictionaries byte-identical and registered once; `backend-tests` still needs all six backend lanes and adds no retry/skip/soft gate. Local contract run 706 passed. README records an **estimated** 42.6-minute critical lane and +5.7 runner-minutes, with the unmetered M3 caveat and concurrency/queueing limit. Merged at `ba66f5e22`; exact PR head `0e1b9065e` had all 17 checks successful. | Any measured speedup or app latency; the runtime behavior of the product merges it now schedules; Goal 17. Its main Docker and CI runs later completed successfully, but that is delivery, not application latency. |
@@ -223,19 +252,33 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
   launcher file) are **not** browser, login or restart acceptance, and the
   canonical worlds root stayed absent, so the fresh-world launch path was not
   exercised end to end.
+- #987's 1,483-test pre-merge replay, its feature-patch equivalence and its
+  17/17 checks are **not** a broad replay at the integrated head, and not a
+  live database, provider/model, browser, restart, PostgreSQL or whole-app
+  semantic acceptance. Its M3 boundary remains default OFF and
+  limited-vocabulary, and it does not prove model answer quality.
 - The audit/learning browser attempt at `60a8b7050` produced **no** acceptance:
   build and preflight passed, but the browser runs failed in the harness at
   start-up and at the post-sign-in `web_session.email` read, with no restart
-  run at all.
+  run at all. Replay2 later passed real sign-in but failed the audit route
+  gate with zero audit reads, so it adds no browser or restart acceptance
+  either.
+- The unmerged audit candidate `76a3bbc15` and its 83 passing root checks are
+  **not** merged and **not** browser/restart acceptance; its narrow Activity
+  mapping is a candidate, not shipped behavior.
+- #990's published 85fb head is **not** merged: its hosted guided-duplicate
+  failure is real, the 81-test repair replay covers a different path, and the
+  local compatibility repair is unmerged with no hosted run.
 - #981's single-revision PostgreSQL 14.24 run is **not** migration breadth,
   full-graph upgrade, app-on-PostgreSQL or concurrency.
 - #982 timing output and #989 lane partitioning are **delivery and observability**,
   not application performance, throughput or Goal 17; #989's lane budget is
   explicitly an estimate and no speedup is claimed.
 - The frozen documentation inventory is **not** DOCS-REF-01 closure.
-- An open PR in the dated queue (for example #987/#990 at this cut) is **not**
-  merged and carries no acceptance, even when its author or root reports a
-  local replay or a passing repair suite (1,483 and 81 respectively).
+- An open PR or candidate in the dated queue (#990, the unmerged
+  `76a3bbc15` audit mapping) is **not** merged and carries no acceptance, even
+  when a worker or root reports passing local suites (81 repair, 83 audit or
+  the 264-node compatibility sweep).
 
 Account deletion is a separately inferred possible improvement, not an original
 143-claim requirement or an added completion gate for Goal 1.
@@ -260,10 +303,13 @@ Account deletion is a separately inferred possible improvement, not an original
   published.
 - #989 did not edit, merge, split or deselect a test step and did not change
   branch protection; its contract suite proves preservation, not runtime speed.
-- #988 and #991 are recorded as merged deliveries with their own bounded limits;
-  their addition revises no original claim, goal state, audit byte or the
-  historical **111/123** result. The audit/learning browser attempt contributes
-  no app evidence because its failures were in the harness.
+- #987, #988 and #991 are recorded as merged deliveries with their own bounded
+  limits; their addition revises no original claim, goal state, audit byte or
+  the historical **111/123** result. #987's 1,424/59 broader-gate failure is
+  preserved as a real failed run; its later tests-only fixture repair and the
+  1,483-pass replay do not erase it. The audit/learning browser attempts,
+  replay2's sign-in pass, the unmerged `76a3bbc15` mapping and #990's open
+  repair contribute no goal state and no score.
 
 ## Original overlay source and validation basis
 
@@ -294,7 +340,7 @@ Account deletion is a separately inferred possible improvement, not an original
   `/private/tmp/atom-pr988-final-merge-receipt.json` and
   `/private/tmp/atom-pr991-final-merge-receipt.json` (17/17 successful checks,
   tree equality, unchanged protections), `/private/tmp/atom-pr987-qualified-merge-result-v3-20261117.json`
-  (unmerged, waiting exact-head CI),
+  (unmerged and waiting exact-head CI at that cut; later merged as `31e2aebf`),
   `/private/tmp/atom-root-approval-atomic-main991-20261117.{xml,log,json}`
   (81 repair tests on the pinned #990 review merge) and
   `/private/tmp/atom-root-chat-main988-root-20261117.log` (1,483-test replay).
@@ -311,3 +357,37 @@ Account deletion is a separately inferred possible improvement, not an original
   policy or configuration byte changed beyond the verified main merge.
 - New bounded evidence above does not change the original audit, the 143 claim
   identities, the 18 goal states or `app_complete: false`.
+
+## Navigation refresh at #987 (this pass)
+
+- Local checkout: branch `codex/readiness-navigation-refresh-20261117` at
+  `6b34adf740e3a0983a96fdc64df2911456922c65`, tree
+  `5f29386aba995ead5a057985b584aaba29956390`, parent `d8f3686ef`; worktree
+  clean before editing. Verified pinned main
+  `31e2aebf7cec3fe265e131a1ad27374bbe082654` (tree `991cd1cf`, sole parent
+  `4071ef9ba`, a squash merge of PR #987) was merged naturally, with **zero
+  conflicts**: this branch had changed only four documentation files since
+  `4071ef9ba`, and #987 changed no document this overlay owns.
+- The merge is verified by content, not by message: `git diff 31e2aebf HEAD`
+  shows only the four documentation files, so every non-doc path is
+  byte-identical to pinned main. The upstream squash commit `31e2aebf` itself
+  has tree `991cd1cf`, equal to the PR-head tree; this branch's local merge
+  commit adds only the four documentation edits on top of that tree.
+- Delivery identities came from retained receipts and records, not a new
+  GitHub query: `/private/tmp/atom-pr987-final-merge-receipt.json` (17/17
+  successful checks, tree equality, unchanged protections),
+  `/private/tmp/atom-pr987-qualified-merge-result-v3-20261117.json`,
+  `/private/tmp/atom-audit-browser-60a8b7-replay2.log`,
+  `/private/tmp/atom-audit-mount-diagnosis.md`,
+  `/private/tmp/atom-audit-member-route-summary.md`,
+  `/private/tmp/atom-pr990-guided-compat-summary.md` and
+  `/private/tmp/atom-pr990-85fbd635-failed-job.log`. The post-merge main run
+  IDs are recorded as **started** only.
+- Scope of this pass: documentation and reference checks only — no app, server,
+  browser, test run, provider/model call, PostgreSQL cluster, install, data,
+  credential, portable-media write or push. No product, CI, test, schema,
+  policy or configuration byte changed beyond the verified main merge.
+- The 143 original claim identities, 18 goal rows, historical **111/123
+  (90.2%)** and `app_complete: false` are unchanged; the original audit JSON is
+  byte-identical. #987's merge, replay2's sign-in, the unmerged `76a3bbc15`
+  mapping and #990's open repair revise no claim or goal.

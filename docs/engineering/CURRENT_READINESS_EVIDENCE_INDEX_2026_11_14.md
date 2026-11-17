@@ -20,13 +20,13 @@ Optional never-autonomous task baskets: [behavior, limits and independent local 
 > **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current navigation overlay:** [Current goal map — 2026-11-17](CURRENT_GOAL_MAP_2026_11_17.md) is the current release and remaining-acceptance navigation at main `4071ef9ba11f68e645c4514ce7621fa9db9403c8` (#991), tree `52a7dbd66cf28895c3ca87ee42f4fd12d37996a5`, sole parent `59fa6b64b672a3a4c35e8db9b4ef97653b0ad930` (#988). It preserves the original 143 claims / 18 goals and the historical 111/123 result.
+> **Current navigation overlay:** [Current goal map — 2026-11-17](CURRENT_GOAL_MAP_2026_11_17.md) is the current release and remaining-acceptance navigation at main `31e2aebf7cec3fe265e131a1ad27374bbe082654` (#987), tree `991cd1cf96aeead642d6455c4352c92e673b8441`, sole parent `4071ef9ba11f68e645c4514ce7621fa9db9403c8` (#991). It preserves the original 143 claims / 18 goals and the historical 111/123 result.
 >
-> **Current release cut (2026-11-17 UTC):** main `4071ef9ba` through #991. #988 graduation model-evidence binding merged `59fa6b64b` (exact head `4459e680d`, 17/17 checks successful; synthetic campaign scope only, real served-model quality still unknown). #991 acceptance-world storage preflight merged `4071ef9ba` (exact head `734725186`, 17/17 checks successful; 103 focused offline tests across four files, including the 29-test launcher file root re-ran, plus 711 lane/quickstart contracts — no browser, login or restart acceptance). #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22`. #987 remains **unmerged** at head `8b0e5367a` with a 1,483-pass independent replay on its pre-merge head, and #990 remains **unmerged** at pinned merge `85fbd6357` with 81 independent root repair tests; neither earns acceptance. At the audit/learning cut `60a8b7050`, build and storage preflight passed, but the first browser run and the seeded replay failed in the harness at start-up and the post-sign-in `web_session.email` read: no browser or restart acceptance. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals; CI delivery is not application performance.
+> **Current release cut (2026-11-17 UTC):** main `31e2aebf` through #987. #987 durable chat ownership and scoped history access merged `31e2aebf` (exact head `8b0e5367a`, squash merge with sole parent `4071ef9ba`; all **17** checks successful, and the merge tree `991cd1cf` equals the PR-head tree). Qualification is **1,483 independent tests on the pre-merge tree `ee098d8b`** (`070d1b46`), independently identical non-CI feature changes after main integration, and **692** CI-contract checks; there is **no broad replay at the integrated head**. Its post-merge main CI `44192476933` and Docker `44192476883` were **started**, not reported complete. #991 acceptance-world storage preflight merged `4071ef9ba` (exact head `734725186`, 17/17; 103 focused offline tests across four files, including the 29-test launcher file root re-ran, plus 711 lane/quickstart contracts — no browser, login or restart acceptance). #988 graduation model-evidence binding merged `59fa6b64b` (exact head `4459e680d`, 17/17; synthetic campaign scope only, real served-model quality still unknown). #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22`. #990 remains **unmerged** at published `85fbd6357`: its hosted run `44184658257` failed the guided-duplicate approval node with 409 `DECISION_CONFLICT` where the alias surface contract expects 400, and the local compatibility repair `007f43b56` is unmerged with no hosted run. The unmerged audit candidate `76a3bbc15` narrowly remaps `/audit-trail` to Activity; root ran 83 profile/audit/supervisor checks, but browser and restart acceptance remain open. Audit/Learning browser **replay2** at pinned `60a8b7050` passed real sign-in (intended seeded member, secure/httpOnly cookies, callback 200, no CSRF refusal) and then failed the audit **route gate**: the page was served but never mounted, no `/api/audit/*` read occurred, because core defers `/audit-trail` as governance. No browser or restart acceptance. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals; CI delivery is not application performance.
 >
-> **Preceding release cut (through #989):** main `ba66f5e22` through #989. #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22` (application bytes are #986's; #989 changes only CI/test scaffolds). #989's exact PR head `0e1b9065e` had all 17 checks successful with unchanged protections; its own main Docker run `44157075848` is recorded successful and CI `44157075691` later completed successfully at exact `ba66f5e22`, so no performance result is claimed for it. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals.
+> **Earlier release cut (through #989):** main `ba66f5e22` through #989. #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22` (application bytes are #986's; #989 changes only CI/test scaffolds). #989's exact PR head `0e1b9065e` had all 17 checks successful with unchanged protections; its own main Docker run `44157075848` is recorded successful and CI `44157075691` later completed successfully at exact `ba66f5e22`, so no performance result is claimed for it. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals.
 >
-> **Earlier release cut:** main `02c9b1674` through #978. #978 document source authority merged with all 15 exact-head checks successful; its main Docker run `44011603162` succeeded and CI `44011603158` was still running at that cut (the goal map records both #978 main runs completed successfully). [Common-format browser/restart evidence](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md) passed at `8c142c101`. [Fleet case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) failed workflow acceptance; its correct direct response is not fleet completion. #975 Learning merged `7a22e6d07`; #976 Activity merged `8b48dd84a`; #977 optional never-autonomous task families merged `0e9b0dfc9`. PR #977 exact head `488e956c6` had all 15 check runs successful. Main-branch post-merge #977 CI run `43985428885` and Docker run `43985428863` both completed successfully on exact merge `0e9b0dfc9`, independently re-queried by root on 2026-11-17. #976 main CI/Docker and #975 main CI/Docker each succeeded. These are source deliveries, not a regrade of the original 143 claims/18 goals.
+> **Earlier #978 release cut:** main `02c9b1674` through #978. #978 document source authority merged with all 15 exact-head checks successful; its main Docker run `44011603162` succeeded and CI `44011603158` was still running at that cut (the goal map records both #978 main runs completed successfully). [Common-format browser/restart evidence](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md) passed at `8c142c101`. [Fleet case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) failed workflow acceptance; its correct direct response is not fleet completion. #975 Learning merged `7a22e6d07`; #976 Activity merged `8b48dd84a`; #977 optional never-autonomous task families merged `0e9b0dfc9`. PR #977 exact head `488e956c6` had all 15 check runs successful. Main-branch post-merge #977 CI run `43985428885` and Docker run `43985428863` both completed successfully on exact merge `0e9b0dfc9`, independently re-queried by root on 2026-11-17. #976 main CI/Docker and #975 main CI/Docker each succeeded. These are source deliveries, not a regrade of the original 143 claims/18 goals.
 >
 > **Historical release cut:** main `5176c9e79f3a70e63f7110187f431fff8ab14fed` through #972 was the cut named by the preceding version of this banner. Its records and all earlier source-bound evidence remain at their original sources.
 >
@@ -1139,7 +1139,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 
 | Document | Role |
 |---|---|
-| [`CURRENT_GOAL_MAP_2026_11_17.md`](CURRENT_GOAL_MAP_2026_11_17.md) | Current 18-goal plus DOCS-REF-01 navigation/remaining-acceptance overlay at main `0e9b0dfc9`; preserves this index's historical sections and all original claim identities. |
+| [`CURRENT_GOAL_MAP_2026_11_17.md`](CURRENT_GOAL_MAP_2026_11_17.md) | Current 18-goal plus DOCS-REF-01 navigation/remaining-acceptance overlay at main `31e2aebf` (#987); preserves this index's historical sections and all original claim identities. |
 | [`APP_GOALS_INDEX.json`](APP_GOALS_INDEX.json) | Canonical 18 goals, explicit user requirements, historical quick reference. |
 | [`APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json`](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json) | Machine-readable 143-claim audit: historical status, current disposition, evidence refs, gap, owner, next work order. |
 | [`APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md`](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md) | Narrative audit; §7 is the 18-goal map. |
@@ -1863,3 +1863,119 @@ and all 143 claims / 18 goals remain unchanged.
 ## Scoped skill maturity and ordinary-agent consumption — November 15 follow-through
 
 [Scoped maturity and joined skill regression](SCOPED_SKILL_MATURITY_2026_11_15.md) covers the actual skills API and normal agent loop after ordinary creation and reviewed promotion. Scope-bearing execution now looks up the employee in that scope; unscoped legacy callers keep their existing governance path. The known STUDENT denial remains 400 with an explanatory message. Synthetic training/model/scanner/sandbox fixtures remain explicit; no learned capability, training producer, live quality, restart, Docker or UI completion is implied.
+
+
+## 19. Durable chat ownership, remaining browser records and unmerged candidates — November 17
+
+### Merged #987 — durable chat ownership and scoped history access
+
+Main `31e2aebf7cec3fe265e131a1ad27374bbe082654` (tree
+`991cd1cf96aeead642d6455c4352c92e673b8441`, sole parent `4071ef9ba`) contains
+#987 as a squash merge whose tree is exactly the PR head `8b0e5367a` tree. All
+**17** exact-head CI/security checks passed; the review-only merge did not
+bypass a failed or pending check. The post-merge main runs
+[CI 44192476933](https://github.com/rush86999/atom/actions/runs/44192476933)
+and [Docker 44192476883](https://github.com/rush86999/atom/actions/runs/44192476883)
+had **started** at the time of this record; no completion, failure, latency or
+performance result is claimed.
+
+Accepted scope, at the named sources:
+
+- **Durable write ownership.** A new `backend/core/chat_message_authority.py`
+  resolves the acting user and the durable `ChatSession` inside the transcript
+  write transaction and CAS-fences the exact snapshots. A turn captures the
+  admitted actor/scope once at entry, before awaited provider work; a same-user
+  tenant or workspace move mid-turn, a suspension, a deletion or an unreadable
+  authority refuses the append and still delivers the answer with
+  `assistant_message_id` NULL. External bridge senders keep their declared
+  construction scope and cannot be adopted by a local caller; a legacy
+  placeholder is reclaimed in the same transaction that fences the session.
+- **Scoped public reads.** `resolve_chat_read_scope` is the read twin and
+  authorizes history, trace, task, memory, session-details, session list, fork,
+  rename, delete and feedback on every request. The durable owner wins over a
+  stale cache in both directions; an external/system owner is refused; a
+  durable authority outage is 503, never an empty cache. No per-session grant
+  or admin-all-tenant bypass was invented, and the pre-existing tenant-scoped
+  aggregate endpoint is unchanged.
+- **One M3 delivery text.** When `CHAT_FINALIZATION_M3=1`, the canonical
+  boundary feeds WS close, HTTP and the durable row the same text, and fails
+  closed when validation is unreadable or a claim-shaped reply cannot be
+  cleared. The flag remains default **OFF**.
+
+Boundary evidence: **1,483 independent tests passed** on the pre-merge source
+`070d1b46` (tree `ee098d8b`, the same tracked tree as `395cbb`); after main
+integration the non-CI feature patch is independently identical, with **692**
+CI-contract checks. This is not a broad replay at the integrated head.
+
+Limits preserved: no live database, provider/model, browser, restart,
+PostgreSQL, multi-worker or whole-app semantic acceptance. M3 is a
+limited-vocabulary pre-delivery boundary, not a proof of whole-app
+truthfulness, and a frozen legacy claim split across already-released chunks
+can still reach the live bubble mid-stream, although the final carriers are
+covered. The earlier **1,424 passed / 59 failed** broader-gate run at local
+`69f12d7` remains a real failed run. Its 59 failures were then diagnosed as
+stale legacy test fixtures (the same named nodes failed on product bytes
+identical to `ba66`), repaired tests-only inside #987, and the final pre-merge
+replay passed all 1,483. The integrated head still has no broad replay.
+
+### Audit/Learning browser replay2 — sign-in passed, route gate failed
+
+Pinned source `60a8b7050` and build `j7CZbuv5eLLT0wE6OnYyZ`. The earlier
+harness sign-in defect did not recur: the real browser same-origin session
+returned 200 with the intended seeded member, secure/httpOnly cookies, a 200
+credentials callback, `csrfRefused=false`, `errorPresent=false` and an empty
+page-error list. The run then failed its first assertion after login:
+`/audit-trail` was served and admitted, the app shell stayed alive, but the
+audit explorer never mounted in 51.6 seconds and **zero** `/api/audit/*`
+requests were made. The traced cause is release scope, not authorization: the
+core product profile maps `/audit-trail` to deferred `governance`, while the
+sidebar advertises it as `activity`, so the app surface rendered
+`NotInRelease`. No audit read, correction, learning, export or provider
+mutation occurred, and both listeners were confirmed closed.
+
+This is **not** browser or restart acceptance. Replay1's harness failures and
+the separate seeded-replay failure remain at their original logs.
+
+### Unmerged audit member-route candidate `76a3bbc15`
+
+The candidate (tree `13ed22d5`, frontend `3c54891f`) moves only `/audit-trail`
+from deferred `governance` to enabled `activity` in the backend route table and
+the frontend core fallback, and updates the existing acceptance script, focused
+tests and architecture note. Admin, owner, forensics, risk, system-status and
+harness-evolution dashboard routes stay governance-only; audit API
+scope/auth/correction boundaries and the historical acceptance-ledger bytes
+are unchanged. Root independently ran **83** profile, audit owner-scope/
+correction and supervisor-gate checks; the worker reports 15 Jest tests, a
+clean TypeScript check and a clean `browser_core_surface.mjs` syntax check.
+The candidate is **unmerged**, and browser plus restart acceptance remain open.
+
+### Approval #990 — published failure, local repair unmerged
+
+The latest published head
+`85fbd6357f7e30efe3718c22fc2782fce94edaa4` (tree `83c72091`, parent
+`4071ef9ba`) is **unmerged**. Hosted run `44184658257` failed
+`backend-core-extra-isolated` job `134397829262` in
+`test_guided_hitl_approval_creates_one_reviewed_agent`: the first guided create
+returned 200, then the duplicate approval returned 409 `DECISION_CONFLICT`
+where the established alias surface contract expects plain 400. The earlier
+**81** root repair tests at that pinned head remain real but do not cover this
+path.
+
+A local compatibility repair `007f43b56` (tree `74333d47`, two files) is
+**unmerged** and has no hosted run. It restores the alias route's plain 400 for
+a decision repeated on an already-terminal row, after every existing auth,
+scope, role, never-autonomous and preflight gate, while leaving the shared
+writer's strict 409 for service/governance callers and genuine claim races.
+Scratch-SQLite/FastAPI controls passed: 26 guided API, 139 common decision,
+167 adjacent approval, 73 checkpoint-remainder and 94 touched-contract
+regressions; a wider 264-node sweep passed 257 with 7 failures that reproduce
+identically on an unchanged `85fbd6357` worktree. No hosted green, PostgreSQL
+or whole-goal claim.
+
+### Preserved in this record
+
+The original audit JSON is byte-identical; all 143 claim identities, 18 goal
+rows, historical **111/123 (90.2%)** and `app_complete: false` are unchanged.
+#987, replay2's sign-in, the unmerged `76a3bbc15` mapping and #990's open
+repair add no claim, no goal state and no score. Failed runs remain failures at
+their original sources.
