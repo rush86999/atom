@@ -409,6 +409,7 @@ async def pinned_structured_call(
     provenance: Optional[Dict[str, Any]] = None,
     failure_capture: Optional[Dict[str, Any]] = None,
     strict_pin: Optional[bool] = None,
+    qualification_authority: Optional[Any] = None,
 ) -> Any:
     """Structured call that honours a pin, then falls back to unpinned routing.
 
@@ -466,6 +467,12 @@ async def pinned_structured_call(
         weaker provider call. ``None`` keeps the historical derivation (an
         explicitly passed capability profile makes the pin strict; an
         auto-derived profile does not).
+
+        ``qualification_authority`` is the SERVER-minted measured-evidence
+        reference for this exact pin (``core.llm.qualification_authority``).
+        It rides only the pinned attempt, is never forwarded to an unpinned
+        retry, and makes the call exact-route-or-failure by construction: a
+        reference describing one route cannot authorize a different one.
     """
     # A call's diagnostics are its own: open a fresh record before any
     # provider work, so a previous or overlapping call can neither lend this
@@ -524,7 +531,13 @@ async def pinned_structured_call(
     if execution_id:
         base["route_trace_id"] = f"{stage or log_label}:{execution_id}"
     if extra_kwargs:
-        base.update(extra_kwargs)
+        # Per-call extras are provider-generation kwargs. The measured
+        # authority is a DEDICATED argument: an extra dict can never smuggle
+        # one into the unpinned attempt (or override the caller's explicit
+        # reference) by key name.
+        _extra = dict(extra_kwargs)
+        _extra.pop("qualification_authority", None)
+        base.update(_extra)
 
     try:
         from core.llm.model_provenance import (
@@ -568,9 +581,16 @@ async def pinned_structured_call(
     # directly (``strict_pin=True``) for an evidence-pinned graduation route
     # whose profile is resolved by the call label; ``None`` keeps the
     # historical behavior byte-identically.
+    # A measured QUALIFICATION AUTHORITY is stricter than either: the
+    # authority only describes THIS route, so an unpinned retry could not
+    # carry it and would be a weaker, unmeasured fallback. Its presence
+    # therefore forces exact-route-or-failure regardless of caller flags.
+    _authority_supplied = qualification_authority is not None
     _strict_explicitly_requested = strict_pin is True
     _strict_requested = (
-        bool(capability_profile) if strict_pin is None else bool(strict_pin))
+        True if _authority_supplied
+        else bool(capability_profile) if strict_pin is None
+        else bool(strict_pin))
     strict_pin = bool(pinned) and _strict_requested
     # STRICTNESS MUST CROSS THE SERVICE BOUNDARY (dispatch-floor repair):
     # refusing the wrapper's own unpinned retry is not enough. The handler can
@@ -582,7 +602,12 @@ async def pinned_structured_call(
     # keep their existing kwargs and fallback behavior byte-identically.
     if pinned and strict_pin:
         pin_kwargs["strict_pin"] = True
-    if _strict_explicitly_requested and not pinned:
+    # The authority rides ONLY the pinned attempt. The unpinned fallback is a
+    # different (or no) route and must never inherit a measurement that was
+    # proven for the pinned route.
+    if pinned and _authority_supplied:
+        pin_kwargs["qualification_authority"] = qualification_authority
+    if (_strict_explicitly_requested or _authority_supplied) and not pinned:
         # A strict qualification call whose pin never materialized (a caller
         # built no pin, or build_provider_model_pin refused it for policy/
         # local-only/missing-client) has no exact route to preserve. Issuing

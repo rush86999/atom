@@ -1344,6 +1344,7 @@ async def propose_employee_work(
     strict_pin: Optional[bool] = None,
     expected_route: Optional[Sequence[str]] = None,
     expected_build: Optional[str] = None,
+    qualification_authority: Any = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
@@ -1361,6 +1362,12 @@ async def propose_employee_work(
     identity takes the ordinary deterministic fallback and is never credited
     as model work. Callers without a qualification decision pass neither and
     keep the historical contract byte-identically.
+
+    ``qualification_authority`` is the OPTIONAL server-minted measured-evidence
+    reference for the SAME pin (``core.llm.qualification_authority``). It is
+    forwarded only with the pinned attempt and is revalidated by the dispatch
+    floor; it is not identity proof and never substitutes for the route/build
+    check above.
     """
     journal = attempt_journal
     if journal is None:
@@ -1419,6 +1426,8 @@ async def propose_employee_work(
                 attempt_observer=_observe,
                 provenance=provenance,
                 strict_pin=strict_pin,
+                qualification_authority=(
+                    qualification_authority if provider_model else None),
             )
             budget = max(0.0, float(deadline_seconds or 0.0))
             result = (

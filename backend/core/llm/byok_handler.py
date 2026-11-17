@@ -2720,6 +2720,62 @@ class BYOKHandler:
         return str(operation) in ("structured", "tools") and key in (
             _STRUCTURED_PROTOCOL_UNSUPPORTED)
 
+    # --- Qualification authority (dispatch-floor measured prior) ----------
+
+    def _revalidate_pin_authority(
+        self, authority: Any, provider: str, model: str,
+    ) -> Dict[str, Any]:
+        """Recompute one measured qualification authority for THIS pin.
+
+        The handler owns no durable cache of authority: every call re-reads
+        the current receipt/binding and the validated benchmark rows through
+        the canonical service APIs. A missing/unreadable DB, a stale or
+        tampered reference, or an unavailable reader is an explicit failure
+        (never a licence to fall back to the static prior for an
+        authority-carrying call).
+        """
+        from core.llm.qualification_authority import (
+            revalidate_qualification_authority,
+        )
+
+        db = getattr(self, "db_session", None)
+        session_context = None
+        if db is None:
+            try:
+                from core.database import get_db_session
+
+                session_context = get_db_session()
+                db = session_context.__enter__()
+            except Exception as exc:  # noqa: BLE001 — fail closed
+                return {
+                    "ok": False,
+                    "reason": "authority_unavailable",
+                    "detail": f"{type(exc).__name__}: {exc}",
+                    "provenance": {},
+                }
+        try:
+            return revalidate_qualification_authority(
+                authority,
+                db=db,
+                provider=provider,
+                model=model,
+                workspace_id=self.workspace_id or "",
+                tenant_id=self.tenant_id or "",
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            return {
+                "ok": False,
+                "reason": "authority_unavailable",
+                "detail": f"{type(exc).__name__}: {exc}",
+                "provenance": {},
+            }
+        finally:
+            if session_context is not None:
+                try:
+                    session_context.__exit__(None, None, None)
+                except Exception:  # noqa: BLE001 — never mask the decision
+                    pass
+
     def _dispatch_catalog_admits(
         self, attempt_provider_id: str, model: str,
         requested_provider_id: Any,
@@ -9921,6 +9977,11 @@ class BYOKHandler:
         # boundary too. Forwarded by pinned_structured_call for a strict pin;
         # ``None`` (every legacy/ordinary caller) keeps historical behavior.
         strict_pin: Optional[bool] = None,
+        # Server-minted reference to a validated measured qualification for
+        # this exact pin (see core.llm.qualification_authority). It is
+        # revalidated against current durable state inside the pin gate and
+        # only substitutes the profile's measured quality component.
+        qualification_authority: Optional[Any] = None,
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -10082,7 +10143,9 @@ class BYOKHandler:
             # re-rank used to return a normal model answer before the later
             # identity/effect gate could demote it. ``None`` is every legacy
             # and ordinary caller and keeps the historical re-rank.
-            _strict_pin = bool(strict_pin) and provider_model is not None
+            _strict_pin = (
+                bool(strict_pin) or qualification_authority is not None
+            ) and provider_model is not None
 
             def _refuse_strict_pin(reason: str, detail: str) -> None:
                 """Record and fail ONE strict pin attempt; never dispatch."""
@@ -10265,6 +10328,54 @@ class BYOKHandler:
                     int(round(float(_local_pin.get("quality_score") or 0.0)
                               * 100.0))
                     if _local_pin else get_quality_score(provider_model[1]))
+                _pin_quality_basis = "prior"
+                _pin_authority_provenance = None
+                # SERVER-VALIDATED MEASURED AUTHORITY (dispatch-floor repair).
+                # The repeat-task resolver pins a route from measured held-out
+                # benchmark evidence, but this floor used to re-derive the
+                # quality input from the static brand prior (or a workspace-
+                # declared score) and refuse the very route the comparator
+                # had proven. A request-owned reference now carries ONLY the
+                # durable identifiers of that measurement; the canonical
+                # pipeline is re-run HERE against current state. The reference
+                # is never trusted: missing/stale/superseded/tampered/foreign
+                # material refuses this exact pin (never a weaker fallback).
+                if qualification_authority is not None:
+                    _authority = self._revalidate_pin_authority(
+                        qualification_authority,
+                        provider_model[0], provider_model[1])
+                    _pin_authority_provenance = _authority.get(
+                        "provenance")
+                    if not _authority.get("ok"):
+                        _authority_reason = str(
+                            _authority.get("reason")
+                            or "authority_unreadable")
+                        record_capability_decision({
+                            "event": "pin_refused",
+                            "profile": _capability.metadata(),
+                            "route": list(provider_model),
+                            "reason": (
+                                f"qualification_authority:"
+                                f"{_authority_reason}"),
+                            "authority": _pin_authority_provenance,
+                            "workspace_id": self.workspace_id or "default",
+                            "tenant_id": self.tenant_id or "default",
+                        })
+                        set_routing_error(
+                            "pin_failed",
+                            "the qualification authority is not current: "
+                            f"{_authority_reason}")
+                        raise NoSuitableConfiguredModelError(
+                            _capability, {
+                                "outcome": "pin_failed",
+                                "selection_reason": (
+                                    "the qualification authority is not "
+                                    "current for this route"),
+                                "reasons": [_authority_reason],
+                            })
+                    _pin_quality = int(round(float(
+                        _authority["quality"])))
+                    _pin_quality_basis = "measured_benchmark"
                 _pin_context = None
                 try:
                     from core.dynamic_pricing_fetcher import (
@@ -10281,17 +10392,23 @@ class BYOKHandler:
                     quality=_pin_quality,
                     context_window=_pin_context,
                     evidence=_pin_evidence,
+                    quality_basis=_pin_quality_basis,
                 )
-                record_capability_decision({
+                _pin_journal: Dict[str, Any] = {
                     "event": "pin",
                     "profile": _capability.metadata(),
                     "route": list(provider_model),
                     "eligible": _pin_decision["eligible"],
                     "reasons": _pin_decision["reasons"],
                     "evidence_state": _pin_decision["evidence_state"],
+                    "quality": _pin_quality,
+                    "quality_basis": _pin_quality_basis,
                     "workspace_id": self.workspace_id or "default",
                     "tenant_id": self.tenant_id or "default",
-                })
+                }
+                if _pin_authority_provenance is not None:
+                    _pin_journal["authority"] = _pin_authority_provenance
+                record_capability_decision(_pin_journal)
                 if not _pin_decision["eligible"]:
                     set_routing_error(
                         "pin_failed",

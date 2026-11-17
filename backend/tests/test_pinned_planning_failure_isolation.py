@@ -1435,6 +1435,12 @@ def test_assignment_route_rejects_wrong_build_before_model_proposal(
     service = dispatch_world["service"]
     handler.workspace_id = "route-runtime-workspace"
     handler.tenant_id = "route-runtime-tenant"
+    # ONE durable store: the dispatch handler revalidates the measured
+    # qualification against the SAME scratch world the resolver read. In
+    # production LLMService receives the request session; this harness
+    # constructs the service without one, so bind it explicitly rather than
+    # letting the handler read a different (empty) test DB.
+    handler.db_session = world.Session()
     service._get_handler = lambda *_args, **_kwargs: handler
 
     record = _assignment_record()

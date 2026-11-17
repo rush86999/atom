@@ -345,6 +345,30 @@ with a model route the recorded evidence still supports, without a new review fo
   Inspect tasks/models <https://inspect.aisi.org.uk/tasks> and
   <https://inspect.aisi.org.uk/models.html>; Anthropic eval guidance
   <https://www.anthropic.com/research/demystifying-evals-for-ai-agents>.
+- **Measured authority reaches the dispatch floor.** The capability profile's quality
+  floor is a *prior* until evidence exists. A resolver-pinned route now carries a
+  server-minted reference (`core.llm.qualification_authority`) naming the exact validated
+  material that justified it: current agent/tenant/workspace, receipt id + promotion id +
+  source revision + binding state, evidence id and sealed record/core digests, benchmark
+  id/dataset SHA/rubric/scoring, canonical workload-scope digest, `observed_at`, the
+  callable route and its provider-build echo. The reference is **not** authority and is
+  never trusted as one: the BYOK pin gate re-reads the current baseline, the validated
+  evidence rows and the comparator at dispatch time, and only then substitutes the profile
+  floor's **measured quality component**. Missing, stale (30-day policy), superseded
+  (newer observation), tampered, wrong-receipt/revision, foreign agent/scope/profile,
+  wrong dataset/rubric/scoring/build, unreadable or unpaid/unmeasured material refuses
+  this exact pin with zero weaker fallback. Everything else stays independent: provider
+  policy/credentials/local-only/protocol/context/cooldown/failed-pin exclusion, unsafe-
+  outcome quarantine, current budget and baseline comparability. A generic feedback bucket
+  (e.g. 6/6 accepted outcomes) still cannot mint authority or override the prior; a raw
+  operator pin, an unmeasured route and a caller with no qualification decision keep the
+  historical behavior byte-identically. This is the split mature routers use — a
+  representative, versioned offline measurement for capability, and operational
+  health/policy checks before deployment selection — not an unconditional discount from
+  production feedback. Sources: LangSmith evaluation types
+  <https://docs.langchain.com/langsmith/evaluation-types>; LiteLLM router
+  selection/learn <https://docs.litellm.ai/docs/router/learn/selection>. No synthetic
+  held-out score in this repository is a claim about a real model's quality.
 - **Supervised fallback is the default.** The resolver fails closed: a missing baseline,
   non-comparable binding, unknown or mismatched workload, no fresh eligible route or an
   unresolvable pin all resolve to `supervised`, and ordinary routing is untouched. Before

@@ -692,6 +692,7 @@ def _resolve_assignment_graduation_route(
         return {"decision": None, "pin": None}
     decision: Optional[Dict[str, Any]] = None
     pin: Optional[tuple] = None
+    qualification_authority: Any = None
     try:
         with executor.lifecycle.runs._sessions()() as db:
             from core.models import AgentRegistry
@@ -755,6 +756,37 @@ def _resolve_assignment_graduation_route(
                 }
                 if allowed.get("allowed") and allowed.get("pin"):
                     pin = tuple(allowed["pin"])
+                    # SERVER-MINTED MEASURED AUTHORITY. The resolver has
+                    # already proven the measured route/receipt/binding; this
+                    # reference lets the dispatch floor revalidate the SAME
+                    # measurement instead of re-deriving a static prior. It
+                    # carries identifiers only -- the handler re-reads every
+                    # value from durable state and refuses stale/foreign/
+                    # tampered material.
+                    try:
+                        from core.llm.qualification_authority import (
+                            authority_from_route_decision,
+                        )
+                        from core.llm.graduation_route import ROUTE_PROFILE
+
+                        qualification_authority = (
+                            authority_from_route_decision(
+                                decision, profile_name=ROUTE_PROFILE))
+                    except Exception as exc:  # noqa: BLE001 — no authority
+                        logger.debug(
+                            "assignment %s: qualification authority not "
+                            "minted: %s",
+                            assignment.get("assignment_id"), exc)
+                        qualification_authority = None
+                    if qualification_authority is not None:
+                        authority_payload = (
+                            qualification_authority.as_dict())
+                        decision["qualification_authority"] = (
+                            authority_payload)
+                        # Dispatch carries the serializable reference, not
+                        # the in-process dataclass; the handler revalidates
+                        # from durable state either way.
+                        qualification_authority = authority_payload
                 else:
                     decision["route_state"] = "supervised"
                     decision["selected_route"] = None
@@ -781,7 +813,11 @@ def _resolve_assignment_graduation_route(
         decision.setdefault("autonomous_eligible", False)
         _record_graduation_route_decision(executor, run_id, decision)
         _record_route_marker(executor, run_id, decision)
-    return {"decision": decision, "pin": pin}
+    return {
+        "decision": decision,
+        "pin": pin,
+        "qualification_authority": qualification_authority,
+    }
 
 
 @router.post("")
@@ -1523,6 +1559,10 @@ async def _advance_employee_work(
     #: server-resolved route/build before it can become model work.
     route_pin: Optional[tuple] = None
     route_decision: Optional[Dict[str, Any]] = None
+    #: Request-owned measured authority for the SAME qualification pin. It is
+    #: valid only for THIS advance's exact route and is never cached on the
+    #: executor or consulted by a later/other request.
+    route_authority: Any = None
     for _ in range(max_rounds):
         record = executor.lifecycle.get_task(run_id) or {}
         assignment = record.get("assignment") or {}
@@ -1532,6 +1572,8 @@ async def _advance_employee_work(
             route_decision = resolution.get("decision")
             if route_decision is not None and resolution.get("pin"):
                 route_pin = resolution["pin"]
+                route_authority = resolution.get(
+                    "qualification_authority")
                 provider_model = route_pin
         status = str(assignment.get("status") or "")
         if status in ("failed", "cancelled"):
@@ -1596,7 +1638,9 @@ async def _advance_employee_work(
                 provider_model=provider_model,
                 strict_pin=True if route_pin else None,
                 expected_route=expected_route,
-                expected_build=expected_build)
+                expected_build=expected_build,
+                qualification_authority=(
+                    route_authority if route_pin else None))
             if route_pin:
                 _record_route_identity(
                     executor, run_id, route_pin, route_decision, discovery)
@@ -1668,7 +1712,9 @@ async def _advance_employee_work(
                         provider_model=provider_model,
                         strict_pin=True if route_pin else None,
                         expected_route=expected_route,
-                        expected_build=expected_build)
+                        expected_build=expected_build,
+                        qualification_authority=(
+                            route_authority if route_pin else None))
                     if route_pin:
                         _record_route_identity(
                             executor, run_id, route_pin, route_decision,
@@ -1753,7 +1799,9 @@ async def _advance_employee_work(
             deadline=deadline,
             strict_pin=True if route_pin else None,
             expected_route=expected_route,
-            expected_build=expected_build)
+            expected_build=expected_build,
+            qualification_authority=(
+                route_authority if route_pin else None))
         if route_pin:
             _record_route_identity(
                 executor, run_id, route_pin, route_decision, proposal_result)

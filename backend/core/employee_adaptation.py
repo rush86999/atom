@@ -1202,6 +1202,7 @@ async def propose_adaptation(
     strict_pin: Optional[bool] = None,
     expected_route: Optional[Sequence[str]] = None,
     expected_build: Optional[str] = None,
+    qualification_authority: Any = None,
 ) -> Dict[str, Any]:
     """Propose a response; a provider failure falls back deterministically.
 
@@ -1219,6 +1220,12 @@ async def propose_adaptation(
     and takes the ordinary deterministic fallback instead of model work.
     Callers without a qualification decision pass neither and keep the
     historical contract byte-identically.
+
+    ``qualification_authority`` is the OPTIONAL server-minted measured-evidence
+    reference for the same qualification pin. It is forwarded with each PINNED
+    model stage only (never a stage that drops the pin) so the dispatch floor
+    can substitute the measured quality component the resolver selected. It
+    carries no identity, effect or operational permission.
     """
     response_model = _response_model_for(context)
     journal = attempt_journal
@@ -1405,6 +1412,8 @@ async def propose_adaptation(
             attempt_observer=_observer(stage_name),
             provenance=provenance,
             strict_pin=strict_pin_forced,
+            qualification_authority=(
+                qualification_authority if provider_model else None),
         )
         try:
             if remaining is None:
