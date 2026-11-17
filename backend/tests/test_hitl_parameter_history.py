@@ -1198,6 +1198,267 @@ def test_decision_history_read_route_is_scoped_redacted_and_bounded(scratch, svc
     assert foreign_recent.json() == []
 
 
+def _scoped_user(uid, role, *, workspace, tenant, active=True):
+    """A real User row with independently chosen workspace AND tenant."""
+    user = _user(uid, role, workspace=workspace, active=active)
+    user.tenant_id = tenant
+    return user
+
+
+def _scoped_action(
+    db,
+    *,
+    workspace,
+    tenant,
+    user_id="member-1",
+    reviewed_by=None,
+    status=HITLActionStatus.APPROVED.value,
+    params=None,
+):
+    """A decided HITLAction in an explicitly chosen canonical scope."""
+    action = HITLAction(
+        id=f"hitl-{uuid.uuid4()}",
+        workspace_id=workspace,
+        tenant_id=tenant,
+        user_id=user_id,
+        reviewed_by=reviewed_by,
+        action_type="send_email",
+        platform="governance_policy",
+        params=params if params is not None else {
+            "to": "synthetic@example.com"},
+        reason="Needs review",
+        status=status,
+    )
+    db.add(action)
+    db.commit()
+    return action.id
+
+
+def test_default_supervisor_and_admin_cannot_read_foreign_named_decision(scratch):
+    """The counter shape: Personal/default TEAM_LEAD and ADMIN, named row.
+
+    Personal/default authority is NOT a wildcard for another named
+    tenant/workspace on the new history/recent reads — and it does not become
+    one for ADMIN either (no invented global-admin privilege).
+    """
+    scratch.db.add_all([
+        _scoped_user(
+            "personal-lead", UserRole.TEAM_LEAD, workspace=None, tenant=None),
+        _scoped_user(
+            "personal-admin", UserRole.ADMIN, workspace=None, tenant=None),
+    ])
+    scratch.db.commit()
+    aid = _scoped_action(
+        scratch.db,
+        workspace="ws-named",
+        tenant="tenant-named",
+        reviewed_by="lead-1",
+    )
+
+    for uid in ("personal-lead", "personal-admin"):
+        client = _alias_client(scratch.db, uid)
+        history = client.get(f"/api/agents/approvals/{aid}/history")
+        assert history.status_code == 404, (uid, history.text)
+        assert history.json()["detail"]["error"]["code"] == (
+            "APPROVAL_NOT_FOUND")
+        recent = client.get("/api/agents/approvals/recent")
+        assert recent.status_code == 200, (uid, recent.text)
+        assert aid not in [item["id"] for item in recent.json()]
+
+
+@pytest.mark.parametrize(
+    "actor_ws,actor_tenant,action_ws,action_tenant,allowed",
+    [
+        # Same canonical default scope (None / "" / "default" one scope).
+        (None, None, None, None, True),
+        ("default", "default", "", "", True),
+        ("", "", None, None, True),
+        # Same named scope.
+        ("ws-a", "tenant-a", "ws-a", "tenant-a", True),
+        # Same mixed scope (named tenant, default workspace) is the SAME scope.
+        (None, "tenant-a", "", "tenant-a", True),
+        # Default actor vs named action, both dimensions and each one alone.
+        (None, None, "ws-a", "tenant-a", False),
+        (None, None, "ws-a", None, False),
+        (None, None, None, "tenant-a", False),
+        # Reverse direction: named-on-one-axis actor vs default action.
+        ("ws-a", None, None, None, False),
+        (None, "tenant-a", None, None, False),
+        # Named mismatches.
+        ("ws-a", "tenant-a", "ws-b", "tenant-a", False),
+        ("ws-a", "tenant-a", "ws-a", "tenant-b", False),
+        # Mixed named/default in BOTH directions on one axis.
+        ("ws-a", None, "ws-a", "tenant-a", False),
+        ("ws-a", "tenant-a", "ws-a", None, False),
+    ],
+)
+def test_read_scope_is_exact_not_a_default_wildcard(
+    scratch, actor_ws, actor_tenant, action_ws, action_tenant, allowed,
+):
+    """Scope is exact canonical equality — default never wildcards a named peer.
+
+    Both the per-decision history and the discoverability list must apply the
+    SAME rule in both directions, for workspace and tenant independently.
+    """
+    uid = "lead-" + uuid.uuid4().hex[:10]
+    scratch.db.add(_scoped_user(
+        uid, UserRole.TEAM_LEAD, workspace=actor_ws, tenant=actor_tenant))
+    scratch.db.commit()
+    aid = _scoped_action(
+        scratch.db, workspace=action_ws, tenant=action_tenant,
+        reviewed_by="lead-1")
+
+    client = _alias_client(scratch.db, uid)
+    history = client.get(f"/api/agents/approvals/{aid}/history")
+    recent = client.get("/api/agents/approvals/recent")
+    assert recent.status_code == 200, recent.text
+    listed = aid in [item["id"] for item in recent.json()]
+
+    if allowed:
+        assert history.status_code == 200, history.text
+        assert listed, recent.text
+    else:
+        assert history.status_code == 404, history.text
+        assert history.json()["detail"]["error"]["code"] == (
+            "APPROVAL_NOT_FOUND")
+        assert not listed, recent.text
+
+
+def test_default_member_scope_beats_subject_and_reviewer_identity(scratch):
+    """A historical reviewer/subject identity never overrides CURRENT scope.
+
+    A Personal/default member who is the row's reviewer or its subject still
+    cannot read across into a named tenant/workspace (404, never 403 —an id is
+    not confirmed), and it never appears in their recent list. Same-scope
+    default rows remain readable: the fence is exact scope, not "members can
+    read nothing".
+    """
+    scratch.db.add_all([
+        _scoped_user(
+            "personal-member", UserRole.MEMBER, workspace=None, tenant=None),
+        _scoped_user(
+            "personal-lead", UserRole.TEAM_LEAD, workspace=None, tenant=None),
+    ])
+    scratch.db.commit()
+    as_reviewer = _scoped_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        user_id="member-1", reviewed_by="personal-member")
+    as_subject = _scoped_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        user_id="personal-member", reviewed_by="lead-1")
+    lead_reviewed = _scoped_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        user_id="member-1", reviewed_by="personal-lead")
+    own_default = _scoped_action(
+        scratch.db, workspace=None, tenant=None,
+        user_id="personal-member", reviewed_by="personal-lead")
+
+    member = _alias_client(scratch.db, "personal-member")
+    for aid in (as_reviewer, as_subject, lead_reviewed):
+        denied = member.get(f"/api/agents/approvals/{aid}/history")
+        assert denied.status_code == 404, denied.text
+        assert denied.json()["detail"]["error"]["code"] == (
+            "APPROVAL_NOT_FOUND")
+    assert [item["id"] for item in member.get(
+        "/api/agents/approvals/recent").json()] == [own_default]
+    assert member.get(
+        f"/api/agents/approvals/{own_default}/history").status_code == 200
+
+    lead = _alias_client(scratch.db, "personal-lead")
+    for aid in (as_reviewer, as_subject, lead_reviewed):
+        assert lead.get(
+            f"/api/agents/approvals/{aid}/history").status_code == 404
+    assert [item["id"] for item in lead.get(
+        "/api/agents/approvals/recent").json()] == [own_default]
+
+
+def test_default_scope_reads_its_own_canonical_default_history(
+        scratch, monkeypatch):
+    """NULL / "" / "default" are ONE legitimate Personal/default scope.
+
+    Legitimate own default-scope history must still read (list + detail), stay
+    redacted and bounded, and a storage failure must stay a 503 — the exact
+    scope fence must never turn into "default sees nothing" or a 404.
+    """
+    scratch.db.add(_scoped_user(
+        "personal-lead", UserRole.TEAM_LEAD, workspace=None, tenant=None))
+    scratch.db.commit()
+    own = {}
+    for label, ws, tid in (
+            ("null", None, None),
+            ("empty", "", ""),
+            ("literal", "default", "default")):
+        own[label] = _scoped_action(
+            scratch.db, workspace=ws, tenant=tid,
+            reviewed_by="personal-lead",
+            params={"to": "own@example.com", "api_key": "sk-own-secret"})
+    named = _scoped_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        reviewed_by="personal-lead")
+
+    client = _alias_client(scratch.db, "personal-lead")
+    for label, aid in own.items():
+        history = client.get(f"/api/agents/approvals/{aid}/history")
+        assert history.status_code == 200, (label, history.text)
+        assert history.json()["approval_id"] == aid
+        assert "sk-own-secret" not in history.text
+        assert "api_key" not in history.text
+    recent = client.get("/api/agents/approvals/recent?limit=10")
+    assert recent.status_code == 200, recent.text
+    assert {item["id"] for item in recent.json()} == set(own.values())
+    assert named not in [item["id"] for item in recent.json()]
+    bounded = client.get("/api/agents/approvals/recent?limit=2")
+    assert len(bounded.json()) == 2
+    assert "own@example.com" not in bounded.text
+
+    def _boom(*args, **kwargs):
+        raise SQLAlchemyError("history store unavailable")
+
+    monkeypatch.setattr(
+        "core.intervention_service.describe_parameter_history", _boom)
+    unavailable = client.get(
+        f"/api/agents/approvals/{own['literal']}/history")
+    assert unavailable.status_code == 503, unavailable.text
+    assert unavailable.json()["detail"]["error"]["code"] == (
+        "HISTORY_UNAVAILABLE")
+
+
+def test_production_mount_order_keeps_default_reads_exact(scratch):
+    """Real production mount order: legacy agent router FIRST, then the alias.
+
+    The default actor keeps its own canonical-default row on both read paths
+    while the named row stays a 404 / is absent from the list.
+    """
+    from api.agent_routes import router as agent_router
+    from api.approvals_routes import router as approvals_router
+
+    scratch.db.add(_scoped_user(
+        "personal-lead", UserRole.TEAM_LEAD, workspace=None, tenant=None))
+    scratch.db.commit()
+    own = _scoped_action(
+        scratch.db, workspace=None, tenant=None, reviewed_by="personal-lead")
+    named = _scoped_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        reviewed_by="personal-lead")
+
+    app = FastAPI()
+    app.include_router(agent_router)
+    app.include_router(approvals_router)
+    user = scratch.db.query(User).filter(User.id == "personal-lead").one()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[_get_db] = lambda: scratch.db
+    client = TestClient(app, raise_server_exceptions=False)
+
+    recent = client.get("/api/agents/approvals/recent")
+    assert recent.status_code == 200, recent.text
+    assert [item["id"] for item in recent.json()] == [own]
+    assert client.get(
+        f"/api/agents/approvals/{own}/history").status_code == 200
+    denied = client.get(f"/api/agents/approvals/{named}/history")
+    assert denied.status_code == 404, denied.text
+    assert denied.json()["detail"]["error"]["code"] == "APPROVAL_NOT_FOUND"
+
+
 def test_decision_history_reports_unavailable_instead_of_empty(scratch, monkeypatch):
     aid = _new_action(scratch.db, params={"to": "pending@example.com"})
 

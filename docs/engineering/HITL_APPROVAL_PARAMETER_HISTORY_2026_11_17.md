@@ -125,6 +125,15 @@ actor in the decision transaction. Personal/default is the one universal
 actor fallback; a named-scope reviewer never crosses into another named or
 unscoped row (404, so an id is never confirmed).
 
+**Intentionally distinct from the NEW read surface.** The decision/claim path
+above keeps its pre-existing fallback: an unscoped Personal/default supervisor
+is the local owner/operator who resolves the queue (a named reviewer still
+never crosses scope). The history/recent reads add a stricter contract —
+exact canonical scope equality, no default wildcard, no admin bypass — because
+they expose reviewed/effective payload history rather than letting the
+operator act on a pending row. Do not "align" the writers by widening reads,
+nor align the reads by widening writes without a separate authority review.
+
 `claim_pending_decision` then issues ONE conditional UPDATE whose WHERE clause
 requires: the row id, `status = 'pending'`, the same `action_type`,
 `required_role`, `workspace_id`, `tenant_id`, `params` and `context_snapshot`
@@ -147,12 +156,22 @@ and the compiled PostgreSQL shape is pinned by a test.
 
 `GET /api/agents/approvals/recent?limit=20` — bounded, permission-scoped list
 of decided rows (id/action type/status/actor/time only; no params/snapshot) so
-a reloaded page can discover a decision after it leaves the pending queue.
+a reloaded page can discover a decision after it leaves the pending queue. The
+same exact canonical scope predicate is applied in SQL for EVERY scope —
+including Personal/default (`NULL`/`""`/`"default"`), which is grouped, not
+treated as unscoped — before the supervisor/member predicate.
 
 `GET /api/agents/approvals/{id}/history?revision_limit=10` — redacted
 reviewed-vs-approved projection. Scope/permission is server-derived (fresh
-active user, canonical tenant/workspace, supervisors see their scope, a member
-only their own subject/reviewed rows). Cross-scope/guessed id → 404, in-scope
+active user, canonical tenant/workspace) and EXACT for every scope: the
+canonical Personal/default grouping (`NULL` / `""` / `"default"`) is one
+legitimate scope, but it is not a wildcard — a default actor cannot read a
+named row and a named actor cannot read a default row, on tenant OR workspace
+independently and in either direction. A mixed named/default pair is refused
+on both sides. Scope is checked BEFORE supervision/ownership, so a historical
+`reviewed_by`/`user_id` identity never widens the CURRENT scope, and ADMIN
+gets no invented global bypass. A member sees only their own subject/reviewed
+rows inside that exact scope. Cross-scope/guessed id → 404, in-scope
 unauthorized member → 403, storage failure → 503 (never an empty success). The
 protected `context_snapshot` is never returned and credential-shaped keys /
 free-text secrets go through the existing sanitizers.
@@ -168,7 +187,7 @@ shape, reads and action buttons are unchanged.
 
 ## Tests
 
-`backend/tests/test_hitl_parameter_history.py` (23 tests, scratch file SQLite,
+`backend/tests/test_hitl_parameter_history.py` (42 tests, scratch file SQLite,
 no network/provider):
 
 * modified approval keeps original + effective, policy snapshot preserved;
@@ -198,6 +217,17 @@ no network/provider):
 * the read routes enforce scope/member policy (subject/reviewer/404/403),
   bound recent decisions and revisions, redact credentials and never export
   `context_snapshot`;
+* a Personal/default TEAM_LEAD and a Personal/default ADMIN cannot read a
+  named-tenant/workspace decision (list or detail) — the adjudicated counter
+  shape;
+* read scope is exact canonical equality across a 14-case matrix: default vs
+  named in both directions, named-only on either axis, named mismatches, and
+  mixed named/default on tenant OR workspace; same canonical default
+  (`NULL`/`""`/`"default"`) and same named/mixed scopes stay readable;
+* a default member who is the row's historical reviewer or subject is still
+  404 across a named scope, and default rows remain readable to that member;
+* the production mount order (legacy router first) keeps default reads exact
+  and a storage failure stays a 503 `HISTORY_UNAVAILABLE`;
 * storage failure is a 503 `HISTORY_UNAVAILABLE`, not an empty success;
 * the claim fence compiles to semantic PostgreSQL JSONB equality (compile-only
   trace; no PostgreSQL run is claimed).

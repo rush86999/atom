@@ -542,15 +542,43 @@ def claim_pending_decision(
     return claimed
 
 
+def _canonical_scope_condition(column: Any, scope: str):
+    """Exact SQL predicate for one canonical scope id.
+
+    ``canonical_scope_id`` folds SQL NULL, the empty string and the literal
+    ``"default"`` into the single Personal/default scope, so matching every
+    stored shape of that scope is exact grouping — not a widened read. A named
+    scope still matches only its own literal id: the default scope is never a
+    wildcard for another tenant/workspace, and a named scope never reads
+    default rows.
+    """
+    from sqlalchemy import or_
+
+    if scope == "default":
+        return or_(
+            column.is_(None),
+            column == "",
+            column == "default",
+        )
+    return column == scope
+
+
 def _decision_read_denial(
     authority: Dict[str, Any], action: Any,
 ) -> Optional[Dict[str, Any]]:
     """Permission for reading one decision's history (server-derived only).
 
-    Scope first (cross-scope is a 404 so an id is never confirmed), then:
-    supervisors (team_lead+) may read any decision in their current scope;
-    an ordinary member may read only their own subject/reviewed rows. No
-    client-supplied owner/scope/role is consulted anywhere here.
+    Scope FIRST and EXACT: the canonical Personal/default grouping (NULL / ""
+    / "default") is one legitimate scope, but it is not a wildcard — a default
+    actor cannot read a named row and a named actor cannot read a default row,
+    in either direction and on tenant OR workspace independently. Cross-scope
+    is a 404 so an id is never confirmed.
+
+    Only after scope: supervisors (team_lead+) may read any decision in their
+    current scope; an ordinary member may read only their own subject/reviewed
+    rows. Historical reviewer/subject identity therefore never widens the
+    CURRENT scope. No client-supplied owner/scope/role is consulted anywhere
+    here, and no global-admin bypass is invented.
     """
     from core.goal_run_decision_service import canonical_scope_id
     from core.security.rbac import role_level
@@ -560,10 +588,7 @@ def _decision_read_denial(
         getattr(action, "workspace_id", None))
     actor_tenant = canonical_scope_id(authority.get("tenant_id"))
     action_tenant = canonical_scope_id(getattr(action, "tenant_id", None))
-    if (
-        (actor_workspace != "default" and actor_workspace != action_workspace)
-        or (actor_tenant != "default" and actor_tenant != action_tenant)
-    ):
+    if actor_workspace != action_workspace or actor_tenant != action_tenant:
         return _refusal(
             "Approval not found", "APPROVAL_NOT_FOUND", 404)
 
@@ -664,15 +689,17 @@ def list_recent_decisions(
 
             query = db.query(HITLAction).filter(HITLAction.status.in_(
                 ("approved", "rejected", "expired", "executed")))
-            # Scope filters are EXACT for a named scope. The Personal/default
-            # actor keeps the existing unscoped read (never widened with an
-            # ``OR workspace IS NULL`` predicate).
-            if canonical_scope_id(authority.get("workspace_id")) != "default":
-                query = query.filter(
-                    HITLAction.workspace_id == authority["workspace_id"])
-            if canonical_scope_id(authority.get("tenant_id")) != "default":
-                query = query.filter(
-                    HITLAction.tenant_id == authority["tenant_id"])
+            # Scope is EXACT for EVERY scope, including Personal/default: the
+            # canonical default grouping is listed explicitly (NULL / "" /
+            # "default"), never treated as an unscoped wildcard. Both tenant
+            # and workspace are filtered independently, so a mixed
+            # named/default pair is refused in either direction.
+            query = query.filter(_canonical_scope_condition(
+                HITLAction.workspace_id,
+                canonical_scope_id(authority.get("workspace_id"))))
+            query = query.filter(_canonical_scope_condition(
+                HITLAction.tenant_id,
+                canonical_scope_id(authority.get("tenant_id"))))
 
             is_supervisor = role_level(
                 authority.get("role")) >= role_level(UserRole.TEAM_LEAD)
