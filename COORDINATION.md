@@ -718,3 +718,65 @@ refuses, and the durable owner/rows are unchanged). This read behavior is a
 pre-existing boundary and is NOT attributed to PR #984 — that is the fleet
 collaboration release; no other PR's scope is claimed for it. No live DB,
 provider call, restart of the dev app, push or PR.
+
+---
+
+## Session: public chat read-envelope authorization (2026-11-17, same branch)
+
+Scope: the write fence landed earlier the same day, but the public READ
+surfaces still trusted the in-memory/JSON-file session label. A paired served
+counter recorded the actual pre-fix behavior on `ba0f056e5`: an ordinary
+non-default user cold-loading a conversation durably owned by
+`external_agent_user` got `200` with both rows from `GET /api/chat/history`,
+the linked run from `/api/chat/trace`, the session details, and (after a turn)
+the bridge conversation. The same user also read a foreign local user's
+conversation, and a durable owner change was ignored while the warm in-memory
+label still said caller; a cold process repeated it by lazy-creating a
+caller-owned projection before reading rows by conversation id. A
+default-scope legacy placeholder conversation was also served to a
+non-default caller. This read behavior was pre-existing and is NOT attributed
+to PR #984 (that is the fleet collaboration release).
+
+Files edited this session (only these):
+
+- `backend/core/chat_message_authority.py` — new
+  `resolve_chat_read_scope`: the read-side twin of the write resolver. The
+  durable `ChatSession.user_id` is authority on every request; the caller is
+  re-read with the existing `_resolve_actor`; a named owner is served only to
+  that owner; a legacy placeholder is reclaimable only when its durable
+  message-row scope matches the caller's CURRENT canonical scope (empty
+  placeholders have no scope evidence and are not reclaimable); an external/
+  system owner resolves to no local User row and is refused. No second
+  registry, no per-session grant invention, no admin-all-tenant bypass.
+- `backend/integrations/chat_routes.py` — history, memory, trace, task,
+  session details, session list, fork, rename/delete and feedback ride one
+  `_authorize_chat_read` gate. DB owner wins over a stale cache in BOTH
+  directions; placeholder reclaim is a CAS update of the durable row before
+  the response. Trace/task for an unknown id now return no runs/task instead
+  of querying rows that merely name the id.
+- `backend/tests/test_chat_read_scope.py` (new) — served real
+  uvicorn/SQLite/JWT/singleton controls for system/foreign warm+cold refusal,
+  owner change, placeholder scope reclaim, own/default/bridge positives,
+  stale file labels in the session list, unverifiable rows, unknown trace ids
+  and authority outage.
+- `backend/tests/test_chat_agent_trace.py` — trace fixtures now seed the
+  durable User+ChatSession owner a served chat turn would create (an
+  execution that merely names a session id is not a read grant).
+- `backend/tests/test_covpush_w92_chat_routes.py`,
+  `backend/tests/test_covpush_w95_services_batch5.py` — the DB-failure
+  history test now asserts unavailable (503, no cached content) instead of
+  serving the in-memory fallback.
+- `.github/workflows/ci.yml` + `backend/tests/fixtures/ci_backend_additions.json`
+  — the existing additive actor-scope step runs both whole served files; the
+  exact step ledger matches the YAML (CI contract suite: 628 passed).
+
+Measured pair (scratch worlds, `/private/tmp/atom-chat-history-reader-scope-
+paired-counter-20261117.py`; baseline/final JSONs alongside): system-owned
+history/trace/details `200` + row/run content → `403` with no content;
+foreign local history `200` + rows → `403`; warm/cold after owner change
+`200` → `403`; placeholder reclaim by a non-default caller `200` → `403` with
+the durable owner untouched; admin default-scope placeholder reclaim stays
+`200` and is durably rebound; own and admin-default history, the bridge
+writer's 2 `default` rows and the external bridge turn stay unchanged. No
+live DB, provider/model API, owner credentials, restart of the dev app,
+`/Volumes`, push, PR or merge.

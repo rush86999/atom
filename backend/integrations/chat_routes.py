@@ -31,6 +31,7 @@ from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
 from core.chat_message_authority import (
     LEGACY_PLACEHOLDER_USER_IDS,
     is_legacy_placeholder_owner as _is_legacy_placeholder_owner,
+    resolve_chat_read_scope as _resolve_chat_read_scope,
 )
 
 # Configure logging
@@ -465,6 +466,135 @@ def _ensure_session_access(session: Dict[str, Any], current_user: User) -> bool:
         return False
     return True
 
+# ---------------------------------------------------------------------------
+# Public read-envelope authority
+# ---------------------------------------------------------------------------
+def _claim_legacy_read_session(
+    db: _Session, decision: Dict[str, Any], current_user: User
+) -> None:
+    """Durably reclaim a placeholder-owned conversation for this reader.
+
+    The CAS mirrors the write path: the row must still carry the exact
+    placeholder owner observed, so two callers racing on the same legacy
+    session cannot both claim it. The durable row — never the in-memory or
+    JSON-file label — is the authority this read was granted against.
+    """
+    from sqlalchemy import update
+
+    from core.models import ChatSession
+
+    session_id = str(decision.get("session_id") or "").strip()
+    raw_owner = decision.get("durable_raw_owner")
+    condition = ChatSession.id == session_id
+    if raw_owner is None:
+        condition = condition & ChatSession.user_id.is_(None)
+    else:
+        condition = condition & (ChatSession.user_id == str(raw_owner))
+    try:
+        frozen = db.execute(
+            update(ChatSession)
+            .where(condition)
+            .values(
+                user_id=str(current_user.id),
+                updated_at=ChatSession.updated_at,
+            )
+        )
+        if frozen.rowcount != 1:
+            db.rollback()
+            logger.warning(
+                "Chat read reclaim lost the race for session %s", session_id)
+            raise HTTPException(status_code=403, detail="Access denied")
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — unreadable is not permission
+        db.rollback()
+        logger.warning(
+            "Chat read reclaim failed for session %s (%s)",
+            session_id, type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="The conversation's owner could not be verified",
+        ) from exc
+    # Sync the legacy JSON file the orchestrator reloads at boot. The DB row
+    # is already durable; a file-sync failure cannot re-open the session
+    # because every read re-checks the DB owner.
+    if not _persist_session_rebind(session_id, str(current_user.id)):
+        logger.warning(
+            "Chat read reclaim persisted in DB but not in the legacy file "
+            "store for session %s", session_id)
+
+
+def _authorize_chat_read(
+    session_id: str,
+    current_user: User,
+    db: Optional[_Session] = None,
+) -> Dict[str, Any]:
+    """Authorize a public chat read against the durable owner/scope.
+
+    The in-memory cache and the legacy JSON file are never authority: every
+    call re-reads the durable ``ChatSession`` owner. A decision of
+    ``no_durable_session`` preserves the pre-existing in-memory/lazy-init
+    contract for empty caller-owned sessions; everything else is an explicit
+    owner/scope grant or refusal.
+    """
+    try:
+        if db is None:
+            from core.database import get_db_session
+
+            with get_db_session() as read_db:
+                decision = _resolve_chat_read_scope(
+                    read_db, session_id, current_user)
+                if decision.get("ok") and decision.get("needs_reclaim"):
+                    _claim_legacy_read_session(
+                        read_db, decision, current_user)
+        else:
+            decision = _resolve_chat_read_scope(db, session_id, current_user)
+            if decision.get("ok") and decision.get("needs_reclaim"):
+                _claim_legacy_read_session(db, decision, current_user)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "Chat read authority unavailable for session %s (%s)",
+            session_id, type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Chat history is temporarily unavailable; retry.",
+        ) from exc
+
+    if not decision.get("ok"):
+        raise HTTPException(
+            status_code=int(decision.get("http_status") or 403),
+            detail=str(decision.get("message") or "Access denied"),
+        )
+    return decision
+
+
+def _sync_session_owner_from_read(
+    session: Optional[Dict[str, Any]],
+    current_user: User,
+    decision: Dict[str, Any],
+) -> None:
+    """Make the in-memory projection agree with the durable owner.
+
+    Only called after the DB authorized the read. This is the deliberate
+    direction of the cache rule: the DB owner wins, so a stale label cannot
+    deny the real owner and cannot keep a session after the DB owner changed.
+    """
+    if session is None:
+        return
+    if decision.get("source") == "no_durable_session":
+        return
+    owner = str(current_user.id)
+    if str(session.get("user_id")) != owner:
+        logger.info(
+            "Chat read cache owner corrected for session %s (was %r)",
+            session.get("id") or session.get("session_id"),
+            session.get("user_id"))
+        session["user_id"] = owner
+
+
 # Pydantic Models
 class ChatMessageRequest(BaseModel):
     message: str = Field(..., description="Chat message from user")
@@ -633,21 +763,28 @@ async def get_chat_memory(
     Get memory/context for a specific chat session (authenticated).
 
     **Security**: requires authentication and verifies the caller owns the
-    session (or reclaims a legacy placeholder-owner session durably).
+    session (or reclaims a legacy placeholder-owner session durably). The
+    durable ChatSession owner is checked first; an in-memory label alone is
+    never authority.
     """
     try:
         logger.info(f"Retrieving memory for session {session_id} and user {current_user.id}")
+
+        read_decision = _authorize_chat_read(session_id, current_user)
 
         if session_id not in chat_orchestrator.conversation_sessions:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         session = chat_orchestrator.conversation_sessions[session_id]
-        if not _ensure_session_access(session, current_user):
-            logger.warning(
-                f"Chat memory access denied: session {session_id} user mismatch "
-                f"(expected: {current_user.id}, got: {session.get('user_id')})"
-            )
-            raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if not _ensure_session_access(session, current_user):
+                logger.warning(
+                    f"Chat memory access denied: session {session_id} user mismatch "
+                    f"(expected: {current_user.id}, got: {session.get('user_id')})"
+                )
+                raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            _sync_session_owner_from_read(session, current_user, read_decision)
 
         return ChatMemoryResponse(
             session_id=session_id,
@@ -677,6 +814,11 @@ async def get_chat_history(
     try:
         logger.info(f"Retrieving history for session {session_id} and user {current_user.id}")
 
+        # The durable ChatSession owner is authority. Resolve it BEFORE any
+        # lazy-init so an unknown id cannot be claimed into existence, and so
+        # a warm in-memory label can neither grant nor deny a foreign session.
+        read_decision = _authorize_chat_read(session_id, current_user)
+
         if session_id not in chat_orchestrator.conversation_sessions:
             logger.info(
                 f"Session {session_id} not found, lazy-initializing for user {current_user.id}"
@@ -685,12 +827,16 @@ async def get_chat_history(
         else:
             session = chat_orchestrator.conversation_sessions[session_id]
 
-        if not _ensure_session_access(session, current_user):
-            logger.warning(
-                f"Chat history access denied: session {session_id} user mismatch "
-                f"(expected: {current_user.id}, got: {session.get('user_id')})"
-            )
-            raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if not _ensure_session_access(session, current_user):
+                logger.warning(
+                    f"Chat history access denied: session {session_id} user mismatch "
+                    f"(expected: {current_user.id}, got: {session.get('user_id')})"
+                )
+                raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            # DB owner/scope already authorized above; reconcile the cache.
+            _sync_session_owner_from_read(session, current_user, read_decision)
 
         # The durable store is authoritative: read SQL rows first (they carry
         # real message ids the fork-from-here journey needs), in the same
@@ -776,6 +922,17 @@ async def get_chat_history(
                         f"Loaded {len(history)} messages from DB for session {session_id}"
                     )
         except Exception as db_err:
+            if read_decision.get("durable_session"):
+                # The durable rows are authoritative for a known session; an
+                # empty in-memory fallback would falsely report "no history"
+                # during an outage.
+                logger.error(
+                    "Durable chat history unavailable for session %s (%s)",
+                    session_id, type(db_err).__name__)
+                raise HTTPException(
+                    status_code=503,
+                    detail="Chat history is temporarily unavailable; retry.",
+                ) from db_err
             logger.warning(f"Could not load history from DB: {db_err}")
         if not history:
             history = session.get("history", [])
@@ -813,9 +970,19 @@ async def get_session_agent_trace(
     from core.sql_json import json_field_equals
 
     try:
+        read_decision = _authorize_chat_read(session_id, current_user, db=db)
         known = chat_orchestrator.conversation_sessions.get(session_id)
-        if known is not None and not _ensure_session_access(known, current_user):
-            raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if known is not None:
+                if not _ensure_session_access(known, current_user):
+                    raise HTTPException(status_code=403, detail="Access denied")
+            else:
+                # No durable session owner and no caller-owned in-memory
+                # projection: this is an unknown id, not a grant to query
+                # arbitrary executions that happen to name it.
+                return {"runs": [], "session_id": session_id}
+        else:
+            _sync_session_owner_from_read(known, current_user, read_decision)
 
         limit = max(1, min(limit, 50))
         executions = (
@@ -914,9 +1081,19 @@ async def get_session_task_record(
     itself the observable fact an acceptance gate needs.
     """
     try:
+        read_decision = _authorize_chat_read(session_id, current_user)
         known = chat_orchestrator.conversation_sessions.get(session_id)
-        if known is not None and not _ensure_session_access(known, current_user):
-            raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if known is not None:
+                if not _ensure_session_access(known, current_user):
+                    raise HTTPException(status_code=403, detail="Access denied")
+            else:
+                # Unknown id: absence of a record is the observable fact, and
+                # an arbitrary task keyed by this string is not a grant.
+                return {"success": True, "session_id": session_id,
+                        "task": None}
+        else:
+            _sync_session_owner_from_read(known, current_user, read_decision)
 
         from integrations.chat_orchestrator import _task_lifecycle_for
         from core.task_lifecycle import task_snapshot
@@ -948,6 +1125,38 @@ async def get_session_task_record(
         raise HTTPException(status_code=500, detail="Failed to retrieve task record")
 
 
+def _filter_session_list_for_read(
+    sessions: Dict[str, Any], current_user: User
+) -> Dict[str, Any]:
+    """Drop list entries whose DURABLE owner/scope refuses this reader.
+
+    The sidebar is a public read surface too. Its hybrid manager merges a
+    legacy JSON-file session when that id is absent from the caller's DB rows
+    — including an id whose DB row belongs to someone else. A file label must
+    not override that durable owner. Sessions that need a scope-matched
+    legacy reclaim are kept without claiming (the list is metadata only); a
+    hard refusal or an unreadable authority drops/denies instead.
+    """
+    if not sessions:
+        return sessions
+    from core.database import get_db_session
+
+    with get_db_session() as read_db:
+        for session_id in list(sessions):
+            decision = _resolve_chat_read_scope(
+                read_db, session_id, current_user)
+            if decision.get("ok"):
+                continue
+            if str(decision.get("error_code") or "").endswith(
+                    "AUTHORITY_UNAVAILABLE"):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Chat sessions are temporarily unavailable; retry.",
+                )
+            sessions.pop(session_id, None)
+    return sessions
+
+
 @router.get("/sessions")
 async def get_user_sessions(
     user_id: Optional[str] = "demo-user",
@@ -960,12 +1169,16 @@ async def get_user_sessions(
         logger.info(f"Retrieving sessions for user {user_id}")
 
         user_sessions = chat_orchestrator.get_user_sessions(str(current_user.id))
+        user_sessions = _filter_session_list_for_read(
+            user_sessions or {}, current_user)
         return {
             "user_id": str(current_user.id),
             "sessions": user_sessions or {},
             "total_sessions": len(user_sessions) if user_sessions else 0,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to retrieve user sessions: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve user sessions")
@@ -1037,14 +1250,18 @@ async def fork_chat_session(
     """
     up_to_message_id = payload.up_to_message_id if payload else None
 
-    # Same ownership gate as /history: unknown sessions lazy-initialize for
-    # the caller, known ones must belong to them.
+    # The durable session owner is authority; the in-memory/lazy-init gate is
+    # only for a genuinely empty (no durable row/messages) session id.
+    read_decision = _authorize_chat_read(session_id, current_user, db=db)
     if session_id not in chat_orchestrator.conversation_sessions:
         session = chat_orchestrator._get_or_create_session(str(current_user.id), session_id)
     else:
         session = chat_orchestrator.conversation_sessions[session_id]
-    if not _ensure_session_access(session, current_user):
-        raise HTTPException(status_code=403, detail="Access denied")
+    if read_decision.get("source") == "no_durable_session":
+        if not _ensure_session_access(session, current_user):
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        _sync_session_owner_from_read(session, current_user, read_decision)
 
     try:
         result = _fork_chat_session_decision(
@@ -1182,12 +1399,16 @@ def _assert_feedback_scope(
     request: "ChatFeedbackRequest",
     current_user: User,
 ) -> None:
-    """Reject feedback for a durable conversation owned by another user."""
+    """Reject feedback for a conversation the caller cannot read.
+
+    Feedback capture reads the rated assistant row's content (ExchangeExample
+    training data), so it rides the SAME durable read-envelope authority as
+    /history, /trace and /sessions — never an in-memory label alone.
+    """
     if current_user is None:
         raise HTTPException(status_code=403, detail="Access denied")
-    owner_id = str(current_user.id)
     try:
-        from core.models import ChatMessage, ChatSession
+        from core.models import ChatMessage
 
         session_ids = set()
         if request.session_id:
@@ -1203,24 +1424,27 @@ def _assert_feedback_scope(
                     raise HTTPException(status_code=403, detail="Access denied")
                 session_ids.add(str(message.conversation_id))
         for session_id in session_ids:
-            session = chat_orchestrator.conversation_sessions.get(session_id)
-            if session is not None and not _ensure_session_access(
-                session, current_user
-            ):
-                raise HTTPException(status_code=403, detail="Access denied")
-            durable = db.query(ChatSession).filter(
-                ChatSession.id == session_id
-            ).first()
-            if (
-                isinstance(durable, ChatSession)
-                and str(durable.user_id) != owner_id
-                and not _is_legacy_placeholder_owner(durable.user_id)
-            ):
-                raise HTTPException(status_code=403, detail="Access denied")
+            decision = _authorize_chat_read(
+                session_id, current_user, db=db)
+            if decision.get("source") == "no_durable_session":
+                session = chat_orchestrator.conversation_sessions.get(session_id)
+                if session is not None and not _ensure_session_access(
+                    session, current_user
+                ):
+                    raise HTTPException(status_code=403, detail="Access denied")
     except HTTPException:
         raise
     except Exception as error:
-        logger.debug(f"feedback scope lookup skipped: {error}")
+        # A feedback target we cannot verify must not be captured into the
+        # learning corpus. Unavailable is honest; silently skipping the scope
+        # check would read another owner's exchange.
+        logger.warning(
+            "feedback scope lookup unavailable (%s)",
+            type(error).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Feedback is temporarily unavailable; retry.",
+        ) from error
 
 
 class ChatFeedbackRequest(BaseModel):
@@ -1239,7 +1463,8 @@ class ChatFeedbackRequest(BaseModel):
 async def rename_session(
     session_id: str,
     request: RenameSessionRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: _Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Rename a chat session (authenticated with dev fallback)
@@ -1247,6 +1472,8 @@ async def rename_session(
     try:
         active_user_id = str(current_user.id) if current_user else (request.user_id or "demo-user")
         request.user_id = active_user_id
+
+        read_decision = _authorize_chat_read(session_id, current_user, db=db)
 
         # Check permissions first
         session = chat_orchestrator.conversation_sessions.get(session_id)
@@ -1256,11 +1483,16 @@ async def rename_session(
                 session = managed_session
 
         if not session:
-             raise HTTPException(status_code=404, detail="Session not found")
+            if not read_decision.get("durable_session"):
+                raise HTTPException(status_code=404, detail="Session not found")
+            session = {"id": session_id, "user_id": active_user_id}
 
-        if current_user and not _ensure_session_access(session, current_user):
-             logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {current_user.id}")
-             raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if current_user and not _ensure_session_access(session, current_user):
+                 logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {current_user.id}")
+                 raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            _sync_session_owner_from_read(session, current_user, read_decision)
 
         # The rename logic lives on the session manager (DB + file sync) — the
         # orchestrator has no rename_session method. Update the in-memory
@@ -1298,6 +1530,8 @@ async def get_session_details(
     Get details for a specific session (authenticated).
     """
     try:
+        read_decision = _authorize_chat_read(session_id, current_user)
+
         session = chat_orchestrator.conversation_sessions.get(session_id)
 
         if not session:
@@ -1305,14 +1539,27 @@ async def get_session_details(
              if managed_session:
                  session = managed_session
 
+        if not session and read_decision.get("durable_session"):
+             # The durable row authorized above is enough to describe the
+             # session even if the manager projection is unavailable.
+             session = {
+                 "id": session_id,
+                 "title": read_decision.get("durable_title") or "New Chat",
+                 "created_at": read_decision.get("durable_created_at"),
+                 "user_id": str(current_user.id),
+             }
+
         if not session:
              raise HTTPException(status_code=404, detail="Session not found")
 
-        if not _ensure_session_access(session, current_user):
-             logger.warning(
-                 f"Session details denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
-             )
-             raise HTTPException(status_code=403, detail="Access denied")
+        if read_decision.get("source") == "no_durable_session":
+            if not _ensure_session_access(session, current_user):
+                 logger.warning(
+                     f"Session details denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
+                 )
+                 raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            _sync_session_owner_from_read(session, current_user, read_decision)
 
         return {
             "success": True,
@@ -1348,18 +1595,30 @@ async def delete_chat_session(
     from core.models import ChatMessage as ChatMessageModel
     from core.models import ChatSession as ChatSessionModel
 
+    try:
+        read_decision = _authorize_chat_read(session_id, current_user, db=db)
+    except HTTPException:
+        raise
+
     session = chat_orchestrator.conversation_sessions.get(session_id)
     if not session and chat_orchestrator.session_manager is not None:
         session = chat_orchestrator.session_manager.get_session(session_id)
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        if not read_decision.get("durable_session"):
+            raise HTTPException(status_code=404, detail="Session not found")
+        # The durable row authorized above is the session even when the
+        # in-memory/manager projection is missing.
+        session = {"id": session_id, "user_id": str(current_user.id)}
 
-    if not _ensure_session_access(session, current_user):
-        logger.warning(
-            f"Delete denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
-        )
-        raise HTTPException(status_code=403, detail="Access denied")
+    if read_decision.get("source") == "no_durable_session":
+        if not _ensure_session_access(session, current_user):
+            logger.warning(
+                f"Delete denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
+            )
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        _sync_session_owner_from_read(session, current_user, read_decision)
 
     try:
         deleted_messages = (

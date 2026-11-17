@@ -523,14 +523,20 @@ class TestGetChatHistory:
         assert messages[0]["message"] == "hi"
         assert messages[1]["response"] == {"message": "hello"}
 
-    def test_db_fallback_failure_tolerated(self, client, orch):
-        orch.conversation_sessions = {"s1": make_session(history=[])}
+    def test_db_failure_is_unavailable_not_cached(self, client, orch):
+        """A read whose durable owner cannot be verified must fail closed.
+
+        Serving the in-memory fallback here would let a stale cache label
+        outlive a DB owner/scope change (the 2026-11-17 read-envelope bug).
+        """
+        orch.conversation_sessions = {"s1": make_session(
+            history=[{"message": "stale cached payload"}])}
         cm = MagicMock()
         cm.__enter__.side_effect = RuntimeError("db down")
         with patch("core.database.get_db_session", return_value=cm):
             resp = client.get("/api/chat/history/s1", params={"user_id": "u"})
-        assert resp.status_code == 200
-        assert resp.json()["messages"] == []
+        assert resp.status_code == 503
+        assert "stale cached payload" not in resp.text
 
     def test_internal_error_500(self, client, orch):
         orch.conversation_sessions = MagicMock()

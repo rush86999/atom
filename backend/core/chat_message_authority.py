@@ -268,6 +268,263 @@ def _refusal(http_status: int, code: str, message: str) -> Dict[str, Any]:
     }
 
 
+def _rows_or_empty(result: Any) -> list:
+    """Iterate an ORM result, tolerating a non-iterable test double.
+
+    Production queries always return an iterable (a list, ``Row`` result or
+    ``None``). Unit suites that replace the whole ``Session`` with a
+    ``MagicMock`` return a mock from the terminal call; it is not a real ORM
+    result and must not be mistaken for a durable row. Real query failures
+    still raise and are handled as unavailable by the caller.
+    """
+    if result is None:
+        return []
+    try:
+        return list(result)
+    except TypeError:
+        return []
+
+
+def _durable_read_row(db: Any, session_id: str) -> Any:
+    """The real durable ``ChatSession`` row (never an in-memory label)."""
+    from core.models import ChatSession
+
+    rows = _rows_or_empty(
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id)
+        .limit(1)
+        .all()
+    )
+    return next((row for row in rows if isinstance(row, ChatSession)), None)
+
+
+def _durable_message_scopes(db: Any, session_id: str) -> Tuple[bool, set]:
+    """(has_rows, tenant ids) for the conversation's durable message rows.
+
+    Empty/NULL tenant ids are reported as the Personal-Edition ``default``
+    alias; callers canonicalise before comparing.
+    """
+    from core.models import ChatMessage
+
+    rows = _rows_or_empty(
+        db.query(ChatMessage.tenant_id)
+        .filter(ChatMessage.conversation_id == session_id)
+        .distinct()
+        .all()
+    )
+    tenants = set()
+    for row in rows:
+        if isinstance(row, (tuple, list)):
+            value = row[0]
+        else:
+            value = getattr(row, "tenant_id", None)
+            if value is None:
+                try:
+                    value = row[0]
+                except Exception:  # noqa: BLE001 — shape is not a scope fact
+                    value = None
+        if value is None or not str(value).strip():
+            tenants.add("default")
+        else:
+            tenants.add(str(value).strip())
+    return bool(rows), tenants
+
+
+def resolve_chat_read_scope(
+    db: Any, session_id: Any, actor: Any,
+) -> Dict[str, Any]:
+    """Resolve whether ``actor`` may read a session's public envelope.
+
+    This is the read-side twin of :func:`resolve_chat_message_scope`. It uses
+    the SAME shared mechanisms (the durable ``ChatSession`` owner, the fresh
+    ``_resolve_actor`` snapshot and ``canonical_scope_id``) and adds no second
+    policy registry:
+
+    * the durable ``ChatSession`` owner is authority; an in-memory or JSON-file
+      label can neither grant a foreign session nor take one away from its
+      durable owner;
+    * the caller must be a real, currently-active local principal (fresh
+      read), so a stale token cannot preserve a moved/revoked scope;
+    * a named local owner is served only to that same durable owner. There is
+      no chat-session share/grant table in this codebase, so no per-session
+      grant is invented and no administrator-wide all-tenant bypass is added;
+    * a legacy placeholder owner is reclaimable only for a verified local
+      caller whose CURRENT canonical scope matches the conversation's durable
+      rows. A NULL/default actor keeps the documented Personal-Edition
+      compatibility; a non-default caller cannot adopt a default-scope or
+      otherwise foreign-scope conversation;
+    * an external/system identity (``external_agent_user`` or the older
+      bridge's ``ext_<sender>``) resolves to no local User row, so it is not a
+      grant for any local caller. Its own bridge writer is unaffected.
+    * durable rows with no verifiable owner (messages without a session row)
+      are refused rather than guessed.
+
+    Returns ``ok`` plus the chosen ``source`` on success, or a refusal dict
+    with ``http_status``/``error_code``/``message``.
+    """
+    from core.goal_run_decision_service import (
+        _resolve_actor,
+        canonical_scope_id,
+    )
+
+    actor_id = (
+        actor.strip() if isinstance(actor, str)
+        else str(getattr(actor, "id", "") or "")
+    )
+    if not actor_id:
+        return _refusal(401, "UNAUTHENTICATED", "Authentication required")
+
+    sid = str(session_id or "").strip()
+    if not sid:
+        return _refusal(404, "CHAT_SESSION_UNVERIFIED", "Session not found")
+
+    try:
+        row = _durable_read_row(db, sid)
+        has_messages, message_scopes = _durable_message_scopes(db, sid)
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "chat read authority: session %s unreadable (%s)",
+            sid, type(exc).__name__)
+        return _refusal(
+            503, "CHAT_READ_AUTHORITY_UNAVAILABLE",
+            "The conversation's owner could not be verified")
+
+    if row is None and not has_messages:
+        # Nothing durable exists: the pre-existing in-memory/lazy-init contract
+        # is allowed to create or serve a caller-owned empty session.
+        return {
+            "ok": True,
+            "source": "no_durable_session",
+            "session_id": sid,
+            "durable_session": False,
+            "durable_owner": None,
+            "durable_raw_owner": None,
+            "has_messages": False,
+            "session_scope": None,
+            "needs_reclaim": False,
+            "actor": None,
+        }
+
+    if row is None:
+        # Message rows with no session row: no verifiable owner. Serving them
+        # (or reclaiming them) would be a guess.
+        logger.warning(
+            "chat read authority: session %s has durable messages but no "
+            "session owner row; read refused", sid)
+        return _refusal(
+            404, "CHAT_SESSION_UNVERIFIED",
+            "This conversation's owner could not be verified")
+
+    durable_raw_owner = row.user_id
+    durable_owner = _normalized_owner(durable_raw_owner)
+    session_scope = (
+        next(iter(message_scopes)) if len(message_scopes) == 1 else None)
+
+    resolved = _resolve_actor(db, actor_id)
+    if not resolved.get("ok"):
+        return _refusal(
+            int(resolved.get("http_status") or 401),
+            str(resolved.get("error_code") or "UNAUTHENTICATED"),
+            str(resolved.get("message") or "Authentication required"),
+        )
+
+    _created = getattr(row, "created_at", None)
+    base = {
+        "ok": True,
+        "source": "owner",
+        "session_id": sid,
+        "durable_session": True,
+        "durable_owner": durable_owner,
+        "durable_raw_owner": durable_raw_owner,
+        "durable_title": getattr(row, "title", None),
+        "durable_created_at": (
+            _created.isoformat() if hasattr(_created, "isoformat")
+            else (str(_created) if _created else None)),
+        "has_messages": has_messages,
+        "session_scope": session_scope,
+        "needs_reclaim": False,
+        "actor": {
+            "id": resolved["id"],
+            "tenant_id": resolved["tenant_id"],
+            "workspace_id": resolved["workspace_id"],
+            "raw_tenant_id": resolved.get("raw_tenant_id"),
+            "raw_workspace_id": resolved.get("raw_workspace_id"),
+        },
+    }
+
+    if durable_owner == actor_id:
+        # Verified ownership. The owner is the strongest authority; legacy
+        # pre-fix rows may carry the old construction tenant, so ownership is
+        # not re-litigated against a historical row scope here.
+        return base
+
+    if is_legacy_placeholder_owner(durable_owner):
+        # No real owner is recorded. Reclaim only inside the caller's CURRENT
+        # canonical scope: the durable rows are the conversation's scope
+        # evidence, and a non-default caller must never adopt default/foreign
+        # rows merely because the owner label was a placeholder.
+        if has_messages:
+            if len(message_scopes) != 1:
+                logger.warning(
+                    "chat read authority: session %s has ambiguous durable "
+                    "scopes (%s); read refused", sid, sorted(message_scopes))
+                return _refusal(
+                    409, "CHAT_SESSION_SCOPE_AMBIGUOUS",
+                    "The conversation's scope is inconsistent")
+            canonical_row_scope = canonical_scope_id(session_scope)
+            if canonical_row_scope != canonical_scope_id(
+                    resolved["tenant_id"]):
+                logger.warning(
+                    "chat read authority: session %s legacy scope %s does "
+                    "not match caller %s scope %s; read refused",
+                    sid, canonical_row_scope, actor_id,
+                    canonical_scope_id(resolved["tenant_id"]))
+                return _refusal(
+                    403, "CHAT_SESSION_SCOPE_DENIED",
+                    "This conversation is outside your workspace or tenant")
+        else:
+            # An empty placeholder session carries no row-scope evidence but
+            # may still have foreign trace/task/request records keyed by its
+            # id. There is no durable scope to authorize, so it is not
+            # reclaimable on the read path; the write path's first-caller
+            # reclaim remains unchanged.
+            logger.warning(
+                "chat read authority: empty legacy session %s has no durable "
+                "scope evidence; read refused", sid)
+            return _refusal(
+                404, "CHAT_SESSION_UNVERIFIED",
+                "This conversation's owner could not be verified")
+        base["source"] = "legacy_reclaim"
+        base["needs_reclaim"] = True
+        return base
+
+    # A non-placeholder owner that is not the caller. Ask the shared actor
+    # resolver whether it is a real local principal (foreign user) or an
+    # external/system identity (no local User row).
+    owner_probe = _resolve_actor(db, durable_owner)
+    if owner_probe.get("ok"):
+        logger.warning(
+            "chat read authority: session %s is durably owned by another "
+            "local user; read refused", sid)
+        return _refusal(
+            403, "CHAT_SESSION_FOREIGN",
+            "This conversation belongs to another user")
+    if str(owner_probe.get("error_code") or "") == "UNAUTHENTICATED":
+        logger.warning(
+            "chat read authority: session %s is owned by a non-local "
+            "identity (%s); local read refused", sid, durable_owner)
+        return _refusal(
+            403, "CHAT_SESSION_EXTERNAL_OWNED",
+            "This conversation is not available to this account")
+    # The owner row exists but could not be read/verified (outage). Fail
+    # closed rather than assume it is external, foreign or free.
+    return _refusal(
+        int(owner_probe.get("http_status") or 503),
+        str(owner_probe.get("error_code") or "AUTHORITY_UNAVAILABLE"),
+        "The conversation's owner could not be verified",
+    )
+
+
 def resolve_chat_message_scope(db: Any, session: Any) -> Dict[str, Any]:
     """Resolve the exact durable actor + owned session for this chat write.
 

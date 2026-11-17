@@ -961,11 +961,12 @@ class TestChatHistoryAndSessions:
         msgs = r.json()["messages"]
         assert msgs[0]["message"] == "q"
         assert msgs[1]["response"] == {"message": "a"}
-        # DB fallback blows up -> warning swallowed, empty history
+        # DB authority unreadable -> unavailable, never the cached history.
         with patch("core.database.get_db_session",
                    side_effect=RuntimeError("db")):
             r = chat_client.get("/api/chat/history/s1", params={"user_id": "u"})
-        assert r.status_code == 200 and r.json()["messages"] == []
+        assert r.status_code == 503
+        assert "q" not in r.text
 
     def test_history_denied_and_500(self, chat_client, orch):
         orch.conversation_sessions = {"s1": _chat_session(owner="other")}

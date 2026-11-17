@@ -1125,13 +1125,16 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/atom-document-lineage/data" "${RUNNER_TEMP}/atom-document-lineage/office"
           python -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py tests/test_document_connector_lineage.py tests/test_postgres_document_lineage_upgrade_acceptance.py -q --tb=short --timeout=300 --timeout-method=thread
 
-      # Served chat transcript actor-scope regression (additive): real uvicorn
-      # + real SQLite + real JWT signup/login + the real module-level
-      # ChatOrchestrator singleton; only the LLM/embedding transports are
-      # doubled (tests/fixtures/served_chat_scope_app.py). Two users in
-      # different tenants, simultaneous turns around the model await, a
-      # legitimate NULL-tenant global user, foreign/changed/revoked scope
-      # refusals, a storage outage and a cold/new server readback.
+      # Served chat transcript actor-scope and durable read-envelope
+      # regressions (additive): real uvicorn + real SQLite + real JWT
+      # signup/login + the real module-level ChatOrchestrator singleton; only
+      # the LLM/embedding transports are doubled
+      # (tests/fixtures/served_chat_scope_app.py). The write suite covers
+      # tenant/workspace scope admission, foreign/changed/revoked writes, a
+      # storage outage and cold readback; the read suite covers durable
+      # owner/scope envelopes for history/memory/trace/task/session rows,
+      # warm-cache vs DB owner changes, legacy placeholder scope reclaim and
+      # unverifiable/unavailable authority.
       - name: Run chat transcript actor-scope controls
         env:
           TESTING: "1"
@@ -1145,6 +1148,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/atom-chat-actor-scope/data" "${RUNNER_TEMP}/atom-chat-actor-scope/lancedb"
           served_chat_scope_root=$(mktemp -d "${RUNNER_TEMP}/served-chat-scope-XXXXXX")
           python -m pytest tests/test_chat_message_actor_scope.py \
+            tests/test_chat_read_scope.py \
             -q --tb=short --timeout=900 --timeout-method=thread \
             --basetemp="${served_chat_scope_root}/pytest"
 
