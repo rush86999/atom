@@ -261,6 +261,13 @@ class World:
                     email=f"{admin}@route.test", first_name="A", last_name="V",
                     role="admin", status="active", is_active=True,
                 ),
+                # The human assignment target for campaign rows: distinct
+                # from the AgentRegistry candidate that owns the evidence.
+                User(
+                    id=owner, tenant_id=tenant, workspace_id=workspace,
+                    email=f"{owner}@route.test", first_name="O", last_name="W",
+                    role="member", status="active", is_active=True,
+                ),
             ])
             db.add(AgentRegistry(
                 id=agent_id, name="Route Candidate", category="operations",
@@ -2390,24 +2397,35 @@ def test_versioned_provider_echo_keeps_callable_route_through_durable_read(
     from core.employee_campaign_intake import (
         complete_campaign_execution,
         record_campaign_evidence,
+        start_campaign_execution,
     )
 
-    # The runner's real finish path: the durable execution is completed with
-    # the provider echo, then the campaign-owned journal is assembled from
-    # the transport decisions and handed to the production producer.
+    # The runner's real start/finish path: the durable execution is owned by
+    # the plan's validated registry agent (not the human employee id) and is
+    # completed with the provider echo before the campaign-owned journal is
+    # assembled from the transport decisions and handed to the producer.
+    campaign_assignment = {
+        "employee_id": OWNER,
+        "provenance": {"agent_id": AGENT},
+        "tenant_id": TENANT,
+        "workspace_id": WORKSPACE,
+        "objective": "held-out repeat task",
+        "status": "completed",
+        "run_id": "run-route-1",
+    }
+    assert start_campaign_execution(
+        db_path=world.db_path,
+        execution_id="exec-versioned",
+        assignment=campaign_assignment,
+        run_id="run-route-1",
+    ) == "exec-versioned"
     assert complete_campaign_execution(
         db_path=world.db_path,
         execution_id="exec-versioned",
-        assignment={
-            "employee_id": AGENT,
-            "tenant_id": TENANT,
-            "workspace_id": WORKSPACE,
-            "objective": "held-out repeat task",
-            "status": "completed",
-            "run_id": "run-route-1",
-        },
+        assignment=campaign_assignment,
         completed_at=fresh,
         served_identity={"provider": ALIAS[0], "model": ALIAS_BUILD},
+        run_id="run-route-1",
     )
     result = record_campaign_evidence(
         db_path=world.db_path,
@@ -2426,6 +2444,7 @@ def test_versioned_provider_echo_keeps_callable_route_through_durable_read(
             "response_identity": {
                 "provider": ALIAS[0], "model": ALIAS_BUILD},
         }],
+        assignment=campaign_assignment,
     )
     assert result["status"] == "recorded", result
     assert result["served_identity"] == {

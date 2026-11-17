@@ -18,6 +18,7 @@ records, conflicts, cross-agent scope, stale evidence and build ambiguity.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
@@ -701,3 +702,405 @@ def test_build_conflict_on_the_candidate_route_blocks_selection(world):
         if (entry["provider"], entry["model"]) == CANDIDATE)
     assert candidate["evidence_state"] == "insufficient"
     assert candidate["reasons"] == ["model_build_conflict"]
+
+
+# --- Producer attribution through the ACTUAL trusted route ------------------
+
+
+def test_real_assignment_route_agent_attribution_reaches_review(
+        world, monkeypatch, tmp_path):
+    """Builder -> intake -> producer -> G1 discovery/receipt/baseline.
+
+    The plan targets the ADMIN User and names the distinct AGENT registry row.
+    Campaign intake must own the durable execution by AGENT (not the User),
+    and the normal review path must then discover, bind and pin it.
+    """
+    import core.database as dbmod
+    from api.assignment_routes import AssignmentStart, start_assignment
+    from core.employee_campaign_intake import (
+        complete_campaign_execution,
+        durable_assignment,
+        record_campaign_evidence,
+        resolve_campaign_attribution,
+        start_campaign_execution,
+    )
+
+    source = tmp_path / "attribution-source.json"
+    source.write_text(json.dumps({
+        "invoice": "INV-4491", "total": "140.25"}))
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    # The route's executor resolves its own session factory lazily from
+    # core.database; point it at this scratch world (never the live DB).
+    monkeypatch.setattr(dbmod, "SessionLocal", world.Session)
+    monkeypatch.setattr(dbmod, "engine", world.engine)
+
+    body = AssignmentStart(
+        objective="Prepare the attribution evidence document.",
+        sources=[{"kind": "document", "path": str(source)}],
+        calculation={
+            "expression": "2 + 2",
+            "bindings": {},
+            "units": {},
+            "output_unit": "",
+        },
+        deliverables=[{
+            "kind": "document",
+            "description": "Attribution evidence document",
+        }],
+        authorized_actions=["retrieve", "present"],
+        agent_id=AGENT,
+        employee_id=ADMIN,
+    )
+    with world.Session() as db:
+        actor = db.get(User, ADMIN)
+        started = asyncio.run(start_assignment(body, actor, db))
+    run_id = started["run_id"]
+
+    plan = durable_assignment(world.db_path, run_id)
+    assert plan["employee_id"] == ADMIN
+    assert plan["provenance"]["agent_id"] == AGENT
+    assert plan["employee_id"] != plan["provenance"]["agent_id"]
+    completed_at = plan.get("completed_at")
+    assert completed_at, plan
+
+    assignment = {**plan, "run_id": run_id}
+    resolution = resolve_campaign_attribution(
+        db_path=world.db_path, assignment=assignment, run_id=run_id)
+    assert resolution.ok is True, resolution
+    assert resolution.agent_id == AGENT
+    assert resolution.employee_id == ADMIN
+    assert (resolution.tenant_id, resolution.workspace_id) == (
+        TENANT, WORKSPACE)
+
+    execution_id = f"employee-campaign-{run_id}"
+    assert start_campaign_execution(
+        db_path=world.db_path,
+        execution_id=execution_id,
+        assignment=assignment,
+        run_id=run_id,
+    ) == execution_id
+    assert complete_campaign_execution(
+        db_path=world.db_path,
+        execution_id=execution_id,
+        assignment=assignment,
+        completed_at=completed_at,
+        served_identity={"provider": BASELINE[0], "model": BASELINE[1]},
+        run_id=run_id,
+    ) is True
+
+    result = record_campaign_evidence(
+        db_path=world.db_path,
+        execution_id=execution_id,
+        campaign="employee-heldout-two-domain",
+        observation=_heldout_observation(),
+        completed_at=completed_at,
+        decisions=[{
+            "kind": "employee_route",
+            "accepted": True,
+            "attempt_id": "attempt-real-route",
+            "requested_route": {
+                "provider": BASELINE[0], "model": BASELINE[1]},
+            "served_route": {
+                "provider": BASELINE[0], "model": BASELINE[1]},
+            "response_identity": {
+                "provider": BASELINE[0], "model": BASELINE[1]},
+        }],
+        assignment=assignment,
+    )
+    assert result["status"] == "recorded", result
+    assert result["evidence"]["execution"]["agent_id"] == AGENT
+    assert result["evidence"]["execution"]["agent_id"] != ADMIN
+
+    with world.Session() as db:
+        row = db.get(AgentExecution, execution_id)
+        assert row is not None
+        assert row.agent_id == AGENT
+        assert row.tenant_id == TENANT
+        assert row.workspace_id == WORKSPACE
+        assert row.status == "completed"
+
+    bundles = world.bundles()
+    item = next(
+        entry for entry in bundles["items"]
+        if entry["execution_id"] == execution_id)
+    assert item["binding"]["binding_state"] == "bound"
+    assert item["repeat_task_comparable"] is True
+    assert item["binding"]["serving_routes"] == [
+        {"provider": BASELINE[0], "model": BASELINE[1]}]
+
+    receipt_id = world.approve_and_write(world.request(item["evidence_refs"]))
+    metadata = world.receipt(receipt_id)
+    assert metadata["state"] == "valid"
+    assert metadata["binding_state"] == "bound"
+    assert metadata["repeat_task_comparable"] is True
+
+    world.promote()
+    baseline = world.baseline_resolution()
+    assert baseline["ok"] is True, baseline
+    assert baseline["repeat_task_comparable"] is True
+    # The route completed the campaign just now, after the fixture's clock.
+    decision = world.resolve(now=world.now + timedelta(days=1))
+    assert decision["route_state"] == STATE_PINNED, decision["reasons"]
+
+
+def _campaign_plan(
+    run_id: str = "run-attribution-negative",
+    *,
+    agent: str = AGENT,
+    employee: str = ADMIN,
+    tenant: str = TENANT,
+    workspace: str = WORKSPACE,
+) -> dict:
+    return {
+        "objective": "held-out attribution campaign",
+        "employee_id": employee,
+        "provenance": {"agent_id": agent},
+        "tenant_id": tenant,
+        "workspace_id": workspace,
+        "status": "completed",
+        "run_id": run_id,
+    }
+
+
+def _accepted_decision(call_id: str = "attempt-attribution") -> dict:
+    route = {"provider": BASELINE[0], "model": BASELINE[1]}
+    return {
+        "kind": "employee_route",
+        "accepted": True,
+        "attempt_id": call_id,
+        "requested_route": dict(route),
+        "served_route": dict(route),
+        "response_identity": dict(route),
+    }
+
+
+def test_campaign_intake_refuses_unresolvable_agent_before_creating(world):
+    from core.employee_campaign_intake import (
+        CampaignAttributionError,
+        start_campaign_execution,
+    )
+
+    cases = [
+        ({**_campaign_plan(), "provenance": {}}, "campaign_agent_missing"),
+        ({**_campaign_plan(), "provenance": {"agent_id": "not-a-registry-row"}},
+         "campaign_agent_not_found"),
+        (_campaign_plan(tenant="foreign-tenant"),
+         "campaign_agent_tenant_mismatch"),
+        (_campaign_plan(workspace="foreign-workspace"),
+         "campaign_agent_workspace_mismatch"),
+        (_campaign_plan(employee="not-a-user"),
+         "campaign_employee_not_found"),
+    ]
+    for index, (assignment, reason) in enumerate(cases):
+        execution_id = f"exec-refused-{index}"
+        with pytest.raises(CampaignAttributionError) as raised:
+            start_campaign_execution(
+                db_path=world.db_path,
+                execution_id=execution_id,
+                assignment=assignment,
+                run_id=assignment["run_id"],
+            )
+        assert raised.value.reason == reason
+        with world.Session() as db:
+            assert db.get(AgentExecution, execution_id) is None
+
+    # No run identity is not guessed, and no row is created.
+    assignment = _campaign_plan()
+    assignment.pop("run_id")
+    with pytest.raises(CampaignAttributionError) as raised:
+        start_campaign_execution(
+            db_path=world.db_path,
+            execution_id="exec-refused-run",
+            assignment=assignment,
+        )
+    assert raised.value.reason == "campaign_run_identity_missing"
+    with world.Session() as db:
+        assert db.get(AgentExecution, "exec-refused-run") is None
+
+
+def test_shared_system_agent_is_scope_authorized_not_user_paired(world):
+    """A NULL-owner shared agent is valid; the employee remains a distinct User."""
+    from core.employee_campaign_intake import start_campaign_execution
+
+    shared = "campaign-shared-agent"
+    with world.Session() as db:
+        db.add(AgentRegistry(
+            id=shared, name="Campaign Shared", category="operations",
+            role="agent", type="system", capabilities=[],
+            module_path="core.generic_agent", class_name="GenericAgent",
+            user_id=None, workspace_id=WORKSPACE, tenant_id=TENANT,
+            status="student", enabled=True, confidence_score=0.62,
+            configuration={},
+        ))
+        db.commit()
+
+    assignment = _campaign_plan(agent=shared, employee=ADMIN)
+    assert start_campaign_execution(
+        db_path=world.db_path,
+        execution_id="exec-shared-agent",
+        assignment=assignment,
+        run_id=assignment["run_id"],
+    ) == "exec-shared-agent"
+    with world.Session() as db:
+        row = db.get(AgentExecution, "exec-shared-agent")
+        assert row.agent_id == shared
+        assert row.agent_id != ADMIN
+        assert row.tenant_id == TENANT
+        assert row.workspace_id == WORKSPACE
+
+
+def test_campaign_row_idempotency_foreign_collision_and_immutability(world):
+    from core.employee_campaign_intake import (
+        CampaignAttributionError,
+        complete_campaign_execution,
+        record_campaign_evidence,
+        start_campaign_execution,
+    )
+
+    assignment = _campaign_plan(run_id="run-idempotent")
+    execution_id = "exec-idempotent"
+    assert start_campaign_execution(
+        db_path=world.db_path, execution_id=execution_id,
+        assignment=assignment, run_id="run-idempotent") == execution_id
+    # Same plan: idempotent reuse, never a second row.
+    assert start_campaign_execution(
+        db_path=world.db_path, execution_id=execution_id,
+        assignment=assignment, run_id="run-idempotent") == execution_id
+
+    other_run = _campaign_plan(run_id="run-different")
+    with pytest.raises(CampaignAttributionError) as raised:
+        start_campaign_execution(
+            db_path=world.db_path, execution_id=execution_id,
+            assignment=other_run, run_id="run-different")
+    assert raised.value.reason == "campaign_row_identity_mismatch"
+    with world.Session() as db:
+        row = db.get(AgentExecution, execution_id)
+        assert row.status == "running"
+        assert row.metadata_json["campaign"] == {
+            "id": "employee-heldout-two-domain", "run_id": "run-idempotent"}
+
+    # A caller-chosen id already naming another agent's running row is refused
+    # by BOTH create paths and never completed/re-attributed.
+    with world.Session() as db:
+        db.add(AgentExecution(
+            id="exec-foreign-row", agent_id=OTHER_AGENT,
+            tenant_id=TENANT, workspace_id=WORKSPACE, status="running",
+            metadata_json={"campaign": {
+                "id": "employee-heldout-two-domain", "run_id": "run-foreign"}},
+        ))
+        db.commit()
+    with pytest.raises(CampaignAttributionError) as raised:
+        start_campaign_execution(
+            db_path=world.db_path, execution_id="exec-foreign-row",
+            assignment=assignment, run_id="run-idempotent")
+    assert raised.value.reason == "campaign_row_attribution_mismatch"
+    with pytest.raises(CampaignAttributionError) as raised:
+        complete_campaign_execution(
+            db_path=world.db_path, execution_id="exec-foreign-row",
+            assignment=assignment, completed_at=world.now,
+            run_id="run-idempotent")
+    assert raised.value.reason == "campaign_row_attribution_mismatch"
+
+    refused = record_campaign_evidence(
+        db_path=world.db_path,
+        execution_id="exec-foreign-row",
+        campaign="employee-heldout-two-domain",
+        observation=_heldout_observation(),
+        completed_at=world.now,
+        decisions=[_accepted_decision()],
+        assignment=assignment,
+    )
+    assert refused["status"] == "rejected"
+    assert refused["reason"] == "campaign_row_attribution_mismatch"
+    with world.Session() as db:
+        row = db.get(AgentExecution, "exec-foreign-row")
+        assert row.agent_id == OTHER_AGENT
+        assert row.status == "running"
+        assert row.completed_at is None
+        assert bench_evidence.EVIDENCE_KEY not in (row.metadata_json or {})
+
+    # Completed history is immutable: identical re-completion is a no-op;
+    # a different completion time is refused without touching the row.
+    first_completed = world.now - timedelta(hours=1)
+    assert complete_campaign_execution(
+        db_path=world.db_path, execution_id=execution_id,
+        assignment=assignment, completed_at=first_completed,
+        run_id="run-idempotent") is True
+    with world.Session() as db:
+        sealed_at = db.get(AgentExecution, execution_id).completed_at
+    assert complete_campaign_execution(
+        db_path=world.db_path, execution_id=execution_id,
+        assignment=assignment, completed_at=first_completed,
+        run_id="run-idempotent") is True
+    with world.Session() as db:
+        row = db.get(AgentExecution, execution_id)
+        assert row.completed_at == sealed_at
+        assert row.agent_id == AGENT
+        assert row.status == "completed"
+    with pytest.raises(CampaignAttributionError) as raised:
+        complete_campaign_execution(
+            db_path=world.db_path, execution_id=execution_id,
+            assignment=assignment,
+            completed_at=first_completed + timedelta(hours=1),
+            run_id="run-idempotent")
+    assert raised.value.reason == "campaign_completion_mismatch"
+    with world.Session() as db:
+        row = db.get(AgentExecution, execution_id)
+        assert row.completed_at == sealed_at
+        assert row.agent_id == AGENT
+
+
+def test_legacy_user_attributed_rows_are_refused_not_resealed(world):
+    from core.employee_campaign_intake import (
+        CampaignAttributionError,
+        complete_campaign_execution,
+        record_campaign_evidence,
+    )
+
+    with world.Session() as db:
+        db.add(AgentExecution(
+            id="exec-legacy-user", agent_id=ADMIN,
+            tenant_id=TENANT, workspace_id=WORKSPACE, status="completed",
+            output_summary="completed", completed_at=world.now,
+            metadata_json={"campaign": {
+                "id": "employee-heldout-two-domain", "run_id": "run-legacy"}},
+        ))
+        db.commit()
+
+    assignment = _campaign_plan(run_id="run-legacy", agent=AGENT)
+    with pytest.raises(CampaignAttributionError) as raised:
+        complete_campaign_execution(
+            db_path=world.db_path, execution_id="exec-legacy-user",
+            assignment=assignment, completed_at=world.now,
+            run_id="run-legacy")
+    assert raised.value.reason == "campaign_row_attribution_mismatch"
+
+    refused = record_campaign_evidence(
+        db_path=world.db_path,
+        execution_id="exec-legacy-user",
+        campaign="employee-heldout-two-domain",
+        observation=_heldout_observation(),
+        completed_at=world.now,
+        decisions=[_accepted_decision("attempt-legacy")],
+        assignment=assignment,
+    )
+    assert refused["status"] == "rejected"
+    assert refused["reason"] == "campaign_row_attribution_mismatch"
+
+    # Even a caller that omits the plan cannot seal the user-attributed row:
+    # no registry row exists for a User.id, so the row is unresolved.
+    refused_unplanned = record_campaign_evidence(
+        db_path=world.db_path,
+        execution_id="exec-legacy-user",
+        campaign="employee-heldout-two-domain",
+        observation=_heldout_observation(),
+        completed_at=world.now,
+        decisions=[_accepted_decision("attempt-legacy-unplanned")],
+    )
+    assert refused_unplanned["status"] == "rejected"
+    assert refused_unplanned["reason"] == "campaign_row_agent_unresolved"
+    with world.Session() as db:
+        row = db.get(AgentExecution, "exec-legacy-user")
+        assert bench_evidence.EVIDENCE_KEY not in (row.metadata_json or {})
+        assert row.agent_id == ADMIN

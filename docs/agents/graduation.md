@@ -275,6 +275,22 @@ evidence result, not merely output presence, scope or safety. The evaluator is
 After a qualified promotion, the same agent may serve a repeated, workload-matching assignment
 with a model route the recorded evidence still supports, without a new review for every run.
 
+- **Durable agent attribution (producer side).** A campaign `AgentExecution` is owned by
+  the server plan's validated `provenance.agent_id`, resolved again at intake against the
+  durable `AgentRegistry` row and the plan's canonical tenant/workspace. The plan's
+  `employee_id` stays the human/User assignment target; the two ids are deliberately not
+  required to be equal, because the established authorization helpers validate
+  tenant/workspace scope and shared/system agents legitimately have a NULL or different
+  owner. There is no fallback to `employee_id`, the sole registry agent, a model/name or
+  client metadata: a missing, foreign or unresolvable agent is refused before a row is
+  created, completed or sealed.
+  New rows only: completed history is immutable. A row created before this contract that is
+  attributed to a `User.id` (or the old `employee-campaign` fallback) stays audit-only and
+  permanently unbound; it is never re-attributed or re-sealed. A running row with the wrong
+  ownership is refused at both start and completion — start a new campaign run. An existing
+  id is reused only for the exact same agent, tenant, workspace, campaign and run; a caller
+  chosen id that already names another agent's row is refused, not silently completed.
+  G2/G3 dispatch quality and the reader's independent row/record validation are unchanged.
 - **Frozen benchmark evidence, not caller claims.** Evidence comes only from offline
   server-side intake against a frozen benchmark set whose dataset digest and scoring
   version are pinned; a changed set or scoring generation is a different benchmark, and
