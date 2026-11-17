@@ -489,8 +489,15 @@ class _TransportPlan:
         self.routes: Dict[str, Dict[str, Any]] = {}
         self.calls: List[Dict[str, Any]] = []
 
-    def serve(self, model: str, *, echo: str) -> None:
-        self.routes[model] = {"content": _PROPOSAL_JSON, "echo": echo}
+    def serve(
+        self, model: str, *, echo: str = "", content: Any = None,
+        omit_echo: bool = False,
+    ) -> None:
+        self.routes[model] = {
+            "content": _PROPOSAL_JSON if content is None else content,
+            "echo": echo,
+            "omit_echo": omit_echo,
+        }
 
     def fail(self, model: str, status: int, message: str) -> None:
         self.routes[model] = {"status": status, "error": message}
@@ -519,11 +526,10 @@ def _transport_handler(provider_id: str, plan: _TransportPlan):
                 "message": route.get("error") or "controlled failure",
                 "type": "invalid_request_error",
             }})
-        return httpx.Response(200, json={
+        payload = {
             "id": "chatcmpl-strict-pin-local",
             "object": "chat.completion",
             "created": 0,
-            "model": route.get("echo") or model,
             "choices": [{
                 "index": 0,
                 "finish_reason": "stop",
@@ -537,7 +543,10 @@ def _transport_handler(provider_id: str, plan: _TransportPlan):
                 "completion_tokens": 40,
                 "total_tokens": 140,
             },
-        })
+        }
+        if not route.get("omit_echo"):
+            payload["model"] = route.get("echo") or model
+        return httpx.Response(200, json=payload)
 
     return _handle
 
@@ -557,6 +566,7 @@ def dispatch_world(monkeypatch):
 
     import core.llm.byok_handler as bh
     from core.dynamic_pricing_fetcher import get_pricing_fetcher
+    from core.employee_adaptation import propose_adaptation
     from core.employee_proposal import (
         build_employee_context,
         propose_employee_work,
@@ -659,12 +669,48 @@ def dispatch_world(monkeypatch):
             stage="discovery",
         )
 
-    async def _propose(*, strict: bool, pin=_PIN, context=None):
+    async def _propose(
+        *, strict: bool, pin=_PIN, context=None,
+        expected_route=None, expected_build=None,
+        deadline_seconds: float = 120.0,
+    ):
         return await propose_employee_work(
             context if context is not None else _context(),
             llm_service=service,
+            deadline_seconds=deadline_seconds,
             provider_model=tuple(pin) if pin else None,
             strict_pin=True if (strict and pin) else None,
+            expected_route=expected_route,
+            expected_build=expected_build,
+        )
+
+    def _adaptation_context():
+        # Deliberately no work-request schemas: this arm exercises the
+        # all-purpose adaptation schema, not the compact work-request one.
+        return {
+            "identity": {
+                "workspace_id": _STRICT_WS, "tenant_id": _STRICT_TENANT},
+            "work_request_schemas": [],
+            "objective": "Continue the authorized evidence work",
+        }
+
+    async def _adapt(
+        *, strict: bool, pin=_PIN, expected_route=None,
+        expected_build=None,
+    ):
+        from core.assignment_plan import new_assignment
+
+        return await propose_adaptation(
+            _adaptation_context(),
+            [{"observation_id": "o-1", "kind": "evidence_result"}],
+            assignment=new_assignment(
+                objective="Continue the authorized evidence work",
+                workspace_id=_STRICT_WS, tenant_id=_STRICT_TENANT),
+            llm_service=service,
+            provider_model=tuple(pin) if pin else None,
+            strict_pin=True if (strict and pin) else None,
+            expected_route=expected_route,
+            expected_build=expected_build,
         )
 
     world = {
@@ -673,6 +719,7 @@ def dispatch_world(monkeypatch):
         "plan": plan,
         "context": _context,
         "propose": _propose,
+        "adapt": _adapt,
         "set_ranked": lambda routes_: ranked.__setitem__(slice(None), routes_),
     }
     with SessionLocal() as db:
@@ -963,3 +1010,598 @@ async def test_strict_pin_exclusion_refuses_before_dispatch(dispatch_world):
     assert result is None
     assert plan.calls == [], (
         "an excluded strict pin must not re-rank onto another provider")
+
+
+# ---------------------------------------------------------------------------
+# PHASE B: the SERVER-bound qualification identity is proven BEFORE the
+# consumer may use the model proposal.
+#
+# Phase A stopped the handler from dropping a strict qualification pin. This
+# section covers the remaining gap the dispatch-floor probe proved: an
+# accepted response whose provider build/route did not prove the server-pinned
+# identity was still returned as ``source="model"`` to the ordinary consumer
+# and only demoted later by the effect gate. The consumer now gates the
+# accepted response on the EXISTING ``validate_served_identity`` contract
+# using the SERVER route decision's ``selected_route``/``selected_build``.
+#
+# Every routed answer below is the same synthetic local transport double; no
+# model-quality claim is made.
+# ---------------------------------------------------------------------------
+
+_PIN_ECHO_OTHER = "qualrouter-70b-2026-99"
+_ADAPT_RETAIN = {"decision": "retain", "reason": "nothing ready"}
+
+
+def _served(result: Dict[str, Any]) -> Any:
+    return (result.get("routing") or {}).get("served_route")
+
+
+def _routing_error(result: Dict[str, Any]) -> Any:
+    return ((result.get("routing") or {}).get("error") or {}).get("code")
+
+
+@pytest.mark.asyncio
+async def test_qualification_expected_build_positive_is_accepted(dispatch_world):
+    """Control: the exact server route/build echo stays usable model work."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO)
+
+    result = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "model", result
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO
+    assert plan.calls == [{
+        "provider": _PIN[0],
+        "model": _PIN[1],
+        "path": "/v1/chat/completions",
+    }]
+
+
+@pytest.mark.asyncio
+async def test_qualification_missing_echo_is_rejected_before_consumer(
+        dispatch_world):
+    """An accepted response with no provider echo cannot prove the build."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], omit_echo=True)
+
+    result = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "deterministic", result
+    assert result["technical_fallback"] is True
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") is None
+    assert _routing_error(result) == "route_identity_missing"
+    assert len(plan.calls) == 1, "the actual wire attempt is preserved"
+
+
+@pytest.mark.asyncio
+async def test_qualification_wrong_build_is_rejected_before_consumer(
+        dispatch_world):
+    """A same-family but different accepted build is not the pinned build.
+
+    The actual wire attempt and its served identity stay in the audit
+    snapshot; the response is not credited as model work.
+    """
+    from core.database import SessionLocal
+    from core.models import LLMRoutingFeedback
+
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER)
+
+    result = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "deterministic", result
+    assert result["technical_fallback"] is True
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+    assert _routing_error(result) == "route_identity_conflict"
+    assert plan.calls == [{
+        "provider": _PIN[0],
+        "model": _PIN[1],
+        "path": "/v1/chat/completions",
+    }]
+
+    # The discarded generation is annotated as business-UNRESOLVED, so the
+    # capability evidence loader neither counts it as success nor as a
+    # semantic business failure.
+    routing_result_id = (result["routing"] or {}).get("routing_result_id")
+    assert routing_result_id
+    with SessionLocal() as db:
+        row = (
+            db.query(LLMRoutingFeedback)
+            .filter(LLMRoutingFeedback.routing_result_id
+                    == routing_result_id)
+            .order_by(LLMRoutingFeedback.created_at.asc())
+            .first())
+    assert row is not None
+    features = dict(row.prompt_features or {})
+    assert features.get("business_outcome") == "unresolved"
+    assert features.get("identity_state") == "conflict"
+    assert features.get("identity_build") == _PIN_ECHO_OTHER
+
+    from core.llm.capability_profiles import (
+        parse_evidence_rows,
+        resolve_capability_profile,
+    )
+
+    profile = resolve_capability_profile(_STRICT_PROFILE, None, "")
+    evidence = parse_evidence_rows(
+        [{"prompt_features": features, "tenant_id": row.tenant_id,
+          "model_id": row.model_id, "success": row.success,
+          "quality_satisfied": row.quality_satisfied,
+          "created_at": row.created_at, "id": row.id}],
+        profile, workspace_id=_STRICT_WS, tenant_id=_STRICT_TENANT)
+    bucket = evidence.get(f"{_PIN[0]}/{_PIN[1]}") or {}
+    assert bucket.get("samples", 0) == 0, (
+        "a discarded wrong-identity response must not become capability "
+        "evidence")
+
+
+@pytest.mark.asyncio
+async def test_qualification_unversioned_echo_conflicts_with_bound_build(
+        dispatch_world):
+    """The bare alias echo is not proof for an exact bound build."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN[1])
+
+    result = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "deterministic", result
+    assert _routing_error(result) == "route_identity_conflict"
+    assert (result["routing"] or {}).get("resolved_model") == _PIN[1]
+
+
+@pytest.mark.asyncio
+async def test_qualification_wrong_served_route_is_rejected(dispatch_world):
+    """A response served by a different route cannot satisfy the pinned route.
+
+    The actual dispatch boundary cannot physically serve another route for a
+    strict pin (Phase A), so this arm uses the real consumer + wrapper with a
+    controlled service that stamps a different served route. It is a
+    consumer-identity counter, not a second transport claim.
+    """
+    from core.employee_proposal import propose_employee_work
+
+    class _WrongRouteService:
+        def __init__(self) -> None:
+            self.calls: List[Dict[str, Any]] = []
+
+        async def generate_structured_response(self, **kwargs: Any) -> Any:
+            from core.llm.model_provenance import (
+                set_resolved_model, set_served_route,
+            )
+
+            self.calls.append(dict(kwargs))
+            set_resolved_model(_WEAK_ECHO)
+            set_served_route(_WEAK[0], _WEAK[1])
+            return dict(_PROPOSAL_JSON)
+
+    service = _WrongRouteService()
+    result = await propose_employee_work(
+        dispatch_world["context"](),
+        llm_service=service,
+        provider_model=_PIN,
+        strict_pin=True,
+        expected_route=_PIN,
+        expected_build=_PIN_ECHO,
+    )
+
+    assert result["source"] == "deterministic", result
+    assert _served(result) == {"provider": _WEAK[0], "model": _WEAK[1]}
+    assert _routing_error(result) == "route_identity_conflict"
+    assert len(service.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_qualification_identity_crosses_wait_for_child_task(
+        dispatch_world):
+    """The request-owned provenance survives the ``asyncio.wait_for`` child.
+
+    ``propose_employee_work`` always awaits the pinned call through
+    ``wait_for`` when it has a positive budget, so ContextVars written in the
+    child are not visible to the consumer. The rejection still sees the real
+    served echo, proving the capture (not ambient state) is authoritative.
+    """
+    from core.employee_proposal import propose_employee_work
+
+    class _DelayedService:
+        async def generate_structured_response(self, **kwargs: Any) -> Any:
+            import asyncio as _asyncio
+
+            from core.llm.model_provenance import (
+                set_resolved_model, set_served_route,
+            )
+
+            await _asyncio.sleep(0.01)
+            set_resolved_model(_PIN_ECHO_OTHER)
+            set_served_route(_PIN[0], _PIN[1])
+            return dict(_PROPOSAL_JSON)
+
+    result = await propose_employee_work(
+        dispatch_world["context"](),
+        llm_service=_DelayedService(),
+        deadline_seconds=1.0,
+        provider_model=_PIN,
+        strict_pin=True,
+        expected_route=_PIN,
+        expected_build=_PIN_ECHO,
+    )
+
+    assert result["source"] == "deterministic", result
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+    assert _routing_error(result) == "route_identity_conflict"
+
+
+@pytest.mark.asyncio
+async def test_qualification_uses_fresh_decision_not_stale_echo(
+        dispatch_world):
+    """A later dispatch uses the CURRENT decision, not the rejected echo.
+
+    The first call's response echoed a different build; that rejected reply
+    must never become the expected build for the next attempt. The second
+    call with the original server build and a correct echo is accepted.
+    """
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER)
+    rejected = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+    assert rejected["source"] == "deterministic", rejected
+    assert (rejected["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO)
+    accepted = await dispatch_world["propose"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+    assert accepted["source"] == "model", accepted
+    assert (accepted["routing"] or {}).get("resolved_model") == _PIN_ECHO
+
+
+@pytest.mark.asyncio
+async def test_qualification_non_expected_build_twin_is_unchanged(
+        dispatch_world):
+    """Callers without the server identity contract keep today's behavior."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER)
+
+    strict_no_expectation = await dispatch_world["propose"](strict=True)
+    assert strict_no_expectation["source"] == "model", strict_no_expectation
+    assert (strict_no_expectation["routing"] or {}).get(
+        "resolved_model") == _PIN_ECHO_OTHER
+
+    plain = await dispatch_world["propose"](strict=False)
+    assert plain["source"] == "model", plain
+    assert _served(plain) == {"provider": _PIN[0], "model": _PIN[1]}
+
+
+@pytest.mark.asyncio
+async def test_adaptation_qualification_positive_is_accepted(dispatch_world):
+    """The adaptation consumer accepts the exact expected route/build."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO, content=_ADAPT_RETAIN)
+
+    result = await dispatch_world["adapt"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "model", result
+    assert result["proposal"]["decision"] == "retain"
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO
+
+
+@pytest.mark.asyncio
+async def test_adaptation_wrong_build_is_rejected_before_consumer(
+        dispatch_world):
+    """Every adaptation stage (including a repair) is gated on identity."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER, content=_ADAPT_RETAIN)
+
+    result = await dispatch_world["adapt"](
+        strict=True, expected_route=_PIN, expected_build=_PIN_ECHO)
+
+    assert result["source"] == "deterministic", result
+    assert result["technical_fallback"] is True
+    assert result["proposal"]["decision"] == "retain"
+    assert _served(result) == {"provider": _PIN[0], "model": _PIN[1]}
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+    assert _routing_error(result) == "route_identity_conflict"
+    assert plan.calls == [{
+        "provider": _PIN[0],
+        "model": _PIN[1],
+        "path": "/v1/chat/completions",
+    }]
+
+
+@pytest.mark.asyncio
+async def test_adaptation_non_expected_build_twin_is_unchanged(dispatch_world):
+    """An adaptation caller without the contract keeps its historical path."""
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER, content=_ADAPT_RETAIN)
+
+    result = await dispatch_world["adapt"](strict=True)
+
+    assert result["source"] == "model", result
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+
+
+def test_assignment_route_rejects_wrong_build_before_model_proposal(
+        dispatch_world, tmp_path, monkeypatch):
+    """The real assignment entry point gates on the durable decision's build.
+
+    Real ``_advance_employee_work`` (the module function the source route and
+    ``/advance`` both call; this arm is NOT an HTTP request) -> real
+    ``propose_employee_work`` -> real ``pinned_structured_call`` -> real
+    ``LLMService`` -> real ``BYOKHandler`` -> real OpenAI SDK over an
+    in-process MockTransport, with the route decision read from its own
+    scratch SQLite world (the real receipt/campaign writer). Only the
+    evidence compiler is short-circuited because this arm is about the
+    identity boundary, not plan adoption; the synthetic transport double is
+    never model quality.
+
+    The rejected proposal is deterministic (not model work), the actual wire
+    attempt is audited, and the independent effect gate demotes the later
+    effect from the durable conflict.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    import httpx
+    import openai
+
+    from core.database import SessionLocal
+    from core.models import Tenant, TokenUsage, Workspace
+    from core.llm.graduation_route import (
+        IDENTITY_CONFLICT,
+        revalidate_repeat_task_effect,
+    )
+    from core.promotion_policy_service import (
+        ASSESSMENT_POLICY_KEY,
+        DEFAULT_ASSESSMENT_POLICY,
+    )
+    from tests.test_graduation_route_runtime import (
+        AGENT,
+        ALIAS,
+        ALIAS_BUILD,
+        ALIAS_OTHER_BUILD,
+        RUBRIC,
+        SCOPE,
+        DecisionLog,
+        World,
+        _BENCHMARK_REGISTRY_PATH,
+        _assignment_record,
+        stub_executor,
+    )
+
+    monkeypatch.setenv(
+        "ATOM_EMPLOYEE_BENCHMARK_FILE", str(_BENCHMARK_REGISTRY_PATH))
+    policy = dict(DEFAULT_ASSESSMENT_POLICY)
+    policy["rubric_version"] = RUBRIC
+    monkeypatch.setenv(ASSESSMENT_POLICY_KEY, json.dumps(policy))
+    monkeypatch.delenv("ATOM_EMPLOYEE_PROVIDER_MODEL", raising=False)
+
+    run_id = "run-route-1"
+    world = World(tmp_path, baseline_route=ALIAS, baseline_build=ALIAS_BUILD)
+    world.add_benchmark_evidence(
+        "exec-phaseb-bench", *ALIAS,
+        observed_at=datetime.now(timezone.utc) - timedelta(days=2),
+        echo_model=ALIAS_BUILD)
+
+    plan = dispatch_world["plan"]
+    handler = dispatch_world["handler"]
+    plan.reset()
+    # The accepted response is served by the pinned route but echoes a
+    # different concrete build of the same family.
+    plan.serve(ALIAS[1], echo=ALIAS_OTHER_BUILD)
+
+    # Declare the alias route in the SAME real handler (a local fixture, not a
+    # new trust source) and route the pinned dispatch to it.
+    handler.clients[ALIAS[0]] = openai.OpenAI(
+        api_key="sk-phaseb-local",
+        base_url="http://127.0.0.1:9/v1",
+        http_client=httpx.Client(transport=httpx.MockTransport(
+            _transport_handler(ALIAS[0], plan))),
+    )
+    handler._local_routes[ALIAS[1]] = {
+        "provider_key": ALIAS[0],
+        "workspace_id": "route-runtime-workspace",
+        "provider_id": "prov-route-runtime",
+        "provider_type": "ollama",
+        "supports_tools": True,
+        "supports_structured": True,
+        "supports_vision": False,
+        "supports_reasoning": False,
+        "quality_score": 0.90,
+        "context_window": 131072,
+    }
+    from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
+    get_pricing_fetcher().pricing_cache.setdefault(ALIAS[1], {
+        "litellm_provider": "ollama", "max_input_tokens": 131072})
+    dispatch_world["set_ranked"]([ALIAS])
+
+    service = dispatch_world["service"]
+    handler.workspace_id = "route-runtime-workspace"
+    handler.tenant_id = "route-runtime-tenant"
+    service._get_handler = lambda *_args, **_kwargs: handler
+
+    record = _assignment_record()
+    record["assignment"]["workload_scope"] = dict(SCOPE)
+    record["assignment"]["sources"] = [{
+        "kind": "document",
+        "representation": "document_text",
+        "resource_id": "doc-1",
+        "file_name": "note.txt",
+    }]
+
+    import core.employee_job_runner as runner
+    import core.task_lifecycle as task_lifecycle
+    import core.employee_proposal as employee_proposal
+
+    monkeypatch.setattr(runner, "evidence_observations", lambda record: [])
+    monkeypatch.setattr(
+        runner, "unread_authorized_sources",
+        lambda assignment: [{"source_id": "doc-1"}])
+    monkeypatch.setattr(
+        runner, "deterministic_unread_evidence_proposal", lambda unread: None)
+    monkeypatch.setattr(
+        runner, "compile_evidence_read_patch", lambda *a, **k: {"patch": None})
+    monkeypatch.setattr(
+        task_lifecycle, "open_unresolved_questions", lambda record: False)
+    monkeypatch.setattr(
+        employee_proposal, "operation_capabilities", lambda assignment: [])
+
+    with SessionLocal() as db:
+        db.merge(Tenant(
+            id="route-runtime-tenant", name="Route runtime tenant",
+            subdomain="phaseb-route-runtime", edition="personal",
+            is_active=True))
+        db.merge(Workspace(
+            id="route-runtime-workspace", name="Route runtime workspace",
+            tenant_id="route-runtime-tenant"))
+        db.commit()
+
+    try:
+        from api.assignment_routes import _advance_employee_work
+
+        log = DecisionLog(tmp_path / "phaseb-decisions.json")
+        executor = stub_executor(world, log, record)
+        rounds = asyncio.run(_advance_employee_work(
+            executor, run_id, service, max_rounds=1,
+            provider_model=("other", "legacy-model")))
+
+        assert rounds, "the assignment round must be recorded"
+        assert rounds[0]["source"] == "deterministic", rounds[0]
+        routing = rounds[0].get("routing") or {}
+        assert routing.get("served_route") == {
+            "provider": ALIAS[0], "model": ALIAS[1]}
+        assert routing.get("resolved_model") == ALIAS_OTHER_BUILD
+        assert (routing.get("error") or {}).get(
+            "code") == "route_identity_conflict"
+
+        # The physical wire attempt really happened on the pinned route and is
+        # still in the audit, even though the result was discarded.
+        assert plan.calls, "the actual wire attempt must be preserved"
+        assert {call["model"] for call in plan.calls} == {ALIAS[1]}
+        assert {call["provider"] for call in plan.calls} == {ALIAS[0]}
+
+        final = log.route_entries()[-1]
+        assert final["selected_route"] == {
+            "provider": ALIAS[0], "model": ALIAS[1]}
+        assert final["selected_build"] == ALIAS_BUILD
+        assert final["identity_build"] == ALIAS_OTHER_BUILD
+        assert final["identity_state"] == IDENTITY_CONFLICT
+        assert final["autonomous_eligible"] is False
+
+        # The independent effect gate still revalidates the durable decision
+        # after the early identity gate; it is not removed or bypassed.
+        with world.Session() as db:
+            denial = revalidate_repeat_task_effect(
+                db, agent_id=AGENT,
+                decisions=log.get_decisions(run_id),
+                assignment=record["assignment"])
+        assert denial is not None
+        assert denial["outcome"] == "propose"
+        # The round did not count as model work.
+        assert rounds[0]["technical_fallback"] is True
+    finally:
+        with SessionLocal() as db:
+            db.query(TokenUsage).filter(
+                TokenUsage.workspace_id == "route-runtime-workspace").delete()
+            db.query(Workspace).filter(
+                Workspace.id == "route-runtime-workspace").delete()
+            db.query(Tenant).filter(
+                Tenant.id == "route-runtime-tenant").delete()
+            db.commit()
+
+
+def test_route_expected_identity_only_for_server_decision():
+    """A raw operator pin has no server expected identity to enforce."""
+    from api.assignment_routes import _route_expected_identity
+
+    assert _route_expected_identity(None, {"selected_build": "b"}) == (
+        None, None)
+    assert _route_expected_identity(("p", "m"), None) == (None, None)
+    # The build is read from the CURRENT durable decision, never a prior
+    # response's echo (``identity_build``).
+    decision = {"selected_build": "b-1", "identity_build": "stale-echo"}
+    assert _route_expected_identity(("p", "m"), decision) == (
+        ("p", "m"), "b-1")
+
+
+@pytest.mark.asyncio
+async def test_client_expected_route_cannot_override_dispatched_pin(
+        dispatch_world):
+    """The dispatched server pin is the route authority, not caller metadata.
+
+    A conflicting ``expected_route`` argument cannot widen what is accepted:
+    the response is validated against the actual pinned route and build.
+    """
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER)
+
+    wrong = await dispatch_world["propose"](
+        strict=True, expected_route=_WEAK, expected_build=_PIN_ECHO)
+    assert wrong["source"] == "deterministic", wrong
+    assert _routing_error(wrong) == "route_identity_conflict"
+
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO)
+    right = await dispatch_world["propose"](
+        strict=True, expected_route=_WEAK, expected_build=_PIN_ECHO)
+    assert right["source"] == "model", right
+    assert _served(right) == {"provider": _PIN[0], "model": _PIN[1]}
+
+
+@pytest.mark.asyncio
+async def test_without_the_identity_gate_wrong_build_was_accepted(
+        dispatch_world, monkeypatch):
+    """COUNTER: the pre-Phase-B path accepted the same mismatched build.
+
+    This disables ONLY the new identity gate on the exact same test-owned
+    transport. The response is then returned as ``source="model"`` before any
+    effect/identity demotion — the original acceptance the probe reproduced.
+    It is the paired negative for the rejection tests above, not a second
+    transport or a reverted production path.
+    """
+    from core import employee_routing_feedback as feedback
+    from core.employee_proposal import propose_employee_work
+
+    async def _no_gate(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        feedback, "record_discarded_qualification_identity", _no_gate)
+    plan = dispatch_world["plan"]
+    plan.reset()
+    plan.serve(_PIN[1], echo=_PIN_ECHO_OTHER)
+
+    result = await propose_employee_work(
+        dispatch_world["context"](),
+        llm_service=dispatch_world["service"],
+        provider_model=_PIN,
+        strict_pin=True,
+        expected_route=_PIN,
+        expected_build=_PIN_ECHO,
+    )
+
+    assert result["source"] == "model", result
+    assert (result["routing"] or {}).get("resolved_model") == _PIN_ECHO_OTHER
+    assert plan.calls == [{
+        "provider": _PIN[0],
+        "model": _PIN[1],
+        "path": "/v1/chat/completions",
+    }]

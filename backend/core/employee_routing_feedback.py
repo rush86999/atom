@@ -41,6 +41,11 @@ MODEL_SOURCES = frozenset({
 
 #: Route-boundary failures. The handler's outcome row already distinguishes
 #: these; the business consumer must not turn them into semantic judgements.
+#:
+#: The two ``route_identity_*`` codes are the qualification-pin identity
+#: boundary: the response parsed, but the accepted provider did not prove the
+#: server-pinned route/build. That is an artifact-integrity boundary, not a
+#: statement about the model's business answer.
 AVAILABILITY_ERRORS = frozenset({
     "provider_failure",
     "deadline_cancelled",
@@ -48,6 +53,8 @@ AVAILABILITY_ERRORS = frozenset({
     "malformed_structured_output",
     "scope_unresolved",
     "pin_failed",
+    "route_identity_missing",
+    "route_identity_conflict",
 })
 
 #: Deterministic business failure kinds understood by the capability
@@ -351,13 +358,20 @@ async def record_pending_business_evaluation(
     workspace_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     extra_features: Optional[Mapping[str, Any]] = None,
+    transport_success: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """Mark a parsed model decision as NOT yet business-evaluated.
 
-    The transport row remains a transport success, but the capability
-    selector skips ``business_outcome=unresolved`` rows. This is how a parsed
-    wait/clarify choice is prevented from counting as a satisfactory business
-    outcome merely because its JSON validated.
+    The capability selector skips ``business_outcome=unresolved`` rows, so a
+    parsed wait/clarify choice is not a satisfactory business outcome merely
+    because its JSON validated. A pending annotation writes provenance only;
+    it never rewrites the persisted row's transport-quality fields.
+
+    ``transport_success=False`` is for a response the system REFUSED to use
+    (a discarded qualification identity): the persisted pending marker is
+    unchanged, but the in-memory learning event must not credit that
+    generation as a success either. The transport fact itself stays in the
+    handler's own audit row.
     """
     context = attempt_context(result)
     if context is None:
@@ -392,8 +406,8 @@ async def record_pending_business_evaluation(
         tenant_id=str(tenant_id),
         model_id=context["model"],
         task_type="general",
-        success=True,  # transport fact, not a business success
-        quality_satisfied=True,
+        success=bool(transport_success),  # transport fact, not a business success
+        quality_satisfied=bool(transport_success),
         cost_within_budget=True,
         user_satisfaction=None,
         provider_id=context["provider"],
@@ -415,6 +429,94 @@ async def record_pending_business_evaluation(
         "provider": context["provider"],
         "model": context["model"],
         "routing_result_id": context["routing_result_id"],
+    }
+
+
+async def record_discarded_qualification_identity(
+    result: Mapping[str, Any],
+    *,
+    expected_route: Any,
+    expected_build: Optional[str],
+    stage: str,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    extra_features: Optional[Mapping[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Gate one qualification-pinned response on its served route/build.
+
+    The server resolved the expected route/build from durable benchmark
+    evidence; a caller's plan metadata is never an input here. The accepted
+    provider response must prove that exact route (and the bound concrete
+    build, when one exists) through the EXISTING identity contract
+    (``graduation_route.validate_served_identity``). A healthy exact match is
+    accepted unchanged.
+
+    A missing or conflicting identity is discarded BEFORE the business
+    consumer can use it: the accepted transport row is annotated
+    ``business_outcome=unresolved`` (the existing pending marker), so a
+    discarded response is neither capability/calibration success nor a
+    semantic business failure. The actual served route/build stays on the
+    routing snapshot for audit; it is never relabelled as the expected one.
+
+    Returns ``None`` when the identity is verified (caller keeps the result),
+    otherwise the rejection detail the caller must turn into its ordinary
+    deterministic/unavailable fallback.
+    """
+    from core.llm.graduation_route import (
+        IDENTITY_CONFLICT,
+        IDENTITY_VERIFIED,
+        response_build_identity,
+        validate_served_identity,
+    )
+
+    routing = _routing(result)
+    try:
+        identity_state = validate_served_identity(
+            expected_route, routing, expected_build=expected_build)
+    except Exception:  # noqa: BLE001 — an unprovable identity fails closed
+        identity_state = IDENTITY_CONFLICT
+    if identity_state == IDENTITY_VERIFIED:
+        return None
+    try:
+        actual_build = response_build_identity(routing)
+    except Exception:  # noqa: BLE001 — missing audit detail stays unknown
+        actual_build = None
+    error_code = (
+        "route_identity_missing"
+        if identity_state != IDENTITY_CONFLICT
+        else "route_identity_conflict")
+    detail = (
+        "the accepted provider response did not prove the qualification "
+        f"route/build ({identity_state})")
+    features: Dict[str, Any] = dict(extra_features or {})
+    features.update({
+        "identity_state": identity_state,
+        "identity_build": actual_build,
+        "expected_build": expected_build,
+    })
+    try:
+        annotation = await record_pending_business_evaluation(
+            {
+                "source": "model",
+                "routing": routing,
+                "routing_result_id": result.get("routing_result_id"),
+            },
+            stage=stage,
+            detail=detail,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            extra_features=features,
+            transport_success=False,
+        )
+    except Exception:  # noqa: BLE001 — the rejection itself must not fail
+        annotation = None
+    return {
+        "identity_state": identity_state,
+        "identity_build": actual_build,
+        "expected_build": expected_build,
+        "error_code": error_code,
+        "detail": detail,
+        "evaluation": annotation,
     }
 
 

@@ -561,6 +561,24 @@ def _record_route_identity(
     _record_graduation_route_decision(executor, run_id, route_decision)
 
 
+def _route_expected_identity(
+    route_pin: Optional[tuple],
+    route_decision: Optional[Mapping[str, Any]],
+) -> tuple:
+    """The SERVER-bound expected route/build for one qualification dispatch.
+
+    Only a durable repeat-task decision that actually produced a dispatchable
+    pin has an expected identity. The values come from the CURRENT decision
+    (``selected_route``/``selected_build``) — never from a prior response's
+    ``identity_build`` and never from client plan metadata. A raw operator pin
+    without a server benchmark decision keeps its historical contract (no
+    expected identity), so it is not narrowed by this gate.
+    """
+    if not route_pin or not isinstance(route_decision, Mapping):
+        return None, None
+    return tuple(route_pin), route_decision.get("selected_build")
+
+
 def _record_route_marker(
     executor: Any, run_id: str, decision: Optional[Mapping[str, Any]],
 ) -> None:
@@ -1500,6 +1518,9 @@ async def _advance_employee_work(
     #: evidence; when a route is pinned it supersedes the caller/operator pin
     #: and dispatches strictly (exact route or failure). Otherwise the
     #: existing routing is untouched and the effect gate supervises.
+    #: The pin ALSO carries the CURRENT decision's selected build into every
+    #: consumer stage, so an accepted response must prove that exact
+    #: server-resolved route/build before it can become model work.
     route_pin: Optional[tuple] = None
     route_decision: Optional[Dict[str, Any]] = None
     for _ in range(max_rounds):
@@ -1567,11 +1588,15 @@ async def _advance_employee_work(
                 not context.get("work_request_schemas")
                 or (needs_more_evidence and not waiting_open)):
             remaining = max(0.0, deadline - time.monotonic())
+            expected_route, expected_build = _route_expected_identity(
+                route_pin, route_decision)
             discovery = await propose_employee_work(
                 context, llm_service=llm,
                 deadline_seconds=remaining,
                 provider_model=provider_model,
-                strict_pin=True if route_pin else None)
+                strict_pin=True if route_pin else None,
+                expected_route=expected_route,
+                expected_build=expected_build)
             if route_pin:
                 _record_route_identity(
                     executor, run_id, route_pin, route_decision, discovery)
@@ -1635,11 +1660,15 @@ async def _advance_employee_work(
                         repair_sources)
                     repair_context["repair"] = (
                         "Select only from the unread authorized sources.")
+                    expected_route, expected_build = (
+                        _route_expected_identity(route_pin, route_decision))
                     repaired = await propose_employee_work(
                         repair_context, llm_service=llm,
                         deadline_seconds=remaining,
                         provider_model=provider_model,
-                        strict_pin=True if route_pin else None)
+                        strict_pin=True if route_pin else None,
+                        expected_route=expected_route,
+                        expected_build=expected_build)
                     if route_pin:
                         _record_route_identity(
                             executor, run_id, route_pin, route_decision,
@@ -1716,11 +1745,15 @@ async def _advance_employee_work(
             break
         if not observations:
             break
+        expected_route, expected_build = _route_expected_identity(
+            route_pin, route_decision)
         proposal_result = await propose_adaptation(
             context, observations, assignment=assignment, llm_service=llm,
             provider_model=provider_model,
             deadline=deadline,
-            strict_pin=True if route_pin else None)
+            strict_pin=True if route_pin else None,
+            expected_route=expected_route,
+            expected_build=expected_build)
         if route_pin:
             _record_route_identity(
                 executor, run_id, route_pin, route_decision, proposal_result)
