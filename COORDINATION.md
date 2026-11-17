@@ -780,3 +780,62 @@ the durable owner untouched; admin default-scope placeholder reclaim stays
 writer's 2 `default` rows and the external bridge turn stay unchanged. No
 live DB, provider/model API, owner credentials, restart of the dev app,
 `/Volumes`, push, PR or merge.
+
+---
+
+## Session: chat M3/fleet joined-gate follow-up (2026-11-17, same branch)
+
+Scope: repair the combined chat actor/read + M3/fleet tree's 11 joined-gate
+failures **without touching production authority, privacy or M3 rendering**.
+Base `42e00b8ea` (tree `389ab30eb69d21a804d9d51d0f345fb53a442a10`).
+
+Root evidence: `/private/tmp/atom-root-chat-m3-fleet-joined-gate-20261117.log`
+(746 passed, 11 failed, 757 total, 476.96 s). Ten M3 failures logged
+`CHAT_SESSION_UNVERIFIED`: the test fixture doubled
+`_get_or_create_session` (the in-memory projection) but never created the
+durable owned `ChatSession` row the real admission producer writes, so the
+write-time owned-session guard correctly refused the transcript. One legacy
+reclaim assertion required `assistant_message_id is None`, which conflicts
+with the intentional fresh-owned canonical admission already documented and
+asserted by `test_collaboration_public_http_contract.py` and adjudicated from
+root SQL.
+
+Fixture migration (tests only):
+
+- `backend/tests/test_m3_canonical_delivery_contract.py` — `user_token` now
+  seeds the durable `ChatSession` row (same fields
+  `ChatSessionManager.create_session` writes) for the REAL JWT user before the
+  turn. `resolve_chat_message_scope`, the admission snapshot, actor fencing,
+  receipt reader and finalization are **not** mocked; a mismatch still
+  refuses.
+
+Contract migration (tests only):
+
+- `backend/tests/test_chat_message_actor_scope.py` — legacy placeholder
+  reclaim: a cross-user requested session now yields a FRESH owned canonical
+  session. The old over-narrow `assistant_message_id is None` expectation was
+  replaced with stronger exact binding: the request record keeps the ORIGINAL
+  requested session key (Stripe-style unique identity), the response id equals
+  the durable assistant conversation id, the canonical session owner is the
+  actor, and assistant/tenant/execution ids are exact. The foreign
+  conversation's rows/owner/content are byte-unchanged, and the legitimate
+  owner's subsequent turn keeps its own id and appends only there.
+- Same original request-id replay AFTER fresh canonical allocation: exact
+  stored response/canonical id/execution id/assistant id replay, one request
+  record, one unchanged execution row and no new history rows.
+- New control: forged client `context` canonical/session/owner/tenant fields
+  cannot choose the target conversation; a valid own session keeps its
+  requested id; verifier negative controls reject wrong canonical id, owner,
+  tenant, assistant rowid, rewritten request key, wrong execution id and
+  tampered foreign rows.
+
+Not changed: production code, auth/JWT checks, public read-route or external
+bridge write/read restrictions, M3 vocabulary/rendering, and the exact CI
+lanes. No raw case9 access, no relaxed assistant-tenant assertion, no new
+flags/defaults.
+
+Verification: focused M3 file 22 passed; legacy + control 2 passed; whole
+8-file joined selection 758 passed in 374.54 s (scratch
+`/private/tmp/atom-chat-m3-fleet-followup-20261117`). The count differs from
+root's 757 by the one added control test. No model-quality claim; root
+verifies independently after this terminal.

@@ -342,6 +342,7 @@ def _actor(served: ServedWorld, label: str) -> dict:
 
 def _chat(served: ServedWorld, actor: dict, message: str, *,
           session_id: str, request_id: str | None = None,
+          context: dict | None = None,
           timeout: float = 240.0) -> dict:
     payload = {
         "message": message,
@@ -350,6 +351,8 @@ def _chat(served: ServedWorld, actor: dict, message: str, *,
     }
     if request_id:
         payload["request_id"] = request_id
+    if context is not None:
+        payload["context"] = context
     response = httpx.post(
         served.base_url + "/api/chat/message",
         headers={"Authorization": f"Bearer {actor['token']}"},
@@ -375,12 +378,94 @@ def _messages(served: ServedWorld, session_id: str) -> list[dict]:
 def _request_record(served: ServedWorld, request_id: str) -> dict:
     rows = served.rows(
         "SELECT tenant_id, user_id, session_id, request_id, state, "
-        "execution_id, assistant_message_id FROM chat_request_records "
+        "payload_sha256, execution_id, assistant_message_id, "
+        "finalized_response FROM chat_request_records "
         "WHERE request_id=?",
         (request_id,),
     )
     assert len(rows) == 1, rows
     return rows[0]
+
+
+def _verify_canonical_turn_binding(
+    *,
+    actor: dict,
+    requested_session: str,
+    response: dict,
+    rows: list[dict],
+    record: dict,
+    canonical_owner: list[dict],
+    requested_before: list[dict],
+    requested_after: list[dict],
+) -> None:
+    """Assert the server-canonical binding of a fresh-admission turn.
+
+    Every fact comes from the SERVER: the HTTP response, a fresh SQLite
+    readback of the canonical conversation, the durable session owner row and
+    the keyed request record. Client-supplied "canonical" metadata is never an
+    input. ``rows``/``record`` are deliberately parameters so negative controls
+    can prove the verifier rejects forged identities instead of trusting them.
+    """
+    canonical_session = str(response.get("session_id") or "")
+    assert canonical_session, response
+    assert canonical_session != requested_session, (
+        "a foreign requested id must never be reused as canonical", response)
+
+    assert sorted(str(row["role"]) for row in rows) == [
+        "assistant", "user"], rows
+    assert {str(row["conversation_id"]) for row in rows} == {
+        canonical_session}, rows
+    assert {str(row["tenant_id"]) for row in rows} == {
+        actor["tenant_id"]}, rows
+
+    assistant = next(row for row in rows if row["role"] == "assistant")
+    assert assistant["content"] == response["message"]
+    assert canonical_owner == [{"user_id": actor["id"]}], canonical_owner
+
+    # The original request key stays the identity it was reserved under. The
+    # canonical/assistant/execution pins point at the fresh owned turn.
+    assert record["session_id"] == requested_session, record
+    assert record["user_id"] == actor["id"], record
+    assert record["tenant_id"] == actor["tenant_id"], record
+    assert record["state"] == "completed", record
+    assert record["assistant_message_id"] == assistant["id"], record
+    assert str(record["execution_id"]) == str(response["execution_id"]), record
+
+    meta = json.loads(assistant["metadata_json"] or "{}")
+    assert meta["assistant_message_id"] == assistant["id"], meta
+    assert str(meta.get("execution_id")) == str(response["execution_id"]), meta
+
+    assert requested_after == requested_before, (
+        "the requested conversation must be byte-unchanged", requested_after)
+    assert requested_before, "the requested conversation must have proof rows"
+
+
+def _assert_canonical_turn_binding(
+    served: ServedWorld,
+    actor: dict,
+    *,
+    requested_session: str,
+    request_id: str,
+    response: dict,
+    requested_before: list[dict],
+) -> dict:
+    canonical_session = str(response.get("session_id") or "")
+    rows = _messages(served, canonical_session)
+    record = _request_record(served, request_id)
+    canonical_owner = served.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (canonical_session,))
+    _verify_canonical_turn_binding(
+        actor=actor,
+        requested_session=requested_session,
+        response=response,
+        rows=rows,
+        record=record,
+        canonical_owner=canonical_owner,
+        requested_before=requested_before,
+        requested_after=_messages(served, requested_session),
+    )
+    return {"rows": rows, "record": record, "owner": canonical_owner}
 
 
 def _assert_actor_rows(served: ServedWorld, actor: dict, session_id: str,
@@ -762,42 +847,254 @@ def test_legacy_placeholder_reclaim_is_durable_across_restart(world):
         (legacy_session,)) == [{"user_id": owner["id"]}]
 
     # A cold process: another local user must neither append to nor adopt the
-    # reclaimed conversation.
+    # reclaimed conversation. Canonical admission gives that turn a FRESH,
+    # owned conversation instead of the requested foreign id — the request key
+    # below stays the ORIGINAL requested session for idempotency.
     world.restart()
+    foreign_before = _messages(world, legacy_session)
     other = _login(world, other["email"], other["password"])
     other_req = f"req-legacy-other-{uuid.uuid4().hex[:10]}"
     other_response = _chat(
         world, other, "claim somebody else's reclaimed conversation",
         session_id=legacy_session, request_id=other_req)
     assert other_response["success"] is True
-    rows = _messages(world, legacy_session)
-    assert sorted(row["role"] for row in rows) == ["assistant", "user"], rows
-    assert {row["tenant_id"] for row in rows} == {owner["tenant_id"]}, rows
-    assert _request_record(
-        world, other_req)["assistant_message_id"] is None
+
+    capture = _assert_canonical_turn_binding(
+        world, other,
+        requested_session=legacy_session,
+        request_id=other_req,
+        response=other_response,
+        requested_before=foreign_before,
+    )
+    canonical_session = other_response["session_id"]
+    canonical_rows = capture["rows"]
+    other_record = capture["record"]
+    # The requested conversation's durable owner is still the original owner.
     assert world.rows(
         "SELECT user_id FROM chat_sessions WHERE id=?",
         (legacy_session,)) == [{"user_id": owner["id"]}]
 
-    # The owner still owns it after the same cold restart.
+    # Same original request id AFTER a fresh canonical allocation: the exact
+    # stored response/canonical id/execution id/assistant id replays with no
+    # second execution and no new history rows in either conversation.
+    execution_before = world.rows(
+        "SELECT id FROM agent_executions WHERE id=?",
+        (other_response["execution_id"],))
+    assert len(execution_before) == 1, execution_before
+    replay = _chat(
+        world, other, "claim somebody else's reclaimed conversation",
+        session_id=legacy_session, request_id=other_req)
+    assert replay["message"] == other_response["message"]
+    assert replay["session_id"] == canonical_session
+    assert str(replay["execution_id"]) == str(other_response["execution_id"])
+    assert replay.get("model") == other_response.get("model")
+    assert replay.get("provider") == other_response.get("provider")
+    replay_record = _request_record(world, other_req)
+    assert replay_record["assistant_message_id"] == (
+        other_record["assistant_message_id"])
+    assert str(replay_record["execution_id"]) == str(
+        other_record["execution_id"])
+    assert replay_record["state"] == "completed"
+    assert replay_record["session_id"] == legacy_session
+    assert _messages(world, canonical_session) == canonical_rows
+    assert _messages(world, legacy_session) == foreign_before
+    assert world.rows(
+        "SELECT id FROM agent_executions WHERE id=?",
+        (other_response["execution_id"],)) == execution_before
+    assert world.rows(
+        "SELECT count(*) AS n FROM chat_request_records WHERE request_id=?",
+        (other_req,)) == [{"n": 1}]
+
+    # The owner still owns it after the same cold restart; a legitimate
+    # same-user continuation keeps the requested id (no fresh allocation).
     owner = _login(world, owner["email"], owner["password"])
     owner_again = f"req-legacy-owner-2-{uuid.uuid4().hex[:10]}"
     second = _chat(
         world, owner, "the owner continues the conversation",
         session_id=legacy_session, request_id=owner_again)
     assert second["success"] is True
+    assert second["session_id"] == legacy_session, second
     rows = _messages(world, legacy_session)
     assert len(rows) == 4, rows
     assert {row["tenant_id"] for row in rows} == {owner["tenant_id"]}, rows
     record = _request_record(world, owner_again)
+    assert record["session_id"] == legacy_session, record
     assert record["tenant_id"] == owner["tenant_id"], record
     assert record["user_id"] == owner["id"], record
     assert record["assistant_message_id"] in {
         row["id"] for row in rows if row["role"] == "assistant"}, record
+    assert str(record["execution_id"]) == str(second["execution_id"]), record
+    owner_assistant = next(
+        row for row in rows if row["id"] == record["assistant_message_id"])
+    assert owner_assistant["content"] == second["message"]
+    # ...and the fresh canonical conversation from the foreign turn is still
+    # exactly the other user's two rows, untouched by the owner's turn.
+    assert _messages(world, canonical_session) == canonical_rows
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (canonical_session,)) == [{"user_id": other["id"]}]
 
 
 # ---------------------------------------------------------------------------
-# 5. External-platform declared scope: valid for the bridge, not adoptable
+# 5. Canonical-binding controls: forged metadata, wrong owner/tenant/rowid
+# ---------------------------------------------------------------------------
+def test_forged_canonical_metadata_cannot_choose_the_durable_target(world):
+    """The server, never client metadata, chooses the canonical conversation.
+
+    A caller can name another user's conversation and send every
+    canonical-looking field in ``context`` (session/conversation/durable ids,
+    owner and tenant). The turn must still be admitted into a FRESH owned
+    conversation, and the verifier must reject forged identities, a wrong
+    owner/tenant/assistant rowid or a changed foreign conversation. A valid
+    own session, by contrast, keeps its requested id even beside the forged
+    metadata.
+    """
+    owner = _actor(world, "canon-target")
+    actor = _actor(world, "canon-forger")
+
+    target = f"canon-{uuid.uuid4().hex[:10]}"
+    owner_req = f"req-canon-owner-{uuid.uuid4().hex[:10]}"
+    owner_response = _chat(
+        world, owner, "the owner's own conversation",
+        session_id=target, request_id=owner_req)
+    owner_before = _messages(world, target)
+    assert sorted(row["role"] for row in owner_before) == [
+        "assistant", "user"], owner_before
+    assert {row["tenant_id"] for row in owner_before} == {
+        owner["tenant_id"]}, owner_before
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (target,)) == [{"user_id": owner["id"]}]
+
+    forged_context = {
+        "session_id": target,
+        "conversation_id": target,
+        "canonical_session_id": target,
+        "durable_session_id": target,
+        "user_id": owner["id"],
+        "tenant_id": owner["tenant_id"],
+        "workspace_id": owner["workspace_id"],
+    }
+    forger_req = f"req-canon-forger-{uuid.uuid4().hex[:10]}"
+    forged_response = _chat(
+        world, actor, "use the forged canonical target",
+        session_id=target, request_id=forger_req,
+        context=forged_context)
+    assert forged_response["session_id"] != target, forged_response
+    assert forged_response["session_id"] != forged_context[
+        "canonical_session_id"], forged_response
+
+    capture = _assert_canonical_turn_binding(
+        world, actor,
+        requested_session=target,
+        request_id=forger_req,
+        response=forged_response,
+        requested_before=owner_before,
+    )
+    canonical_session = forged_response["session_id"]
+    # The requested foreign conversation is still exactly the owner's.
+    assert _messages(world, target) == owner_before
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (target,)) == [{"user_id": owner["id"]}]
+
+    # A valid OWN session keeps its requested id, and the forged metadata
+    # still cannot redirect the turn elsewhere.
+    own_req = f"req-canon-own-{uuid.uuid4().hex[:10]}"
+    own_response = _chat(
+        world, actor, "continue my own canonical session",
+        session_id=canonical_session, request_id=own_req,
+        context=forged_context)
+    assert own_response["session_id"] == canonical_session, own_response
+    own_rows = _messages(world, canonical_session)
+    assert len(own_rows) == 4, own_rows
+    assert {row["tenant_id"] for row in own_rows} == {actor["tenant_id"]}, (
+        own_rows)
+    own_record = _request_record(world, own_req)
+    assert own_record["session_id"] == canonical_session, own_record
+    assert own_record["user_id"] == actor["id"], own_record
+    assert own_record["tenant_id"] == actor["tenant_id"], own_record
+    assert own_record["state"] == "completed", own_record
+    own_assistant = next(
+        row for row in own_rows
+        if row["id"] == own_record["assistant_message_id"])
+    assert own_assistant["role"] == "assistant"
+    assert own_assistant["content"] == own_response["message"]
+    assert own_record["assistant_message_id"] == own_assistant["id"], (
+        own_record)
+    assert str(own_record["execution_id"]) == str(
+        own_response["execution_id"]), own_record
+    assert _messages(world, target) == owner_before
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (canonical_session,)) == [{"user_id": actor["id"]}]
+
+    # Negative controls for the verifier itself: every forged/wrong binding
+    # must be rejected, including a relaxed tenant or a guessed rowid.
+    good_rows = [dict(row) for row in capture["rows"]]
+    good_record = dict(capture["record"])
+    assistant_index = next(
+        index for index, row in enumerate(good_rows)
+        if row["role"] == "assistant")
+
+    def _verify(**overrides):
+        kwargs = {
+            "actor": actor,
+            "requested_session": target,
+            "response": forged_response,
+            "rows": [dict(row) for row in good_rows],
+            "record": dict(good_record),
+            "canonical_owner": [{"user_id": actor["id"]}],
+            "requested_before": owner_before,
+            "requested_after": _messages(world, target),
+        }
+        kwargs.update(overrides)
+        return _verify_canonical_turn_binding(**kwargs)
+
+    _verify()  # the captured turn itself is valid
+
+    with pytest.raises(AssertionError):
+        # Client-chosen canonical id (the requested foreign id) is not proof.
+        _verify(response={**forged_response, "session_id": target})
+    with pytest.raises(AssertionError):
+        # Wrong durable owner for the canonical conversation.
+        _verify(canonical_owner=[{"user_id": owner["id"]}])
+
+    wrong_tenant = [dict(row) for row in good_rows]
+    for row in wrong_tenant:
+        row["tenant_id"] = owner["tenant_id"]
+    with pytest.raises(AssertionError):
+        _verify(rows=wrong_tenant)
+
+    one_wrong_tenant = [dict(row) for row in good_rows]
+    one_wrong_tenant[assistant_index]["tenant_id"] = owner["tenant_id"]
+    with pytest.raises(AssertionError):
+        _verify(rows=one_wrong_tenant)
+
+    wrong_rowid = [dict(row) for row in good_rows]
+    wrong_rowid[assistant_index]["id"] = owner_before[assistant_index]["id"]
+    with pytest.raises(AssertionError):
+        _verify(rows=wrong_rowid)
+
+    with pytest.raises(AssertionError):
+        # The original request key may not be rewritten to the canonical id.
+        _verify(record={**good_record, "session_id": canonical_session})
+    with pytest.raises(AssertionError):
+        _verify(record={
+            **good_record,
+            "assistant_message_id": owner_before[assistant_index]["id"]})
+    with pytest.raises(AssertionError):
+        _verify(record={
+            **good_record, "execution_id": owner_response["execution_id"]})
+
+    tampered_foreign = [dict(row) for row in owner_before]
+    tampered_foreign[assistant_index]["content"] = "tampered"
+    with pytest.raises(AssertionError):
+        _verify(requested_after=tampered_foreign)
+
+
+# ---------------------------------------------------------------------------
+# 6. External-platform declared scope: valid for the bridge, not adoptable
 # ---------------------------------------------------------------------------
 def test_external_bridge_scope_stays_declared_and_local_callers_cannot_adopt_it(
         world):
@@ -848,7 +1145,7 @@ def test_external_bridge_scope_stays_declared_and_local_callers_cannot_adopt_it(
 
 
 # ---------------------------------------------------------------------------
-# 6. Storage outage: answer delivered, durable transcript NOT claimed
+# 7. Storage outage: answer delivered, durable transcript NOT claimed
 # ---------------------------------------------------------------------------
 def test_storage_outage_never_claims_a_durable_transcript(world):
     actor = _actor(world, "outage")
