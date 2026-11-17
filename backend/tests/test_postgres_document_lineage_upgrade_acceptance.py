@@ -417,6 +417,97 @@ def test_child_environment_sets_import_guards_before_backend(tmp_path):
         assert forbidden not in environment
 
 
+# ---------------------------------------------------------------------------
+# libpq isolation (SQLAlchemy/psycopg2 runs in the parent process)
+# ---------------------------------------------------------------------------
+def test_isolated_libpq_environment_removes_owner_inputs_without_mutation(
+    tmp_path,
+):
+    _, root = _prepared_root(tmp_path)
+    hostile = {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C",
+        "HOME": str(root.parent / "owner-home"),
+        "TMPDIR": str(root.parent / "owner-tmp"),
+        "DATABASE_URL": (
+            "postgresql://owner@/owner_db"
+            "?host=/private/tmp/atom-pg-owner-socket-never-used"),
+        "PGSERVICE": "owner_service",
+        "PGSERVICEFILE": str(root.parent / "owner-home/.pg_service.conf"),
+        "PGPASSFILE": str(root.parent / "owner-home/.pgpass"),
+        "PGPASSWORD": "synthetic-not-a-credential",
+        "PGHOST": str(root.parent / "owner-sock"),
+        "PGHOSTADDR": "127.0.0.1",
+        "PGPORT": "5432",
+        "PGDATABASE": "owner_db",
+        "PGUSER": "owner_user",
+        "PGSSLMODE": "require",
+        "PGSSLROOTCERT": str(root.parent / "owner-home/root.crt"),
+        "PGSSLCERT": str(root.parent / "owner-home/postgresql.crt"),
+        "PGSSLKEY": str(root.parent / "owner-home/postgresql.key"),
+        "PGSSLCRL": str(root.parent / "owner-home/root.crl"),
+        "PGSSLCRLDIR": str(root.parent / "owner-home/crls"),
+        "PGOPTIONS": "-c statement_timeout=1",
+        "PGCHANNELBINDING": "require",
+        "PGGSSENCMODE": "require",
+    }
+    snapshot = dict(hostile)
+
+    clean = harness.isolated_libpq_environment(hostile, root=root)
+
+    assert hostile == snapshot, "the input environment must not be mutated"
+    for key in snapshot:
+        if key.upper().startswith("PG") or key == "DATABASE_URL":
+            assert key not in clean
+    assert clean["HOME"] == str(root / "home")
+    assert clean["TMPDIR"] == str(root / "tmp")
+    assert clean["TESTING"] == "1"
+    assert clean["PYTHON_DOTENV_DISABLED"] == "1"
+    assert clean["PATH"] == hostile["PATH"]
+    assert clean["LANG"] == "C"
+    assert clean[harness.LIBPQ_ISOLATION_MARKER] == "1"
+    removed = set(clean[harness.LIBPQ_REMOVED_ENV].split(","))
+    assert {"PGSERVICE", "PGSERVICEFILE", "PGPASSFILE", "PGPASSWORD",
+            "PGSSLMODE", "PGSSLROOTCERT", "DATABASE_URL"} <= removed
+    assert harness.libpq_environment_is_isolated(clean, root=root) is True
+    assert harness.libpq_environment_is_isolated(hostile, root=root) is False
+
+
+def test_libpq_connect_options_pin_private_paths_and_disable_fallbacks(
+    tmp_path,
+):
+    _, root = _prepared_root(tmp_path)
+    options = harness.libpq_isolation_options(root)
+
+    assert options["passfile"] == str(root / "libpq" / "pgpass")
+    assert Path(options["passfile"]).parent.parent == root
+    assert options["sslmode"] == "disable"
+    assert options["gssencmode"] == "disable"
+    assert options["channel_binding"] == "disable"
+    assert options["hostaddr"] == ""
+    assert options["options"] == ""
+    assert options["target_session_attrs"] == "any"
+    assert options["client_encoding"] == "UTF8"
+    assert options["application_name"] == harness.APP_NAME
+    # host/port/user/dbname come from the socket-only URL; service must be
+    # absent (an explicit empty service is a real service-file lookup).
+    for key in ("host", "port", "user", "dbname", "service", "password",
+                "sslrootcert", "sslcert", "sslkey", "sslcrl", "sslcrldir"):
+        assert key not in options
+    assert not (root / "libpq").exists()
+    assert harness.libpq_connect_args(root) == options
+
+
+def test_prepare_fails_closed_without_cli_libpq_isolation(tmp_path, monkeypatch):
+    allowed = _real_tmp_root(tmp_path)
+    root = allowed / "would-be-cluster"
+    monkeypatch.setenv("PGSERVICE", "owner_service")
+    instance = harness.AcceptanceHarness(str(root))
+    with pytest.raises(harness.SafetyRefusal):
+        instance.prepare()
+    assert not root.exists()
+
+
 def test_cleanup_without_a_prepared_cluster_does_nothing():
     instance = harness.AcceptanceHarness(None)
     assert instance.cleanup() is True
@@ -489,6 +580,25 @@ def test_real_scratch_cluster_upgrade_contract():
         Path("/private/tmp")
         / f"atom-pg-lineage-pytest-{uuid.uuid4().hex[:10]}"
     )
+    # Simulated owner files, all unreadable (mode 000), plus hostile inherited
+    # libpq values. They live beside the cluster root, never in the repo or the
+    # real owner's home. If the harness consulted any of them the run would
+    # fail, so success plus the resolved libpq parameters is the evidence.
+    owner_home = root.parent / f"{root.name}-owner-home"
+    owner_home.mkdir(mode=0o700)
+    owner_service = owner_home / ".pg_service.conf"
+    owner_service.write_text(
+        "[owner_service]\nhost=/owner/socket\npassword=synthetic-not-a-credential\n",
+        encoding="utf-8",
+    )
+    owner_passfile = owner_home / ".pgpass"
+    owner_passfile.write_text(
+        "*:*:*:owner_user:synthetic-not-a-credential\n", encoding="utf-8")
+    owner_root_cert = owner_home / "root.crt"
+    owner_root_cert.write_text("not a certificate\n", encoding="utf-8")
+    for path in (owner_service, owner_passfile, owner_root_cert):
+        os.chmod(path, 0o000)
+
     command = [
         sys.executable,
         str(HARNESS_PATH),
@@ -500,6 +610,26 @@ def test_real_scratch_cluster_upgrade_contract():
         "PYTHON_DOTENV_DISABLED": "1",
         "TESTING": "1",
         "SECRET_KEY": "atom-postgres-lineage-pytest-synthetic",
+        "HOME": str(owner_home),
+        "DATABASE_URL": (
+            "postgresql://owner@/owner_db"
+            "?host=/private/tmp/atom-pg-owner-socket-never-used"),
+        "PGSERVICE": "owner_service",
+        "PGSERVICEFILE": str(owner_service),
+        "PGPASSFILE": str(owner_passfile),
+        "PGPASSWORD": "synthetic-not-a-credential",
+        "PGHOST": str(owner_home / "socket"),
+        "PGHOSTADDR": "127.0.0.1",
+        "PGPORT": "5432",
+        "PGDATABASE": "owner_db",
+        "PGUSER": "owner_user",
+        "PGSSLMODE": "require",
+        "PGSSLROOTCERT": str(owner_root_cert),
+        "PGSSLCERT": str(owner_home / "postgresql.crt"),
+        "PGSSLKEY": str(owner_home / "postgresql.key"),
+        "PGOPTIONS": "-c statement_timeout=1",
+        "PGCHANNELBINDING": "require",
+        "PGGSSENCMODE": "require",
     })
     completed = subprocess.run(
         command,
@@ -521,6 +651,33 @@ def test_real_scratch_cluster_upgrade_contract():
     assert report["server"]["listen_addresses"] == ""
     assert report["server"]["tcp_listen_ports"] == []
     assert report["server"]["data_directory"] == str(root / "data")
+
+    isolation = report["libpq_isolation"]
+    removed = set(isolation["inherited_pg_environment_variables_removed"])
+    assert {"PGSERVICE", "PGSERVICEFILE", "PGPASSFILE", "PGPASSWORD",
+            "PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGSSLMODE",
+            "PGSSLROOTCERT", "PGOPTIONS", "PGCHANNELBINDING",
+            "PGGSSENCMODE", "DATABASE_URL"} <= removed
+    assert "owner_home" not in report["environment_keys"]
+    resolved = isolation["resolved"]
+    assert resolved["host"] == str(root / "sock")
+    assert resolved["port"] == str(report["server"]["port"])
+    assert resolved["user"] == report["server"]["current_user"]
+    assert resolved["dbname"] == report["server"]["current_database"]
+    assert resolved["passfile"] == str(root / "libpq" / "pgpass")
+    assert resolved["sslmode"] == "disable"
+    assert resolved["gssencmode"] == "disable"
+    assert resolved["channel_binding"] == "disable"
+    assert resolved["application_name"] == "atom-document-lineage-acceptance"
+    assert resolved.get("service") in (None, "")
+    assert resolved.get("sslrootcert") in (None, "")
+    assert resolved.get("sslcert") in (None, "")
+    assert resolved.get("sslkey") in (None, "")
+    assert resolved.get("hostaddr") in (None, "")
+    assert resolved.get("options") in (None, "")
+    for path in (owner_service, owner_passfile, owner_root_cert):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o000
+
     assert report["restart"]["old_pid"] != report["restart"]["new_pid"]
     assert report["after"]["lineage_values"]["seed-active"] == (
         "doc-acceptance-upgrade-2")

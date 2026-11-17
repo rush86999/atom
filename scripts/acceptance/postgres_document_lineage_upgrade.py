@@ -48,6 +48,18 @@ Safety contract (enforced before mkdir or initdb)
   any optional backend import; the harness itself opens only the explicit
   SQLAlchemy PostgreSQL engine built from the marker's Unix socket. No
   backend module (and therefore no ``core.database`` engine) is imported.
+* libpq reads its fallbacks (``PGSERVICE``/``PGSERVICEFILE``,
+  ``PGPASSFILE``/``~/.pgpass``, SSL certificate paths) from the process
+  environment at connection time. Because libpq offers no per-connection
+  environment API, the CLI re-executes itself once, before any connection,
+  with every inherited ``PG*`` variable and ``DATABASE_URL`` removed and
+  ``HOME``/``TMPDIR`` pinned to this scratch root. Each connection also passes
+  explicit libpq options (private ``passfile``, ``sslmode=disable``,
+  ``gssencmode=disable``, ``channel_binding=disable``, empty ``hostaddr`` and
+  ``options``); the resolved parameters are checked after connecting. Service
+  lookup is disabled by the *absence* of ``PGSERVICE`` because libpq treats an
+  explicit empty ``service`` as a real service name. Importing the module and
+  calling ``AcceptanceHarness.run`` without that CLI isolation fails closed.
 
 Scope limits
 ------------
@@ -236,6 +248,12 @@ MARKER_NAME = ".atom-pg-lineage-acceptance.json"
 MARKER_FORMAT = "atom-postgres-document-lineage-acceptance/1"
 REPORT_FORMAT = "atom-postgres-document-lineage-acceptance-report/1"
 SOCKET_DIR_NAME = "sock"
+LIBPQ_DIR_NAME = "libpq"
+APP_NAME = "atom-document-lineage-acceptance"
+#: Marks the harness process after its one-time libpq environment scrubbing.
+LIBPQ_ISOLATION_MARKER = "ATOM_PG_LINEAGE_LIBPQ_ISOLATED"
+#: Names (never values) of owner environment entries removed by the re-exec.
+LIBPQ_REMOVED_ENV = "ATOM_PG_LINEAGE_REMOVED_PG_ENV"
 #: macOS ``sockaddr_un.sun_path`` is 104 bytes including the terminator.
 MAX_SOCKET_PATH_BYTES = 100
 
@@ -268,6 +286,15 @@ class AcceptanceFailure(RuntimeError):
 # ---------------------------------------------------------------------------
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def default_scratch_root(
+    allowed_root: Path | str = DEFAULT_ALLOWED_ROOT,
+) -> Path:
+    """A fresh, short, unique scratch path (not created here)."""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    return Path(allowed_root) / (
+        f"atom-pg-lineage-{stamp}-{uuid.uuid4().hex[:8]}")
 
 
 def _resolved(path: Path | str) -> Path:
@@ -807,6 +834,125 @@ def sanitized_environment(
 
 
 # ---------------------------------------------------------------------------
+# libpq environment isolation (parent process, before any connection)
+# ---------------------------------------------------------------------------
+# libpq has no per-connection environment: PGSERVICE/PGSERVICEFILE,
+# PGPASSFILE/.pgpass and the SSL fallbacks are resolved with getenv() when a
+# connection is opened. Explicit conninfo values override the corresponding
+# PG* variable, but there is no conninfo option that suppresses a
+# PGSERVICE-driven service-file lookup (an explicit empty ``service`` is
+# treated as a real service name and still opens service files). The harness
+# therefore isolates its own process environment once, by re-exec, before any
+# engine exists, and additionally pins every libpq option it can.
+def libpq_isolation_options(root: Path | str) -> dict[str, str]:
+    """Explicit conninfo values that cancel owner PG*/HOME fallbacks.
+
+    ``host``, ``port``, ``user`` and ``dbname`` come from the socket-only URL.
+    ``service`` is deliberately absent: an empty value is not "no service" to
+    libpq, while an absent PGSERVICE (see :func:`isolated_libpq_environment`)
+    skips service-file parsing completely.
+    """
+    private_passfile = Path(root) / LIBPQ_DIR_NAME / "pgpass"
+    return {
+        # A private, never-created passfile: libpq never consults ~/.pgpass or
+        # PGPASSFILE. The local cluster uses ``--auth-local=trust``, so no
+        # password is requested or sent.
+        "passfile": str(private_passfile),
+        "sslmode": "disable",
+        "gssencmode": "disable",
+        "channel_binding": "disable",
+        "hostaddr": "",       # cancel PGHOSTADDR; host stays the Unix socket
+        "options": "",        # cancel PGOPTIONS
+        "target_session_attrs": "any",
+        "client_encoding": "UTF8",
+        "connect_timeout": "5",
+        "application_name": APP_NAME,
+    }
+
+
+def libpq_connect_args(root: Path | str) -> dict[str, str]:
+    """``connect_args`` for every SQLAlchemy engine this harness creates."""
+    return libpq_isolation_options(root)
+
+
+def isolated_libpq_environment(
+    environ: Mapping[str, str], *, root: Path | str,
+) -> dict[str, str]:
+    """Copy ``environ`` with every libpq/owner DSN input removed.
+
+    Removes all ``PG*`` variables (service, passfile, password, host, TLS and
+    GSS paths) and ``DATABASE_URL``; pins ``HOME``/``TMPDIR`` to the private
+    scratch root. The input mapping is never mutated.
+    """
+    root = Path(root)
+    removed = sorted(
+        key for key in environ
+        if key.upper().startswith("PG") or key == "DATABASE_URL")
+    clean = {
+        key: value for key, value in environ.items()
+        if key not in removed and key != LIBPQ_ISOLATION_MARKER
+        and key != LIBPQ_REMOVED_ENV
+    }
+    clean.update({
+        "HOME": str(root / "home"),
+        "TMPDIR": str(root / "tmp"),
+        "PYTHON_DOTENV_DISABLED": "1",
+        "TESTING": "1",
+        "SECRET_KEY": "atom-postgres-lineage-acceptance-synthetic",
+        LIBPQ_ISOLATION_MARKER: "1",
+        LIBPQ_REMOVED_ENV: ",".join(removed),
+    })
+    return clean
+
+
+def libpq_environment_is_isolated(
+    environ: Mapping[str, str], *, root: Path | str,
+) -> bool:
+    """True when this process no longer exposes owner libpq inputs."""
+    root = Path(root)
+    return (
+        not any(key.upper().startswith("PG") for key in environ)
+        and "DATABASE_URL" not in environ
+        and environ.get("HOME") == str(root / "home")
+        and environ.get("TMPDIR") == str(root / "tmp")
+        and environ.get(LIBPQ_ISOLATION_MARKER) == "1"
+    )
+
+
+def _argv_scratch_root(argv: Sequence[str]) -> str | None:
+    for index, argument in enumerate(argv):
+        if argument == "--scratch-root" and index + 1 < len(argv):
+            return argv[index + 1]
+        if argument.startswith("--scratch-root="):
+            return argument.split("=", 1)[1]
+    return None
+
+
+def ensure_isolated_process_environment(argv: Sequence[str]) -> None:
+    """Re-exec the CLI once with an owner-free libpq environment.
+
+    This runs before ``main`` creates anything, so no engine, marker or
+    cluster exists while the process environment is replaced. It never mutates
+    ``os.environ`` of the invoking process and never touches the owner's shell
+    or files. Called only from the CLI entry point; programmatic imports must
+    set up their own isolation or ``prepare`` fails closed.
+    """
+    planned_root = _argv_scratch_root(argv) or default_scratch_root()
+    if libpq_environment_is_isolated(os.environ, root=planned_root):
+        return
+    clean = isolated_libpq_environment(os.environ, root=planned_root)
+    if getattr(sys, "orig_argv", None):
+        # Keep the venv interpreter (sys.executable), not orig_argv[0] which
+        # can be the framework Python behind the venv symlink.
+        exec_argv = [sys.executable, *list(sys.orig_argv)[1:]]
+    else:
+        exec_argv = [sys.executable, str(Path(__file__).resolve()), *argv]
+    if _argv_scratch_root(argv) is None:
+        exec_argv.extend(["--scratch-root", str(planned_root)])
+    os.execve(exec_argv[0], exec_argv, clean)
+
+
+# ---------------------------------------------------------------------------
 # Alembic/migration loading (backend/alembic must not shadow the runtime)
 # ---------------------------------------------------------------------------
 def _backend_path_entry(entry: str) -> bool:
@@ -954,14 +1100,50 @@ class AcceptanceHarness:
         }
 
     # -- scratch / marker --------------------------------------------------
+    @staticmethod
+    def _assert_isolated_environment(root: Path) -> None:
+        """Fail closed unless the CLI isolated libpq from the owner.
+
+        libpq consults the process environment for service/password/TLS
+        fallbacks when a connection opens. If this process still inherits any
+        ``PG*`` variable, an owner ``DATABASE_URL`` or the owner ``HOME``, a
+        connection could read owner files. ``ensure_isolated_process_environment``
+        (CLI entry only) removes them by re-exec before this point.
+        """
+        inherited = sorted(
+            key for key in os.environ if key.upper().startswith("PG"))
+        if inherited:
+            raise SafetyRefusal(
+                "refusing SQL connections with inherited libpq environment "
+                f"({', '.join(inherited)}); run the harness CLI entry point")
+        if "DATABASE_URL" in os.environ:
+            raise SafetyRefusal(
+                "refusing SQL connections with an inherited owner DATABASE_URL; "
+                "run the harness CLI entry point")
+        if os.environ.get(LIBPQ_ISOLATION_MARKER) != "1":
+            raise SafetyRefusal(
+                "refusing SQL connections without the one-time libpq "
+                "environment isolation; run the harness CLI entry point")
+        if _resolved(os.environ.get("HOME", "")) != _resolved(root / "home"):
+            raise SafetyRefusal(
+                "refusing SQL connections with the owner HOME; the CLI pins "
+                f"HOME to {root / 'home'}")
+        if _resolved(os.environ.get("TMPDIR", "")) != _resolved(root / "tmp"):
+            raise SafetyRefusal(
+                "refusing SQL connections with the owner TMPDIR; the CLI pins "
+                f"TMPDIR to {root / 'tmp'}")
+
     def prepare(self) -> None:
         if self.scratch_root_argument:
             root_argument = self.scratch_root_argument
         else:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-            root_argument = str(
-                self.allowed_root
-                / f"atom-pg-lineage-{stamp}-{uuid.uuid4().hex[:8]}")
+            root_argument = str(default_scratch_root(self.allowed_root))
+        validated = validate_scratch_root(
+            root_argument,
+            allowed_root=self.allowed_root,
+            repo_root=self.repo_root,
+        )
+        self._assert_isolated_environment(validated)
         self.root = create_scratch_layout(
             root_argument,
             allowed_root=self.allowed_root,
@@ -969,6 +1151,26 @@ class AcceptanceHarness:
         )
         self.report["scratch_root"] = str(self.root)
         self.report["marker_path"] = str(marker_path(self.root))
+        removed = [
+            key for key in os.environ.get(LIBPQ_REMOVED_ENV, "").split(",")
+            if key
+        ]
+        self.report["libpq_isolation"] = {
+            "method": (
+                "one-time CLI re-exec before any connection removes every "
+                "inherited PG* variable and DATABASE_URL and pins HOME/TMPDIR "
+                "to the scratch root; each connection also passes explicit "
+                "private libpq options"
+            ),
+            "inherited_pg_environment_variables_removed": removed,
+            "connect_options": sorted(libpq_isolation_options(self.root)),
+            "private_passfile": str(
+                self.root / LIBPQ_DIR_NAME / "pgpass"),
+            "service_lookup": (
+                "disabled: PGSERVICE/PGSERVICEFILE absent from the process "
+                "environment (an explicit empty service is not 'no service')"),
+            "owner_home": "not consulted: HOME is pinned to the scratch root",
+        }
         self.checks["scratch_safety_prechecked_empty_private"] = True
 
         cluster_id = uuid.uuid4().hex
@@ -1213,13 +1415,30 @@ class AcceptanceHarness:
         engine = sa.create_engine(
             url,
             poolclass=NullPool,
-            connect_args={
-                "connect_timeout": 5,
-                "application_name": "atom-document-lineage-acceptance",
-            },
+            connect_args=libpq_connect_args(self._require_root()),
         )
         self.report.setdefault("sql_targets", []).append(target)
         return engine
+
+    @staticmethod
+    def resolved_libpq_parameters(connection: Any) -> dict[str, str]:
+        """Effective libpq parameters (PQconninfo) for a live connection."""
+        fairy = connection.connection
+        driver = getattr(fairy, "driver_connection", None)
+        if driver is None:
+            driver = getattr(fairy, "dbapi_connection", fairy)
+        getter = getattr(driver, "get_dsn_parameters", None)
+        if getter is None:
+            raise AcceptanceFailure(
+                "psycopg2 driver does not expose resolved libpq parameters")
+        parameters = getter()
+        if not isinstance(parameters, Mapping):
+            raise AcceptanceFailure(
+                "resolved libpq parameters are not a mapping")
+        return {
+            str(key): "" if value is None else str(value)
+            for key, value in parameters.items()
+        }
 
     def create_database(self, name: str) -> None:
         if not re.fullmatch(r"[a-z0-9_]{1,63}", name):
@@ -1254,6 +1473,7 @@ class AcceptanceHarness:
                        version() AS version,
                        pg_backend_pid() AS backend_pid
             """)).mappings().one()
+            resolved = self.resolved_libpq_parameters(connection)
         identity = dict(row)
         identity["backend_pid"] = int(identity["backend_pid"])
         if int(identity["port"]) != int(self.marker["port"]):
@@ -1283,6 +1503,50 @@ class AcceptanceHarness:
         if identity["current_user"] != self.marker["username"]:
             raise AcceptanceFailure(
                 f"connected role {identity['current_user']} is not the cluster role")
+
+        # Prove the owner's libpq environment/files did not influence this
+        # connection: PQconninfo reports the options libpq actually used.
+        expected_passfile = str(
+            self._require_root() / LIBPQ_DIR_NAME / "pgpass")
+        expected = {
+            "host": self.marker["socket_directory"],
+            "port": str(self.marker["port"]),
+            "user": self.marker["username"],
+            "dbname": database,
+            "passfile": expected_passfile,
+            "sslmode": "disable",
+            "gssencmode": "disable",
+            "channel_binding": "disable",
+            "application_name": APP_NAME,
+        }
+        for key, value in expected.items():
+            if resolved.get(key) != value:
+                raise AcceptanceFailure(
+                    f"resolved libpq {key}={resolved.get(key)!r} != {value!r}")
+        for key in (
+            "service", "password", "sslrootcert", "sslcert", "sslkey",
+            "sslcrl", "sslcrldir",
+        ):
+            if resolved.get(key) not in (None, ""):
+                raise AcceptanceFailure(
+                    f"libpq used owner/altered {key}: {resolved.get(key)!r}")
+        for key in ("hostaddr", "options"):
+            if resolved.get(key) not in (None, ""):
+                raise AcceptanceFailure(
+                    f"libpq used an inherited {key}: {resolved.get(key)!r}")
+        inherited = sorted(
+            key for key in os.environ if key.upper().startswith("PG"))
+        if inherited:
+            raise AcceptanceFailure(
+                f"libpq environment was not isolated: {', '.join(inherited)}")
+        if _resolved(os.environ.get("HOME", "")) != _resolved(
+                self._require_root() / "home"):
+            raise AcceptanceFailure(
+                "libpq process HOME is not this scratch root")
+        self.report.setdefault("libpq_isolation", {})["resolved"] = resolved
+        self.checks["libpq_resolved_socket_user_database_pinned"] = True
+        self.checks["libpq_owner_service_password_tls_not_consulted"] = True
+
         pid = assert_cluster_identity(self.marker)
         listens = tcp_listen_ports(pid)
         if listens:
@@ -1862,6 +2126,7 @@ class AcceptanceHarness:
                 "after": self.report["after"],
                 "server": self.report["server"],
                 "restart": self.report["restart"],
+                "libpq_isolation": self.report.get("libpq_isolation"),
             })
         finally:
             if self.engine is not None:
@@ -2012,4 +2277,5 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    ensure_isolated_process_environment(sys.argv[1:])
     raise SystemExit(main())
