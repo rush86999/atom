@@ -64,6 +64,7 @@
       "Run authenticated presence override receipt controls",
       "Run maturity-guide authority and onboarding controls",
       "Run scoped graduation qualification and policy controls",
+      "Run graduation measured dispatch authority controls",
       "Run generated Canvas Office export receipt and file controls",
       "Run shared email draft writer and attachment authority controls"
     ],
@@ -168,6 +169,7 @@
       "Run authenticated presence override receipt controls",
       "Run maturity-guide authority and onboarding controls",
       "Run scoped graduation qualification and policy controls",
+      "Run graduation measured dispatch authority controls",
       "Run generated Canvas Office export receipt and file controls",
       "Run shared email draft writer and attachment authority controls",
       "Run durable LLM settlement and existing-database upgrade controls",

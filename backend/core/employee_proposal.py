@@ -1342,6 +1342,9 @@ async def propose_employee_work(
     provider_model: Optional[Sequence[str]] = None,
     attempt_journal: Any = None,
     strict_pin: Optional[bool] = None,
+    expected_route: Optional[Sequence[str]] = None,
+    expected_build: Optional[str] = None,
+    qualification_authority: Any = None,
 ) -> Dict[str, Any]:
     """Propose supported read/clarification work; never an effect.
 
@@ -1350,6 +1353,21 @@ async def propose_employee_work(
     clarification), and the result records which path produced it. The
     caller's deadline is enforced here, and the raw dispatch/parsed/failure
     events are journaled under one attempt id like adaptation.
+
+    ``expected_route``/``expected_build`` are the OPTIONAL qualification
+    identity contract: SERVER-resolved values from the current durable
+    route decision (never client plan metadata). When supplied, the accepted
+    response must prove that exact route and bound build through the existing
+    identity validator BEFORE this consumer uses it; a missing/conflicting
+    identity takes the ordinary deterministic fallback and is never credited
+    as model work. Callers without a qualification decision pass neither and
+    keep the historical contract byte-identically.
+
+    ``qualification_authority`` is the OPTIONAL server-minted measured-evidence
+    reference for the SAME pin (``core.llm.qualification_authority``). It is
+    forwarded only with the pinned attempt and is revalidated by the dispatch
+    floor; it is not identity proof and never substitutes for the route/build
+    check above.
     """
     journal = attempt_journal
     if journal is None:
@@ -1408,6 +1426,8 @@ async def propose_employee_work(
                 attempt_observer=_observe,
                 provenance=provenance,
                 strict_pin=strict_pin,
+                qualification_authority=(
+                    qualification_authority if provider_model else None),
             )
             budget = max(0.0, float(deadline_seconds or 0.0))
             result = (
@@ -1431,11 +1451,49 @@ async def propose_employee_work(
         except Exception:  # noqa: BLE001 — the fallback remains explicit
             result = None
         routing = _routing_snapshot(provenance)
+        identity_rejection: Optional[Dict[str, Any]] = None
+        if result is not None and (
+                expected_route is not None or expected_build is not None):
+            from core.employee_routing_feedback import (
+                record_discarded_qualification_identity,
+            )
+
+            identity_rejection = (
+                await record_discarded_qualification_identity(
+                    {
+                        "source": "model",
+                        "routing": routing,
+                        "routing_result_id": routing.get(
+                            "routing_result_id"),
+                    },
+                    expected_route=(
+                        provider_model if provider_model is not None
+                        else expected_route),
+                    expected_build=expected_build,
+                    stage="employee_evidence_selection",
+                    workspace_id=context.get("identity", {}).get(
+                        "workspace_id"),
+                    tenant_id=context.get("identity", {}).get("tenant_id"),
+                ))
+            if identity_rejection is not None:
+                # Keep the ACTUAL served route/build on the audit snapshot:
+                # the response really was accepted at the transport, it just
+                # did not prove the pinned identity. Never relabel it.
+                provenance["error"] = {
+                    "code": identity_rejection["error_code"],
+                    "detail": identity_rejection["detail"],
+                }
+                routing = _routing_snapshot(provenance)
+                result = None
         if result is None:
             # A failed boundary must not lend a stale generation id or a
-            # served route to the deterministic fallback.
-            routing["served_route"] = None
-            routing["routing_result_id"] = None
+            # served route to the deterministic fallback. A rejected identity
+            # is different: an accepted response DID serve that route, and the
+            # actual identity stays in the audit snapshot for the durable
+            # decision/effect gate.
+            if identity_rejection is None:
+                routing["served_route"] = None
+                routing["routing_result_id"] = None
             if deadline_error is not None:
                 routing["error"] = deadline_error
             elif not routing.get("error"):

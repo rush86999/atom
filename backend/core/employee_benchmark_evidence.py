@@ -1309,6 +1309,12 @@ def evidence_comparison_record(record: Mapping[str, Any]) -> Dict[str, Any]:
         "dataset_sha256": (record.get("dataset") or {}).get("sha256"),
         "scoring_version": (record.get("scoring") or {}).get("version"),
         "phase": (record.get("benchmark") or {}).get("id"),
+        # Digest-level identity of the sealed record. The dispatch authority
+        # revalidates these at the pin gate instead of trusting a copied
+        # payload; comparison ignores the extra keys.
+        "record_sha256": (record.get("integrity") or {}).get(
+            "record_sha256"),
+        "core_sha256": (record.get("integrity") or {}).get("core_sha256"),
         "registry_status": (
             "qualified" if record.get("passed") else "failed"),
         "model_provenance": {
