@@ -255,14 +255,22 @@ class AgentContextResolver:
                 logger.warning(f"Cannot set non-existent agent {agent_id} on session {session_id}")
                 return False
 
-            # Update metadata. Copy so SQLAlchemy sees a new object — JSONColumn
-            # has no mutable tracking, so reusing the same dict and assigning it
-            # back is a no-op (no UPDATE issued) and the agent_id is lost.
-            metadata = dict(session.metadata_json or {})
-            metadata["agent_id"] = agent_id
-            session.metadata_json = metadata
+            # Route the patch through the shared snapshot-CAS API instead of
+            # copy/assign/commit. A direct whole-dict assignment can overwrite
+            # a concurrent pending-collaboration revision or an unrelated key
+            # read before this call. The shared helper re-reads the exact
+            # stored snapshot, applies only {"agent_id": ...}, and refuses on
+            # a concurrent change.
+            from core.chat_session_manager import ChatSessionManager
 
-            self.db.commit()
+            if not ChatSessionManager.merge_in_session(
+                    self.db, session_id, {"agent_id": agent_id}):
+                logger.warning(
+                    "Could not atomically set agent %s on session %s",
+                    agent_id, session_id)
+                return False
+
+            self.db.expire_all()
             logger.info(f"Set agent {agent_id} on session {session_id}")
             return True
         except Exception as e:
