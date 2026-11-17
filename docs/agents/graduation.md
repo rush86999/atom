@@ -196,8 +196,14 @@ endpoint is:
 GET /api/episodes/graduation/qualification/evidence/{agent_id}?target_maturity=INTERN
 ```
 
-It returns eligible bundles and the frozen rubric criteria. The reviewer then
-requests a review:
+It returns eligible bundles and the frozen rubric criteria. Scored campaign
+executions are listed by the same enumerator: a completed execution whose
+reserved `benchmark_evidence` record passes the producer's canonical validator
+and names that exact execution, agent and scope appears as
+`bundle:execution:<id>` with the measured binding. An execution already
+covered by an episode bundle is not listed twice, and an execution whose
+record is missing, tampered, bound to another execution/agent/scope, or
+internally conflicting is never offered. The reviewer then requests a review:
 
 ```http
 POST /api/episodes/graduation/qualification/request
@@ -269,6 +275,22 @@ evidence result, not merely output presence, scope or safety. The evaluator is
 After a qualified promotion, the same agent may serve a repeated, workload-matching assignment
 with a model route the recorded evidence still supports, without a new review for every run.
 
+- **Durable agent attribution (producer side).** A campaign `AgentExecution` is owned by
+  the server plan's validated `provenance.agent_id`, resolved again at intake against the
+  durable `AgentRegistry` row and the plan's canonical tenant/workspace. The plan's
+  `employee_id` stays the human/User assignment target; the two ids are deliberately not
+  required to be equal, because the established authorization helpers validate
+  tenant/workspace scope and shared/system agents legitimately have a NULL or different
+  owner. There is no fallback to `employee_id`, the sole registry agent, a model/name or
+  client metadata: a missing, foreign or unresolvable agent is refused before a row is
+  created, completed or sealed.
+  New rows only: completed history is immutable. A row created before this contract that is
+  attributed to a `User.id` (or the old `employee-campaign` fallback) stays audit-only and
+  permanently unbound; it is never re-attributed or re-sealed. A running row with the wrong
+  ownership is refused at both start and completion — start a new campaign run. An existing
+  id is reused only for the exact same agent, tenant, workspace, campaign and run; a caller
+  chosen id that already names another agent's row is refused, not silently completed.
+  G2/G3 dispatch quality and the reader's independent row/record validation are unchanged.
 - **Frozen benchmark evidence, not caller claims.** Evidence comes only from offline
   server-side intake against a frozen benchmark set whose dataset digest and scoring
   version are pinned; a changed set or scoring generation is a different benchmark, and
@@ -287,7 +309,14 @@ with a model route the recorded evidence still supports, without a new review fo
   effect gate rechecks current evidence after restart.
 - **Receipt binding is the baseline.** The promotion receipt binds a complete benchmark
   identity (dataset hash, rubric version, canonical workload scope) plus the actually-served
-  routes, from validated evidence records only. The runtime baseline is the newest committed
+  routes, from validated evidence records only. Bare `benchmark_identity`/dataset/rubric/scope
+  keys in generic execution metadata are not measured authority: they can neither bind nor
+  override the producer's record. Every validated record bound to the reviewed durable
+  execution is included, so differing identities become a `conflict` and fail closed rather
+  than a first/last winner. A v2-binding receipt whose evidence carried bare identity keys — or
+  a campaign execution that was unbound before this projection existed — no longer matches its
+  recomputed source revision and revalidates as stale; it must be re-reviewed, not silently
+  rebound. The runtime baseline is the newest committed
   promotion transition into the current tier plus its receipt. Selection requires the
   assignment's server-derived `workload_scope` to exactly match the binding's scope; a
   candidate needs fresh *passing* observations on the same benchmark (same dataset hash,
@@ -316,6 +345,30 @@ with a model route the recorded evidence still supports, without a new review fo
   Inspect tasks/models <https://inspect.aisi.org.uk/tasks> and
   <https://inspect.aisi.org.uk/models.html>; Anthropic eval guidance
   <https://www.anthropic.com/research/demystifying-evals-for-ai-agents>.
+- **Measured authority reaches the dispatch floor.** The capability profile's quality
+  floor is a *prior* until evidence exists. A resolver-pinned route now carries a
+  server-minted reference (`core.llm.qualification_authority`) naming the exact validated
+  material that justified it: current agent/tenant/workspace, receipt id + promotion id +
+  source revision + binding state, evidence id and sealed record/core digests, benchmark
+  id/dataset SHA/rubric/scoring, canonical workload-scope digest, `observed_at`, the
+  callable route and its provider-build echo. The reference is **not** authority and is
+  never trusted as one: the BYOK pin gate re-reads the current baseline, the validated
+  evidence rows and the comparator at dispatch time, and only then substitutes the profile
+  floor's **measured quality component**. Missing, stale (30-day policy), superseded
+  (newer observation), tampered, wrong-receipt/revision, foreign agent/scope/profile,
+  wrong dataset/rubric/scoring/build, unreadable or unpaid/unmeasured material refuses
+  this exact pin with zero weaker fallback. Everything else stays independent: provider
+  policy/credentials/local-only/protocol/context/cooldown/failed-pin exclusion, unsafe-
+  outcome quarantine, current budget and baseline comparability. A generic feedback bucket
+  (e.g. 6/6 accepted outcomes) still cannot mint authority or override the prior; a raw
+  operator pin, an unmeasured route and a caller with no qualification decision keep the
+  historical behavior byte-identically. This is the split mature routers use — a
+  representative, versioned offline measurement for capability, and operational
+  health/policy checks before deployment selection — not an unconditional discount from
+  production feedback. Sources: LangSmith evaluation types
+  <https://docs.langchain.com/langsmith/evaluation-types>; LiteLLM router
+  selection/learn <https://docs.litellm.ai/docs/router/learn/selection>. No synthetic
+  held-out score in this repository is a claim about a real model's quality.
 - **Supervised fallback is the default.** The resolver fails closed: a missing baseline,
   non-comparable binding, unknown or mismatched workload, no fresh eligible route or an
   unresolvable pin all resolve to `supervised`, and ordinary routing is untouched. Before
