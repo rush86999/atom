@@ -18,6 +18,7 @@ export interface TraceStep {
   verified?: string | null;
   verification_evidence?: string | null;
   duration_ms?: number | null;
+  requested_model?: string | null;
   resolved_model?: string | null;
   feedback_score?: number | null;
   feedback_text?: string | null;
@@ -63,12 +64,32 @@ export interface StepFeedbackPayload {
   /** Persisted-run linkage: stamps feedback_score on the reasoning-step row. */
   executionId?: string;
   stepNumber?: number;
+  /** Correction REQUEST linkage — recorded only, never applied/verified. */
+  correctionRequested?: boolean;
+  subjectAuditId?: string;
+  subjectStepNumber?: number;
+  correctionChannel?: string;
+  correctionTargetId?: string;
+  correctionReason?: string;
+}
+
+export interface StepFeedbackResult {
+  id: string;
+  feedback_id?: string;
+  correction_status?: string;
+  correction_audit_id?: string | null;
+  applied?: boolean;
+  verified?: boolean;
+  channel?: string | null;
+  channel_target_id?: string | null;
+  status_note?: string;
+  duplicate?: boolean;
 }
 
 export async function submitStepFeedback(
   payload: StepFeedbackPayload
-): Promise<void> {
-  await apiClient.post('/api/reasoning/feedback', {
+): Promise<StepFeedbackResult | undefined> {
+  const res = await apiClient.post('/api/reasoning/feedback', {
     agent_id: payload.agentId,
     run_id: payload.runId,
     step_index: payload.stepIndex,
@@ -77,6 +98,12 @@ export async function submitStepFeedback(
     comment: payload.comment,
     execution_id: payload.executionId,
     step_number: payload.stepNumber,
+    correction_requested: payload.correctionRequested,
+    subject_audit_id: payload.subjectAuditId,
+    subject_step_number: payload.subjectStepNumber,
+    correction_channel: payload.correctionChannel,
+    correction_target_id: payload.correctionTargetId,
+    correction_reason: payload.correctionReason,
   }, {
     // No silent retry storm: the shared interceptor retries timeouts up to
     // 4×, so a stalled backend held the UI ~47s before the error notice —
@@ -85,4 +112,5 @@ export async function submitStepFeedback(
     // of the first attempt and let the user decide to retry.
     retry: false,
   });
+  return res?.data?.data as StepFeedbackResult | undefined;
 }

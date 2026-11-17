@@ -1,11 +1,13 @@
-"""R89 RED tests — audit trail API must be supervisor-gated.
+"""R89 RED tests — audit trail API must not expose other users' agent runs.
 
-Finding: every /api/audit/* endpoint requires only get_current_user. The
-serialized events carry full metadata (tool arguments, prompt excerpts,
-model/provider per LLM call) for ALL users' agent runs — any member JWT
-could enumerate the entire org's AI decision history. This is an
-accountant/reviewer surface: gate it to TEAM_LEAD+ like the other
-supervision surfaces.
+Original finding: every /api/audit/* endpoint required only get_current_user,
+so any member JWT could enumerate the entire org's AI decision history
+(tool arguments, prompt excerpts, model/provider per LLM call).
+
+F1 keeps that security intent under an owner-scoped read: a member may inspect
+their OWN audited work, supervisors get the CURRENT workspace (never a global
+all-users query), and another user's rows/prompt excerpt never appear. These
+tests therefore assert scope rather than a blanket 403.
 """
 import os
 import tempfile
@@ -63,6 +65,16 @@ def client(db):
             metadata_json='{"prompt_excerpt":"CONFIDENTIAL-PROMPT","tool_args":{"q":"payroll"}}',
             success=True,
         ),
+        # Owned work is readable to the member under the owner-scoped read
+        # (F1); the foreign row above must never join it.
+        AuditLog(
+            id="ev-own", event_type="agent_action", security_level="low",
+            threat_level="none", action="execution_start", user_id="u-member",
+            workspace_id="default", description="own run start",
+            resource="agent-own",
+            metadata_json='{"agent_execution_id":"own-exec","task_input":"my task"}',
+            success=True,
+        ),
     ])
     db.commit()
 
@@ -93,23 +105,43 @@ def _auth(client):
     )
 
 
-def test_member_cannot_read_event_feed(client):
+def test_member_cannot_read_org_wide_event_feed(client):
+    """R89's security intent is preserved under F1 owner scope.
+
+    The member may read their own audited work, but the org-wide feed —
+    including another user's prompt excerpt and tool arguments — must not
+    appear. The scope marker tells the UI this is an own-scope read.
+    """
     _auth(client)
     resp = client.get("/api/audit/events")
-    assert resp.status_code == 403, (
-        f"member reads org-wide audit feed: {resp.status_code} {resp.text}"
+    assert resp.status_code == 200, (
+        f"member own-work read failed: {resp.status_code} {resp.text}"
     )
+    body = resp.json()
+    ids = {item.get("id") for item in body.get("items", [])}
+    assert "ev-own" in ids
+    assert "ev-1" not in ids
     assert "CONFIDENTIAL-PROMPT" not in (resp.text or "")
+    assert body.get("read_scope", {}).get("kind") == "owner"
 
 
-@pytest.mark.parametrize("path", [
-    "/api/audit/executions",
-    "/api/audit/executions/some-exec",
-    "/api/audit/summary",
+@pytest.mark.parametrize("path,expected", [
+    ("/api/audit/executions", 200),
+    ("/api/audit/executions/some-exec", 404),
+    ("/api/audit/summary", 200),
 ])
-def test_member_blocked_on_all_audit_surfaces(client, path):
+def test_member_audit_surfaces_are_owner_scoped(client, path, expected):
     _auth(client)
-    assert client.get(path).status_code == 403
+    resp = client.get(path)
+    assert resp.status_code == expected, resp.text
+    assert "CONFIDENTIAL-PROMPT" not in (resp.text or "")
+    if path == "/api/audit/executions":
+        items = resp.json().get("items", [])
+        assert [item["execution_id"] for item in items] == ["own-exec"]
+    if path == "/api/audit/summary":
+        body = resp.json()
+        assert body["total_events"] == 1
+        assert body["read_scope"]["kind"] == "owner"
 
 
 def test_supervisor_can_review(client):
@@ -119,3 +151,4 @@ def test_supervisor_can_review(client):
     assert resp.status_code == 200, resp.text
     items = resp.json().get("items", [])
     assert any(i.get("id") == "ev-1" for i in items)
+    assert resp.json()["read_scope"]["kind"] == "workspace"

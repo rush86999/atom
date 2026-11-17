@@ -273,6 +273,10 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 // is the durable run surface; execution history is linked
                 // from it.
                 { label: "Activity", icon: Rocket, path: "/goal-runs", capability: "activity" },
+                // Owner-scoped audit evidence: an ordinary member can open
+                // their OWN audited runs; supervisors see their current
+                // workspace (backend scope, not this nav item).
+                { label: "Audit Trail", icon: FileText, path: "/audit-trail", capability: "activity" },
                 { label: "Marketplace", icon: Store, path: "/marketplace", capability: "marketplace" },
             ]
         },
@@ -315,7 +319,6 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
                 { label: "User Management", icon: Shield, path: "/admin/users", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
                 { label: "Admin Settings", icon: Settings, path: "/admin/settings", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Audit Trail", icon: FileText, path: "/audit-trail", capability: "governance", minLevel: SUPERVISOR_MIN_LEVEL },
                 { label: "Skill Builder", icon: Wrench, path: "/admin/skills/new", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
                 { label: "Owner Cockpit", icon: BarChart3, path: "/dashboard/owner", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
                 { label: "Forensics", icon: Search, path: "/dashboard/forensics", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
