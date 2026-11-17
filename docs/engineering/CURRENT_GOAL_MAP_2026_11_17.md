@@ -66,30 +66,43 @@ These are **open candidates, not merged**, and they carry no acceptance credit
 here. The detail is recorded only because it was current at the stated cut; it
 may be stale and no CI state is asserted by this worker.
 
-- PR #990: latest published head
+- PR #990: the older published head
   `85fbd6357f7e30efe3718c22fc2782fce94edaa4` (tree `83c72091`, parent
-  `4071ef9ba`) is **unmerged**. Hosted run `44184658257` failed
-  `backend-core-extra-isolated` job `134397829262` in
+  `4071ef9ba`) remains the **dated record** of hosted run `44184658257`, which
+  failed `backend-core-extra-isolated` job `134397829262` in
   `test_guided_hitl_approval_creates_one_reviewed_agent`: the first guided
-  create returns 200, while the duplicate approval returns 409
+  create returned 200, while the duplicate approval returned 409
   `DECISION_CONFLICT` where the established alias endpoint contract expects
-  plain 400. The earlier **81** root repair tests at this pinned head remain
-  real but do not cover that path. A local compatibility repair (`007f43b56`,
-  two files) is **unmerged** and has no hosted run: 26 guided, 139 common
-  decision, 167 adjacent approval, 73 checkpoint and 94 regression controls
-  passed; a wider 264-node sweep passed 257 with 7 failures that reproduce
-  identically on an unchanged `85fbd6357` worktree. No hosted green or
-  PostgreSQL claim.
+  plain 400. That failure stays preserved as dated evidence; the **81** root
+  repair tests at that pinned head remain real but do not cover that path.
+- PR #990: the local compatibility repair is
+  `007f43b555656b36f1a92b9003d1d8c71ec24c02` (tree `74333d47`, two files). It
+  passed 26 guided, 139 common decision, 167 adjacent approval, 73 checkpoint
+  and 94 regression controls; a wider 264-node sweep passed 257 with 7 failures
+  that reproduce identically on an unchanged `85fbd6357` worktree. It has no
+  hosted run of its own.
+- PR #990: the now-published head
+  `a84de131cf37fc9dd5d10bc00a0265f29843171c` (tree
+  `d2424e36f83f90e06ab60148aca290690e3a8a70`) integrates that repair atop the
+  actual main `31e2aebf`. The reported integrated evidence is **3** independent
+  integrated targeted tests and **692** CI-contract checks. It is still
+  **unmerged** and awaits hosted gates/merge; no hosted green, PostgreSQL,
+  browser, restart or whole-goal claim.
 - Audit member-route candidate `76a3bbc15e029dc293e0ba4e28c7adf39505c4ea`
-  (tree `13ed22d5a5a6dc7227c836e5468ee9d8d70102f`, frontend
-  `3c54891feb4840335ee47f2eb6dd2911d42d90d8`) is **unmerged**. It narrowly
-  moves `/audit-trail` from deferred `governance` to enabled `activity` in the
-  backend route table and the frontend core fallback; `/admin`, forensics,
-  risk, system-status and the harness-evolution dashboard stay
-  governance-only, and the historical acceptance-ledger bytes are unchanged.
-  Root independently ran **83** profile, audit owner-scope/correction and
-  supervisor-gate checks; the worker reports 15 Jest tests and a clean
-  TypeScript check. **Browser and restart acceptance remain open.**
+  (tree `13ed22d5a5a6dc7227c836e5468ee9d8d70102f`) is now integrated at
+  `72f9a8bab6efc1238a99bbfaebef075b1d43c5d6` (tree
+  `45edc4087b29be1a2e6a6c54b6bbc9df9247f10f`) atop the actual main
+  `31e2aebf`. The frontend tree is identical
+  (`3c54891feb4840335ee47f2eb6dd2911d42d90d8`), so the integration adds no
+  frontend byte. The candidate remains **unmerged**, so it carries no
+  shipped-behavior or acceptance credit. It narrowly moves `/audit-trail` from
+  deferred `governance` to enabled `activity` in the backend route table and
+  the frontend core fallback; `/admin`, forensics, risk, system-status and the
+  harness-evolution dashboard stay governance-only, and the historical
+  acceptance-ledger bytes are unchanged. Root independently ran **83**
+  profile, audit owner-scope/correction and supervisor-gate checks; the worker
+  reports 15 Jest tests and a clean TypeScript check. **Browser and build were
+  in progress; there is no acceptance claim.**
 - Audit/Learning browser **replay2** (pinned source `60a8b7050`, build
   `j7CZbuv5eLLT0wE6OnYyZ`) got past the earlier sign-in defect but not the
   route. Real browser same-origin sign-in **passed** with the intended seeded
@@ -263,22 +276,28 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
   run at all. Replay2 later passed real sign-in but failed the audit route
   gate with zero audit reads, so it adds no browser or restart acceptance
   either.
-- The unmerged audit candidate `76a3bbc15` and its 83 passing root checks are
+- The integrated-but-unmerged audit candidate `76a3bbc15` (merge
+  `72f9a8ba`, identical frontend tree) and its 83 passing root checks are
   **not** merged and **not** browser/restart acceptance; its narrow Activity
-  mapping is a candidate, not shipped behavior.
-- #990's published 85fb head is **not** merged: its hosted guided-duplicate
-  failure is real, the 81-test repair replay covers a different path, and the
-  local compatibility repair is unmerged with no hosted run.
+  mapping is still a candidate, not shipped behavior, and its browser/build
+  work was in progress at this cut.
+- #990's older published `85fb` head is **not** merged: its hosted
+  guided-duplicate failure stays recorded as dated evidence, and the 81-test
+  repair replay covers a different path. The now-published head `a84de131`
+  (tree `d2424e36`, integrated atop main `31e2aebf`) reports 3 independent
+  integrated targeted tests and 692 CI-contract checks, but it is still
+  **unmerged** and awaits hosted gates/merge.
 - #981's single-revision PostgreSQL 14.24 run is **not** migration breadth,
   full-graph upgrade, app-on-PostgreSQL or concurrency.
 - #982 timing output and #989 lane partitioning are **delivery and observability**,
   not application performance, throughput or Goal 17; #989's lane budget is
   explicitly an estimate and no speedup is claimed.
 - The frozen documentation inventory is **not** DOCS-REF-01 closure.
-- An open PR or candidate in the dated queue (#990, the unmerged
-  `76a3bbc15` audit mapping) is **not** merged and carries no acceptance, even
-  when a worker or root reports passing local suites (81 repair, 83 audit or
-  the 264-node compatibility sweep).
+- An open PR or candidate in the dated queue (#990's unmerged `a84de131`
+  head, the integrated-but-unmerged `76a3bbc15` audit mapping at `72f9a8ba`)
+  is **not** merged and carries no acceptance, even when a worker or root
+  reports passing local suites (3 integrated targeted tests and 692 contracts,
+  83 audit or the 264-node compatibility sweep).
 
 Account deletion is a separately inferred possible improvement, not an original
 143-claim requirement or an added completion gate for Goal 1.
@@ -308,8 +327,8 @@ Account deletion is a separately inferred possible improvement, not an original
   the historical **111/123** result. #987's 1,424/59 broader-gate failure is
   preserved as a real failed run; its later tests-only fixture repair and the
   1,483-pass replay do not erase it. The audit/learning browser attempts,
-  replay2's sign-in pass, the unmerged `76a3bbc15` mapping and #990's open
-  repair contribute no goal state and no score.
+  replay2's sign-in pass, the integrated-but-unmerged `76a3bbc15` mapping and
+  #990's unmerged current head contribute no goal state and no score.
 
 ## Original overlay source and validation basis
 
@@ -389,5 +408,24 @@ Account deletion is a separately inferred possible improvement, not an original
   policy or configuration byte changed beyond the verified main merge.
 - The 143 original claim identities, 18 goal rows, historical **111/123
   (90.2%)** and `app_complete: false` are unchanged; the original audit JSON is
-  byte-identical. #987's merge, replay2's sign-in, the unmerged `76a3bbc15`
-  mapping and #990's open repair revise no claim or goal.
+  byte-identical. #987's merge, replay2's sign-in, the integrated-but-unmerged
+  `76a3bbc15` mapping and #990's unmerged current head revise no claim or goal.
+
+## Approved-head correction (docs-only follow-up)
+
+- This pass started from clean worktree
+  `codex/readiness-navigation-refresh-20261117` at
+  `c56a17cc4d86653e6208e7612315cf093308ddb4` (tree
+  `ac17240e9a6456069749177b39342063097e0eff`). It corrects the local approval
+  repair identifier to
+  `007f43b555656b36f1a92b9003d1d8c71ec24c02` and records two dated head
+  updates: #990's now-published `a84de131` (tree `d2424e36`, integrated atop
+  actual main `31e2aebf`, 3 independent integrated targeted tests and 692
+  CI-contract checks, still awaiting hosted gates/merge) and audit candidate
+  `76a3bbc15` now integrated at `72f9a8ba` with an identical frontend tree.
+- The older `85fbd6357` hosted guided failure remains recorded as dated
+  evidence; nothing about it is erased or promoted.
+- Scope of this follow-up: documentation only — no push, app, server, browser,
+  test run, provider/model call or GitHub query. The original audit JSON, the
+  143 claim identities, the 18 goal rows, the historical **111/123 (90.2%)**
+  result and `app_complete: false` are unchanged.
