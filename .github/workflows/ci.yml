@@ -183,30 +183,6 @@ jobs:
           # run hung 6h on one test (exhausted MagicMock side_effect raised
           # StopIteration inside to_thread; fixed in byok_handler + w27 test).
           python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py tests/api/test_a2a_routes.py tests/api/test_sso_oidc_routes.py tests/api/test_scim_routes.py tests/core/test_observability_tracing.py tests/core/test_oracle_and_two_tier_confidence.py tests/test_memory_p2.py tests/test_memory_consolidator_llm.py tests/test_memory_eval_gate.py tests/test_memory_backfill_unified.py tests/test_opencode_go_provider.py tests/test_covpush_w27_opencode_retry.py tests/test_covpush_w57_byok_handler_a.py tests/test_covpush_w57_byok_handler_d.py tests/unit/core/test_stage_router_wiring.py tests/unit/core/test_traffic_split.py tests/test_deepseek_harness_gaps.py tests/test_stream_retry_state_contract.py tests/test_community_skill_write_contract.py tests/test_quickstart_python_guard.py tests/test_workflow_hitl_resume_once.py tests/test_workflow_hitl_persisted_resume.py tests/test_workflow_scheduler_recovery.py tests/test_workflow_approval_scope.py tests/test_workflow_public_approval_flow.py tests/test_workflow_scheduled_process_restart.py tests/test_recording_review_scope.py tests/test_tool_error_memento_lifecycle.py tests/test_tool_error_evolution.py tests/test_employee_business_feedback.py tests/test_employee_feedback_interleaving.py tests/test_feedback_cas_dialect_contract.py tests/test_bpe_current_principal_scope.py tests/test_lead_bpe_rpc_scope.py tests/core/test_bpe_persistence_write_truth.py tests/core/test_bpe_persistence_path_anchoring.py tests/core/test_bpe_evolution.py tests/test_generic_information_multiday_contract.py tests/test_canvas_lifecycle_verified.py tests/test_lead_canvas_lifecycle_authority.py tests/core/test_bpe_persistence_namespace_identity.py tests/test_bpe_note_commit_outcome.py -q --tb=line --timeout=300 --timeout-method=thread --durations=20
-      - name: Run typed LLM consumer contracts
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_llm_consumer_contracts.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_llm_consumer_contracts.py tests/test_covpush_w85_blueprint_healer.py tests/test_covpush_w86_canvas_summary.py tests/test_covpush_w69_social_post.py tests/test_covpush_w83b_reflection.py tests/test_group_reflection_service.py tests/core/test_group_reflection_service.py -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run verified form presentation and submission controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_canvas_forms.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_canvas_submit_oracle_regression.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run authenticated web task and project controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_web_tasks.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_nav_stub_task_crud.py tests/test_web_projects_durable_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run board owner and atomic-authority controls
         env:
           TESTING: "1"
@@ -223,29 +199,6 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_lead_goal_reads_workspace_scope.py tests/test_goal_utility_target.py -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run document browser prerequisite controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_document_browser_helpers.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest ../scripts/tests/test_browser_document_export_ui.py -q --tb=short --timeout=300 --timeout-method=thread
-      # Opt-in invoice replay harness guards (additive): the four offline
-      # modules prove the default scripted lane is unchanged, the relay refuses
-      # everything outside its loopback/synthetic or fixed-live destination,
-      # caps are reserved before dispatch, the ledger is metadata-only, and the
-      # job-wait identity contract still holds. No provider, credential or
-      # browser is needed: the relay is exercised against loopback synthetic
-      # upstreams in-process.
-      - name: Run invoice replay transport guard controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci_invoice_replay.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest ../scripts/tests/test_browser_invoice_partial_evidence_live.py ../scripts/tests/test_browser_invoice_partial_evidence_observer.py ../scripts/tests/test_browser_invoice_partial_evidence_preflight.py ../scripts/tests/test_browser_agent_job_wait_identity.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run goal-write authority regression controls
         env:
           TESTING: "1"
@@ -304,6 +257,140 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_mem07_consolidated_chain.py tests/test_lead_mem07_natural_event.py tests/test_lead_mem07_real_prompt_chain.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
+      # skips under pytest when AI fakes break provider resolution, so run the
+      # exit-coded standalone harness for the real recall@k regression gate
+      # (golden set, isolated workspace, exit 1 on recall < 1.0).
+      - name: Run memory eval gate
+        env:
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          EMBEDDING_PROVIDER: "fastembed"
+          FASTEMBED_MODEL: "BAAI/bge-small-en-v1.5"
+        run: |
+          python -m core.memory_eval
+
+      - name: Run served workflow-route regression control
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_orch01_served_route_http.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run registered alignment-loop regression controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_org_politics_registered_loop_join.py tests/test_org_politics_scheduled_entry.py tests/test_org_politics_automation.py tests/test_org_politics_loop_responsiveness.py tests/test_shared_automation_worker.py tests/test_router_automation_responsiveness.py tests/unit/core/test_stage_router_automation.py tests/unit/test_fleet_router_automation.py tests/test_governance_cache.py tests/test_governance_cache_async_safety.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run capability reentry epoch and runtime revocation controls
+        run: |
+          python -m pytest tests/test_autonomy_revocation.py tests/test_capability_revocation_epoch.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run verifier-backed fleet contribution credit controls
+        run: |
+          python -m pytest tests/test_contribution_credit_p4.py tests/test_contribution_credit_evidence_boundary.py tests/test_fleet_credit_receipt_integration.py tests/test_capability_credit_cas_boundary.py tests/test_fleet_credit_actual_producer_boundary.py tests/test_fleet_credit_scope_boundary.py tests/test_contribution_credit_legacy_boundary.py tests/test_capability_correction_epoch.py tests/test_fleet_credit_epoch_atomic.py tests/test_capability_correction_independent.py tests/test_fleet_credit_epoch_independent.py tests/test_capability_epoch_extended_independent.py tests/test_autonomy_policy_gate.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      - name: Run canonical web password-recovery controls
+        env:
+          TESTING: '1'
+          DATABASE_URL: sqlite:///test_ci.db
+          SECRET_KEY: ci-test-secret-key
+          ENVIRONMENT: development
+        run: 'python -m pytest tests/test_web_password_recovery_contract.py tests/test_bughunt_auth.py tests/test_covpush_w75_auth_endpoints.py tests/test_round56_password_recovery_rate_limit.py tests/test_round18_integration_security.py::TestAuthEndpointsDoNotLogResetLink -q --tb=short --timeout=300 --timeout-method=thread
+
+          '
+
+      - name: Run editable canvas presentation join contract
+        env:
+          PYTEST_CURRENT_TEST: '1'
+          DATABASE_URL: sqlite:///test_ci.db
+          SECRET_KEY: ci-test-secret-key
+          ENVIRONMENT: development
+        run: 'python -m pytest tests/test_canvas_present_revision_contract.py tests/test_canvas_present_actions.py tests/test_oracle_canvas_postcondition.py -q --tb=short --timeout=300 --timeout-method=thread
+
+          '
+
+      - name: Run legacy canvas update adapter contract
+        env:
+          PYTEST_CURRENT_TEST: '1'
+          DATABASE_URL: sqlite:///test_ci.db
+          SECRET_KEY: ci-test-secret-key
+          ENVIRONMENT: development
+        run: 'python -m pytest tests/test_canvas_legacy_update_contract.py tests/test_canvas_updates.py tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance tests/test_oracle_direct_canvas_writes.py -q --tb=short --timeout=300 --timeout-method=thread
+
+          '
+
+  backend-core-isolated:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run typed LLM consumer contracts
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_llm_consumer_contracts.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_llm_consumer_contracts.py tests/test_covpush_w85_blueprint_healer.py tests/test_covpush_w86_canvas_summary.py tests/test_covpush_w69_social_post.py tests/test_covpush_w83b_reflection.py tests/test_group_reflection_service.py tests/core/test_group_reflection_service.py -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run verified form presentation and submission controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_canvas_forms.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_canvas_form_producer_submit_join.py tests/test_canvas_submit_receipt_contract.py tests/test_canvas_submit_oracle_regression.py tests/test_covpush_canvasroutes.py::TestSubmitCanvas tests/test_canvas_tool_integration.py::TestCanvasFormPresentation -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run authenticated web task and project controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_web_tasks.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_nav_stub_task_crud.py tests/test_web_projects_durable_boundary.py -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run document browser prerequisite controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_document_browser_helpers.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest ../scripts/tests/test_browser_document_export_ui.py -q --tb=short --timeout=300 --timeout-method=thread
+      # Opt-in invoice replay harness guards (additive): the four offline
+      # modules prove the default scripted lane is unchanged, the relay refuses
+      # everything outside its loopback/synthetic or fixed-live destination,
+      # caps are reserved before dispatch, the ledger is metadata-only, and the
+      # job-wait identity contract still holds. No provider, credential or
+      # browser is needed: the relay is exercised against loopback synthetic
+      # upstreams in-process.
+      - name: Run invoice replay transport guard controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_invoice_replay.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest ../scripts/tests/test_browser_invoice_partial_evidence_live.py ../scripts/tests/test_browser_invoice_partial_evidence_observer.py ../scripts/tests/test_browser_invoice_partial_evidence_preflight.py ../scripts/tests/test_browser_agent_job_wait_identity.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # Joined ordinary-agent dispatch for reviewed executable skills
       # (additive): one public GenericAgent.execute run selects
@@ -401,38 +488,6 @@ jobs:
         run: |
           python -m pytest tests/test_db_safety_uri_backup.py -q --tb=short --timeout=300 --timeout-method=thread
 
-      # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
-      # skips under pytest when AI fakes break provider resolution, so run the
-      # exit-coded standalone harness for the real recall@k regression gate
-      # (golden set, isolated workspace, exit 1 on recall < 1.0).
-      - name: Run memory eval gate
-        env:
-          DATABASE_URL: "sqlite:///test_ci.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-          EMBEDDING_PROVIDER: "fastembed"
-          FASTEMBED_MODEL: "BAAI/bge-small-en-v1.5"
-        run: |
-          python -m core.memory_eval
-
-      - name: Run served workflow-route regression control
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_orch01_served_route_http.py -q --tb=short --timeout=300 --timeout-method=thread
-
-      - name: Run registered alignment-loop regression controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_org_politics_registered_loop_join.py tests/test_org_politics_scheduled_entry.py tests/test_org_politics_automation.py tests/test_org_politics_loop_responsiveness.py tests/test_shared_automation_worker.py tests/test_router_automation_responsiveness.py tests/unit/core/test_stage_router_automation.py tests/unit/test_fleet_router_automation.py tests/test_governance_cache.py tests/test_governance_cache_async_safety.py -q --tb=short --timeout=300 --timeout-method=thread
-
       # MINI-03 runtime-boundary journey (additive): the actual public RPC
       # consumer (POST /api/rpc/mini_app_dev_run / mini_app_run_tests) must
       # fail CLOSED with an explicit actionable runtime-unavailable message
@@ -472,14 +527,6 @@ jobs:
             -q --tb=short --timeout=360 --timeout-method=thread \
             --basetemp="${mini04_run_root}/pytest"
 
-      - name: Run capability reentry epoch and runtime revocation controls
-        run: |
-          python -m pytest tests/test_autonomy_revocation.py tests/test_capability_revocation_epoch.py -q --tb=short --timeout=300 --timeout-method=thread
-
-      - name: Run verifier-backed fleet contribution credit controls
-        run: |
-          python -m pytest tests/test_contribution_credit_p4.py tests/test_contribution_credit_evidence_boundary.py tests/test_fleet_credit_receipt_integration.py tests/test_capability_credit_cas_boundary.py tests/test_fleet_credit_actual_producer_boundary.py tests/test_fleet_credit_scope_boundary.py tests/test_contribution_credit_legacy_boundary.py tests/test_capability_correction_epoch.py tests/test_fleet_credit_epoch_atomic.py tests/test_capability_correction_independent.py tests/test_fleet_credit_epoch_independent.py tests/test_capability_epoch_extended_independent.py tests/test_autonomy_policy_gate.py -q --tb=short --timeout=300 --timeout-method=thread
-
       # Fleet final synthesis completion honesty (additive): a provider
       # finish_reason=length/max_tokens must never be presented as a complete
       # business deliverable, and a missing stop reason with a cut-looking
@@ -515,36 +562,6 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/unit/test_advisor_completion_contract.py tests/test_auto_dev/test_advisor_service.py tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationServiceIntegration::test_advisor_generates_guidance -q --tb=short --timeout=300 --timeout-method=thread
-
-      - name: Run canonical web password-recovery controls
-        env:
-          TESTING: '1'
-          DATABASE_URL: sqlite:///test_ci.db
-          SECRET_KEY: ci-test-secret-key
-          ENVIRONMENT: development
-        run: 'python -m pytest tests/test_web_password_recovery_contract.py tests/test_bughunt_auth.py tests/test_covpush_w75_auth_endpoints.py tests/test_round56_password_recovery_rate_limit.py tests/test_round18_integration_security.py::TestAuthEndpointsDoNotLogResetLink -q --tb=short --timeout=300 --timeout-method=thread
-
-          '
-
-      - name: Run editable canvas presentation join contract
-        env:
-          PYTEST_CURRENT_TEST: '1'
-          DATABASE_URL: sqlite:///test_ci.db
-          SECRET_KEY: ci-test-secret-key
-          ENVIRONMENT: development
-        run: 'python -m pytest tests/test_canvas_present_revision_contract.py tests/test_canvas_present_actions.py tests/test_oracle_canvas_postcondition.py -q --tb=short --timeout=300 --timeout-method=thread
-
-          '
-
-      - name: Run legacy canvas update adapter contract
-        env:
-          PYTEST_CURRENT_TEST: '1'
-          DATABASE_URL: sqlite:///test_ci.db
-          SECRET_KEY: ci-test-secret-key
-          ENVIRONMENT: development
-        run: 'python -m pytest tests/test_canvas_legacy_update_contract.py tests/test_canvas_updates.py tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance tests/test_oracle_direct_canvas_writes.py -q --tb=short --timeout=300 --timeout-method=thread
-
-          '
 
       # Gate the complete office canvas co-editing suite (DOCX/XLSX/PPTX
       # canvas↔file ownership, persistence, notifications and sync). Run the
@@ -657,7 +674,6 @@ jobs:
               python -m pytest "tests/test_never_autonomous_${never_file}.py" \
               -q --tb=short --timeout=300 --timeout-method=thread
           done
-
 
       # Meta consumer of the SAME durable approval seam (additive). MetaAgent
       # files its own HITL rows and previously dispatched the model's original
@@ -841,6 +857,22 @@ jobs:
         run: |
           python -m pytest tests/test_email_legacy_draft_precedence.py tests/test_email_draft_shared_writer.py tests/test_email_eml_import.py tests/test_email_canvas_attachments.py tests/test_email_attachment_tool.py -q --tb=short --timeout=300 --timeout-method=thread
 
+  backend-core-extra-isolated:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
       - name: Run durable LLM settlement and existing-database upgrade controls
         env:
           TESTING: "1"
@@ -1464,18 +1496,20 @@ jobs:
           if-no-files-found: error
 
   backend-tests:
-    needs: [backend-core, backend-core-extra, backend-oracle, backend-docker]
+    needs: [backend-core, backend-core-isolated, backend-core-extra, backend-core-extra-isolated, backend-oracle, backend-docker]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Require every backend lane to succeed
         env:
           ATOM_CI_CORE_RESULT: ${{ needs.backend-core.result }}
+          ATOM_CI_CORE_ISOLATED_RESULT: ${{ needs.backend-core-isolated.result }}
           ATOM_CI_CORE_EXTRA_RESULT: ${{ needs.backend-core-extra.result }}
+          ATOM_CI_CORE_EXTRA_ISOLATED_RESULT: ${{ needs.backend-core-extra-isolated.result }}
           ATOM_CI_ORACLE_RESULT: ${{ needs.backend-oracle.result }}
           ATOM_CI_DOCKER_RESULT: ${{ needs.backend-docker.result }}
         run: |
-          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_CORE_EXTRA_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ] || [ "$ATOM_CI_DOCKER_RESULT" != "success" ]; then
+          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_CORE_ISOLATED_RESULT" != "success" ] || [ "$ATOM_CI_CORE_EXTRA_RESULT" != "success" ] || [ "$ATOM_CI_CORE_EXTRA_ISOLATED_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ] || [ "$ATOM_CI_DOCKER_RESULT" != "success" ]; then
             echo "A required backend lane did not succeed."
             exit 1
           fi
