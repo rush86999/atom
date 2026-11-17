@@ -3,6 +3,10 @@
   "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
   "reference_order": [
     {
+      "path": "CURRENT_GOAL_MAP_2026_11_17.md",
+      "purpose": "Current navigation overlay for all 18 goals plus DOCS-REF-01 at main 0e9b0dfc9 (#977). Preserves the 143 claim identities, 18 goals, historical 111/123 result and all negative records; not a completion claim."
+    },
+    {
       "path": "APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json",
       "purpose": "Complete original 143-claim inventory and 18 goal rows. Preserve claim identifiers and historical evidence."
     },
@@ -93,12 +97,21 @@
     "path": "CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md",
     "as_of_main": "a868435fdcc7be66753366362d7542cc1082ce84",
     "requested_base": "b4370d0d41ae6e9e5a280387d1230a80c82e14a7",
-    "state": "Navigation overlay only. Observed main after #943; the historical quick_reference below is unchanged and is not a current-main score.",
+    "state": "Historical navigation overlay through #943. The detailed claim/evidence ledger and all historical sections remain valid; use current_goal_map_2026_11_17 for release status.",
+    "current_navigation": "CURRENT_GOAL_MAP_2026_11_17.md",
     "preserves": {
       "historical_claims": 143,
       "goal_rows": 18,
       "app_complete": false
     }
+  },
+  "current_goal_map_2026_11_17": {
+    "path": "CURRENT_GOAL_MAP_2026_11_17.md",
+    "as_of_main": "0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464",
+    "as_of_tree": "9386a4861e9ed2fef14d96fda64fc5cedba6b3b3",
+    "parent": "8b48dd84ad845e79c27bfcfa45cae669586d2b88",
+    "state": "Navigation and remaining-acceptance overlay only. All 143 original claim identities, 18 goals, historical 111/123 (90.2%) and app_complete:false are preserved; no readiness percentage is invented and no goal is marked complete.",
+    "navigation_relationship": "Corrects current-tense release/draft wording in CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md without replacing its historical cuts, claim rows, evidence arrays or negative records."
   },
   "explicit_user_requirements": [
     "Long-running domain-independent jobs can wait for missing information for days, survive restart, continue independent useful work, and resume the same job when authorized relevant information arrives.",
