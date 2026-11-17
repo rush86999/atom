@@ -337,6 +337,7 @@ def repair_known_drift() -> None:
             AgentRegistry,
             AgentTemplate,
             Canvas,
+            DatasetEntry,
             ExperienceItem,
             GoalRun,
             Playbook,
@@ -386,6 +387,11 @@ def repair_known_drift() -> None:
             # Active Sessions work lack it, and every ORM read/write of the
             # inventory would fail with "no such column" without this repair.
             ensure_sqlite_columns(engine, UserSession)
+            # Derived-data lineage: dataset_entries.source_document_id ties an
+            # automatic derivative to the document whose ingestion produced
+            # it. Local SQLite files created before the column existed would
+            # otherwise fail every catalog read (ORM selects the column).
+            ensure_sqlite_columns(engine, DatasetEntry)
             # The model declares token_jti unique, but ALTER TABLE ADD COLUMN
             # cannot add that index. Create it so a repaired SQLite database
             # matches the Alembic/PostgreSQL constraint (see

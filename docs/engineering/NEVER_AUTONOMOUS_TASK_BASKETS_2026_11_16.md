@@ -1,10 +1,30 @@
 # Never-autonomous task baskets — behavior, limits and CI selection
 
-**Status: independently verified locally; merge and exact-head CI pending.**
+**Status at qualification (pre-merge, 2026-11-16): independently verified locally; merge and exact-head CI pending.**
 Product source `d271e25ebc1474cc3fa51fda5f6d2acd8650e51d` passed the
 bounded checks below. This is a task-boundary feature qualification, not a
 full-app readiness or model-quality claim. The original 143 claims / 18 goals
 and `app_complete: false` remain unchanged.
+
+## Release status — merged 2026-11-17
+
+PR [#977](https://github.com/rush86999/atom/pull/977) merged as
+`0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464` (tree
+`9386a4861e9ed2fef14d96fda64fc5cedba6b3b3`, parent #976
+`8b48dd84ad845e79c27bfcfa45cae669586d2b88`). Its exact PR head
+`488e956c688383d2a220b05442fb47b51c8cc4f4` had all **15** check runs
+successful. Post-merge main CI run
+[43985428885](https://github.com/rush86999/atom/actions/runs/43985428885) and
+Docker run [43985428863](https://github.com/rush86999/atom/actions/runs/43985428863)
+both completed successfully on the exact merge commit. Root independently
+re-queried both workflow identities and conclusions on 2026-11-17.
+
+The merge and exact-head CI do not widen the qualification below: the browser
+journey, 319 backend checks, 642 CI-contract checks, 110 UI/type checks and
+build remain bound to their recorded source. Classification is still lexical,
+SQLite was the only migration exercised, and real-model quality and PostgreSQL
+concurrency remain unqualified. The current navigation overlay is
+[the 2026-11-17 goal map](CURRENT_GOAL_MAP_2026_11_17.md).
 
 The owner requirement is optional, never-autonomous task baskets identified by
 difficulty/category/domain combinations. The feature is an **opt-in veto**, not
@@ -346,12 +366,16 @@ and run-admission files. Tests used isolated absolute SQLite databases with
 networking denied. The frontend, API, policy and workflow definitions are
 unchanged by these repairs; earlier frontend/build/browser evidence remains
 bound to its stated source, rather than being relabeled as a rerun. The
-replacement PR head still requires fresh CI/security and main verification.
+replacement PR head still required fresh CI/security and main verification at
+qualification; the release status above records the later exact-head and merge
+result, without claiming post-merge green.
 
 ## Remaining release and product limits
 
-- Exact-head PR CI/security and main-branch merge/post-merge workflows must
-  still pass. No failed or pending check may be bypassed.
+- At qualification, exact-head PR CI/security and main-branch merge/post-merge
+  workflows still had to pass. The later release status above records the merge
+  and 15/15 exact-head result; post-merge #977 CI/Docker were still running at
+  this read, so no post-merge green is claimed.
 - Classification uses the existing deterministic heuristics described above;
   semantic recall/precision and model-quality guarantees remain unqualified.
 - Only SQLite migration/runtime was exercised locally. No live customer data,

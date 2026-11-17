@@ -153,6 +153,62 @@ def _hashlib_sha1(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()
 
 
+def _external_doc_id(source: str, external_id: str) -> str:
+    """The established, source-scoped document id for a connector file.
+
+    ONE implementation for every identity site in this module (the write key,
+    the source-update probe and the already-ingested badge probe). The key is
+    ``ext_sha1("<source>:<external_id>")[:24]`` with the caller's external id
+    taken VERBATIM — exactly what every pre-fix write, badge probe and update
+    probe used. The WorkDrive walker has always passed an already prefixed
+    ``"<source>:<id>"``, so its durable rows live under the double-source key
+    ``ext_sha1("<source>:<source>:<id>")``. A normalising helper would re-key
+    those rows: existing badges would miss, the update probe would call the
+    stored copy absent, and a refresh would write a second "canonical" row.
+
+    Do NOT delegate to ``source_document_id_for_source`` here: that catalog
+    helper strips a source prefix to canonicalise dataset lookup, which is a
+    different concern. For a bare connector id both agree; for the walker's
+    prefixed id they deliberately do not. Derived-dataset lineage is stamped
+    from THIS computed value (see ``process_file_bytes``), so the catalog
+    still names the document row that actually exists.
+
+    Content-addressed documents (no external id) never reach this helper —
+    they keep their ``doc_`` key and are linked to their dataset after
+    extraction. Never key on a filename: that is metadata, not identity.
+    """
+    return f"ext_{_hashlib_sha1(f'{source}:{external_id}')[:24]}"
+
+
+def _external_doc_id_candidates(source: str, external_id: str) -> List[str]:
+    """Established identities a connector file may already be stored under.
+
+    ``_external_doc_id`` is the write key for NEW rows and takes the caller's
+    id verbatim. Connectors have historically used two conventions for the
+    same file — the WorkDrive walker sends ``"<source>:<id>"`` while the panel
+    badge and single-file read send the bare ``"<id>"``. Their durable rows
+    therefore exist under two different (both valid, pre-existing) keys.
+
+    Lookups probe BOTH so an old row written by either convention stays
+    discoverable and a refresh updates it in place instead of appending a
+    second copy. Order is exact-caller-id first; the alternate only supplies a
+    fallback. This is deliberately lookup-only: nothing is re-keyed or moved,
+    and no row from another source/scope is ever considered (both candidates
+    are derived from THIS source plus THIS file id).
+    """
+    src = str(source or "").strip()
+    ext = str(external_id or "").strip()
+    candidates = [_external_doc_id(src, ext)]
+    prefix = f"{src}:"
+    if src and ext:
+        alternate = ext[len(prefix):] if ext.startswith(prefix) else prefix + ext
+        if alternate and alternate != ext:
+            alternate_id = _external_doc_id(src, alternate)
+            if alternate_id not in candidates:
+                candidates.append(alternate_id)
+    return candidates
+
+
 # Pre-2007 binary Office containers (.doc/.ppt/.xls are OLE2 compound files,
 # NOT the OOXML zip container .docx/.pptx/.xlsx use). The parser chain is
 # python-docx/python-pptx, which cannot open them; the drive connectors
@@ -1248,6 +1304,40 @@ class AutoDocumentIngestionService:
         self._persist_settings(settings)
         return settings
 
+    def _handler_for_workspace(self, workspace_id: str) -> Any:
+        """The ONE memory store for an effective workspace, or raise.
+
+        ``workspace_id`` is already the effective workspace
+        (``workspace_id or self.workspace_id``). The service's own workspace
+        uses the handler built in ``__init__``; an override resolves and
+        memoises its own per-workspace handler.
+
+        Raises when an override's store cannot be resolved. Callers MUST fail
+        closed: falling back to ``self.memory_handler`` writes another
+        workspace's content into the wrong store. The 2026-11-16 root review
+        found exactly that — the existing-row probe read the default store
+        before the override handler was selected, and a handler error fell
+        the write back there too, so a default-store row could supply another
+        workspace's identity/mtime while the content landed in the default
+        store (or vice versa).
+        """
+        if workspace_id == self.workspace_id:
+            return self.memory_handler
+        if not hasattr(self, "_ws_handlers"):
+            self._ws_handlers: Dict[str, Any] = {}
+        handler = self._ws_handlers.get(workspace_id)
+        if handler is not None:
+            return handler
+        from core.lancedb_handler import get_lancedb_handler
+
+        handler = get_lancedb_handler(workspace_id)
+        if handler is None:
+            raise RuntimeError(
+                f"get_lancedb_handler returned no store for {workspace_id}"
+            )
+        self._ws_handlers[workspace_id] = handler
+        return handler
+
     async def process_file_bytes(
         self,
         content: bytes,
@@ -1274,7 +1364,12 @@ class AutoDocumentIngestionService:
             file_name: File name (used to infer type and metadata).
             source: Source label (e.g. "onedrive", "zoho_workdrive").
             user_id: Owning user id.
-            workspace_id: Optional workspace override (defaults to service default).
+            workspace_id: Optional workspace override (defaults to service
+                default). The effective workspace's store is resolved ONCE,
+                before the existing-row probe, and used for every read and
+                write. An unresolvable override fails closed
+                (``workspace_handler_unavailable``) rather than writing into
+                another workspace's store.
             role: Optional AI-employee role (AgentRegistry.category, lowercased)
                 the ingested file is relevant to. Tagged in the LanceDB metadata
                 so role-aware recall (WorldModelService) surfaces it to the right
@@ -1317,6 +1412,29 @@ class AutoDocumentIngestionService:
             or (extra_metadata or {}).get("modified_at")
         )
 
+        # Resolve the effective workspace's store ONCE, before ANY read or
+        # write. Every read (existing-row identity/mtime probe) and every
+        # write below must use this same handler: a default-store row must
+        # never lend its identity or modified time to content written into
+        # another workspace's store, and an unavailable scoped store must
+        # never fall back to the default one. Fail closed with a structured
+        # result instead — the caller can report that nothing was stored.
+        ws_id = workspace_id or self.workspace_id
+        try:
+            _handler = self._handler_for_workspace(ws_id)
+        except Exception as ws_handler_err:  # noqa: BLE001 — fail closed
+            logger.error(
+                f"Ingest refused for {file_name}: workspace store "
+                f"unavailable for {ws_id} ({ws_handler_err}) — content was "
+                "NOT written to another workspace's store"
+            )
+            return {
+                "status": "error",
+                "reason": "workspace_handler_unavailable",
+                "file_name": file_name,
+                "workspace_id": ws_id,
+            }
+
         # Content-mode gate for storage drives: hybrid/list_only keep the
         # file index but skip automatic content ingestion. Explicit
         # user/agent pulls bypass this — that is the entire point of hybrid.
@@ -1325,33 +1443,52 @@ class AutoDocumentIngestionService:
         # copy is silently rotting (it still reads "fresh" to recall while
         # the source moved on). Refresh it: the walker already downloaded
         # these bytes, so the marginal cost is one parse+write, and the
-        # upsert replaces the old row under the same identity key.
-        stored_is_outdated = False
-        if not explicit and source and source != "upload" and _external_id:
-            try:
-                probe_id = f"ext_{_hashlib_sha1(f'{source}:{_external_id}')[:24]}"
-                stored = await asyncio.to_thread(
-                    self.memory_handler.get_document_by_id, "documents", probe_id
-                )
-                if stored is None:
-                    # chunked layout: the family lives under {doc_id}::c{i}
+        # upsert replaces the old row under its EXISTING identity key.
+        #
+        # Resolve that identity before deciding anything: the caller may use
+        # the other established convention than the durable row (walker
+        # prefixes, the panel/read path does not). An existing row wins — it
+        # is updated in place, never shadowed by a second "canonical" copy.
+        _stored_doc_id = None
+        _stored_row = None
+        if (_external_id and source and source != "upload"
+                and _handler):
+            for candidate in _external_doc_id_candidates(source, _external_id):
+                try:
                     stored = await asyncio.to_thread(
-                        self.memory_handler.get_document_by_id,
-                        "documents",
-                        f"{probe_id}::c0",
+                        _handler.get_document_by_id,
+                        "documents", candidate,
                     )
-                stored_is_outdated = _stored_copy_older_than(
-                    stored, source_modified_dt
-                )
-            except Exception as probe_err:  # noqa: BLE001 — probe is best-effort
-                logger.debug(f"update probe skipped for {file_name}: {probe_err}")
+                    if stored is None:
+                        # chunked layout: {doc_id}::c{i} family
+                        stored = await asyncio.to_thread(
+                            _handler.get_document_by_id,
+                            "documents", f"{candidate}::c0",
+                        )
+                except Exception as probe_err:  # noqa: BLE001 — best-effort
+                    # One unreadable candidate must not hide the other
+                    # convention's durable row.
+                    logger.debug(
+                        f"existing-document probe skipped for {file_name} "
+                        f"({candidate}): {probe_err}")
+                    continue
+                if stored is not None:
+                    _stored_doc_id = candidate
+                    _stored_row = stored
+                    break
+
+        stored_is_outdated = False
+        if not explicit and _stored_row is not None:
+            stored_is_outdated = _stored_copy_older_than(
+                _stored_row, source_modified_dt
+            )
 
         if not explicit and source and source != "upload":
             try:
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
 
                 mode = get_hybrid_ingestion_service(
-                    workspace_id or "default"
+                    ws_id
                 ).get_content_mode(source)
                 if mode in ("hybrid", "list_only") and not stored_is_outdated:
                     logger.info(
@@ -1379,6 +1516,19 @@ class AutoDocumentIngestionService:
         # changed source = a new version (never a stale overwrite). The read
         # leg consults this copy BEFORE downloading, so value questions skip
         # the 13MB-download/10s-parse round trip entirely.
+        #
+        # Exact lineage: a connector file's document id is deterministic from
+        # its stable source identity (the same _external_doc_id the write
+        # below uses), so it can be stamped before the copy is written.
+        # Content-addressed documents (no external id) get linked after
+        # extraction below, when their id is known.
+        _precomputed_doc_id = None
+        if _external_id:
+            # Reuse the durable row's identity when one already exists (either
+            # established convention); otherwise this is the write key for a
+            # new row. Dataset lineage and the memory row MUST agree.
+            _precomputed_doc_id = _stored_doc_id or _external_doc_id(
+                source, _external_id)
         try:
             from core.sheet_dataset_service import ensure_sheet_dataset, sheet_datasets_enabled
 
@@ -1388,9 +1538,10 @@ class AutoDocumentIngestionService:
                     file_name=file_name,
                     source=source,
                     user_id=user_id,
-                    workspace_id=workspace_id or self.workspace_id,
+                    workspace_id=ws_id,
                     external_id=_external_id or None,
                     source_modified_at=source_modified_dt,
+                    source_document_id=_precomputed_doc_id,
                 )
         except Exception as ds_err:  # noqa: BLE001 — datasets never block ingestion
             logger.debug(f"sheet dataset materialization skipped for {file_name}: {ds_err}")
@@ -1435,27 +1586,10 @@ class AutoDocumentIngestionService:
             except Exception as redact_err:
                 logger.debug(f"Secrets redaction skipped for {file_name}: {redact_err}")
 
-        ws_id = workspace_id or self.workspace_id
         chars_ingested = 0
-
-        # Per-workspace handler: the workspace override previously only
-        # stamped metadata — the row still landed in the default workspace's
-        # store, invisible to that workspace's recall.
-        _handler = self.memory_handler
-        if ws_id and ws_id != self.workspace_id:
-            try:
-                if not hasattr(self, "_ws_handlers"):
-                    self._ws_handlers: Dict[str, Any] = {}
-                if ws_id not in self._ws_handlers:
-                    from core.lancedb_handler import get_lancedb_handler
-
-                    self._ws_handlers[ws_id] = get_lancedb_handler(ws_id)
-                _handler = self._ws_handlers[ws_id]
-            except Exception as ws_handler_err:  # noqa: BLE001 — fall back to default
-                logger.warning(
-                    f"workspace handler unavailable for {ws_id}, using default: {ws_handler_err}"
-                )
-                _handler = self.memory_handler
+        # ``ws_id``/``_handler`` were resolved at the TOP of this method, so
+        # the existing-row probe and this write share one effective
+        # workspace store. Never re-resolve (or fall back) here.
 
         # Join-key bridge (hybrid search, Step 1): the file-ingest path creates
         # no PG IngestedDocument row, so vector hits from here can't resolve to
@@ -1468,7 +1602,10 @@ class AutoDocumentIngestionService:
         # (content-addressing: identical content = one row, any filename).
         # The id is SOURCE-SCOPED — two integrations may reuse the same raw
         # external id string, and one file's refresh must never delete the
-        # other's row. Never key on file NAME.
+        # other's row. Never key on file NAME. A durable row's EXISTING key
+        # wins; for a new row the caller's external id is taken VERBATIM (see
+        # _external_doc_id), so the walker's "<source>:"-prefixed rows keep
+        # their pre-fix identity.
         import hashlib as _hashlib
 
         from core.doc_freshness_service import (
@@ -1479,10 +1616,34 @@ class AutoDocumentIngestionService:
 
         _content_hash = extraction_content_hash(text)
         if _external_id:
-            _identity_input = f"{source}:{_external_id}"
-            _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
+            # Same identity the derived dataset above was stamped with: one
+            # computation, so catalog lineage cannot drift from the memory
+            # row (and the upsert replaces that exact row).
+            _file_doc_id = _precomputed_doc_id or _external_doc_id(
+                source, _external_id)
         else:
             _file_doc_id = "doc_" + _hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+            # Content-addressed documents have no stable source id, so the
+            # derived catalog copy could only be linked after extraction.
+            # Link it now (the materialization above already finished).
+            try:
+                from core.database import get_db_session
+                from core.sheet_dataset_service import (
+                    link_dataset_entries_to_document,
+                )
+
+                with get_db_session() as _link_db:
+                    link_dataset_entries_to_document(
+                        _link_db,
+                        source=source,
+                        external_id=None,
+                        workspace_id=ws_id,
+                        document_id=_file_doc_id,
+                        content_hash=_hashlib.sha1(content or b"").hexdigest(),
+                    )
+            except Exception as _link_err:  # noqa: BLE001 — lineage is hygiene
+                logger.debug(
+                    f"dataset lineage link skipped for {file_name}: {_link_err}")
 
         _meta: Dict[str, Any] = {
             "file_name": file_name,
@@ -1608,12 +1769,16 @@ class AutoDocumentIngestionService:
     async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:
         """Which of these source-native ids already have documents in memory?
 
-        Mirrors the write identity (doc_id = ``ext_sha1(source:external_id)``,
-        see process_file_bytes), probing both the single-doc and the chunked
-        (``{doc_id}::c0``) layouts. Point lookups run in one worker thread —
-        the drive panels call this per folder listing to hydrate "already
-        ingested" badges from durable state instead of session-only React
-        state.
+        Mirrors the established write identity (``_external_doc_id`` over the
+        caller's VERBATIM id, see process_file_bytes) AND checks the other
+        connector convention for a pre-existing row
+        (``_external_doc_id_candidates``), so the walker's prefixed durable
+        rows still badge when the panel asks with the bare id, and vice versa.
+        Probes both the
+        single-doc and the chunked (``{doc_id}::c0``) layouts. Point lookups
+        run in one worker thread — the drive panels call this per folder
+        listing to hydrate "already ingested" badges from durable state
+        instead of session-only React state.
         """
         if not external_ids or not self.memory_handler:
             return []
@@ -1621,11 +1786,14 @@ class AutoDocumentIngestionService:
         def _probe_all() -> List[str]:
             found: List[str] = []
             for ext in external_ids:
-                probe = f"ext_{_hashlib_sha1(f'{source}:{ext}')[:24]}"
                 try:
-                    if (self.memory_handler.get_document_by_id("documents", probe)
-                            or self.memory_handler.get_document_by_id("documents", f"{probe}::c0")):
-                        found.append(ext)
+                    for probe in _external_doc_id_candidates(source, ext):
+                        if (self.memory_handler.get_document_by_id(
+                                "documents", probe)
+                                or self.memory_handler.get_document_by_id(
+                                    "documents", f"{probe}::c0")):
+                            found.append(ext)
+                            break
                 except Exception:  # noqa: BLE001 — a single bad probe must not kill the batch
                     continue
             return found

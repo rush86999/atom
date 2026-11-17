@@ -15,6 +15,7 @@ citations precise.
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -67,6 +68,83 @@ _VFS_ROWS_CACHE_TTL = float(
 #: ATOM_VFS_SCAN_BATCH.
 _VFS_SCAN_BATCH = int(_os.getenv("ATOM_VFS_SCAN_BATCH", "2000") or 2000)
 
+
+def _normalized_freshness(value: Any) -> str:
+    """Canonical form of a persisted freshness value (never guesses)."""
+    return str(value or "").strip().lower()
+
+
+def _is_explicitly_non_fresh(value: Any) -> bool:
+    """True only for the shared durable non-fresh statuses.
+
+    Reuses ``NON_FRESH_STATUSES`` (stale/outdated/removed/superseded) exactly
+    as lexical search, export and the SQL freshness filter do. A missing value
+    is the historical/legacy shape and stays readable; this is why a vector
+    table without the ``freshness_status`` column keeps working.
+    """
+    from core.doc_freshness_service import NON_FRESH_STATUSES
+
+    return _normalized_freshness(value) in NON_FRESH_STATUSES
+
+
+def _normalized_metadata(value: Any) -> Dict[str, Any]:
+    """Return metadata as a dict whether Arrow handed back a dict or JSON.
+
+    LanceDB writes ``metadata`` as a serialized JSON string; Arrow/older
+    tables can also surface it as text. ``_doc_meta`` used to call ``.get``
+    directly, so a legitimate multi-chunk owner open crashed with
+    ``'str' object has no attribute 'get'`` before serving a single chunk.
+    Malformed/absent metadata degrades to ``{}`` rather than raising.
+    """
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _chunk_parent_id(doc_id: Any) -> Optional[str]:
+    """``X`` for a chunk id ``X::cN``; None for a parent/base id."""
+    text = str(doc_id or "")
+    if "::c" not in text:
+        return None
+    base = text.split("::c", 1)[0]
+    return base or None
+
+
+def _is_hidden_id(doc_id: Any, hidden_ids: set) -> bool:
+    """True when an id (or its chunk-family parent) is durably non-fresh."""
+    text = str(doc_id or "")
+    if not text:
+        return False
+    if text in hidden_ids:
+        return True
+    base = _chunk_parent_id(text)
+    return bool(base) and base in hidden_ids
+
+
+def invalidate_knowledge_vfs_rows_cache() -> None:
+    """Drop a registered knowledge provider's projected-read cache.
+
+    Document producers/deleters must call this after changing the SQL or
+    LanceDB documents store. ``invalidate_rows_cache`` already existed but
+    only the communications pipeline used it; a later ``grep`` could keep
+    serving pre-delete vector text for the 15s TTL, so a removed document
+    still grounded an answer. No provider registered means no cache to drop.
+    """
+    try:
+        from core.vfs_registry import get_provider
+
+        provider = get_provider("knowledge")
+        invalidate = getattr(provider, "invalidate_rows_cache", None)
+        if callable(invalidate):
+            invalidate()
+    except Exception as exc:  # noqa: BLE001 — cache hygiene must not fail writes
+        logger.debug(f"[KnowledgeVFS] cache invalidation skipped: {exc}")
 
 
 class KnowledgeVFSProvider(VFSProvider):
@@ -168,7 +246,7 @@ class KnowledgeVFSProvider(VFSProvider):
         # extracted text lives in the aligned LanceDB row. Serve the full text
         # when the mirror row is the only thing we'd otherwise truncate.
         if doc[0] == "ingested":
-            vec = await self._get_vector_doc(doc_id)
+            vec = await self._get_vector_doc(doc_id, ctx)
             if vec:
                 vec_text = str(vec.get("text") or "")
                 if len(vec_text) > len(text):
@@ -210,7 +288,7 @@ class KnowledgeVFSProvider(VFSProvider):
                 if doc is not None:
                     text = self._doc_text(doc)
                     if doc[0] == "ingested":
-                        vec = await self._get_vector_doc(parts[2])
+                        vec = await self._get_vector_doc(parts[2], ctx)
                         if vec and len(str(vec.get("text") or "")) > len(text):
                             text = str(vec.get("text") or "")
         except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
@@ -301,8 +379,23 @@ class KnowledgeVFSProvider(VFSProvider):
         silent head-window bug as the conversations leg, and the reason a
         figure living in chunk c2213 of a price list could not be grepped.
         """
+        # The durable SQL row is authoritative: a retained tombstone hides
+        # its still-fresh vector mirror. This set is read on EVERY grep (not
+        # cached), so a peer marking ``freshness_status='removed'`` denies the
+        # text even when the 15s projected-row cache still holds the old row.
+        # An unreadable SQL store is not evidence of freshness — fail closed.
+        hidden_ids = self._sql_non_fresh_ids(ctx)
+        if hidden_ids is None:
+            logger.warning(
+                "[KnowledgeVFS] document grep denied: SQL visibility "
+                "unavailable")
+            return []
+
         rows = await self._vector_rows(
-            "documents", ["id", "text"], limit=_DOCS_SCAN_LIMIT
+            "documents", ["id", "text", "freshness_status"],
+            limit=_DOCS_SCAN_LIMIT,
+            workspace_id=self._workspace_id(ctx),
+            drop_missing_columns=True,
         )
         citations: List[VFSCitation] = []
         vector_ids: set = set()
@@ -310,6 +403,13 @@ class KnowledgeVFSProvider(VFSProvider):
             doc_id = str(row.get("id") or "")
             text = str(row.get("text") or "")
             if not doc_id or not text:
+                continue
+            # Explicit vector freshness applies to the row (and its chunk
+            # parent); only a tombstoned SQL id is stronger evidence hiding a
+            # whole family, so both are checked before the text is scanned.
+            if _is_explicitly_non_fresh(row.get("freshness_status")):
+                continue
+            if _is_hidden_id(doc_id, hidden_ids):
                 continue
             vector_ids.add(doc_id)
             # The chunk id IS addressable (`_get_doc` resolves it), so it
@@ -331,6 +431,9 @@ class KnowledgeVFSProvider(VFSProvider):
                 wf = self._workspace_filter(ctx, IngestedDocument)
                 if wf is not None:
                     q1 = q1.filter(wf)
+                ff = self._freshness_filter(IngestedDocument)
+                if ff is not None:
+                    q1 = q1.filter(ff)
                 for d in q1.yield_per(500):
                     if len(citations) >= _DOCS_CITATION_CAP:
                         return citations[:_DOCS_CITATION_CAP]
@@ -398,15 +501,112 @@ class KnowledgeVFSProvider(VFSProvider):
             return query_model.workspace_id == ws
         return None
 
+    def _workspace_id(self, ctx) -> str:
+        """Physical store selected for this read (back-compat default)."""
+        ws = (ctx or {}).get("workspace_id")
+        return str(ws) if ws else "default"
+
+    def _freshness_filter(self, query_model):
+        """Hide documents whose durable freshness status is non-fresh.
+
+        Point reads (``cat``/``read_region``) previously ignored the same
+        status search and export already enforce, so a deleted document's
+        SQL tombstone (retained to keep its receipt/audit trail) stayed
+        readable through ``knowledge/documents/<id>`` and could ground an
+        answer. ``None`` keeps historical rows readable; only an explicit
+        non-fresh value suppresses. Mirrors the lexical/search filter.
+        """
+        column = getattr(query_model, "freshness_status", None)
+        if column is None:
+            return None
+        from sqlalchemy import or_
+
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+
+        return or_(
+            column.is_(None),
+            ~column.in_(tuple(NON_FRESH_STATUSES)),
+        )
+
+    def _sql_non_fresh_ids(self, ctx) -> Optional[set]:
+        """Durable tombstone ids for this workspace, or None when unreadable.
+
+        ``None`` is deliberately distinct from an empty set: an unreadable
+        authoritative store cannot prove a vector mirror is current, so every
+        caller fails closed instead of treating "no rows read" as "no
+        tombstones".
+        """
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+        from core.models import IngestedDocument
+
+        try:
+            with self._db() as db:
+                q = db.query(IngestedDocument.id).filter(
+                    IngestedDocument.freshness_status.in_(
+                        tuple(NON_FRESH_STATUSES)))
+                wf = self._workspace_filter(ctx, IngestedDocument)
+                if wf is not None:
+                    q = q.filter(wf)
+                return {str(row[0]) for row in q.all()}
+        except Exception as e:  # noqa: BLE001 — unreadable is not absence
+            logger.warning(f"[KnowledgeVFS] SQL visibility unavailable: {e}")
+            return None
+
+    def _sql_point_state(self, doc_id: str, ctx):
+        """Authoritative SQL visibility for one id.
+
+        Returns ``("visible", ("ingested"|"knowledge", row))``,
+        ``("hidden", None)`` for a retained tombstone, ``("absent", None)``
+        when no SQL row exists in scope, or ``("error", None)`` when the
+        authoritative store could not be read. Absence permits the historical
+        vector-only fallback; an error does not (conservative source state).
+        """
+        from core.models import IngestedDocument, KnowledgeDocument
+
+        try:
+            with self._db() as db:
+                q1 = db.query(IngestedDocument).filter(
+                    IngestedDocument.id == str(doc_id))
+                wf = self._workspace_filter(ctx, IngestedDocument)
+                if wf is not None:
+                    q1 = q1.filter(wf)
+                d = q1.first()
+                if d is not None:
+                    # Deliberately inspect the status instead of filtering it
+                    # out: the hidden tombstone is exactly what must stop the
+                    # vector fallback from resurrecting deleted text.
+                    if _is_explicitly_non_fresh(
+                            getattr(d, "freshness_status", None)):
+                        return ("hidden", None)
+                    return ("visible", ("ingested", d))
+
+                q2 = db.query(KnowledgeDocument).filter(
+                    KnowledgeDocument.id == str(doc_id))
+                wf2 = self._workspace_filter(ctx, KnowledgeDocument)
+                if wf2 is not None:
+                    q2 = q2.filter(wf2)
+                d = q2.first()
+                if d is not None:
+                    return ("visible", ("knowledge", d))
+                return ("absent", None)
+        except Exception as e:  # noqa: BLE001 — unreadable is not absence
+            logger.warning(f"[KnowledgeVFS] get {doc_id} failed: {e}")
+            return ("error", None)
+
     async def _list_documents(self, ctx) -> List[VFSNode]:
         from core.models import IngestedDocument, KnowledgeDocument
         nodes: List[VFSNode] = []
+        hidden_ids = self._sql_non_fresh_ids(ctx)
+        sql_ok = hidden_ids is not None
         try:
             with self._db() as db:
                 q1 = db.query(IngestedDocument)
                 wf = self._workspace_filter(ctx, IngestedDocument)
                 if wf is not None:
                     q1 = q1.filter(wf)
+                ff = self._freshness_filter(IngestedDocument)
+                if ff is not None:
+                    q1 = q1.filter(ff)
                 for d in q1.limit(200).all():
                     nodes.append(VFSNode(
                         name=d.id, type="dir", path=f"knowledge/documents/{d.id}",
@@ -423,10 +623,19 @@ class KnowledgeVFSProvider(VFSProvider):
                     ))
         except Exception as e:
             logger.warning(f"[KnowledgeVFS] list failed: {e}")
-        nodes.extend(await self._list_vector_documents(seen={n.name for n in nodes}))
+            sql_ok = False
+        # SQL unreadable → serving a vector-only row could surface a document
+        # whose tombstone we simply could not see. Conservative = list none.
+        if sql_ok:
+            nodes.extend(await self._list_vector_documents(
+                seen={n.name for n in nodes}, ctx=ctx, hidden_ids=hidden_ids))
         return nodes
 
-    async def _list_vector_documents(self, seen: set, cap: int = 200) -> List[VFSNode]:
+    async def _list_vector_documents(
+        self, seen: set, cap: int = 200,
+        ctx: Optional[Dict[str, Any]] = None,
+        hidden_ids: Optional[set] = None,
+    ) -> List[VFSNode]:
         """Surface vector-only rows (no PG mirror) in ls output.
 
         The LanceDB documents table holds rows this provider could cat (via
@@ -434,26 +643,52 @@ class KnowledgeVFSProvider(VFSProvider):
         ingests, mirror-write failures — so agents browsing the tree missed
         documents that search could still hit. Merge them, capped, skipping
         ids already listed from PG.
+
+        The scan uses the caller's workspace store when one is present. It
+        previously always read the ``default`` store, so a scoped user's
+        ``ls`` could surface (and then ``cat``) another workspace's
+        vector-only rows while the SQL half was correctly scoped.
+
+        Rows marked non-fresh at the vector layer are hidden, and a still-
+        fresh mirror whose durable SQL row is a tombstone (or is a chunk of
+        one) is hidden too. Legacy rows with no explicit status stay listed.
         """
         import asyncio
+
+        workspace_id = self._workspace_id(ctx)
+        if hidden_ids is None:
+            hidden_ids = self._sql_non_fresh_ids(ctx)
+            if hidden_ids is None:
+                return []
 
         def _scan():
             try:
                 from core.lancedb_handler import get_lancedb_handler
 
-                handler = get_lancedb_handler("default")
+                handler = get_lancedb_handler(workspace_id)
                 if handler is None:
-                    return []
-                return handler.list_document_heads("documents", limit=cap)
+                    return [], {}
+                return (
+                    handler.list_document_heads("documents", limit=cap),
+                    self._vector_freshness_map(handler),
+                )
             except Exception as e:
                 logger.debug(f"[KnowledgeVFS] vector head scan failed: {e}")
-                return []
+                return [], None
 
-        heads = await asyncio.to_thread(_scan)
+        heads, freshness = await asyncio.to_thread(_scan)
+        if freshness is None:
+            # The store exists but its status column could not be read; do not
+            # advertise rows whose freshness is unknown.
+            return []
         nodes: List[VFSNode] = []
         for head in heads:
             doc_id = str(head.get("id") or "")
             if not doc_id or doc_id in seen:
+                continue
+            if _is_hidden_id(doc_id, hidden_ids):
+                continue
+            if _is_explicitly_non_fresh(freshness.get(doc_id)):
                 continue
             seen.add(doc_id)
             created = str(head.get("created_at") or "")
@@ -464,6 +699,47 @@ class KnowledgeVFSProvider(VFSProvider):
             if len(nodes) >= cap:
                 break
         return nodes
+
+    @staticmethod
+    def _vector_freshness_map(handler: Any) -> Dict[str, Any]:
+        """``{id: freshness_status}`` for a documents store, or ``{}``.
+
+        Missing ``freshness_status`` (legacy table) or a handler without a
+        table API yields ``{}`` — no evidence, so nothing is suppressed.
+        A table that exists but raises propagates so the caller can fail
+        closed rather than silently treat tombstones as current.
+        """
+        if not hasattr(handler, "get_table"):
+            return {}
+        table = handler.get_table("documents")
+        if table is None:
+            return {}
+        columns = KnowledgeVFSProvider._available_columns(
+            table, ["id", "freshness_status"])
+        if "freshness_status" not in columns:
+            return {}
+        rows = table.search().select(columns).to_arrow().to_pylist()
+        return {
+            str(row.get("id") or ""): row.get("freshness_status")
+            for row in rows if row.get("id") is not None
+        }
+
+    @staticmethod
+    def _available_columns(table: Any, columns: List[str]) -> List[str]:
+        """Requested columns that exist; unknown schema keeps the request.
+
+        Older documents tables predate ``freshness_status``. Projecting only
+        real columns avoids the unprojected fallback (vectors+metadata) while
+        preserving the legacy row's readability.
+        """
+        try:
+            schema = getattr(table, "schema", None)
+            if schema is None:
+                return list(columns)
+            names = {field.name for field in schema}
+            return [c for c in columns if c in names]
+        except Exception:  # noqa: BLE001 — unknown schema is not a failure
+            return list(columns)
 
     async def _doc_exists(self, doc_id: str, ctx: Optional[Dict[str, Any]] = None) -> bool:
         return (await self._get_doc(doc_id, ctx)) is not None
@@ -662,6 +938,8 @@ class KnowledgeVFSProvider(VFSProvider):
         columns: List[str],
         limit: Optional[int] = None,
         label: str = "store",
+        workspace_id: Optional[str] = None,
+        drop_missing_columns: bool = False,
     ) -> List[Dict[str, Any]]:
         """Projected, full-store, off-loop read shared by BOTH trees.
 
@@ -684,7 +962,10 @@ class KnowledgeVFSProvider(VFSProvider):
         import asyncio
         import time as _time
 
-        cache_key = (store, tuple(columns), limit)
+        cache_key = (
+            store, tuple(columns), limit, workspace_id,
+            bool(drop_missing_columns),
+        )
         now = _time.monotonic()
         hit = self._rows_cache.get(cache_key)
         if hit and _VFS_ROWS_CACHE_TTL > 0 and now - hit[0] < _VFS_ROWS_CACHE_TTL:
@@ -695,15 +976,20 @@ class KnowledgeVFSProvider(VFSProvider):
                 return self._comms_table()
             from core.lancedb_handler import get_lancedb_handler
 
-            handler = get_lancedb_handler("default")
+            handler = get_lancedb_handler(workspace_id or "default")
             return handler.get_table("documents") if handler is not None else None
 
         def _scan():
             table = _table()
             if table is None:
                 return []
+            cols = list(columns)
+            if drop_missing_columns:
+                cols = self._available_columns(table, cols)
+                if not cols:
+                    return []
             return list(
-                self._stream_rows(table, columns, limit, _VFS_SCAN_BATCH)
+                self._stream_rows(table, cols, limit, _VFS_SCAN_BATCH)
             )
 
         try:
@@ -738,26 +1024,37 @@ class KnowledgeVFSProvider(VFSProvider):
         return None
 
     async def _get_doc(self, doc_id: str, ctx):
-        from core.models import IngestedDocument, KnowledgeDocument
-        try:
-            with self._db() as db:
-                d = db.query(IngestedDocument).filter(IngestedDocument.id == doc_id).first()
-                if d:
-                    return ("ingested", d)
-                d = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == doc_id).first()
-                if d:
-                    return ("knowledge", d)
-        except Exception as e:
-            logger.warning(f"[KnowledgeVFS] get {doc_id} failed: {e}")
+        """Resolve one id with SQL authoritative for visibility.
+
+        A retained SQL tombstone must stop the vector fallback: filtering the
+        tombstone out of the SQL query and then falling through to a
+        still-fresh LanceDB mirror is what resurrected deleted text. Store
+        errors are conservative (deny), not absence.
+        """
+        state, sql_doc = self._sql_point_state(doc_id, ctx)
+        if state in ("hidden", "error"):
+            return None
+        if state == "visible":
+            return sql_doc
+
+        # A direct ``<parent>::cN`` read has no SQL row of its own; the
+        # parent's durable tombstone still governs the chunk family.
+        parent = _chunk_parent_id(doc_id)
+        if parent:
+            parent_state, _ = self._sql_point_state(parent, ctx)
+            if parent_state in ("hidden", "error"):
+                return None
+
         # LanceDB fallback: vector-only rows (connector file ingests stamped
         # file_<ts>, manual uploads) have no PG row. Without this, search
         # surfaces them (bridged:false) but cat can never read them.
-        rec = await self._get_vector_doc(doc_id)
+        rec = await self._get_vector_doc(doc_id, ctx)
         if rec is not None:
             return ("vector", rec)
         return None
 
-    async def _get_vector_doc(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_vector_doc(self, doc_id: str,
+                              ctx: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Fetch one document from the LanceDB ``documents`` table by id.
 
         CHUNK FAMILIES: a large file is stored as ``{parent}::c0, ::c1, …``
@@ -767,6 +1064,13 @@ class KnowledgeVFSProvider(VFSProvider):
         every chunked file — so an agent could GREP a spreadsheet row (grep
         walks chunk rows) and then be unable to OPEN the file it found. The
         chunks are now assembled in order into the parent document.
+
+        Explicit vector freshness is honored here too: point reads previously
+        went through ``get_document_by_id``, which projects the row down to
+        id/text/source/metadata/created_at and silently DROPPED the top-level
+        ``freshness_status``, so a vector-only ``removed`` tombstone still
+        cat'd its text. Rows/chunks marked non-fresh are not served; legacy
+        rows with no status remain readable.
         """
         import asyncio
 
@@ -774,18 +1078,44 @@ class KnowledgeVFSProvider(VFSProvider):
             try:
                 from core.lancedb_handler import get_lancedb_handler
 
-                handler = get_lancedb_handler("default")
+                handler = get_lancedb_handler(self._workspace_id(ctx))
                 if handler is None:
                     return None
-                exact = handler.get_document_by_id("documents", str(doc_id))
-                if exact is not None:
-                    return exact
+                table = self._documents_table(handler)
+                if table is not None:
+                    exact = self._vector_point_row(table, str(doc_id))
+                    if exact is not None:
+                        if _is_explicitly_non_fresh(
+                                exact.get("freshness_status")):
+                            return None
+                        return exact
+                else:
+                    # Handlers without a table API (historical fakes/older
+                    # shims) keep the point-read contract. Its status is
+                    # looked up separately when the store exposes one.
+                    exact = handler.get_document_by_id(
+                        "documents", str(doc_id))
+                    if exact is not None:
+                        status_ok, status = self._vector_point_status(
+                            handler, str(doc_id))
+                        if not status_ok or _is_explicitly_non_fresh(status):
+                            return None
+                        exact = dict(exact)
+                        exact["metadata"] = _normalized_metadata(
+                            exact.get("metadata"))
+                        return exact
+
                 if "::c" in str(doc_id):
                     return None  # a chunk id that does not exist
-                family = self._chunk_family_rows(str(doc_id))
+                family = self._chunk_family_rows(str(doc_id), handler)
+                family = [
+                    r for r in family
+                    if not _is_explicitly_non_fresh(r.get("freshness_status"))
+                ]
                 if not family:
                     return None
                 base = dict(family[0])
+                base["metadata"] = _normalized_metadata(base.get("metadata"))
                 base["text"] = "\n".join(
                     str(r.get("text") or "") for r in family
                 )
@@ -802,23 +1132,106 @@ class KnowledgeVFSProvider(VFSProvider):
             return None
 
     @staticmethod
-    def _chunk_family_rows(doc_id: str) -> List[Dict[str, Any]]:
+    def _documents_table(handler: Any) -> Any:
+        """The ``documents`` table when the handler exposes one, else None."""
+        getter = getattr(handler, "get_table", None)
+        if not callable(getter):
+            return None
+        return getter("documents")
+
+    @staticmethod
+    def _vector_point_row(table: Any, doc_id: str) -> Optional[Dict[str, Any]]:
+        """One exact vector row, including top-level freshness.
+
+        Projected to the point-read columns; ``freshness_status`` was the
+        missing one. Metadata is normalized because stored/Arrow metadata can
+        be a serialized JSON string.
+        """
+        columns = KnowledgeVFSProvider._available_columns(
+            table,
+            ["id", "text", "source", "metadata", "created_at",
+             "freshness_status"],
+        )
+        arrow = table.to_arrow().select(columns)
+        rows = None
+        if hasattr(arrow, "column") and hasattr(arrow, "filter"):
+            try:
+                import pyarrow.compute as pc
+
+                rows = arrow.filter(
+                    pc.equal(arrow.column("id"), str(doc_id))).to_pylist()
+            except Exception:  # noqa: BLE001 — fall back to a Python filter
+                rows = None
+        if rows is None:
+            rows = [
+                r for r in arrow.to_pylist()
+                if str(r.get("id") or "") == str(doc_id)
+            ]
+        if not rows:
+            return None
+        row = dict(rows[0])
+        row["metadata"] = _normalized_metadata(row.get("metadata"))
+        return row
+
+    @staticmethod
+    def _vector_point_status(handler: Any, doc_id: str):
+        """``(readable, freshness_status)`` for the point-read fallback.
+
+        No table API or no ``freshness_status`` column means no evidence and
+        the historical row stays readable. A status read that RAISES returns
+        ``(False, None)`` so the caller fails closed instead of serving text
+        whose tombstone state could not be verified.
+        """
+        if not hasattr(handler, "get_table"):
+            return (True, None)
+        try:
+            table = handler.get_table("documents")
+            if table is None:
+                return (True, None)
+            columns = KnowledgeVFSProvider._available_columns(
+                table, ["id", "freshness_status"])
+            if "freshness_status" not in columns:
+                return (True, None)
+            rows = table.search().select(columns).to_arrow().to_pylist()
+            for row in rows:
+                if str(row.get("id") or "") == str(doc_id):
+                    return (True, row.get("freshness_status"))
+            return (True, None)
+        except Exception as e:  # noqa: BLE001 — unreadable is not fresh
+            logger.debug(
+                f"[KnowledgeVFS] freshness read for {doc_id} failed: {e}")
+            return (False, None)
+
+    @staticmethod
+    def _chunk_family_rows(doc_id: str,
+                           handler: Any = None) -> List[Dict[str, Any]]:
         """Every chunk of ``doc_id`` in chunk order (``[]`` when none).
 
         Scans the projected ``id``/``text`` columns and keeps rows whose id is
         ``{doc_id}::c<n>``; a handful of families exist per store, and this
-        runs only for a parent id that has no row of its own."""
-        try:
-            from core.lancedb_handler import get_lancedb_handler
+        runs only for a parent id that has no row of its own. ``handler`` is
+        the caller's already-workspace-scoped store; the default fallback is
+        only for historical direct callers.
 
-            handler = get_lancedb_handler("default")
+        ``freshness_status`` is requested only when the table has it, so a
+        legacy chunk store still opens. Chunk ordering is numeric (``c10``
+        after ``c2``), which is also the order the parent text is assembled.
+        """
+        try:
+            if handler is None:
+                from core.lancedb_handler import get_lancedb_handler
+
+                handler = get_lancedb_handler("default")
             table = handler.get_table("documents") if handler is not None else None
             if table is None:
                 return []
             prefix = f"{doc_id}::c"
+            columns = KnowledgeVFSProvider._available_columns(
+                table, ["id", "text", "source", "metadata",
+                        "freshness_status"])
             rows = (
                 table.search()
-                .select(["id", "text", "source", "metadata"])
+                .select(columns)
                 .to_arrow()
                 .to_pylist()
             )
@@ -849,7 +1262,7 @@ class KnowledgeVFSProvider(VFSProvider):
                 "external_id": d.external_id,
             }
         if kind == "vector":
-            meta = d.get("metadata") or {}
+            meta = _normalized_metadata(d.get("metadata"))
             return {
                 "id": d.get("id"), "source": "vector",
                 "file_name": meta.get("file_name") or meta.get("title"),

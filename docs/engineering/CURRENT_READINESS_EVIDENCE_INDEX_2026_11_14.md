@@ -20,7 +20,11 @@ Optional never-autonomous task baskets: [behavior, limits and independent local 
 > **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current release cut:** main `5176c9e79f3a70e63f7110187f431fff8ab14fed` through #972; all 15 PR checks independently verified successful. Main-branch post-merge CI remains a separate check. The following records are source-bound evidence, not a regrade of the original 143 claims/18 goals.
+> **Current navigation overlay:** [Current goal map — 2026-11-17](CURRENT_GOAL_MAP_2026_11_17.md) is the current release and remaining-acceptance navigation at main `0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464` (#977), tree `9386a4861e9ed2fef14d96fda64fc5cedba6b3b3`, parent `8b48dd84ad845e79c27bfcfa45cae669586d2b88` (#976). It preserves the original 143 claims / 18 goals and the historical 111/123 result.
+>
+> **Current release cut (2026-11-17 UTC):** main `0e9b0dfc9` through #977. #975 Learning merged `7a22e6d07`; #976 Activity merged `8b48dd84a`; #977 optional never-autonomous task families merged `0e9b0dfc9`. PR #977 exact head `488e956c6` had all 15 check runs successful. Main-branch post-merge #977 CI run `43985428885` and Docker run `43985428863` both completed successfully on exact merge `0e9b0dfc9`, independently re-queried by root on 2026-11-17. #976 main CI/Docker and #975 main CI/Docker each succeeded. These are source deliveries, not a regrade of the original 143 claims/18 goals.
+>
+> **Historical release cut:** main `5176c9e79f3a70e63f7110187f431fff8ab14fed` through #972 was the cut named by the preceding version of this banner. Its records and all earlier source-bound evidence remain at their original sources.
 >
 > **PostgreSQL public-app restart and logical recovery:** [Full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md) passed normal signup/login and same-canvas readback across API processes. [Logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) matched all 372 public-table counts/content fingerprints and seven heads, then passed normal login and readback on the restored database. Controlled synthetic test mode; no async, cluster/PITR, multiworker or production claim.
 >
@@ -82,7 +86,7 @@ bounded test is promoted to whole-goal or whole-app completion.
 | Was the score recomputed? | **No.** Historical functional result remains **111/123 (90.2%)**. |
 | Were goals renumbered? | **No.** The canonical 18-goal catalogue is unchanged; historical 12-row numbering is crosswalked below. |
 | Is the app complete? | **No.** `app_complete: false` is preserved. |
-| What was merged at the original evidence cut? | At the historical November 14 cut, main was `a868435fd` (`#943`). The current release cut is stated above; old draft labels below describe their original dates. |
+| What was merged at the original evidence cut? | At the historical November 14 cut, main was `a868435fd` (`#943`). The current release cut is stated above; historical draft labels below retain their original dates and are corrected where a later merge is known. |
 | Is every original goal now verified? | **No.** Several goals remain open, unverified, environment-limited, external-blocked or bounded to narrow evidence. |
 | Can bounded tests be counted as whole-goal acceptance? | **No.** They are evidence at a named source and scope only. |
 | Did the retained 48-hour Goal 10 wait finish? | **Yes, at its recorded source.** Actual resume and authorized answer passed after 48.0203 hours; see the linked November 16 record. Current-model/whole-goal acceptance remains separate. |
@@ -90,7 +94,7 @@ bounded test is promoted to whole-goal or whole-app completion.
 ## Contents
 
 - [Canonical 18 goals and historical numbering](#1-canonical-18-goals--do-not-renumber)
-- [Merged source and open drafts](#3-current-merged-source-and-open-drafts)
+- [Merged source and draft status at the November 14 cut](#3-merged-source-and-draft-status-at-the-november-14-cut)
 - Goals: [1](#goal-1) · [2](#goal-2) · [3](#goal-3) · [4](#goal-4) · [5](#goal-5) · [6](#goal-6) · [7](#goal-7) · [8](#goal-8) · [9](#goal-9) · [10](#goal-10) · [11](#goal-11) · [12](#goal-12) · [13](#goal-13) · [14](#goal-14) · [15](#goal-15) · [16](#goal-16) · [17](#goal-17) · [18](#goal-18)
 - [All 143 claim rows](#5-claim-register--all-143-original-claims)
 - [Remaining user-boundary acceptance](#6-remaining-user-boundary-acceptance--ranked)
@@ -106,7 +110,7 @@ bounded test is promoted to whole-goal or whole-app completion.
 | `audit-preserved` | The historical claim result is retained at its original source. This index did not re-run it and did not promote it. |
 | `bounded` | An independent decision accepted a narrower mechanism/source scope. It is not full claim completion. |
 | `merged` | The named commit is in local first-parent history ending at the observed `origin/main` `a868435fd`. Merge identity does not widen the tested scope. |
-| `draft` | A branch/commit exists but is not an ancestor of observed main `a868435fd`. No main qualification is implied. |
+| `draft` | At the November 14 cut, a branch/commit exists but is not an ancestor of observed main `a868435fd`. No main qualification is implied. Later merge status is recorded separately where known. |
 | `retained-private` | A named artifact outside Git. Exact path recorded; not committed or re-verified here. |
 | `handoff` | A dated entry in `/private/tmp/brennan-brief/READINESS_CURRENT_MAIN.md`. Used for appended status and private-run summaries where no committed packet exists. |
 | `missing` | No exact retained source was found for the assertion in this pass. The assertion is left open. |
@@ -189,16 +193,19 @@ Two concrete corrections follow from this table:
   (`TASK-WAIT-01`). This index uses canonical 8 for durable objectives and
   canonical 10 for the wait/resume requirement.
 
-## 3. Current merged source and open drafts
+## 3. Merged source and draft status at the November 14 cut
 
-### 3.1 Merged on current main (through `a868435fd`)
+### 3.1 Merged on the observed November 14 main (through `a868435fd`)
 
 The following commits are in local first-parent history ending at the observed
 `origin/main` `a868435fd`. “Merged” refers to that Git fact only. CI and live
 acceptance status are separately scoped. The requested base was `b4370d0d4`;
-`#943` is the one later merge observed during this pass.
+`#943` is the one later merge observed during this pass. Later main through
+#977 is recorded in the current-release banner and the
+[2026-11-17 goal map](CURRENT_GOAL_MAP_2026_11_17.md); this table is not
+rewritten in place.
 
-| PR | Merge commit | Current-main scope | Goal(s) | Evidence binding |
+| PR | Merge commit | Merge-time scope | Goal(s) | Evidence binding |
 |---:|---|---|---|---|
 | #943 | `a868435fd` | Native menu bar sign-in, session restore, logout, 2FA and chat wiring | 1, 16 | Merged tree differs from reviewed draft `5d1f11de4` only by `#937`'s two skill files. Native login/relaunch/logout/2FA evidence is bound to the draft head and its sanitized packet; public-API live Go chat passed at the reviewed head (see the verifier update below); native UI chat remains unverified. |
 | #926 | `1c00a72fc` | Accept unslashed `GET /api/canvas`; Canvas list dashboard path | 5, 15 | Post-merge signed-in replay 22/22 at `6ad2738ed`; `retained-private` result `/private/tmp/canvas-926-postmerge-20261113_221126/evidence/result.json`; initial browser proof was at PR head `7d3e2bfc4`. |
@@ -242,12 +249,26 @@ menu-bar, auth-adjacent backend and chat wiring paths. It does not change
 workbook/Canvas product code, but it does touch auth-adjacent files, so the
 earlier Settings result is not re-qualified merely by ancestry.
 
-### 3.2 Drafts and live checks — not main
+### 3.1a Later merges through #977 — navigation status only
 
-| PR | Draft head | Scope | Current evidence | Remaining gate |
+| PR | Merge commit | Scope | Evidence record | Release status |
 |---:|---|---|---|---|
-| #919 | `0c3b29f8a` | Opt-in real Flash transport for invoice replay | Loopback simulator path is 13/13 per handoff; no authorized live Zen invoice replay. | Authorized live provider replay. Keep draft. |
-| #932 | `818bd0fd9` | Whisper audio-duration billing and settlement | Focused scratch suite 41, worker accounting 133; branch is based on `ad6ecbd5d`. | Live OpenAI transcription settlement with a configured credential. Keep draft. |
+| #973 | `5fd0560f3` | Documentation-only record of browser, PostgreSQL restart and Docker skill evidence | [workbook](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md), [Office](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md), [PostgreSQL](POSTGRES_PERSISTENT_RESTART_2026_11_16.md), [Docker skill](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) | Merged; no new product behavior. |
+| #974 | `7316a0155` | Inline DOCX pictures survive paragraph edits | [inline DOCX](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) | Merged; 674 focused checks at the recorded source. |
+| #975 | `7a22e6d07` | Safe in-place correction and renewed approval of learned lessons | [Learning correction](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) | Merged; 15/15 exact-head checks and both post-merge main workflows successful. |
+| #976 | `8b48dd84a` | Atomic Activity checkpoint decisions and current reviewer authority | [Activity checkpoint](ACTIVITY_CHECKPOINT_ATOMIC_DECISIONS_2026_11_16.md) | Merged; 15/15 exact-head checks and both post-merge main workflows successful. |
+| #977 | `0e9b0dfc9` | Optional never-autonomous task families | [task baskets](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md) | Merged; 15/15 exact-head checks; post-merge main CI/Docker still running at the root handoff. |
+
+### 3.2 Draft snapshots and live checks at the November 14 cut
+
+| PR | Historical head | Scope | Current evidence | Remaining gate |
+|---:|---|---|---|---|
+| #919 | `0c3b29f8a` | Opt-in real Flash transport for invoice replay | Loopback simulator path is 13/13 per handoff; no authorized live Zen invoice replay. **Merged later as `9de6ef33f`.** | Authorized live provider replay; the live leg remains unproven. |
+| #932 | `818bd0fd9` | Whisper audio-duration billing and settlement | Focused scratch suite 41, worker accounting 133; branch was based on `ad6ecbd5d`. **Merged later as `ab14eb391`; see §11.** | Live OpenAI transcription settlement with a configured credential; no live settlement claim. |
+
+This table is a historical snapshot of the November 14 cut. Both listed PRs
+merged later: #919 as `9de6ef33f` and #932 as `ab14eb391`. The live
+provider/settlement gaps remain, but neither is a current draft.
 
 `#943` was a draft at the start of this pass and merged as `a868435fd` during
 it. Its draft head `5d1f11de4` remains the evidence identity for the native
@@ -330,7 +351,7 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   requests, source `a53b56fdc`); `#936` `d1e3ddac8` (quickstart auth URL and
   private config); `#943` `a868435fd` (merged native login/session/2FA;
   evidence at draft head `5d1f11de4`).
-- **Remaining user-boundary acceptance:** SSO, account deletion, rate-limit
+- **Remaining user-boundary acceptance:** SSO, account deletion (inferred, not an original completion gate), rate-limit
   breadth, actual one-hour reset expiry, process-restart session recovery
   outside the scratch settings world, other deployment audiences and external
   mail delivery. The original29/29 Settings record and each newer browser
@@ -369,7 +390,9 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   original PR sources. [Ordinary Documents upload/detail/export/delete](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md)
   passed at `ed6ae3c98` with a full33KB synthetic TXT, all three downloads,
   matched provenance, verified removal/readback and stale-tab refusal. This
-  does not requalify live WorkDrive or semantic-search quality.
+  does not requalify live WorkDrive or semantic-search quality. A separate
+  multi-format search/API harness is **in flight** by another worker; it is not
+  accepted and contributes no evidence to this row.
 - **Exact sources:** `#911` `04cb6ad6d` and `#921` `9062bb71e` (WorkDrive
   delivery; 56/56 private replay bound to `24794f257`); `#912` `9a0fc333d`
   (joined lifecycle selector); `#938` `471494e5d` (delete-truth selector at
@@ -519,11 +542,12 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   accounting/hard-stop work is not accepted until one priced `TokenUsage` row,
   matching tenant spend delta, idempotent duplicate settle, and a second
   dispatch refused before transport when budget is short are demonstrated.
-  `#932` is a draft for Whisper duration billing, not merged live settlement.
+  `#932` merged as `ab14eb391` for Whisper duration billing and controlled
+  settlement checks; it is not live settlement acceptance.
 - **Exact sources:** historical PR #722 / `5b9610b56` and the audit's Goal 9
-  row; `#932` `818bd0fd9` draft (41 focused + 133 worker accounting per
-  handoff); audit negative `b0` distinguishes production in-memory settlement
-  from the durable ledger.
+  row; `#932` merged `ab14eb391` (historical head `818bd0fd9`; 41 focused + 133
+  worker accounting per handoff; 360 joint controls); audit negative `b0`
+  distinguishes production in-memory settlement from the durable ledger.
 - **Remaining user-boundary acceptance:** live/durable priced settlement,
   pre-transport refusal, concurrent spend, failure degradation and PostgreSQL.
   No live dollar spend is authorized.
@@ -567,11 +591,12 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 - **Audit state:** accepted-bounded.
 - **Current state:** bounded. Office document/presentation and controlled
   email-draft packets exist; the one-use live send was exhausted and recipient
-  delivery is a separate, unclaimed boundary. `#919` is a draft for a live
-  invoice replay; its accepted path is a loopback simulator, not a live Zen
-  provider.
+  delivery is a separate, unclaimed boundary. `#919` merged as `9de6ef33f`;
+  its accepted path is a loopback simulator, and the live Zen provider leg
+  remains unproven.
 - **Exact sources:** audit `OFF-01`, `OFF-04`; historical Office/email packets;
-  `#919` `0c3b29f8a` (draft; 13/13 loopback, live leg unproven).
+  `#919` merged `9de6ef33f` (historical head `0c3b29f8a`; 13/13 loopback, live
+  leg unproven).
 - **Remaining user-boundary acceptance:** ordinary document journey, provider
   draft readback, real recipient inbox delivery, and the authorized live
   invoice replay. The one-use live send authority is exhausted.
@@ -608,7 +633,10 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   #934 and #935. `#934` (tree equal to tested `5dadad938`) and `#935` (tree
   equal to reviewed `fcc129444`) are merged later. A separate #935 frozen live
   replay is recorded in the handoff, but current main (`a868435fd`) was not
-  re-run.
+  re-run. A later root-reported case 6 live attempt **FAILED** and consumed the
+  16-admission guard; no current real-model fleet pass is claimed. The earlier
+  43-case scripted pass remains source-bound, not a current live pass, and no
+  new provider allowance exists.
 - **Exact sources:**
   `/private/tmp/brennan-brief/GOAL13_LIVE_FLEET_REPLAY_2026-11-13.md`
   (source `ad6ecbd5d`, 1 passed in 115.06s, local Ollama digest
@@ -914,7 +942,7 @@ close the claim rows.
 
 | Claim | Requirement (short) | Historical | Overlay | Sufficiency | Current source note |
 |---|---|---|---|---|---|
-| `OFF-01` | Agent-driven Excel/Word/PPTX editing | verified | baseline-verified | sufficient-at-historical-source | audit; Office/email packets; `#919` draft live invoice replay not main. |
+| `OFF-01` | Agent-driven Excel/Word/PPTX editing | verified | baseline-verified | sufficient-at-historical-source | audit; Office/email packets; `#919` merged `9de6ef33f`; live invoice leg remains unproven. |
 | `OFF-04` | PPTX editing | verified | baseline-verified | sufficient-at-historical-source | audit; presentation evidence; recipient delivery separate. |
 
 ### 5.11 Goal 12 — 11 claims
@@ -1026,11 +1054,12 @@ Goal 9 (runtime configured-budget enforcement) or canonical Goal 10
 requirements and are tracked through separate evidence, not by inflating the
 claim denominator.
 
-- Goal 9: PR #722 / `5b9610b56` historical bounded work; draft `#932`
-  `818bd0fd9`; live settlement/hard stop open.
-- Goal 10: 48-hour wait pending; not due before
-  `2026-11-16T06:42:25.414033Z`; multi-source bounded run at `ad6ecbd5d`;
-  full TASK-WAIT-01 open.
+- Goal 9: PR #722 / `5b9610b56` historical bounded work; `#932` merged
+  `ab14eb391` for Whisper duration/billing controls; live settlement/hard stop
+  remains open.
+- Goal 10: 48-hour wait passed at `2f2b376a0`; broader ordinary/current-main,
+  partial-progress and cancellation breadth remain open; multi-source bounded
+  run at `ad6ecbd5d`.
 
 ## 6. Remaining user-boundary acceptance — ranked
 
@@ -1040,14 +1069,14 @@ reassignment; other workers own the lanes noted.
 | Rank | Boundary | Current exact position | What would count |
 |---:|---|---|---|
 | 1 | **Goal 10 broader ordinary journey** | [Actual retained 48-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with same-job identity, one verified effect and replay controls. | Current-main ordinary-model work, independent useful work/partial progress and cancel breadth remain separate. Never rearm the terminal elapsed-wait case. |
-| 2 | **Goal 9 live settlement/hard stop** | `#932` draft `818bd0fd9`; no live OpenAI credential; no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
-| 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
+| 2 | **Goal 9 live settlement/hard stop** | `#932` merged `ab14eb391` (Whisper duration/billing controls); no live OpenAI credential and no durable live settlement claim. | One priced `TokenUsage` row (`billed`, settled, tokens>0), matching tenant spend delta, idempotent duplicate settle, second dispatch refused before transport when short, Whisper duration case. |
+| 3 | **Goal 13 current-main fleet** | Pre-#934 live replay at `ad6ecbd5d`; #934/#935 merged after it; #935 private frozen replay; current main not re-run. A later case 6 live attempt **FAILED** and consumed the 16-admission guard; no new allowance. | One current-main live TASK, one in-scope chain, specialist findings in the reply, terminal state after restart, no shadow success/no out-of-scope specialist; model-driven recruitment quality separately. |
 | 4 | **Goal 6 automatic skill invocation** | `#945` merged ordinary-loop discovery/dispatch with deterministic and denial controls; [fresh real-Docker joined dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`, with durable receipt and independent cleanup. | No further mechanism implementation. Real-model selection, unfamiliar skill quality, concurrency/soak and KVM isolation remain separate; scripted decisions do not establish model quality. |
 | 5 | **Goal 16 native menu bar live chat** | Native login/relaunch/logout/2FA is merged in `#943` `a868435fd`; native evidence remains bound to draft `5d1f11de4`; public-API Go chat passed. | Native UI chat with a real configured provider and no credential leakage. The public-API replay is complete. |
 | 6 | **Goal 3 WorkDrive/document current main** | 56/56 WorkDrive replay bound to `24794f257`; [ordinary synthetic TXT browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `ed6ae3c98`. | Fresh-grant live WorkDrive and broader file/search/grounding journeys; synthetic TXT upload/export/delete is separately covered. |
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic full-population API replay at `6ad2738ed` returned 34,533.00; [ordinary 24-sheet browser edit/export/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`, including recalculated 34,610 total and unsigned denial. | Live connected source, model-driven population/grounding and ambiguous-request refusal remain unverified. |
 | 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [PDF rotation/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; [DOCX/PPTX native edits and restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) and [24-sheet XLSX edit/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`. | Full D2, embedded images, cross-user ownership, broader editing/PDF operations, other families and KVM remain open. |
-| 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion, rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
+| 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion (inferred, not an original completion gate), rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
 | 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; [normal named-volume container restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`, with identical 372-table snapshots and same-canvas login/readback. | Existing upgrades, async transport, abrupt outage recovery, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
@@ -1079,13 +1108,13 @@ the *current status* of a PR or a slice, but it does not erase these records.
 
 | Item | State | Exact gap |
 |---|---|---|
-| Current-main live fleet after #934/#935 | **missing** | The accepted live reports are at `ad6ecbd5d` (pre-#934) and a private #935 frozen replay; current main `a868435fd` was not re-run. |
+| Current-main live fleet after #934/#935 | **missing** | The accepted live reports are at `ad6ecbd5d` (pre-#934) and a private #935 frozen replay; current main `a868435fd` was not re-run. A later root-reported case 6 live attempt **FAILED** and consumed the 16-admission guard. The old 43-case scripted pass remains source-bound; no new allowance exists. |
 | Current-main signed-in WorkDrive/document journey | **missing** | 56/56 is bound to `24794f257`; delete truth is hosted-selected, not live-replayed on current main. |
 | Current-main Settings replay | **not re-run** | 29/29 is bound to `a53b56fdc`; later non-Settings paths changed, but no fresh run exists. |
 | Workbook/canvas ordinary browser | **resolved-bounded / broader scope open** | [24-sheet workbook edit/export/full-stack restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`; PDF rotation/readback passed at `bb7017af3`. Earlier 34,533.00 and 32/32 / 22/22 remain source-bound; live connected files and other Canvas families are not requalified. |
 | Goal 10 48-hour resume | **resolved-bounded** | [The real 48.0203-hour resume/answer passed](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) at `2f2b376a0`, with the same job/execution, one verified task effect, inert duplicate and late-answer denial. Scripted model and seeded principal; current-main ordinary-model, partial-work and cancellation breadth remain unverified. The terminal case must never be rearmed. |
-| Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; #932 is draft. |
-| Goal 11 live invoice | **missing** | #919 live leg unproven; simulator path only. |
+| Goal 9 live settlement | **missing** | No live priced settlement/hard-stop evidence; `#932` merged `ab14eb391`, but its remote/live settlement leg remains unproven. |
+| Goal 11 live invoice | **missing** | `#919` merged `9de6ef33f`; live leg unproven, simulator path only. |
 | Goal 6 automatic skill invocation | **resolved-bounded** | `#945` `05715907e` merges ordinary-loop discovery/dispatch and denial controls; [real-Docker dispatch/durable receipt](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) passed at `3316b0fe7`. Live-model competence, unfamiliar skill quality and KVM remain unclaimed. |
 | Goal 16 native menu bar live chat | **missing** | Native login/session/2FA and public-API live Go chat verified on the reviewed `#943` source; native UI chat pending. |
 | Goal 16 native mobile device journey | **missing** | Hosted CI/Jest passed; no supported simulator/device native journey. |
@@ -1098,6 +1127,7 @@ the *current status* of a PR or a slice, but it does not erase these records.
 
 | Document | Role |
 |---|---|
+| [`CURRENT_GOAL_MAP_2026_11_17.md`](CURRENT_GOAL_MAP_2026_11_17.md) | Current 18-goal plus DOCS-REF-01 navigation/remaining-acceptance overlay at main `0e9b0dfc9`; preserves this index's historical sections and all original claim identities. |
 | [`APP_GOALS_INDEX.json`](APP_GOALS_INDEX.json) | Canonical 18 goals, explicit user requirements, historical quick reference. |
 | [`APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json`](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json) | Machine-readable 143-claim audit: historical status, current disposition, evidence refs, gap, owner, next work order. |
 | [`APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md`](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md) | Narrative audit; §7 is the 18-goal map. |
@@ -1220,7 +1250,10 @@ restart and result evidence:
 `/private/tmp/atom-fleet-main-readiness-evidence-20261114/`. Preserve the
 report's later finish-reason correction when reading its earlier wording.
 
-### Transcription: integration tested, PR not yet merged
+### Transcription: integration tested at #932 (later merged; see §11)
+
+Historical note: this subsection records the pre-merge cut. PR #932 later
+merged as `ab14eb391`; its remote/live settlement leg still remains unproven.
 
 PR #932 head `603a3ee616362a6a1f511d4e3e9ac0c19ef4df4a` integrates
 main `05715907e`. A joint scratch-DB suite passed **360 tests in 173.50s**

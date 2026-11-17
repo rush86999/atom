@@ -241,6 +241,17 @@ async def _upsert_document(
     )
     if result == "write_failed":
         raise RuntimeError("LanceDB add_document returned False")
+    if result == "written":
+        # A warmed knowledge-VFS projection (short TTL) must not hide the
+        # just-written document from the next grep/cat in the same turn.
+        try:
+            from integrations.vfs.knowledge_vfs import (
+                invalidate_knowledge_vfs_rows_cache,
+            )
+
+            invalidate_knowledge_vfs_rows_cache()
+        except Exception:  # noqa: BLE001 — upload must not fail on cache
+            pass
     return result
 
 
@@ -748,6 +759,10 @@ async def upload_document(
                         user_id=str(current_user.id) if current_user else None,
                         workspace_id=ws_id or "default",
                         external_id=None,
+                        # Exact lineage: the derived catalog row records the
+                        # document whose upload produced it, so a verified
+                        # delete can revoke it (never by filename).
+                        source_document_id=doc_id,
                     )
             except Exception as ds_err:  # noqa: BLE001 — never block upload
                 logger.warning(
