@@ -18,7 +18,9 @@ DeepSeek's current Chat Completions API documents two facts that matter here
   400 while thinking is enabled.
 
 The exact OpenCode Go ``deepseek-v4-pro`` route has the same rejection in-repo
-(see :data:`_DECLARATIONS`), and its JSON-mode retry served.
+(see :data:`_DECLARATIONS`), and its JSON-mode retry served. Only that JSON
+protocol is attested for the gateway; its acceptance of a thinking-disable
+extension was never captured, so no switch is declared or sent there.
 
 Scope rule: EXACT ROUTES AND ENDPOINTS ONLY
 ==========================================
@@ -35,6 +37,8 @@ the attested route. Therefore:
 
 * ``opencode-go``/``deepseek-v4-pro`` is declared because that exact route was
   served on the documented Go base URL and its rejection/retry was captured;
+  only that JSON protocol is declared — the gateway's thinking-switch
+  forwarding was never attested, so none is sent;
 * ``opencode-go``/``deepseek-v4.1-flash`` is NOT declared — the Go Flash route
   has no attesting structured-wire evidence in this repo, so it keeps the
   historical payload + reactive typed-error recovery;
@@ -127,8 +131,11 @@ class RouteWireDeclaration:
     ``thinking_disable_extra`` is the provider-documented request extension
     that disables hidden thinking when it is required for the selected
     protocol (or when the caller asked for ``disable_reasoning``). It is
-    ``None`` when the vendor documents no such switch; in that case the
-    handler omits the field rather than inventing one.
+    ``None`` when the vendor documents no such switch — and also when the
+    configured endpoint is a gateway whose forwarding of the vendor's switch
+    has not been attested: vendor documentation is not proof that a gateway
+    accepts the field. In both cases the handler omits it rather than
+    inventing one.
     """
 
     provider_id: str
@@ -178,7 +185,9 @@ class StructuredWireContract:
 
 # DeepSeek's OpenAI-format toggle. ``reasoning_effort: "none"`` is documented
 # as disabling thinking mode (the ``thinking`` object is the explicit object
-# form used in the vendor's OpenAI-SDK example).
+# form used in the vendor's OpenAI-SDK example). Only the FIRST-PARTY native
+# routes declare it: the Go gateway's forwarding of this field is not attested,
+# and vendor documentation does not establish a gateway's request schema.
 _DEEPSEEK_THINKING_OFF = {"reasoning_effort": "none"}
 
 #: Documented first-party DeepSeek base paths. Both are the SAME official
@@ -260,14 +269,15 @@ _DECLARATIONS: Tuple[RouteWireDeclaration, ...] = (
             "run 1 forced tool_choice rejected "
             "('Thinking mode does not support this tool_choice') then ONE "
             "JSON-mode retry served; run 2 dispatched cleanly on this exact "
-            "route. JSON was the attested post-rejection transport; the "
-            "gateway's forwarding of reasoning_effort is NOT separately "
-            "attested, so a rejection is dropped once and memoized"),
+            "route. JSON was the attested post-rejection transport. The "
+            "gateway's acceptance or forwarding of reasoning_effort was NOT "
+            "captured and is not attested, so this declaration deliberately "
+            "carries NO thinking switch and injects none even when the "
+            "caller asks to disable reasoning; only the sourced JSON "
+            "protocol and the optional-logprobs skip are declared"),
         attested_endpoints=_GO_OPENCODE_ENDPOINTS,
-        thinking_disable_extra=_DEEPSEEK_THINKING_OFF,
-        thinking_disable_key="reasoning_effort",
-        # JSON output is valid in thinking mode; the switch is only sent when
-        # the caller asked to disable reasoning.
+        # JSON output is valid in thinking mode, so the protocol does not
+        # require a switch. No switch is declared: see evidence above.
         requires_thinking_disabled=False,
         supports_logprobs=False,
         logprobs_note=(

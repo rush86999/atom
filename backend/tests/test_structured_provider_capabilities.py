@@ -18,8 +18,12 @@ behavior:
   enable thinking by default, reject forced/named tool choice while it is on,
   and accept ``reasoning_effort: "none"``; native docs list ``logprobs``;
 * the exact OpenCode Go ``deepseek-v4-pro`` route captures the documented
-  rejection + JSON-mode success; no other Go/DeepSeek model, and no other
-  gateway OR endpoint under the same label, inherits it;
+  rejection + JSON-mode success; that is the ONLY attested transport there.
+  The gateway's thinking-switch forwarding was never captured, so no
+  ``reasoning_effort``/``thinking``/OpenRouter ``reasoning`` extension is
+  invented for it, even when the caller disables reasoning; no other
+  Go/DeepSeek model, and no other gateway OR endpoint under the same label,
+  inherits it;
 * an unknown, future or legacy route gets the historical payload and the
   existing typed-error recovery (one changed retry, then a pair memo — never
   an identical repeat).
@@ -197,6 +201,10 @@ def test_contract_resolution_is_exact_and_sourced():
     assert gateway.protocol == "json"
     assert gateway.supports_logprobs is False
     assert gateway.observed_on == "2026-10-18"
+    # The gateway's forwarding/rejection of the native switch was never
+    # captured, so the declaration carries no switch at all.
+    assert gateway.thinking_disable_extra is None
+    assert gateway.thinking_disable_key is None
 
     # The two native identifiers the first-party endpoint reported as served.
     for model in ("deepseek-flash", "deepseek-v4-pro"):
@@ -470,11 +478,18 @@ def test_unverified_legacy_model_keeps_the_legacy_wire(monkeypatch):
     assert f"{provider}/{model}" in bh._REASONING_MANDATORY
 
 
-def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
+def test_opencode_go_deepseek_twin_is_json_only_without_any_reasoning_extension(
         monkeypatch):
+    """The Go attestation is JSON mode only — no switch was ever proven."""
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
     provider, model = "opencode-go", "deepseek-v4-pro"
     _clear_pair_memos(provider, model)
+    messages = [
+        {"role": "system", "content": "You return only JSON."},
+        {"role": "user", "content": "first user turn"},
+        {"role": "assistant", "content": "prior assistant answer"},
+        {"role": "user", "content": "second user turn"},
+    ]
     seen: list[dict] = []
 
     def _responder(request: httpx.Request) -> httpx.Response:
@@ -489,15 +504,31 @@ def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
         return _deepseek_twin(request, model, expect_protocol="json")
 
     handler = _handler_for(provider, model, _responder)
-    result = _call(handler, disable_reasoning=True)
+    result = _call(handler, disable_reasoning=True, messages=messages)
     assert isinstance(result, _WireProbe), result
     assert result.value == model + "-ok"
     assert len(seen) == 1, seen
-    assert "tools" not in seen[0], seen[0]
-    assert "logprobs" not in seen[0], seen[0]
-    assert seen[0].get("response_format") == {"type": "json_object"}, seen[0]
-    assert seen[0].get("reasoning_effort") == "none", seen[0]
-    assert "reasoning" not in seen[0], seen[0]
+    body = seen[0]
+    assert "tools" not in body, body
+    assert body.get("response_format") == {"type": "json_object"}, body
+    # disable_reasoning=True must NOT transplant the native DeepSeek switch,
+    # the vendor object form, or the legacy OpenRouter extension onto the
+    # gateway: none of them is attested there.
+    for invented in ("reasoning_effort", "thinking", "reasoning"):
+        assert invented not in body, body
+    # Conservative optional-logprobs policy for this exact route.
+    assert "logprobs" not in body, body
+    # Full ordered message history reaches the actual JSON request, and the
+    # parsed reply is schema-validated by Instructor.
+    wire_messages = body.get("messages") or []
+    roles = [m.get("role") for m in wire_messages if isinstance(m, dict)]
+    assert roles == ["system", "user", "assistant", "user"], roles
+    contents = "\n".join(
+        str(m.get("content") or "") for m in wire_messages
+        if isinstance(m, dict))
+    for expected in (
+            "first user turn", "prior assistant answer", "second user turn"):
+        assert expected in contents, contents
 
 
 # ---------------------------------------------------------------------------
@@ -536,42 +567,71 @@ def test_gateway_json_mode_preserves_complete_message_history(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Gateway rejects the documented switch: one changed retry, then a memo
+# A declared documented switch can still be rejected: one changed retry, memo
 # ---------------------------------------------------------------------------
-def test_gateway_switch_rejection_is_dropped_once_and_memoized(monkeypatch):
+def test_native_documented_switch_rejection_is_dropped_once_and_memoized(
+        monkeypatch):
+    """A valid documented field may still be unknown to an implementation.
+
+    The native declaration carries the sourced ``reasoning_effort="none"``
+    switch; a native-compatible endpoint that rejects the field must get ONE
+    changed retry (JSON, switch dropped) and the pair memo, never an identical
+    repeat. This is the reactive-recovery path that used to be exercised
+    through the unproven Go switch.
+    """
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
-    provider, model = "opencode-go", "deepseek-v4-pro"
+    provider, model = "deepseek", "deepseek-v4-pro"
     _clear_pair_memos(provider, model)
+    messages = [
+        {"role": "system", "content": "You return only JSON."},
+        {"role": "user", "content": "first user turn"},
+        {"role": "assistant", "content": "prior assistant answer"},
+        {"role": "user", "content": "second user turn"},
+    ]
     bodies: list[dict] = []
 
     def _responder(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         bodies.append(body)
-        assert "logprobs" not in body, body
         if body.get("reasoning_effort") is not None:
             return _error(
                 400, "Unrecognized request argument supplied: reasoning_effort")
         assert "tools" not in body, body
         assert body.get("response_format") == {"type": "json_object"}, body
         return httpx.Response(200, json=_completion_body(
-            body, {"value": "switch-retry-ok"}, model))
+            body, {"value": "native-switch-retry-ok"}, model))
 
     handler = _handler_for(provider, model, _responder)
-    result = _call(handler, disable_reasoning=True)
+    result = _call(handler, disable_reasoning=True, messages=messages)
     assert isinstance(result, _WireProbe), result
-    assert result.value == "switch-retry-ok"
+    assert result.value == "native-switch-retry-ok"
     assert len(bodies) == 2, bodies
+    assert bodies[0].get("tools"), bodies[0]
+    assert bodies[0].get("tool_choice") not in (None, "auto", "none"), bodies[0]
     assert bodies[0].get("reasoning_effort") == "none", bodies[0]
-    # The retry changes the payload (drops the rejected switch) and keeps the
-    # supported JSON protocol. It is not an identical repeat.
+    assert bodies[0].get("logprobs") is True, bodies[0]
+    # The retry is a DIFFERENT supported payload (JSON, switch dropped), not
+    # an identical repeat. Native logprobs remains documented.
     assert "reasoning_effort" not in bodies[1], bodies[1]
+    assert bodies[1].get("response_format") == {"type": "json_object"}, bodies[1]
+    assert bodies[1].get("logprobs") is True, bodies[1]
     from core.llm import byok_handler as bh
     assert f"{provider}/{model}" in bh._THINKING_SWITCH_UNSUPPORTED
+    # Full ordered history survives both the first request and the recovery.
+    for body in bodies:
+        wire_messages = body.get("messages") or []
+        roles = [m.get("role") for m in wire_messages
+                 if isinstance(m, dict)]
+        assert roles == ["system", "user", "assistant", "user"], roles
 
-    result2 = _call(handler, disable_reasoning=True)
+    # The memo prevents paying the same deterministic 400 again, and the
+    # handler starts in the supported JSON protocol without the switch.
+    result2 = _call(handler, disable_reasoning=True, messages=messages)
     assert isinstance(result2, _WireProbe), result2
     assert len(bodies) == 3, bodies
     assert "reasoning_effort" not in bodies[2], bodies[2]
+    assert "tools" not in bodies[2], bodies[2]
+    assert bodies[2].get("response_format") == {"type": "json_object"}, bodies[2]
     _clear_pair_memos(provider, model)
 
 
@@ -666,7 +726,7 @@ class _LegacyEndpointTwin:
     """Endpoint that only knows the historical payload + reactive recovery.
 
     It actively rejects the declared extensions (``reasoning_effort`` for a
-    native/Go declaration and JSON mode chosen from the start), so a body that
+    native declaration and JSON mode chosen from the start), so a body that
     arrives with them proves an attestation leaked across endpoints.
     """
 
@@ -913,8 +973,11 @@ def test_instructor_retry_admits_and_settles_each_physical_request(
     for body in bodies:
         assert "tools" not in body, body
         assert body.get("response_format") == {"type": "json_object"}, body
-        assert body.get("reasoning_effort") == "none", body
-        assert "reasoning" not in body, body
+        # The Go declaration is JSON-only: no native switch, vendor object
+        # form, or OpenRouter extension is invented, even with
+        # disable_reasoning=True.
+        for invented in ("reasoning_effort", "thinking", "reasoning"):
+            assert invented not in body, body
         # The optional soft-SC weighting field is skipped on this route.
         assert "logprobs" not in body, body
 

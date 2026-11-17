@@ -10818,11 +10818,17 @@ class BYOKHandler:
                     # look-alike endpoint resolves None and keeps the legacy
                     # payload + reactive recovery below.
                     #
-                    # A declared route gets the thinking switch its vendor
-                    # documents, not the OpenRouter extension. DeepSeek's API
-                    # enables thinking by default and rejects forced/named
-                    # tool_choice in that mode; its documented OpenAI-format
-                    # switch is reasoning_effort="none".
+                    # A declared route gets the thinking switch ONLY when its
+                    # declaration carries one that the exact endpoint is
+                    # attested to accept — never the OpenRouter extension.
+                    # DeepSeek's first-party API enables thinking by default
+                    # and rejects forced/named tool_choice in that mode; its
+                    # documented OpenAI-format switch is
+                    # reasoning_effort="none". The Go JSON declaration carries
+                    # NO switch: JSON is legal in thinking mode and the
+                    # gateway's forwarding of reasoning_effort was never
+                    # captured, so none is invented even when the caller asks
+                    # to disable reasoning.
                     #
                     # Everything else resolves to None and keeps the
                     # historical payload below byte-for-byte. That includes
@@ -11203,12 +11209,16 @@ class BYOKHandler:
                                 continue
 
                             # (1a) A declared provider's documented thinking
-                            # switch was rejected. This is a deterministic
+                            # switch was rejected — a valid documented field
+                            # may still be unknown to a particular endpoint
+                            # implementation. This is a deterministic
                             # compatibility 400, not a schema failure: drop
                             # the switch once (memoize the pair) and, when
                             # forced tool_choice needed it, move to JSON mode
                             # so the retry is a DIFFERENT, supported payload
-                            # rather than an identical repeat.
+                            # rather than an identical repeat. The Go JSON
+                            # declaration sends no switch, so this branch is
+                            # unreachable for it by construction.
                             if (
                                 _structured_thinking_extra is not None
                                 and _structured_thinking_key
