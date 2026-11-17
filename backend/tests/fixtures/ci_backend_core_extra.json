@@ -39,6 +39,7 @@
     "Run SMTP certificate validation controls",
     "Run canonical login TOTP replay controls",
     "Run document lineage upgrade and knowledge VFS scope controls",
+    "Run explicit collaboration authority controls",
     "Run M3 canonical chat delivery contract controls"
   ]
 }
