@@ -157,67 +157,150 @@ def _entry_source_document_id(entry: Any) -> Optional[str]:
         getattr(entry, "source", None), getattr(entry, "external_id", None))
 
 
-def _filter_live_entries(db: Any, rows: List[Any]) -> List[Any]:
-    """Drop catalog rows whose owning document is no longer fresh.
+# Typed source-authority outcomes. A source-linked derivative may be served
+# as current ONLY when its owning document is provably live. ``unknown`` (the
+# authoritative SQL state could not be read, or the row belongs to another
+# scope) is NOT fresh: an unreadable guard must withhold, never degrade open.
+# ``absent`` is reserved for "the query succeeded and there is no row" — the
+# legacy ordering where a copy is materialized before its document row exists.
+_LINEAGE_LIVE = "live"
+_LINEAGE_NON_FRESH = "non_fresh"
+_LINEAGE_ABSENT = "absent"
+_LINEAGE_UNKNOWN = "unknown"
 
-    ``removed``/``stale``/``outdated``/``superseded`` document rows are the
-    durable revocation/freshness markers. A derived dataset must not outlive
-    its source's truth even when a delete path did not run the catalog sweep
-    (e.g. upstream removal detected by the freshness service). Rows whose
-    lineage cannot be proven are left alone — never revoked by filename.
+
+def _authority_table_absent(exc: Exception) -> bool:
+    """True only for a DETERMINISTIC missing ``ingested_documents`` schema.
+
+    A schema that has no document-authority table cannot hold a tombstone, so
+    linked rows there are legacy by construction (partial-schema test
+    fixtures and pre-migration stores). Every other read failure — lock,
+    connection loss, corrupt row/table state — is UNKNOWN, never fresh.
+    """
+    message = str(exc).lower()
+    return "ingested_documents" in message and any(
+        marker in message
+        for marker in (
+            "no such table", "does not exist", "doesn't exist",
+            "undefined table", "unknown table",
+        )
+    )
+
+
+def _partition_entries_by_lineage(
+    db: Any, rows: List[Any],
+) -> Dict[str, List[Any]]:
+    """Split catalog rows into live / non_fresh / unknown by source lineage.
+
+    ``live`` holds rows that may still be served as current: unlinked rows
+    (independently saved/app-synced artifacts and genuinely legacy rows) and
+    linked rows whose owning document is provably fresh, plus linked rows
+    whose document is genuinely absent (legacy materialization ordering).
+
+    ``non_fresh`` holds linked rows whose document carries a durable
+    ``removed``/``stale``/``outdated``/``superseded`` marker.
+
+    ``unknown`` holds linked rows whose authority could NOT be proven: a
+    failed SQL read, or a same-id document owned by another workspace.
+    Callers must treat these as not current. Input order is preserved inside
+    every bucket.
     """
     entries = list(rows or [])
+    buckets: Dict[str, List[Any]] = {
+        _LINEAGE_LIVE: [], _LINEAGE_NON_FRESH: [], _LINEAGE_UNKNOWN: [],
+    }
     if not entries:
-        return entries
+        return buckets
+
+    linked: Dict[int, str] = {}
+    for index, entry in enumerate(entries):
+        doc_id = _entry_source_document_id(entry)
+        if doc_id:
+            linked[index] = doc_id
+
+    # Unlinked rows are independent of any document authority: always live.
+    if not linked:
+        buckets[_LINEAGE_LIVE].extend(entries)
+        return buckets
+
+    states = {index: _LINEAGE_LIVE for index in range(len(entries))}
     try:
         from core.doc_freshness_service import NON_FRESH_STATUSES
         from core.models import IngestedDocument
 
-        wanted = {
-            doc_id for doc_id in
-            (_entry_source_document_id(entry) for entry in entries)
-            if doc_id
-        }
-        if not wanted:
-            return entries
         docs = {
             str(doc.id): (
                 str(doc.workspace_id or "default"),
                 str(doc.freshness_status or "").strip().lower(),
             )
             for doc in db.query(IngestedDocument).filter(
-                IngestedDocument.id.in_(sorted(wanted))).all()
+                IngestedDocument.id.in_(sorted(set(linked.values())))).all()
         }
-    except Exception as exc:  # noqa: BLE001 — an unreadable guard degrades open
-        logger.debug("dataset lineage freshness guard skipped: %s", exc)
-        return entries
+    except Exception as exc:  # noqa: BLE001 — unknown must not become fresh
+        if _authority_table_absent(exc):
+            # Deterministic schema absence: no tombstone can exist, so the
+            # linked rows are legacy by construction.
+            logger.warning(
+                "dataset lineage authority table absent; serving %d "
+                "source-linked row(s) as legacy", len(linked),
+            )
+            buckets[_LINEAGE_LIVE].extend(entries)
+            return buckets
+        for index in linked:
+            states[index] = _LINEAGE_UNKNOWN
+        logger.warning(
+            "dataset lineage authority unavailable; withholding %d "
+            "source-linked catalog row(s): error_class=%s",
+            len(linked), type(exc).__name__,
+        )
+    else:
+        for index, doc_id in linked.items():
+            doc = docs.get(doc_id)
+            if doc is None:
+                # Genuine absence: the query succeeded and no row exists.
+                continue
+            doc_ws, freshness = doc
+            entry_ws = str(
+                getattr(entries[index], "workspace_id", "") or "default")
+            if doc_ws != entry_ws:
+                # A same-id document in another scope cannot attest this
+                # entry's source; that is unproven authority, not freshness.
+                states[index] = _LINEAGE_UNKNOWN
+            elif freshness in NON_FRESH_STATUSES:
+                states[index] = _LINEAGE_NON_FRESH
 
-    live: List[Any] = []
-    for entry in entries:
-        doc_id = _entry_source_document_id(entry)
-        doc = docs.get(doc_id) if doc_id else None
-        if doc is None:
-            live.append(entry)
-            continue
-        doc_ws, freshness = doc
-        entry_ws = str(getattr(entry, "workspace_id", "") or "default")
-        # A same-id document in another scope is a different row/owner; do
-        # not let it revoke this catalog entry.
-        if doc_ws != entry_ws:
-            live.append(entry)
-            continue
-        if freshness not in NON_FRESH_STATUSES:
-            live.append(entry)
-    return live
+    for index, entry in enumerate(entries):
+        buckets[states[index]].append(entry)
+    return buckets
 
 
-def _source_document_revoked(
+def _filter_live_entries(db: Any, rows: List[Any]) -> List[Any]:
+    """Catalog rows that may still be served as current.
+
+    ``removed``/``stale``/``outdated``/``superseded`` document rows are the
+    durable revocation/freshness markers. A derived dataset must not outlive
+    its source's truth even when a delete path did not run the catalog sweep
+    (e.g. upstream removal detected by the freshness service). Rows whose
+    lineage cannot be proven are WITHHELD — never served as fresh — but a
+    filename is never an identity key, and genuinely unlinked rows are kept.
+    """
+    return _partition_entries_by_lineage(db, rows)[_LINEAGE_LIVE]
+
+
+def _source_document_authority(
     source_document_id: Optional[str], workspace_id: Optional[str],
-) -> bool:
-    """True when this exact document already carries a terminal state."""
+) -> str:
+    """Typed authority of exactly one owning document.
+
+    Returns ``live``, ``non_fresh``, ``absent`` or ``unknown``. ``absent`` is
+    returned ONLY when the authoritative query succeeds and no row exists
+    (the copy was materialized before its document row — upload ingestion
+    ordering). A read failure is ``unknown`` and must never be treated as
+    fresh or as absent.
+    """
     doc_id = str(source_document_id or "").strip()
     if not doc_id:
-        return False
+        return _LINEAGE_ABSENT
     try:
         from core.doc_freshness_service import NON_FRESH_STATUSES
         from core.models import IngestedDocument
@@ -226,15 +309,28 @@ def _source_document_revoked(
             row = db.query(IngestedDocument).filter(
                 IngestedDocument.id == doc_id).first()
             if row is None:
-                return False
+                return _LINEAGE_ABSENT
             if str(row.workspace_id or "default") != str(
                     workspace_id or "default"):
-                return False
-            return str(row.freshness_status or "").strip().lower() in (
-                NON_FRESH_STATUSES)
-    except Exception as exc:  # noqa: BLE001 — unknown is not revoked
-        logger.debug("dataset source revocation probe skipped: %s", exc)
-        return False
+                return _LINEAGE_UNKNOWN
+            if str(row.freshness_status or "").strip().lower() in (
+                    NON_FRESH_STATUSES):
+                return _LINEAGE_NON_FRESH
+            return _LINEAGE_LIVE
+    except Exception as exc:  # noqa: BLE001 — unreadable is not fresh
+        if _authority_table_absent(exc):
+            # No authority schema at all: nothing can carry a tombstone, and
+            # the copy is legacy by construction (pre-migration stores).
+            logger.warning(
+                "dataset source authority table absent; treating lineage as "
+                "legacy: doc=%s", doc_id,
+            )
+            return _LINEAGE_ABSENT
+        logger.warning(
+            "dataset source authority unavailable: doc=%s error_class=%s",
+            doc_id, type(exc).__name__,
+        )
+        return _LINEAGE_UNKNOWN
 
 
 def _catalog_row_path_is_store_owned(parquet_path: Any) -> Optional[Path]:
@@ -303,11 +399,25 @@ def revoke_datasets_for_document(
                 (DatasetEntry.source == integ) & (DatasetEntry.external_id == ext))
         if content_hash:
             # Uploads are content-addressed; the bytes are the version key.
+            # That proof only applies to a copy that is an UPLOAD and carries
+            # no independent lineage: identical bytes may belong to another
+            # source (a connector copy with no stable id is content-addressed
+            # too) or to a row linked to a DIFFERENT document, and revoking by
+            # byte hash alone must never take that independently linked copy
+            # down (owner follow-up 2026-11-17).
+            unclaimed = _or(
+                DatasetEntry.source_document_id.is_(None),
+                DatasetEntry.source_document_id == "",
+                DatasetEntry.source_document_id == target_doc,
+            )
             filters.append(
                 (DatasetEntry.source == "upload")
-                & (DatasetEntry.content_hash == content_hash))
+                & (DatasetEntry.content_hash == content_hash)
+                & unclaimed)
             filters.append(
-                DatasetEntry.external_id == f"sha1:{content_hash}")
+                (DatasetEntry.source == "upload")
+                & (DatasetEntry.external_id == f"sha1:{content_hash}")
+                & unclaimed)
         rows = (
             db.query(DatasetEntry)
             .filter(
@@ -375,6 +485,86 @@ def revoke_datasets_for_document(
         "files_deleted": files_deleted,
         "content_hash_matched": bool(content_hash),
     }
+
+
+def _discard_unverified_materialization(entry_ids: List[str]) -> int:
+    """Withdraw catalog rows created by a copy whose authority went unknown.
+
+    Only rows created by THIS materialization are deleted — never pre-existing
+    versions, whose catalog history stays truthful (the read guard withholds
+    them while authority is unreadable). Returns the number of rows deleted.
+    """
+    ids = [str(i) for i in (entry_ids or []) if str(i or "").strip()]
+    if not ids:
+        return 0
+    from core.models import DatasetEntry
+
+    paths: List[str] = []
+    deleted = 0
+    try:
+        with _catalog_session() as db:
+            rows = (
+                db.query(DatasetEntry)
+                .filter(DatasetEntry.id.in_(ids))
+                .all()
+            )
+            paths = [str(row.parquet_path or "") for row in rows]
+            for row in rows:
+                db.delete(row)
+                deleted += 1
+            db.commit()
+    except Exception as exc:  # noqa: BLE001 — reads still withhold the rows
+        logger.warning(
+            "dataset authority withdrawal failed: rows=%s error_class=%s",
+            len(ids), type(exc).__name__,
+        )
+        return 0
+    for raw in paths:
+        path = _catalog_row_path_is_store_owned(raw)
+        if path is None:
+            continue
+        for candidate in (path, _formula_sidecar_path(path)):
+            try:
+                candidate.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError as unlink_err:
+                logger.warning(
+                    "withdrawn dataset derivative unlink failed: file=%s "
+                    "error_class=%s",
+                    candidate.name, type(unlink_err).__name__,
+                )
+    return deleted
+
+
+def _authority_withheld_count(
+    workspace_id: Optional[str] = None,
+    limit: int = 500,
+) -> int:
+    """Active file rows withheld because their source authority is unreadable.
+
+    Scan lanes (search/find-all) use this to keep a zero-match result from
+    claiming COMPLETE coverage while linked rows could not be vouched for.
+    Returns 0 when the catalog itself cannot be read — the scan's own query
+    would already have failed in that case, so this probe never invents an
+    incomplete verdict on its own.
+    """
+    from core.models import DatasetEntry
+
+    try:
+        with _catalog_session() as db:
+            query = db.query(DatasetEntry).filter(
+                DatasetEntry.status == "active",
+                DatasetEntry.source_kind == "file",
+            )
+            if workspace_id:
+                query = query.filter(DatasetEntry.workspace_id == workspace_id)
+            rows = query.limit(limit).all()
+            return len(
+                _partition_entries_by_lineage(db, rows)[_LINEAGE_UNKNOWN])
+    except Exception as exc:  # noqa: BLE001 — coverage hint is additive
+        logger.debug("dataset authority coverage probe skipped: %s", exc)
+        return 0
 
 
 def link_dataset_entries_to_document(
@@ -1287,12 +1477,28 @@ def materialize_sheet_bytes_sync(
     # upload route schedules this copy before its own store step, and that
     # store step refuses removed-version replay (DOCUMENT_REVOKED) — without
     # this gate the catalog would have been resurrected by a refused upload.
-    if lineage_doc_id and _source_document_revoked(lineage_doc_id, ws_id):
-        return {
-            "status": "skipped",
-            "reason": "source_document_removed",
-            "source_document_id": lineage_doc_id,
-        }
+    # UNKNOWN authority is withheld as well: an unreadable document row is
+    # not evidence that the source is still live (it is not absence either;
+    # genuinely absent lineages stay compatible for upload ordering).
+    if lineage_doc_id:
+        authority = _source_document_authority(lineage_doc_id, ws_id)
+        if authority == _LINEAGE_UNKNOWN:
+            logger.warning(
+                "sheet datasets: withholding %s for %s — source authority "
+                "unavailable (doc=%s)",
+                file_name, ws_id, lineage_doc_id,
+            )
+            return {
+                "status": "skipped",
+                "reason": "source_authority_unavailable",
+                "source_document_id": lineage_doc_id,
+            }
+        if authority == _LINEAGE_NON_FRESH:
+            return {
+                "status": "skipped",
+                "reason": "source_document_removed",
+                "source_document_id": lineage_doc_id,
+            }
 
     with _catalog_session() as db:
         existing = (
@@ -1398,6 +1604,7 @@ def materialize_sheet_bytes_sync(
     taken_names: set = set()
     version_dir = _version_dir(ws_id, content_hash)
     registered: List[Dict[str, Any]] = []
+    created_ids: List[str] = []
 
     # Mtime-chain preservation: a re-materialization whose caller had no
     # connector mtime (e.g. the background re-verify after serving) must not
@@ -1484,6 +1691,7 @@ def materialize_sheet_bytes_sync(
             )
             db.add(row)
             db.flush()
+            created_ids.append(str(row.id))
             registered.append(_entry_to_dict(row))
 
         if not registered:
@@ -1560,19 +1768,38 @@ def materialize_sheet_bytes_sync(
 
     # Race closure: the document can be deleted while this copy is parsing
     # (the delete probe may run before the first row exists). Re-check the
-    # source tombstone AFTER the row commits; if it appeared, revoke the copy
-    # immediately instead of serving a derivative born after the delete.
-    if lineage_doc_id and _source_document_revoked(lineage_doc_id, ws_id):
-        with _catalog_session() as db:
-            revoke_datasets_for_document(
-                db, doc_id=lineage_doc_id, workspace_id=ws_id)
-        return {
-            "status": "skipped",
-            "reason": "source_document_removed",
-            "source_document_id": lineage_doc_id,
-            "content_hash": content_hash,
-            "datasets": registered,
-        }
+    # source tombstone AFTER the row commits.
+    if lineage_doc_id:
+        authority = _source_document_authority(lineage_doc_id, ws_id)
+        if authority == _LINEAGE_UNKNOWN:
+            # Unreadable authority is not fresh: withdraw the rows THIS run
+            # created (pre-existing rows stay as truthful catalog history and
+            # are withheld by the read guard while authority is unknown).
+            discarded = _discard_unverified_materialization(created_ids)
+            logger.warning(
+                "sheet datasets: source authority became unavailable after "
+                "materializing %s; withdrew %d row(s) as not fresh",
+                file_name, discarded,
+            )
+            return {
+                "status": "skipped",
+                "reason": "source_authority_unavailable",
+                "source_document_id": lineage_doc_id,
+                "content_hash": content_hash,
+                "discarded": discarded,
+                "datasets": [],
+            }
+        if authority == _LINEAGE_NON_FRESH:
+            with _catalog_session() as db:
+                revoke_datasets_for_document(
+                    db, doc_id=lineage_doc_id, workspace_id=ws_id)
+            return {
+                "status": "skipped",
+                "reason": "source_document_removed",
+                "source_document_id": lineage_doc_id,
+                "content_hash": content_hash,
+                "datasets": registered,
+            }
 
     logger.info(
         f"sheet datasets: materialized {len(registered)} sheet(s) of {file_name} "
@@ -1672,8 +1899,8 @@ def resolve_dataset_entry_scoped_sync(
     never falls back to an unscoped query: a missing workspace is an error,
     not "all workspaces". The returned ``state`` keeps the negative cases
     distinguishable (missing, inactive/superseded, wrong workspace,
-    ambiguous) so callers can refuse honestly instead of treating every
-    miss as "no data".
+    ambiguous, unreadable source authority) so callers can refuse honestly
+    instead of treating every miss as "no data".
 
     Existing unscoped helpers stay unchanged for their current callers.
     """
@@ -1712,7 +1939,11 @@ def resolve_dataset_entry_scoped_sync(
         scoped = [r for r in rows if str(r.workspace_id or "") == ws]
         # A source whose document is revoked/stale is not a usable catalog
         # candidate, even if a delete-path sweep never flipped its status.
-        live_scoped = _filter_live_entries(db, scoped)
+        # Unknown authority is withheld too, and is reported as its own state
+        # so a transient unreadable document row is never misreported as a
+        # revocation ("removed") or as fresh.
+        partition = _partition_entries_by_lineage(db, scoped)
+        live_scoped = partition[_LINEAGE_LIVE]
         active = [r for r in live_scoped if str(r.status or "") == "active"]
 
         if len(active) > 1:
@@ -1729,12 +1960,24 @@ def resolve_dataset_entry_scoped_sync(
                 "entry": _entry_to_dict(active[0]),
                 "candidates": [],
             }
+        if scoped and partition[_LINEAGE_UNKNOWN] and not live_scoped:
+            # The authority could not be read: refuse to bind, but do not
+            # claim the source was revoked. Returned state is distinct so a
+            # caller can retry instead of reporting a terminal removal.
+            return {
+                "state": "unavailable",
+                "entry": None,
+                "candidates": [],
+                "reason": "source_authority_unavailable",
+                "revoked": False,
+            }
         if scoped:
+            candidates = partition[_LINEAGE_NON_FRESH] or live_scoped or scoped
             return {
                 "state": "inactive",
-                "entry": _entry_to_dict(scoped[0]),
+                "entry": _entry_to_dict(candidates[0]),
                 "candidates": [],
-                "revoked": not bool(live_scoped),
+                "revoked": bool(partition[_LINEAGE_NON_FRESH]),
             }
         if rows:
             return {
@@ -1853,6 +2096,7 @@ def search_all_datasets_sync(
     if not candidates and not _name_tokens:
         return None
     entries = find_entries_sync("", user_id, workspace_id, 500)
+    authority_withheld = _authority_withheld_count(workspace_id)
     files: Dict[tuple, List[Dict[str, Any]]] = {}
     order: List[tuple] = []
     for e in entries:
@@ -1949,7 +2193,8 @@ def search_all_datasets_sync(
                 "tokens_tried": candidates,
                 "files_searched": len(order),
                 "hits": named[:limit],
-                "incomplete": _out_of_time(),
+                "incomplete": _out_of_time() or bool(authority_withheld),
+                "authority_withheld": authority_withheld,
                 "blocked_sources": blocked_sources,
             }
     for token in candidates or [None]:
@@ -1975,7 +2220,8 @@ def search_all_datasets_sync(
                 "tokens_tried": candidates,
                 "files_searched": len(order),
                 "hits": hits[:limit],
-                "incomplete": _out_of_time(),
+                "incomplete": _out_of_time() or bool(authority_withheld),
+                "authority_withheld": authority_withheld,
                 "blocked_sources": blocked_sources,
                 "subject_scope_omitted": sorted(_omitted)[:12],
                 "subject_scope_unprobed": sorted(
@@ -1991,8 +2237,10 @@ def search_all_datasets_sync(
         "blocked_sources": blocked_sources,
         # "nothing matched" and "time ran out" are different answers, and the
         # caller must be able to tell them apart — otherwise a truncated scan
-        # reads as a definitive empty catalog.
-        "incomplete": bool(_out_of_time()),
+        # reads as a definitive empty catalog. A source-authority outage also
+        # makes the catalog incomplete: withheld linked rows were not scanned.
+        "incomplete": bool(_out_of_time()) or bool(authority_withheld),
+        "authority_withheld": authority_withheld,
         # PER-SUBJECT SCOPE OMISSIONS (2026-10-08 owner correction 4):
         # tokens dropped by the hard cap, or subjects that yielded no
         # tokens at all — stated in the receipt so "no hits" can never
@@ -2068,6 +2316,7 @@ def find_all_occurrences_sync(
         "matches": [],
         "truncated": False,
         "incomplete": False,
+        "authority_withheld": 0,
         "error": "",
     }
     if not variants:
@@ -2078,6 +2327,10 @@ def find_all_occurrences_sync(
         return deadline is not None and time.monotonic() > deadline
 
     entries = find_entries_sync("", user_id, workspace_id, 500)
+    # A linked row withheld for unreadable source authority was NOT scanned;
+    # a zero-match result must not claim complete coverage over it.
+    result["authority_withheld"] = _authority_withheld_count(
+        workspace_id)
     files: Dict[tuple, List[Dict[str, Any]]] = {}
     order: List[tuple] = []
     for e in entries:
@@ -2157,6 +2410,10 @@ def find_all_occurrences_sync(
     result["per_file"] = per_file
     result["matches"] = matches
     result["truncated"] = total > len(matches)
+    # Withheld rows make the scan nonexhaustive even with zero matches: the
+    # absence guard must not read this as a complete catalog sweep.
+    if result.get("authority_withheld"):
+        result["incomplete"] = True
     return result
 
 
@@ -2268,7 +2525,11 @@ def render_find_all_result(result: Dict[str, Any]) -> str:
     scope = (f"complete scan: {result.get('files_scanned', 0)} file(s), "
              f"{result.get('sheets_scanned', 0)} sheet(s)")
     if result.get("incomplete"):
-        scope = ("INCOMPLETE scan (time budget hit): "
+        withheld = int(result.get("authority_withheld") or 0)
+        cause = ("source authority unavailable for "
+                 f"{withheld} catalog file(s)" if withheld
+                 else "time budget hit")
+        scope = (f"INCOMPLETE scan ({cause}): "
                  f"{result.get('files_scanned', 0)} file(s), "
                  f"{result.get('sheets_scanned', 0)} sheet(s) of the catalog "
                  "— absence cannot be concluded from this")

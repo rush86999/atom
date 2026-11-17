@@ -12,8 +12,12 @@ the real catalog read paths against scratch SQLite/Parquet state. They pin:
 * exact lineage (``source_document_id``) and direct tombstoning on delete;
 * read-time refusal of a derivative whose document is removed/stale even when
   a delete sweep did not run;
-* exactness under negative twins: foreign workspace, two files sharing a
-  filename, unrelated/independently-saved artifacts;
+* read-time withholding — never "fresh" — when the authoritative document
+  state is UNREADABLE, while genuinely unlinked/independent artifacts stay
+  served and a genuinely ABSENT document row keeps legacy compatibility;
+* exactness under negative twins: foreign workspace/scope, two files sharing a
+  filename, unrelated/independently-saved artifacts, and identical bytes that
+  belong to a different source or document;
 * duplicate-operation replay and a fresh (restart-like) session;
 * honest partial/unknown reporting when the derivative sweep cannot complete.
 """
@@ -35,10 +39,15 @@ from core.models import (
     Workspace,
 )
 from core.sheet_dataset_service import (
+    catalog_has_entries_sync,
+    current_dataset_version,
+    find_all_occurrences_sync,
     find_entries_sync,
     materialize_sheet_bytes_sync,
     read_sheet_row_sync,
+    render_find_all_result,
     resolve_dataset_entry_scoped_sync,
+    revoke_datasets_for_document,
     search_all_datasets_sync,
     source_document_id_for_source,
 )
@@ -62,6 +71,44 @@ class _NoVectorRows:
 
     def delete_documents_by_prefix(self, table, prefix):
         return True
+
+
+class _UnreadableAuthoritySession:
+    """Real scratch session whose authoritative document read fails.
+
+    Models a transient unreadable state of ``ingested_documents`` (lock,
+    migration, connection loss): the catalog itself still answers, so the
+    distinction between "no such document" and "could not read the document
+    table" is exercised end-to-end through the real service functions.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def query(self, model, *args, **kwargs):
+        if model is IngestedDocument:
+            raise RuntimeError("authoritative document table unavailable")
+        return self._inner.query(model, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+def _make_authority_unreadable(scratch, monkeypatch):
+    """Route every catalog session through an unreadable-document proxy."""
+    from contextlib import contextmanager
+
+    factory = scratch["factory"]
+
+    @contextmanager
+    def _session():
+        inner = factory()
+        try:
+            yield _UnreadableAuthoritySession(inner)
+        finally:
+            inner.close()
+
+    monkeypatch.setattr("core.database.get_db_session", _session)
 
 
 @pytest.fixture
@@ -159,6 +206,38 @@ async def _delete(scratch, doc_id: str, *, workspace_id: str = WS,
 
 def _entry(scratch, entry_id: str) -> DatasetEntry:
     return scratch["db"].get(DatasetEntry, entry_id)
+
+
+def _add_independent_entry(scratch, *, entry_id: str = "entry-independent"):
+    """An independently saved app-records artifact: no source document."""
+    root = Path(scratch["tmp_path"]) / "data" / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    import pandas as pd
+
+    parquet = root / f"{entry_id}.parquet"
+    pd.DataFrame({"invoice": ["INV-1"], "total": [42]}).to_parquet(
+        parquet, index=False)
+    row = DatasetEntry(
+        id=entry_id,
+        workspace_id=WS,
+        tenant_id=TENANT,
+        created_by=scratch["user"].id,
+        source_kind="app_records",
+        source="zoho_books",
+        external_id="invoices",
+        file_name="Invoices (synced)",
+        content_hash="a" * 40,
+        entity_name="invoices",
+        dataset_name="zoho_books_invoices",
+        parquet_path=str(parquet),
+        row_count=1,
+        column_count=2,
+        columns_json={"columns": [{"name": "invoice"}, {"name": "total"}]},
+        status="active",
+    )
+    scratch["db"].add(row)
+    scratch["db"].commit()
+    return row, parquet
 
 
 @pytest.mark.asyncio
@@ -271,43 +350,17 @@ async def test_unrelated_independent_artifact_is_preserved(scratch):
     source_entry = _materialize_upload(
         scratch, doc_id=doc_id, file_name="Source.csv", content=content)
 
-    root = Path(scratch["tmp_path"]) / "data" / "sheet_datasets"
-    root.mkdir(parents=True, exist_ok=True)
-    import pandas as pd
-
-    independent_parquet = root / "invoices.parquet"
-    pd.DataFrame({"invoice": ["INV-1"], "total": [42]}).to_parquet(
-        independent_parquet, index=False)
-    independent = DatasetEntry(
-        id="entry-independent",
-        workspace_id=WS,
-        tenant_id=TENANT,
-        created_by=scratch["user"].id,
-        source_kind="app_records",
-        source="zoho_books",
-        external_id="invoices",
-        file_name="Invoices (synced)",
-        content_hash="a" * 40,
-        entity_name="invoices",
-        dataset_name="zoho_books_invoices",
-        parquet_path=str(independent_parquet),
-        row_count=1,
-        column_count=2,
-        columns_json={"columns": [{"name": "invoice"}, {"name": "total"}]},
-        status="active",
-    )
-    scratch["db"].add(independent)
-    scratch["db"].commit()
+    independent, independent_parquet = _add_independent_entry(scratch)
 
     result = await _delete(scratch, doc_id)
     assert result["status"] == "verified", result
     assert _entry(scratch, source_entry["id"]).status == "removed"
 
-    kept = _entry(scratch, "entry-independent")
+    kept = _entry(scratch, independent.id)
     assert kept.status == "active"
     assert independent_parquet.exists()
     assert any(
-        e["id"] == "entry-independent"
+        e["id"] == independent.id
         for e in find_entries_sync("invoices", workspace_id=WS))
 
 
@@ -406,21 +459,21 @@ def test_materialization_that_loses_its_source_mid_parse_is_revoked(
                    content=content)
 
     calls = {"n": 0}
-    real_probe = sds._source_document_revoked
+    real_probe = sds._source_document_authority
 
     def _probe_then_removed(*args, **kwargs):
         calls["n"] += 1
         if calls["n"] == 1:
-            return False  # source still fresh when the copy starts
-        return True       # source tombstoned while the copy was written
+            return sds._LINEAGE_LIVE   # source still fresh when the copy starts
+        return sds._LINEAGE_NON_FRESH  # source tombstoned while copy was written
 
-    monkeypatch.setattr(sds, "_source_document_revoked",
+    monkeypatch.setattr(sds, "_source_document_authority",
                         _probe_then_removed)
     result = sds.materialize_sheet_bytes_sync(
         content, file_name="Race.csv", source="upload",
         user_id=scratch["user"].id, workspace_id=WS, external_id=None,
         source_document_id=doc_id)
-    monkeypatch.setattr(sds, "_source_document_revoked", real_probe)
+    monkeypatch.setattr(sds, "_source_document_authority", real_probe)
 
     assert result["status"] == "skipped"
     assert result["reason"] == "source_document_removed"
@@ -496,3 +549,258 @@ async def test_connector_delete_revokes_without_upload_byte_hash(scratch):
     row = _entry(scratch, entry["id"])
     assert row.status == "removed"
     assert not Path(row.parquet_path).exists()
+
+
+def test_unreadable_authority_withholds_linked_rows_but_keeps_independent(
+        scratch, monkeypatch):
+    """A failed authority read is UNKNOWN, not freshness: linked derivatives
+    disappear from every current-grounding path while unlinked artifacts stay.
+    """
+    content = _csv("9241")
+    doc_id = "doc_unreadable_authority"
+    _seed_document(scratch, doc_id=doc_id, file_name="Orchid.csv",
+                   content=content)
+    entry = _materialize_upload(
+        scratch, doc_id=doc_id, file_name="Orchid.csv", content=content)
+    parquet = Path(entry["parquet_path"])
+
+    # Durable truth: the source was removed. Then the authoritative read of
+    # that truth fails (lock/migration/connection loss) — the dangerous state.
+    doc = scratch["db"].query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).one()
+    doc.freshness_status = "removed"
+    scratch["db"].commit()
+    independent, independent_parquet = _add_independent_entry(scratch)
+
+    _make_authority_unreadable(scratch, monkeypatch)
+
+    served = [e["id"] for e in find_entries_sync("", workspace_id=WS)]
+    assert entry["id"] not in served
+    assert served == [independent.id]
+
+    resolved = resolve_dataset_entry_scoped_sync(
+        entry["dataset_name"], workspace_id=WS)
+    assert resolved["state"] == "unavailable", resolved
+    assert resolved["reason"] == "source_authority_unavailable"
+    assert resolved["revoked"] is False
+
+    assert read_sheet_row_sync(
+        "Orchid.csv", entry["entity_name"], 2, workspace_id=WS) is None
+    probe = search_all_datasets_sync("9241", workspace_id=WS)
+    assert probe["hits"] == []
+    assert all(hit.get("file_name") != "Orchid.csv"
+               for hit in probe["hits"])
+    # The withheld linked row makes the probe nonexhaustive: it must never be
+    # rendered as a complete catalog sweep (local absence claims depend on it).
+    assert probe["incomplete"] is True
+    assert probe["authority_withheld"] == 1
+
+    block = render_find_all_result(
+        find_all_occurrences_sync("9241", workspace_id=WS))
+    assert "INCOMPLETE scan (source authority unavailable for 1" in block
+    from core.absence_guard import uncovered_absence_claims
+
+    assert uncovered_absence_claims(
+        "No spreadsheet cell contains 9241.", block), block
+
+    assert current_dataset_version(entry["external_id"], WS) is None
+    # The independent row is enough to keep the catalog lane available.
+    assert catalog_has_entries_sync() is True
+
+    # Read-time withholding never rewrites the catalog: the row stays
+    # truthful history and the on-disk copy is untouched.
+    assert _entry(scratch, entry["id"]).status == "active"
+    assert parquet.exists()
+    assert independent_parquet.exists()
+
+
+def test_unreadable_authority_blocks_materialization_but_absence_stays_legacy(
+        scratch, monkeypatch):
+    content = _csv("9250")
+    doc_id = "doc_blocked_authority"
+    _seed_document(scratch, doc_id=doc_id, file_name="Blocked.csv",
+                   content=content)
+    doc = scratch["db"].query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).one()
+    doc.freshness_status = "removed"
+    scratch["db"].commit()
+
+    with monkeypatch.context() as scoped:
+        _make_authority_unreadable(scratch, scoped)
+        blocked = materialize_sheet_bytes_sync(
+            _csv("9251"), file_name="Reborn.csv", source="upload",
+            user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+            source_document_id=doc_id)
+    assert blocked["status"] == "skipped", blocked
+    assert blocked["reason"] == "source_authority_unavailable"
+    assert scratch["db"].query(DatasetEntry).filter(
+        DatasetEntry.file_name == "Reborn.csv").count() == 0
+
+    # GENUINE ABSENCE is not a read failure: upload ingestion materializes
+    # before its document row exists, so the legacy ordering must still work.
+    legacy_content = _csv("9252")
+    legacy = materialize_sheet_bytes_sync(
+        legacy_content, file_name="Absent.csv", source="upload",
+        user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+        source_document_id="doc_absent_not_a_failure")
+    assert legacy["status"] == "materialized", legacy
+    assert [e["id"] for e in find_entries_sync(
+        "absent", workspace_id=WS)] == [legacy["datasets"][0]["id"]]
+
+    # Positive twin: a provably fresh source still materializes.
+    fresh_content = _csv("9253")
+    _seed_document(scratch, doc_id="doc_fresh_twin", file_name="Fresh.csv",
+                   content=fresh_content)
+    fresh = materialize_sheet_bytes_sync(
+        fresh_content, file_name="Fresh.csv", source="upload",
+        user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+        source_document_id="doc_fresh_twin")
+    assert fresh["status"] == "materialized", fresh
+
+
+def test_post_commit_unknown_authority_withdraws_new_rows(
+        scratch, monkeypatch):
+    import core.sheet_dataset_service as sds
+
+    content = _csv("9260")
+    doc_id = "doc_postcommit_unknown"
+    _seed_document(scratch, doc_id=doc_id, file_name="Postcommit.csv",
+                   content=content)
+
+    calls = {"n": 0}
+
+    def _live_then_unknown(*_args, **_kwargs):
+        calls["n"] += 1
+        return (sds._LINEAGE_LIVE if calls["n"] == 1
+                else sds._LINEAGE_UNKNOWN)
+
+    monkeypatch.setattr(sds, "_source_document_authority",
+                        _live_then_unknown)
+    result = sds.materialize_sheet_bytes_sync(
+        content, file_name="Postcommit.csv", source="upload",
+        user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+        source_document_id=doc_id)
+
+    assert result["status"] == "skipped", result
+    assert result["reason"] == "source_authority_unavailable"
+    assert result["discarded"] == 1
+    assert result["datasets"] == []
+    with scratch["factory"]() as fresh:
+        assert fresh.query(DatasetEntry).filter(
+            DatasetEntry.source_document_id == doc_id).count() == 0
+    assert list(
+        (Path(scratch["tmp_path"]) / "data" / "sheet_datasets")
+        .glob("**/*.parquet")) == []
+    assert find_entries_sync("postcommit", workspace_id=WS) == []
+
+
+def test_linked_row_with_foreign_scope_document_is_withheld(scratch):
+    """A same-id document in another workspace cannot attest freshness."""
+    content = _csv("9280")
+    doc_id = "doc_scope_unknown"
+    _seed_document(scratch, doc_id=doc_id, workspace_id=PEER_WS,
+                   file_name="Scoped.csv", content=content)
+
+    root = Path(scratch["tmp_path"]) / "data" / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    import pandas as pd
+
+    parquet = root / "scoped.parquet"
+    pd.DataFrame({"value": [9280]}).to_parquet(parquet, index=False)
+    scratch["db"].add(DatasetEntry(
+        id="entry-scope-unknown",
+        workspace_id=WS,
+        tenant_id=TENANT,
+        created_by=scratch["user"].id,
+        source_kind="file",
+        source="upload",
+        external_id="sha1:" + hashlib.sha1(content).hexdigest(),
+        source_document_id=doc_id,
+        file_name="Scoped.csv",
+        content_hash=hashlib.sha1(content).hexdigest(),
+        entity_name="Scoped",
+        dataset_name="upload_scoped__scoped",
+        parquet_path=str(parquet),
+        row_count=1,
+        column_count=1,
+        columns_json={"columns": [{"name": "value"}]},
+        status="active",
+    ))
+    scratch["db"].commit()
+
+    assert find_entries_sync("scoped", workspace_id=WS) == []
+    resolved = resolve_dataset_entry_scoped_sync(
+        "upload_scoped__scoped", workspace_id=WS)
+    assert resolved["state"] == "unavailable", resolved
+    assert resolved["revoked"] is False
+
+
+def test_byte_hash_revocation_spares_other_sources_and_linked_rows(scratch):
+    """Identical bytes are not one identity: only upload copies without an
+    independent document are content-addressed by the source byte hash."""
+    content = _csv("9270")
+    digest = hashlib.sha1(content).hexdigest()
+    owner_doc = "doc_hash_owner"
+    peer_doc = "doc_hash_peer"
+    _seed_document(scratch, doc_id=owner_doc, file_name="Owner.csv",
+                   content=content)
+    _seed_document(scratch, doc_id=peer_doc, file_name="Peer.csv",
+                   content=content, integration_id="google_drive",
+                   external_id="drive-peer")
+
+    owner = _materialize_upload(
+        scratch, doc_id=owner_doc, file_name="Owner.csv", content=content)
+    # A connector copy with no stable source id is content-addressed exactly
+    # like an upload but is another source, linked to its own document.
+    peer = materialize_sheet_bytes_sync(
+        content, file_name="Peer.csv", source="google_drive",
+        user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+        source_document_id=peer_doc)
+    peer_entry = peer["datasets"][0]
+    assert peer_entry["content_hash"] == owner["content_hash"] == digest
+
+    # A legacy upload copy predating lineage stamps: same bytes, no owner.
+    root = Path(scratch["tmp_path"]) / "data" / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    import pandas as pd
+
+    legacy_parquet = root / "legacy-hash.parquet"
+    pd.DataFrame({"value": [9270]}).to_parquet(legacy_parquet, index=False)
+    scratch["db"].add(DatasetEntry(
+        id="entry-legacy-hash",
+        workspace_id=WS,
+        tenant_id=TENANT,
+        created_by=scratch["user"].id,
+        source_kind="file",
+        source="upload",
+        external_id=f"sha1:{digest}",
+        source_document_id=None,
+        file_name="Legacy.csv",
+        content_hash=digest,
+        entity_name="Legacy",
+        dataset_name="upload_legacy__legacy",
+        parquet_path=str(legacy_parquet),
+        row_count=1,
+        column_count=1,
+        columns_json={"columns": [{"name": "value"}]},
+        status="active",
+    ))
+    scratch["db"].commit()
+
+    upload_path = (
+        Path(scratch["tmp_path"]) / "office" / "uploads" / f"{owner_doc}.csv")
+    effect = revoke_datasets_for_document(
+        scratch["db"], doc_id=owner_doc, workspace_id=WS,
+        materialized_path=str(upload_path))
+
+    assert effect["state"] == "revoked", effect
+    assert effect["content_hash_matched"] is True
+    # Owner + the unlinked legacy copy are the two proven revocations.
+    assert effect["matched"] == 2, effect
+    assert _entry(scratch, owner["id"]).status == "removed"
+    assert _entry(scratch, "entry-legacy-hash").status == "removed"
+    assert not legacy_parquet.exists()
+
+    kept = _entry(scratch, peer_entry["id"])
+    assert kept.status == "active"
+    assert Path(kept.parquet_path).exists()
