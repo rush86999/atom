@@ -224,7 +224,8 @@ def _check_disk_before_world(world: Path, estimated_bytes: Optional[int] = None,
     without filling a real disk.
     """
     if estimated_bytes is not None:
-        est = SP.SpaceEstimate(target=f"world:{Path(world).name}")
+        est = SP.SpaceEstimate(target=f"world:{Path(world).name}",
+                               target_path=Path(world))
         est.add("caller_estimate", int(estimated_bytes), "explicit caller estimate", False)
     else:
         est = SP.estimate_world_build(

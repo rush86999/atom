@@ -72,33 +72,20 @@ echo "$VALIDATION" | "$PYTHON" -m json.tool >/dev/null
 WORLD_REAL="$("$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["world"])' <<<"$VALIDATION")"
 DB_PATH="$("$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["database"])' <<<"$VALIDATION")"
 
-# 2. Existing storage guards. A fresh checkout has no gitignored worlds
-# root; for a LOCAL layout only, create the configured root after the path/
-# port/space validation above. Drive-backed layouts still refuse a missing
-# volume and are never created here.
-CONFIG="$ROOT/backend/config/world_storage.json"
-if [[ -f "$CONFIG" ]]; then
-  IFS=$'\t' read -r LAYOUT WORLDS_ROOT < <(
-    "$PYTHON" - "$CONFIG" "$ROOT/backend" <<'PY'
-import json, sys
-from pathlib import Path
-config = json.loads(Path(sys.argv[1]).read_text())
-backend = Path(sys.argv[2])
-root = ((config.get("worlds") or {}).get("root")
-        or "data/acceptance_worlds")
-root_path = Path(root)
-if not root_path.is_absolute():
-    root_path = backend / root_path
-layout = (config.get("layout")
-          or (config.get("worlds") or {}).get("layout") or "local")
-print(f"{layout}\t{root_path}")
-PY
-  )
-  if [[ "$LAYOUT" == "local" && ! -e "$WORLDS_ROOT" ]]; then
-    mkdir -p "$WORLDS_ROOT"
-    echo "created configured local worlds root: $WORLDS_ROOT"
-  fi
-fi
+# 2. The storage guard is the ONE authority for worlds storage. It reads the
+# config itself (through ATOM_WORLD_STORAGE_PATHS when that is set) and applies
+# the guard's own precedence (worlds.layout before the top-level layout). This
+# launcher must not parse
+# backend/config/world_storage.json — doing so read the checkout config even
+# when a relocated store was declared, then mkdir'd the checkout's canonical
+# root before the relocated guard could refuse.
+#
+# A missing worlds root is therefore a REFUSAL, never a convenience bootstrap:
+# an empty tree is how a run "passes" against nothing. For a fresh isolated
+# journey, provision an explicit store under an already-owned temporary
+# directory with scripts/acceptance/provision_isolated_world_store.py, and
+# export ATOM_WORLD_STORAGE_PATHS to its config directory. The canonical
+# backend/data/acceptance_worlds is never created here.
 (
   cd "$ROOT/backend"
   "$PYTHON" -m core.world_storage_guard check
@@ -106,7 +93,7 @@ fi
 (
   cd "$ROOT/backend"
   "$PYTHON" -m scripts.orchestration_acceptance.storage_policy space \
-    --world "$WORLD_REAL" --no-build-cache >/dev/null
+    --world "$WORLD_REAL" --no-build-cache
 )
 
 # 3. Compute the exact source identity the serving process must report.
@@ -115,7 +102,27 @@ EXPECTED_SOURCE="$(
   "$PYTHON" -c 'from core.runtime_identity import capture_runtime_identity; print(capture_runtime_identity().source_id)'
 )"
 
-# 4. First write happens only after every refusal above.
+# 4. Re-check the root shape + interlock immediately before the first world
+# write. The thorough preflight above shells out to diskutil and samples
+# symlinks; this is the cheap guard every mkdir site is supposed to call. If
+# the root vanished between the preflight and here, this refuses instead of
+# letting `mkdir -p` recreate a new empty worlds tree.
+(
+  cd "$ROOT/backend"
+  "$PYTHON" - <<'PY'
+import sys
+
+from core.world_storage_guard import WorldStorageError, assert_worlds_root_usable
+
+try:
+    assert_worlds_root_usable(where="integrated-local world creation")
+except WorldStorageError as exc:
+    print(f"REFUSING TO CREATE THE WORLD: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+)
+
+# 5. First write happens only after every refusal above.
 umask 077
 mkdir -p "$WORLD_REAL/data" "$WORLD_REAL/evidence" \
   "$WORLD_REAL/data/office" "$WORLD_REAL/data/assignments" \

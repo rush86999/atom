@@ -139,10 +139,20 @@ Safety contract before the first write:
   path, port, source ID and instance ID. The frontend must report
   `service=atom-frontend` and healthy status.
 - `core.world_storage_guard check` and
-  `scripts.orchestration_acceptance.storage_policy space` run before any
-  world directory is created. A fresh checkout with a `local` layout gets the
-  configured worlds root created after validation; a `drive_symlink` layout
-  never is.
+  `scripts/orchestration_acceptance.storage_policy space` run before any
+  world directory is created. The launcher does **not** parse the checkout
+  config and does **not** create a missing worlds root: the guard's
+  authoritative config (including `ATOM_WORLD_STORAGE_PATHS` and its
+  `worlds.layout` precedence) decides, and a missing root is a refusal, never
+  a convenience bootstrap. The cheap root-shape/interlock assertion runs again
+  immediately before the first `mkdir`, so a root that vanished after the
+  preflight is refused instead of silently recreated.
+- `storage_policy space` estimates and probes the world's **actual** parent
+  filesystem (the relocated/isolated store when one is declared), not the
+  canonical internal root. Its output names the `probe_path` and source, so the
+  checked volume is evidence. A missing relocated config, dangling drive root
+  or unusable drive identity refuses; it never falls back to the canonical
+  volume.
 - `SECRET_KEY` is generated once and persisted at `$WORLD/.atom-secret`
   (mode 600); there is no fixed fallback.
 - On startup failure the script stops only the backend/frontend PIDs it
@@ -150,6 +160,36 @@ Safety contract before the first write:
 
 The script creates the world's data/office/assignment/LanceDB directories and
 writes PIDs/logs under `$WORLD`.
+
+### Explicit isolated world store (fresh world, no canonical bootstrap)
+
+A fresh checkout (or an isolated acceptance run that must not touch the
+canonical `backend/data/acceptance_worlds`) provisions its store explicitly.
+The config lives **outside** the store root and the guard still verifies it
+before the launcher creates the world child:
+
+```bash
+RUN_DIR=/absolute/existing/owned/temp/run-dir   # must already exist
+python scripts/acceptance/provision_isolated_world_store.py \
+  --base "$RUN_DIR" --name isolated-worlds \
+  --config-dir "$RUN_DIR/isolated-config"
+
+export ATOM_WORLD_STORAGE_PATHS="$RUN_DIR/isolated-config"
+export WORLD="$RUN_DIR/isolated-worlds/<new-world>"
+export ADMIN_PASSWORD='<local-only password>'
+scripts/acceptance/launch_integrated_local_candidate.sh
+```
+
+`provision_isolated_world_store.py` creates only the empty store root and
+`<config-dir>/world_storage.json`, never a world child, and never the canonical
+tree. It refuses a missing/unowned base, an existing non-empty store, a config
+inside the store root, a config that differs from an existing one, the
+canonical root, and `ATOM_WORLD_STORAGE_BYPASS=1`. After writing it runs the
+real guard preflight and exits non-zero if the guard refuses. Re-running it on
+the same empty store is idempotent.
+
+If `ATOM_WORLD_STORAGE_PATHS` is set but the declared config is missing, the
+validator refuses instead of falling back to the checkout's canonical root.
 
 First sign-in: `admin@example.com` with `ADMIN_PASSWORD`. The world is isolated;
 do not point `DATABASE_URL` at a live development database.
