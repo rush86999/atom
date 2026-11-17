@@ -48,9 +48,9 @@ LIVE_DB = (BACKEND / "data" / "atom.db").resolve()
 LIVE_MARKERS = ("/whole-app-world/data/atom.db",)
 
 #: ``core.world_storage_guard`` relocates its config, lock and runner paths
-#: together when this is set. The preflight must resolve the config the same
-#: way, or the guard can validate one root while this report validates another.
-STORAGE_PATHS_ENV = "ATOM_WORLD_STORAGE_PATHS"
+#: together when this is set. The one resolver lives in
+#: ``scripts/acceptance/validate_local_world.py``; this module calls it rather
+#: than reading the checkout config in parallel.
 
 # Provider/model credential variables that must not reach the acceptance
 # world. Setting them to an empty string in the parent shell is enough:
@@ -117,50 +117,33 @@ def _load_validate_module():
     return module
 
 
-def _load_storage_guard():
-    """Import ``core.world_storage_guard`` from this checkout (no DB, no I/O)."""
-    backend = str(BACKEND)
-    if backend not in sys.path:
-        sys.path.insert(0, backend)
-    try:
-        import core.world_storage_guard as guard
-    except Exception as exc:  # pragma: no cover - defensive
-        raise PreflightError(
-            f"cannot import core.world_storage_guard from {backend}: {exc}"
-        ) from exc
-    return guard
-
-
 def storage_config_source(repo: Path = REPO) -> Dict[str, Any]:
     """Resolve the storage config the SAME way ``core.world_storage_guard`` does.
 
-    The guard relocates ``CONFIG_PATH`` (plus its lock and runner records) when
-    ``ATOM_WORLD_STORAGE_PATHS`` is set. Reading only
-    ``backend/config/world_storage.json`` here let the guard validate the
-    relocated root while the preflight validated the checkout's root, so a
-    world the guard accepted was still refused (or, worse, the reverse). One
-    resolver, one answer: this calls the guard's own ``load_config`` with the
-    path the guard itself would use.
+    There is one resolver for every acceptance caller:
+    ``validate_local_world.resolve_storage_config`` calls the guard's own
+    ``load_config`` with the path the guard itself would use (including
+    ``ATOM_WORLD_STORAGE_PATHS``), applies the guard's top-level/worlds.layout
+    precedence, and refuses a missing relocated config instead of falling back
+    to the checkout's canonical root. Reading
+    ``backend/config/world_storage.json`` here separately is how the guard and
+    the preflight came to validate different roots.
 
     Config is read from OUTSIDE the movable worlds tree by contract; a missing
-    config falls back to the guard's historical local root.
+    config falls back to the guard's historical local root only when no
+    relocation was declared.
     """
-    guard = _load_storage_guard()
-    relocated = (os.environ.get(STORAGE_PATHS_ENV) or "").strip()
-    config_dir = (Path(relocated).expanduser() if relocated
-                  else repo / "backend" / "config")
-    config_path = config_dir / "world_storage.json"
     try:
-        config = guard.load_config(config_path)
-    except guard.WorldStorageError as exc:
+        resolved = _load_validate_module().resolve_storage_config(repo)
+    except Exception as exc:  # StorageConfigError, import/read failures
         raise PreflightError(str(exc)) from exc
     return {
-        "config_path": str(config_path),
-        "relocated_by_env": bool(relocated),
-        "relocation_env": STORAGE_PATHS_ENV if relocated else None,
-        "enabled": bool(config.enabled),
-        "layout": config.layout,
-        "worlds_root": str(Path(config.root).resolve()),
+        "config_path": resolved["config_path"],
+        "relocated_by_env": resolved["relocated_by_env"],
+        "relocation_env": resolved.get("relocation_env"),
+        "enabled": resolved["enabled"],
+        "layout": resolved["layout"],
+        "worlds_root": resolved["root"],
     }
 
 

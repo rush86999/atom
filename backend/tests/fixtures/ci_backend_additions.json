@@ -653,5 +653,16 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${RUNNER_TEMP}/atom-m3-canonical/data\" \"${RUNNER_TEMP}/atom-m3-canonical/lancedb\"\npython -m pytest tests/test_m3_canonical_delivery_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run launcher world-storage preflight controls",
+    "env": {
+      "TESTING": "1",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-launcher-storage/scratch.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${{ runner.temp }}/atom-launcher-storage\"\npython -m pytest ../scripts/tests/test_launcher_world_storage_preflight.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]

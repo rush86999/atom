@@ -29,6 +29,7 @@ Exit codes: 0 passed, 1 a check failed, 2 refused by preflight.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -50,7 +51,6 @@ REPO = Path(__file__).resolve().parents[2]
 BACKEND = REPO / "backend"
 FRONTEND = REPO / "frontend-nextjs"
 LIVE_DB = (BACKEND / "data" / "atom.db").resolve()
-CONFIG_PATH = BACKEND / "config" / "world_storage.json"
 HARNESS = REPO / "scripts" / "acceptance" / "canvas_blank_create_edit_reload.cjs"
 VALIDATE = REPO / "scripts" / "acceptance" / "validate_local_world.py"
 DEFAULT_PYTHON = "/Users/rushiparikh/projects/atom/backend/venv314/bin/python"
@@ -84,20 +84,37 @@ def port_open(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
+_VALIDATOR_MODULE: Optional[Any] = None
+
+
+def _validator():
+    """Load ``validate_local_world`` so config resolution has one authority."""
+    global _VALIDATOR_MODULE
+    if _VALIDATOR_MODULE is None:
+        spec = importlib.util.spec_from_file_location(
+            "validate_local_world", VALIDATE)
+        if spec is None or spec.loader is None:  # pragma: no cover - defensive
+            raise Refused(f"cannot load {VALIDATE}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _VALIDATOR_MODULE = module
+    return _VALIDATOR_MODULE
+
+
 def configured_worlds_root(repo: Path = REPO) -> Path:
-    root = BACKEND / "data" / "acceptance_worlds"
-    if CONFIG_PATH.is_file():
-        try:
-            config = json.loads(CONFIG_PATH.read_text())
-        except (OSError, ValueError) as exc:
-            raise Refused(f"cannot read {CONFIG_PATH}: {exc}") from exc
-        raw = ((config.get("worlds") or {}).get("root")
-               or "data/acceptance_worlds")
-        candidate = Path(raw)
-        if not candidate.is_absolute():
-            candidate = BACKEND / candidate
-        root = candidate
-    return root.expanduser().resolve(strict=False)
+    """The worlds root from the validator's guard-derived resolution.
+
+    This harness used to parse ``backend/config/world_storage.json`` itself,
+    ignoring ``ATOM_WORLD_STORAGE_PATHS`` and using the wrong layout precedence.
+    A relocated run was therefore validated against the checkout's canonical
+    root. One resolver, one answer: the validator and this harness cannot
+    disagree about which root the guard will protect.
+    """
+    try:
+        resolved = _validator().resolve_storage_config(repo)
+    except Exception as exc:
+        raise Refused(str(exc)) from exc
+    return Path(resolved["root"])
 
 
 def is_within(path: Path, parent: Path) -> bool:
@@ -174,17 +191,18 @@ def validate_world_contract(world: Path, backend_port: int, frontend_port: int) 
         raise Refused(f"world validator produced invalid JSON: {exc}") from exc
 
 
-def ensure_storage_guard(worlds_root: Path, python_bin: str) -> str:
-    """Mirror the integrated launcher: create only the LOCAL worlds root."""
-    layout = "local"
-    if CONFIG_PATH.is_file():
-        try:
-            config = json.loads(CONFIG_PATH.read_text())
-            layout = str(config.get("layout") or "local")
-        except (OSError, ValueError) as exc:
-            raise Refused(f"cannot read {CONFIG_PATH}: {exc}") from exc
-    if layout == "local" and not worlds_root.exists():
-        worlds_root.mkdir(parents=True)
+def ensure_storage_guard(python_bin: str) -> str:
+    """Run the real storage guard; a missing root is a refusal, not a mkdir.
+
+    The guard is the single authority for the worlds root. This harness used to
+    parse the checkout config itself (ignoring the relocation env and the
+    ``worlds.layout`` precedence) and create a missing LOCAL root before the
+    guard ran — the same silent-empty-store hazard the integrated launcher had.
+    Fresh isolated stores are provisioned explicitly with
+    ``scripts/acceptance/provision_isolated_world_store.py`` and declared via
+    ``ATOM_WORLD_STORAGE_PATHS``; a fresh WORLD CHILD is still created later,
+    after this guard passes.
+    """
     result = subprocess.run(
         [python_bin, "-m", "core.world_storage_guard", "check"],
         cwd=BACKEND, capture_output=True, text=True, timeout=120, check=False,
@@ -456,8 +474,8 @@ def main() -> int:
         print("preflight OK (browser skipped)")
         return 0
 
-    ensure_storage_guard(worlds_root, python_bin)
     storage_space_check(world, python_bin)
+    ensure_storage_guard(python_bin)
 
     # ── First write happens only after every refusal above ──────────────
     secret_key = secrets.token_urlsafe(48)
