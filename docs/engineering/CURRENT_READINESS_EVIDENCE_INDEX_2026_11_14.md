@@ -20,9 +20,9 @@ Optional never-autonomous task baskets: [behavior, limits and independent local 
 > **Merged SMTP trust repair:** [certificate validation](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) records 94 independent checks plus actual chain/hostname refusals and trusted delivery. Merged in #971 at `75c1edec61b651c43b70937f467b3f64a6ca37bb`; earlier browser evidence retains its original source.
 >
 
-> **Current navigation overlay:** [Current goal map — 2026-11-17](CURRENT_GOAL_MAP_2026_11_17.md) is the current release and remaining-acceptance navigation at main `31e2aebf7cec3fe265e131a1ad27374bbe082654` (#987), tree `991cd1cf96aeead642d6455c4352c92e673b8441`, sole parent `4071ef9ba11f68e645c4514ce7621fa9db9403c8` (#991). It preserves the original 143 claims / 18 goals and the historical 111/123 result.
+> **Current navigation overlay:** [Current goal map — 2026-11-17](CURRENT_GOAL_MAP_2026_11_17.md) is the current release and remaining-acceptance navigation at main `a7eccddb45872182a6e2af096b0ad4ee0516b7e6` (#990), tree `d2424e36f83f90e06ab60148aca290690e3a8a70`, sole parent `31e2aebf7cec3fe265e131a1ad27374bbe082654` (#987). It preserves the original 143 claims / 18 goals and the historical 111/123 result.
 >
-> **Current release cut (2026-11-17 UTC):** main `31e2aebf` through #987. #987 durable chat ownership and scoped history access merged `31e2aebf` (exact head `8b0e5367a`, squash merge with sole parent `4071ef9ba`; all **17** checks successful, and the merge tree `991cd1cf` equals the PR-head tree). Qualification is **1,483 independent tests on the pre-merge tree `ee098d8b`** (`070d1b46`), independently identical non-CI feature changes after main integration, and **692** CI-contract checks; there is **no broad replay at the integrated head**. Its post-merge main CI `44192476933` and Docker `44192476883` were **started**, not reported complete. #991 acceptance-world storage preflight merged `4071ef9ba` (exact head `734725186`, 17/17; 103 focused offline tests across four files, including the 29-test launcher file root re-ran, plus 711 lane/quickstart contracts — no browser, login or restart acceptance). #988 graduation model-evidence binding merged `59fa6b64b` (exact head `4459e680d`, 17/17; synthetic campaign scope only, real served-model quality still unknown). #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22`. The older published #990 head `85fbd6357` remains the dated record of hosted run `44184658257`, which failed the guided-duplicate approval node with 409 `DECISION_CONFLICT` where the alias surface contract expects 400; that failure stays preserved. The local compatibility repair `007f43b555656b36f1a92b9003d1d8c71ec24c02` is now integrated at the published #990 head `a84de131` (tree `d2424e36`) atop actual main `31e2aebf`, which reports 3 independent integrated targeted tests and 692 CI-contract checks, but #990 remains **unmerged** and awaits hosted gates/merge. The audit candidate `76a3bbc15` is now integrated at `72f9a8ba` with an identical frontend tree `3c54891f`; it narrowly remaps `/audit-trail` to Activity, root ran 83 profile/audit/supervisor checks, and browser/build work was in progress — no acceptance claim and still unmerged. Audit/Learning browser **replay2** at pinned `60a8b7050` passed real sign-in (intended seeded member, secure/httpOnly cookies, callback 200, no CSRF refusal) and then failed the audit **route gate**: the page was served but never mounted, no `/api/audit/*` read occurred, because core defers `/audit-trail` as governance. No browser or restart acceptance. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals; CI delivery is not application performance.
+> **Current release cut (2026-11-17 UTC):** main `a7eccddb` through #990. #990 reviewed approval parameters through dispatch and decision history merged `a7eccddb` (exact head `a84de131`, tree `d2424e36` equal to the PR-head tree, sole parent `31e2aebf`; all **17** checks successful, merge/tree identity and unchanged protections recorded in `/private/tmp/atom-pr990-final-merge-receipt.json`). Qualification is **scoped correction/compat evidence only**: 3 independent integrated targeted tests and 692 CI-contract checks, plus the local repair `007f43b555656b36f1a92b9003d1d8c71ec24c02`'s 26 guided / 139 common decision / 167 adjacent approval / 73 checkpoint / 94 regression controls and a 264-node sweep at 257 passed with 7 identical pre-existing failures; there is **no broad replay at the integrated or merged tree**. The alias surface restores its plain 400 for a decision repeated on an already-terminal row with no write, status change, scheduler call or resume, while the shared writer keeps strict 409 `DECISION_CONFLICT` for service/governance callers and genuine races. The older published head `85fbd6357` remains the dated record of hosted run `44184658257`, which failed `backend-core-extra-isolated` job `134397829262` (409 `DECISION_CONFLICT` where the alias contract expects 400); that failure stays preserved. Its post-merge main CI `44201417963` and Docker `44201418036` were **pending as of the merge**; no completion, failure or performance result is claimed. Preceding #987 durable chat ownership and scoped history access merged `31e2aebf` (exact head `8b0e5367a`; 17/17 checks; tree `991cd1cf`; 1,483 independent tests on pre-merge tree `ee098d8b`, independently identical non-CI feature changes and 692 CI-contract checks; no broad replay at the integrated head). Its main CI `44192476933` and Docker `44192476883` were **started**, not reported complete here. #991 acceptance-world storage preflight merged `4071ef9ba` (exact head `734725186`, 17/17; 103 focused offline tests including the 29-test launcher file, plus 711 lane/quickstart contracts — no browser, login or restart acceptance). #988 graduation model-evidence binding merged `59fa6b64b`; #980 structured wire contracts `ecce2df80`; #981 PostgreSQL document-lineage proof `0ef449aea`; #982 per-test duration reporting `708b7ae2d`; #983 Canvas historical-wording correction `fbabef87f`; #984 explicit collaboration authority `7f7952c65`; #985 M3 canonical final reply `7e51e0976`; #986 task-profile isolation `8afac828c`; #989 CI lineage-preserving lanes `ba66f5e22`. TASK-WAIT-01 at this cut records a current-main revocation contract **1 passed** (exit 0; 1 test, 0 failures/errors/skips, 3.240 s; the revocation is still a direct grant-row mutation, not an ordinary route) and the unchanged legacy-ingestion campaign's partial negative **5 PASS / 7 FAIL / 6 NOT EVALUATED** (checks 13–18 never ran after a correct 409 approval guard; no `report.json` written; source-representation diagnosis and ordinary-route replay pending; no claim that opaque ingestion works). Audit candidate `76a3bbc15` is integrated at `72f9a8ba` with an identical frontend tree `3c54891f` and remains **unmerged**; its `audit-core2` run passed real member login, the audit core mount and exactly one summary plus one executions read (both 200), then aborted on one visible dialog (`visible_dialogs` 1 vs 0) before correction or restart, with the first-run dialog-identity diagnostic underway and no acceptance claim. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals; CI delivery is not application performance.
 >
 > **Earlier release cut (through #989):** main `ba66f5e22` through #989. #980 structured wire contracts merged `ecce2df80`; #981 PostgreSQL document-lineage existing-table proof merged `0ef449aea`; #982 per-test duration reporting merged `708b7ae2d`; #983 Canvas historical-wording correction merged `fbabef87f`; #984 explicit collaboration authority merged `7f7952c65`; #985 M3 canonical final reply merged `7e51e0976`; #986 task-profile isolation merged `8afac828c`; #989 CI lineage-preserving lanes merged `ba66f5e22` (application bytes are #986's; #989 changes only CI/test scaffolds). #989's exact PR head `0e1b9065e` had all 17 checks successful with unchanged protections; its own main Docker run `44157075848` is recorded successful and CI `44157075691` later completed successfully at exact `ba66f5e22`, so no performance result is claimed for it. These are delivery records plus bounded offline evidence, not a regrade of the original 143 claims/18 goals.
 >
@@ -565,12 +565,28 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 ### Goal 10 — TASK-WAIT-01 long tasks pause/resume
 
 - **Audit state:** open.
-- **Current state:** open. A durable 48-hour wait was started and the worker was
-  stopped with `SIGKILL`; the wait survived. **The resume gate is not due
-  before 2026-11-16T06:42:25.414033Z.** No resume result exists. Separately,
-  the multi-source delayed-response run at `ad6ecbd5d` passed a bounded
+- **Current state:** open. The terminal 48.0203-hour case remains accepted only at
+  its recorded source (same job/execution/wait, one verified effect,
+  duplicate/late-answer refusal; never rearm or replay it). At the
+  **2026-11-17 #990 cut** two new bounded results exist and neither closes the
+  goal: the current-main revocation contract file passed **1 test** (exit 0;
+  JUnit `tests=1`, `failures=0`, `errors=0`, `skipped=0`, 3.240 s; pytest total
+  17.25 s), with revocation still a direct `IntegrationToken.status` row
+  mutation, and the unchanged legacy-ingestion normal-app campaign returned
+  **5 PASS / 7 FAIL / 6 NOT EVALUATED**. The campaign's 7 failures stay
+  failures, checks 13–18 were never run after a correct 409 on
+  `/approve/send` and no `report.json` was written, and the traced cause is the
+  text-only ingestion upload representation (`upload:<name>`, no materialized
+  bytes) against the current consumption gate. The source-representation
+  diagnosis and an ordinary `/api/documents/upload` replay are **pending**; the
+  prepared replay variant was not executed. **Historical pre-wait state
+  (retained):** a durable 48-hour wait was started and the worker was stopped
+  with `SIGKILL`; the wait survived; the resume gate was not due before
+  `2026-11-16T06:42:25.414033Z`. That gate is historical: the later accepted
+  result is the 48.0203-hour record linked from the banner. Separately, the
+  multi-source delayed-response run at `ad6ecbd5d` passed a bounded
   restart/resume/approval journey, but it is not the 48-hour elapsed wait.
-- **Exact sources:** `/private/tmp/atom-elapsed-wait-driver/state/wait-case.json`
+- **Historical exact sources:** `/private/tmp/atom-elapsed-wait-driver/state/wait-case.json`
   (`phase=awaiting_48h_elapsed`, `resume_not_before=2026-11-16T06:42:25.414033+00:00`,
   `required_elapsed_seconds=172800`, job `96c65751-…`, execution
   `a21bc264-…`, correlation `75d4fd80-…`); `evidence/verification.json`
@@ -579,13 +595,30 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   The driver's source head is `2f2b376a0` (the `#938` head), not current main.
   Multi-source evidence:
   `/private/tmp/brennan-brief/GOAL10_MULTISOURCE_DELAYED_RESULT_20261113.md`.
-- **Remaining user-boundary acceptance:** actual elapsed 48-hour resume on
-  the retained scratch world; both event orders; repeated/partial replies;
-  revocation/cancellation during wait; all supported surfaces; ordinary UI;
-  multi-worker/soak. Arrival of information is not completion.
+- **#990-cut evidence sources (2026-11-17):**
+  revocation JUnit/JSON/log
+  `/private/tmp/atom-root-task-wait-revocation-main987-20261117.{xml,json,log}`
+  (exit 0; 1 test, 0 failures/errors/skips; 3.240 s; suite timestamp
+  `2026-11-17T18:21:34.568354`);
+  campaign triage `/private/tmp/atom-task-wait-api-triage-summary.md` and its
+  run root `/private/tmp/atom-task-wait-api-main987.xMTepZ`; prepared
+  ordinary-route replay variant and limits
+  `/private/tmp/atom-task-wait-normal-upload-replay-summary.md` (not executed);
+  read-only design/assessment
+  `/private/tmp/atom-task-wait-current-main-assessment-summary.md`.
+- **Remaining user-boundary acceptance:** ordinary UI; current-main real-model
+  work; partial and independent progress; revocation/cancellation during the
+  wait through an ordinary route (the passing contract test flips the grant row
+  directly); source-representation diagnosis and the ordinary
+  `/api/documents/upload` replay (both pending); both event orders; all
+  supported surfaces; multi-worker/soak. Arrival of information is not
+  completion, and the terminal elapsed-wait case must never be rearmed.
 - **Preserved negatives:** `0bbe` overall failure and the `d3` 29-stage/162-
   assertion episode; the first elapsed-wait run was archived after a startup
-  pricing-cache fetch; premature-resume refusal is retained.
+  pricing-cache fetch; premature-resume refusal is retained. The #990-cut
+  campaign's 7 failed and 6 unmeasured checks remain a partial negative; the
+  correct 409 on `/approve/send` is guard behavior, not a defect, and unrun
+  checks are not recorded as passes.
 - **Claim rows:** 0 original 143 claims. TASK-WAIT-01 is an explicit user
   requirement added to the goal register, not a README claim.
 
@@ -1865,7 +1898,7 @@ and all 143 claims / 18 goals remain unchanged.
 [Scoped maturity and joined skill regression](SCOPED_SKILL_MATURITY_2026_11_15.md) covers the actual skills API and normal agent loop after ordinary creation and reviewed promotion. Scope-bearing execution now looks up the employee in that scope; unscoped legacy callers keep their existing governance path. The known STUDENT denial remains 400 with an explanatory message. Synthetic training/model/scanner/sandbox fixtures remain explicit; no learned capability, training producer, live quality, restart, Docker or UI completion is implied.
 
 
-## 19. Durable chat ownership, remaining browser records and unmerged candidates — November 17
+## 19. Durable chat ownership, merged #990, TASK-WAIT and audit records — November 17
 
 ### Merged #987 — durable chat ownership and scoped history access
 
@@ -1948,19 +1981,67 @@ are unchanged. Root independently ran **83** profile, audit owner-scope/
 correction and supervisor-gate checks; the worker reports 15 Jest tests, a
 clean TypeScript check and a clean `browser_core_surface.mjs` syntax check.
 
-The candidate is now integrated on top of actual main `31e2aebf` as merge
+The candidate is integrated on top of actual main `31e2aebf` as merge
 `72f9a8bab6efc1238a99bbfaebef075b1d43c5d6` (tree
 `45edc4087b29be1a2e6a6c54b6bbc9df9247f10f`). The frontend tree is identical
 (`3c54891f`), so the integration adds no frontend change. It remains
-**unmerged**; browser and build work was in progress at this cut, and there is
-no acceptance claim.
+**unmerged** and carries no acceptance claim. Its `audit-core2` browser run is
+recorded separately below.
 
-### Approval #990 — older published failure (dated), current head unmerged
+### Audit core2 at `72f9a8ba` — member login and core mount passed, dialog aborted the run
+
+The fresh isolated `audit-core2` run
+(`/private/tmp/atom-audit-browser-core-72f9a8-20261117`, sanitized report
+`browser-pre-audit-core2.report.json`, pre-state
+`pre-state-audit-core2.json`) recorded nine checks before aborting: **eight
+true, one false**.
+
+- Passed: `signin.navigation` 200, `signin.exact_return` `/learning`,
+  `web_session.status` 200, `web_session.cookie_present`,
+  `web_session.user_present` and `web_session.email` (the intended synthetic
+  member), then the audit core mount itself —
+  `audit.mount.summary_reads` **1** and `audit.mount.execution_reads` **1**,
+  both expected 1 and both HTTP 200.
+- Failed next: `audit.mount.visible_dialogs` actual **1**, expected **0**.
+  The run status is `failed`, `failedPhase: pre.audit_mount`, started
+  `2026-11-17T23:13:58.671Z`, updated `23:14:59.423Z`; the only completed
+  action was `pre.login_member`. It aborted **before** any correction,
+  learning/export, provider mutation or restart phase, so it is **not** audit,
+  correction or restart acceptance.
+- The report's `uiSnapshots` are empty and screenshots `null`, so the failure
+  does not itself identify the dialog. A read-only diagnosis attributes the
+  only credible default-mounted candidate to the first-run `OnboardingWizard`
+  and its asynchronous `GET /api/onboarding/status` + `GET /api/users/me`
+  gate: the probe's fixed 2.5 s Escape window can end before the wizard
+  appears, and the unchanged zero-dialog check then counts it. That is a probe
+  race and a seed/world definition issue, not an Audit Explorer regression; no
+  product fix is indicated.
+- Next step at this cut: a new isolated `audit-core2-dialogid` runtime
+  (`/private/tmp/atom-audit-browser-dialogid-20261117`) with a fresh build and
+  the reviewed identity/timing instrument, default first-run seed, **no
+  dismissal** and unchanged expected count. The first-run dialog diagnostic was
+  **underway** at this cut. Gate B (already-onboarded seeded accounts) has not
+  run, and both gates remain evidence attempts, not acceptance.
+
+### Approval #990 — merged at `a7eccddb`; older hosted failure preserved
+
+Main `a7eccddb45872182a6e2af096b0ad4ee0516b7e6` (tree
+`d2424e36f83f90e06ab60148aca290690e3a8a70`, sole parent
+`31e2aebf7cec3fe265e131a1ad27374bbe082654`) contains #990 as a squash merge
+whose tree equals the exact PR head `a84de131cf37fc9dd5d10bc00a0265f29843171c`.
+All **17** exact-head checks completed successfully; merge/tree identity,
+unchanged protections and empty review threads are recorded in
+`/private/tmp/atom-pr990-final-merge-receipt.json` and
+`/private/tmp/atom-pr990-qualified-merge-result-v3-20261117.json`. The
+post-merge main [CI 44201417963](https://github.com/rush86999/atom/actions/runs/44201417963)
+and [Docker 44201418036](https://github.com/rush86999/atom/actions/runs/44201418036)
+were **pending as of the merge**; no completion, failure or performance result
+is claimed.
 
 The older published head
 `85fbd6357f7e30efe3718c22fc2782fce94edaa4` (tree `83c72091`, parent
-`4071ef9ba`) is the **dated record** of hosted run `44184658257`, which failed
-`backend-core-extra-isolated` job `134397829262` in
+`4071ef9ba`) remains the **dated record** of hosted run `44184658257`, which
+failed `backend-core-extra-isolated` job `134397829262` in
 `test_guided_hitl_approval_creates_one_reviewed_agent`: the first guided create
 returned 200, then the duplicate approval returned 409 `DECISION_CONFLICT`
 where the established alias surface contract expects plain 400. That failure
@@ -1971,24 +2052,73 @@ A local compatibility repair `007f43b555656b36f1a92b9003d1d8c71ec24c02` (tree
 `74333d47`, two files) restores the alias route's plain 400 for a decision
 repeated on an already-terminal row, after every existing auth, scope, role,
 never-autonomous and preflight gate, while leaving the shared writer's strict
-409 for service/governance callers and genuine claim races. Scratch-SQLite/
-FastAPI controls passed: 26 guided API, 139 common decision, 167 adjacent
-approval, 73 checkpoint-remainder and 94 touched-contract regressions; a wider
-264-node sweep passed 257 with 7 failures that reproduce identically on an
-unchanged `85fbd6357` worktree. It has no hosted run of its own.
+409 for service/governance callers and genuine claim races. The repeat performs
+**no write, status change, scheduler call or resume**. Scratch-SQLite/FastAPI
+controls passed: 26 guided API, 139 common decision, 167 adjacent approval, 73
+checkpoint-remainder and 94 touched-contract regressions; a wider 264-node
+sweep passed 257 with 7 failures that reproduce identically on an unchanged
+`85fbd6357` worktree. It has no hosted run of its own.
 
-The now-published head
-`a84de131cf37fc9dd5d10bc00a0265f29843171c` (tree
-`d2424e36f83f90e06ab60148aca290690e3a8a70`) integrates that repair atop the
-actual main `31e2aebf`. The reported integrated evidence is **3** independent
-integrated targeted tests and **692** CI-contract checks. It is still
-**unmerged** and awaits hosted gates/merge; no hosted green, PostgreSQL,
-browser, restart or whole-goal claim.
+The merged qualification is **scoped correction/compat evidence only**: the
+reported integrated evidence is **3** independent integrated targeted tests and
+**692** CI-contract checks, with **no broad replay at the integrated or merged
+tree**. It establishes no PostgreSQL, browser, restart, provider/model or
+whole-goal result, and it does not turn the duplicate into an idempotent 200 or
+change the legacy agent route's own idempotent-200 semantics.
+
+### TASK-WAIT-01 at the #990 cut — revocation pass and partial campaign negative
+
+**Revocation contract: 1 passed.** `backend/tests/test_task_wait_source_revocation.py`
+was run at the pinned code (checkout `49402b9e4`, whose non-documentation bytes
+equal `31e2aebf`; the new merged main changed no wait source) with exit **0** and
+JUnit `tests=1`, `failures=0`, `errors=0`, `skipped=0`, suite time **3.240 s**
+(pytest total **17.25 s**, 1 passed), suite timestamp
+`2026-11-17T18:21:34.568354`. Observed HTTP in the log: assignment create 200,
+revoked `/sources` answer **403**, valid twin `/sources` answer **200**. The
+pass covers the revoked local grant refusing the answer before any read/quote,
+the exact question staying open, and the valid twin completing one verified
+quote. The revocation is still a **direct `IntegrationToken.status` row
+mutation**, not an ordinary user route, and no browser episode was run.
+
+**Legacy-ingestion campaign: 5 PASS / 7 FAIL / 6 NOT EVALUATED.** The unchanged
+`scripts/acceptance/employee_g5_remaining_normal_app.py` run root is
+`/private/tmp/atom-task-wait-api-main987.xMTepZ` (artifact
+`ea87175e-…`, branch `38d837ce-…`, outbound `2ab872ca-…`, uploaded doc
+`45caa0ba-…`). Passes: normal upload accepted (check 1); distinct branch
+operation receipts `7dc040c9…` ≠ `eb6cc947…` (7); selective re-evaluation with
+`prior_result_count: 1` (8); late response after cancellation refused `409`
+with the assignment `cancelled` (10); both branch receipts unchanged (11).
+Failures: artifact objective/criteria/bytes/content (2–5); independent branches
+complete while the wait stays open (6); unrelated receipt and waiting operation
+retained (9); controlled outbound awaits approval (12). Checks 13–18 are
+**NOT EVALUATED**, not failed: the harness aborted on a **409** from
+`POST /api/assignments/2ab872ca…/approve/send`, and no `report.json`/`REPORT.md`
+was written. The traced single cause is the **source representation**: the
+campaign uploads through text-only `POST /api/document-ingestion/upload`, which
+writes `file_path="upload:<name>"` and never materializes bytes;
+`document.text` applies, then the current consumption gate re-authorizes and
+finds no local file, parks the source with `source_unavailable` and keeps
+dependents blocked. The 409 is the route's correct guard for a step with no
+prepared approval request, not a second defect. The real product negative —
+accepting a text-only source and then parking it for bytes that never existed —
+is preserved; whether such uploads are meant to be assignable is a product
+decision this run does not make.
+
+**Next diagnostic: pending.** The discriminator is to replace only the upload
+call with the ordinary UI/assignment route `POST /api/documents/upload` and
+read its `id` field, then rerun unchanged. A prepared variant and its bounded
+blocker/report behavior exist at
+`/private/tmp/atom-task-wait-normal-upload-replay-summary.md`, but it was
+**not executed** here. The source-representation diagnosis and the
+ordinary-route replay are **pending**; no claim is made that opaque/text-only
+ingestion uploads work, are assignable or are released.
 
 ### Preserved in this record
 
 The original audit JSON is byte-identical; all 143 claim identities, 18 goal
 rows, historical **111/123 (90.2%)** and `app_complete: false` are unchanged.
-#987, replay2's sign-in, the integrated-but-unmerged `76a3bbc15` mapping and
-#990's unmerged current head add no claim, no goal state and no score. Failed
-runs remain failures at their original sources.
+#987, merged #990, replay2's sign-in, the integrated-but-unmerged `76a3bbc15`
+mapping, the partial `audit-core2` mount, the TASK-WAIT revocation pass and the
+campaign's 5/7/6 partial negative add no claim, no goal state and no score.
+Failed runs remain failures at their original sources; unrun checks remain
+unmeasured.

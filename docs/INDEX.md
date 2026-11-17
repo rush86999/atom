@@ -31,7 +31,7 @@ blanket qualification of every feature or connector.
 
 ## Current readiness and evidence
 
-- [Current goal map — 2026-11-17](engineering/CURRENT_GOAL_MAP_2026_11_17.md) — newest navigation/remaining-acceptance overlay for all 18 canonical goals plus DOCS-REF-01 at main `31e2aebf` (#987; application bytes include #987, #988 and #991). It preserves the 143 original claim identities and historical 111/123 result and does not claim completion.
+- [Current goal map — 2026-11-17](engineering/CURRENT_GOAL_MAP_2026_11_17.md) — newest navigation/remaining-acceptance overlay for all 18 canonical goals plus DOCS-REF-01 at main `a7eccddb` (#990; application bytes include #990, #987, #988 and #991). It preserves the 143 original claim identities and historical 111/123 result and does not claim completion.
 - [Current readiness evidence index — 2026-11-14](engineering/CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md) — detailed historical claim/evidence ledger through #943, all 18 goals and all 143 claims. Use the 2026-11-17 goal map for current release status; this index preserves the historical 111/123 result and does not claim app completion.
 - [PostgreSQL document-lineage upgrade](engineering/POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) — independently verified existing-table migration, restart and cleanup on PostgreSQL 14.24; broader upgrades remain open.
 - [Live fleet case 8](engineering/FLEET_LIVE_DELEGATION_2026_11_17.md) — compatibility recovered, but specialist delegation remained incomplete.
