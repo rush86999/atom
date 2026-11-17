@@ -107,9 +107,9 @@
   },
   "current_goal_map_2026_11_17": {
     "path": "CURRENT_GOAL_MAP_2026_11_17.md",
-    "as_of_main": "02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909",
-    "as_of_tree": "24a6c7d2b81be204c4cfb5f8c6b66f9001277052",
-    "parent": "0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464",
+    "as_of_main": "ba66f5e22db9f1755a8074adc256f4e978289b50",
+    "as_of_tree": "d967cc20beb8885309c693d82f0135ad24964582",
+    "parent": "8afac828c8d96d9b7773522fdcfc938ec2458fdc",
     "state": "Navigation and remaining-acceptance overlay only. All 143 original claim identities, 18 goals, historical 111/123 (90.2%) and app_complete:false are preserved; no readiness percentage is invented and no goal is marked complete.",
     "navigation_relationship": "Corrects current-tense release/draft wording in CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md without replacing its historical cuts, claim rows, evidence arrays or negative records."
   },
