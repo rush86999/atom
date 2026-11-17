@@ -10119,6 +10119,38 @@ DB/server/browser/credential/network/model provider was used. This is CI
 selection and documentation only; root browser, final broader suites and merge
 remain pending, and no verified/shipped claim is made.
 
+## Session 2026-11-17 — never-autonomous entry task-profile isolation + fixture cleanup
+
+**Files**: `backend/core/task_classification.py` (isolated
+`begin_task_profile_boundary` / `end_task_profile_boundary`),
+`backend/core/generic_agent.py` and `backend/core/workflow_engine.py` (both
+real entries open/restore the boundary in `finally`; admitted actor picks the
+policy owner), `backend/core/autonomy_policy.py` (clearance token
+mask/restore helpers), `backend/core/atom_meta_agent.py` (drop the stale
+dict-scoped profile before rebuilding), explicit token `finally` cleanup in
+the leaking sync never-autonomous tests + `AsyncMock` `record_experience`,
+new whole file `backend/tests/test_never_autonomous_entry_profile_isolation.py`
+(17 real-entry regressions incl. the meta dict-scoped sibling), CI lane append + matching
+`backend/tests/fixtures/ci_backend_additions.json`, and
+`docs/engineering/NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md`.
+No finance/domain special case, unrelated feature rewrite, live DB, provider
+call or other worktree.
+
+**Verification** (isolated absolute scratch SQLite, HF offline, cached
+interpreter): baseline five files in ONE process → **76 passed / 2 failed**;
+after fix same five files work-order order → **78 passed**, reverse order →
+**78 passed**. New real-entry file alone → **17 passed**; all six files in
+ONE process in both orders → **95 passed**; lane-preservation contracts →
+**642 passed**. Negative paired controls with the old
+`generic_agent.py` + `workflow_engine.py` restored → double-builder **2
+failed**, cross-owner **2 failed**; with the old `atom_meta_agent.py`
+restored → meta stale-dict **1 failed** (all as expected). The broader affected
+policy/agent/workflow set → **281 passed / 1 failed**, the failure
+(`test_atom_meta_agent.py::TestErrorHandling::test_spawn_failure_handling`)
+reproducing at `HEAD` with the original meta file (pre-existing, unrelated).
+All original safety assertions are unchanged; no review was fabricated.
+SQLite only; no PostgreSQL, live app, browser or model-quality claim.
+
 ## Session 2026-11-16 — never-autonomous task admission readability (Approvals UI)
 
 **Files**: `frontend-nextjs/pages/approvals.tsx` (dedicated task-admission card:
