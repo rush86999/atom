@@ -32,7 +32,7 @@ from core.intervention_service import (
     intervention_service,
     list_recent_decisions,
 )
-from core.models import HITLAction, UserRole
+from core.models import HITLAction, HITLActionStatus, UserRole
 from core.security.rbac import user_meets_role
 
 logger = logging.getLogger(__name__)
@@ -344,6 +344,26 @@ async def decide_approval(
                 else "Checkpoint rejected"),
             "resume": outcome,
         }
+
+    # Established public-surface duplicate semantics. This alias route (the
+    # one the Approvals page and the guided-create review flow call) has
+    # always answered a decision repeated for an ALREADY-TERMINAL request
+    # with a plain 400 "Action is <status>, cannot approve/reject.": the
+    # pre-packet shared writer returned that message without a conflict code.
+    # The shared decision writer now answers strict ``DECISION_CONFLICT`` 409
+    # for every decision conflict (service/governance callers, task
+    # admissions, and a decision that LOSES the atomic claim). Keep that
+    # strict contract at the writer and restore the established 400 for the
+    # repeat only, at the HTTP boundary: the row was loaded above, nothing
+    # has been written, and a genuine race is still decided by the
+    # pending-state/authority claim below (409).
+    if str(action.status or "") != HITLActionStatus.PENDING.value:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Action is {action.status}, cannot "
+                f"{'approve' if decision == 'approved' else 'reject'}."),
+        )
 
     if decision == "approved":
         result = await intervention_service.approve_intervention(

@@ -534,12 +534,18 @@ def test_foreign_actor_and_duplicate_decision_do_not_rewrite_history(scratch):
         f"/api/agents/approvals/{action_id}",
         json={"decision": "approved", "modified_params": modified})
     assert first.status_code == 200, first.text
-    # Duplicate decision is refused without touching params/history.
+    # Duplicate decision is refused without touching params/history. This
+    # alias surface (the public Approvals page and the guided-create review
+    # flow) keeps its established plain 400 for an already-decided request;
+    # the shared writer's strict DECISION_CONFLICT 409 stays pinned by the
+    # service-level duplicate test above, and a decision that loses the
+    # atomic claim still gets that 409 here.
     duplicate = client.post(
         f"/api/agents/approvals/{action_id}",
         json={"decision": "approved",
               "modified_params": {"to": "duplicate@example.com"}})
-    assert duplicate.status_code in (400, 409), duplicate.text
+    assert duplicate.status_code == 400, duplicate.text
+    assert "DECISION_CONFLICT" not in duplicate.text
 
     row = _action(scratch.db, action_id)
     assert row.params == modified
