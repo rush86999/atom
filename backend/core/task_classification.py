@@ -315,6 +315,91 @@ def reset_task_profile(token: Optional[Token], context: Any = None) -> None:
             pass
 
 
+@dataclass
+class TaskProfileBoundary:
+    """Opaque handle for one execution entry's isolated task-profile scope.
+
+    Produced by :func:`begin_task_profile_boundary` and consumed by
+    :func:`end_task_profile_boundary`. It remembers the ContextVar tokens and
+    the caller's dispatch-dict entries so the parent task's profile and
+    clearance are restored exactly, including on exception/cancellation.
+    """
+
+    context: Any = None
+    profile_token: Optional[Token] = None
+    clearance_token: Optional[Token] = None
+    saved_context: Dict[str, Any] = field(default_factory=dict)
+
+
+def begin_task_profile_boundary(context: Any = None) -> TaskProfileBoundary:
+    """Start a fresh task-profile boundary for one REAL execution entry.
+
+    A new task must never evaluate admission against an ancestor task's
+    profile or clearance. The profile is masked while the entry builds its
+    own; if that build (including the canonical unknown fallback) fails, the
+    admission sees ``None`` and applies the existing fail-closed no-profile
+    contract instead of silently inheriting the parent's classification.
+
+    ``ContextVar`` tokens are the documented mechanism for scoped
+    save/restore (https://docs.python.org/3/library/contextvars.html —
+    ``Token``/``ContextVar.reset`` restore the previous value in the same
+    context). The dispatch dict is saved/restored alongside it because the
+    shared MCP guard reads the dict, not the ContextVar. Restoration is
+    idempotent and must run in a ``finally`` for every exit path.
+    """
+    saved: Dict[str, Any] = {}
+    if isinstance(context, dict):
+        try:
+            from core.autonomy_policy import NEVER_CLEARANCE_CONTEXT_KEY
+        except Exception:  # noqa: BLE001 — import cycle guard
+            NEVER_CLEARANCE_CONTEXT_KEY = "_never_autonomous_clearance"
+        for key in (TASK_PROFILE_CONTEXT_KEY, NEVER_CLEARANCE_CONTEXT_KEY):
+            if key in context:
+                saved[key] = context[key]
+            context.pop(key, None)
+    profile_token = _CURRENT_TASK_PROFILE.set(None)
+    clearance_token = None
+    try:
+        from core.autonomy_policy import mask_current_never_autonomous_clearance
+
+        clearance_token = mask_current_never_autonomous_clearance()
+    except Exception:  # noqa: BLE001 — clearance masking is best effort
+        pass
+    return TaskProfileBoundary(
+        context=context,
+        profile_token=profile_token,
+        clearance_token=clearance_token,
+        saved_context=saved,
+    )
+
+
+def end_task_profile_boundary(boundary: Optional[TaskProfileBoundary]) -> None:
+    """Restore the parent task's profile/clearance for a boundary entry."""
+    if not isinstance(boundary, TaskProfileBoundary):
+        return
+    context = boundary.context
+    if isinstance(context, dict):
+        try:
+            from core.autonomy_policy import NEVER_CLEARANCE_CONTEXT_KEY
+        except Exception:  # noqa: BLE001
+            NEVER_CLEARANCE_CONTEXT_KEY = "_never_autonomous_clearance"
+        for key in (TASK_PROFILE_CONTEXT_KEY, NEVER_CLEARANCE_CONTEXT_KEY):
+            context.pop(key, None)
+        context.update(boundary.saved_context)
+    try:
+        _CURRENT_TASK_PROFILE.reset(boundary.profile_token)
+    except (ValueError, RuntimeError):
+        # A token from another context cannot be reset here; the entry still
+        # never runs under the ancestor profile it started with.
+        pass
+    try:
+        from core.autonomy_policy import restore_current_never_autonomous_clearance
+
+        restore_current_never_autonomous_clearance(boundary.clearance_token)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def current_task_profile() -> Optional[TaskProfile]:
     value = _CURRENT_TASK_PROFILE.get()
     return value if is_trusted_task_profile(value) else None
@@ -333,12 +418,15 @@ __all__ = [
     "DOMAIN_SUGGESTIONS",
     "TASK_PROFILE_CONTEXT_KEY",
     "TaskProfile",
+    "TaskProfileBoundary",
+    "begin_task_profile_boundary",
     "bind_task_profile",
     "build_assignment_task_profile",
     "build_task_profile",
     "build_unknown_task_profile",
     "build_workflow_task_profile",
     "current_task_profile",
+    "end_task_profile_boundary",
     "is_trusted_task_profile",
     "is_valid_domain_slug",
     "reset_task_profile",
