@@ -119,6 +119,11 @@ _TERMINAL_FAILURE_STATUSES = frozenset({
 
 def _execution_succeeded(result: Dict) -> bool:
     """Classify a meta-agent run outcome for learning/governance signals."""
+    if result.get("objective_pending") is True:
+        # A delivered clarification/pending question may complete the TURN,
+        # but the original objective is unresolved: never credit success,
+        # graduation evidence or whole-objective completion.
+        return False
     status = str(result.get("status") or "").strip().lower()
     if status in _TERMINAL_FAILURE_STATUSES:
         return False
@@ -454,26 +459,57 @@ def _accepted_collaboration_requirement(
     raw = (context or {}).get("_accepted_collaboration_requirement")
     if not isinstance(raw, dict) or raw.get("required") is not True:
         return None
+    from core.turn_decision import (
+        COLLABORATION_OBJECTIVE_MAX,
+        COLLABORATION_ROLE_LABEL_MAX,
+        COLLABORATION_ROLE_LIMIT,
+    )
+
     roles: List[str] = []
     seen = set()
-    for role in (raw.get("roles") or raw.get("specialists") or [])[:8]:
-        label = " ".join(str(role or "").split())[:120].strip(" ,;:-")
+    for role in (raw.get("roles") or raw.get("specialists") or []):
+        label = " ".join(str(role or "").split()).strip(" ,;:-")
         if not label or label.casefold() in seen:
             continue
         seen.add(label.casefold())
         roles.append(label)
     generic = bool(raw.get("generic"))
-    clarify = bool(raw.get("clarification_required"))
+    objective = str(raw.get("objective") or "")
+    label_overflow = [
+        role for role in roles
+        if len(role) > COLLABORATION_ROLE_LABEL_MAX
+    ]
+    limits = {
+        "requested_count": len(roles),
+        "role_limit": COLLABORATION_ROLE_LIMIT,
+        "label_limit": COLLABORATION_ROLE_LABEL_MAX,
+        "objective_limit": COLLABORATION_OBJECTIVE_MAX,
+        "role_limit_exceeded": len(roles) > COLLABORATION_ROLE_LIMIT,
+        "label_overflow": label_overflow,
+        "objective_overflow": len(objective) > COLLABORATION_OBJECTIVE_MAX,
+    }
+    clarify = bool(
+        raw.get("clarification_required")
+        or limits["role_limit_exceeded"]
+        or limits["label_overflow"]
+        or limits["objective_overflow"])
     if not roles and not generic and not clarify:
         return None
+    question = str(raw.get("question") or "")[:1000]
+    if clarify and not question:
+        question = (
+            "The specialist collaboration request exceeds a contract limit "
+            "and was not dispatched. Which specialists should I involve?")
     return {
         "required": True,
         "roles": roles,
         "generic": generic,
         "authorization": str(raw.get("authorization") or ""),
         "clarification_required": clarify,
-        "question": str(raw.get("question") or "")[:300],
-        "objective": str(raw.get("objective") or "")[:500],
+        "question": question,
+        # FULL accepted request, never a truncated objective.
+        "objective": objective,
+        "limits": limits,
         "reason": "explicit_specialist_collaboration",
     }
 
@@ -919,7 +955,7 @@ class AtomMetaAgent:
                 except Exception:
                     pass
 
-    async def _finalize_collaboration_clarification(
+    async def _finalize_collaboration_pending(
         self,
         *,
         execution_id: str,
@@ -932,24 +968,31 @@ class AtomMetaAgent:
         roles: List[str],
         unresolved: List[str],
         available_domains: List[str],
+        reason: str = "collaboration_pending",
         step_callback: Optional[callable] = None,
     ) -> Dict[str, Any]:
-        """Terminal, honest clarification for a specialist request.
+        """Pause the ORIGINAL work while truthfully delivering the question.
 
-        The user asked for real specialist collaboration; when the
-        accepted roles cannot be resolved in this scope, the turn must ASK
-        rather than silently answer from one perspective. Nothing was
-        dispatched, no chain exists, and the payload says so.
+        A pending clarification is not a completed fleet run: no chain, no
+        specialist dispatch, no fleet outcome/credit, no satisfaction of the
+        objective or graduation evidence. The turn may still deliver the
+        question successfully, so ``question_delivered`` is True while
+        ``objective_pending`` keeps governance/whole-objective accounting
+        non-success. The request/roles ride the payload for the caller's
+        durable pending carrier.
         """
         payload = {
             "execution_id": execution_id,
             "route": "TASK",
             "handler": "collaboration",
-            "status": "clarification_required",
-            "success": True,
+            "status": "pending_collaboration",
+            # The ORIGINAL work is not done; no false fleet/objective credit.
+            "success": False,
+            "objective_pending": True,
+            "question_delivered": True,
             "handled": True,
             "terminal": True,
-            "outcome": "clarification",
+            "outcome": "pending",
             "final_output": text,
             "response": text,
             "message": text,
@@ -960,6 +1003,8 @@ class AtomMetaAgent:
             "requested_roles": list(roles),
             "unresolved_roles": list(unresolved),
             "available_specialist_domains": list(available_domains),
+            "request": str(request),
+            "pending_reason": reason,
             "enforced": False,
             "execution_attempted": False,
             "clarification_required": True,
@@ -968,22 +1013,23 @@ class AtomMetaAgent:
             execution_id=execution_id,
             request=request,
             result_payload=payload,
-            durable_status="completed",
+            # PAUSED, not completed: the original objective remains open.
+            durable_status="paused",
             final_answer=text,
             start_time=start_time,
             trigger_mode=trigger_mode,
             tenant_id=tenant_id,
             context=context,
             fleet_audit_id=None,
-            fleet_success=True,
-            fleet_error=None,
+            fleet_success=False,
+            fleet_error=reason,
         )
         if step_callback:
             try:
                 await step_callback({
                     "execution_id": execution_id,
                     "step": 0,
-                    "step_type": "collaboration_clarification",
+                    "step_type": "collaboration_pending",
                     "thought": text,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
@@ -1477,6 +1523,8 @@ class AtomMetaAgent:
                 or (self.user.id if self.user else None)
                 or "default"
             )
+            _master_fleet_on = bool(fleet_routing_enabled())
+            _pilot_enforced = bool(resolved_fleet_enforce())
             _collaboration_domains: List[str] = []
             if _explicit_collaboration:
                 _collab_roles = list(
@@ -1506,8 +1554,14 @@ class AtomMetaAgent:
                             "[collaboration] role resolution failed: %s",
                             _collab_resolve_err)
                         _collab_unresolved = list(_collab_roles)
-                if (not fleet_routing_enabled() or _collab_ambiguous
-                        or _collab_unresolved):
+                # NO ADMINISTRATIVE CONSENT BYPASS. A user's task request is
+                # task authorization, not operator approval of the fleet
+                # pilot. Master-off and shadow (not force-enforced) both
+                # leave the original work pending with no specialist
+                # dispatch; only an already-approved pilot/enforcement runs
+                # the exact request. No flag is flipped here.
+                if (not _master_fleet_on or not _pilot_enforced
+                        or _collab_ambiguous or _collab_unresolved):
                     try:
                         with SessionLocal() as _avail_db:
                             from core.specialist_matcher import (
@@ -1526,14 +1580,26 @@ class AtomMetaAgent:
                             )
                     except Exception:  # noqa: BLE001 — catalog is advisory
                         _available_domains = []
-                    if not fleet_routing_enabled():
+                    if not _master_fleet_on:
+                        _pending_reason = "fleet_routing_disabled"
                         _collab_text = (
                             "You asked for specialist collaboration, but "
-                            "fleet delegation is disabled in this "
-                            "deployment. I did not run any specialist work. "
-                            "I can answer the analysis directly instead if "
-                            "you want.")
+                            "fleet routing is disabled in this deployment. "
+                            "No specialist work was started. The request is "
+                            "preserved as pending; I can answer directly "
+                            "without specialists if you want.")
+                    elif not _pilot_enforced:
+                        _pending_reason = "fleet_pilot_not_enforced"
+                        _collab_text = (
+                            "You asked for specialist collaboration. Fleet "
+                            "routing is available only in shadow mode until "
+                            "an operator approves the pilot, so no "
+                            "specialist work was started. The request is "
+                            "preserved as pending; once the pilot is "
+                            "approved, say \"go ahead\" to resume the "
+                            "original request.")
                     elif _collab_ambiguous:
+                        _pending_reason = "roles_ambiguous"
                         _collab_text = (
                             "I understood that you want specialist "
                             "collaboration, but I need to know which "
@@ -1544,6 +1610,7 @@ class AtomMetaAgent:
                                 + ", ".join(_available_domains) + "."
                                 if _available_domains else ""))
                     else:
+                        _pending_reason = "roles_unavailable"
                         _collab_text = (
                             "I understood that you want specialist "
                             "collaboration, but I couldn't match these "
@@ -1555,7 +1622,7 @@ class AtomMetaAgent:
                                 + ", ".join(_available_domains) + "."
                                 if _available_domains else "")
                             + " Which specialists should I involve?")
-                    return await self._finalize_collaboration_clarification(
+                    return await self._finalize_collaboration_pending(
                         execution_id=execution_id,
                         request=request,
                         text=_collab_text,
@@ -1566,11 +1633,12 @@ class AtomMetaAgent:
                         roles=_collab_roles,
                         unresolved=_collab_unresolved,
                         available_domains=_available_domains,
+                        reason=_pending_reason,
                         step_callback=step_callback,
                     )
 
             _fleet_eligible = (
-                fleet_routing_enabled()
+                _master_fleet_on
                 and (
                     _explicit_collaboration
                     or (
@@ -1606,8 +1674,7 @@ class AtomMetaAgent:
                     requires_agent_recruitment=True,
                     blueprint_applicable=False,
                 )
-                _fleet_enforced_now = bool(
-                    _explicit_collaboration or resolved_fleet_enforce())
+                _fleet_enforced_now = bool(resolved_fleet_enforce())
                 _fleet_exc = None
                 try:
                     _route_kwargs: Dict[str, Any] = {
@@ -1816,8 +1883,7 @@ class AtomMetaAgent:
                 _fleet_recruit_ok = bool(
                     _fleet_count > 0 and _fleet_status != "failed"
                 )
-                _fleet_enforced = bool(
-                    _explicit_collaboration or resolved_fleet_enforce())
+                _fleet_enforced = bool(resolved_fleet_enforce())
                 _fleet_audit_id = None
                 try:
                     from core.fleet_orchestration.fleet_routing_stats import (

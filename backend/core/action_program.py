@@ -661,12 +661,12 @@ def program_from_decision(decision: Dict[str, Any]) -> Optional[ActionProgram]:
             # executor (recruitment, contracts, budget, durable chain).
             actions.append(CollaborateOp(
                 action_id=_next_id("collab"),
-                roles=[str(role)[:120] for role in
+                roles=[str(role).strip() for role in
                        (a.get("roles") or a.get("specialists") or [])
                        if str(role).strip()],
                 generic=bool(a.get("generic")),
                 objective=str(a.get("objective")
-                              or decision.get("message") or "")[:500],
+                              or decision.get("message") or ""),
             ))
         elif kind == "conversation":
             if _has_collaboration:

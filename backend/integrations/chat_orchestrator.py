@@ -611,6 +611,12 @@ def _unresolved_requirement_message(references: List[str],
 #: unresolved-question ledger (task_revision.unresolved, kind
 #: missing_evidence, structured inputs), which already survives restarts.
 _AWAITING_VALUE_NEXT_ACTION = "resume_edit_on_user_value"
+#: Pending specialist collaboration: a user request waiting for the fleet
+#: pilot/consent, a role clarification, or a budget window. It is NOT a
+#: completed fleet run; the session/metadata carrier and task question keep
+#: the original request and participant labels for resume.
+_PENDING_COLLABORATION_KEY = "_pending_collaboration"
+_COLLABORATION_PENDING_NEXT_ACTION = "resume_collaboration_after_authorization"
 
 #: TTL on an awaiting-value requirement. Beyond it the record is stale
 #: history, not a live question (the user moved on days ago).
@@ -18172,6 +18178,46 @@ class ChatOrchestrator:
                 # time after the turn budget is already exhausted:
                 # remaining <= 0 delivers the honest budget envelope with
                 # ZERO dispatch, before the leg is awaited.
+                # ACCEPTED COLLABORATION OWNS THE PUBLIC REPLY BOUNDARY
+                # (2026-11-17 follow-up). This runs BEFORE the reply leg so a
+                # direct single-perspective answer can never be generated and
+                # later discarded/kept: no specialist dispatch under
+                # master-off/shadow (honest pending), no paid call for an
+                # ambiguous/over-limit role requirement, and the exact
+                # original request only through an already-approved fleet
+                # pilot.
+                _collaboration_response = (
+                    await self._route_accepted_collaboration(
+                        decision=_td_decision,
+                        message=message,
+                        session=session,
+                        session_id=session_id,
+                        user_id=user_id,
+                        context=context,
+                        execution_id=_execution_id,
+                        deadline=_deadline,
+                    ))
+                if _collaboration_response is not None:
+                    _collab_ok = bool(
+                        _collaboration_response.get("success"))
+                    self._update_session(
+                        session, message, _collaboration_response,
+                        {"primary_intent": "collaboration",
+                         "confidence": 1.0})
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id,
+                        "success" if _collab_ok else "failed")
+                    self._finish_chat_execution(
+                        _execution_id,
+                        "success" if _collab_ok else "failed",
+                        _collaboration_response.get("message") or "",
+                        session=session,
+                        message=message,
+                        response=_collaboration_response,
+                        deadline=_deadline,
+                        pending_task=_pending_file_task,
+                    )
+                    return _collaboration_response
                 _reply_leg_budget = None
                 _budget_already_spent = False
                 try:
@@ -36286,6 +36332,448 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as exc:  # noqa: BLE001 — ledger is additive
             logger.debug("teaching clarification resolution skipped: %r", exc)
 
+    # ------------------------------------------------------------------
+    # Pending specialist collaboration (fleet pilot / role clarification)
+    # ------------------------------------------------------------------
+
+    def _load_pending_collaboration(
+        self, session_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """The conversation's durable pending collaboration, or None."""
+        if not session_id:
+            return None
+        session = self.conversation_sessions.get(session_id)
+        if isinstance(session, dict):
+            pending = session.get(_PENDING_COLLABORATION_KEY)
+            if isinstance(pending, dict):
+                return pending
+        try:
+            persisted = (self.session_manager.get_session(session_id)
+                         if self.session_manager else None)
+            pending = ((persisted or {}).get("metadata") or {}).get(
+                _PENDING_COLLABORATION_KEY)
+            if isinstance(pending, dict):
+                if isinstance(session, dict):
+                    session[_PENDING_COLLABORATION_KEY] = pending
+                return pending
+        except Exception:  # noqa: BLE001 — metadata fallback only
+            pass
+        return None
+
+    def _persist_pending_collaboration(
+        self,
+        session: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        pending: Optional[Dict[str, Any]],
+    ) -> None:
+        if isinstance(session, dict):
+            if pending is None:
+                session.pop(_PENDING_COLLABORATION_KEY, None)
+            else:
+                session[_PENDING_COLLABORATION_KEY] = pending
+            metadata = session.get("metadata")
+            if isinstance(metadata, dict):
+                metadata[_PENDING_COLLABORATION_KEY] = pending
+        if not session_id or not self.session_manager:
+            return
+        try:
+            self.session_manager.update_session_metadata(
+                session_id, {_PENDING_COLLABORATION_KEY: pending})
+        except Exception as exc:  # noqa: BLE001 — delivery never depends on it
+            logger.debug("pending collaboration metadata skipped: %r", exc)
+
+    def _record_collaboration_question(
+        self,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        pending: Dict[str, Any],
+        workspace_id: Optional[str],
+    ) -> None:
+        """Mirror the pending collaboration onto the existing task ledger.
+
+        Session metadata is the always-written carrier; this adds a durable
+        open question when an active task lifecycle exists (no second task
+        engine and no invented GoalRun). The question keeps the FULL original
+        request and participant labels for resume.
+        """
+        try:
+            lifecycle = _task_lifecycle_for(
+                getattr(self, "tenant_id", None), workspace_id)
+            if lifecycle is None or not isinstance(session, dict):
+                return
+            from core.task_lifecycle import (
+                add_unresolved_questions,
+                open_unresolved_questions,
+                resolve_unresolved_questions,
+            )
+
+            run_id = str(session.get("_task_run_id") or "")
+            record = lifecycle.get_task(run_id) if run_id else None
+            if record is None:
+                record = lifecycle.find_active_task(session_id)
+            if record is None:
+                return
+            run_id = str(record.get("run_id") or run_id)
+            if not run_id:
+                return
+            session["_task_run_id"] = run_id
+            previous = str(pending.get("question_id") or "")
+            if previous:
+                try:
+                    resolve_unresolved_questions(
+                        lifecycle, run_id, question_ids=[previous],
+                        resolution=(
+                            "collaboration pending state replaced by a newer "
+                            "request"))
+                except Exception:  # noqa: BLE001 — replacement is best-effort
+                    pass
+            reason = str(pending.get("reason") or "")
+            kind = (
+                "business_decision"
+                if reason in (
+                    "fleet_routing_disabled",
+                    "fleet_pilot_not_enforced")
+                else "missing_evidence")
+            question_text = str(
+                pending.get("question") or pending.get("message")
+                or "Resolve the pending specialist collaboration request.")
+            question = {
+                "kind": kind,
+                "item": "specialist collaboration",
+                "question": question_text,
+                "next_action": _COLLABORATION_PENDING_NEXT_ACTION,
+                "inputs": {
+                    "request": str(pending.get("request") or ""),
+                    "objective": str(pending.get("objective") or ""),
+                    "roles": list(pending.get("roles") or []),
+                    "generic": bool(pending.get("generic")),
+                    "reason": reason,
+                    "session_id": str(session_id or ""),
+                    "user_id": str(pending.get("user_id") or ""),
+                    "workspace_id": str(workspace_id or ""),
+                    "tenant_id": str(
+                        getattr(self, "tenant_id", "") or ""),
+                },
+            }
+            fresh = add_unresolved_questions(
+                lifecycle, run_id, [question],
+                source_operation="specialist_collaboration")
+            qid = str((fresh[0] if fresh else {}).get("question_id") or "")
+            if not qid:
+                # Idempotent re-derivation: reuse the matching open question.
+                for existing in open_unresolved_questions(
+                        lifecycle.get_task(run_id) or {}):
+                    if (existing.get("next_action")
+                            == _COLLABORATION_PENDING_NEXT_ACTION
+                            and (existing.get("inputs") or {}).get(
+                                "request") == question["inputs"]["request"]
+                            and (existing.get("inputs") or {}).get(
+                                "roles") == question["inputs"]["roles"]):
+                        qid = str(existing.get("question_id") or "")
+                        break
+            pending["question_id"] = qid or None
+        except Exception as exc:  # noqa: BLE001 — never fail the turn
+            logger.debug("pending collaboration ledger skipped: %r", exc)
+
+    def _clear_pending_collaboration(
+        self,
+        session: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        workspace_id: Optional[str],
+        resolution: str,
+    ) -> None:
+        pending = (
+            session.get(_PENDING_COLLABORATION_KEY)
+            if isinstance(session, dict) else None)
+        if not isinstance(pending, dict):
+            pending = self._load_pending_collaboration(session_id)
+        self._persist_pending_collaboration(session, session_id, None)
+        try:
+            lifecycle = _task_lifecycle_for(
+                getattr(self, "tenant_id", None), workspace_id)
+            if lifecycle is None or not isinstance(pending, dict):
+                return
+            from core.task_lifecycle import resolve_unresolved_questions
+
+            run_id = str(
+                (session or {}).get("_task_run_id")
+                if isinstance(session, dict) else "")
+            if not run_id:
+                record = lifecycle.find_active_task(session_id or "")
+                run_id = str((record or {}).get("run_id") or "")
+            if not run_id:
+                return
+            qid = str(pending.get("question_id") or "")
+            if qid:
+                resolve_unresolved_questions(
+                    lifecycle, run_id, question_ids=[qid],
+                    resolution=resolution)
+        except Exception as exc:  # noqa: BLE001 — reaping is best-effort
+            logger.debug("pending collaboration resolution skipped: %r", exc)
+
+    def _collaboration_pending_text(self, reason: str,
+                                    requirement: Dict[str, Any]) -> str:
+        roles = list(requirement.get("roles") or [])
+        if reason == "fleet_routing_disabled":
+            return (
+                "You asked for specialist collaboration, but fleet routing "
+                "is disabled in this deployment. No specialist work was "
+                "started. The request is preserved as pending; I can answer "
+                "directly without specialists if you want.")
+        if reason == "fleet_pilot_not_enforced":
+            return (
+                "You asked for specialist collaboration. Fleet routing is "
+                "available only in shadow mode until an operator approves "
+                "the fleet pilot, so no specialist work was started. The "
+                "request is preserved as pending; once the pilot is "
+                "approved, say \"go ahead\" to resume the original request.")
+        if reason == "turn_budget_exhausted":
+            return (
+                "You asked for specialist collaboration, but the turn budget "
+                "was exhausted before any specialist work could start. The "
+                "request is preserved as pending; ask me to resume it when "
+                "there is budget.")
+        question = str(requirement.get("question") or "").strip()
+        if question:
+            return question
+        return (
+            "I understood that you want specialist collaboration, but I need "
+            "to know which specialist roles or agents should take part. "
+            "Which specialists should I involve?"
+            + (f" Requested roles preserved: {', '.join(roles)}."
+               if roles else ""))
+
+    async def _route_accepted_collaboration(
+        self,
+        *,
+        decision: Optional[Dict[str, Any]],
+        message: str,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        context: Optional[Dict[str, Any]],
+        execution_id: Optional[str],
+        deadline: Any,
+    ) -> Optional[Dict[str, Any]]:
+        """Handle an accepted collaboration requirement BEFORE the reply leg.
+
+        The public chat boundary must not generate a single-perspective
+        answer first and hope a later route replaces it. This seam runs after
+        the deterministic edit/ask lanes and before ``_get_qwen_response``:
+
+        * master-off / shadow (pilot not approved) -> honest pending, no
+          specialist dispatch, no direct perspective answer;
+        * ambiguous/over-limit roles -> pending clarification, no paid call;
+        * approved pilot/enforcement -> the existing governed agent/fleet lane
+          runs the EXACT original request; the response is its answer.
+
+        Returns None when the turn has no accepted/pending collaboration.
+        """
+        from core.turn_decision import (
+            _is_approval, turn_collaboration_requirement,
+        )
+        from core.fleet_routing_config import fleet_routing_enabled
+        from core.fleet_orchestration.fleet_router_automation import (
+            resolved_fleet_enforce,
+        )
+
+        requirement = turn_collaboration_requirement(decision)
+        pending = (
+            session.get(_PENDING_COLLABORATION_KEY)
+            if isinstance(session, dict) else None)
+        if not isinstance(pending, dict):
+            pending = self._load_pending_collaboration(session_id)
+        original_request = str(message or "")
+        resumed = False
+        if requirement.get("required") is not True:
+            if not isinstance(pending, dict) or not _is_approval(message):
+                return None
+            # A bare approval resumes the ORIGINAL request, not the
+            # confirmation wording. Ambiguous roles stay ambiguous.
+            requirement = {
+                "required": True,
+                "roles": list(pending.get("roles") or []),
+                "generic": bool(pending.get("generic")),
+                "authorization": (
+                    "needs_confirmation"
+                    if pending.get("reason") == "roles_ambiguous"
+                    else "granted"),
+                "clarification_required": (
+                    pending.get("reason") == "roles_ambiguous"),
+                "question": pending.get("question"),
+                "objective": str(pending.get("objective") or ""),
+                "reason": "explicit_specialist_collaboration",
+            }
+            original_request = str(pending.get("request") or message or "")
+            resumed = True
+        else:
+            original_request = str(
+                requirement.get("objective") or message or "")
+
+        workspace_id = (
+            (context or {}).get("workspace_id")
+            or getattr(self, "tenant_id", None))
+        master_on = bool(fleet_routing_enabled())
+        enforced = bool(resolved_fleet_enforce())
+        pending_reason = ""
+        if not master_on:
+            pending_reason = "fleet_routing_disabled"
+        elif not enforced:
+            pending_reason = "fleet_pilot_not_enforced"
+        elif requirement.get("clarification_required") or str(
+                requirement.get("authorization")) != "granted":
+            pending_reason = "roles_ambiguous"
+
+        if not pending_reason:
+            try:
+                remaining = float(deadline.remaining()) if deadline else 0.0
+            except Exception:  # noqa: BLE001 — fail closed to no dispatch
+                remaining = 0.0
+            if remaining <= 1.0:
+                pending_reason = "turn_budget_exhausted"
+
+        if pending_reason:
+            text = self._collaboration_pending_text(
+                pending_reason, requirement)
+            pending_record = {
+                "state": "pending",
+                "reason": pending_reason,
+                "request": original_request,
+                "objective": str(requirement.get("objective")
+                                 or original_request),
+                "roles": list(requirement.get("roles") or []),
+                "generic": bool(requirement.get("generic")),
+                "question": text,
+                "user_id": str(user_id or ""),
+                "workspace_id": str(workspace_id or ""),
+                "tenant_id": str(getattr(self, "tenant_id", "") or ""),
+                "session_id": str(session_id or ""),
+                "resumed": resumed,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if isinstance(pending, dict):
+                pending_record["question_id"] = pending.get("question_id")
+            self._record_collaboration_question(
+                session, session_id, pending_record, workspace_id)
+            self._persist_pending_collaboration(
+                session, session_id, pending_record)
+            response = {
+                "success": True,
+                "message": text,
+                "session_id": session_id,
+                "execution_id": execution_id,
+                "intent": "collaboration",
+                "confidence": 1.0,
+                "outcome": "pending",
+                "objective_pending": True,
+                "data": {
+                    "collaboration": {
+                        "state": "pending",
+                        "reason": pending_reason,
+                        "roles": list(requirement.get("roles") or []),
+                        "generic": bool(requirement.get("generic")),
+                        "request_preserved": True,
+                        "request": original_request,
+                    },
+                },
+                "model": "deterministic",
+                "provider": "structured",
+                "requires_confirmation": False,
+                "next_steps": [],
+                "suggested_actions": [],
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
+            return response
+
+        # Approved pilot: the existing governed agent/fleet lane executes the
+        # exact original request. No routing decision is re-derived here.
+        intent = {
+            "primary_intent": ChatIntent.AGENT_REQUEST,
+            "confidence": 1.0,
+            "entities": [],
+            "platforms": [],
+            "command_type": "search",
+            "raw_nlp": None,
+            "source": "turn_decision_collaboration",
+            "collaboration_requirement": dict(requirement),
+        }
+        agent_response = await self._handle_agent_request(
+            original_request, intent, session, context)
+        success = bool((agent_response or {}).get("success"))
+        objective_pending = bool(
+            (agent_response or {}).get("objective_pending"))
+        outcome = "pending" if objective_pending else (
+            "completed" if success else "failed")
+        if objective_pending or not success:
+            pending_record = {
+                "state": "pending",
+                "reason": (
+                    (agent_response or {}).get("pending_reason")
+                    or "fleet_execution_failed"),
+                "request": original_request,
+                "objective": str(requirement.get("objective")
+                                 or original_request),
+                "roles": list(requirement.get("roles") or []),
+                "generic": bool(requirement.get("generic")),
+                "question": (
+                    (agent_response or {}).get("message") or ""),
+                "user_id": str(user_id or ""),
+                "workspace_id": str(workspace_id or ""),
+                "tenant_id": str(getattr(self, "tenant_id", "") or ""),
+                "session_id": str(session_id or ""),
+                "resumed": resumed,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if isinstance(pending, dict):
+                pending_record["question_id"] = pending.get("question_id")
+            self._record_collaboration_question(
+                session, session_id, pending_record, workspace_id)
+            self._persist_pending_collaboration(
+                session, session_id, pending_record)
+        else:
+            self._clear_pending_collaboration(
+                session, session_id, workspace_id,
+                "the approved fleet pilot completed the collaboration")
+        return {
+            "success": success if not objective_pending else True,
+            "message": (agent_response or {}).get("message")
+            or "The specialist collaboration did not complete.",
+            "session_id": session_id,
+            "execution_id": (
+                (agent_response or {}).get("execution_id") or execution_id),
+            "intent": "collaboration",
+            "confidence": 1.0,
+            "outcome": outcome,
+            "objective_pending": objective_pending,
+            "data": {
+                "collaboration": {
+                    "state": (
+                        "pending" if objective_pending
+                        else "completed" if success else "failed"),
+                    "roles": list(requirement.get("roles") or []),
+                    "generic": bool(requirement.get("generic")),
+                    "chain_id": (agent_response or {}).get("chain_id"),
+                    "specialists_count": (agent_response or {}).get(
+                        "specialists_count"),
+                },
+                "agent": agent_response,
+            },
+            "model": (agent_response or {}).get("model"),
+            "provider": (agent_response or {}).get("provider"),
+            "requires_confirmation": False,
+            "next_steps": [],
+            "suggested_actions": [],
+            "_recorded_outcome": {
+                "state": (
+                    "partial" if objective_pending or not success
+                    else "completed"),
+                "work_turn": True,
+            },
+        }
+
     def _resume_teaching_clarification(
         self,
         *,
@@ -39799,9 +40287,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if isinstance(_raw_collab, dict) and (
                     _raw_collab.get("required") is True):
                 _roles = [
-                    " ".join(str(role).split())[:120]
+                    " ".join(str(role).split())
                     for role in (_raw_collab.get("roles")
-                                 or _raw_collab.get("specialists") or [])[:8]
+                                 or _raw_collab.get("specialists") or [])
                     if str(role or "").strip()
                 ]
                 _generic = bool(_raw_collab.get("generic"))
@@ -39816,9 +40304,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _raw_collab.get("authorization") or ""),
                         "clarification_required": _clarify,
                         "question": str(
-                            _raw_collab.get("question") or "")[:300],
+                            _raw_collab.get("question") or ""),
+                        # FULL accepted request, never truncated here.
                         "objective": str(
-                            _raw_collab.get("objective") or message)[:500],
+                            _raw_collab.get("objective") or message),
+                        "limits": dict(
+                            _raw_collab.get("limits") or {}),
                         "reason": "explicit_specialist_collaboration",
                     }
             if tenant_id is not None:
@@ -39873,7 +40364,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             failure_reason = result.get("failure_reason")
             result_status = str(result.get("status") or "").strip().lower()
             result_outcome = str(result.get("outcome") or "").strip().lower()
-            if not failure_reason and result.get("success") is False:
+            objective_pending = result.get("objective_pending") is True
+            if objective_pending and not failure_reason:
+                # The turn delivered a pending/clarification question. The
+                # ORIGINAL work is still open (the Atom run is paused), so
+                # this is not a fleet/objective success; it is a handled
+                # pending turn with no failure envelope.
+                outcome = "pending"
+                status = "pending"
+            elif not failure_reason and result.get("success") is False:
                 failure_reason = result_status or "agent_execution_failed"
             if failure_reason:
                 if result_outcome == "partial_unknown" or result_status == "partial":
@@ -39887,7 +40386,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if failure_reason == "budget_exceeded"
                     or result_status == "budget_exceeded"
                     else "failed")
-            else:
+            elif not objective_pending:
                 outcome = "success"
                 status = "success"
             await self._emit_agent_status(
@@ -39900,7 +40399,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 session, server_execution_id, turn_id)
             return {
                 "status": status,
-                "success": not failure_reason,
+                "success": True if objective_pending else not failure_reason,
                 "error_code": (
                     "budget_exceeded" if status == "budget_exceeded"
                     else (failure_reason or None)),
@@ -39911,6 +40410,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "handled": True,
                 "terminal": True,
                 "outcome": outcome,
+                "objective_pending": objective_pending,
+                "pending_reason": result.get("pending_reason"),
+                "requested_roles": result.get("requested_roles") or [],
                 "execution_id": execution_id,
                 "chain_id": result.get("chain_id"),
                 "model": result.get("model"),

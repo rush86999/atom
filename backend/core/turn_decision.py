@@ -84,6 +84,17 @@ _KIND_LEARNING = "learning"
 _KIND_CANVAS_EDIT = "canvas_edit"
 _KIND_COLLABORATION = "collaboration"
 
+#: Collaboration contract bounds. These are EXECUTION limits, not labels to
+#: trim: when a request exceeds one, the turn must clarify before any paid
+#: call and preserve the original request. 10 matches the fleet's existing
+#: ``TaskAnalysis.specialist_count`` / ``RecruitmentPlan`` ceiling.
+COLLABORATION_ROLE_LIMIT = 10
+COLLABORATION_ROLE_LABEL_MAX = 200
+COLLABORATION_OBJECTIVE_MAX = 4000
+#: Memory-safety guard only. Exceeding it is an explicit clarification, never
+#: a silent drop of the user's participant list.
+COLLABORATION_HARD_ROLE_CAP = 64
+
 # 2026-10-08 Phase-2 interpretation slice: the async entry point proposes
 # semantics; this schema version identifies its records beside the
 # deterministic turn-decision-1.
@@ -158,13 +169,15 @@ def _collaboration_roles(value: Any) -> List[str]:
     """Normalize role labels supplied by the structured interpretation.
 
     Labels are the USER'S vocabulary copied by the interpreter; this
-    function only trims, dedupes and bounds them. It does not classify a
-    domain and it never invents a role.
+    function only trims whitespace, dedupes identical labels and applies a
+    memory-safety cap. It never shortens or renames a label — an
+    over-limit request is reported by ``collaboration_requirement_from_action``
+    so the caller can clarify before dispatch.
     """
     roles: List[str] = []
     seen = set()
-    for raw in (value or [])[:8]:
-        role = " ".join(str(raw or "").split())[:120].strip(" ,;:-")
+    for raw in (value or [])[:COLLABORATION_HARD_ROLE_CAP]:
+        role = " ".join(str(raw or "").split()).strip(" ,;:-")
         if not role:
             continue
         key = role.casefold()
@@ -173,6 +186,45 @@ def _collaboration_roles(value: Any) -> List[str]:
         seen.add(key)
         roles.append(role)
     return roles
+
+
+def _collaboration_overflow(
+    raw_roles: Any, roles: List[str], objective: str,
+) -> Dict[str, Any]:
+    """Explicit limits for an accepted participant list.
+
+    Selection limits are NOT exhaustive-request truncation: a request that
+    names more participants than one fleet can carry is answered with a
+    clarification that preserves the whole original ask, never by silently
+    dropping the tail.
+    """
+    raw_list = list(raw_roles or []) if isinstance(
+        raw_roles, (list, tuple, set)) else []
+    raw_distinct = []
+    seen = set()
+    for raw in raw_list:
+        label = " ".join(str(raw or "").split()).strip(" ,;:-")
+        key = label.casefold()
+        if not label or key in seen:
+            continue
+        seen.add(key)
+        raw_distinct.append(label)
+    requested_count = len(raw_distinct)
+    label_overflow = [
+        role for role in raw_distinct
+        if len(role) > COLLABORATION_ROLE_LABEL_MAX
+    ]
+    return {
+        "requested_count": requested_count,
+        "carried_count": len(roles),
+        "role_limit": COLLABORATION_ROLE_LIMIT,
+        "label_limit": COLLABORATION_ROLE_LABEL_MAX,
+        "objective_limit": COLLABORATION_OBJECTIVE_MAX,
+        "role_limit_exceeded": requested_count > COLLABORATION_ROLE_LIMIT,
+        "hard_cap_exceeded": requested_count > COLLABORATION_HARD_ROLE_CAP,
+        "label_overflow": label_overflow,
+        "objective_overflow": len(objective) > COLLABORATION_OBJECTIVE_MAX,
+    }
 
 
 def collaboration_requirement_from_action(
@@ -192,8 +244,9 @@ def collaboration_requirement_from_action(
     kind = str(action.get("kind") or "").strip().lower()
     if kind not in (_KIND_COLLABORATION, "delegation"):
         return None
-    roles = _collaboration_roles(action.get("roles")
-                                 or action.get("specialists"))
+    raw_roles = action.get("roles") or action.get("specialists") or []
+    roles = _collaboration_roles(raw_roles)
+    objective = str(message or "")
     generic = bool(action.get("generic"))
     explicit = action.get("explicit")
     if explicit is None:
@@ -201,7 +254,36 @@ def collaboration_requirement_from_action(
     explicit = bool(explicit)
     if not explicit:
         return None
-    clarification = not roles and not generic
+    limits = _collaboration_overflow(raw_roles, roles, objective)
+    clarification = bool(
+        (not roles and not generic)
+        or limits["role_limit_exceeded"]
+        or limits["hard_cap_exceeded"]
+        or limits["label_overflow"]
+        or limits["objective_overflow"])
+    question = ""
+    if not roles and not generic:
+        question = (
+            "Which specialist roles or agents should collaborate on this "
+            "request?")
+    elif limits["role_limit_exceeded"] or limits["hard_cap_exceeded"]:
+        question = (
+            f"You named {limits['requested_count']} specialist roles. One "
+            f"fleet can carry at most {COLLABORATION_ROLE_LIMIT} at a time; "
+            "the original request is preserved. Please split it into groups "
+            "of at most "
+            f"{COLLABORATION_ROLE_LIMIT} roles, or confirm a smaller set.")
+    elif limits["label_overflow"]:
+        question = (
+            "A specialist role label is longer than "
+            f"{COLLABORATION_ROLE_LABEL_MAX} characters and would have to be "
+            "renamed to match it. Please shorten the label; the original "
+            "request is preserved.")
+    elif limits["objective_overflow"]:
+        question = (
+            "The collaboration request is longer than "
+            f"{COLLABORATION_OBJECTIVE_MAX} characters. Please shorten or "
+            "split it; the original request is preserved.")
     requirement = {
         "required": True,
         "authorization": (
@@ -214,12 +296,14 @@ def collaboration_requirement_from_action(
         "generic": generic,
         "clarification_required": clarification,
         "reason": "explicit_specialist_collaboration",
-        "objective": str(message or "")[:500],
+        # The FULL accepted request, never a truncated objective. Execution
+        # uses the turn's original request; this field lets resume/pending
+        # carriers preserve it.
+        "objective": objective,
+        "limits": limits,
     }
-    if clarification:
-        requirement["question"] = (
-            "Which specialist roles or agents should collaborate on this "
-            "request?")
+    if question:
+        requirement["question"] = question
     return requirement
 
 

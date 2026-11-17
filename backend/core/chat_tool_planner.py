@@ -2010,7 +2010,7 @@ async def plan_tool_use(
             for role in (_collaboration.get("roles")
                          or _collaboration.get("specialists") or [])
             if str(role or "").strip()
-        ][:8]
+        ]
         collaboration_block = (
             "ACCEPTED COLLABORATION REQUIREMENT (the turn decision already "
             "accepted this; do not re-classify the wording, do not add or "
@@ -2104,7 +2104,7 @@ async def plan_tool_use(
             for role in (_collaboration.get("roles")
                          or _collaboration.get("specialists") or [])
             if str(role or "").strip()
-        ][:8]
+        ]
         plan.suggested_intent = "agent_request"
         try:
             plan.routing_confidence = max(
