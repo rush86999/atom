@@ -18,11 +18,13 @@ layer over them.
 
 | Fact | Actual source |
 |---|---|
-| Observed main | `ba66f5e22db9f1755a8074adc256f4e978289b50` — CI/test scaffolds only (PR [#989](https://github.com/rush86999/atom/pull/989)); application bytes remain those of #986 `8afac828c` |
-| Merged tree | `d967cc20beb8885309c693d82f0135ad24964582` |
-| Sole parent | `8afac828c8d96d9b7773522fdcfc938ec2458fdc` (PR [#986](https://github.com/rush86999/atom/pull/986)) |
-| #989 exact PR head | `0e1b9065e55d00e717db6a62e82fbdf25697683a` — all **17** check runs completed successfully; branch protections and rules verified unchanged. Root receipt: `/private/tmp/atom-pr989-root-actual-merge-verification-20261117.json` |
-| #989 post-merge main | [Docker Build 44157075848](https://github.com/rush86999/atom/actions/runs/44157075848) recorded successful at this cut; [CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691) still **pending** when this work order was cut. The root receipt at `2026-11-17T19:23:16Z` observed both as `in_progress`. No GitHub query was made by this worker, and the pending run is not described as successful |
+| Observed main | `4071ef9ba11f68e645c4514ce7621fa9db9403c8` — acceptance-world storage preflight (PR [#991](https://github.com/rush86999/atom/pull/991)); application bytes include #988 `59fa6b64b` and #991 |
+| Merged tree | `52a7dbd66cf28895c3ca87ee42f4fd12d37996a5` |
+| Sole parent | `59fa6b64b672a3a4c35e8db9b4ef97653b0ad930` (PR [#988](https://github.com/rush86999/atom/pull/988)) |
+| #991 exact PR head | `734725186b2d5d41b0fc19b1e451cbfeae6a44fe` — all **17** check runs completed successfully (including `backend-tests` and GitGuardian), with merge/tree identity and unchanged protections recorded in `/private/tmp/atom-pr991-final-merge-receipt.json` |
+| #991 qualified scope | Root re-ran the launcher file as **29 independent storage-preflight tests**; current-main integration preserves all non-CI feature changes and the worker **692** CI-contract checks; no browser run was made. Storage preflight only, not browser acceptance |
+| #988 exact PR head | `4459e680d22fb688191436a81d1a6336e064eaa2` — all **17** check runs completed successfully; merge `59fa6b64b`, tree `b4fd6ed0b`, parent `ba66f5e22`, recorded in `/private/tmp/atom-pr988-final-merge-receipt.json` |
+| #988 qualified scope | Root **706 current-head CI checks** at `4459e680d`; the earlier **1,034-check** synthetic product gate transfers because all **18,927** non-CI tracked entries are exact. Those two counts overlap and are **not** additive. Synthetic campaign evidence only; real served-model quality remains **unknown** |
 | Structured wire contracts | PR [#980](https://github.com/rush86999/atom/pull/980) → `ecce2df80e1949083405eeb1e56a417dc5bbefee` |
 | PostgreSQL existing-table lineage | PR [#981](https://github.com/rush86999/atom/pull/981) → `0ef449aeae4235b31ba0e1d7d83bdc1f585b07fe` |
 | CI per-test durations | PR [#982](https://github.com/rush86999/atom/pull/982) → `708b7ae2dd1971b34a523a34dc887e9db736a21a` (reporting only) |
@@ -36,6 +38,8 @@ layer over them.
 
 | Fact | Actual source |
 |---|---|
+| #989 exact PR head | `0e1b9065e55d00e717db6a62e82fbdf25697683a` — all **17** check runs completed successfully; branch protections and rules verified unchanged. Root receipt: `/private/tmp/atom-pr989-root-actual-merge-verification-20261117.json` |
+| #989 post-merge main | [Docker Build 44157075848](https://github.com/rush86999/atom/actions/runs/44157075848) recorded successful; [CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691) later observed completed successfully at exact `ba66f5e22` (46m 14s first attempt). Delivery only — not application latency |
 | Preceding documentation cut | `1453f2cf42e822943e52390ef2c7b0d544609c20` (PR [#979](https://github.com/rush86999/atom/pull/979)); tree `7734fb38a8574963db90bc149f8367d2719b81ea`, parent `02c9b1674`. All 15 exact-head checks successful; post-merge main checks were pending at that cut and are not re-queried here |
 | Learning merge | PR [#975](https://github.com/rush86999/atom/pull/975) → `7a22e6d0748057d80b4bf198fca9916e1ee55765` |
 | Activity merge | PR [#976](https://github.com/rush86999/atom/pull/976) → `8b48dd84ad845e79c27bfcfa45cae669586d2b88` |
@@ -57,19 +61,27 @@ These are **open candidates, not merged**, and they carry no acceptance credit
 here. The detail is recorded only because it was current at the stated cut; it
 may be stale and no CI state is asserted by this worker.
 
-- PR #987: remote head `6973…`; a new current-main local `69f12…` root HTTP
-  replay was reported as running at the cut.
-- PR #988: remote head `4459e680d22fb688191436a81d1a6336e064eaa2`, **706 root CI checks passed**;
-  CI checks and transfer of the old `1034…` synthetic product gate, with all
-  `18927` non-CI tracked entries exact, were reported at the cut.
+- PR #987: remote head `8b0e5367af0bbf840c173b849e01c9e5888afddb` — the feature
+  branch merged with main #991 after a clean union-only CI-ledger
+  reconciliation. It remains **unmerged**, waiting exact-head CI. Its newest
+  independent replay is **1,483 passed** on the pre-merge head `070d1b46b`
+  (tree `ee098d8b1`), recorded in
+  `/private/tmp/atom-root-chat-main988-root-20261117.log`; the result is
+  unqualified for acceptance and does not extend to the merged head.
+- PR #990: review fix `6ca327c21`, pinned-main merge `85fbd6357` (parents
+  `6ca327c21` + `4071ef9ba`). It remains **unmerged**. Root ran **81
+  independent repair tests** on that pinned review head: 19 BPE governance, 24
+  approved-material consumer and 38 oracle-mutation controls, including the
+  four new single-final-insert helpers. All 81 passed with zero failures,
+  errors or skips (`/private/tmp/atom-root-approval-atomic-main991-20261117.xml`).
+  No merge credit.
 
-Later root review on November 17: #987's broader 16-file replay at local
-`69f12d7388f9a141134dc9434d1244a08e965abe` finished with **1,424 passed and
-59 failed**, with no errors or skips. Its 12 actor/history cases passed, but
+Later root review on November 17 retained: #987's broader 16-file replay at
+local `69f12d7388f9a141134dc9434d1244a08e965abe` finished with **1,424 passed
+and 59 failed**, with no errors or skips. Its 12 actor/history cases passed, but
 the broader result remains **unqualified**, with causes under investigation.
-That local head is not published and the earlier remote head remains open.
-For #988, the 706 current-head checks and preceding 1,034-check gate overlap;
-they are not an additive test total, and hosted CI is still required.
+That local head is not published; the newer independent replay above is on the
+pre-merge head `070d1b46b`.
 
 Later root CI observation on November 17: main #989's
 [CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691)
@@ -80,6 +92,24 @@ at exact `8afac828c`. These are two observed successful hosted runs, not a
 controlled benchmark: cache, runner contention and queue differences were not
 normalized. This is delivery evidence, not application latency or Goal 17
 acceptance. The earlier pending-at-cut record above remains historical.
+
+### Audit/learning browser attempt at this cut — not acceptance
+
+- The audit/learning cut `60a8b7050` (tree `6000726b9`, frontend tree
+  `f5da7c95a`) is **not merged**. Its Next build passed (`build_id`
+  `j7CZbuv5eLLT0wE6OnYyZ`, 74.4 s, exact source `60a8b7050`) and its isolated
+  world-store/harness preflight passed (fresh world, canonical worlds root
+  absent and untouched).
+- The first browser run failed before any HTTP/browser interaction at harness
+  start-up (`Cannot read properties of null (reading 'goto')`). The next
+  labelled run reached the sign-in page, then failed at the harness
+  `web_session.email` read after sign-in. The separate seeded replay failed
+  again at harness sign-in start-up. None of these failures is an application
+  assertion, and no correction/learning/provider mutation was made.
+- Therefore there is **no browser acceptance and no restart acceptance** for
+  the audit/learning surface at this cut. Replay 1 evidence stays preserved;
+  a further attempt requires a separately labelled, validated harness on the
+  unchanged seeded state, without weakening authentication.
 
 ## Status vocabulary used below
 
@@ -114,7 +144,7 @@ acceptance. The earlier pending-at-cut record above remains historical.
 | 3 | Authorized common data and search | accepted-bounded | [Documents browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) @ `ed6ae3c98` (33KB synthetic TXT, all three downloads, delete/readback); [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) 88-byte TXT; WorkDrive 56/56 was bound to `24794f257` (readiness §11) | browser/API/restart proof, synthetic; **live connector gap**; [multi-format document API proof](DOCUMENT_SOURCE_AUTHORITY_2026_11_17.md) @ `0249f3eaa` (162 checks; DOCX/PDF/CSV) | Fresh-grant current-main WorkDrive replay; live connectors and model-grounded file answers; broader parser/format variants. `INT-09` remains external. [Multi-format browser and full restart](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md) passed at `8c142c101`; live connector, generative grounding and parser breadth remain open. |
 | 4 | Spreadsheet and calculation | accepted-bounded | [24-sheet workbook browser](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) @ `3316b0fe7` (exact 34,610 total, formula/cache checks, export before/after restart); full-population API replay 34,533 @ `6ad2738ed` (readiness §4) | browser + API proof, synthetic; **model/live-source gap** | Live connected source; model-driven extraction of the contributing population; reconciliation of ambiguous requests. The historical 1758.00 single-sheet counterexample remains retained. |
 | 5 | Canvas and editable outputs | accepted-bounded | [PDF browser](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) @ `bb7017af3`; [DOCX/PPTX browser + restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) @ `3316b0fe7`; [inline DOCX pictures](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) @ `8d98b0689` (merged #974) | browser + merged implementation | Full Canvas D2; other Canvas families; broader embedded media; cross-user ownership; Firecracker/KVM mini-app legs. Title/count-only renders are insufficient. |
-| 6 | Teaching and reusable agent capability | accepted-bounded | [Learning correction/renewed approval](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) @ `1d4f409e1`, merged #975; [real-Docker ordinary skill dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) @ `3316b0fe7`; [scoped maturity](SCOPED_SKILL_MATURITY_2026_11_15.md) | browser + API/container proof; merged; **model-quality gap** | Independent real-model skill selection/consumption; unfamiliar-skill and unfamiliar-model work; generated-code promotion; a real browser/restart journey for approve→correct→renew that also covers keyboard-only, export and access checks; PostgreSQL concurrency. Scripted decisions do not establish model quality. |
+| 6 | Teaching and reusable agent capability | accepted-bounded | [Learning correction/renewed approval](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) @ `1d4f409e1`, merged #975; [real-Docker ordinary skill dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) @ `3316b0fe7`; [scoped maturity](SCOPED_SKILL_MATURITY_2026_11_15.md); #988 graduation evidence binding merged `59fa6b64b` (synthetic campaign scope) | browser + API/container proof; merged; **model-quality gap** | Independent real-model skill selection/consumption; unfamiliar-skill and unfamiliar-model work; generated-code promotion; a real browser/restart journey for approve→correct→renew that also covers keyboard-only, export and access checks; PostgreSQL concurrency. Scripted decisions do not establish model quality. #988 binds synthetic campaign evidence to dispatch but proves no real served-model quality. |
 | 7 | Assessment and unfamiliar work | accepted-bounded | [Audit ASK/ORACLE-06](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [historical product ledger](../acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md); deterministic 18/18 V1 and 19/19 V3 | deterministic proof; **model-quality failure** | New held-out/served-domain qualification and any general adaptive judgment claim. The deterministic path does not interpret arbitrary prose; `Q-012`/`Q-021` remain preserved failures. |
 | 8 | Durable employee objectives | accepted-bounded | [Atomic Activity checkpoint decisions](ACTIVITY_CHECKPOINT_ATOMIC_DECISIONS_2026_11_16.md) @ `1f70c1708`, merged #976 (234 backend + 68 frontend controls; browser approve/reject/restart); [real 48-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0`; [goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968 | API/browser proof; merged; **model-quality gap** | Current-main ordinary-model objectives; event-order breadth; multi-worker/soak; full TASK-WAIT-01 integration. The Activity fixture goals were already achieved, so model competence is not proven. |
 | 9 | Runtime configured-budget enforcement | accepted-bounded | [PR #932](https://github.com/rush86999/atom/pull/932) merged `ab14eb391` (Whisper duration/billing and settlement controls; joint 360-test qualification); historical #722 `5b9610b56` | merged implementation; controlled proof; **live/operator gap** | One priced `TokenUsage` row, matching tenant spend delta, idempotent duplicate settle, and a second dispatch refused before transport when short. Whisper live/remote settlement and PostgreSQL remain unproven. No live spend is authorized. |
@@ -124,7 +154,7 @@ acceptance. The earlier pending-at-cut record above remains historical.
 | 13 | Fleet, goals and background work | accepted-bounded | [Real fleet delegation, incomplete answer](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#fleet-real-delegation-incomplete-deliverable) @ `a868435fd` (#943, final answer not accepted); one capped synthesis sample (#951); [fleet diagnostics](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md#fleet-diagnostics-remain-separate-from-application-acceptance) (capped live test failed; 11 offline fault controls, including 17 attempted / 16 synthetic send starts) | merged implementation; scripted/API proof; **live workflow failed**; broader model quality **unknown** | Current-main live TASK with a real model, one in-scope chain, complete attributed final answer, restart/durable state, no shadow success or out-of-scope specialist. Case 6 remains **FAILED**. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) also failed fleet acceptance: 14 actual upstream requests, 13 structured HTTP 400 and one correct direct Flash reply; verifier error-contract limits prevent a definitive upstream-cause claim. Its allowance is consumed; no automatic rerun. [Case 8](FLEET_LIVE_DELEGATION_2026_11_17.md) recovered the optional-logprob rejection and completed structured calls on merged main `02c9b1674`, but chose direct conversation: zero specialist chains/links. Six starts stayed within the cap; its one-shot allowance is consumed. [Explicit collaboration authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) merged later at #984 `7f7952c65` carries an accepted specialist requirement into the existing fleet lane with 85 offline checks; case 8's source predates it, so it is not a live delegation pass and needs a fresh allowance. The old 43-case scripted pass remains source-bound, not a current live pass. |
 | 14 | Direct mutations and whole-app ORACLE | open | Activity checkpoint authority (#976) and [never-autonomous task fences](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md) (#977) are scoped mutation/authority families; static inventory 836/371/311; merged families #650–#695; Canvas delete/undelete current-actor authority repaired by [#763](https://github.com/rush86999/atom/pull/763) `c97dada13` | merged scoped implementation; **whole-app runtime unknown** | Every reachable mutation family enforcing current authority/material, exact operation, durable effect and independent readback; replay/rollback/unknown truth; refreshed current-main inventory; PostgreSQL/multi-worker. The four historical delete/undelete scope failures stay preserved at their baseline; 54 bounded current controls pass, which does not qualify every Canvas route or whole-app ORACLE ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). Adjacent bounded authority controls merged later: [entry task-profile isolation](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md) #986 `8afac828c` (737 independent checks; SQLite only), [M3 canonical final reply](../architecture/orchestration_migration/acceptance/lane3/M3_CANONICAL_DELIVERY_PROOF.md) #985 `7e51e0976` (22 public-boundary controls; flag default OFF), and [durable collaboration pending authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) #984 `7f7952c65` (85 offline checks). |
 | 15 | Remaining exposed application | open/partial | [Web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) core pages render; [signed-in Settings](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md) 29/29 @ `a53b56fdc`; Canvas list 22/22 @ `6ad2738ed`; Tasks/Projects #797 `3541e8115` | browser proof, partial; **deferred scope**; many surfaces **unknown** | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route errors, and direct admin/member behavior. Tasks/Boards are owner-deferred by the core release profile and must not be force-enabled. |
-| 16 | Installation, compatibility and operations | open | [Persistent PostgreSQL restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) @ `3316b0fe7`; [logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) @ `c1ab1af1`; [full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md); [fresh bootstrap](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) @ `5aa8c1c8`; #936/#941/#943 | bounded operator/deployment proof; merged; **unknown breadth** | [Document-lineage existing-table revision](POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) merged #981 `0ef449aea` with a bounded PostgreSQL 14.24 proof (29 independent tests including one real cluster, clean restart/data/index preservation) for that single revision. Other existing upgrades, full migration graph/app upgrade, async transport, abrupt outage, cluster/PITR, multi-worker/soak, Linux/ARM, native mobile device, menu-bar native live chat, KVM, and full rollback/restore child flow. #977 exercised only SQLite migration, not PostgreSQL. |
+| 16 | Installation, compatibility and operations | open | [Persistent PostgreSQL restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) @ `3316b0fe7`; [logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) @ `c1ab1af1`; [full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md); [fresh bootstrap](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) @ `5aa8c1c8`; #936/#941/#943; #991 acceptance-world storage preflight merged `4071ef9ba` | bounded operator/deployment proof; merged; **unknown breadth** | [Document-lineage existing-table revision](POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) merged #981 `0ef449aea` with a bounded PostgreSQL 14.24 proof (29 independent tests including one real cluster, clean restart/data/index preservation) for that single revision. Other existing upgrades, full migration graph/app upgrade, async transport, abrupt outage, cluster/PITR, multi-worker/soak, Linux/ARM, native mobile device, menu-bar native live chat, KVM, and full rollback/restore child flow. #977 exercised only SQLite migration, not PostgreSQL. #991's storage guard is offline preflight only: no browser, restart, fresh-world launch, drive-pull-while-running or operator deployment was exercised. |
 | 17 | Performance and comparative promises | unverified | [Audit PERF/MKT rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [performance reconciliation](APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json); cache-only benchmark `dd2610502` (37 tests) | **unknown** — no declared measurement | Reproducible measurement with declared environment, workload, sample size and command; dated source for every comparative/pricing claim. A cache-only test is not app throughput or model quality. No invented numbers. CI delivery work is explicitly **not** app performance: #982 adds `--durations=20` reporting only, and #989 repartitions lanes with an **estimated** 42.6-minute critical lane, +5.7 runner-minutes and no measured speedup or whole-app latency result. |
 | 18 | Profile breadth | open/deferred | `CORE-07` profile switch; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) confirms core defers Tasks/Boards; [goal catalogue](APP_GOALS_INDEX.json) explicit requirements | **deferred scope** | Explicit owner decision on full-profile enablement and qualified journeys for the restored surfaces. Do not force-enable deferred profiles or add SaaS gates to close the row. |
 | — | **DOCS-REF-01** documentation and diagrams | open (additional closure requirement) | [Frozen reference inventory](reference_inventory_ac2b73778_20261108.json): 1,729 reference files, 11 diagram candidates, 633 image/PDF candidates at `ac2b73778`. This map is navigation only. | inventory only; **accuracy unknown** | Complete classification of every reference/diagram with owner and canonical destination; accurate user/operator paths; architecture diagrams with render + semantic review; API/config reference; reproducible safe commands; final no-contradiction acceptance audit. Inventory counts are not accuracy or rendering passes. |
@@ -132,15 +162,20 @@ acceptance. The earlier pending-at-cut record above remains historical.
 **DOCS-REF-01 validation note:** an inventory run at product source
 `0e9b0dfc9` during this pass (not committed) counts 1,934 reference files, 13
 diagram candidates and 681 image/PDF candidates; the frozen `ac2b73778` counts
-above remain the preserved historical baseline. A repository-wide link check
-still reports pre-existing broken links in files outside this overlay; the
-changed-file scan is clean. Neither result closes DOCS-REF-01.
+above remain the preserved historical baseline. Every relative link added or
+changed by this overlay resolves on disk. A whole-repository check still reports
+pre-existing broken links, including two long-standing entries in
+`docs/INDEX.md` (`../../Makefile`, which resolves outside the repository, and
+the absent `.planning/phases/236-cross-platform-and-stress-testing/`); both are
+recorded here, not silently repaired. Neither result closes DOCS-REF-01.
 
-## What the #975–#989 deliveries do and do not establish
+## What the #975–#991 deliveries do and do not establish
 
 | Delivery | Source-bound scope | Does not establish |
 |---|---|---|
-| **#989 CI lineage-preserving lanes** | Four backend core lanes (19 / 20 / 14 / 26 post-setup steps) with all 79 existing step dictionaries byte-identical and registered once; `backend-tests` still needs all six backend lanes and adds no retry/skip/soft gate. Local contract run 706 passed. README records an **estimated** 42.6-minute critical lane and +5.7 runner-minutes, with the unmetered M3 caveat and concurrency/queueing limit. Merged at `ba66f5e22`; exact PR head `0e1b9065e` had all 17 checks successful. | Any measured speedup or app latency; a post-merge main result for CI `44157075691` (pending at this cut); runtime behavior of the product merges it now schedules; Goal 17. |
+| **#991 acceptance-world storage preflight** | `validate_local_world.resolve_storage_config` is the one resolver shared by the launcher, browser preflight and canvas harness: it calls the guard's own `load_config` (env relocation + guard precedence) and refuses a missing relocated config instead of falling back to the checkout root. Both private parse-and-mkdir bootstraps are removed, the launcher re-checks `assert_worlds_root_usable` immediately before the first world `mkdir`, and `provision_isolated_world_store.py` creates only an empty store root plus an out-of-tree config, refusing the canonical root, bypass, non-empty stores and overwrite. Real shell launcher/guard/validator controls stop at a labelled pre-server boundary; **103 focused tests** passed (new 19 + browser preflight 39 + canvas 10 + guard 35), the lane ledgers register the step exactly once, the lane/quickstart contract passed **711**, and root independently ran the file as **29 passed**. Merged at `4071ef9ba`; exact head `734725186` had all 17 checks successful. | Any browser, login or restart acceptance; an actual acceptance journey from a fresh world; a root that disappears while a world is already running; drive-removal runtime behavior; PostgreSQL, provider/model or whole Goal 16. The canonical worlds root stayed absent throughout, so the fresh-world launch path itself was not exercised end to end. |
+| **#988 graduation evidence binding** | The campaign producer's digest-sealed `benchmark_evidence` becomes the only binding authority: embedded execution id, agent, tenant, workspace and completion time must match; bare identity/dataset/rubric/scope metadata is audit-only; multiple differing records fail closed as `conflict`; bundle enumeration lists bound campaign executions before episode work; v2 receipts bound from bare metadata revalidate as `unresolved_stale` and need a fresh review. A new end-to-end counter test drives producer → canonical validator → review/receipt → promotion → runtime baseline → resolver → real `LLMService`/`BYOKHandler` over `httpx.MockTransport`, with 21 tamper/digest/accuracy/build/receipt/revision/scope/profile/dataset/rubric/scoring/supersession/stale/echo/cooldown/401/concurrency cases. Offline **84** for the migrated plus new files, **231** in the wider graduation neighborhood and **54** decision-contract checks. Merged at `59fa6b64b`; exact head `4459e680d` had all 17 checks successful. | Real served-model quality, an unfamiliar-work qualification, a live campaign, any provider/model call, PostgreSQL, or evidence that the stricter binding improves answer quality. Synthetic campaign journal, in-repo registry and fake transport only. |
+| **#989 CI lineage-preserving lanes** | Four backend core lanes (19 / 20 / 14 / 26 post-setup steps) with all 79 existing step dictionaries byte-identical and registered once; `backend-tests` still needs all six backend lanes and adds no retry/skip/soft gate. Local contract run 706 passed. README records an **estimated** 42.6-minute critical lane and +5.7 runner-minutes, with the unmetered M3 caveat and concurrency/queueing limit. Merged at `ba66f5e22`; exact PR head `0e1b9065e` had all 17 checks successful. | Any measured speedup or app latency; the runtime behavior of the product merges it now schedules; Goal 17. Its main Docker and CI runs later completed successfully, but that is delivery, not application latency. |
 | **#986 task-profile isolation** | Product/tests at #986; root independently ran the six whole policy files plus CI preservation and quickstart contracts: **737 passed**; wider five-file set **281 passed / 1 failed**, the failure reproducing on unchanged main; all 251 original assertions preserved. Real-entry isolation covers both `GenericAgent.execute` and `WorkflowEngine._run_execution` plus the dict-scoped meta entry. | PostgreSQL or multi-worker; any live app entry observed hitting the double builder fault; reviewer approval path; browser/UI; model quality. SQLite and synthetic fault injection only. |
 | **#985 M3 canonical final reply** | `chat_orchestrator.py` at #985; 22 public-boundary controls (real router/JWT/reply leg/WS frames/fresh durable row, only model outputs, memory, planner and transport doubled), plus 110 passed with the 2 pre-existing strict XFAILs; empty-withheld fail-closed follow-up retained with its failing baselines. | Whole-app semantic truth; vocabulary outside the frozen legacy and M3 matchers; mid-stream release of a claim split across already-released chunks; `CHAT_FINALIZATION_M3` stays default **OFF**; non-canvas turns. |
 | **#984 explicit collaboration authority** | Frozen source `d2d6cb204`; 85 focused checks (9 public-HTTP + 28 semantics + 48 pending authority) and 642 CI-preservation controls offline. Carries an accepted `collaboration` requirement through the one shared structured interpreter into the governed fleet lane, preserves master/pilot/shadow gates, and adds durable pending CAS plus one canonical conversation id. | Live model quality, browser journey or current-main acceptance; a fresh manager/orchestrator is not a whole-app restart; PostgreSQL breadth (12 shared-method checks only); fleet cases 6/7/8 remain **FAILED** with allowances consumed. Cross-caller behavior change in `update_session_metadata`. |
@@ -181,15 +216,26 @@ changed-file scan is clean. Neither result closes DOCS-REF-01.
   limited-vocabulary guard whose flag remains default OFF.
 - #986's isolated SQLite entries and synthetic double-builder faults are **not**
   PostgreSQL, multi-worker or a live runtime observation.
+- #988's digest-sealed synthetic campaign records, mocked transport and 21
+  drift cases are **not** real served-model quality, a live campaign or a
+  graduation quality improvement.
+- #991's 103 focused offline storage-preflight tests (including the 29-test
+  launcher file) are **not** browser, login or restart acceptance, and the
+  canonical worlds root stayed absent, so the fresh-world launch path was not
+  exercised end to end.
+- The audit/learning browser attempt at `60a8b7050` produced **no** acceptance:
+  build and preflight passed, but the browser runs failed in the harness at
+  start-up and at the post-sign-in `web_session.email` read, with no restart
+  run at all.
 - #981's single-revision PostgreSQL 14.24 run is **not** migration breadth,
   full-graph upgrade, app-on-PostgreSQL or concurrency.
 - #982 timing output and #989 lane partitioning are **delivery and observability**,
   not application performance, throughput or Goal 17; #989's lane budget is
   explicitly an estimate and no speedup is claimed.
 - The frozen documentation inventory is **not** DOCS-REF-01 closure.
-- An open PR in the dated queue (for example #987/#988 at the work-order cut) is
-  **not** merged and carries no acceptance, even when its author reports local
-  or root runs.
+- An open PR in the dated queue (for example #987/#990 at this cut) is **not**
+  merged and carries no acceptance, even when its author or root reports a
+  local replay or a passing repair suite (1,483 and 81 respectively).
 
 Account deletion is a separately inferred possible improvement, not an original
 143-claim requirement or an added completion gate for Goal 1.
@@ -214,12 +260,17 @@ Account deletion is a separately inferred possible improvement, not an original
   published.
 - #989 did not edit, merge, split or deselect a test step and did not change
   branch protection; its contract suite proves preservation, not runtime speed.
+- #988 and #991 are recorded as merged deliveries with their own bounded limits;
+  their addition revises no original claim, goal state, audit byte or the
+  historical **111/123** result. The audit/learning browser attempt contributes
+  no app evidence because its failures were in the harness.
 
 ## Original overlay source and validation basis
 
-- Local Git: product source cut `0e9b0dfc9...`, tree `9386a486...`, parent
-  `8b48dd84a`; first-parent history and `origin/main` agreed. The documentation
-  commit that adds this file is docs-only and changes no product tree bytes.
+- Original local Git at first publication: product source cut `0e9b0dfc9...`,
+  tree `9386a486...`, parent `8b48dd84a`; first-parent history and `origin/main`
+  agreed. The documentation commit that adds this file is docs-only and changes
+  no product tree bytes.
 - Public repository read: PRs #975/#976/#977 are merged at the recorded
   commits; the #977 exact head `488e956...` has 15/15 successful check runs;
   main post-merge run states are recorded above without promoting them.
@@ -229,25 +280,34 @@ Account deletion is a separately inferred possible improvement, not an original
   this commit. This file adds no product source, CI, policy or configuration
   change.
 
-## Navigation refresh at #989 (this pass)
+## Navigation refresh at #991 (this pass)
 
 - Local checkout: branch `codex/readiness-navigation-refresh-20261117` at
-  `ba66f5e22db9f1755a8074adc256f4e978289b50`, tree
-  `d967cc20beb8885309c693d82f0135ad24964582`, sole parent
-  `8afac828c8d96d9b7773522fdcfc938ec2458fdc`; worktree clean before editing.
-  First-parent history `1453f2cf4 → ecce2df80 → 0ef449aea → 708b7ae2d →
-  fbabef87f → 7f7952c65 → 7e51e0976 → 8afac828c → ba66f5e22` was read in
-  order, and each delivery's own doc/test files were read for scope rather than
-  inferred from its title.
-- Root receipt `/private/tmp/atom-pr989-root-actual-merge-verification-20261117.json`
-  (`verified_at 2026-11-17T19:23:16Z`) supplied the 17 exact-head check results,
-  the merge/tree/sole-parent identity and the unchanged-protection result. It
-  also observed both new main runs as `in_progress`; the later work-order cut
-  records Docker `44157075848` successful and CI `44157075691` still pending.
-  Neither this file nor its commit queries GitHub or claims the pending run.
+  `ebdf023d5a7b44b929f53f8e3ee2160f557eff22`, tree
+  `a40c21c6549a81b03cf22e1cf1f9ed4b3ea14059`, parent `207b4d80e`; worktree
+  clean before editing. Verified `origin/main`
+  `4071ef9ba11f68e645c4514ce7621fa9db9403c8` (tree `52a7dbd66`, parent
+  `59fa6b64b`) was merged naturally as `d8f3686ef` (tree `20ce931d4`), with
+  **zero conflicts**: this cut had changed only four documentation files and
+  main changed none of them, so every non-doc file is byte-identical to main.
+- Root receipts supplied the delivery identities without a new GitHub query:
+  `/private/tmp/atom-pr988-final-merge-receipt.json` and
+  `/private/tmp/atom-pr991-final-merge-receipt.json` (17/17 successful checks,
+  tree equality, unchanged protections), `/private/tmp/atom-pr987-qualified-merge-result-v3-20261117.json`
+  (unmerged, waiting exact-head CI),
+  `/private/tmp/atom-root-approval-atomic-main991-20261117.{xml,log,json}`
+  (81 repair tests on the pinned #990 review merge) and
+  `/private/tmp/atom-root-chat-main988-root-20261117.log` (1,483-test replay).
+- The audit/learning browser evidence comes from
+  `/private/tmp/atom-audit-browser-60a8b7-build.log`,
+  `...-manifest.log`, `...-preflight.log`,
+  `/private/tmp/atom-audit-browser-60a8b7-replay1.log`,
+  `/private/tmp/atom-audit-browser-session-diagnosis.md` and
+  `/private/tmp/atom-audit-browser-replay-repair.md`; no runtime, credential or
+  secret file was read.
 - Scope of this pass: documentation and reference checks only — no app, server,
   browser, test run, provider/model call, PostgreSQL cluster, install, data,
-  credential or portable-media write. No product, CI, test, schema, policy or
-  configuration byte changed.
+  credential, portable-media write or push. No product, CI, test, schema,
+  policy or configuration byte changed beyond the verified main merge.
 - New bounded evidence above does not change the original audit, the 143 claim
   identities, the 18 goal states or `app_complete: false`.
