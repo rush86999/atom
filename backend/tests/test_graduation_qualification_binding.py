@@ -35,6 +35,12 @@ from core.agent_graduation_service import (
     write_qualification_receipt_from_review,
 )
 from core.database import Base
+from core.employee_benchmark_evidence import (
+    _prepare_benchmark,
+    benchmark_registry_path,
+    open_campaign_transport_journal,
+    produce_employee_benchmark_evidence,
+)
 from core.models import (
     AgentEpisode,
     AgentExecution,
@@ -61,19 +67,49 @@ SUPERVISOR = "binding-supervisor"
 ADMIN = "binding-admin"
 AGENT = "binding-agent"
 
-DATASET_SHA = "a" * 64
-SCOPE = {
-    "task_policy": "Approve Open records with Amount >= 100 and Risk Low.",
-    "decision_options": ["APPROVE", "REVIEW", "DENY"],
-    "subject_field": "Ref",
-}
+# The measured identity is the server-controlled frozen benchmark, never a
+# hand-written metadata value. These constants come from the same registry
+# the production reader validates against.
+_BENCHMARK_REGISTRY_PATH = benchmark_registry_path()
+_FROZEN_BENCHMARK, _FROZEN_REGISTRY, _FROZEN_REASONS = _prepare_benchmark(None)
+assert _FROZEN_BENCHMARK is not None, _FROZEN_REASONS
+DATASET_SHA = _FROZEN_BENCHMARK["dataset_sha256"]
+RUBRIC = _FROZEN_BENCHMARK["rubric_version"]
+SCOPE = dict(_FROZEN_BENCHMARK["task_scope"])
+BASELINE_ROUTE = ("openai", "gpt-5.4-2026-03")
 
 
-def _benchmark_identity() -> dict:
+def _heldout_observation() -> dict:
+    """A passing held-out campaign observation (no authority claims)."""
     return {
-        "dataset_sha256": DATASET_SHA,
-        "rubric_version": "heldout-v1",
-        "task_scope": dict(SCOPE),
+        "run": {"restart": {"same_wait": True}},
+        "external_effects": 0,
+        "cases": {
+            "heldout-quote": {
+                "assignment_status": "completed",
+                "steps": {"calculate": {
+                    "value": "96.30", "currency": "USD"}},
+                "deliverables": {"document": {
+                    "status": "applied",
+                    "text": (
+                        "Approved quote total USD 96.30 from the authorized "
+                        "price rows under the taught terms."),
+                }},
+                "external_effects": 0,
+            },
+            "heldout-reconcile": {
+                "assignment_status": "completed",
+                "steps": {"reconcile": {
+                    "value": "140.25", "currency": "USD"}},
+                "deliverables": {"document": {
+                    "status": "applied",
+                    "text": (
+                        "Reconciled invoice total USD 140.25 against the "
+                        "purchase order and receiving records."),
+                }},
+                "external_effects": 0,
+            },
+        },
     }
 
 
@@ -83,6 +119,7 @@ def _provenance(provider: str = "openai", model: str = "gpt-5.4-2026-03") -> dic
         "model": model,
         "serving_models": [{"provider": provider, "model": model}],
     }
+
 
 
 class World:
@@ -118,12 +155,10 @@ class World:
                 configuration={"learning": {"role": "operations", "log": []}},
             ))
             episode_metadata = (
-                {
-                    "benchmark_identity": _benchmark_identity(),
-                    "model_provenance": _provenance(),
-                }
+                {"model_provenance": _provenance()}
                 if with_binding else {}
             )
+
             execution_metadata = (
                 {"model_provenance": _provenance()}
                 if with_binding else {}
@@ -147,6 +182,34 @@ class World:
                 metadata_json=episode_metadata,
             ))
             db.commit()
+        if with_binding:
+            # The identity/route comes from the ACTUAL campaign producer's
+            # digest-sealed record, not from the hand-written metadata above.
+            self.started_at = started
+            self._produce_baseline_evidence()
+
+    def _produce_baseline_evidence(self) -> None:
+        completed_at = self.started_at + timedelta(minutes=5)
+        journal = open_campaign_transport_journal(
+            campaign_id="binding-baseline", execution_id="exec-1")
+        journal.record_call(
+            accepted=True,
+            requested_route={
+                "provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]},
+            served_route={
+                "provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]},
+            response_identity={
+                "provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]},
+        )
+        journal.seal(completed_at=completed_at)
+        result = produce_employee_benchmark_evidence(
+            execution_id="exec-1",
+            observation=_heldout_observation(),
+            transport_journal=journal,
+            registry=_FROZEN_REGISTRY,
+            session_factory=self.Session,
+        )
+        assert result["status"] == "recorded", result
 
     def _connect(self):
         self.engine = create_engine(
@@ -166,6 +229,11 @@ class World:
 @pytest.fixture(autouse=True)
 def _default_policy(monkeypatch):
     monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    # The frozen benchmark is the in-repo server-controlled registry: pin the
+    # env override to the exact file the module constants came from so a
+    # developer's environment cannot retarget the evidence.
+    monkeypatch.setenv(
+        "ATOM_EMPLOYEE_BENCHMARK_FILE", str(_BENCHMARK_REGISTRY_PATH))
 
 
 @pytest.fixture
@@ -249,11 +317,11 @@ def test_receipt_binds_server_evidence_not_caller_claims(world):
         assert params["binding_schema"] == QUALIFICATION_BINDING_SCHEMA
         assert binding["benchmark_identity"] == {
             "dataset_sha256": DATASET_SHA,
-            "rubric_version": "heldout-v1",
+            "rubric_version": RUBRIC,
             "workload_scope": SCOPE,
         }
         assert binding["serving_routes"] == [
-            {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+            {"provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]}]
         assert binding["repeat_task_comparable"] is True
 
     receipt_id = _approve_and_write(world, action_id)
@@ -263,11 +331,11 @@ def test_receipt_binds_server_evidence_not_caller_claims(world):
     assert metadata["binding_schema"] == QUALIFICATION_BINDING_SCHEMA
     assert metadata["benchmark_identity"] == {
         "dataset_sha256": DATASET_SHA,
-        "rubric_version": "heldout-v1",
+        "rubric_version": RUBRIC,
         "workload_scope": SCOPE,
     }
     assert metadata["serving_routes"] == [
-        {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+        {"provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]}]
     assert metadata["repeat_task_comparable"] is True
     # No caller claim was copied anywhere into the durable binding.
     assert "caller-claim" not in json.dumps(metadata, sort_keys=True)
@@ -278,41 +346,52 @@ def test_receipt_binds_server_evidence_not_caller_claims(world):
     assert result["ok"] is True, result
     assert result["repeat_task_comparable"] is True
     assert result["binding"]["serving_routes"] == [
-        {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+        {"provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]}]
 
 
 def test_receipt_revalidation_tracks_evidence_and_receipt_binding(world):
     _approve_and_write(world, _request(world))
     assert _read(world)["ok"] is True
 
-    # Evidence benchmark identity change invalidates the v2 source revision.
-    with world.Session() as db:
-        episode = db.get(AgentEpisode, "ep-1")
-        original = json.loads(json.dumps(episode.metadata_json))
-        original_updated_at = episode.updated_at
-        episode.metadata_json["benchmark_identity"]["rubric_version"] = "heldout-v2"
-        flag_modified(episode, "metadata_json")
-        db.commit()
-    assert _read(world)["state"] == "unresolved_stale"
-    with world.Session() as db:
-        episode = db.get(AgentEpisode, "ep-1")
-        episode.metadata_json = original
-        episode.updated_at = original_updated_at
-        db.commit()
-    assert _read(world)["ok"] is True
+    # The sealed producer record is the authority: mutating its rubric breaks
+    # the record digest, so the measured identity disappears and the receipt's
+    # source revision no longer matches.
+    def stored_records():
+        with world.Session() as db:
+            row = db.get(AgentExecution, "exec-1")
+            return json.loads(json.dumps(
+                (row.metadata_json or {}).get("benchmark_evidence")))
 
-    # Evidence serving route change also invalidates it.
+    original_record = stored_records()
     with world.Session() as db:
         execution = db.get(AgentExecution, "exec-1")
-        original = json.loads(json.dumps(execution.metadata_json))
-        execution.metadata_json["model_provenance"] = _provenance(
-            "other", "other-model")
+        record = dict(execution.metadata_json["benchmark_evidence"][0])
+        record["rubric_version"] = "heldout-v2"
+        execution.metadata_json["benchmark_evidence"] = [record]
         flag_modified(execution, "metadata_json")
         db.commit()
     assert _read(world)["state"] == "unresolved_stale"
     with world.Session() as db:
         execution = db.get(AgentExecution, "exec-1")
-        execution.metadata_json = original
+        execution.metadata_json["benchmark_evidence"] = original_record
+        flag_modified(execution, "metadata_json")
+        db.commit()
+    assert _read(world)["ok"] is True
+
+    # The sealed serving route is equally authoritative: altering it also
+    # breaks the digest instead of silently re-pointing the receipt.
+    with world.Session() as db:
+        execution = db.get(AgentExecution, "exec-1")
+        record = dict(execution.metadata_json["benchmark_evidence"][0])
+        record["provider"] = "other"
+        execution.metadata_json["benchmark_evidence"] = [record]
+        flag_modified(execution, "metadata_json")
+        db.commit()
+    assert _read(world)["state"] == "unresolved_stale"
+    with world.Session() as db:
+        execution = db.get(AgentExecution, "exec-1")
+        execution.metadata_json["benchmark_evidence"] = original_record
+        flag_modified(execution, "metadata_json")
         db.commit()
     assert _read(world)["ok"] is True
 
@@ -353,7 +432,11 @@ def test_unbound_new_receipt_promotes_but_has_no_repeat_baseline(tmp_path):
     caller_refs = [
         {
             "kind": "agent_episode", "id": "ep-1",
-            "benchmark_identity": _benchmark_identity(),
+            "benchmark_identity": {
+                "dataset_sha256": DATASET_SHA,
+                "rubric_version": RUBRIC,
+                "task_scope": dict(SCOPE),
+            },
             "serving_routes": [{"provider": "caller", "model": "caller"}],
         },
         {"kind": "agent_execution", "id": "exec-1"},
@@ -375,16 +458,23 @@ def test_unbound_new_receipt_promotes_but_has_no_repeat_baseline(tmp_path):
     assert gate["repeat_task_comparable"] is False
 
 
-def test_distinct_evidence_rows_never_establish_comparability(tmp_path):
-    """The handoff regression case: benchmark identity on one evidence row and
-    the serving route on another must never make the receipt repeat-task
-    comparable. Routes observed without a same-observation complete identity
-    are not promoted into the binding; they stay in the normalized evidence
-    for audit only, so the binding is empty and unbound."""
+def test_bare_identity_metadata_is_not_measured_authority(tmp_path):
+    """A bare ``benchmark_identity`` is generic metadata, not measured evidence.
+
+    The shape that used to bind (a complete hand-written identity on one row
+    plus a free serving route) now stays unbound: without a producer-validated
+    record bound to the execution there is no measured comparability, so the
+    promotion receipt cannot anchor a repeat-task baseline."""
     world = World(tmp_path, with_binding=False)
     with world.Session() as db:
         episode = db.get(AgentEpisode, "ep-1")
-        episode.metadata_json = {"benchmark_identity": _benchmark_identity()}
+        episode.metadata_json = {
+            "benchmark_identity": {
+                "dataset_sha256": DATASET_SHA,
+                "rubric_version": RUBRIC,
+                "task_scope": dict(SCOPE),
+            }
+        }
         execution = db.get(AgentExecution, "exec-1")
         execution.metadata_json = {"model_provenance": _provenance()}
         db.commit()
@@ -392,11 +482,7 @@ def test_distinct_evidence_rows_never_establish_comparability(tmp_path):
 
     result = _read(world)
     assert result["ok"] is True, result
-    assert result["binding"]["benchmark_identity"] == {
-        "dataset_sha256": DATASET_SHA,
-        "rubric_version": "heldout-v1",
-        "workload_scope": SCOPE,
-    }
+    assert result["binding"]["benchmark_identity"] is None
     assert result["binding"]["serving_routes"] == []
     assert result["binding"]["binding_state"] == "unbound"
     assert result["repeat_task_comparable"] is False
@@ -411,22 +497,16 @@ def test_distinct_evidence_rows_never_establish_comparability(tmp_path):
 
 
 def test_routes_bind_only_with_same_observation_identity(tmp_path):
-    """A mixed case: one observation carries a complete benchmark identity
-    together with its actual served route (valid, comparable), while an
-    unrelated observation carries a route with no identity. Only the route
-    bound to the identified observation enters the binding; the unrelated
-    route stays out of the durable binding."""
-    world = World(tmp_path, with_binding=False)
+    """Only a validated record's own identity+route pair enters the binding.
+
+    The baseline execution carries a producer-validated record (complete
+    identity plus the route it was served by), while the episode carries an
+    unrelated route-only metadata observation. The unrelated route stays out
+    of the durable binding."""
+    world = World(tmp_path, with_binding=True)
     with world.Session() as db:
-        # Identified observation: complete identity + served route together.
         episode = db.get(AgentEpisode, "ep-1")
-        episode.metadata_json = {
-            "benchmark_identity": _benchmark_identity(),
-            "model_provenance": _provenance(),
-        }
-        # Unrelated observation: route only, no benchmark identity.
-        execution = db.get(AgentExecution, "exec-1")
-        execution.metadata_json = {"model_provenance": _provenance(
+        episode.metadata_json = {"model_provenance": _provenance(
             "unrelated", "unrelated-model")}
         db.commit()
     _approve_and_write(world, _request(world))
@@ -435,11 +515,11 @@ def test_routes_bind_only_with_same_observation_identity(tmp_path):
     assert result["ok"] is True, result
     assert result["binding"]["benchmark_identity"] == {
         "dataset_sha256": DATASET_SHA,
-        "rubric_version": "heldout-v1",
+        "rubric_version": RUBRIC,
         "workload_scope": SCOPE,
     }
     assert result["binding"]["serving_routes"] == [
-        {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+        {"provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]}]
     assert result["binding"]["binding_state"] == "bound"
     assert result["repeat_task_comparable"] is True
     # The unrelated route was never promoted into the durable binding.
@@ -568,10 +648,10 @@ def test_post_promotion_baseline_after_actual_promotion_and_restart(world):
     assert baseline["repeat_task_comparable"] is True
     assert baseline["binding_state"] == "bound"
     assert baseline["serving_routes"] == [
-        {"provider": "openai", "model": "gpt-5.4-2026-03"}]
+        {"provider": BASELINE_ROUTE[0], "model": BASELINE_ROUTE[1]}]
     assert baseline["benchmark_identity"] == {
         "dataset_sha256": DATASET_SHA,
-        "rubric_version": "heldout-v1",
+        "rubric_version": RUBRIC,
         "workload_scope": SCOPE,
     }
 
