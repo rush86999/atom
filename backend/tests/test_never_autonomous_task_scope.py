@@ -160,6 +160,7 @@ def _generic_agent(db, status="autonomous"):
     agent.world_model = MagicMock()
     agent.world_model.recall_experiences = AsyncMock(
         return_value={"experiences": []})
+    agent.world_model.record_experience = AsyncMock(return_value=None)
     agent.reflection_service = MagicMock()
     agent.reflection_service.add_critique = AsyncMock()
     return agent
@@ -229,37 +230,45 @@ def test_nonmatch_and_no_policy_twins_are_not_admitted(store, use_db):
     _agent(db)
     agent = _generic_agent(db)
 
-    # No policy at all.
-    no_policy = build_task_profile(FINANCE_JAN, user_id="u1")
-    bind_task_profile({}, no_policy)
-    assert ap.evaluate_task_admission(
-        db, no_policy, task_material=FINANCE_JAN,
-        agent_id="hire-1", user_id="u1",
-        execution_id="exec-none")["outcome"] == ap.NEVER_OUTCOME_UNAFFECTED
+    # Every bind in this sync test is released in ``finally``: a sync test
+    # body shares the pytest thread context, so an unreleased token would be
+    # inherited by later tests in the same process.
+    tokens = []
+    try:
+        # No policy at all.
+        no_policy = build_task_profile(FINANCE_JAN, user_id="u1")
+        tokens.append(bind_task_profile({}, no_policy))
+        assert ap.evaluate_task_admission(
+            db, no_policy, task_material=FINANCE_JAN,
+            agent_id="hire-1", user_id="u1",
+            execution_id="exec-none")["outcome"] == ap.NEVER_OUTCOME_UNAFFECTED
 
-    # Enabled rule, but a near-neighbour task is a definite nonmatch.
-    _finance_rule(db)
-    marketing = build_task_profile(MARKETING_TEXT, user_id="u1")
-    assert marketing.domain != "finance"
-    bound = {}
-    bind_task_profile(bound, marketing)
-    decision = ap.evaluate_task_admission(
-        db, marketing, task_material=MARKETING_TEXT,
-        agent_id="hire-1", user_id="u1",
-        execution_id="exec-marketing")
-    assert decision["outcome"] == ap.NEVER_OUTCOME_UNAFFECTED
-    assert decision["matched"] is False
+        # Enabled rule, but a near-neighbour task is a definite nonmatch.
+        _finance_rule(db)
+        marketing = build_task_profile(MARKETING_TEXT, user_id="u1")
+        assert marketing.domain != "finance"
+        bound = {}
+        tokens.append(bind_task_profile(bound, marketing))
+        decision = ap.evaluate_task_admission(
+            db, marketing, task_material=MARKETING_TEXT,
+            agent_id="hire-1", user_id="u1",
+            execution_id="exec-marketing")
+        assert decision["outcome"] == ap.NEVER_OUTCOME_UNAFFECTED
+        assert decision["matched"] is False
 
-    # A task with missing classification metadata is potentially applicable
-    # (fail closed), not a silent skip.
-    empty = build_task_profile("", user_id="u1")
-    bind_task_profile(bound, empty)
-    missing = ap.evaluate_task_admission(
-        db, empty, task_material="",
-        agent_id="hire-1", user_id="u1",
-        execution_id="exec-empty")
-    assert missing["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    assert missing["potential"] is True
+        # A task with missing classification metadata is potentially
+        # applicable (fail closed), not a silent skip.
+        empty = build_task_profile("", user_id="u1")
+        tokens.append(bind_task_profile(bound, empty))
+        missing = ap.evaluate_task_admission(
+            db, empty, task_material="",
+            agent_id="hire-1", user_id="u1",
+            execution_id="exec-empty")
+        assert missing["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        assert missing["potential"] is True
+    finally:
+        for token in reversed(tokens):
+            reset_task_profile(token)
 
 
 # ---------------------------------------------------------------------------
@@ -376,35 +385,39 @@ def test_second_task_on_reused_context_never_inherits_clearance(store, use_db):
                "execution_id": "exec-jan"}
     jan = build_task_profile(FINANCE_JAN, user_id="u1")
     token = bind_task_profile(context, jan)
-    jan_decision = ap.evaluate_task_admission(
-        db, jan, task_material=FINANCE_JAN,
-        agent_id="hire-1", user_id="u1", execution_id="exec-jan")
-    assert jan_decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    assert ap.grant_never_autonomous_clearance(
-        context, jan_decision) is True
-    assert ap.has_never_autonomous_clearance(
-        context, decision=jan_decision) is True
+    try:
+        jan_decision = ap.evaluate_task_admission(
+            db, jan, task_material=FINANCE_JAN,
+            agent_id="hire-1", user_id="u1", execution_id="exec-jan")
+        assert jan_decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        assert ap.grant_never_autonomous_clearance(
+            context, jan_decision) is True
+        assert ap.has_never_autonomous_clearance(
+            context, decision=jan_decision) is True
 
-    # February is a DIFFERENT task in the same basket/rule. Even if the
-    # caller re-binds a new profile WITHOUT clearing and keeps the old
-    # clearance object, the new task identity must invalidate it.
-    reset_task_profile(token)
-    feb = build_task_profile(FINANCE_FEB, user_id="u1")
-    context[TASK_PROFILE_CONTEXT_KEY] = feb
-    feb_decision = ap.evaluate_task_admission(
-        db, feb, task_material=FINANCE_FEB,
-        agent_id="hire-1", user_id="u1", execution_id="exec-feb")
-    assert feb_decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    assert feb_decision["rule_ids"] == [rule["id"]]
-    assert ap.has_never_autonomous_clearance(
-        context, decision=feb_decision) is False
-    assert ap.has_never_autonomous_clearance(
-        context, required_rule_ids=feb_decision["rule_ids"]) is False
+        # February is a DIFFERENT task in the same basket/rule. Even if the
+        # caller re-binds a new profile WITHOUT clearing and keeps the old
+        # clearance object, the new task identity must invalidate it.
+        reset_task_profile(token)
+        token = None
+        feb = build_task_profile(FINANCE_FEB, user_id="u1")
+        context[TASK_PROFILE_CONTEXT_KEY] = feb
+        feb_decision = ap.evaluate_task_admission(
+            db, feb, task_material=FINANCE_FEB,
+            agent_id="hire-1", user_id="u1", execution_id="exec-feb")
+        assert feb_decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        assert feb_decision["rule_ids"] == [rule["id"]]
+        assert ap.has_never_autonomous_clearance(
+            context, decision=feb_decision) is False
+        assert ap.has_never_autonomous_clearance(
+            context, required_rule_ids=feb_decision["rule_ids"]) is False
 
-    # A real new task start through bind_task_profile also drops the old
-    # clearance from the dict (defence in depth, not the only check).
-    bind_task_profile(context, feb)
-    assert ap.NEVER_CLEARANCE_CONTEXT_KEY not in context
+        # A real new task start through bind_task_profile also drops the old
+        # clearance from the dict (defence in depth, not the only check).
+        token = bind_task_profile(context, feb)
+        assert ap.NEVER_CLEARANCE_CONTEXT_KEY not in context
+    finally:
+        reset_task_profile(token)
 
 
 def test_direct_mcp_guard_refuses_second_task_with_stale_clearance(
@@ -452,36 +465,41 @@ def test_parallel_actions_share_one_task_clearance_but_not_a_new_task(
     context = {"user_id": "u1", "workspace_id": "default",
                "execution_id": "exec-parallel"}
     token = bind_task_profile(context, profile)
-    decision = ap.evaluate_task_admission(
-        db, profile, task_material=FINANCE_JAN,
-        agent_id="hire-1", user_id="u1", execution_id="exec-parallel")
-    assert ap.grant_never_autonomous_clearance(context, decision) is True
+    try:
+        decision = ap.evaluate_task_admission(
+            db, profile, task_material=FINANCE_JAN,
+            agent_id="hire-1", user_id="u1", execution_id="exec-parallel")
+        assert ap.grant_never_autonomous_clearance(context, decision) is True
 
-    gov = AgentGovernanceService(db, workspace_id="default", tenant_id=None)
-    monkeypatch.setattr(
-        gov, "_check_budget_async", AsyncMock(return_value={"allowed": True}))
+        gov = AgentGovernanceService(db, workspace_id="default", tenant_id=None)
+        monkeypatch.setattr(
+            gov, "_check_budget_async", AsyncMock(return_value={"allowed": True}))
 
-    async def _two_reads():
-        return [
-            await gov.can_perform_action_async(
-                "hire-1", "read_data", task_profile=profile,
-                never_clearance=context)
-            for _ in range(2)
-        ]
+        async def _two_reads():
+            return [
+                await gov.can_perform_action_async(
+                    "hire-1", "read_data", task_profile=profile,
+                    never_clearance=context)
+                for _ in range(2)
+            ]
 
-    first, second = asyncio.run(_two_reads())
-    assert first["requires_human_approval"] is False
-    assert second["requires_human_approval"] is False
-    assert first["never_autonomous"]["cleared"] is True
+        first, second = asyncio.run(_two_reads())
+        assert first["requires_human_approval"] is False
+        assert second["requires_human_approval"] is False
+        assert first["never_autonomous"]["cleared"] is True
 
-    # Same context, new task start: no shared clearance across the boundary.
-    reset_task_profile(token)
-    feb = build_task_profile(FINANCE_FEB, user_id="u1")
-    bind_task_profile(context, feb)
-    fresh = asyncio.run(gov.can_perform_action_async(
-        "hire-1", "read_data", task_profile=feb,
-        never_clearance=context))
-    assert fresh["requires_human_approval"] is True
+        # Same context, new task start: no shared clearance across the
+        # boundary.
+        reset_task_profile(token)
+        token = None
+        feb = build_task_profile(FINANCE_FEB, user_id="u1")
+        token = bind_task_profile(context, feb)
+        fresh = asyncio.run(gov.can_perform_action_async(
+            "hire-1", "read_data", task_profile=feb,
+            never_clearance=context))
+        assert fresh["requires_human_approval"] is True
+    finally:
+        reset_task_profile(token)
 
 
 # ---------------------------------------------------------------------------
@@ -635,42 +653,46 @@ def test_rule_edit_revision_and_scope_invalidate_clearance(store, use_db):
     profile = build_task_profile(FINANCE_JAN, user_id="u1")
     context = {"user_id": "u1", "workspace_id": "ws-a", "tenant_id": "t1",
                "execution_id": "exec-scope"}
-    bind_task_profile(context, profile)
-    decision = ap.evaluate_task_admission(
-        db, profile, task_material=FINANCE_JAN,
-        agent_id="hire-1", user_id="u1",
-        execution_id="exec-scope", tenant_id="t1", workspace_id="ws-a")
-    assert ap.grant_never_autonomous_clearance(
-        context, decision, tenant_id="t1", workspace_id="ws-a") is True
+    tokens = [bind_task_profile(context, profile)]
+    try:
+        decision = ap.evaluate_task_admission(
+            db, profile, task_material=FINANCE_JAN,
+            agent_id="hire-1", user_id="u1",
+            execution_id="exec-scope", tenant_id="t1", workspace_id="ws-a")
+        assert ap.grant_never_autonomous_clearance(
+            context, decision, tenant_id="t1", workspace_id="ws-a") is True
 
-    # Same rule id, new revision (edited) must not reuse the old review.
-    ap.update_never_rule(
-        db, "u1", rule["id"], name="Always review finance v2",
-        match={"domain": ["finance"], "category": ["extraction"]})
-    fresh = ap.evaluate_never_autonomous(db, "u1", profile)
-    assert fresh["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    assert fresh["rule_bindings"] == [
-        {"id": rule["id"], "revision": 2}]
-    assert ap.has_never_autonomous_clearance(
-        context, decision=fresh, tenant_id="t1",
-        workspace_id="ws-a") is False
+        # Same rule id, new revision (edited) must not reuse the old review.
+        ap.update_never_rule(
+            db, "u1", rule["id"], name="Always review finance v2",
+            match={"domain": ["finance"], "category": ["extraction"]})
+        fresh = ap.evaluate_never_autonomous(db, "u1", profile)
+        assert fresh["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        assert fresh["rule_bindings"] == [
+            {"id": rule["id"], "revision": 2}]
+        assert ap.has_never_autonomous_clearance(
+            context, decision=fresh, tenant_id="t1",
+            workspace_id="ws-a") is False
 
-    # Owner and scope are part of the binding too.
-    rebuilt = {"user_id": "u1", "workspace_id": "ws-a", "tenant_id": "t1",
-               "execution_id": "exec-scope"}
-    bind_task_profile(rebuilt, profile)
-    assert ap.grant_never_autonomous_clearance(
-        rebuilt, fresh, tenant_id="t1", workspace_id="ws-a") is True
-    assert ap.has_never_autonomous_clearance(
-        rebuilt, decision=fresh, tenant_id="t1",
-        workspace_id="ws-a") is True
-    assert ap.has_never_autonomous_clearance(
-        rebuilt, decision=fresh, tenant_id="t2",
-        workspace_id="ws-a") is False
-    assert ap.has_never_autonomous_clearance(
-        rebuilt, decision=fresh, tenant_id="t1",
-        workspace_id="ws-b") is False
-    owner_mismatch = dict(fresh)
-    owner_mismatch["owner_user_id"] = "u2"
-    assert ap.has_never_autonomous_clearance(
-        rebuilt, decision=owner_mismatch) is False
+        # Owner and scope are part of the binding too.
+        rebuilt = {"user_id": "u1", "workspace_id": "ws-a",
+                   "tenant_id": "t1", "execution_id": "exec-scope"}
+        tokens.append(bind_task_profile(rebuilt, profile))
+        assert ap.grant_never_autonomous_clearance(
+            rebuilt, fresh, tenant_id="t1", workspace_id="ws-a") is True
+        assert ap.has_never_autonomous_clearance(
+            rebuilt, decision=fresh, tenant_id="t1",
+            workspace_id="ws-a") is True
+        assert ap.has_never_autonomous_clearance(
+            rebuilt, decision=fresh, tenant_id="t2",
+            workspace_id="ws-a") is False
+        assert ap.has_never_autonomous_clearance(
+            rebuilt, decision=fresh, tenant_id="t1",
+            workspace_id="ws-b") is False
+        owner_mismatch = dict(fresh)
+        owner_mismatch["owner_user_id"] = "u2"
+        assert ap.has_never_autonomous_clearance(
+            rebuilt, decision=owner_mismatch) is False
+    finally:
+        for token in reversed(tokens):
+            reset_task_profile(token)

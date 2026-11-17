@@ -1148,7 +1148,10 @@ class AtomMetaAgent:
 
             # Always rebuild for THIS request: a reused caller context must
             # never carry a prior run's classification or clearance into a
-            # new task.
+            # new task. Drop the previous dict-scoped profile BEFORE the
+            # build too, so a double builder failure leaves no stale ancestor
+            # profile for admission to trust.
+            context.pop(TASK_PROFILE_CONTEXT_KEY, None)
             context.pop(NEVER_CLEARANCE_CONTEXT_KEY, None)
             try:
                 context[TASK_PROFILE_CONTEXT_KEY] = build_task_profile(
@@ -4041,11 +4044,13 @@ Provide your Mentorship Guidance:"""
             context.get("execution_id") or context.get("run_id") or "")
         workspace_id = context.get("workspace_id") or self.workspace_id
         tenant_id = context.get("tenant_id") or self.tenant_id
+        # The admitted actor is the policy owner. A stale dict-scoped profile
+        # must never select a different owner than the user this run acts for.
         owner_user_id = (
-            (profile.owner_user_id if profile is not None else None)
-            or context.get("user_id")
+            context.get("user_id")
             or context.get("actor_id")
-            or getattr(getattr(self, "user", None), "id", None))
+            or getattr(getattr(self, "user", None), "id", None)
+            or (profile.owner_user_id if profile is not None else None))
         if profile is None:
             # No trusted profile is not proof that no rule applies: review
             # against the canonical unknown profile before any model call.

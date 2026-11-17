@@ -32,7 +32,9 @@ from core.database import get_db
 from core.models import AgentRegistry, Base
 from core.task_classification import (
     TASK_PROFILE_CONTEXT_KEY,
+    bind_task_profile,
     build_task_profile,
+    reset_task_profile,
 )
 
 MATCHED_TEXT = (
@@ -251,33 +253,34 @@ def test_approval_clearance_is_per_execution(store):
     assert decision["outcome"] == ap.NEVER_OUTCOME_REVIEW
 
     approved_context = {}
-    from core.task_classification import bind_task_profile
+    token = bind_task_profile(approved_context, profile)
+    try:
+        assert ap.grant_never_autonomous_clearance(
+            approved_context, decision) is True
+        assert ap.has_never_autonomous_clearance(approved_context) is True
 
-    bind_task_profile(approved_context, profile)
-    assert ap.grant_never_autonomous_clearance(
-        approved_context, decision) is True
-    assert ap.has_never_autonomous_clearance(approved_context) is True
+        # A different execution has no clearance and re-evaluates to review.
+        other_context = {}
+        assert ap.has_never_autonomous_clearance(other_context) is False
+        assert ap.evaluate_never_autonomous(
+            db, "u1", profile)["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        # The rule is untouched by the approval.
+        rules = ap.list_never_rules(db, "u1")
+        assert len(rules) == 1 and rules[0]["enabled"] is True
 
-    # A different execution has no clearance and re-evaluates to review.
-    other_context = {}
-    assert ap.has_never_autonomous_clearance(other_context) is False
-    assert ap.evaluate_never_autonomous(
-        db, "u1", profile)["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    # The rule is untouched by the approval.
-    rules = ap.list_never_rules(db, "u1")
-    assert len(rules) == 1 and rules[0]["enabled"] is True
-
-    # A blanket-ish clearance for the OLD rule does not cover a NEW rule
-    # added after the human decision. The fresh evaluation's rule ids must be
-    # a subset of what was approved.
-    ap.create_never_rule(
-        db, "u1", name="also code", match={"category": ["code"]})
-    fresh = ap.evaluate_never_autonomous(db, "u1", profile)
-    assert fresh["outcome"] == ap.NEVER_OUTCOME_REVIEW
-    assert ap.has_never_autonomous_clearance(
-        approved_context, decision=fresh) is False
-    assert ap.has_never_autonomous_clearance(
-        approved_context, decision=decision) is True
+        # A blanket-ish clearance for the OLD rule does not cover a NEW rule
+        # added after the human decision. The fresh evaluation's rule ids
+        # must be a subset of what was approved.
+        ap.create_never_rule(
+            db, "u1", name="also code", match={"category": ["code"]})
+        fresh = ap.evaluate_never_autonomous(db, "u1", profile)
+        assert fresh["outcome"] == ap.NEVER_OUTCOME_REVIEW
+        assert ap.has_never_autonomous_clearance(
+            approved_context, decision=fresh) is False
+        assert ap.has_never_autonomous_clearance(
+            approved_context, decision=decision) is True
+    finally:
+        reset_task_profile(token)
 
 
 # ---------------------------------------------------------------------------

@@ -241,13 +241,15 @@ Two new steps sit in existing jobs; every prior command, environment, gate,
 trigger and protection is preserved:
 
 - `backend-core` → **Run never-autonomous task boundary controls** runs all
-  five complete files, each in its own Python process with its own absolute
+  six complete files, each in its own Python process with its own absolute
   runner-temp SQLite file under one `mktemp` root:
   `tests/test_never_autonomous_rules.py`,
   `tests/test_never_autonomous_task_scope.py`,
   `tests/test_never_autonomous_rule_write_fences.py`,
   `tests/test_never_autonomous_review_authority.py`,
-  `tests/test_never_autonomous_entry_identity.py`.
+  `tests/test_never_autonomous_entry_identity.py`,
+  `tests/test_never_autonomous_entry_profile_isolation.py` (added
+  2026-11-17; appended, previous selectors/order/gates unchanged).
   `TESTING=1`, `PYTEST_VERSION=ci` and `PYTHON_DOTENV_DISABLED=1` keep the lane
   off `.env` and the repo dev DB. No node-id subsets, deselect, skip,
   `continue-on-error` or changed required check.
@@ -369,6 +371,34 @@ bound to its stated source, rather than being relabeled as a rerun. The
 replacement PR head still required fresh CI/security and main verification at
 qualification; the release status above records the later exact-head and merge
 result, without claiming post-merge green.
+
+## 2026-11-17 entry task-profile isolation repair
+
+The five whole files in ONE process reproduced two ordering failures
+(work-order order: 76 passed / 2 failed; reverse order: 78 passed). The cause
+was a test-fixture ContextVar leak, not a policy bypass: several sync tests
+bound a profile and never released its token. The leaking tests now release
+every token in a `finally` block; all original safety assertions are unchanged,
+and the `_generic_agent` fixtures make `record_experience` an `AsyncMock` so an
+intended `model_calls == []` assertion surfaces instead of a masked `TypeError`.
+
+A separate, real production gap was repaired in the same change: when both
+the classifier and the canonical unknown-profile builder failed, the two real
+entries (`GenericAgent.execute`, `WorkflowEngine._run_execution`) skipped the
+bind and task admission consumed an ancestor's still-bound profile. A nested
+marketing parent + finance child under an enabled finance rule could proceed
+without review, and a cross-owner ancestor profile selected the wrong policy
+owner. Each entry now opens an isolated task-profile boundary, binds only a
+profile it built (or the canonical unknown profile), and restores the caller's
+ContextVar tokens + dispatch-dict entries in `finally` (success, exception and
+cancellation). The admitted actor determines the policy owner. Same-task
+nested tool checks still inherit that task's profile. Missing double-fault
+profiles keep the existing fail-closed contract (generic: blocked after a
+pending review row; workflow: paused), while no-policy/true-nonmatch tasks and
+a fresh classified valid child keep their valid behavior.
+
+Proof, exact commands, negative controls and limits:
+[entry task-profile isolation](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md).
 
 ## Remaining release and product limits
 

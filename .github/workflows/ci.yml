@@ -646,15 +646,15 @@ jobs:
             python -m pytest tests/test_assignment_routes.py \
             -q --tb=short --timeout=300 --timeout-method=thread --durations=20
 
-      # Never-autonomous task baskets (additive): all five complete backend
+      # Never-autonomous task baskets (additive): all six complete backend
       # files are gated together — rules/matching, task-level scope and
-      # clearance, durable rule-write fences, reviewer authority, and entry
-      # identity. Each file runs in its own python process with its own
-      # absolute runner-temp SQLite file so one file cannot be certified by
-      # state another left behind; TESTING/PYTHON_DOTENV_DISABLED keep the
-      # lane off .env and the repo dev DB. Complete files only: no node-id
-      # subsets, deselect, skip or continue-on-error. No previous selection
-      # in this job is changed.
+      # clearance, durable rule-write fences, reviewer authority, entry
+      # identity, and real-entry task-profile isolation. Each file runs in its
+      # own python process with its own absolute runner-temp SQLite file so
+      # one file cannot be certified by state another left behind;
+      # TESTING/PYTHON_DOTENV_DISABLED keep the lane off .env and the repo
+      # dev DB. Complete files only: no node-id subsets, deselect, skip or
+      # continue-on-error. No previous selection in this job is changed.
       - name: Run never-autonomous task boundary controls
         env:
           TESTING: "1"
@@ -667,7 +667,7 @@ jobs:
         run: |
           never_root=$(mktemp -d "${RUNNER_TEMP}/never-autonomous-XXXXXX")
           mkdir -p "${never_root}/data"
-          for never_file in rules task_scope rule_write_fences review_authority entry_identity; do
+          for never_file in rules task_scope rule_write_fences review_authority entry_identity entry_profile_isolation; do
             DATABASE_URL="sqlite:///${never_root}/${never_file}.db" \
               ATOM_DATA_DIR="${never_root}/data" \
               python -m pytest "tests/test_never_autonomous_${never_file}.py" \
