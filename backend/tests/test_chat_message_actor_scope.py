@@ -813,8 +813,8 @@ def test_external_bridge_scope_stays_declared_and_local_callers_cannot_adopt_it(
     )
     assert bridge_turn.status_code == 200, bridge_turn.text
     assert bridge_turn.json().get("status") == "success", bridge_turn.text
-    # The universal bridge's canonical session key for an `agent` message.
-    session_id = "agent_fixture-bot_fixture-sender_"
+    # The universal bridge's canonical session key for a `slack` message.
+    session_id = "slack_fixture-bot_fixture-sender_"
     rows = _messages(world, session_id)
     assert sorted(row["role"] for row in rows) == ["assistant", "user"], rows
     assert {row["tenant_id"] for row in rows} == {"default"}, rows
