@@ -1,0 +1,69 @@
+{
+  "result": "PASS",
+  "qualified_source": "51fedc077d5e5db0fa750069dc2f5bc792a02c65",
+  "qualified_source_parent": "e277027f3dd5703beb1469fa03a80fc7cf109f3b",
+  "migration_source_base": "02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909",
+  "tests": {
+    "passed": 29,
+    "skipped": 0,
+    "includes_opt_in_real_cluster": true
+  },
+  "server_version": "14.24 (Homebrew)",
+  "python": {
+    "executable": "/private/tmp/atom-macos-quickstart.U2N2Wn/backend/venv/bin/python",
+    "psycopg2": "2.9.13 (dt dec pq3 ext lo64)",
+    "sqlalchemy": "2.1.8",
+    "version": "3.12.13"
+  },
+  "checks": {
+    "absent_table_guard_is_safe_noop": true,
+    "connection_uses_owned_unix_socket": true,
+    "downgrade_preserves_rows_indexes_constraints": true,
+    "downgrade_removes_only_lineage_upgrade": true,
+    "downgrade_then_reupgrade_restores_lineage": true,
+    "legacy_rows_unchanged_after_upgrade": true,
+    "libpq_owner_service_password_tls_not_consulted": true,
+    "libpq_resolved_socket_user_database_pinned": true,
+    "lineage_column_added_nullable_no_backfill": true,
+    "lineage_index_added_valid_nonunique": true,
+    "lineage_writable_after_upgrade": true,
+    "migration_revision_chain_loaded": true,
+    "new_lineage_row_writable": true,
+    "own_cluster_marker_data_directory_verified": true,
+    "partial_upgrade_repairs_missing_index": true,
+    "post_restart_rows_lineage_and_unique_persisted": true,
+    "preexisting_indexes_preserved": true,
+    "proof_digest_recorded": true,
+    "restart_used_new_owned_postmaster_pid": true,
+    "scratch_safety_prechecked_empty_private": true,
+    "tcp_disabled_listen_addresses_empty": true,
+    "unique_constraint_preserved": true,
+    "unique_constraint_still_enforced": true,
+    "upgrade_idempotent_on_upgraded_table": true
+  },
+  "proof_digest": "b7034cd45d80e35ad07a95c552080acb7d5730e2ccea08595f1fcce528f6397c",
+  "legacy_seed_digest_before": "a66e3af0af258ba7e1411ce47339398eaedc6bbb333446513086ae05d27fd377",
+  "legacy_seed_digest_after": "a66e3af0af258ba7e1411ce47339398eaedc6bbb333446513086ae05d27fd377",
+  "clean_restart": {
+    "old_pid_different_from_new": true,
+    "lineage_after_restart": "doc-acceptance-upgrade-2",
+    "new_row_lineage_after_restart": "doc-acceptance-new-row",
+    "unique_sqlstate": "23505"
+  },
+  "cleanup": {
+    "postmaster_pid_absent": true,
+    "owned_server_pid_absent": true,
+    "no_tcp_listener": true,
+    "recursive_delete_performed": false,
+    "scratch_root_preserved": true
+  },
+  "scope": "Direct actual Alembic revision existing-table upgrade/downgrade/reupgrade, data/index/constraint preservation and clean private-cluster restart on PG14.24; not full graph/app/crash/concurrency",
+  "source_files": {
+    "scripts/acceptance/postgres_document_lineage_upgrade.py": "310309b0d2b6e17e4beba471db657b933a267a93e95388f3952f182f734b7cca",
+    "backend/tests/test_postgres_document_lineage_upgrade_acceptance.py": "846b73d1c3ceed81a2d039bd1dc80b1ad72783f6ccc1acee0267d290425224ca"
+  },
+  "publication_code_head": "3784a97c74a48e84a44f8843c92a97421cc9763b",
+  "rebase_base": "1453f2cf42e822943e52390ef2c7b0d544609c20",
+  "rebase_validation": "Only nine already-reviewed documentation files differ from the executed release source; all tracked runtime and CI bytes are unchanged.",
+  "independent_ci_preservation_tests_passed": 642
+}
