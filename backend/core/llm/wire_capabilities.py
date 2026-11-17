@@ -135,7 +135,10 @@ class RouteWireDeclaration:
     configured endpoint is a gateway whose forwarding of the vendor's switch
     has not been attested: vendor documentation is not proof that a gateway
     accepts the field. In both cases the handler omits it rather than
-    inventing one.
+    inventing one. A declared endpoint that rejects the field with an actual
+    provider HTTP 400/422 may have it dropped once and memoized; a 5xx,
+    auth/rate-limit status, or a local validation/schema error is not
+    evidence about field support and never changes the declared request.
     """
 
     provider_id: str

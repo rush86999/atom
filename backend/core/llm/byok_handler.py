@@ -3864,20 +3864,30 @@ class BYOKHandler:
         Prefer structure over prose: SDK exceptions expose ``status_code``
         (and often ``response.status_code``); a status embedded in a dumped
         completion is not evidence of the HTTP response.
+
+        Instructor raises ``InstructorRetryException`` ``from`` the last
+        provider exception (``__cause__``), so the wrapper itself has no
+        status. Follow that explicit cause chain: a wrapped 400 is still a
+        provider 400, while a local validation wrapper has no status at all.
+        ``__context__`` is deliberately not followed — an unrelated exception
+        raised while handling another must not lend its status to this one.
         """
-        if exc is None:
-            return None
-        for attr in ("status_code", "http_status"):
-            value = getattr(exc, attr, None)
+        seen: set = set()
+        current = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            for attr in ("status_code", "http_status"):
+                value = getattr(current, attr, None)
+                if isinstance(value, int):
+                    return value
+            response = getattr(current, "response", None)
+            value = getattr(response, "status_code", None)
             if isinstance(value, int):
                 return value
-        response = getattr(exc, "response", None)
-        value = getattr(response, "status_code", None)
-        if isinstance(value, int):
-            return value
-        code = getattr(exc, "code", None)
-        if isinstance(code, int):
-            return code
+            code = getattr(current, "code", None)
+            if isinstance(code, int):
+                return code
+            current = getattr(current, "__cause__", None)
         return None
 
     @staticmethod
@@ -11211,16 +11221,29 @@ class BYOKHandler:
                             # (1a) A declared provider's documented thinking
                             # switch was rejected — a valid documented field
                             # may still be unknown to a particular endpoint
-                            # implementation. This is a deterministic
-                            # compatibility 400, not a schema failure: drop
-                            # the switch once (memoize the pair) and, when
-                            # forced tool_choice needed it, move to JSON mode
-                            # so the retry is a DIFFERENT, supported payload
-                            # rather than an identical repeat. The Go JSON
-                            # declaration sends no switch, so this branch is
-                            # unreachable for it by construction.
+                            # implementation. Only an ACTUAL provider
+                            # field-rejection (HTTP 400/422, possibly wrapped
+                            # by Instructor) may establish a permanent
+                            # field-support fact. A 5xx/429/401/403 is
+                            # transient/auth/provider state, and a local
+                            # validation/schema error never went to the
+                            # provider with this field — neither may strip it,
+                            # memoize it, or re-protocol the retry. Status is
+                            # read structurally from the exception cause chain;
+                            # prose in a model-generated schema dump is not
+                            # evidence of an HTTP response. When this is a
+                            # deterministic compatibility rejection, drop the
+                            # switch once (memoize the pair) and, when forced
+                            # tool_choice needed it, move to JSON mode so the
+                            # retry is a DIFFERENT, supported payload rather
+                            # than an identical repeat. The Go JSON declaration
+                            # sends no switch, so this branch is unreachable
+                            # for it by construction.
+                            _switch_rejection_status = self._exception_status(
+                                _attempt_err)
                             if (
-                                _structured_thinking_extra is not None
+                                _switch_rejection_status in (400, 422)
+                                and _structured_thinking_extra is not None
                                 and _structured_thinking_key
                                 and _structured_thinking_key in _err_txt
                                 and any(marker in _err_txt for marker in (
@@ -11324,9 +11347,20 @@ class BYOKHandler:
 
                             # (2) Reasoning-mandatory endpoints reject the
                             # disable switch. Drop it, memoize the pair, retry.
+                            # The legacy OpenRouter object keeps its historical
+                            # text-only detection (a 400 may arrive as message
+                            # text, not a typed exception). A DECLARED native
+                            # switch must not turn a transient 5xx or a local
+                            # validation error into a permanent field-support
+                            # fact, so it needs the same provider 400/422
+                            # evidence as (1a).
                             if (
                                 "reasoning" in _err_txt
                                 and _create_kwargs.get("extra_body")
+                                and (
+                                    _structured_thinking_extra is None
+                                    or _switch_rejection_status in (400, 422)
+                                )
                                 and "reasoning" not in _recovered
                             ):
                                 _recovered.add("reasoning")

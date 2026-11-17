@@ -28,6 +28,11 @@ behavior:
   existing typed-error recovery (one changed retry, then a pair memo — never
   an identical repeat).
 
+A documented switch rejection is only evidence when the provider actually
+answered with HTTP 400/422. Transport/auth/rate-limit statuses, and local
+Instructor/schema errors that merely mention the field, never establish a
+permanent field-support fact or re-protocol the request.
+
 Attestation is bound to the configured SDK base URL, not to the provider
 label. The tests exercise that with real clients over ``MockTransport``:
 official DeepSeek/Go base URLs take the declared payload; ``OPENCODE_BASE_URL``
@@ -41,6 +46,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from types import SimpleNamespace
 
 os.environ.setdefault("TESTING", "1")
 
@@ -569,15 +575,16 @@ def test_gateway_json_mode_preserves_complete_message_history(monkeypatch):
 # ---------------------------------------------------------------------------
 # A declared documented switch can still be rejected: one changed retry, memo
 # ---------------------------------------------------------------------------
+@pytest.mark.parametrize("status", [400, 422])
 def test_native_documented_switch_rejection_is_dropped_once_and_memoized(
-        monkeypatch):
+        monkeypatch, status):
     """A valid documented field may still be unknown to an implementation.
 
     The native declaration carries the sourced ``reasoning_effort="none"``
-    switch; a native-compatible endpoint that rejects the field must get ONE
-    changed retry (JSON, switch dropped) and the pair memo, never an identical
-    repeat. This is the reactive-recovery path that used to be exercised
-    through the unproven Go switch.
+    switch; a native-compatible endpoint that rejects the field with a real
+    provider 400/422 must get ONE changed retry (JSON, switch dropped) and the
+    pair memo, never an identical repeat. This is the reactive-recovery path
+    that used to be exercised through the unproven Go switch.
     """
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
     provider, model = "deepseek", "deepseek-v4-pro"
@@ -595,7 +602,8 @@ def test_native_documented_switch_rejection_is_dropped_once_and_memoized(
         bodies.append(body)
         if body.get("reasoning_effort") is not None:
             return _error(
-                400, "Unrecognized request argument supplied: reasoning_effort")
+                status,
+                "Unrecognized request argument supplied: reasoning_effort")
         assert "tools" not in body, body
         assert body.get("response_format") == {"type": "json_object"}, body
         return httpx.Response(200, json=_completion_body(
@@ -633,6 +641,132 @@ def test_native_documented_switch_rejection_is_dropped_once_and_memoized(
     assert "tools" not in bodies[2], bodies[2]
     assert bodies[2].get("response_format") == {"type": "json_object"}, bodies[2]
     _clear_pair_memos(provider, model)
+
+
+# ---------------------------------------------------------------------------
+# Only a provider field rejection may establish a permanent field fact
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("status", [401, 403, 429, 502, 503])
+def test_transient_or_auth_status_never_establishes_switch_unsupported(
+        monkeypatch, status):
+    """A 5xx/429/401/403 is not evidence that the provider rejected the field.
+
+    The root MockTransport counter returned a 502 whose *message* happened to
+    name ``reasoning_effort`` and say "unsupported"; the old text-only branch
+    stripped the documented switch, moved to JSON, and memoized the pair as
+    permanently unsupported. Status and prose are different evidence: only an
+    actual provider 400/422 may do that.
+    """
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "deepseek", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    bodies: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        bodies.append(body)
+        return _error(
+            status,
+            "Upstream reasoning_effort service unsupported temporarily")
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert result is None
+
+    assert bodies, "the original dispatch policy must still run"
+    # Every physical request keeps the documented native switch and the
+    # original TOOLS protocol: no strip, no JSON re-protocol.
+    for body in bodies:
+        assert body.get("reasoning_effort") == "none", body
+        assert body.get("tools"), body
+        assert "response_format" not in body, body
+    from core.llm import byok_handler as bh
+    pair = f"{provider}/{model}"
+    assert pair not in bh._THINKING_SWITCH_UNSUPPORTED
+    assert pair not in bh._REASONING_MANDATORY
+    _clear_pair_memos(provider, model)
+
+
+def test_local_schema_error_mentioning_switch_is_not_a_provider_rejection(
+        monkeypatch):
+    """Local validation never went to the provider with this field.
+
+    A model-generated schema/validation dump may quote the field name and an
+    "unsupported" token; that is not an HTTP response and must not strip the
+    switch, memoize a permanent fact, or re-protocol the retry.
+    """
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "deepseek", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    bodies: list[dict] = []
+
+    class _Create:
+        def __call__(self, **kwargs):
+            bodies.append(kwargs)
+            raise ValueError(
+                "1 validation error for _WireProbe: the generated payload "
+                "said reasoning_effort is unsupported; schema not satisfied")
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(create=_Create())))
+    fake_instructor = MagicMock()
+    fake_instructor.Mode = SimpleNamespace(JSON="json")
+    fake_instructor.from_openai.return_value = fake_client
+    from core.llm import byok_handler as bh
+    monkeypatch.setattr(bh, "instructor", fake_instructor)
+
+    handler = _handler_for(
+        provider, model,
+        lambda request: httpx.Response(200, json=_completion_body(
+            {}, {"value": "unused"}, model)))
+    result = _call(handler, disable_reasoning=True)
+    assert result is None
+
+    assert bodies, "the original dispatch policy must still run"
+    for body in bodies:
+        assert body.get("extra_body") == {
+            "reasoning_effort": "none"}, body
+        assert body.get("logprobs") is True, body
+    pair = f"{provider}/{model}"
+    assert pair not in bh._THINKING_SWITCH_UNSUPPORTED
+    assert pair not in bh._REASONING_MANDATORY
+    _clear_pair_memos(provider, model)
+
+
+def test_exception_status_reads_typed_and_instructor_wrapped_causes():
+    """Status is structural evidence, including through Instructor's wrapper.
+
+    Real Instructor raises ``InstructorRetryException`` ``from`` the last
+    provider exception, so the wrapper has no status of its own. The helper
+    must see the typed cause. A local error with an unrelated 502 in
+    ``__context__`` must NOT inherit that status.
+    """
+    from instructor.core import InstructorRetryException
+
+    request = httpx.Request(
+        "POST", "https://api.deepseek.com/v1/chat/completions")
+
+    def _typed(status: int) -> Exception:
+        response = httpx.Response(status, request=request)
+        cls = (
+            openai.BadRequestError
+            if status == 400 else openai.InternalServerError)
+        return cls(
+            "Unrecognized request argument supplied: reasoning_effort",
+            response=response, body=None)
+
+    direct = _typed(400)
+    assert BYOKHandler._exception_status(direct) == 400
+    wrapped = InstructorRetryException(
+        str(direct), n_attempts=1, total_usage=0)
+    wrapped.__cause__ = direct
+    assert BYOKHandler._exception_status(wrapped) == 400
+    assert BYOKHandler._exception_status(_typed(502)) == 502
+
+    local = ValueError("reasoning_effort is unsupported")
+    local.__context__ = _typed(502)
+    assert BYOKHandler._exception_status(local) is None
 
 
 # ---------------------------------------------------------------------------
