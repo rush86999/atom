@@ -1125,6 +1125,56 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/atom-document-lineage/data" "${RUNNER_TEMP}/atom-document-lineage/office"
           python -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py tests/test_document_connector_lineage.py tests/test_postgres_document_lineage_upgrade_acceptance.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # Explicit specialist collaboration authority (additive): the three
+      # complete files gate the SEMANTIC collaboration requirement (the one
+      # shared structured interpreter can express it; no second parser), the
+      # early pre-reply route with the existing master/pilot/shadow gates
+      # unchanged (a task request is never admin pilot consent), and the
+      # durable pending authority/CAS. Every path is absolute runner-temp
+      # scratch (SQLite + ATOM_DATA_DIR) and each Hugging Face/FastEmbed cache
+      # is a fresh empty runner-temp directory with offline flags, so the lane
+      # needs no download, machine cache, live DB, provider, credential or
+      # network. Complete files only: no node-id subsets, skips or
+      # continue-on-error. No earlier step or selection is changed.
+      - name: Run explicit collaboration authority controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-explicit-collaboration/collaboration.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-explicit-collaboration/data"
+          HF_HOME: "${{ runner.temp }}/atom-explicit-collaboration/hf-home"
+          HF_HUB_CACHE: "${{ runner.temp }}/atom-explicit-collaboration/hf-hub"
+          FASTEMBED_CACHE_PATH: "${{ runner.temp }}/atom-explicit-collaboration/fastembed-cache"
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          HF_DATASETS_OFFLINE: "1"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-explicit-collaboration"
+          python -m pytest tests/test_collaboration_public_http_contract.py tests/test_explicit_collaboration_semantics.py tests/test_collaboration_pending_authority.py -q --tb=short --timeout=300 --timeout-method=thread
+      # M3 canonical delivery contract (2026-11-17): the enabled
+      # CHAT_FINALIZATION_M3 pre-delivery guard is the ONE final text for
+      # WS close, HTTP and the durable assistant row, including the
+      # empty-withheld fail-closed path. Runs the whole public-boundary
+      # file unconditionally (real router/JWT/reply leg/durable read; only
+      # external model outputs, memory, planner and WS transport doubled).
+      - name: Run M3 canonical chat delivery contract controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-m3-canonical/canonical-delivery.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-m3-canonical/data"
+          LANCEDB_URI: "${{ runner.temp }}/atom-m3-canonical/lancedb"
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-m3-canonical/data" "${RUNNER_TEMP}/atom-m3-canonical/lancedb"
+          python -m pytest tests/test_m3_canonical_delivery_contract.py -q --tb=short --timeout=300 --timeout-method=thread
       # Served chat transcript actor-scope and durable read-envelope
       # regressions (additive): real uvicorn + real SQLite + real JWT
       # signup/login + the real module-level ChatOrchestrator singleton; only

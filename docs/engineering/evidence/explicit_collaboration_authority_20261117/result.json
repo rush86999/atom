@@ -1,0 +1,92 @@
+{
+  "status": "PASS_BOUNDED_OFFLINE",
+  "source": "d2d6cb2049e7e533c19acc6b3bb0cc85632ddcd2",
+  "source_hashes": {
+    "backend/core/action_program.py": "cd15ba5f50fb439fd0921c24077ebfbcbf818675c698cace2571af6f13091eb0",
+    "backend/core/agent_context_resolver.py": "b416a70a43fb1d130ccb9c5a4c4861aa119dabb9a58044608670e35e8d95a329",
+    "backend/core/atom_meta_agent.py": "3a6e3d3e3a7bfa56f045c315d90e6a4a3b8da2b1d931708372e641f93a61e3c1",
+    "backend/core/chat_session_manager.py": "2b69a577b982e57f888ebc01ee09b5de7198e9f7c43c921bc38a64e5679d8077",
+    "backend/core/chat_tool_planner.py": "d715356f88e5f4a4e785369200c8ede28b0d1bcf24986acbbb0546b63133e9a1",
+    "backend/core/fleet_admiral.py": "c8d6b79e4c6d3573375820c7423bfd6fc03f66ccbc6305a71b1537fd1f184a96",
+    "backend/core/recruitment_intelligence_service.py": "51945aafc5b69e5bacb0da9028ee8202b6cdfc7faa6e67774162ce8706fb3b0b",
+    "backend/core/turn_decision.py": "a4b1dff7c6a86c6f6f8a4027dacea072ab58e06132d40f1cc0914ce28f6bd478",
+    "backend/integrations/chat_orchestrator.py": "ab9497faa08ba44d517048322af21fa844e03a1b68236c63638ae598b90ab865",
+    "backend/tests/test_collaboration_pending_authority.py": "c5f20358f76dbac1d0d6507ec10792cdbe3b57a8d8aad7841c9adaee4d1c4ef7",
+    "backend/tests/test_collaboration_public_http_contract.py": "f1f9083d35eb04cb87a845f51bbe3e57a2bccba540ab97acb6905c9073275c9e",
+    "backend/tests/test_explicit_collaboration_semantics.py": "2d5727040eeb7ad1d2ddd3e278d68ae04d67ff959026565a0e8784933a8dc0c6"
+  },
+  "new_ci_selector_passed": 85,
+  "new_ci_selector_breakdown": {
+    "tests/test_collaboration_public_http_contract.py": 9,
+    "tests/test_explicit_collaboration_semantics.py": 28,
+    "tests/test_collaboration_pending_authority.py": 48
+  },
+  "new_ci_selector_seconds": 64.3,
+  "new_ci_selector_skipped": 0,
+  "existing_ci_preservation_passed": 642,
+  "existing_ci_preservation_seconds": 70.72,
+  "network_denied": true,
+  "isolation": {
+    "database_url": "absolute runner-temp scratch sqlite file",
+    "atom_data_dir": "absolute runner-temp scratch directory",
+    "model_caches": "fresh empty HF_HOME/HF_HUB_CACHE/FASTEMBED_CACHE_PATH",
+    "offline_flags": [
+      "HF_HUB_OFFLINE=1",
+      "TRANSFORMERS_OFFLINE=1",
+      "HF_DATASETS_OFFLINE=1"
+    ],
+    "live_db_provider_docker_download_build": false,
+    "ci_step_creates_only_its_own_runner_temp_root": true,
+    "standard_timeout": "--timeout=300 --timeout-method=thread",
+    "extra_skips_or_deselects": 0
+  },
+  "bounded_offline_proof": [
+    "one shared structured interpretation expresses collaboration; no second parser or phrase regex",
+    "role/label/objective limits clarify and preserve the exact original request string; the structured role list is bounded to 64 labels and never silently extended",
+    "early pre-reply route with master-off/shadow/pilot gates unchanged; naming specialists is not admin pilot consent",
+    "master-off and shadow persist an honest pending with zero chain, zero specialists, zero fleet audit and no paid specialist call",
+    "approved pilot executes the exact original request; bare approval resumes the stored original request",
+    "pending clarification earns no calibration row and no fleet-success credit",
+    "durable pending load/save/claim truth, scope/revision/digest refusal, DB-mode single claim receipt and completed-receipt dedupe, file-mode OS-lock plus metadata CAS dispatching state with no DB receipt",
+    "one canonical admitted conversation id before every consumer; same-user two-turn continuation stable; foreign envelope id not reused",
+    "whole-raw-JSON metadata CAS preserves unrelated typed null values and concurrent live keys",
+    "cross-process file locking with truthful failure and fail-closed missing OS lock",
+    "direct AgentContextResolver session-agent writer uses the shared merge",
+    "real public HTTP JWT, scoped agent factory and child-to-synthesis dataflow"
+  ],
+  "not_proved": [
+    "live model/provider output quality or latency",
+    "browser journey or current-main acceptance",
+    "whole-app/service restart (a fresh manager/orchestrator proves cache loss only)",
+    "whole-app PostgreSQL, migration or concurrency breadth",
+    "any new real-model fleet pass for cases 6/7/8",
+    "invented readiness percentage"
+  ],
+  "retained_failures": {
+    "fleet_cases_6_7_8": "remain FAILED; allowances consumed; no reclassification",
+    "open_strict_xfail": [
+      "tests/test_pending_file_task_resume.py::test_no_unsupported_workflow_claim_reaches_output",
+      "tests/test_pending_file_task_resume.py::test_no_unsupported_claim_in_mixed_body"
+    ],
+    "open_xfail_disposition": "open and unchanged by this release; separate public-boundary investigation and successor repair are outside this record; not skipped, deselected or weakened",
+    "collaboration_envelope_xfail": "removed by the canonical-id fix and now a passing assertion"
+  },
+  "postgres_scope": "12 shared-metadata-method checks on a socket-only PostgreSQL 14.24 cluster; owned PID verified absent after cleanup; not whole-app PostgreSQL",
+  "root_qualified_join": {
+    "source": "d2d6cb2049e7e533c19acc6b3bb0cc85632ddcd2",
+    "files": 25,
+    "passed": 619,
+    "existing_strict_xfail": 2,
+    "seconds": 161.62
+  },
+  "qualified_input_context": {
+    "shared_controls": 4138,
+    "http_suite_files": 34,
+    "meaning": "sibling qualification on the same frozen source; input context, not a claim re-run by this record"
+  },
+  "model_outputs_doubled": true,
+  "original_claims": 143,
+  "original_goals": 18,
+  "original_audit_or_score_modified": false,
+  "private_packets_or_secrets_copied": false
+}

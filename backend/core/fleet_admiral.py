@@ -929,6 +929,7 @@ Return JSON matching the TaskAnalysis schema."""
         tenant_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
         root_execution_id: Optional[str] = None,
+        requested_domains: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Analyze task, recruit specialist agents, and initialize fleet execution.
@@ -1003,13 +1004,19 @@ Return JSON matching the TaskAnalysis schema."""
             tenant_id=tenant_id,
         )
 
-        recruitment_result = await self.recruitment_intelligence.orchestrate_recruitment(
-            goal=task,
-            user_id=user_id,  # Changed from tenant_id
-            context={"chain_id": chain.id},
-            max_specialists=task_analysis.get("specialist_count", 5),
-            chain_id=chain.id
-        )
+        _recruitment_kwargs: Dict[str, Any] = {
+            "goal": task,
+            "user_id": user_id,  # Changed from tenant_id
+            "context": {"chain_id": chain.id},
+            "max_specialists": task_analysis.get("specialist_count", 5),
+            "chain_id": chain.id,
+        }
+        if requested_domains:
+            _recruitment_kwargs["requested_domains"] = list(
+                requested_domains)
+        recruitment_result = (
+            await self.recruitment_intelligence.orchestrate_recruitment(
+                **_recruitment_kwargs))
 
         if not recruitment_result.get("success"):
             logger.error(f"[FleetAdmiral] Recruitment failed: {recruitment_result.get('error')}")
