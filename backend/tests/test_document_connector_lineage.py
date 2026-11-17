@@ -15,12 +15,17 @@ pins the lineage contract the identity exists for:
 
 * the id stamped on the dataset equals the id the memory row is written
   under (one computation, no drift);
-* a bare external id and an already ``"<source>:<id>"``-prefixed one (the
-  WorkDrive walker's convention) resolve to the SAME document;
+* the established write identity is preserved verbatim: the WorkDrive walker
+  has always passed an already ``"<source>:<id>"``-prefixed external id, so
+  its durable rows live under ``ext_sha1("<source>:<source>:<id>")``. A
+  normalising helper would orphan those rows (badge false, refresh writes a
+  duplicate), so the pre-change key is pinned against a SEEDED existing row;
 * the no-external-id branch still content-addresses and links its derivative.
 
-Expected ids come from ``source_document_id_for_source`` — the catalog's
-canonical lineage helper — never a second hash implementation in this test.
+Expected ids for the bare convention come from
+``source_document_id_for_source`` — the catalog's lineage helper. The legacy
+walker row uses the pre-change formula inline: seeding a pre-existing store
+row from the helper under test would be circular.
 """
 from __future__ import annotations
 
@@ -217,55 +222,163 @@ async def test_connector_csv_ingest_stamps_dataset_with_row_identity(
         assert mirror.integration_id == SOURCE
 
 
-@pytest.mark.asyncio
-async def test_prefixed_external_id_is_one_identity_with_the_bare_id(
-        scratch, monkeypatch):
-    """The WorkDrive walker passes "zoho_workdrive:<id>"; reads pass "<id>".
+WALKER_SOURCE = "zoho_workdrive"
+WALKER_RAW_ID = "file-88"
+WALKER_PREFIXED_ID = f"{WALKER_SOURCE}:{WALKER_RAW_ID}"
+REFRESH_CSV_BYTES = (
+    "region,metric,value\n"
+    "North,Orchid units,8888\n"
+    "South,Tulip units,1180\n"
+).encode("utf-8")
+OLD_CSV_TEXT = "region | metric | value\nNorth | Orchid units | 7777"
 
-    Both conventions must land on ONE document: a later bare-id ingest of the
-    same bytes is an unchanged no-op, not a duplicate row.
+
+def _pre_change_doc_id(source: str, external_id: str) -> str:
+    """The identity the funnel has ALWAYS written: caller input verbatim.
+
+    Deliberately not imported from the module under test — this is the
+    pre-change contract a seeded durable row must keep matching.
+    """
+    import hashlib
+
+    digest = hashlib.sha1(
+        f"{source}:{external_id}".encode("utf-8")).hexdigest()
+    return f"ext_{digest[:24]}"
+
+
+@pytest.mark.asyncio
+async def test_seeded_pre_change_walker_row_stays_discoverable_and_refreshes(
+        scratch, monkeypatch):
+    """Pre-existing double-prefixed walker identity survives the crash fix.
+
+    The walker passes ``external_id="zoho_workdrive:<id>"``; before the fix
+    that row lived under ``ext_sha1("zoho_workdrive:zoho_workdrive:<id>")``.
+    Seed exactly that durable row, then exercise the real badge probe, the
+    non-explicit update/refresh gate, and the explicit refresh write. None may
+    re-key it into a "canonical" sibling, and the dataset lineage must name
+    the row that actually exists.
     """
     store = _MemoryStore()
     captured = _capture_dataset_materialization(monkeypatch)
     service = _service(store)
 
-    prefixed = await service.process_file_bytes(
-        CSV_BYTES,
+    legacy_id = _pre_change_doc_id(WALKER_SOURCE, WALKER_PREFIXED_ID)
+    foreign_id = _pre_change_doc_id("box", WALKER_PREFIXED_ID)
+    foreign_row = {
+        "id": foreign_id,
+        "text": "foreign workspace/source copy",
+        "metadata": {
+            "external_id": WALKER_PREFIXED_ID,
+            "source_modified_at": "2026-01-01T00:00:00+00:00",
+        },
+    }
+    store.rows[foreign_id] = foreign_row
+    store.rows[legacy_id] = {
+        "id": legacy_id,
+        "text": OLD_CSV_TEXT,
+        "metadata": {
+            "file_name": "WorkDrive Prices.csv",
+            "integration_id": WALKER_SOURCE,
+            "external_id": WALKER_PREFIXED_ID,
+            "source_modified_at": "2026-01-01T00:00:00+00:00",
+            "freshness_status": "fresh",
+        },
+    }
+
+    # 1. Durable badge probe — the panel lists BARE ids, while the walker
+    #    wrote the prefixed key; both asks must still see the stored row.
+    found = await service.ingested_external_ids(
+        WALKER_SOURCE, [WALKER_PREFIXED_ID, WALKER_RAW_ID])
+    assert found == [WALKER_PREFIXED_ID, WALKER_RAW_ID]
+
+    # 2. Non-explicit source update: hybrid mode must see the stored row as
+    #    outdated and refresh it, not call it absent and skip the content.
+    class _Hybrid:
+        def get_content_mode(self, source: str) -> str:
+            return "hybrid"
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _Hybrid(),
+    )
+    refreshed = await service.process_file_bytes(
+        REFRESH_CSV_BYTES,
         file_name="WorkDrive Prices.csv",
-        source="zoho_workdrive",
+        source=WALKER_SOURCE,
         user_id="u-lineage",
         workspace_id=WS,
-        external_id="zoho_workdrive:file-88",
-        explicit=True,
+        external_id=WALKER_PREFIXED_ID,
+        extra_metadata={
+            "source_modified_at": "2026-06-01T00:00:00+00:00",
+        },
+        explicit=False,
     )
-    bare = await service.process_file_bytes(
+    assert refreshed["status"] == "ingested", refreshed
+    assert refreshed["doc_id"] == legacy_id
+    assert captured["source_document_id"] == legacy_id
+    assert set(store.rows) == {legacy_id, foreign_id}
+    assert store.rows[foreign_id] is foreign_row
+    assert store.rows[legacy_id]["metadata"]["source_modified_at"].startswith(
+        "2026-06-01")
+
+    # Real catalog derivative names the SAME id that actually holds the row.
+    with scratch["factory"]() as db:
+        from core.models import DatasetEntry
+
+        catalog = db.query(DatasetEntry).all()
+        assert catalog and {
+            row.source_document_id for row in catalog} == {legacy_id}
+        assert {row.external_id for row in catalog} == {WALKER_RAW_ID}
+
+    # 3. Explicit refresh from the OTHER convention (the single-file panel
+    #    posts the bare id) reuses the legacy row's identity, so there is no
+    #    second "canonical" copy for a later delete to leave behind.
+    again = await service.process_file_bytes(
         CSV_BYTES,
         file_name="WorkDrive Prices.csv",
-        source="zoho_workdrive",
+        source=WALKER_SOURCE,
         user_id="u-lineage",
         workspace_id=WS,
-        external_id="file-88",
+        external_id=WALKER_RAW_ID,
         explicit=True,
     )
-
-    expected = source_document_id_for_source("zoho_workdrive", "file-88")
-    assert prefixed["status"] == "ingested", prefixed
-    assert bare["status"] == "skipped" and bare["reason"] == "unchanged", bare
-    assert prefixed["doc_id"] == bare["doc_id"] == expected
-    assert list(store.rows) == [expected]
-    assert captured["source_document_id"] == expected
-    assert captured["result"]["status"] == "current", captured["result"]
+    assert again["doc_id"] == legacy_id
+    assert set(store.rows) == {legacy_id, foreign_id}
+    assert store.rows[foreign_id] is foreign_row
 
 
-def test_external_doc_id_is_source_scoped_and_prefix_insensitive():
-    """The one helper every identity site uses — no local hash re-implementation."""
-    from core.auto_document_ingestion import _external_doc_id
+def test_external_doc_id_preserves_established_write_identity():
+    """The one helper every identity site uses — exactly the pre-change key."""
+    from core.auto_document_ingestion import (
+        _external_doc_id,
+        _external_doc_id_candidates,
+    )
 
-    canonical = source_document_id_for_source(SOURCE, EXTERNAL_ID)
-    assert _external_doc_id(SOURCE, EXTERNAL_ID) == canonical
-    assert _external_doc_id(SOURCE, f"{SOURCE}:{EXTERNAL_ID}") == canonical
+    # Bare connector id: unchanged (`source_document_id_for_source` agrees).
+    assert _external_doc_id(SOURCE, EXTERNAL_ID) == _pre_change_doc_id(
+        SOURCE, EXTERNAL_ID)
+    assert _external_doc_id(SOURCE, EXTERNAL_ID) == (
+        source_document_id_for_source(SOURCE, EXTERNAL_ID))
+    # Walker's already-prefixed id stays VERBATIM — normalising it would
+    # orphan every durable row written before this fix.
+    walker_legacy = _pre_change_doc_id(
+        WALKER_SOURCE, WALKER_PREFIXED_ID)
+    walker_bare = _pre_change_doc_id(WALKER_SOURCE, WALKER_RAW_ID)
+    assert _external_doc_id(
+        WALKER_SOURCE, WALKER_PREFIXED_ID) == walker_legacy
+    # Lookups cover both historical conventions, exact-caller-id first. No
+    # write is re-keyed and no other source is included.
+    assert _external_doc_id_candidates(
+        WALKER_SOURCE, WALKER_PREFIXED_ID) == [walker_legacy, walker_bare]
+    assert _external_doc_id_candidates(
+        WALKER_SOURCE, WALKER_RAW_ID) == [walker_bare, walker_legacy]
     # Source-scoped: a reused raw id in another integration is another file.
-    assert _external_doc_id("box", EXTERNAL_ID) != canonical
+    assert _external_doc_id("box", EXTERNAL_ID) != _external_doc_id(
+        SOURCE, EXTERNAL_ID)
+    assert _external_doc_id_candidates("box", EXTERNAL_ID) == [
+        _external_doc_id("box", EXTERNAL_ID),
+        _external_doc_id("box", f"box:{EXTERNAL_ID}"),
+    ]
 
 
 @pytest.mark.asyncio

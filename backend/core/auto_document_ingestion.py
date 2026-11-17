@@ -154,28 +154,59 @@ def _hashlib_sha1(value: str) -> str:
 
 
 def _external_doc_id(source: str, external_id: str) -> str:
-    """Stable, source-scoped document id for a connector file.
+    """The established, source-scoped document id for a connector file.
 
     ONE implementation for every identity site in this module (the write key,
-    the source-update probe and the already-ingested badge probe), delegating
-    to the catalog's lineage helper so the id a memory row is written under is
-    byte-for-byte the ``source_document_id`` its derived sheet dataset
-    records. It also collapses the two conventions connectors use for the same
-    file — a bare id and an already source-prefixed ``"<source>:<id>"`` (the
-    WorkDrive walker passes the latter) — to one key, so a read-side ingest
-    and a walker ingest of the same file share one identity.
+    the source-update probe and the already-ingested badge probe). The key is
+    ``ext_sha1("<source>:<external_id>")[:24]`` with the caller's external id
+    taken VERBATIM — exactly what every pre-fix write, badge probe and update
+    probe used. The WorkDrive walker has always passed an already prefixed
+    ``"<source>:<id>"``, so its durable rows live under the double-source key
+    ``ext_sha1("<source>:<source>:<id>")``. A normalising helper would re-key
+    those rows: existing badges would miss, the update probe would call the
+    stored copy absent, and a refresh would write a second "canonical" row.
 
-    The helper returns None where there is no provable connector lineage
-    (empty source, or the content-addressed "upload" route). This funnel still
-    needs a non-null row id, so those keep the source-scoped hash — never a
-    filename, which is metadata, not identity.
+    Do NOT delegate to ``source_document_id_for_source`` here: that catalog
+    helper strips a source prefix to canonicalise dataset lookup, which is a
+    different concern. For a bare connector id both agree; for the walker's
+    prefixed id they deliberately do not. Derived-dataset lineage is stamped
+    from THIS computed value (see ``process_file_bytes``), so the catalog
+    still names the document row that actually exists.
+
+    Content-addressed documents (no external id) never reach this helper —
+    they keep their ``doc_`` key and are linked to their dataset after
+    extraction. Never key on a filename: that is metadata, not identity.
     """
-    from core.sheet_dataset_service import source_document_id_for_source
-
-    doc_id = source_document_id_for_source(source, external_id)
-    if doc_id:
-        return doc_id
     return f"ext_{_hashlib_sha1(f'{source}:{external_id}')[:24]}"
+
+
+def _external_doc_id_candidates(source: str, external_id: str) -> List[str]:
+    """Established identities a connector file may already be stored under.
+
+    ``_external_doc_id`` is the write key for NEW rows and takes the caller's
+    id verbatim. Connectors have historically used two conventions for the
+    same file — the WorkDrive walker sends ``"<source>:<id>"`` while the panel
+    badge and single-file read send the bare ``"<id>"``. Their durable rows
+    therefore exist under two different (both valid, pre-existing) keys.
+
+    Lookups probe BOTH so an old row written by either convention stays
+    discoverable and a refresh updates it in place instead of appending a
+    second copy. Order is exact-caller-id first; the alternate only supplies a
+    fallback. This is deliberately lookup-only: nothing is re-keyed or moved,
+    and no row from another source/scope is ever considered (both candidates
+    are derived from THIS source plus THIS file id).
+    """
+    src = str(source or "").strip()
+    ext = str(external_id or "").strip()
+    candidates = [_external_doc_id(src, ext)]
+    prefix = f"{src}:"
+    if src and ext:
+        alternate = ext[len(prefix):] if ext.startswith(prefix) else prefix + ext
+        if alternate and alternate != ext:
+            alternate_id = _external_doc_id(src, alternate)
+            if alternate_id not in candidates:
+                candidates.append(alternate_id)
+    return candidates
 
 
 # Pre-2007 binary Office containers (.doc/.ppt/.xls are OLE2 compound files,
@@ -1350,26 +1381,45 @@ class AutoDocumentIngestionService:
         # copy is silently rotting (it still reads "fresh" to recall while
         # the source moved on). Refresh it: the walker already downloaded
         # these bytes, so the marginal cost is one parse+write, and the
-        # upsert replaces the old row under the same identity key.
-        stored_is_outdated = False
-        if not explicit and source and source != "upload" and _external_id:
-            try:
-                probe_id = _external_doc_id(source, _external_id)
-                stored = await asyncio.to_thread(
-                    self.memory_handler.get_document_by_id, "documents", probe_id
-                )
-                if stored is None:
-                    # chunked layout: the family lives under {doc_id}::c{i}
+        # upsert replaces the old row under its EXISTING identity key.
+        #
+        # Resolve that identity before deciding anything: the caller may use
+        # the other established convention than the durable row (walker
+        # prefixes, the panel/read path does not). An existing row wins — it
+        # is updated in place, never shadowed by a second "canonical" copy.
+        _stored_doc_id = None
+        _stored_row = None
+        if (_external_id and source and source != "upload"
+                and self.memory_handler):
+            for candidate in _external_doc_id_candidates(source, _external_id):
+                try:
                     stored = await asyncio.to_thread(
                         self.memory_handler.get_document_by_id,
-                        "documents",
-                        f"{probe_id}::c0",
+                        "documents", candidate,
                     )
-                stored_is_outdated = _stored_copy_older_than(
-                    stored, source_modified_dt
-                )
-            except Exception as probe_err:  # noqa: BLE001 — probe is best-effort
-                logger.debug(f"update probe skipped for {file_name}: {probe_err}")
+                    if stored is None:
+                        # chunked layout: {doc_id}::c{i} family
+                        stored = await asyncio.to_thread(
+                            self.memory_handler.get_document_by_id,
+                            "documents", f"{candidate}::c0",
+                        )
+                except Exception as probe_err:  # noqa: BLE001 — best-effort
+                    # One unreadable candidate must not hide the other
+                    # convention's durable row.
+                    logger.debug(
+                        f"existing-document probe skipped for {file_name} "
+                        f"({candidate}): {probe_err}")
+                    continue
+                if stored is not None:
+                    _stored_doc_id = candidate
+                    _stored_row = stored
+                    break
+
+        stored_is_outdated = False
+        if not explicit and _stored_row is not None:
+            stored_is_outdated = _stored_copy_older_than(
+                _stored_row, source_modified_dt
+            )
 
         if not explicit and source and source != "upload":
             try:
@@ -1406,12 +1456,17 @@ class AutoDocumentIngestionService:
         # the 13MB-download/10s-parse round trip entirely.
         #
         # Exact lineage: a connector file's document id is deterministic from
-        # its stable source identity, so it can be stamped before the copy is
-        # written. Content-addressed documents (no external id) get linked
-        # after extraction below, when their id is known.
+        # its stable source identity (the same _external_doc_id the write
+        # below uses), so it can be stamped before the copy is written.
+        # Content-addressed documents (no external id) get linked after
+        # extraction below, when their id is known.
         _precomputed_doc_id = None
         if _external_id:
-            _precomputed_doc_id = _external_doc_id(source, _external_id)
+            # Reuse the durable row's identity when one already exists (either
+            # established convention); otherwise this is the write key for a
+            # new row. Dataset lineage and the memory row MUST agree.
+            _precomputed_doc_id = _stored_doc_id or _external_doc_id(
+                source, _external_id)
         try:
             from core.sheet_dataset_service import ensure_sheet_dataset, sheet_datasets_enabled
 
@@ -1502,9 +1557,10 @@ class AutoDocumentIngestionService:
         # (content-addressing: identical content = one row, any filename).
         # The id is SOURCE-SCOPED — two integrations may reuse the same raw
         # external id string, and one file's refresh must never delete the
-        # other's row. Never key on file NAME. Both connector id conventions
-        # (bare, and already "<source>:"-prefixed) resolve to one key via
-        # _external_doc_id.
+        # other's row. Never key on file NAME. A durable row's EXISTING key
+        # wins; for a new row the caller's external id is taken VERBATIM (see
+        # _external_doc_id), so the walker's "<source>:"-prefixed rows keep
+        # their pre-fix identity.
         import hashlib as _hashlib
 
         from core.doc_freshness_service import (
@@ -1517,7 +1573,7 @@ class AutoDocumentIngestionService:
         if _external_id:
             # Same identity the derived dataset above was stamped with: one
             # computation, so catalog lineage cannot drift from the memory
-            # row (and the source-update probe below finds this row).
+            # row (and the upsert replaces that exact row).
             _file_doc_id = _precomputed_doc_id or _external_doc_id(
                 source, _external_id)
         else:
@@ -1668,13 +1724,16 @@ class AutoDocumentIngestionService:
     async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:
         """Which of these source-native ids already have documents in memory?
 
-        Mirrors the write identity (``_external_doc_id`` — the canonical
-        ``ext_sha1(source:external_id)`` key, see process_file_bytes),
-        probing both the single-doc and the chunked (``{doc_id}::c0``)
-        layouts. Point lookups run in one worker thread —
-        the drive panels call this per folder listing to hydrate "already
-        ingested" badges from durable state instead of session-only React
-        state.
+        Mirrors the established write identity (``_external_doc_id`` over the
+        caller's VERBATIM id, see process_file_bytes) AND checks the other
+        connector convention for a pre-existing row
+        (``_external_doc_id_candidates``), so the walker's prefixed durable
+        rows still badge when the panel asks with the bare id, and vice versa.
+        Probes both the
+        single-doc and the chunked (``{doc_id}::c0``) layouts. Point lookups
+        run in one worker thread — the drive panels call this per folder
+        listing to hydrate "already ingested" badges from durable state
+        instead of session-only React state.
         """
         if not external_ids or not self.memory_handler:
             return []
@@ -1682,11 +1741,14 @@ class AutoDocumentIngestionService:
         def _probe_all() -> List[str]:
             found: List[str] = []
             for ext in external_ids:
-                probe = _external_doc_id(source, ext)
                 try:
-                    if (self.memory_handler.get_document_by_id("documents", probe)
-                            or self.memory_handler.get_document_by_id("documents", f"{probe}::c0")):
-                        found.append(ext)
+                    for probe in _external_doc_id_candidates(source, ext):
+                        if (self.memory_handler.get_document_by_id(
+                                "documents", probe)
+                                or self.memory_handler.get_document_by_id(
+                                    "documents", f"{probe}::c0")):
+                            found.append(ext)
+                            break
                 except Exception:  # noqa: BLE001 — a single bad probe must not kill the batch
                     continue
             return found
