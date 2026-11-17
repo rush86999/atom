@@ -56,16 +56,27 @@ def _load_harness():
 harness = _load_harness()
 
 
-def _real_tmp_root(_tmp_path: Path) -> Path:
-    """A short real-path base under /private/tmp.
+def _canonical_short_tmp_root() -> Path:
+    """The short canonical POSIX temp root shared by macOS and Linux.
 
-    The production socket-path limit is real (macOS ``sun_path``), so pytest's
-    long per-test basetemp cannot be used here: the safety check must be
-    exercised against a path shape the harness would actually accept. The
+    ``/tmp`` resolves to ``/private/tmp`` on macOS (where the public harness
+    default lives) and remains ``/tmp`` on Linux. Resolving keeps every parent
+    real, so the harness's symlink refusal does not reject the fixture. The
+    long per-user macOS ``TMPDIR`` is deliberately not used: this fixture
+    exists to exercise the production ``sun_path`` length limit.
+    """
+    return Path("/tmp").resolve(strict=True)
+
+
+def _real_tmp_root(_tmp_path: Path) -> Path:
+    """A short real-path base under the canonical POSIX temp root.
+
+    pytest's long per-test basetemp cannot be used here: the safety check must
+    be exercised against a path shape the harness would actually accept. The
     directory is deliberately tiny and unique; it is evidence only and is not
     recursively deleted.
     """
-    base = Path("/private/tmp") / f"alp-{uuid.uuid4().hex[:12]}"
+    base = _canonical_short_tmp_root() / f"alp-{uuid.uuid4().hex[:12]}"
     base.mkdir(mode=0o700)
     allowed = base / "a"
     allowed.mkdir(mode=0o700)
@@ -225,6 +236,26 @@ def test_fresh_root_is_not_created_by_validation_then_is_private(tmp_path):
         assert stat.S_IMODE(child.stat().st_mode) == 0o700
     assert not (root / "data").exists()
     assert sorted(path.name for path in root.iterdir()) == ["home", "sock", "tmp"]
+
+
+def test_canonical_tmp_fixture_is_short_real_and_harness_acceptable():
+    canonical = _canonical_short_tmp_root()
+    assert canonical.is_absolute()
+    assert canonical.is_dir()
+    assert canonical == canonical.resolve(strict=True)
+    sample = (
+        canonical / f"alp-{uuid.uuid4().hex[:12]}" / "a" / "sock"
+        / ".s.PGSQL.00000"
+    )
+    assert len(str(sample).encode()) <= harness.MAX_SOCKET_PATH_BYTES
+
+    allowed = _real_tmp_root(Path("/unused"))
+    assert allowed.parent.parent == canonical
+    assert stat.S_IMODE(allowed.stat().st_mode) == 0o700
+    child = allowed / f"fresh-{uuid.uuid4().hex[:8]}"
+    assert harness.validate_scratch_root(
+        child, allowed_root=allowed) == child.resolve()
+    assert not child.exists()
 
 
 # ---------------------------------------------------------------------------
