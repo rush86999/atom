@@ -93,7 +93,7 @@ DB_PATH="$("$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["database"]
 (
   cd "$ROOT/backend"
   "$PYTHON" -m scripts.orchestration_acceptance.storage_policy space \
-    --world "$WORLD_REAL" --no-build-cache >/dev/null
+    --world "$WORLD_REAL" --no-build-cache
 )
 
 # 3. Compute the exact source identity the serving process must report.

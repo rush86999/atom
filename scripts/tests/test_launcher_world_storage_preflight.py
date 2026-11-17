@@ -40,6 +40,10 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 BACKEND = REPO / "backend"
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+from scripts.orchestration_acceptance import storage_policy as SP  # noqa: E402
+
 LAUNCHER = REPO / "scripts" / "acceptance" / "launch_integrated_local_candidate.sh"
 VALIDATOR = REPO / "scripts" / "acceptance" / "validate_local_world.py"
 PROVISIONER = REPO / "scripts" / "acceptance" / "provision_isolated_world_store.py"
@@ -106,13 +110,42 @@ def _write_config(config_dir: Path, *, root: Path, top_layout: str = "local",
     return path
 
 
+def _space_driver(tmp_path: Path) -> Path:
+    """A read-only storage-policy CLI driver with an injected diskstat map.
+
+    The production module and its CLI are used unchanged; only
+    ``real_free_bytes`` is replaced (the documented test seam for exhaustion),
+    keyed by the actual probe path. No guard verdict or world is faked.
+    """
+    path = tmp_path / "space-driver.py"
+    path.write_text(
+        "import json, os, sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, os.environ['ATOM_TEST_BACKEND'])\n"
+        "import scripts.orchestration_acceptance.storage_policy as SP\n"
+        "mapping = json.loads(os.environ['ATOM_TEST_FREE_MAP'])\n"
+        "def fake(path):\n"
+        "    actual = str(Path(path).resolve(strict=False))\n"
+        "    for key, value in sorted(mapping.items(), key=lambda kv: -len(kv[0])):\n"
+        "        key = str(Path(key).resolve(strict=False))\n"
+        "        if actual == key or actual.startswith(key.rstrip('/') + '/'):\n"
+        "            return int(value)\n"
+        "    return 50 * 1024 ** 3\n"
+        "SP.real_free_bytes = fake\n"
+        "raise SystemExit(SP.main(sys.argv[1:]))\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def _shim(tmp_path: Path) -> Path:
     """A PYTHON that delegates normally, records/stops at the uvicorn boundary.
 
     ``ATOM_TEST_REMOVE_ROOT_AFTER_GUARD`` makes the shim remove an empty root
     on the ``capture_runtime_identity`` call, simulating the root vanishing
     between the full preflight and the world mkdir. The launcher must refuse
-    rather than let ``mkdir -p`` recreate it.
+    rather than let ``mkdir -p`` recreate it. ``ATOM_TEST_SPACE_DRIVER`` routes
+    only the storage-policy CLI through the injected-diskstat driver above.
     """
     path = tmp_path / "python-shim"
     path.write_text(
@@ -121,6 +154,12 @@ def _shim(tmp_path: Path) -> Path:
         "if [[ \"${1:-}\" == \"-m\" && \"${2:-}\" == \"uvicorn\" ]]; then\n"
         "  printf '%s\\n' \"$*\" > \"${ATOM_TEST_SERVER_BOUNDARY:?}\"\n"
         "  exit 97\n"
+        "fi\n"
+        "if [[ \"${1:-}\" == \"-m\" && "
+        "\"${2:-}\" == \"scripts.orchestration_acceptance.storage_policy\" && "
+        "-n \"${ATOM_TEST_SPACE_DRIVER:-}\" ]]; then\n"
+        "  shift 2\n"
+        "  exec \"${ATOM_TEST_REAL_PYTHON:?}\" \"${ATOM_TEST_SPACE_DRIVER}\" \"$@\"\n"
         "fi\n"
         "if [[ -n \"${ATOM_TEST_REMOVE_ROOT_AFTER_GUARD:-}\" && "
         "\"$*\" == *capture_runtime_identity* ]]; then\n"
@@ -136,7 +175,9 @@ def _shim(tmp_path: Path) -> Path:
 def _base_env(tmp_path: Path, *, world: Path, boundary: Path,
               config_dir: Path | None = None,
               remove_root_after_guard: Path | None = None,
-              extra_path: Path | None = None) -> dict:
+              extra_path: Path | None = None,
+              space_driver: Path | None = None,
+              free_map: dict | None = None) -> dict:
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
     tmp = tmp_path / "tmp"
@@ -151,7 +192,8 @@ def _base_env(tmp_path: Path, *, world: Path, boundary: Path,
         "ATOM_WORLD_STORAGE_PATHS", "ATOM_WORLD_STORAGE_BYPASS",
         "ATOM_FRONTEND_DIR", "WORLD", "ADMIN_PASSWORD",
         "ATOM_TEST_SERVER_BOUNDARY", "ATOM_TEST_REMOVE_ROOT_AFTER_GUARD",
-        "ATOM_TEST_REAL_PYTHON", "FAKE_DISKUTIL_NAME", "FAKE_DISKUTIL_UUID",
+        "ATOM_TEST_REAL_PYTHON", "ATOM_TEST_BACKEND", "ATOM_TEST_SPACE_DRIVER",
+        "ATOM_TEST_FREE_MAP", "FAKE_DISKUTIL_NAME", "FAKE_DISKUTIL_UUID",
     ):
         env.pop(name, None)
     env.update({
@@ -164,6 +206,7 @@ def _base_env(tmp_path: Path, *, world: Path, boundary: Path,
         "ADMIN_PASSWORD": "launcher-storage-preflight-test-password",
         "PYTHON": str(_shim(tmp_path)),
         "ATOM_TEST_REAL_PYTHON": sys.executable,
+        "ATOM_TEST_BACKEND": str(BACKEND),
         "ATOM_TEST_SERVER_BOUNDARY": str(boundary),
         "ATOM_FRONTEND_DIR": str(frontend),
         "WORLD": str(world),
@@ -175,6 +218,11 @@ def _base_env(tmp_path: Path, *, world: Path, boundary: Path,
         env["ATOM_WORLD_STORAGE_PATHS"] = str(config_dir)
     if remove_root_after_guard is not None:
         env["ATOM_TEST_REMOVE_ROOT_AFTER_GUARD"] = str(remove_root_after_guard)
+    if space_driver is not None:
+        env["ATOM_TEST_SPACE_DRIVER"] = str(space_driver)
+    if free_map is not None:
+        env["ATOM_TEST_FREE_MAP"] = json.dumps(
+            {str(key): int(value) for key, value in free_map.items()})
     if extra_path is not None:
         env["PATH"] = f"{extra_path}{os.pathsep}{env.get('PATH', '')}"
     return env
@@ -213,6 +261,42 @@ def _run_provisioner(base: Path, name: str = "isolated-worlds",
         run_env.update(env)
     return subprocess.run(
         args, cwd=REPO, env=run_env, capture_output=True, text=True, timeout=120)
+
+
+def _space_env(tmp_path: Path, config_dir: Path, free_map: dict) -> dict:
+    """Scratch-only env for the storage-policy subprocess (no owner state)."""
+    home = tmp_path / "space-home"
+    home.mkdir(exist_ok=True)
+    tmp = tmp_path / "space-tmp"
+    tmp.mkdir(exist_ok=True)
+    env = os.environ.copy()
+    for name in ("ATOM_WORLD_STORAGE_BYPASS",
+                 "ATOM_WORLD_STORAGE_PATHS"):
+        env.pop(name, None)
+    env.update({
+        "TESTING": "1",
+        "PYTHON_DOTENV_DISABLED": "1",
+        "HOME": str(home),
+        "TMPDIR": str(tmp),
+        "DATABASE_URL": f"sqlite:///{tmp}/space-scratch.db",
+        "ATOM_DB_SNAPSHOT_MIN_FREE_MB": "0",
+        "ATOM_WORLD_STORAGE_PATHS": str(config_dir),
+        "ATOM_TEST_BACKEND": str(BACKEND),
+        "ATOM_TEST_FREE_MAP": json.dumps(
+            {str(key): int(value) for key, value in free_map.items()}),
+    })
+    return env
+
+
+def _run_space_cli(tmp_path: Path, config_dir: Path, world: Path,
+                   free_map: dict) -> subprocess.CompletedProcess:
+    """The real storage-policy ``space`` CLI with only diskstat injected."""
+    driver = _space_driver(tmp_path)
+    env = _space_env(tmp_path, config_dir, free_map)
+    return subprocess.run(
+        [sys.executable, str(driver), "space", "--world", str(world),
+         "--no-build-cache", "--no-run-data", "--json"],
+        cwd=BACKEND, env=env, capture_output=True, text=True, timeout=120)
 
 
 def _assert_no_apps(world: Path, boundary: Path) -> None:
@@ -442,6 +526,274 @@ def test_relocated_existing_store_creates_only_the_world_child_and_reuses_it(
 
     _assert_canonical(canonical_before)
     assert _sha256(CHECKOUT_CONFIG) == config_hash
+
+
+# ---------------------------------------------------------------------------
+# space policy: the actual target filesystem, both directions
+# ---------------------------------------------------------------------------
+def test_space_cli_probes_the_relocated_filesystem_in_both_directions(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    provision = _run_provisioner(base)
+    assert provision.returncode == 0, provision.stderr
+    payload = json.loads(provision.stdout)
+    store_root = Path(payload["store_root"])
+    config_dir = Path(payload["config_path"]).parent
+    world = store_root / "space-probe-world"
+    canonical_before = CANONICAL_ROOT.exists()
+
+    # Canonical ample, relocated insufficient: the OLD canonical probe would
+    # have passed while the actual target volume is nearly full.
+    low = _run_space_cli(
+        tmp_path, config_dir, world,
+        {CANONICAL_ROOT: 50 * 1024 ** 3, store_root: 1 * 1024 ** 2})
+    assert low.returncode == 1, low.stdout + low.stderr
+    low_payload = json.loads(low.stdout)
+    assert low_payload["ok"] is False
+    assert low_payload["probe_path"] == str(store_root.resolve())
+    assert low_payload["probe_source"] == "target_path"
+    assert low_payload["free_bytes"] == 1 * 1024 ** 2
+    assert "INSUFFICIENT STORAGE" in low_payload["message"]
+
+    # Canonical insufficient, relocated ample: the OLD probe would have
+    # refused a perfectly healthy relocated target.
+    high = _run_space_cli(
+        tmp_path, config_dir, world,
+        {CANONICAL_ROOT: 1 * 1024 ** 2, store_root: 50 * 1024 ** 3})
+    assert high.returncode == 0, high.stdout + high.stderr
+    high_payload = json.loads(high.stdout)
+    assert high_payload["ok"] is True
+    assert high_payload["probe_path"] == str(store_root.resolve())
+    assert high_payload["probe_source"] == "target_path"
+    assert high_payload["free_bytes"] == 50 * 1024 ** 3
+
+    assert not world.exists()
+    _assert_canonical(canonical_before)
+
+
+def test_launcher_low_relocated_filesystem_refuses_before_any_write(tmp_path):
+    canonical_before = CANONICAL_ROOT.exists()
+    base = tmp_path / "run"
+    base.mkdir()
+    provision = _run_provisioner(base)
+    assert provision.returncode == 0, provision.stderr
+    payload = json.loads(provision.stdout)
+    store_root = Path(payload["store_root"])
+    config_dir = Path(payload["config_path"]).parent
+    world = store_root / "low-space-world"
+    boundary = tmp_path / "server-boundary"
+
+    env = _base_env(
+        tmp_path, world=world, boundary=boundary, config_dir=config_dir,
+        space_driver=_space_driver(tmp_path),
+        free_map={CANONICAL_ROOT: 50 * 1024 ** 3,
+                  store_root: 1 * 1024 ** 2})
+    proc = _run_launcher(env)
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode != 0
+    assert "INSUFFICIENT STORAGE" in combined
+    assert str(store_root.resolve()) in combined
+    _assert_no_apps(world, boundary)
+    _assert_canonical(canonical_before)
+
+
+def test_launcher_ample_relocated_filesystem_ignores_low_canonical(tmp_path):
+    canonical_before = CANONICAL_ROOT.exists()
+    base = tmp_path / "run"
+    base.mkdir()
+    provision = _run_provisioner(base)
+    assert provision.returncode == 0, provision.stderr
+    payload = json.loads(provision.stdout)
+    store_root = Path(payload["store_root"])
+    config_dir = Path(payload["config_path"]).parent
+    world = store_root / "ample-relocated-world"
+    boundary = tmp_path / "server-boundary"
+
+    env = _base_env(
+        tmp_path, world=world, boundary=boundary, config_dir=config_dir,
+        space_driver=_space_driver(tmp_path),
+        free_map={CANONICAL_ROOT: 1 * 1024 ** 2,
+                  store_root: 50 * 1024 ** 3})
+    proc = _run_launcher(env)
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1, combined
+    assert boundary.is_file(), "the labelled pre-server boundary was not reached"
+    assert "space check OK" in combined
+    assert str(store_root.resolve()) in combined
+    assert world.is_dir()
+    _assert_canonical(canonical_before)
+
+
+def test_space_cli_missing_relocated_config_refuses_not_canonical(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    config_dir = base / "missing-config"
+    config_dir.mkdir()
+    world = CANONICAL_ROOT / "space-would-be-canonical"
+    canonical_before = CANONICAL_ROOT.exists()
+
+    proc = _run_space_cli(
+        tmp_path, config_dir, world, {CANONICAL_ROOT: 50 * 1024 ** 3})
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1
+    assert "does not exist" in combined
+    assert "refusing to fall back" in combined
+    assert not world.exists()
+    _assert_canonical(canonical_before)
+
+
+def test_space_cli_missing_local_root_refuses_without_parent_probe(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    missing_root = base / "missing-worlds"
+    config_dir = base / "isolated-config"
+    _write_config(config_dir, root=missing_root)
+    world = missing_root / "space-world"
+
+    proc = _run_space_cli(
+        tmp_path, config_dir, world, {base: 50 * 1024 ** 3})
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1
+    assert "configured worlds root does not exist" in combined
+    assert not missing_root.exists()
+    assert not world.exists()
+
+
+def test_space_cli_refuses_disabled_relocated_config_and_guard_bypass(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    config_dir = base / "isolated-config"
+    _write_config(config_dir, root=base / "worlds", enabled=False)
+    world = base / "worlds" / "space-world"
+
+    disabled = _run_space_cli(
+        tmp_path, config_dir, world, {base: 50 * 1024 ** 3})
+    combined = disabled.stdout + disabled.stderr
+    assert disabled.returncode == 1
+    assert "does not enable the storage guard" in combined
+    assert not world.exists()
+
+    driver = _space_driver(tmp_path)
+    env = _space_env(tmp_path, config_dir, {base: 50 * 1024 ** 3})
+    env["ATOM_WORLD_STORAGE_BYPASS"] = "1"
+    bypassed = subprocess.run(
+        [sys.executable, str(driver), "space", "--world", str(world),
+         "--no-build-cache", "--no-run-data"],
+        cwd=BACKEND, env=env, capture_output=True, text=True, timeout=120)
+    combined = bypassed.stdout + bypassed.stderr
+    assert bypassed.returncode == 1
+    assert "ATOM_WORLD_STORAGE_BYPASS" in combined
+    assert "refusing to resolve" in combined
+    assert not world.exists()
+
+
+def test_space_cli_dangling_drive_refuses_without_local_fallback(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    target = base / "unmounted-drive"
+    root = base / "dangling-worlds"
+    os.symlink(target, root)
+    config_dir = base / "isolated-config"
+    _write_config(
+        config_dir, root=root, top_layout="drive_symlink",
+        volume={"mount_point": str(base / "not-mounted"), "name": "Seagate",
+                "uuid": "EXPECTED-UUID"})
+    world = root / "space-world"
+
+    proc = _run_space_cli(
+        tmp_path, config_dir, world, {base: 50 * 1024 ** 3})
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1
+    assert "dangling symlink" in combined
+    assert not target.exists()
+    assert not world.exists()
+
+
+def test_space_cli_wrong_uuid_refuses_without_probing_local_parent(tmp_path):
+    base = tmp_path / "run"
+    base.mkdir()
+    mount = base / "mounted"
+    mount.mkdir()
+    target = base / "drive-target"
+    target.mkdir()
+    root = base / "drive-worlds"
+    os.symlink(target, root)
+    config_dir = base / "isolated-config"
+    _write_config(
+        config_dir, root=root, top_layout="drive_symlink",
+        volume={"mount_point": str(mount), "name": "Seagate",
+                "uuid": "EXPECTED-UUID"})
+    world = root / "space-world"
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    diskutil = fake_bin / "diskutil"
+    diskutil.write_text(
+        "#!/bin/sh\n"
+        "echo \"   Volume Name:   Seagate\"\n"
+        "echo \"   Volume UUID:   DIFFERENT-DEVICE\"\n",
+        encoding="utf-8",
+    )
+    diskutil.chmod(0o755)
+
+    driver = _space_driver(tmp_path)
+    env = _space_env(tmp_path, config_dir, {base: 50 * 1024 ** 3})
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    proc = subprocess.run(
+        [sys.executable, str(driver), "space", "--world", str(world),
+         "--no-build-cache", "--no-run-data"],
+        cwd=BACKEND, env=env, capture_output=True, text=True, timeout=120)
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1
+    assert "volume UUID mismatch" in combined
+    assert list(target.iterdir()) == []
+    assert not world.exists()
+
+
+def test_estimate_uses_relocated_siblings_and_actual_target_path(
+        tmp_path, monkeypatch):
+    worlds = tmp_path / "relocated-worlds"
+    sibling = worlds / "sibling"
+    (sibling / "code").mkdir(parents=True)
+    (sibling / "code" / "blob.bin").write_bytes(b"\0" * (7 * SP.MB))
+    run_data = sibling / "runs" / "run-aaaaaaaaaaaa" / "data"
+    run_data.mkdir(parents=True)
+    (run_data / "atom.db").write_bytes(b"\0" * (11 * SP.MB))
+    target = worlds / "new-world"
+
+    monkeypatch.setattr(SP, "FRONTEND", tmp_path / "frontend")
+    farm = SP.FRONTEND / ".preview-instance" / sibling.name / ".next-preview-x"
+    farm.mkdir(parents=True)
+    (farm / "chunk.js").write_bytes(b"\0" * (3 * SP.MB))
+
+    est = SP.estimate_world_build(target)
+    assert est.target_path == target
+    code = next(c for c in est.components if c.name == "code_export")
+    run = next(c for c in est.components if c.name == "run_data")
+    build = next(c for c in est.components if c.name == "build_cache")
+    assert code.measured and code.bytes == 7 * SP.MB and "sibling" in code.source
+    assert run.measured and run.bytes == 11 * SP.MB and "sibling" in run.source
+    assert build.measured and "sibling" in build.source
+
+    new_run = SP.estimate_new_run(target, with_build_cache=True)
+    assert new_run.target_path == target
+
+
+def test_legacy_world_target_uses_configured_root_not_module_constant(
+        tmp_path, monkeypatch):
+    base = tmp_path / "run"
+    base.mkdir()
+    store_root = base / "relocated-worlds"
+    store_root.mkdir()
+    config_dir = base / "isolated-config"
+    _write_config(config_dir, root=store_root)
+    monkeypatch.setenv("ATOM_WORLD_STORAGE_PATHS", str(config_dir))
+    monkeypatch.setattr(SP, "WORLDS_ROOT", tmp_path / "stale-canonical")
+
+    est = SP.SpaceEstimate(target="world:legacy")
+    rep = SP.check_space(est, free_bytes=10 ** 12)
+    assert rep.probe_path == store_root.resolve()
+    assert rep.probe_source == "configured_worlds_root"
 
 
 # ---------------------------------------------------------------------------

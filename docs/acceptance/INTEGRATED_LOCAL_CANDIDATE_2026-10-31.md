@@ -147,6 +147,12 @@ Safety contract before the first write:
   a convenience bootstrap. The cheap root-shape/interlock assertion runs again
   immediately before the first `mkdir`, so a root that vanished after the
   preflight is refused instead of silently recreated.
+- `storage_policy space` estimates and probes the world's **actual** parent
+  filesystem (the relocated/isolated store when one is declared), not the
+  canonical internal root. Its output names the `probe_path` and source, so the
+  checked volume is evidence. A missing relocated config, dangling drive root
+  or unusable drive identity refuses; it never falls back to the canonical
+  volume.
 - `SECRET_KEY` is generated once and persisted at `$WORLD/.atom-secret`
   (mode 600); there is no fixed fallback.
 - On startup failure the script stops only the backend/frontend PIDs it
