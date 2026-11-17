@@ -1,0 +1,47 @@
+{
+  "case": "case-7",
+  "status": "FAILED_FLEET_NO_AUTOMATIC_RERUN",
+  "actual_upstream_attempts": 14,
+  "admitted_local_model_calls": 16,
+  "local_rejected_calls": 1,
+  "upstream_400": 13,
+  "successful_plain_replies": 1,
+  "served_model": "deepseek-v4.1-flash",
+  "request_cap_respected": true,
+  "output_cap_per_request": 8000,
+  "chat_transport_status": 200,
+  "app_fleet_status": "FAILED",
+  "failed_assertions": [
+    "atom_terminal_success",
+    "chain_completed",
+    "links_completed_two",
+    "not_aborted",
+    "provider_no_violations",
+    "provider_stage_interpreter",
+    "provider_stage_specialists",
+    "provider_stage_synthesis",
+    "provider_stage_verifier",
+    "received_equals_admitted",
+    "rejected_zero",
+    "text_has_closed_100",
+    "text_has_gap_150",
+    "text_has_pipeline_not_closed",
+    "text_has_target_250",
+    "visible_contains_complete_synthesis",
+    "visible_not_direct_chat_answer"
+  ],
+  "manual_direct_answer_review": "Correct supplied100closed/200pipeline/250target;150gap/40percent attainment and pipeline is not booked. This is a direct reply, not completed specialist fleet evidence. Literal evaluator missed USD-space formatting; no regrade of fleet result.",
+  "upstream_cause": "UNKNOWN: response error bodies not retained. Captured shapes show forcedtoolchoice/no native thinking setting and logprobs; documentation compatibility risk only, not proven exact400cause.",
+  "verifier_limitations": [
+    "relay converted upstream400 to generic local502, hiding capability negotiation signal",
+    "orchestrator.main returned result to sanitized stdout without writing run-result.json; root extracted exactlyone finalenvelope into root-extracted-run.json",
+    "controller process exit0 is not app/fleet pass"
+  ],
+  "cleanup": {
+    "owned_processes_and_group_absent": true,
+    "owned_ports_refused": true,
+    "pump_drained": true
+  },
+  "source": "0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464",
+  "scope": "One synthetic owner-approved run; no automatic rerun; no whole-goal acceptance"
+}

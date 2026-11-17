@@ -1,9 +1,19 @@
 # Document source authority and derived-data lifecycle — 2026-11-17
 
-Status: independently verified locally; publication and exact-head CI pending.
+Status at product qualification (pre-merge): independently verified locally;
+publication and exact-head CI were pending.
 Product source: `0249f3eaaabf50db1b022d96a6ee7fb2b58e5f3b`.
 This is bounded document/API evidence, not whole Goal 3 or app readiness.
 The original 143 claims / 18 goals and `app_complete: false` are unchanged.
+
+## Release status
+
+PR [#978](https://github.com/rush86999/atom/pull/978) merged as
+`02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909` after all 15 exact-head checks
+passed. Root independently fetched the actual merge and verified its tree and
+single parent. Post-merge main Docker succeeded; CI is still running at this evidence
+cut, so no full post-merge green is claimed. Later source-bound browser and restart
+evidence is recorded [separately](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md).
 
 ## User-visible behavior
 
@@ -110,5 +120,6 @@ failures or skips.
 This evidence is TestClient/public API, not an ordinary-browser multi-format
 journey, live WorkDrive, original-binary download, process restart, parser
 variant breadth, real-model answer quality, PostgreSQL runtime or whole Goal
-3/4 acceptance. Those gaps remain in the
+3/4 acceptance. Later [browser/restart evidence](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md)
+retains its own runtime source and scope. Broader gaps remain in the
 [current goal map](CURRENT_GOAL_MAP_2026_11_17.md).
