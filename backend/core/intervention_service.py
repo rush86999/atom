@@ -1,12 +1,14 @@
 from datetime import datetime
 import copy
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
-from core.models import AgentRegistry, HITLAction, HITLActionStatus, User
+from core.models import (
+    AgentRegistry, HITLAction, HITLActionStatus, User, UserRole,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,22 +17,122 @@ logger = logging.getLogger(__name__)
 # reviewed proposal and the exact effective parameters the human approved.
 HITL_PARAMETER_HISTORY_KEY = "parameter_history"
 
+# Where a parameter receipt starts/ends. ``_MISSING`` lets the atomic claim
+# distinguish "leave the column untouched" from an explicit ``None``/``{}``.
+_MISSING = object()
+
 
 def _copy_json_value(value: Any) -> Any:
     """Deep-copy a JSON-ish HITL value so history can never alias live params."""
     return copy.deepcopy(value)
 
 
-def _history_entries(action: Any) -> List[Dict[str, Any]]:
+def _history_scan(
+    action: Any,
+) -> Tuple[List[Dict[str, Any]], int, bool]:
+    """Return (well-formed entries, malformed element count, unreadable).
+
+    Malformed elements are NEVER dropped from storage and NEVER silently
+    counted as history. They are reported so a reader can say the lineage is
+    incomplete instead of claiming a complete append-only chain.
+    """
     snapshot = getattr(action, "context_snapshot", None)
+    if snapshot is None:
+        return [], 0, False
     if not isinstance(snapshot, dict):
-        return []
-    entries = snapshot.get(HITL_PARAMETER_HISTORY_KEY)
-    if isinstance(entries, dict):
-        return [entries]
-    if isinstance(entries, list):
-        return [entry for entry in entries if isinstance(entry, dict)]
-    return []
+        return [], 0, True
+    raw = snapshot.get(HITL_PARAMETER_HISTORY_KEY)
+    if raw is None:
+        return [], 0, False
+    if isinstance(raw, dict):
+        return [raw], 0, False
+    if isinstance(raw, list):
+        known = [entry for entry in raw if isinstance(entry, dict)]
+        return known, len(raw) - len(known), False
+    return [], 0, True
+
+
+def _history_entries(action: Any) -> List[Dict[str, Any]]:
+    return _history_scan(action)[0]
+
+
+def _next_revision(entries: List[Dict[str, Any]]) -> int:
+    """Next revision number from the well-formed entries actually stored."""
+    revisions: List[int] = []
+    for entry in entries:
+        value = entry.get("revision")
+        if isinstance(value, int) and not isinstance(value, bool):
+            revisions.append(value)
+    return (max(revisions) + 1) if revisions else (len(entries) + 1)
+
+
+def _append_parameter_history(
+    snapshot: Any,
+    *,
+    reviewed_params: Any,
+    approved_params: Any,
+    actor_id: Optional[str],
+    reason: Optional[str] = None,
+    decided_at: Any = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Pure append: return (new snapshot, appended entry) without mutating.
+
+    The existing list is copied verbatim, including malformed elements, so a
+    later write can never erase material it did not understand. A snapshot
+    that is not a JSON object, or a history container that is neither a list,
+    an object, nor absent, refuses to record rather than overwrite.
+    """
+    base = snapshot if snapshot is not None else {}
+    if not isinstance(base, dict):
+        return None, None
+
+    existing = base.get(HITL_PARAMETER_HISTORY_KEY)
+    if existing is None:
+        raw_entries: List[Any] = []
+        known: List[Dict[str, Any]] = []
+    elif isinstance(existing, dict):
+        raw_entries = [existing]
+        known = [existing]
+    elif isinstance(existing, list):
+        # Preserve EVERY element (dict or not) in its original position.
+        raw_entries = list(existing)
+        known = [entry for entry in raw_entries if isinstance(entry, dict)]
+    else:
+        return None, None
+
+    try:
+        reviewed_copy = _copy_json_value(reviewed_params)
+        approved_copy = _copy_json_value(approved_params)
+    except Exception:  # noqa: BLE001 - never fake a receipt
+        return None, None
+
+    when = decided_at
+    if when is None:
+        when = datetime.now()
+    when_text = when.isoformat() if hasattr(when, "isoformat") else str(when)
+
+    reason_text: Optional[str]
+    if reason is None:
+        reason_text = None
+    else:
+        reason_text = str(reason)
+        if not reason_text.strip():
+            reason_text = None
+
+    entry = {
+        "revision": _next_revision(known),
+        "reviewed_params": reviewed_copy,
+        "approved_params": approved_copy,
+        "modified": reviewed_copy != approved_copy,
+        "modified_by": str(actor_id) if actor_id not in (None, "") else None,
+        "modified_at": when_text,
+        "reason": reason_text,
+    }
+    raw_entries.append(entry)
+
+    updated = dict(base)
+    updated[HITL_PARAMETER_HISTORY_KEY] = raw_entries
+    return updated, entry
 
 
 def record_approved_parameters(
@@ -56,70 +158,51 @@ def record_approved_parameters(
     the approval still commits with the effective params, and the readback
     reports the original as unknown instead of inventing one.
     """
-    snapshot = getattr(action, "context_snapshot", None)
-    if snapshot is None:
-        snapshot = {}
-    if not isinstance(snapshot, dict):
-        logger.error(
-            "HITL %s parameter history not recorded: context_snapshot is %s",
-            getattr(action, "id", None), type(snapshot).__name__)
-        return None
-
-    try:
-        reviewed_copy = _copy_json_value(reviewed_params)
-        approved_copy = _copy_json_value(approved_params)
-    except Exception:  # noqa: BLE001 - never fake a receipt
-        logger.exception(
-            "HITL %s parameter history not recorded: params not copyable",
-            getattr(action, "id", None))
-        return None
-
-    existing = snapshot.get(HITL_PARAMETER_HISTORY_KEY)
-    if existing is None:
-        entries: List[Dict[str, Any]] = []
-    elif isinstance(existing, dict):
-        entries = [existing]
-    elif isinstance(existing, list):
-        entries = [entry for entry in existing if isinstance(entry, dict)]
-    else:
-        logger.error(
-            "HITL %s parameter history not recorded: %s is %s",
-            getattr(action, "id", None), HITL_PARAMETER_HISTORY_KEY,
-            type(existing).__name__)
-        return None
-
     when = decided_at
     if when is None:
         when = getattr(action, "reviewed_at", None) or datetime.now()
-    when_text = when.isoformat() if hasattr(when, "isoformat") else str(when)
-
-    reason_text: Optional[str]
-    if reason is None:
-        reason_text = None
-    else:
-        reason_text = str(reason)
-        if not reason_text.strip():
-            reason_text = None
-
-    entry = {
-        "revision": len(entries) + 1,
-        "reviewed_params": reviewed_copy,
-        "approved_params": approved_copy,
-        "modified": reviewed_copy != approved_copy,
-        "modified_by": str(actor_id) if actor_id not in (None, "") else None,
-        "modified_at": when_text,
-        "reason": reason_text,
-    }
-    entries.append(entry)
-
-    updated = dict(snapshot)
-    updated[HITL_PARAMETER_HISTORY_KEY] = entries
+    updated, entry = _append_parameter_history(
+        getattr(action, "context_snapshot", None),
+        reviewed_params=reviewed_params,
+        approved_params=approved_params,
+        actor_id=actor_id,
+        reason=reason,
+        decided_at=when,
+    )
+    if updated is None or entry is None:
+        logger.error(
+            "HITL %s parameter history not recorded: existing snapshot/"
+            "history is not appendable",
+            getattr(action, "id", None))
+        return None
     action.context_snapshot = updated
     return entry
 
 
+def _redact_history_value(
+    value: Any, *, redact: bool,
+) -> Any:
+    """Project one JSON value through the existing repo sanitizers."""
+    copied = _copy_json_value(value)
+    if not redact or copied is None:
+        return copied
+    from core.blueprint_sanitizer import strip_credentials
+
+    return strip_credentials(copied)
+
+
+def _redact_history_reason(
+    value: Any, *, redact: bool,
+) -> Any:
+    if not redact or not value:
+        return value
+    from core.secrets_redactor import redact_before_storage
+
+    return redact_before_storage(str(value))
+
+
 def describe_parameter_history(
-    action: Any, *, redact: bool = True,
+    action: Any, *, redact: bool = True, max_revisions: int = 20,
 ) -> Dict[str, Any]:
     """Read back the review/approval parameter lineage for one HITL row.
 
@@ -135,7 +218,7 @@ def describe_parameter_history(
     raw values remain only in the protected HITL authority row; use
     ``redact=False`` only inside trusted server-side code.
     """
-    entries = _history_entries(action)
+    entries, malformed_entries, history_unreadable = _history_scan(action)
     latest = entries[-1] if entries else None
     status = str(getattr(action, "status", "") or "")
     current_params = _copy_json_value(getattr(action, "params", None))
@@ -153,7 +236,7 @@ def describe_parameter_history(
         modified_by = latest.get("modified_by")
         modified_at = latest.get("modified_at")
         reason = latest.get("reason")
-        legacy_unrecorded = False
+        legacy_unrecorded = not original_known
     elif status == HITLActionStatus.APPROVED.value:
         # The approval may have rewritten params before this receipt existed.
         # Do not reconstruct a reviewed original from the rewritten value.
@@ -180,6 +263,31 @@ def describe_parameter_history(
         reason = None
         legacy_unrecorded = False
 
+    history_complete = not malformed_entries and not history_unreadable
+
+    # Bounded revision projection. Most recent N revisions only; the total is
+    # reported so a reader never mistakes the page for the whole lineage.
+    try:
+        revision_limit = int(max_revisions)
+    except (TypeError, ValueError):
+        revision_limit = 20
+    revision_limit = max(0, revision_limit)
+    selected = entries[-revision_limit:] if revision_limit else []
+    revisions: List[Dict[str, Any]] = []
+    for entry in selected:
+        revisions.append({
+            "revision": entry.get("revision"),
+            "reviewed_params": _redact_history_value(
+                entry.get("reviewed_params"), redact=redact),
+            "approved_params": _redact_history_value(
+                entry.get("approved_params"), redact=redact),
+            "modified": entry.get("modified"),
+            "modified_by": entry.get("modified_by"),
+            "modified_at": entry.get("modified_at"),
+            "reason": _redact_history_reason(
+                entry.get("reason"), redact=redact),
+        })
+
     reviewed_at = getattr(action, "reviewed_at", None)
     result: Dict[str, Any] = {
         "status": status,
@@ -197,6 +305,11 @@ def describe_parameter_history(
             if hasattr(reviewed_at, "isoformat") else reviewed_at),
         "history_entries": len(entries),
         "legacy_unrecorded": legacy_unrecorded,
+        "revisions": revisions,
+        "revisions_truncated": len(entries) > len(selected),
+        "history_complete": history_complete,
+        "malformed_history_entries": malformed_entries,
+        "history_unreadable": history_unreadable,
         "redacted": bool(redact),
     }
     if redact:
@@ -238,6 +351,367 @@ def _refusal(
     if action_id:
         result["action_id"] = action_id
     return result
+
+
+def _exact_column(column: Any, value: Any):
+    """NULL-safe scalar equality for a conditional claim predicate."""
+    return column.is_(None) if value is None else column == value
+
+
+def _exact_json_column(column: Any, value: Any):
+    """NULL-safe equality for a JSON column.
+
+    SQLAlchemy's JSON type stores Python ``None`` as the JSON text ``null``
+    (not SQL NULL) unless ``none_as_null`` is set, so ``IS NULL`` alone misses
+    both the shipped model default and rows written by other dialects. Match
+    either representation; non-null values compare through the JSON bind.
+    """
+    from sqlalchemy import String, cast, or_
+
+    if value is None:
+        return or_(column.is_(None), cast(column, String) == "null")
+    return column == value
+
+
+def resolve_decision_reviewer(
+    db: Session, action: Any, reviewer_id: Any,
+) -> Dict[str, Any]:
+    """Resolve the CURRENT reviewer for one ordinary HITL decision.
+
+    Reuses the shared fresh-actor read (never the request's stale token/object)
+    and the shared role policy for BOTH persisted ``required_role`` locations.
+    Scope is checked against the row's canonical tenant/workspace: the
+    Personal/default scope is the one universal fallback (an unscoped admin
+    decides rows in a named workspace), but a NAMED-scope reviewer may never
+    cross into a different named workspace/tenant or an unscoped row. A
+    guessed/cross-scope id is therefore a 404, not a confirmed decision.
+
+    This is a read; the caller MUST still run ``claim_fresh_reviewer`` and the
+    conditional ``claim_pending_decision`` in the same transaction.
+    """
+    from core.goal_run_decision_service import (
+        _resolve_actor,
+        canonical_scope_id,
+    )
+    from core.security.rbac import persisted_required_roles, required_role_denial
+
+    authority = _resolve_actor(db, reviewer_id)
+    if not authority.get("ok"):
+        return {
+            "ok": False,
+            "http_status": int(authority.get("http_status") or 401),
+            "error_code": str(
+                authority.get("error_code") or "AUTHENTICATION_REQUIRED"),
+            "message": str(
+                authority.get("message") or "Authentication required"),
+        }
+
+    actor_workspace = canonical_scope_id(authority.get("workspace_id"))
+    action_workspace = canonical_scope_id(
+        getattr(action, "workspace_id", None))
+    actor_tenant = canonical_scope_id(authority.get("tenant_id"))
+    action_tenant = canonical_scope_id(getattr(action, "tenant_id", None))
+    if (
+        (actor_workspace != "default" and actor_workspace != action_workspace)
+        or (actor_tenant != "default" and actor_tenant != action_tenant)
+    ):
+        return {
+            "ok": False,
+            "http_status": 404,
+            "error_code": "DECISION_SCOPE_DENIED",
+            "message": (
+                "This approval is outside your workspace or tenant."),
+        }
+
+    denial = required_role_denial(
+        authority.get("role"), persisted_required_roles(action),
+        subject="approval", actor_label="Approver")
+    if denial:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error_code": "AUTHORITY_REQUIRED",
+            "message": denial,
+        }
+    return {"ok": True, "authority": authority}
+
+
+def pending_decision_conditions(action: Any) -> List[Any]:
+    """The exact reviewed-row fence used by ``claim_pending_decision``.
+
+    Exposed so the dialect-specific CAS semantics can be traced (PostgreSQL
+    JSONB equality is semantic; SQLite compares serialized text) without
+    opening a database or claiming a run that did not happen.
+    """
+    return [
+        HITLAction.id == str(getattr(action, "id", "") or ""),
+        HITLAction.status == HITLActionStatus.PENDING.value,
+        _exact_column(
+            HITLAction.action_type, getattr(action, "action_type", None)),
+        _exact_column(
+            HITLAction.required_role, getattr(action, "required_role", None)),
+        _exact_column(
+            HITLAction.workspace_id, getattr(action, "workspace_id", None)),
+        _exact_column(
+            HITLAction.tenant_id, getattr(action, "tenant_id", None)),
+        _exact_json_column(
+            HITLAction.params, getattr(action, "params", None)),
+        _exact_json_column(
+            HITLAction.context_snapshot,
+            getattr(action, "context_snapshot", None)),
+    ]
+
+
+def claim_pending_decision(
+    db: Session,
+    action: Any,
+    *,
+    status: str,
+    reviewer_id: Any,
+    effective_params: Any = _MISSING,
+    user_feedback: Any = _MISSING,
+    reason: Optional[str] = None,
+    record_history: bool = False,
+    reviewed_at: Any = None,
+) -> bool:
+    """Atomically claim ONE pending decision for this exact loaded review.
+
+    A conditional ``UPDATE ... WHERE status = 'pending' AND every authority
+    field still equals the row the reviewer was checked against`` is the
+    fence, not a re-read. Status, effective ``params``, reviewer, review time,
+    feedback and the appended ``parameter_history`` snapshot are written in
+    the SAME statement/transaction. A peer that decided the row (or rewrote
+    the reviewed payload, role policy or snapshot) after the load makes
+    ``rowcount`` 0, so this caller gets an honest conflict instead of
+    overwriting the winner. Returns True only for the single winning claim.
+
+    ``modified_params``/``user_feedback`` semantics are the caller's: an
+    omitted ``effective_params`` leaves ``params`` untouched (the legacy
+    merge handler computes the merged value first), and an explicit value
+    replaces it (the service's edit-before-approve contract).
+    """
+    if status not in (
+            HITLActionStatus.APPROVED.value, HITLActionStatus.REJECTED.value):
+        raise ValueError("decision status must be approved or rejected")
+    reviewer = str(reviewer_id or "").strip()
+    if not reviewer:
+        raise ValueError("decision requires a reviewer")
+
+    prior_params = getattr(action, "params", None)
+    prior_snapshot = _copy_json_value(
+        getattr(action, "context_snapshot", None))
+
+    params_value = (
+        prior_params if effective_params is _MISSING else effective_params)
+    when = reviewed_at or datetime.now()
+
+    values: Dict[str, Any] = {
+        "status": status,
+        "reviewed_by": reviewer,
+        "reviewed_at": when,
+    }
+    if effective_params is not _MISSING:
+        values["params"] = params_value
+    if user_feedback is not _MISSING:
+        values["user_feedback"] = user_feedback
+    if record_history:
+        updated_snapshot, _entry = _append_parameter_history(
+            prior_snapshot,
+            reviewed_params=prior_params if prior_params is not None else {},
+            approved_params=(
+                params_value if params_value is not None else {}),
+            actor_id=reviewer,
+            reason=reason,
+            decided_at=when,
+        )
+        if updated_snapshot is not None:
+            values["context_snapshot"] = updated_snapshot
+
+    conditions = pending_decision_conditions(action)
+    result = db.execute(
+        update(HITLAction)
+        .where(*conditions)
+        .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+    claimed = int(result.rowcount or 0) == 1
+    # The ORM object still holds the pre-claim values. Expire it so any later
+    # read in this request (response/broadcast) loads the committed winner
+    # rather than the stale snapshot.
+    db.expire(action)
+    return claimed
+
+
+def _decision_read_denial(
+    authority: Dict[str, Any], action: Any,
+) -> Optional[Dict[str, Any]]:
+    """Permission for reading one decision's history (server-derived only).
+
+    Scope first (cross-scope is a 404 so an id is never confirmed), then:
+    supervisors (team_lead+) may read any decision in their current scope;
+    an ordinary member may read only their own subject/reviewed rows. No
+    client-supplied owner/scope/role is consulted anywhere here.
+    """
+    from core.goal_run_decision_service import canonical_scope_id
+    from core.security.rbac import role_level
+
+    actor_workspace = canonical_scope_id(authority.get("workspace_id"))
+    action_workspace = canonical_scope_id(
+        getattr(action, "workspace_id", None))
+    actor_tenant = canonical_scope_id(authority.get("tenant_id"))
+    action_tenant = canonical_scope_id(getattr(action, "tenant_id", None))
+    if (
+        (actor_workspace != "default" and actor_workspace != action_workspace)
+        or (actor_tenant != "default" and actor_tenant != action_tenant)
+    ):
+        return _refusal(
+            "Approval not found", "APPROVAL_NOT_FOUND", 404)
+
+    is_supervisor = role_level(authority.get("role")) >= role_level(
+        UserRole.TEAM_LEAD)
+    if not is_supervisor:
+        actor_id = str(authority.get("id") or "")
+        subject = str(getattr(action, "user_id", None) or "")
+        reviewer = str(getattr(action, "reviewed_by", None) or "")
+        if actor_id not in (subject, reviewer):
+            return _refusal(
+                "Only the approval's owner or its authorized reviewer can "
+                "read this decision history.",
+                "AUTHORITY_REQUIRED", 403)
+    return None
+
+
+def get_decision_history(
+    action_id: str, actor_id: Any, *, revision_limit: int = 10,
+) -> Dict[str, Any]:
+    """Bounded, permission-scoped decision history for the Approvals UI.
+
+    Returns ``{"success": True, "history": {...}}`` or the shared refusal
+    envelope. The projection is redacted by default (existing repo
+    sanitizers); the protected ``context_snapshot`` is never returned raw and
+    no credential payload is dumped.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from core.goal_run_decision_service import _resolve_actor
+
+    try:
+        with get_db_session() as db:
+            authority = _resolve_actor(db, actor_id)
+            if not authority.get("ok"):
+                return _refusal(
+                    str(authority.get("message") or "Authentication required"),
+                    str(authority.get("error_code")
+                        or "AUTHENTICATION_REQUIRED"),
+                    int(authority.get("http_status") or 401),
+                )
+            action = db.query(HITLAction).filter(
+                HITLAction.id == str(action_id)).first()
+            if action is None:
+                return _refusal(
+                    "Approval not found", "APPROVAL_NOT_FOUND", 404)
+            denial = _decision_read_denial(authority, action)
+            if denial is not None:
+                return denial
+            history = describe_parameter_history(
+                action, max_revisions=revision_limit)
+            history["approval_id"] = action.id
+            history["action_type"] = action.action_type
+            history["agent_id"] = action.agent_id
+            return {"success": True, "history": history}
+    except SQLAlchemyError:
+        logger.exception(
+            "HITL %s decision history unreadable", action_id)
+        return _refusal(
+            "Decision history is temporarily unavailable; retry.",
+            "HISTORY_UNAVAILABLE", 503)
+
+
+def list_recent_decisions(
+    actor_id: Any, *, limit: int = 20,
+) -> Dict[str, Any]:
+    """Bounded recent decisions the caller may see (discoverability read).
+
+    Same scope/role policy as the history read, applied in SQL with the
+    caller's DB-derived scope. No row params or snapshots are returned: this
+    is a navigation list, the per-decision history is fetched lazily.
+    """
+    from sqlalchemy import func, or_
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from core.goal_run_decision_service import (
+        _resolve_actor,
+        canonical_scope_id,
+    )
+    from core.security.rbac import role_level
+
+    try:
+        with get_db_session() as db:
+            authority = _resolve_actor(db, actor_id)
+            if not authority.get("ok"):
+                return _refusal(
+                    str(authority.get("message") or "Authentication required"),
+                    str(authority.get("error_code")
+                        or "AUTHENTICATION_REQUIRED"),
+                    int(authority.get("http_status") or 401),
+                )
+
+            try:
+                bounded = int(limit)
+            except (TypeError, ValueError):
+                bounded = 20
+            bounded = max(1, min(bounded, 100))
+
+            query = db.query(HITLAction).filter(HITLAction.status.in_(
+                ("approved", "rejected", "expired", "executed")))
+            # Scope filters are EXACT for a named scope. The Personal/default
+            # actor keeps the existing unscoped read (never widened with an
+            # ``OR workspace IS NULL`` predicate).
+            if canonical_scope_id(authority.get("workspace_id")) != "default":
+                query = query.filter(
+                    HITLAction.workspace_id == authority["workspace_id"])
+            if canonical_scope_id(authority.get("tenant_id")) != "default":
+                query = query.filter(
+                    HITLAction.tenant_id == authority["tenant_id"])
+
+            is_supervisor = role_level(
+                authority.get("role")) >= role_level(UserRole.TEAM_LEAD)
+            if not is_supervisor:
+                query = query.filter(or_(
+                    HITLAction.user_id == authority["id"],
+                    HITLAction.reviewed_by == authority["id"],
+                ))
+
+            rows = query.order_by(
+                func.coalesce(
+                    HITLAction.reviewed_at, HITLAction.created_at).desc()
+            ).limit(bounded).all()
+
+            decisions = []
+            for action in rows:
+                decisions.append({
+                    "id": action.id,
+                    "action_type": action.action_type,
+                    "status": str(action.status or ""),
+                    "reviewed_by": (
+                        str(action.reviewed_by or "") or None),
+                    "reviewed_at": (
+                        action.reviewed_at.isoformat()
+                        if hasattr(action.reviewed_at, "isoformat")
+                        else action.reviewed_at),
+                    "created_at": (
+                        action.created_at.isoformat()
+                        if hasattr(action.created_at, "isoformat")
+                        else action.created_at),
+                    "has_parameter_history": bool(
+                        _history_entries(action)),
+                })
+            return {"success": True, "decisions": decisions}
+    except SQLAlchemyError:
+        logger.exception("Recent HITL decisions unreadable")
+        return _refusal(
+            "Decision history is temporarily unavailable; retry.",
+            "HISTORY_UNAVAILABLE", 503)
 
 
 class InterventionService:
@@ -391,10 +865,9 @@ class InterventionService:
                 return {"success": False, "message": "Action not found"}
 
             if action.status != HITLActionStatus.PENDING.value:
-                return {
-                    "success": False,
-                    "message": f"Action is {action.status}, cannot approve.",
-                }
+                return _refusal(
+                    f"Action is {action.status}, cannot approve.",
+                    "DECISION_CONFLICT", 409, action.id)
 
             # A never-autonomous TASK admission is a human admission for ONE
             # exact task execution. Its status is not authority: the current
@@ -493,26 +966,42 @@ class InterventionService:
                         "task binding changed; refresh and retry.",
                         "TASK_ADMISSION_DECISION_CONFLICT", 409, action.id)
             else:
-                # Capture the reviewed proposal BEFORE the edit-before-approve
-                # flow rewrites the live params column. The receipt below
-                # stores this exact value (deep-copied) plus the effective
-                # payload that execution will consume.
-                reviewed_params = copy.deepcopy(action.params or {})
-                if modified_params is not None:
-                    action.params = modified_params
+                # Same durable authority seam as rejection: resolve the
+                # CURRENT reviewer (fresh active user, canonical scope, both
+                # persisted required_role locations), then fence that actor
+                # and the exact reviewed row in the SAME transaction as the
+                # status/params/history write. A peer decision or a role/
+                # scope/payload change after the load makes the claim miss.
+                authority = resolve_decision_reviewer(
+                    db, action, approver_id)
+                if not authority.get("ok"):
+                    return _refusal(
+                        authority["message"], authority["error_code"],
+                        authority["http_status"], action.id)
+                from core.goal_run_decision_service import claim_fresh_reviewer
 
-                # Update status
-                action.status = HITLActionStatus.APPROVED.value
-                action.reviewed_by = approver_id
-                action.reviewed_at = datetime.now()
-                record_approved_parameters(
-                    action,
-                    reviewed_params=reviewed_params,
-                    approved_params=action.params,
-                    actor_id=approver_id,
+                if not claim_fresh_reviewer(db, authority["authority"]):
+                    db.rollback()
+                    return _refusal(
+                        "Reviewer authority changed; refresh and retry.",
+                        "AUTHORITY_CHANGED", 409, action.id)
+
+                claimed = claim_pending_decision(
+                    db, action,
+                    status=HITLActionStatus.APPROVED.value,
+                    reviewer_id=approver_id,
+                    effective_params=(
+                        modified_params if modified_params is not None
+                        else _MISSING),
                     reason=reason,
-                    decided_at=action.reviewed_at,
+                    record_history=True,
                 )
+                if not claimed:
+                    db.rollback()
+                    return _refusal(
+                        "This approval was already decided, or its reviewed "
+                        "payload/authority changed; refresh and retry.",
+                        "DECISION_CONFLICT", 409, action.id)
 
             db.commit()
 
@@ -538,10 +1027,9 @@ class InterventionService:
                 return {"success": False, "message": "Action not found"}
 
             if action.status != HITLActionStatus.PENDING.value:
-                return {
-                    "success": False,
-                    "message": f"Action is {action.status}, cannot reject.",
-                }
+                return _refusal(
+                    f"Action is {action.status}, cannot reject.",
+                    "DECISION_CONFLICT", 409, action.id)
 
             is_task_admission = (
                 str(action.action_type or "") == "never_autonomous_task")
@@ -613,10 +1101,34 @@ class InterventionService:
                         "task binding changed; refresh and retry.",
                         "TASK_ADMISSION_DECISION_CONFLICT", 409, action.id)
             else:
-                action.status = HITLActionStatus.REJECTED.value
-                action.reviewed_by = approver_id
-                action.reviewed_at = datetime.now()
-                action.user_feedback = reason
+                # Resolution + fresh-actor fence + conditional pending claim:
+                # the rejection, reviewer and feedback commit atomically, and
+                # a peer answer/role/scope change after the load cannot be
+                # overwritten (the loser gets an honest conflict).
+                authority = resolve_decision_reviewer(
+                    db, action, approver_id)
+                if not authority.get("ok"):
+                    return _refusal(
+                        authority["message"], authority["error_code"],
+                        authority["http_status"], action.id)
+                from core.goal_run_decision_service import claim_fresh_reviewer
+
+                if not claim_fresh_reviewer(db, authority["authority"]):
+                    db.rollback()
+                    return _refusal(
+                        "Reviewer authority changed; refresh and retry.",
+                        "AUTHORITY_CHANGED", 409, action.id)
+
+                if not claim_pending_decision(
+                        db, action,
+                        status=HITLActionStatus.REJECTED.value,
+                        reviewer_id=approver_id,
+                        user_feedback=reason):
+                    db.rollback()
+                    return _refusal(
+                        "This rejection was already decided, or the reviewed "
+                        "payload/authority changed; refresh and retry.",
+                        "DECISION_CONFLICT", 409, action.id)
 
             db.commit()
 

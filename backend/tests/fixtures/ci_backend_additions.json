@@ -565,7 +565,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_public_http_exception_wire_format.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "checkpoint_root=\"${RUNNER_TEMP}/atom-activity-checkpoint\"\nmkdir -p \"${checkpoint_root}/data\" \"${checkpoint_root}/office\"\npython -m pytest \\\n  tests/test_goal_run_checkpoint_approval_surfaces.py \\\n  tests/test_public_http_exception_wire_format.py \\\n  tests/test_goal_run_routes.py \\\n  tests/test_hitl_resume.py \\\n  tests/test_hitl_approvals_journey.py \\\n  tests/test_hitl_parameter_history.py \\\n  tests/test_goal_run_decision_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${checkpoint_root}/active-intervention.db\" \\\n  python -m pytest tests/test_active_intervention_service.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run reviewed lesson correction conversation learning controls",
