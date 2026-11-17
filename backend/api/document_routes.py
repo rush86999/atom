@@ -241,6 +241,17 @@ async def _upsert_document(
     )
     if result == "write_failed":
         raise RuntimeError("LanceDB add_document returned False")
+    if result == "written":
+        # A warmed knowledge-VFS projection (short TTL) must not hide the
+        # just-written document from the next grep/cat in the same turn.
+        try:
+            from integrations.vfs.knowledge_vfs import (
+                invalidate_knowledge_vfs_rows_cache,
+            )
+
+            invalidate_knowledge_vfs_rows_cache()
+        except Exception:  # noqa: BLE001 — upload must not fail on cache
+            pass
     return result
 
 

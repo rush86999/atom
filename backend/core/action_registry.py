@@ -336,16 +336,22 @@ def _context_user_id(context: Dict[str, Any]) -> Optional[str]:
 def _context_workspace_id(context: Dict[str, Any]) -> Optional[str]:
     """Best-effort workspace extraction for workspace-scoped actions.
 
-    The explicit dispatch context wins; otherwise the turn's published
-    request scope (the same contextvar the LLM dispatch consumes). ``None``
-    means "no workspace known" — callers then keep the historical
-    default-store behavior rather than guessing.
+    The explicit dispatch context wins; then the authenticated user object
+    (the RPC/frontend path puts the server-owned ``User`` in ``context`` but
+    not a top-level workspace key); otherwise the turn's published request
+    scope (the same contextvar the LLM dispatch consumes). ``None`` means
+    "no workspace known" — callers then keep the historical default-store
+    behavior rather than guessing.
     """
     if context:
         for key in ("workspace_id", "workspaceId"):
             val = context.get(key)
             if val:
                 return str(val)
+        user = context.get("user")
+        user_workspace = getattr(user, "workspace_id", None) if user else None
+        if user_workspace:
+            return str(user_workspace)
     try:
         from core.request_scope import current_request_scope
 

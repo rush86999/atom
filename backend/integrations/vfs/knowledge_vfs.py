@@ -68,6 +68,25 @@ _VFS_ROWS_CACHE_TTL = float(
 _VFS_SCAN_BATCH = int(_os.getenv("ATOM_VFS_SCAN_BATCH", "2000") or 2000)
 
 
+def invalidate_knowledge_vfs_rows_cache() -> None:
+    """Drop a registered knowledge provider's projected-read cache.
+
+    Document producers/deleters must call this after changing the SQL or
+    LanceDB documents store. ``invalidate_rows_cache`` already existed but
+    only the communications pipeline used it; a later ``grep`` could keep
+    serving pre-delete vector text for the 15s TTL, so a removed document
+    still grounded an answer. No provider registered means no cache to drop.
+    """
+    try:
+        from core.vfs_registry import get_provider
+
+        provider = get_provider("knowledge")
+        invalidate = getattr(provider, "invalidate_rows_cache", None)
+        if callable(invalidate):
+            invalidate()
+    except Exception as exc:  # noqa: BLE001 — cache hygiene must not fail writes
+        logger.debug(f"[KnowledgeVFS] cache invalidation skipped: {exc}")
+
 
 class KnowledgeVFSProvider(VFSProvider):
     """VFS view over the internal knowledge document stores."""
@@ -168,7 +187,7 @@ class KnowledgeVFSProvider(VFSProvider):
         # extracted text lives in the aligned LanceDB row. Serve the full text
         # when the mirror row is the only thing we'd otherwise truncate.
         if doc[0] == "ingested":
-            vec = await self._get_vector_doc(doc_id)
+            vec = await self._get_vector_doc(doc_id, ctx)
             if vec:
                 vec_text = str(vec.get("text") or "")
                 if len(vec_text) > len(text):
@@ -210,7 +229,7 @@ class KnowledgeVFSProvider(VFSProvider):
                 if doc is not None:
                     text = self._doc_text(doc)
                     if doc[0] == "ingested":
-                        vec = await self._get_vector_doc(parts[2])
+                        vec = await self._get_vector_doc(parts[2], ctx)
                         if vec and len(str(vec.get("text") or "")) > len(text):
                             text = str(vec.get("text") or "")
         except Exception as e:  # noqa: BLE001 — degraded, never a silent EOF
@@ -302,7 +321,8 @@ class KnowledgeVFSProvider(VFSProvider):
         figure living in chunk c2213 of a price list could not be grepped.
         """
         rows = await self._vector_rows(
-            "documents", ["id", "text"], limit=_DOCS_SCAN_LIMIT
+            "documents", ["id", "text"], limit=_DOCS_SCAN_LIMIT,
+            workspace_id=self._workspace_id(ctx),
         )
         citations: List[VFSCitation] = []
         vector_ids: set = set()
@@ -331,6 +351,9 @@ class KnowledgeVFSProvider(VFSProvider):
                 wf = self._workspace_filter(ctx, IngestedDocument)
                 if wf is not None:
                     q1 = q1.filter(wf)
+                ff = self._freshness_filter(IngestedDocument)
+                if ff is not None:
+                    q1 = q1.filter(ff)
                 for d in q1.yield_per(500):
                     if len(citations) >= _DOCS_CITATION_CAP:
                         return citations[:_DOCS_CITATION_CAP]
@@ -398,6 +421,33 @@ class KnowledgeVFSProvider(VFSProvider):
             return query_model.workspace_id == ws
         return None
 
+    def _workspace_id(self, ctx) -> str:
+        """Physical store selected for this read (back-compat default)."""
+        ws = (ctx or {}).get("workspace_id")
+        return str(ws) if ws else "default"
+
+    def _freshness_filter(self, query_model):
+        """Hide documents whose durable freshness status is non-fresh.
+
+        Point reads (``cat``/``read_region``) previously ignored the same
+        status search and export already enforce, so a deleted document's
+        SQL tombstone (retained to keep its receipt/audit trail) stayed
+        readable through ``knowledge/documents/<id>`` and could ground an
+        answer. ``None`` keeps historical rows readable; only an explicit
+        non-fresh value suppresses. Mirrors the lexical/search filter.
+        """
+        column = getattr(query_model, "freshness_status", None)
+        if column is None:
+            return None
+        from sqlalchemy import or_
+
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+
+        return or_(
+            column.is_(None),
+            ~column.in_(tuple(NON_FRESH_STATUSES)),
+        )
+
     async def _list_documents(self, ctx) -> List[VFSNode]:
         from core.models import IngestedDocument, KnowledgeDocument
         nodes: List[VFSNode] = []
@@ -407,6 +457,9 @@ class KnowledgeVFSProvider(VFSProvider):
                 wf = self._workspace_filter(ctx, IngestedDocument)
                 if wf is not None:
                     q1 = q1.filter(wf)
+                ff = self._freshness_filter(IngestedDocument)
+                if ff is not None:
+                    q1 = q1.filter(ff)
                 for d in q1.limit(200).all():
                     nodes.append(VFSNode(
                         name=d.id, type="dir", path=f"knowledge/documents/{d.id}",
@@ -423,10 +476,11 @@ class KnowledgeVFSProvider(VFSProvider):
                     ))
         except Exception as e:
             logger.warning(f"[KnowledgeVFS] list failed: {e}")
-        nodes.extend(await self._list_vector_documents(seen={n.name for n in nodes}))
+        nodes.extend(await self._list_vector_documents(seen={n.name for n in nodes}, ctx=ctx))
         return nodes
 
-    async def _list_vector_documents(self, seen: set, cap: int = 200) -> List[VFSNode]:
+    async def _list_vector_documents(self, seen: set, cap: int = 200,
+                                     ctx: Optional[Dict[str, Any]] = None) -> List[VFSNode]:
         """Surface vector-only rows (no PG mirror) in ls output.
 
         The LanceDB documents table holds rows this provider could cat (via
@@ -434,14 +488,21 @@ class KnowledgeVFSProvider(VFSProvider):
         ingests, mirror-write failures — so agents browsing the tree missed
         documents that search could still hit. Merge them, capped, skipping
         ids already listed from PG.
+
+        The scan uses the caller's workspace store when one is present. It
+        previously always read the ``default`` store, so a scoped user's
+        ``ls`` could surface (and then ``cat``) another workspace's
+        vector-only rows while the SQL half was correctly scoped.
         """
         import asyncio
+
+        workspace_id = self._workspace_id(ctx)
 
         def _scan():
             try:
                 from core.lancedb_handler import get_lancedb_handler
 
-                handler = get_lancedb_handler("default")
+                handler = get_lancedb_handler(workspace_id)
                 if handler is None:
                     return []
                 return handler.list_document_heads("documents", limit=cap)
@@ -662,6 +723,7 @@ class KnowledgeVFSProvider(VFSProvider):
         columns: List[str],
         limit: Optional[int] = None,
         label: str = "store",
+        workspace_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Projected, full-store, off-loop read shared by BOTH trees.
 
@@ -684,7 +746,7 @@ class KnowledgeVFSProvider(VFSProvider):
         import asyncio
         import time as _time
 
-        cache_key = (store, tuple(columns), limit)
+        cache_key = (store, tuple(columns), limit, workspace_id)
         now = _time.monotonic()
         hit = self._rows_cache.get(cache_key)
         if hit and _VFS_ROWS_CACHE_TTL > 0 and now - hit[0] < _VFS_ROWS_CACHE_TTL:
@@ -695,7 +757,7 @@ class KnowledgeVFSProvider(VFSProvider):
                 return self._comms_table()
             from core.lancedb_handler import get_lancedb_handler
 
-            handler = get_lancedb_handler("default")
+            handler = get_lancedb_handler(workspace_id or "default")
             return handler.get_table("documents") if handler is not None else None
 
         def _scan():
@@ -741,10 +803,21 @@ class KnowledgeVFSProvider(VFSProvider):
         from core.models import IngestedDocument, KnowledgeDocument
         try:
             with self._db() as db:
-                d = db.query(IngestedDocument).filter(IngestedDocument.id == doc_id).first()
+                q1 = db.query(IngestedDocument).filter(IngestedDocument.id == doc_id)
+                wf = self._workspace_filter(ctx, IngestedDocument)
+                if wf is not None:
+                    q1 = q1.filter(wf)
+                ff = self._freshness_filter(IngestedDocument)
+                if ff is not None:
+                    q1 = q1.filter(ff)
+                d = q1.first()
                 if d:
                     return ("ingested", d)
-                d = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == doc_id).first()
+                q2 = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == doc_id)
+                wf2 = self._workspace_filter(ctx, KnowledgeDocument)
+                if wf2 is not None:
+                    q2 = q2.filter(wf2)
+                d = q2.first()
                 if d:
                     return ("knowledge", d)
         except Exception as e:
@@ -752,12 +825,13 @@ class KnowledgeVFSProvider(VFSProvider):
         # LanceDB fallback: vector-only rows (connector file ingests stamped
         # file_<ts>, manual uploads) have no PG row. Without this, search
         # surfaces them (bridged:false) but cat can never read them.
-        rec = await self._get_vector_doc(doc_id)
+        rec = await self._get_vector_doc(doc_id, ctx)
         if rec is not None:
             return ("vector", rec)
         return None
 
-    async def _get_vector_doc(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_vector_doc(self, doc_id: str,
+                              ctx: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Fetch one document from the LanceDB ``documents`` table by id.
 
         CHUNK FAMILIES: a large file is stored as ``{parent}::c0, ::c1, …``
@@ -774,7 +848,7 @@ class KnowledgeVFSProvider(VFSProvider):
             try:
                 from core.lancedb_handler import get_lancedb_handler
 
-                handler = get_lancedb_handler("default")
+                handler = get_lancedb_handler(self._workspace_id(ctx))
                 if handler is None:
                     return None
                 exact = handler.get_document_by_id("documents", str(doc_id))
@@ -782,7 +856,7 @@ class KnowledgeVFSProvider(VFSProvider):
                     return exact
                 if "::c" in str(doc_id):
                     return None  # a chunk id that does not exist
-                family = self._chunk_family_rows(str(doc_id))
+                family = self._chunk_family_rows(str(doc_id), handler)
                 if not family:
                     return None
                 base = dict(family[0])
@@ -802,16 +876,21 @@ class KnowledgeVFSProvider(VFSProvider):
             return None
 
     @staticmethod
-    def _chunk_family_rows(doc_id: str) -> List[Dict[str, Any]]:
+    def _chunk_family_rows(doc_id: str,
+                           handler: Any = None) -> List[Dict[str, Any]]:
         """Every chunk of ``doc_id`` in chunk order (``[]`` when none).
 
         Scans the projected ``id``/``text`` columns and keeps rows whose id is
         ``{doc_id}::c<n>``; a handful of families exist per store, and this
-        runs only for a parent id that has no row of its own."""
+        runs only for a parent id that has no row of its own. ``handler`` is
+        the caller's already-workspace-scoped store; the default fallback is
+        only for historical direct callers.
+        """
         try:
-            from core.lancedb_handler import get_lancedb_handler
+            if handler is None:
+                from core.lancedb_handler import get_lancedb_handler
 
-            handler = get_lancedb_handler("default")
+                handler = get_lancedb_handler("default")
             table = handler.get_table("documents") if handler is not None else None
             if table is None:
                 return []

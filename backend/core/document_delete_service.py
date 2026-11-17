@@ -44,6 +44,26 @@ from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
 
+
+def _invalidate_document_read_caches() -> None:
+    """Drop projected VFS rows after a durable document effect.
+
+    The knowledge VFS caches projected vector rows for a short TTL. A
+    verified delete that did not invalidate it left ``documents.grep`` serving
+    the removed document's text until expiry (reproduced 2026-11-16). Cache
+    hygiene is best-effort: the deletion receipt already reflects the durable
+    stores, and a not-yet-registered provider has no cache to drop.
+    """
+    try:
+        from integrations.vfs.knowledge_vfs import (
+            invalidate_knowledge_vfs_rows_cache,
+        )
+
+        invalidate_knowledge_vfs_rows_cache()
+    except Exception as exc:  # noqa: BLE001 — never make delete fail on cache
+        logger.debug(
+            "document read-cache invalidation skipped: %s", type(exc).__name__)
+
 DOCUMENT_DELETE_SCHEMA = "atom-document-delete-1"
 EFFECTS_VERSION = "document-delete-2"
 _OPERATION_PREFIX = "document"
@@ -824,6 +844,7 @@ async def delete_document_verified(
     # operation never performs a second deletion.
     replay = await _replay(db, operation_id, expected, handler)
     if replay is not None:
+        _invalidate_document_read_caches()
         return replay
 
     sql_target = _sql_target(
@@ -910,6 +931,7 @@ async def delete_document_verified(
                 family_ok = await _delete_family(handler, doc_id)
 
     file_effect = _unlink_file(file_plan)
+    _invalidate_document_read_caches()
 
     try:
         post = await _readback(handler, doc_id)
