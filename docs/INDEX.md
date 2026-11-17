@@ -33,6 +33,8 @@ blanket qualification of every feature or connector.
 
 - [Current goal map — 2026-11-17](engineering/CURRENT_GOAL_MAP_2026_11_17.md) — newest navigation/remaining-acceptance overlay for all 18 canonical goals plus DOCS-REF-01 at main `1453f2cf4` (#979, documentation cut). It preserves the 143 original claim identities and historical 111/123 result and does not claim completion.
 - [Current readiness evidence index — 2026-11-14](engineering/CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md) — detailed historical claim/evidence ledger through #943, all 18 goals and all 143 claims. Use the 2026-11-17 goal map for current release status; this index preserves the historical 111/123 result and does not claim app completion.
+- [PostgreSQL document-lineage upgrade](engineering/POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) — independently verified existing-table migration, restart and cleanup on PostgreSQL 14.24; broader upgrades remain open.
+- [Live fleet case 8](engineering/FLEET_LIVE_DELEGATION_2026_11_17.md) — compatibility recovered, but specialist delegation remained incomplete.
 - [Structured provider wire contracts](engineering/STRUCTURED_WIRE_CONTRACTS_2026_11_17.md) — exact route/endpoint compatibility and offline recovery evidence; no live quality claim.
 - [Canonical 18-goal catalogue](engineering/APP_GOALS_INDEX.json) — the numbering authority; this index does not renumber goals.
 - [143-claim requirement audit](engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json) — machine-readable historical claim records and the later evidence overlay.

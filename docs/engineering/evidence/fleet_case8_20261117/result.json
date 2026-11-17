@@ -1,0 +1,28 @@
+{
+  "case": "case-8",
+  "owner_approved": true,
+  "status": "FAILED",
+  "source": "02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909",
+  "requests_started": 6,
+  "http_200_settled": 4,
+  "first_error_category": "relay_normalized_logprobs_unsupported",
+  "served_models": [
+    "deepseek-v4.1-flash"
+  ],
+  "cap_respected": true,
+  "delegation_chains": 0,
+  "chain_links": 0,
+  "direct_answer_math_manually_correct": true,
+  "literal_text_assertions_underrecognize_spaces": true,
+  "conclusion": "Compatibility recovery succeeded; interpreter/planner chose direct conversation; no actual specialists or synthesis chain. Fleet remains unqualified.",
+  "cleanup": {
+    "owned_child_absent": true,
+    "owned_server_absent": true,
+    "owned_process_group_absent": true,
+    "both_owned_ports_refuse": true
+  },
+  "automatic_rerun": false,
+  "approval_consumed": true,
+  "run_result_sha256": "11e475e0073be531f683d2ff84dba3da8474e5b46c0cfdd9c16c5f3ef93fc214",
+  "requests_started_note": "Six starts recorded; four successful completions and one normalized400. Final background extraction has no terminal relay event; no outcome invented."
+}
