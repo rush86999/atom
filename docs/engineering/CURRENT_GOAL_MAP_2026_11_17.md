@@ -17,13 +17,13 @@ intact; this map is the current navigation layer over them.
 
 | Fact | Actual source |
 |---|---|
-| Observed main | `02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909` (PR [#978](https://github.com/rush86999/atom/pull/978)) |
-| Merged tree | `24a6c7d2b81be204c4cfb5f8c6b66f9001277052` |
-| Parent | `0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464` (PR [#977](https://github.com/rush86999/atom/pull/977)) |
+| Observed main | `1453f2cf42e822943e52390ef2c7b0d544609c20` (documentation PR [#979](https://github.com/rush86999/atom/pull/979)); application bytes remain those of #978 |
+| Merged tree | `7734fb38a8574963db90bc149f8367d2719b81ea` |
+| Parent | `02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909` (PR [#978](https://github.com/rush86999/atom/pull/978)) |
 | Learning merge | PR [#975](https://github.com/rush86999/atom/pull/975) → `7a22e6d0748057d80b4bf198fca9916e1ee55765` |
 | Activity merge | PR [#976](https://github.com/rush86999/atom/pull/976) → `8b48dd84ad845e79c27bfcfa45cae669586d2b88` |
 | Document authority merge | PR [#978](https://github.com/rush86999/atom/pull/978) → `02c9b16744e4fc9cfe7c81dce2ebf82cac7bf909`; exact PR head `8c142c101` had all **15** checks successful; actual Git tree and parent independently verified |
-| #978 post-merge main | [CI 44011603158](https://github.com/rush86999/atom/actions/runs/44011603158) and [Docker 44011603162](https://github.com/rush86999/atom/actions/runs/44011603162) — Docker completed successfully; CI still running at this cut; no full post-merge green claimed |
+| #978 post-merge main | [CI 44011603158](https://github.com/rush86999/atom/actions/runs/44011603158) and [Docker 44011603162](https://github.com/rush86999/atom/actions/runs/44011603162) — both completed successfully at exact merge `02c9b1674`; independently re-queried on November 17 |
 | Task-family merge | PR [#977](https://github.com/rush86999/atom/pull/977) → `0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464` |
 | #977 exact PR head | `488e956c688383d2a220b05442fb47b51c8cc4f4` — all **15** check runs completed successfully (independently queried) |
 | #977 post-merge main | [CI 43985428885](https://github.com/rush86999/atom/actions/runs/43985428885) and [Docker 43985428863](https://github.com/rush86999/atom/actions/runs/43985428863) — both completed successfully on exact merge `0e9b0dfc9`; root independently re-queried both runs on 2026-11-17 |
@@ -52,7 +52,7 @@ quality, PostgreSQL migration/runtime, deployment, or any whole goal.
 | # | Goal | Audit state (unchanged) | Latest source-bound evidence and scope | Class | Concrete still-open user boundary |
 |---:|---|---|---|---|---|
 | 1 | Setup and ordinary account use | accepted-bounded | [Account browser lifecycle](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) @ `97e43`; [TOTP login/replay](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) @ candidate `268efd405`; [SMTP trust](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) merged #971; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) login/settings | browser + API proof; merged auth | SSO/live IdP, rate-limit breadth, actual one-hour reset expiry, external mail delivery, other deployment audiences, and a current-main full-lifecycle replay. |
-| 2 | BYOK and suitable model selection | accepted-bounded | [Audit ROUTE/GW rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [readiness §2](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-2); #942 `d08892617` preserves query complexity | merged routing; **model-quality gap**; `ROUTE-07` external | Two or more real served models with requested/served identity and scored quality/cost, including capable Flash as first-class. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) confirms one served Flash direct response, not a multi-model benchmark; its one-shot allowance is consumed. |
+| 2 | BYOK and suitable model selection | accepted-bounded | [Audit ROUTE/GW rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [readiness §2](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-2); #942 `d08892617` preserves query complexity; [exact wire-contract candidate](STRUCTURED_WIRE_CONTRACTS_2026_11_17.md) has 97 focused and 11 quota-caller offline controls | merged routing; **model-quality gap**; `ROUTE-07` external | Two or more real served models with requested/served identity and scored quality/cost, including capable Flash as first-class. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) confirms one served Flash direct response, not a multi-model benchmark; its one-shot allowance is consumed. |
 | 3 | Authorized common data and search | accepted-bounded | [Documents browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) @ `ed6ae3c98` (33KB synthetic TXT, all three downloads, delete/readback); [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) 88-byte TXT; WorkDrive 56/56 was bound to `24794f257` (readiness §11) | browser/API/restart proof, synthetic; **live connector gap**; [multi-format document API proof](DOCUMENT_SOURCE_AUTHORITY_2026_11_17.md) @ `0249f3eaa` (162 checks; DOCX/PDF/CSV) | Fresh-grant current-main WorkDrive replay; live connectors and model-grounded file answers; broader parser/format variants. `INT-09` remains external. [Multi-format browser and full restart](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md) passed at `8c142c101`; live connector, generative grounding and parser breadth remain open. |
 | 4 | Spreadsheet and calculation | accepted-bounded | [24-sheet workbook browser](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) @ `3316b0fe7` (exact 34,610 total, formula/cache checks, export before/after restart); full-population API replay 34,533 @ `6ad2738ed` (readiness §4) | browser + API proof, synthetic; **model/live-source gap** | Live connected source; model-driven extraction of the contributing population; reconciliation of ambiguous requests. The historical 1758.00 single-sheet counterexample remains retained. |
 | 5 | Canvas and editable outputs | accepted-bounded | [PDF browser](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) @ `bb7017af3`; [DOCX/PPTX browser + restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) @ `3316b0fe7`; [inline DOCX pictures](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) @ `8d98b0689` (merged #974) | browser + merged implementation | Full Canvas D2; other Canvas families; broader embedded media; cross-user ownership; Firecracker/KVM mini-app legs. Title/count-only renders are insufficient. |
@@ -122,7 +122,7 @@ Account deletion is a separately inferred possible improvement, not an original
   only its current-tense release banner and stale #932/#919 draft labels are
   corrected to point at this map.
 
-## Source and validation basis
+## Original overlay source and validation basis
 
 - Local Git: product source cut `0e9b0dfc9...`, tree `9386a486...`, parent
   `8b48dd84a`; first-parent history and `origin/main` agreed. The documentation
@@ -135,3 +135,8 @@ Account deletion is a separately inferred possible improvement, not an original
 - Reference/path checks are reported in the worker summary that accompanies
   this commit. This file adds no product source, CI, policy or configuration
   change.
+
+Current overlay update: #979 merged at `1453f2cf4` with all 15 exact-head
+checks successful and actual tree/parent verified. Its own post-merge main
+checks remain pending at this cut. #978 post-merge CI and Docker succeeded.
+The new bounded evidence above does not change the original audit or goal states.

@@ -1,0 +1,28 @@
+{
+  "http_status": 502,
+  "physical_requests": 2,
+  "switch_present_by_request": [
+    "none",
+    "none"
+  ],
+  "new_switch_memo_present": false,
+  "result_type": "NoneType",
+  "source": "73953836890d1a94f532845c50961647e302bc5c",
+  "network_denied": true,
+  "focused_suite_passed": 97,
+  "existing_quota_neighborhood_passed": 11,
+  "verdict": "PASS_BOUNDED_OFFLINE",
+  "live_native_routes_verified": false,
+  "fleet_case8_fixed": false,
+  "source_hashes": {
+    "backend/core/llm/byok_handler.py": "7d99c1a647a2e7fe81ec7412ff29a9efdf07b1276f190a46dc41b4929c19db6e",
+    "backend/core/llm/wire_capabilities.py": "e21b4dcacc376423c4d5061fd21437083f7dd9df400e1d3a7604ab0cc67f9e66",
+    "backend/tests/test_structured_provider_capabilities.py": "19147efc94be443c013a86a0924d9d2396fb40de12b6271af7778c30e9eae3d5"
+  },
+  "release_code_head": "86abf683943c98db4d72b11dd234b7bdc873f779",
+  "scope": "Offline real-SDK/Instructor MockTransport wire contracts plus physical-attempt accounting and quota-caller controls. Not live provider, model quality or fleet acceptance.",
+  "publication_code_head": "f937efcc7bd39a433e838f7cc59f02d507763700",
+  "rebase_base": "1453f2cf42e822943e52390ef2c7b0d544609c20",
+  "rebase_validation": "Only nine already-reviewed documentation files differ from the executed release source; all tracked runtime and CI bytes are unchanged.",
+  "independent_ci_preservation_tests_passed": 642
+}
