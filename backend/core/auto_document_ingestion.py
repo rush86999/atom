@@ -153,6 +153,31 @@ def _hashlib_sha1(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()
 
 
+def _external_doc_id(source: str, external_id: str) -> str:
+    """Stable, source-scoped document id for a connector file.
+
+    ONE implementation for every identity site in this module (the write key,
+    the source-update probe and the already-ingested badge probe), delegating
+    to the catalog's lineage helper so the id a memory row is written under is
+    byte-for-byte the ``source_document_id`` its derived sheet dataset
+    records. It also collapses the two conventions connectors use for the same
+    file — a bare id and an already source-prefixed ``"<source>:<id>"`` (the
+    WorkDrive walker passes the latter) — to one key, so a read-side ingest
+    and a walker ingest of the same file share one identity.
+
+    The helper returns None where there is no provable connector lineage
+    (empty source, or the content-addressed "upload" route). This funnel still
+    needs a non-null row id, so those keep the source-scoped hash — never a
+    filename, which is metadata, not identity.
+    """
+    from core.sheet_dataset_service import source_document_id_for_source
+
+    doc_id = source_document_id_for_source(source, external_id)
+    if doc_id:
+        return doc_id
+    return f"ext_{_hashlib_sha1(f'{source}:{external_id}')[:24]}"
+
+
 # Pre-2007 binary Office containers (.doc/.ppt/.xls are OLE2 compound files,
 # NOT the OOXML zip container .docx/.pptx/.xlsx use). The parser chain is
 # python-docx/python-pptx, which cannot open them; the drive connectors
@@ -1329,7 +1354,7 @@ class AutoDocumentIngestionService:
         stored_is_outdated = False
         if not explicit and source and source != "upload" and _external_id:
             try:
-                probe_id = f"ext_{_hashlib_sha1(f'{source}:{_external_id}')[:24]}"
+                probe_id = _external_doc_id(source, _external_id)
                 stored = await asyncio.to_thread(
                     self.memory_handler.get_document_by_id, "documents", probe_id
                 )
@@ -1386,10 +1411,7 @@ class AutoDocumentIngestionService:
         # after extraction below, when their id is known.
         _precomputed_doc_id = None
         if _external_id:
-            _identity_input = f"{source}:{_external_id}"
-            _precomputed_doc_id = (
-                "ext_" + _hashlib_sha1(
-                    _identity_input.encode("utf-8"))[:24])
+            _precomputed_doc_id = _external_doc_id(source, _external_id)
         try:
             from core.sheet_dataset_service import ensure_sheet_dataset, sheet_datasets_enabled
 
@@ -1480,7 +1502,9 @@ class AutoDocumentIngestionService:
         # (content-addressing: identical content = one row, any filename).
         # The id is SOURCE-SCOPED — two integrations may reuse the same raw
         # external id string, and one file's refresh must never delete the
-        # other's row. Never key on file NAME.
+        # other's row. Never key on file NAME. Both connector id conventions
+        # (bare, and already "<source>:"-prefixed) resolve to one key via
+        # _external_doc_id.
         import hashlib as _hashlib
 
         from core.doc_freshness_service import (
@@ -1491,8 +1515,11 @@ class AutoDocumentIngestionService:
 
         _content_hash = extraction_content_hash(text)
         if _external_id:
-            _identity_input = f"{source}:{_external_id}"
-            _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
+            # Same identity the derived dataset above was stamped with: one
+            # computation, so catalog lineage cannot drift from the memory
+            # row (and the source-update probe below finds this row).
+            _file_doc_id = _precomputed_doc_id or _external_doc_id(
+                source, _external_id)
         else:
             _file_doc_id = "doc_" + _hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
             # Content-addressed documents have no stable source id, so the
@@ -1641,9 +1668,10 @@ class AutoDocumentIngestionService:
     async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:
         """Which of these source-native ids already have documents in memory?
 
-        Mirrors the write identity (doc_id = ``ext_sha1(source:external_id)``,
-        see process_file_bytes), probing both the single-doc and the chunked
-        (``{doc_id}::c0``) layouts. Point lookups run in one worker thread —
+        Mirrors the write identity (``_external_doc_id`` — the canonical
+        ``ext_sha1(source:external_id)`` key, see process_file_bytes),
+        probing both the single-doc and the chunked (``{doc_id}::c0``)
+        layouts. Point lookups run in one worker thread —
         the drive panels call this per folder listing to hydrate "already
         ingested" badges from durable state instead of session-only React
         state.
@@ -1654,7 +1682,7 @@ class AutoDocumentIngestionService:
         def _probe_all() -> List[str]:
             found: List[str] = []
             for ext in external_ids:
-                probe = f"ext_{_hashlib_sha1(f'{source}:{ext}')[:24]}"
+                probe = _external_doc_id(source, ext)
                 try:
                     if (self.memory_handler.get_document_by_id("documents", probe)
                             or self.memory_handler.get_document_by_id("documents", f"{probe}::c0")):
