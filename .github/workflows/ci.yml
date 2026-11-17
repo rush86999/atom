@@ -629,15 +629,15 @@ jobs:
             python -m pytest tests/test_assignment_routes.py \
             -q --tb=short --timeout=300 --timeout-method=thread --durations=20
 
-      # Never-autonomous task baskets (additive): all five complete backend
+      # Never-autonomous task baskets (additive): all six complete backend
       # files are gated together — rules/matching, task-level scope and
-      # clearance, durable rule-write fences, reviewer authority, and entry
-      # identity. Each file runs in its own python process with its own
-      # absolute runner-temp SQLite file so one file cannot be certified by
-      # state another left behind; TESTING/PYTHON_DOTENV_DISABLED keep the
-      # lane off .env and the repo dev DB. Complete files only: no node-id
-      # subsets, deselect, skip or continue-on-error. No previous selection
-      # in this job is changed.
+      # clearance, durable rule-write fences, reviewer authority, entry
+      # identity, and real-entry task-profile isolation. Each file runs in its
+      # own python process with its own absolute runner-temp SQLite file so
+      # one file cannot be certified by state another left behind;
+      # TESTING/PYTHON_DOTENV_DISABLED keep the lane off .env and the repo
+      # dev DB. Complete files only: no node-id subsets, deselect, skip or
+      # continue-on-error. No previous selection in this job is changed.
       - name: Run never-autonomous task boundary controls
         env:
           TESTING: "1"
@@ -650,7 +650,7 @@ jobs:
         run: |
           never_root=$(mktemp -d "${RUNNER_TEMP}/never-autonomous-XXXXXX")
           mkdir -p "${never_root}/data"
-          for never_file in rules task_scope rule_write_fences review_authority entry_identity; do
+          for never_file in rules task_scope rule_write_fences review_authority entry_identity entry_profile_isolation; do
             DATABASE_URL="sqlite:///${never_root}/${never_file}.db" \
               ATOM_DATA_DIR="${never_root}/data" \
               python -m pytest "tests/test_never_autonomous_${never_file}.py" \
@@ -1184,6 +1184,27 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/atom-explicit-collaboration"
           python -m pytest tests/test_collaboration_public_http_contract.py tests/test_explicit_collaboration_semantics.py tests/test_collaboration_pending_authority.py -q --tb=short --timeout=300 --timeout-method=thread
+      # M3 canonical delivery contract (2026-11-17): the enabled
+      # CHAT_FINALIZATION_M3 pre-delivery guard is the ONE final text for
+      # WS close, HTTP and the durable assistant row, including the
+      # empty-withheld fail-closed path. Runs the whole public-boundary
+      # file unconditionally (real router/JWT/reply leg/durable read; only
+      # external model outputs, memory, planner and WS transport doubled).
+      - name: Run M3 canonical chat delivery contract controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-m3-canonical/canonical-delivery.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-m3-canonical/data"
+          LANCEDB_URI: "${{ runner.temp }}/atom-m3-canonical/lancedb"
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-m3-canonical/data" "${RUNNER_TEMP}/atom-m3-canonical/lancedb"
+          python -m pytest tests/test_m3_canonical_delivery_contract.py -q --tb=short --timeout=300 --timeout-method=thread
 
       - name: Run generic approved-material consumption controls
         env:

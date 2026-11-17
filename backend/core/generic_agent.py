@@ -371,18 +371,25 @@ class GenericAgent:
         # topic gate and governance check evaluates the SAME trusted profile.
         # A model cannot forge it: it is an in-process object, not a tool arg.
         _task_profile_token = None
+        _task_profile_boundary = None
         _profile_owner = (
             context.get("user_id")
             or context.get("actor_id")
             or getattr(self, "user_id", None))
         try:
             from core.task_classification import (
+                begin_task_profile_boundary,
                 bind_task_profile,
                 build_task_profile,
                 build_unknown_task_profile,
+                end_task_profile_boundary,
                 reset_task_profile,
             )
 
+            # Every real entry owns its task boundary. A nested run must not
+            # inherit the ancestor's profile/clearance when ITS OWN build
+            # (including the canonical unknown fallback) fails below.
+            _task_profile_boundary = begin_task_profile_boundary(context)
             try:
                 _profile = build_task_profile(
                     task_input,
@@ -413,6 +420,14 @@ class GenericAgent:
                 from core.task_classification import reset_task_profile
 
                 reset_task_profile(_task_profile_token, context)
+            except Exception:
+                pass
+            try:
+                from core.task_classification import end_task_profile_boundary
+
+                # Restore the CALLER's profile/clearance exactly, including
+                # after an exception or cancellation inside the run.
+                end_task_profile_boundary(_task_profile_boundary)
             except Exception:
                 pass
             if _audit_tokens is not None:
@@ -4342,10 +4357,14 @@ What is your next step?"""
         tenant_id = (
             context.get("tenant_id")
             or getattr(self, "tenant_id", None))
+        # The admitted actor is the policy owner. A profile inherited from an
+        # ancestor (or otherwise stale) must never select a DIFFERENT owner:
+        # evaluate the configured rules for the user this entry acts for.
         owner_user_id = (
-            (profile.owner_user_id if profile is not None else None)
-            or context.get("user_id")
+            context.get("user_id")
             or context.get("actor_id")
+            or getattr(self, "user_id", None)
+            or (profile.owner_user_id if profile is not None else None)
         )
         if profile is None:
             # A missing profile (unbound/builder outage) is not proof that no

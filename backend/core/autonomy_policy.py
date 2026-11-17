@@ -44,7 +44,7 @@ while still exposing the full general set.
 import hashlib
 import json
 import logging
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from typing import Any, Dict, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -862,6 +862,28 @@ def current_never_autonomous_clearance() -> Optional[Mapping[str, Any]]:
 
 def clear_current_never_autonomous_clearance() -> None:
     _CURRENT_NEVER_CLEARANCE.set(None)
+
+
+def mask_current_never_autonomous_clearance() -> Optional[Token]:
+    """Mask the run-scoped clearance and return the ContextVar token.
+
+    Used by a real execution entry to open a new task boundary: the parent's
+    clearance must not cover a nested task, and the token restores it when
+    the entry exits (success, exception or cancellation).
+    """
+    return _CURRENT_NEVER_CLEARANCE.set(None)
+
+
+def restore_current_never_autonomous_clearance(token: Optional[Token]) -> None:
+    """Restore a clearance masked by ``mask_current...``; never raises."""
+    if token is None:
+        return
+    try:
+        _CURRENT_NEVER_CLEARANCE.reset(token)
+    except (ValueError, RuntimeError):
+        # Token belongs to another context; the masked value stays cleared,
+        # which can only narrow authority.
+        pass
 
 
 def grant_never_autonomous_clearance(
