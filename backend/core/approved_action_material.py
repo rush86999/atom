@@ -30,7 +30,7 @@ import json
 import logging
 from typing import Any, Dict, Mapping, Optional
 
-from core.models import HITLAction, HITLActionStatus, User, UserRole
+from core.models import HITLAction, HITLActionStatus, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,17 @@ def load_approved_material(
                     "approval_scope_mismatch",
                     "The approval is outside this tenant.")
 
+            # A persisted execution context is either a mapping or absent.
+            # Any other shape is a corrupt authority row: treating it as
+            # absent would silently down-grade a modern receipt to the legacy
+            # no-history path, so it is a refusal instead.
+            if (
+                action.context_snapshot is not None
+                and not isinstance(action.context_snapshot, Mapping)
+            ):
+                return _refusal(
+                    "approval_material_unavailable",
+                    "The approval's recorded execution context is unreadable.")
             snapshot = (
                 action.context_snapshot
                 if isinstance(action.context_snapshot, Mapping) else {})
@@ -245,25 +256,44 @@ def load_approved_material(
                 return _refusal(
                     "approval_reviewer_role_denied", denial)
 
-            # A deactivated requester is no longer the actor the human saw.
-            # Unknown synthetic principals keep their legacy path (the leaf's
-            # own authority check still applies); a known inactive row is an
-            # explicit refusal.
+            # Fresh requester authority resolution. The durable user row is
+            # the CURRENT local authority, not the request object or the
+            # context-supplied id: a caller that disappeared (deleted/
+            # disabled) or moved tenant/workspace is no longer the admitted
+            # actor the human reviewed this request for. ``_resolve_actor``
+            # opens its own session and applies the repo's NULL/``default``
+            # canonicalisation; an ownerless (background/bridge) approval
+            # with no named actor is the declared legacy contract and keeps
+            # its path below. A NAMED but missing/deleted caller is never
+            # treated as an unknown synthetic principal.
             if current_actor:
-                actor_row = db.query(User).filter(
-                    User.id == current_actor).first()
-                if actor_row is not None:
-                    if (not bool(actor_row.is_active)
-                            or _text(actor_row.status) != "active"):
+                requester = _resolve_actor(db, current_actor)
+                if not requester.get("ok"):
+                    error_code = str(requester.get("error_code") or "")
+                    if error_code == "ACCOUNT_INACTIVE":
                         return _refusal(
                             "approval_actor_inactive",
                             "The requesting user is not active.")
-                    if canonical_scope_id(
-                            actor_row.workspace_id) != bound_workspace:
+                    if error_code == "AUTHORITY_UNAVAILABLE":
                         return _refusal(
-                            "approval_actor_scope_denied",
-                            "The requesting user is outside this "
-                            "approval's workspace.")
+                            "approval_authority_unavailable",
+                            "The requesting user's authority could not be "
+                            "confirmed; no effect was attempted.")
+                    return _refusal(
+                        "approval_actor_unavailable",
+                        "The requesting user no longer exists.")
+                if canonical_scope_id(
+                        requester.get("workspace_id")) != bound_workspace:
+                    return _refusal(
+                        "approval_actor_scope_denied",
+                        "The requesting user is outside this "
+                        "approval's workspace.")
+                if canonical_scope_id(
+                        requester.get("tenant_id")) != bound_tenant:
+                    return _refusal(
+                        "approval_actor_scope_denied",
+                        "The requesting user is outside this "
+                        "approval's tenant.")
 
             # Exact reviewed/effective material. ``describe_parameter_history``
             # reports the original as unknown (never reconstructed) for
@@ -299,7 +329,12 @@ def load_approved_material(
             else:
                 # No receipt: only an UNCHANGED payload can be consumed. An
                 # edit whose original was not recorded was never proved to be
-                # reviewed, so it requires a fresh review.
+                # reviewed, so it requires a fresh review. The historical
+                # original is NOT reconstructed: ``original_text`` here is the
+                # verified unchanged payload (the only original-shaped
+                # statement a legacy row can prove), and the returned material
+                # keeps ``original_known=False`` so no caller can present it
+                # as a recorded historical original.
                 unchanged_text = _canonical(strip_expected_fields(effective))
                 if unchanged_text is None or unchanged_text != reviewed_text:
                     return _refusal(
@@ -307,6 +342,7 @@ def load_approved_material(
                         "The approved payload was edited without a recorded "
                         "review of the original request; a fresh review is "
                         "required.")
+                original_text = unchanged_text
 
             # The row's live params are the effective payload execution
             # consumes; the receipt must still describe exactly those bytes.
@@ -338,7 +374,13 @@ def load_approved_material(
                     action.reviewed_at.isoformat()
                     if hasattr(action.reviewed_at, "isoformat")
                     else str(action.reviewed_at)),
-                "original_params": copy.deepcopy(reviewed),
+                # Explicit provenance: a historical row without the receipt
+                # has no recorded original. Callers must never present the
+                # verified unchanged payload as that original.
+                "original_known": original_known,
+                "original_params": (
+                    copy.deepcopy(original) if original_known else None),
+                "reviewed_params": copy.deepcopy(reviewed),
                 "effective_params": copy.deepcopy(effective_payload),
                 "material_changed": original_text != effective_text,
                 "reviewed_sha256": approved_payload_sha256(

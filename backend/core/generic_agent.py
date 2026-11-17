@@ -3618,6 +3618,17 @@ What is your next step?"""
                                 {"code": "approval_governance_changed",
                                  "message": governance_reason},
                                 mutating, context)
+                        # Last safe-point fence AFTER the awaited re-check:
+                        # scope/revocation/material changes that happened
+                        # during that await must not reach the handler.
+                        fenced_material = self._fence_approved_material(
+                            action_id, tool_name, reviewed_request, context,
+                            approval_material)
+                        if not fenced_material.get("ok"):
+                            return self._refuse_approved_material(
+                                tool_name, evidence, fenced_material,
+                                mutating, context)
+                        approval_material = fenced_material
                         authorized = copy.deepcopy(
                             approval_material["effective_params"])
                         operation_id = str(
@@ -3679,6 +3690,15 @@ What is your next step?"""
                         {"code": "approval_governance_changed",
                          "message": governance_reason},
                         mutating, context)
+                # Same last safe-point fence as the sequential consumer.
+                fenced_material = self._fence_approved_material(
+                    approval_action_id, tool_name, reviewed_request, context,
+                    approval_material)
+                if not fenced_material.get("ok"):
+                    return self._refuse_approved_material(
+                        tool_name, evidence, fenced_material, mutating,
+                        context)
+                approval_material = fenced_material
                 authorized = copy.deepcopy(
                     approval_material["effective_params"])
                 operation_id = str(
@@ -4554,6 +4574,45 @@ What is your next step?"""
             db_factory=get_db_session,
         )
 
+    def _fence_approved_material(
+        self, action_id: str, tool_name: str, reviewed_request: Dict,
+        context: Dict, consumed: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Last safe-point authority/material fence after awaited work.
+
+        The first consumption happens BEFORE the awaited independent
+        governance revalidation. That await yields the event loop, so the
+        durable requester (active/tenant/workspace), the approval decision or
+        the approved payload can change while this task is suspended. Re-read
+        the SAME approval from the durable store after the await; the fresh
+        reviewer/actor resolution inside ``load_approved_material`` is the
+        fresh-actor fence and this read is the explicit linearization point
+        for dispatch. Nothing is held across the await (no long transaction),
+        and there is no further await between this fence and the handler.
+
+        The re-read must describe exactly the material the task already
+        accepted; a changed effective/reviewed payload, reviewer decision or
+        approval identity is a conflict that needs a fresh review, never a
+        silent substitution.
+        """
+        fresh = self._consume_approved_material(
+            action_id, tool_name, reviewed_request, context)
+        if not fresh.get("ok"):
+            return fresh
+        for key in (
+            "action_id", "reviewed_sha256", "effective_sha256",
+            "approved_by", "reviewed_at", "binding",
+        ):
+            if fresh.get(key) != consumed.get(key):
+                return {
+                    "ok": False,
+                    "code": "approval_material_changed",
+                    "message": (
+                        "The durable approval changed after the independent "
+                        "gates were re-checked; a fresh review is required."),
+                }
+        return fresh
+
     @staticmethod
     def _stamp_approval_evidence(
         evidence: Optional[Dict[str, Any]], material: Dict[str, Any],
@@ -4571,11 +4630,19 @@ What is your next step?"""
             "approved_by": str(material.get("approved_by") or ""),
             "approved_role": str(material.get("approved_role") or ""),
             "reviewed_at": material.get("reviewed_at"),
+            "original_known": bool(material.get("original_known", True)),
             "material_changed": bool(material.get("material_changed")),
             "reviewed_sha256": str(material.get("reviewed_sha256") or ""),
             "effective_sha256": str(material.get("effective_sha256") or ""),
-            "original_params": copy.deepcopy(
-                material.get("original_params") or {}),
+            # A legacy receipt has NO recorded original: keep it null rather
+            # than manufacturing one. The request this dispatch reviewed is
+            # still retained separately for audit.
+            "original_params": (
+                copy.deepcopy(material.get("original_params"))
+                if material.get("original_known", True) else None),
+            "reviewed_params": copy.deepcopy(
+                material.get("reviewed_params")
+                or material.get("original_params") or {}),
             "effective_params": copy.deepcopy(
                 material.get("effective_params") or {}),
         }
@@ -4611,7 +4678,8 @@ What is your next step?"""
         # a later model final answer cannot turn the refused effect into a
         # business success (same semantics as the leaf's own denial).
         terminal = code in {
-            "approval_actor_inactive", "approval_actor_scope_denied"}
+            "approval_actor_inactive", "approval_actor_scope_denied",
+            "approval_actor_unavailable"}
         if isinstance(evidence, dict):
             evidence["dispatched"] = False
             evidence["status"] = "denied"
