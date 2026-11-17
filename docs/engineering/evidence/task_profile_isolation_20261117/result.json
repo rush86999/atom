@@ -1,0 +1,44 @@
+{
+  "verified_source": "9b502c0bcf6536ab3ac5a91943a968c32d15870c",
+  "verified_tree": "c1c1e13e31aa86caf26fb3ba2714176dbb72e58f",
+  "base": "708b7ae2dd1971b34a523a34dc887e9db736a21a",
+  "focused": {
+    "passed": 737,
+    "failed": 0,
+    "seconds": 150.84
+  },
+  "broader_candidate": {
+    "passed": 281,
+    "failed": 1,
+    "seconds": 93.49
+  },
+  "broader_baseline": {
+    "passed": 281,
+    "failed": 1,
+    "seconds": 97.37
+  },
+  "same_existing_failure": [
+    {
+      "class": "tests.test_atom_meta_agent.TestErrorHandling",
+      "test": "test_spawn_failure_handling",
+      "message": "Failed: DID NOT RAISE <class 'Exception'>"
+    }
+  ],
+  "original_fault_counter": {
+    "before": {
+      "model_calls": 1,
+      "pending_review_rows": 0
+    },
+    "after": {
+      "status": "blocked",
+      "model_calls": 0,
+      "pending_review_rows": 1
+    }
+  },
+  "original_assertions_preserved": 251,
+  "all_frozen_files_unchanged_after_tests": true,
+  "ci_preserved_except_new_whole_file_selector": true,
+  "environment": "Python3.12; TESTING1; absolute fresh scratch SQLite/data/Lance; empty HF cache/offline; OS network deny",
+  "scope": "Synthetic real production entries, rule matching, SQLite and HITL rows; model leaf doubled; no live owner app/UI/provider/model quality/PostgreSQL/multiworker/whole-goal claim",
+  "goal_complete": false
+}
