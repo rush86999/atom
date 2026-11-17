@@ -1,4 +1,5 @@
 from datetime import datetime
+import copy
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -8,6 +9,214 @@ from core.database import get_db_session
 from core.models import AgentRegistry, HITLAction, HITLActionStatus, User
 
 logger = logging.getLogger(__name__)
+
+# Durable approval receipt key inside the EXISTING ``HITLAction.context_snapshot``
+# JSON column. No second table/registry: one append-only list keeps every
+# reviewed proposal and the exact effective parameters the human approved.
+HITL_PARAMETER_HISTORY_KEY = "parameter_history"
+
+
+def _copy_json_value(value: Any) -> Any:
+    """Deep-copy a JSON-ish HITL value so history can never alias live params."""
+    return copy.deepcopy(value)
+
+
+def _history_entries(action: Any) -> List[Dict[str, Any]]:
+    snapshot = getattr(action, "context_snapshot", None)
+    if not isinstance(snapshot, dict):
+        return []
+    entries = snapshot.get(HITL_PARAMETER_HISTORY_KEY)
+    if isinstance(entries, dict):
+        return [entries]
+    if isinstance(entries, list):
+        return [entry for entry in entries if isinstance(entry, dict)]
+    return []
+
+
+def record_approved_parameters(
+    action: Any,
+    *,
+    reviewed_params: Any,
+    approved_params: Any,
+    actor_id: Optional[str],
+    reason: Optional[str] = None,
+    decided_at: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """Append the review/approval parameter receipt to the HITL row.
+
+    The original reviewed payload is copied BEFORE any caller assigns the
+    effective payload to ``action.params``. Both values are deep-copied into
+    ``context_snapshot[HITL_PARAMETER_HISTORY_KEY]``, which is the existing
+    durable JSON history field on the row, and every previous entry is kept
+    (append-only). The scan is deliberately narrow: this is the same protected
+    authority row the approval itself writes, not a new audit payload.
+
+    Returns the appended entry, or ``None`` when the existing snapshot is not
+    a JSON object / cannot be copied. A malformed snapshot is left untouched:
+    the approval still commits with the effective params, and the readback
+    reports the original as unknown instead of inventing one.
+    """
+    snapshot = getattr(action, "context_snapshot", None)
+    if snapshot is None:
+        snapshot = {}
+    if not isinstance(snapshot, dict):
+        logger.error(
+            "HITL %s parameter history not recorded: context_snapshot is %s",
+            getattr(action, "id", None), type(snapshot).__name__)
+        return None
+
+    try:
+        reviewed_copy = _copy_json_value(reviewed_params)
+        approved_copy = _copy_json_value(approved_params)
+    except Exception:  # noqa: BLE001 - never fake a receipt
+        logger.exception(
+            "HITL %s parameter history not recorded: params not copyable",
+            getattr(action, "id", None))
+        return None
+
+    existing = snapshot.get(HITL_PARAMETER_HISTORY_KEY)
+    if existing is None:
+        entries: List[Dict[str, Any]] = []
+    elif isinstance(existing, dict):
+        entries = [existing]
+    elif isinstance(existing, list):
+        entries = [entry for entry in existing if isinstance(entry, dict)]
+    else:
+        logger.error(
+            "HITL %s parameter history not recorded: %s is %s",
+            getattr(action, "id", None), HITL_PARAMETER_HISTORY_KEY,
+            type(existing).__name__)
+        return None
+
+    when = decided_at
+    if when is None:
+        when = getattr(action, "reviewed_at", None) or datetime.now()
+    when_text = when.isoformat() if hasattr(when, "isoformat") else str(when)
+
+    reason_text: Optional[str]
+    if reason is None:
+        reason_text = None
+    else:
+        reason_text = str(reason)
+        if not reason_text.strip():
+            reason_text = None
+
+    entry = {
+        "revision": len(entries) + 1,
+        "reviewed_params": reviewed_copy,
+        "approved_params": approved_copy,
+        "modified": reviewed_copy != approved_copy,
+        "modified_by": str(actor_id) if actor_id not in (None, "") else None,
+        "modified_at": when_text,
+        "reason": reason_text,
+    }
+    entries.append(entry)
+
+    updated = dict(snapshot)
+    updated[HITL_PARAMETER_HISTORY_KEY] = entries
+    action.context_snapshot = updated
+    return entry
+
+
+def describe_parameter_history(
+    action: Any, *, redact: bool = True,
+) -> Dict[str, Any]:
+    """Read back the review/approval parameter lineage for one HITL row.
+
+    New approvals carry an append-only receipt. Historical rows approved
+    before this receipt existed have NO recorded original: their
+    ``original_params`` is ``None`` and ``original_known`` is ``False`` — the
+    current ``params`` are reported as the effective payload, never passed off
+    as the reviewed original.
+
+    ``redact=True`` (default) applies the repo's existing
+    ``core.blueprint_sanitizer.strip_credentials`` sanitizer to the projection
+    so a general audit/export surface cannot dump credential-shaped keys. The
+    raw values remain only in the protected HITL authority row; use
+    ``redact=False`` only inside trusted server-side code.
+    """
+    entries = _history_entries(action)
+    latest = entries[-1] if entries else None
+    status = str(getattr(action, "status", "") or "")
+    current_params = _copy_json_value(getattr(action, "params", None))
+
+    if latest is not None:
+        original = _copy_json_value(latest.get("reviewed_params"))
+        effective = _copy_json_value(latest.get("approved_params"))
+        original_known = (
+            "reviewed_params" in latest
+            and latest.get("reviewed_params") is not None)
+        modified = latest.get("modified")
+        if modified is None and original_known:
+            modified = original != effective
+        revision = latest.get("revision")
+        modified_by = latest.get("modified_by")
+        modified_at = latest.get("modified_at")
+        reason = latest.get("reason")
+        legacy_unrecorded = False
+    elif status == HITLActionStatus.APPROVED.value:
+        # The approval may have rewritten params before this receipt existed.
+        # Do not reconstruct a reviewed original from the rewritten value.
+        original = None
+        effective = current_params
+        original_known = False
+        modified = None
+        revision = None
+        modified_by = None
+        modified_at = None
+        reason = None
+        legacy_unrecorded = True
+    else:
+        # Pending/rejected rows never had a params rewrite path, so the
+        # current payload is still the reviewed proposal. Effective params
+        # exist only after an approval.
+        original = current_params
+        effective = None
+        original_known = isinstance(current_params, dict)
+        modified = None
+        revision = None
+        modified_by = None
+        modified_at = None
+        reason = None
+        legacy_unrecorded = False
+
+    reviewed_at = getattr(action, "reviewed_at", None)
+    result: Dict[str, Any] = {
+        "status": status,
+        "original_known": bool(original_known),
+        "original_params": original,
+        "effective_params": effective,
+        "modified": modified,
+        "revision": revision,
+        "modified_by": modified_by,
+        "modified_at": modified_at,
+        "reason": reason,
+        "reviewed_by": str(getattr(action, "reviewed_by", None) or "") or None,
+        "reviewed_at": (
+            reviewed_at.isoformat()
+            if hasattr(reviewed_at, "isoformat") else reviewed_at),
+        "history_entries": len(entries),
+        "legacy_unrecorded": legacy_unrecorded,
+        "redacted": bool(redact),
+    }
+    if redact:
+        # Existing repo sanitizer (P5 sharing surfaces); deep-copies and drops
+        # credential-shaped KEYS. Never mutates the stored authority values.
+        from core.blueprint_sanitizer import strip_credentials
+
+        if result["original_params"] is not None:
+            result["original_params"] = strip_credentials(
+                result["original_params"])
+        if result["effective_params"] is not None:
+            result["effective_params"] = strip_credentials(
+                result["effective_params"])
+        if result["reason"]:
+            # Free text: the existing text sanitizer redacts key/password/PII
+            # patterns that a JSON key denylist cannot see.
+            from core.secrets_redactor import redact_before_storage
+
+            result["reason"] = redact_before_storage(str(result["reason"]))
+    return result
 
 
 def _refusal(
@@ -157,6 +366,7 @@ class InterventionService:
         action_id: str,
         approver_id: str,
         modified_params: Optional[Dict[str, Any]] = None,
+        reason: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Approve a pending intervention.
@@ -167,6 +377,13 @@ class InterventionService:
         closed. ``modified_params`` replaces the action's params so the row
         reflects what was actually approved (the UI "Modify before approve"
         flow).
+
+        The exact reviewed (original) and approved (effective) payloads are
+        appended to the row's existing ``context_snapshot`` history before the
+        ``params`` column is rewritten. Execution therefore keeps consuming
+        the effective payload, while an auditor can still read what the human
+        was shown. ``reason`` is the approver's optional note; when absent it
+        is recorded as unknown rather than invented.
         """
         with get_db_session() as db:
             action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
@@ -276,6 +493,11 @@ class InterventionService:
                         "task binding changed; refresh and retry.",
                         "TASK_ADMISSION_DECISION_CONFLICT", 409, action.id)
             else:
+                # Capture the reviewed proposal BEFORE the edit-before-approve
+                # flow rewrites the live params column. The receipt below
+                # stores this exact value (deep-copied) plus the effective
+                # payload that execution will consume.
+                reviewed_params = copy.deepcopy(action.params or {})
                 if modified_params is not None:
                     action.params = modified_params
 
@@ -283,6 +505,14 @@ class InterventionService:
                 action.status = HITLActionStatus.APPROVED.value
                 action.reviewed_by = approver_id
                 action.reviewed_at = datetime.now()
+                record_approved_parameters(
+                    action,
+                    reviewed_params=reviewed_params,
+                    approved_params=action.params,
+                    actor_id=approver_id,
+                    reason=reason,
+                    decided_at=action.reviewed_at,
+                )
 
             db.commit()
 

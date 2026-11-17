@@ -272,7 +272,8 @@ async def decide_approval(
 
     if decision == "approved":
         result = await intervention_service.approve_intervention(
-            approval_id, user.id, modified_params=body.modified_params
+            approval_id, user.id, modified_params=body.modified_params,
+            reason=body.reason,
         )
     else:
         result = await intervention_service.reject_intervention(

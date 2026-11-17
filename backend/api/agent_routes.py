@@ -1239,6 +1239,12 @@ async def decide_hitl_action(
         db.commit()
         db.refresh(action)
     else:
+        # Capture the reviewed proposal BEFORE the edit-before-approve merge
+        # rewrites the live params column. This legacy surface is still mounted
+        # alongside api.approvals_routes, so it must keep the same durable
+        # review/effective receipt as InterventionService.approve_intervention
+        # (otherwise the history depends on which route the caller hit).
+        reviewed_params = copy.deepcopy(action.params or {})
         if req.decision.lower() == "approved":
             action.status = HITLActionStatus.APPROVED.value
             # Supervisor modification: the resumed action runs with these params
@@ -1257,6 +1263,18 @@ async def decide_hitl_action(
         action.user_feedback = req.feedback
         action.reviewed_at = datetime.datetime.now()
         action.reviewed_by = user.id
+
+        if req.decision.lower() == "approved":
+            from core.intervention_service import record_approved_parameters
+
+            record_approved_parameters(
+                action,
+                reviewed_params=reviewed_params,
+                approved_params=action.params,
+                actor_id=str(user.id),
+                reason=req.feedback,
+                decided_at=action.reviewed_at,
+            )
 
         db.commit()
 
