@@ -20,7 +20,11 @@ pins the lineage contract the identity exists for:
   its durable rows live under ``ext_sha1("<source>:<source>:<id>")``. A
   normalising helper would orphan those rows (badge false, refresh writes a
   duplicate), so the pre-change key is pinned against a SEEDED existing row;
-* the no-external-id branch still content-addresses and links its derivative.
+* the no-external-id branch still content-addresses and links its derivative;
+* when ``workspace_id`` names ANOTHER workspace, the existing-row probe and
+  the write use that workspace's ONE store — never the service's default
+  store — and an unresolvable scoped store fails closed instead of writing
+  the content into the default store.
 
 Expected ids for the bare convention come from
 ``source_document_id_for_source`` — the catalog's lineage helper. The legacy
@@ -63,6 +67,7 @@ for _key, _prior in _PRIOR_ENV.items():
         os.environ[_key] = _prior
 
 WS = "ws-connector-lineage"
+OTHER_WS = "ws-other-scope"
 SOURCE = "google_drive"
 EXTERNAL_ID = "file-7777"
 CSV_BYTES = (
@@ -82,25 +87,35 @@ class _MemoryStore:
 
     def __init__(self) -> None:
         self.rows: dict[str, dict] = {}
+        # Operation ledgers: a scope test must prove the OTHER workspace's
+        # store was never even read (identity/mtime must not leak across
+        # workspaces), not merely that its rows still look the same.
+        self.reads: list[str] = []
+        self.writes: list[str] = []
 
     def get_document_by_id(self, table_name: str, doc_id: str):
+        self.reads.append(doc_id)
         return self.rows.get(doc_id)
 
     def get_document_ids_by_prefix(self, table_name: str, prefix: str):
+        self.reads.append(f"{prefix}*")
         return [doc_id for doc_id in self.rows if doc_id.startswith(prefix)]
 
     def delete_documents_by_id(self, table_name: str, doc_id: str) -> bool:
+        self.writes.append(doc_id)
         self.rows.pop(doc_id, None)
         return True
 
     def delete_documents_by_prefix(self, table_name: str, prefix: str) -> int:
         doomed = [doc_id for doc_id in self.rows if doc_id.startswith(prefix)]
         for doc_id in doomed:
+            self.writes.append(doc_id)
             self.rows.pop(doc_id, None)
         return len(doomed)
 
     def add_document(self, **kwargs) -> bool:
         doc_id = kwargs["doc_id"]
+        self.writes.append(doc_id)
         self.rows[doc_id] = {
             "id": doc_id,
             "text": kwargs.get("text"),
@@ -110,6 +125,7 @@ class _MemoryStore:
 
     def add_documents_batch(self, table_name: str, docs: list[dict]) -> int:
         for doc in docs:
+            self.writes.append(doc["id"])
             self.rows[doc["id"]] = {
                 "id": doc["id"],
                 "text": doc.get("text"),
@@ -164,6 +180,32 @@ def _capture_dataset_materialization(monkeypatch) -> dict:
     monkeypatch.setattr(
         "core.sheet_dataset_service.ensure_sheet_dataset", spy)
     return captured
+
+
+def _workspace_scoped_service(
+    monkeypatch, default_store, scoped_stores, unavailable=()):
+    """Build the funnel with a DISTINCT store per effective workspace.
+
+    ``get_lancedb_handler`` is the production seam used both by the
+    constructor (the service's own workspace) and by the workspace-override
+    resolution inside ``process_file_bytes``. Returning a different double
+    per workspace is what makes a default-store read visible: the same
+    external id may exist in both stores with different identities and
+    modified times.
+    """
+    requests: list[str] = []
+
+    def _get_handler(ws="default"):
+        requests.append(ws)
+        if ws in unavailable:
+            raise RuntimeError(f"handler unavailable for {ws}")
+        if ws == WS:
+            return default_store
+        return scoped_stores.get(ws)
+
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", _get_handler)
+    return AutoDocumentIngestionService(workspace_id=WS), requests
 
 
 @pytest.mark.asyncio
@@ -345,6 +387,226 @@ async def test_seeded_pre_change_walker_row_stays_discoverable_and_refreshes(
     assert again["doc_id"] == legacy_id
     assert set(store.rows) == {legacy_id, foreign_id}
     assert store.rows[foreign_id] is foreign_row
+
+
+SCOPED_CSV_BYTES = (
+    "region,metric,value\n"
+    "North,Orchid units,9999\n"
+    "South,Tulip units,1180\n"
+).encode("utf-8")
+
+
+@pytest.mark.asyncio
+async def test_workspace_override_probes_and_writes_only_its_own_store(
+        scratch, monkeypatch):
+    """A workspace override must resolve ONE effective store for all I/O.
+
+    The existing-row probe used ``self.memory_handler`` (the DEFAULT
+    workspace's store) before the override handler was selected. With
+    ``workspace_id=OTHER_WS`` that let a default-store row supply the
+    identity and modified time while the write landed in the other
+    workspace's store: a fresher default twin made the hybrid gate call the
+    scoped copy current and skip its refresh entirely, and an explicit pull
+    would have reused the default twin's key as a second row in the scoped
+    store.
+
+    Both stores carry the SAME external id: the default one under the
+    walker's prefixed identity with a future mtime (would look current), the
+    scoped one under the bare identity with an older mtime (must refresh).
+    """
+    default_store = _MemoryStore()
+    other_store = _MemoryStore()
+    captured = _capture_dataset_materialization(monkeypatch)
+
+    default_doc_id = _pre_change_doc_id(WALKER_SOURCE, WALKER_PREFIXED_ID)
+    scoped_doc_id = _pre_change_doc_id(WALKER_SOURCE, WALKER_RAW_ID)
+    default_row = {
+        "id": default_doc_id,
+        "text": "default workspace copy — must never be read or written",
+        "metadata": {
+            "file_name": "WorkDrive Prices.csv",
+            "integration_id": WALKER_SOURCE,
+            "external_id": WALKER_PREFIXED_ID,
+            # NEWER than the incoming source time: if this row were consulted
+            # it would answer "current" and suppress the refresh.
+            "source_modified_at": "2027-01-01T00:00:00+00:00",
+            "freshness_status": "fresh",
+        },
+    }
+    default_store.rows[default_doc_id] = default_row
+    other_store.rows[scoped_doc_id] = {
+        "id": scoped_doc_id,
+        "text": OLD_CSV_TEXT,
+        "metadata": {
+            "file_name": "WorkDrive Prices.csv",
+            "integration_id": WALKER_SOURCE,
+            "external_id": WALKER_RAW_ID,
+            "source_modified_at": "2026-01-01T00:00:00+00:00",
+            "freshness_status": "fresh",
+        },
+    }
+
+    service, requests = _workspace_scoped_service(
+        monkeypatch, default_store, {OTHER_WS: other_store})
+    assert service.workspace_id == WS
+
+    class _Hybrid:
+        def get_content_mode(self, source: str) -> str:
+            return "hybrid"
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _Hybrid(),
+    )
+
+    refreshed = await service.process_file_bytes(
+        REFRESH_CSV_BYTES,
+        file_name="WorkDrive Prices.csv",
+        source=WALKER_SOURCE,
+        user_id="u-lineage",
+        workspace_id=OTHER_WS,
+        external_id=WALKER_RAW_ID,
+        extra_metadata={
+            "source_modified_at": "2026-06-01T00:00:00+00:00",
+        },
+        explicit=False,
+    )
+
+    # The scoped store's copy is outdated and must have been refreshed in
+    # place under ITS existing identity — not skipped as current, not
+    # re-keyed to the default twin's identity.
+    assert refreshed["status"] == "ingested", refreshed
+    assert refreshed["doc_id"] == scoped_doc_id
+    assert set(other_store.rows) == {scoped_doc_id}
+    assert "8888" in other_store.rows[scoped_doc_id]["text"]
+    assert other_store.rows[scoped_doc_id]["metadata"][
+        "source_modified_at"].startswith("2026-06-01")
+
+    # The default scope was neither consulted nor touched.
+    assert default_store.rows[default_doc_id] is default_row
+    assert default_store.reads == []
+    assert default_store.writes == []
+    # Exactly one scoped resolution, for the effective workspace.
+    assert requests == [WS, OTHER_WS]
+
+    # An explicit pull from the bare convention reuses the scoped row's id,
+    # so no "canonical" sibling is created in the scoped store either.
+    again = await service.process_file_bytes(
+        SCOPED_CSV_BYTES,
+        file_name="WorkDrive Prices.csv",
+        source=WALKER_SOURCE,
+        user_id="u-lineage",
+        workspace_id=OTHER_WS,
+        external_id=WALKER_RAW_ID,
+        explicit=True,
+    )
+    assert again["doc_id"] == scoped_doc_id
+    assert set(other_store.rows) == {scoped_doc_id}
+    assert "9999" in other_store.rows[scoped_doc_id]["text"]
+    assert default_store.rows[default_doc_id] is default_row
+    assert default_store.reads == []
+    assert default_store.writes == []
+
+    # The derived catalog names the scoped row in the scoped workspace.
+    with scratch["factory"]() as db:
+        from core.models import DatasetEntry, IngestedDocument
+
+        catalog = db.query(DatasetEntry).all()
+        assert catalog and {
+            row.source_document_id for row in catalog} == {scoped_doc_id}
+        assert {row.workspace_id for row in catalog} == {OTHER_WS}
+        mirror = db.query(IngestedDocument).filter(
+            IngestedDocument.id == scoped_doc_id).one()
+        assert mirror.external_id == WALKER_RAW_ID
+        assert mirror.workspace_id == OTHER_WS
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unavailable_mode", ["raises", "returns_none"])
+async def test_unknown_scoped_store_fails_closed_without_foreign_writes(
+        scratch, monkeypatch, unavailable_mode):
+    """An unresolvable workspace store must NOT fall back to the default.
+
+    The old override branch logged "using default" and wrote the other
+    workspace's content into the default store (with only a metadata stamp).
+    Fail closed instead and say exactly why: no default-store probe, no
+    content write, no catalog/mirror row.
+    """
+    from core.auto_document_ingestion import interpret_ingest_result
+
+    default_store = _MemoryStore()
+    scoped_doc_id = _pre_change_doc_id(WALKER_SOURCE, WALKER_RAW_ID)
+    default_row = {
+        "id": scoped_doc_id,
+        "text": "default workspace copy — must never be read or written",
+        "metadata": {
+            "external_id": WALKER_RAW_ID,
+            "source_modified_at": "2026-01-01T00:00:00+00:00",
+        },
+    }
+    default_store.rows[scoped_doc_id] = default_row
+
+    unavailable = {OTHER_WS} if unavailable_mode == "raises" else set()
+    service, requests = _workspace_scoped_service(
+        monkeypatch, default_store, {}, unavailable=unavailable)
+
+    result = await service.process_file_bytes(
+        CSV_BYTES,
+        file_name="WorkDrive Prices.csv",
+        source=WALKER_SOURCE,
+        user_id="u-lineage",
+        workspace_id=OTHER_WS,
+        external_id=WALKER_RAW_ID,
+        explicit=True,
+    )
+
+    assert result["status"] == "error", result
+    assert result["reason"] == "workspace_handler_unavailable", result
+    assert result["file_name"] == "WorkDrive Prices.csv"
+    assert result["workspace_id"] == OTHER_WS
+    interpreted = interpret_ingest_result(result)
+    assert interpreted["success"] is False
+    assert "workspace_handler_unavailable" in interpreted["error"]
+
+    # No foreign-scope read or mutation — not even the tempting default twin.
+    assert default_store.rows[scoped_doc_id] is default_row
+    assert default_store.reads == []
+    assert default_store.writes == []
+    assert requests == [WS, OTHER_WS]
+    with scratch["factory"]() as db:
+        from core.models import DatasetEntry, IngestedDocument
+
+        assert db.query(DatasetEntry).count() == 0
+        assert db.query(IngestedDocument).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_no_workspace_override_reuses_the_service_store(
+        scratch, monkeypatch):
+    """Positive control: the ordinary path stays on the service's own store.
+
+    No second handler lookup and no re-scoping — the caller's missing
+    ``workspace_id`` (and the equal-id case) keeps using ``memory_handler``.
+    """
+    store = _MemoryStore()
+    service, requests = _workspace_scoped_service(monkeypatch, store, {})
+
+    result = await service.process_file_bytes(
+        CSV_BYTES,
+        file_name="Drive Prices.csv",
+        source=SOURCE,
+        user_id="u-lineage",
+        workspace_id=None,
+        external_id=EXTERNAL_ID,
+        explicit=True,
+    )
+
+    assert result["status"] == "ingested", result
+    expected = source_document_id_for_source(SOURCE, EXTERNAL_ID)
+    assert result["doc_id"] == expected
+    assert set(store.rows) == {expected}
+    assert requests == [WS]
+    assert store.reads  # the identity probe ran against this very store
 
 
 def test_external_doc_id_preserves_established_write_identity():

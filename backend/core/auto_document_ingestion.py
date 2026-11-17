@@ -1304,6 +1304,40 @@ class AutoDocumentIngestionService:
         self._persist_settings(settings)
         return settings
 
+    def _handler_for_workspace(self, workspace_id: str) -> Any:
+        """The ONE memory store for an effective workspace, or raise.
+
+        ``workspace_id`` is already the effective workspace
+        (``workspace_id or self.workspace_id``). The service's own workspace
+        uses the handler built in ``__init__``; an override resolves and
+        memoises its own per-workspace handler.
+
+        Raises when an override's store cannot be resolved. Callers MUST fail
+        closed: falling back to ``self.memory_handler`` writes another
+        workspace's content into the wrong store. The 2026-11-16 root review
+        found exactly that — the existing-row probe read the default store
+        before the override handler was selected, and a handler error fell
+        the write back there too, so a default-store row could supply another
+        workspace's identity/mtime while the content landed in the default
+        store (or vice versa).
+        """
+        if workspace_id == self.workspace_id:
+            return self.memory_handler
+        if not hasattr(self, "_ws_handlers"):
+            self._ws_handlers: Dict[str, Any] = {}
+        handler = self._ws_handlers.get(workspace_id)
+        if handler is not None:
+            return handler
+        from core.lancedb_handler import get_lancedb_handler
+
+        handler = get_lancedb_handler(workspace_id)
+        if handler is None:
+            raise RuntimeError(
+                f"get_lancedb_handler returned no store for {workspace_id}"
+            )
+        self._ws_handlers[workspace_id] = handler
+        return handler
+
     async def process_file_bytes(
         self,
         content: bytes,
@@ -1330,7 +1364,12 @@ class AutoDocumentIngestionService:
             file_name: File name (used to infer type and metadata).
             source: Source label (e.g. "onedrive", "zoho_workdrive").
             user_id: Owning user id.
-            workspace_id: Optional workspace override (defaults to service default).
+            workspace_id: Optional workspace override (defaults to service
+                default). The effective workspace's store is resolved ONCE,
+                before the existing-row probe, and used for every read and
+                write. An unresolvable override fails closed
+                (``workspace_handler_unavailable``) rather than writing into
+                another workspace's store.
             role: Optional AI-employee role (AgentRegistry.category, lowercased)
                 the ingested file is relevant to. Tagged in the LanceDB metadata
                 so role-aware recall (WorldModelService) surfaces it to the right
@@ -1373,6 +1412,29 @@ class AutoDocumentIngestionService:
             or (extra_metadata or {}).get("modified_at")
         )
 
+        # Resolve the effective workspace's store ONCE, before ANY read or
+        # write. Every read (existing-row identity/mtime probe) and every
+        # write below must use this same handler: a default-store row must
+        # never lend its identity or modified time to content written into
+        # another workspace's store, and an unavailable scoped store must
+        # never fall back to the default one. Fail closed with a structured
+        # result instead — the caller can report that nothing was stored.
+        ws_id = workspace_id or self.workspace_id
+        try:
+            _handler = self._handler_for_workspace(ws_id)
+        except Exception as ws_handler_err:  # noqa: BLE001 — fail closed
+            logger.error(
+                f"Ingest refused for {file_name}: workspace store "
+                f"unavailable for {ws_id} ({ws_handler_err}) — content was "
+                "NOT written to another workspace's store"
+            )
+            return {
+                "status": "error",
+                "reason": "workspace_handler_unavailable",
+                "file_name": file_name,
+                "workspace_id": ws_id,
+            }
+
         # Content-mode gate for storage drives: hybrid/list_only keep the
         # file index but skip automatic content ingestion. Explicit
         # user/agent pulls bypass this — that is the entire point of hybrid.
@@ -1390,17 +1452,17 @@ class AutoDocumentIngestionService:
         _stored_doc_id = None
         _stored_row = None
         if (_external_id and source and source != "upload"
-                and self.memory_handler):
+                and _handler):
             for candidate in _external_doc_id_candidates(source, _external_id):
                 try:
                     stored = await asyncio.to_thread(
-                        self.memory_handler.get_document_by_id,
+                        _handler.get_document_by_id,
                         "documents", candidate,
                     )
                     if stored is None:
                         # chunked layout: {doc_id}::c{i} family
                         stored = await asyncio.to_thread(
-                            self.memory_handler.get_document_by_id,
+                            _handler.get_document_by_id,
                             "documents", f"{candidate}::c0",
                         )
                 except Exception as probe_err:  # noqa: BLE001 — best-effort
@@ -1426,7 +1488,7 @@ class AutoDocumentIngestionService:
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
 
                 mode = get_hybrid_ingestion_service(
-                    workspace_id or "default"
+                    ws_id
                 ).get_content_mode(source)
                 if mode in ("hybrid", "list_only") and not stored_is_outdated:
                     logger.info(
@@ -1476,7 +1538,7 @@ class AutoDocumentIngestionService:
                     file_name=file_name,
                     source=source,
                     user_id=user_id,
-                    workspace_id=workspace_id or self.workspace_id,
+                    workspace_id=ws_id,
                     external_id=_external_id or None,
                     source_modified_at=source_modified_dt,
                     source_document_id=_precomputed_doc_id,
@@ -1524,27 +1586,10 @@ class AutoDocumentIngestionService:
             except Exception as redact_err:
                 logger.debug(f"Secrets redaction skipped for {file_name}: {redact_err}")
 
-        ws_id = workspace_id or self.workspace_id
         chars_ingested = 0
-
-        # Per-workspace handler: the workspace override previously only
-        # stamped metadata — the row still landed in the default workspace's
-        # store, invisible to that workspace's recall.
-        _handler = self.memory_handler
-        if ws_id and ws_id != self.workspace_id:
-            try:
-                if not hasattr(self, "_ws_handlers"):
-                    self._ws_handlers: Dict[str, Any] = {}
-                if ws_id not in self._ws_handlers:
-                    from core.lancedb_handler import get_lancedb_handler
-
-                    self._ws_handlers[ws_id] = get_lancedb_handler(ws_id)
-                _handler = self._ws_handlers[ws_id]
-            except Exception as ws_handler_err:  # noqa: BLE001 — fall back to default
-                logger.warning(
-                    f"workspace handler unavailable for {ws_id}, using default: {ws_handler_err}"
-                )
-                _handler = self.memory_handler
+        # ``ws_id``/``_handler`` were resolved at the TOP of this method, so
+        # the existing-row probe and this write share one effective
+        # workspace store. Never re-resolve (or fall back) here.
 
         # Join-key bridge (hybrid search, Step 1): the file-ingest path creates
         # no PG IngestedDocument row, so vector hits from here can't resolve to
