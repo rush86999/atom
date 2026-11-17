@@ -13,8 +13,10 @@ the real catalog read paths against scratch SQLite/Parquet state. They pin:
 * read-time refusal of a derivative whose document is removed/stale even when
   a delete sweep did not run;
 * read-time withholding — never "fresh" — when the authoritative document
-  state is UNREADABLE, while genuinely unlinked/independent artifacts stay
-  served and a genuinely ABSENT document row keeps legacy compatibility;
+  state is UNREADABLE (including a genuinely missing authority table/schema,
+  which is never a successful empty query), while genuinely
+  unlinked/independent artifacts stay served and a genuinely ABSENT document
+  row (query succeeded, no row) keeps legacy compatibility;
 * exactness under negative twins: foreign workspace/scope, two files sharing a
   filename, unrelated/independently-saved artifacts, and identical bytes that
   belong to a different source or document;
@@ -24,6 +26,7 @@ the real catalog read paths against scratch SQLite/Parquet state. They pin:
 from __future__ import annotations
 
 import hashlib
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -109,6 +112,40 @@ def _make_authority_unreadable(scratch, monkeypatch):
             inner.close()
 
     monkeypatch.setattr("core.database.get_db_session", _session)
+
+
+@contextmanager
+def _catalog_without_authority_table(scratch, monkeypatch):
+    """A REAL scratch catalog whose ``ingested_documents`` table is absent.
+
+    ``dataset_entries`` exists and answers normally; querying the authoritative
+    document model raises the dialect's genuine "no such table:
+    ingested_documents" error. This is a missing-schema twin, not a stubbed
+    product branch: the service is driven unmodified.
+    """
+    engine = create_engine(
+        f"sqlite:///{Path(scratch['tmp_path']) / 'catalog-only.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine, tables=[DatasetEntry.__table__])
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    monkeypatch.setattr("core.database.get_db_session", factory)
+    db = factory()
+    try:
+        yield db, factory
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def _write_test_parquet(scratch, name: str, payload: dict) -> Path:
+    root = Path(scratch["tmp_path"]) / "data" / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    import pandas as pd
+
+    path = root / f"{name}.parquet"
+    pd.DataFrame(payload).to_parquet(path, index=False)
+    return path
 
 
 @pytest.fixture
@@ -656,6 +693,155 @@ def test_unreadable_authority_blocks_materialization_but_absence_stays_legacy(
         user_id=scratch["user"].id, workspace_id=WS, external_id=None,
         source_document_id="doc_fresh_twin")
     assert fresh["status"] == "materialized", fresh
+
+
+def test_missing_authority_table_is_unknown_not_a_successful_absence(
+        scratch, monkeypatch):
+    """A genuinely absent ``ingested_documents`` table proves NOTHING.
+
+    Real scratch schema: ``dataset_entries`` answers, the authoritative
+    document table does not exist. The failed query is UNKNOWN — source-linked
+    rows must be withheld, never served as if a successful empty query had
+    proven there is no tombstone. The independent unlinked row is unaffected.
+    """
+    content = _csv("9310")
+    digest = hashlib.sha1(content).hexdigest()
+    linked_parquet = _write_test_parquet(
+        scratch, "missing-schema-linked", {"value": [9310]})
+    independent_parquet = _write_test_parquet(
+        scratch, "missing-schema-independent", {"invoice": ["INV-9"]})
+
+    with _catalog_without_authority_table(scratch, monkeypatch) as (db, _):
+        from sqlalchemy.exc import OperationalError
+
+        # The negative twin's premise: this is a REAL missing-table failure,
+        # not an empty successful query.
+        with pytest.raises(OperationalError) as missing:
+            db.query(IngestedDocument).all()
+        assert "ingested_documents" in str(missing.value)
+
+        db.add(DatasetEntry(
+            id="entry-missing-schema-linked",
+            workspace_id=WS,
+            tenant_id=TENANT,
+            created_by=scratch["user"].id,
+            source_kind="file",
+            source="upload",
+            external_id=f"sha1:{digest}",
+            source_document_id="doc_missing_schema_twin",
+            file_name="MissingSchema.csv",
+            content_hash=digest,
+            entity_name="Sheet",
+            dataset_name="upload_missing_schema__sheet",
+            parquet_path=str(linked_parquet),
+            row_count=1,
+            column_count=1,
+            columns_json={"columns": [{"name": "value"}]},
+            status="active",
+        ))
+        db.add(DatasetEntry(
+            id="entry-missing-schema-independent",
+            workspace_id=WS,
+            tenant_id=TENANT,
+            created_by=scratch["user"].id,
+            source_kind="app_records",
+            source="zoho_books",
+            external_id="invoices",
+            file_name="Invoices (synced)",
+            content_hash="b" * 40,
+            entity_name="invoices",
+            dataset_name="zoho_books_invoices",
+            parquet_path=str(independent_parquet),
+            row_count=1,
+            column_count=1,
+            columns_json={"columns": [{"name": "invoice"}]},
+            status="active",
+        ))
+        db.commit()
+
+        # Negative twin: every current-grounding path withholds the linked row.
+        served = [e["id"] for e in find_entries_sync("", workspace_id=WS)]
+        assert served == ["entry-missing-schema-independent"]
+        resolved = resolve_dataset_entry_scoped_sync(
+            "upload_missing_schema__sheet", workspace_id=WS)
+        assert resolved["state"] == "unavailable", resolved
+        assert resolved["reason"] == "source_authority_unavailable"
+        assert resolved["revoked"] is False
+        assert read_sheet_row_sync(
+            "MissingSchema.csv", "Sheet", 2, workspace_id=WS) is None
+        probe = search_all_datasets_sync("9310", workspace_id=WS)
+        assert probe["hits"] == []
+        assert probe["incomplete"] is True
+        assert probe["authority_withheld"] == 1
+        assert current_dataset_version(f"sha1:{digest}", WS) is None
+
+        # Positive twin: the truly unlinked row never depended on document
+        # authority, so a missing authority schema does not hide it.
+        assert catalog_has_entries_sync() is True
+        assert any(
+            e["id"] == "entry-missing-schema-independent"
+            for e in find_entries_sync("invoices", workspace_id=WS))
+
+        # Withholding is a read-time verdict; the catalog stays truthful.
+        db.expire_all()
+        assert db.get(
+            DatasetEntry, "entry-missing-schema-linked").status == "active"
+
+
+def test_missing_authority_table_blocks_source_linked_materialization(
+        scratch, monkeypatch):
+    """Materialization must not fail OPEN on a missing authority schema.
+
+    A source-linked copy whose owning-document table cannot be read is not
+    provably fresh, so nothing is written. A truly unlinked file still
+    materializes — the guard covers provenance, not every file.
+    """
+    with _catalog_without_authority_table(scratch, monkeypatch) as (db, _):
+        blocked = materialize_sheet_bytes_sync(
+            _csv("9311"), file_name="NoSchema.csv", source="upload",
+            user_id=scratch["user"].id, workspace_id=WS, external_id=None,
+            source_document_id="doc_missing_schema_blocked")
+        assert blocked["status"] == "skipped", blocked
+        assert blocked["reason"] == "source_authority_unavailable"
+        assert db.query(DatasetEntry).count() == 0
+        assert list(
+            (Path(scratch["tmp_path"]) / "data" / "sheet_datasets")
+            .glob("**/*.parquet")) == []
+
+        # Independent positive twin: no lineage, no authority dependency.
+        allowed = materialize_sheet_bytes_sync(
+            _csv("9312"), file_name="NoLineage.csv", source="local_export",
+            user_id=scratch["user"].id, workspace_id=WS, external_id=None)
+        assert allowed["status"] == "materialized", allowed
+        assert allowed["datasets"][0]["source_document_id"] is None
+        assert [e["id"] for e in find_entries_sync(
+            "nolineage", workspace_id=WS)] == [allowed["datasets"][0]["id"]]
+
+
+def test_successful_empty_authority_table_is_true_absence(scratch):
+    """The contrast twin: a real query that succeeds with NO row is absence.
+
+    ``ingested_documents`` exists and answers; nothing is stored for this doc
+    id (the legacy ordering where a copy is materialized before its document
+    row). That genuine absence stays compatible — unlike a missing table,
+    which is UNKNOWN and withheld.
+    """
+    content = _csv("9313")
+    doc_id = "doc_empty_authority_successful"
+    assert scratch["db"].query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).first() is None
+
+    entry = _materialize_upload(
+        scratch, doc_id=doc_id, file_name="EmptyAuthority.csv",
+        content=content)
+    assert entry["source_document_id"] == doc_id
+    assert [e["id"] for e in find_entries_sync(
+        "emptyauthority", workspace_id=WS)] == [entry["id"]]
+    assert read_sheet_row_sync(
+        "EmptyAuthority.csv", entry["entity_name"], 2,
+        workspace_id=WS)["row"]["value"] == 9313
+    assert current_dataset_version(
+        entry["external_id"], WS) == entry["content_hash"]
 
 
 def test_post_commit_unknown_authority_withdraws_new_rows(

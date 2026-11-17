@@ -687,12 +687,18 @@ class TestCatalogResolutionScoping:
 
         from core.database import Base
 
-        from core.models import DatasetEntry
+        from core.models import DatasetEntry, IngestedDocument
 
         self._DatasetEntry = DatasetEntry
         engine = create_engine("sqlite:///:memory:")
-        Base.metadata.create_all(bind=engine,
-                                 tables=[DatasetEntry.__table__])
+        # The lineage read guard queries the authoritative document table; a
+        # catalog-only fixture would now be UNKNOWN (missing schema), not a
+        # successful empty query. Create the real (empty) table so row absence
+        # stays genuine absence and these catalog-resolution assertions keep
+        # testing version scoping, not schema drift.
+        Base.metadata.create_all(
+            bind=engine,
+            tables=[DatasetEntry.__table__, IngestedDocument.__table__])
         return engine, sessionmaker(bind=engine, expire_on_commit=False)
 
     def _entry(self, ws, fname, hash_):

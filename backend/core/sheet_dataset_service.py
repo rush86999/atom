@@ -163,28 +163,12 @@ def _entry_source_document_id(entry: Any) -> Optional[str]:
 # scope) is NOT fresh: an unreadable guard must withhold, never degrade open.
 # ``absent`` is reserved for "the query succeeded and there is no row" — the
 # legacy ordering where a copy is materialized before its document row exists.
+# A MISSING authority table/schema is UNKNOWN, never absence: no successful
+# query was performed, so nothing proves the source has no tombstone.
 _LINEAGE_LIVE = "live"
 _LINEAGE_NON_FRESH = "non_fresh"
 _LINEAGE_ABSENT = "absent"
 _LINEAGE_UNKNOWN = "unknown"
-
-
-def _authority_table_absent(exc: Exception) -> bool:
-    """True only for a DETERMINISTIC missing ``ingested_documents`` schema.
-
-    A schema that has no document-authority table cannot hold a tombstone, so
-    linked rows there are legacy by construction (partial-schema test
-    fixtures and pre-migration stores). Every other read failure — lock,
-    connection loss, corrupt row/table state — is UNKNOWN, never fresh.
-    """
-    message = str(exc).lower()
-    return "ingested_documents" in message and any(
-        marker in message
-        for marker in (
-            "no such table", "does not exist", "doesn't exist",
-            "undefined table", "unknown table",
-        )
-    )
 
 
 def _partition_entries_by_lineage(
@@ -201,9 +185,10 @@ def _partition_entries_by_lineage(
     ``removed``/``stale``/``outdated``/``superseded`` marker.
 
     ``unknown`` holds linked rows whose authority could NOT be proven: a
-    failed SQL read, or a same-id document owned by another workspace.
-    Callers must treat these as not current. Input order is preserved inside
-    every bucket.
+    failed SQL read (including a missing ``ingested_documents`` table or
+    schema — no successful query means no proven absence), or a same-id
+    document owned by another workspace. Callers must treat these as not
+    current. Input order is preserved inside every bucket.
     """
     entries = list(rows or [])
     buckets: Dict[str, List[Any]] = {
@@ -237,15 +222,11 @@ def _partition_entries_by_lineage(
                 IngestedDocument.id.in_(sorted(set(linked.values())))).all()
         }
     except Exception as exc:  # noqa: BLE001 — unknown must not become fresh
-        if _authority_table_absent(exc):
-            # Deterministic schema absence: no tombstone can exist, so the
-            # linked rows are legacy by construction.
-            logger.warning(
-                "dataset lineage authority table absent; serving %d "
-                "source-linked row(s) as legacy", len(linked),
-            )
-            buckets[_LINEAGE_LIVE].extend(entries)
-            return buckets
+        # A failed authority read — including a missing ``ingested_documents``
+        # table/schema — did not prove anything about a linked row's source.
+        # Unknown is withheld: only a SUCCESSFUL query with no matching row is
+        # genuine absence (see the ``else`` branch below). Unlinked rows stay
+        # live because they never depended on document authority.
         for index in linked:
             states[index] = _LINEAGE_UNKNOWN
         logger.warning(
@@ -318,14 +299,10 @@ def _source_document_authority(
                 return _LINEAGE_NON_FRESH
             return _LINEAGE_LIVE
     except Exception as exc:  # noqa: BLE001 — unreadable is not fresh
-        if _authority_table_absent(exc):
-            # No authority schema at all: nothing can carry a tombstone, and
-            # the copy is legacy by construction (pre-migration stores).
-            logger.warning(
-                "dataset source authority table absent; treating lineage as "
-                "legacy: doc=%s", doc_id,
-            )
-            return _LINEAGE_ABSENT
+        # No successful query happened, so this is UNKNOWN — never ``absent``
+        # and never fresh. That includes a missing ``ingested_documents``
+        # table/schema: an authoritative schema that cannot be read cannot
+        # prove the source has no tombstone.
         logger.warning(
             "dataset source authority unavailable: doc=%s error_class=%s",
             doc_id, type(exc).__name__,
