@@ -5,7 +5,7 @@
 
 > **Learning correction and reuse:** [same-candidate correction, renewed approval and restart](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) passed at `1d4f409e1`: old approval cleared, old lesson retired, fresh promotion, exact 15 USD deterministic reuse and zero-write readback after full-stack restart. Independent 162 backend / 12 frontend checks plus 642 CI contracts passed. Synthetic native-chat fixture; no live model or whole-goal completion claim.
 
-Optional never-autonomous task baskets: [behavior, limits and independent local qualification](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md). Exact-head CI and release remain pending; original readiness scores and claims are unchanged.
+Optional never-autonomous task baskets: [behavior, limits and independent local qualification](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md). Exact-head CI and release remain pending; original readiness scores and claims are unchanged. The 2026-11-17 [entry task-profile isolation repair](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md) keeps the five-file one-process suites green in both orders and covers the real nested-entry fallback/owner gap; synthetic SQLite evidence only.
 
 > **DOCX inline pictures:** [the source-bound repair and valid-image browser record](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) passed at candidate `8d98b0689`, preserving real drawing XML/references and decoded pixels through native edits and full-stack restart. Final local674 checks passed with unchanged production helper; malformed earlier PNG fixtures remain explicitly unqualified. Broader drawings and full Goal5 remain open.
 

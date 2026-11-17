@@ -592,7 +592,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "never_root=$(mktemp -d \"${RUNNER_TEMP}/never-autonomous-XXXXXX\")\nmkdir -p \"${never_root}/data\"\nfor never_file in rules task_scope rule_write_fences review_authority entry_identity; do\n  DATABASE_URL=\"sqlite:///${never_root}/${never_file}.db\" \\\n    ATOM_DATA_DIR=\"${never_root}/data\" \\\n    python -m pytest \"tests/test_never_autonomous_${never_file}.py\" \\\n    -q --tb=short --timeout=300 --timeout-method=thread\ndone\n"
+    "run": "never_root=$(mktemp -d \"${RUNNER_TEMP}/never-autonomous-XXXXXX\")\nmkdir -p \"${never_root}/data\"\nfor never_file in rules task_scope rule_write_fences review_authority entry_identity entry_profile_isolation; do\n  DATABASE_URL=\"sqlite:///${never_root}/${never_file}.db\" \\\n    ATOM_DATA_DIR=\"${never_root}/data\" \\\n    python -m pytest \"tests/test_never_autonomous_${never_file}.py\" \\\n    -q --tb=short --timeout=300 --timeout-method=thread\ndone\n"
   },
   {
     "name": "Run document lineage upgrade and knowledge VFS scope controls",

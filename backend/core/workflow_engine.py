@@ -848,10 +848,13 @@ class WorkflowEngine:
             ) if value
         )
         agent_id = str(workflow.get("agent_id") or "system_agent")
+        # The admitted workflow actor is the policy owner. Never let a stale
+        # ancestor profile choose a different owner than the run's creator.
         owner_user_id = (
-            (profile.owner_user_id if profile is not None else None)
-            or workflow.get("created_by")
-            or user_id)
+            workflow.get("created_by")
+            or workflow.get("user_id")
+            or user_id
+            or (profile.owner_user_id if profile is not None else None))
         if profile is None:
             # Missing classification cannot prove a configured rule
             # inapplicable; review against the canonical unknown profile
@@ -985,14 +988,21 @@ class WorkflowEngine:
         execution loop unchanged.
         """
         token = None
+        boundary = None
         try:
             from core.task_classification import (
+                begin_task_profile_boundary,
                 bind_task_profile,
                 build_unknown_task_profile,
                 build_workflow_task_profile,
+                end_task_profile_boundary,
                 reset_task_profile,
             )
 
+            # Own this run's task boundary before building anything: a
+            # nested workflow must never be admitted against an ancestor's
+            # profile if both this build and the unknown fallback fail.
+            boundary = begin_task_profile_boundary(None)
             try:
                 profile = build_workflow_task_profile(workflow)
             except Exception as _classify_err:  # noqa: BLE001
@@ -1017,11 +1027,21 @@ class WorkflowEngine:
         try:
             await self._run_execution_body(execution_id, workflow)
         finally:
-            if token is not None:
-                try:
+            try:
+                if token is not None:
+                    from core.task_classification import reset_task_profile
+
                     reset_task_profile(token)
-                except Exception:  # noqa: BLE001
-                    pass
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                from core.task_classification import end_task_profile_boundary
+
+                # Restore the caller's profile/clearance on success, error
+                # and cancellation alike.
+                end_task_profile_boundary(boundary)
+            except Exception:  # noqa: BLE001
+                pass
 
     async def _run_execution_body(self, execution_id: str, workflow: Dict[str, Any]) -> None:
         """Main execution loop"""
