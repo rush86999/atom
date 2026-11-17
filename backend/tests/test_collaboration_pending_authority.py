@@ -23,9 +23,13 @@ is doubled; the durable helper and its CAS are exercised for real.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import subprocess
 import sys
 import tempfile
+import threading
+import time
 from contextlib import contextmanager
 
 # Isolation MUST precede core imports (owner rule). Absolute scratch paths,
@@ -46,6 +50,7 @@ from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.dialects import postgresql, sqlite  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import core.chat_session_manager as csm  # noqa: E402
@@ -85,6 +90,7 @@ MESSAGE = (
     "Compare closed revenue with target, identify the gap, and explain that "
     "pipeline is not closed revenue."
 )
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SESSION_ID = "s-collab"
 USER_ID = "u-collab"
 TENANT_ID = "t-collab"
@@ -925,3 +931,417 @@ def test_file_metadata_cas_rejects_stale(monkeypatch, tmp_path):
         SESSION_ID, {"_rev": "f2"}, expected={"_rev": "f1"}) is True
     assert manager.read_session_metadata(SESSION_ID)["metadata"]["_rev"] == (
         "f2")
+
+
+# ---------------------------------------------------------------------------
+# 8. General metadata CAS: no lost unrelated updates, typed preconditions
+# ---------------------------------------------------------------------------
+
+def _set_row_metadata(Session, metadata, session_id=SESSION_ID):
+    with Session() as db:
+        row = db.query(ChatSession).filter(
+            ChatSession.id == session_id).first()
+        assert row is not None
+        row.metadata_json = dict(metadata)
+        db.commit()
+
+
+def _row_metadata(Session, session_id=SESSION_ID):
+    with Session() as db:
+        row = db.query(ChatSession).filter(
+            ChatSession.id == session_id).first()
+        assert row is not None
+        return dict(row.metadata_json or {})
+
+
+def _interleave_cas(
+    paused_manager,
+    other_manager,
+    paused_patch,
+    other_patch,
+    *,
+    paused_expected=None,
+    other_expected=None,
+):
+    """Pause one writer after its snapshot read, let the other commit.
+
+    This is a real two-session SQLite interleaving: the paused writer holds no
+    read transaction (the snapshot read session is closed), so the other
+    writer can commit. The paused writer's first conditional UPDATE then sees
+    the conflict and re-reads/re-merges.
+    """
+    paused = threading.Event()
+    resume = threading.Event()
+    snapshots = []
+    original = paused_manager._conditional_metadata_update
+
+    def _paused_cas(session_id, current, merged, raw_is_null):
+        snapshots.append(dict(current))
+        if len(snapshots) == 1:
+            paused.set()
+            if not resume.wait(10):
+                raise AssertionError("interleaved writer was not released")
+        return original(session_id, current, merged, raw_is_null)
+
+    paused_manager._conditional_metadata_update = _paused_cas
+    results = {}
+
+    def _run_paused():
+        try:
+            results["paused"] = paused_manager.update_session_metadata(
+                SESSION_ID, paused_patch, expected=paused_expected)
+        except Exception as exc:  # noqa: BLE001 — re-raised on the main thread
+            results["paused_error"] = exc
+
+    thread = threading.Thread(target=_run_paused)
+    thread.start()
+    try:
+        assert paused.wait(10), "paused writer never reached its CAS"
+        results["other"] = other_manager.update_session_metadata(
+            SESSION_ID, other_patch, expected=other_expected)
+    finally:
+        resume.set()
+        thread.join(10)
+    assert not thread.is_alive(), "paused writer did not finish"
+    if "paused_error" in results:
+        raise results["paused_error"]
+    return results, snapshots
+
+
+def test_metadata_cas_preserves_unrelated_concurrent_legacy_patch(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _set_row_metadata(Session, {"guard": "v0", "unrelated": 0})
+    manager_a = _db_manager(monkeypatch, Session, tmp_path)
+    manager_b = _db_manager(monkeypatch, Session, tmp_path)
+
+    # The root counter: A reads {guard:v0, unrelated:0} and pauses BEFORE its
+    # UPDATE; B's legacy 2-arg patch commits; A resumes with a stale snapshot.
+    results, snapshots = _interleave_cas(
+        manager_a, manager_b,
+        {"guard": "v1"},
+        {"unrelated": 1},
+        paused_expected={"guard": "v0"},
+    )
+
+    assert results == {"paused": True, "other": True}
+    assert len(snapshots) >= 2, "the CAS must have retried"
+    assert snapshots[0]["unrelated"] == 0
+    assert snapshots[1]["unrelated"] == 1
+    final = _row_metadata(Session)
+    assert final["guard"] == "v1"
+    assert final["unrelated"] == 1
+    assert final["_metadata_revision"]
+
+
+def test_stale_pending_condition_loser_refuses_without_overwrite(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _set_row_metadata(Session, {"guard": "v0", "unrelated": 0})
+    manager_a = _db_manager(monkeypatch, Session, tmp_path)
+    manager_b = _db_manager(monkeypatch, Session, tmp_path)
+
+    results, snapshots = _interleave_cas(
+        manager_a, manager_b,
+        {"guard": "v1", "loser": "a"},
+        {"guard": "v2"},
+        paused_expected={"guard": "v0"},
+    )
+
+    assert results["paused"] is False
+    assert results["other"] is True
+    # The retry re-read guard=v2 and refused before a second conditional write.
+    assert len(snapshots) == 1
+    final = _row_metadata(Session)
+    assert final["guard"] == "v2"
+    assert "loser" not in final
+    assert final["unrelated"] == 0
+
+
+def test_reverse_order_legacy_writer_preserves_cas_new_field(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _set_row_metadata(Session, {"guard": "v0", "unrelated": 0})
+    manager_a = _db_manager(monkeypatch, Session, tmp_path)
+    manager_b = _db_manager(monkeypatch, Session, tmp_path)
+
+    # Reverse order: the legacy writer reads first and pauses; the CAS writer
+    # commits a new field; the legacy writer must re-merge, not clobber it.
+    results, snapshots = _interleave_cas(
+        manager_b, manager_a,
+        {"unrelated": 1},
+        {"new_field": 1},
+        other_expected={"guard": "v0"},
+    )
+
+    assert results == {"paused": True, "other": True}
+    assert len(snapshots) >= 2
+    assert "new_field" not in snapshots[0]
+    assert snapshots[1]["new_field"] == 1
+    final = _row_metadata(Session)
+    assert final["new_field"] == 1
+    assert final["unrelated"] == 1
+    assert final["guard"] == "v0"
+
+
+def test_typed_scalar_expected_semantics_real_sqlite(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _set_row_metadata(Session, {
+        "s": "1", "i": 1, "f": 1.5, "bt": True, "bf": False,
+        "n": None, "e": "",
+    })
+    manager = _db_manager(monkeypatch, Session, tmp_path)
+
+    cases = [
+        ("s", "1", True),
+        ("s", 1, False),
+        ("i", 1, True),
+        ("i", "1", False),
+        ("i", True, False),
+        ("f", 1.5, True),
+        ("f", 1, False),
+        ("f", 1.5, True),
+        ("bt", True, True),
+        ("bt", 1, False),
+        ("bf", False, True),
+        ("bf", 0, False),
+        ("n", None, True),
+        ("n", "", False),
+        ("missing", None, True),
+        ("missing", "", False),
+        ("missing", 0, False),
+        ("e", "", True),
+        ("e", None, False),
+    ]
+    for index, (key, wanted, expected_result) in enumerate(cases):
+        result = manager.update_session_metadata(
+            SESSION_ID, {"probe": index}, expected={key: wanted})
+        assert result is expected_result, (key, wanted, result, expected_result)
+        # The metadata keys under test never change.
+        metadata = manager.read_session_metadata(SESSION_ID)["metadata"]
+        assert metadata["s"] == "1" and metadata["i"] == 1
+        assert metadata["f"] == 1.5 and metadata["bt"] is True
+        assert metadata["bf"] is False and metadata["n"] is None
+        assert metadata["e"] == ""
+
+    # Composite and non-finite expectations are refused, not coerced.
+    assert manager.update_session_metadata(
+        SESSION_ID, {"x": 1}, expected={"i": {"nested": 1}}) is False
+    assert manager.update_session_metadata(
+        SESSION_ID, {"x": 1}, expected={"f": float("nan")}) is False
+
+    # Old 2-arg patch semantics: None is JSON null, not a JSON Merge Patch
+    # deletion. The key remains present.
+    assert manager.update_session_metadata(
+        SESSION_ID, {"null_kept": None}) is True
+    final = manager.read_session_metadata(SESSION_ID)["metadata"]
+    assert "null_kept" in final
+    assert final["null_kept"] is None
+
+
+def test_pg_and_sqlite_compiled_metadata_cas_statement():
+    current = {"guard": "v0", "unrelated": 0}
+    merged = {
+        **current, "guard": "v1", "_metadata_revision": "tok",
+    }
+    statement = ChatSessionManager._metadata_update_statement(
+        SESSION_ID, current, merged, False)
+    pg_sql = str(statement.compile(dialect=postgresql.dialect()))
+    sqlite_sql = str(statement.compile(dialect=sqlite.dialect()))
+
+    for compiled in (pg_sql, sqlite_sql):
+        assert "UPDATE chat_sessions" in compiled
+        assert "WHERE" in compiled
+        assert "metadata_json" in compiled
+    assert "JSONB" in pg_sql
+    # The whole pre-read snapshot, not a single expected key, is the CAS arm.
+    assert pg_sql.count("metadata_json") >= 2
+    assert sqlite_sql.count("metadata_json") >= 2
+
+    null_statement = ChatSessionManager._metadata_update_statement(
+        SESSION_ID, {}, merged, True)
+    assert "IS NULL" in str(null_statement.compile(dialect=sqlite.dialect()))
+    assert "IS NULL" in str(
+        null_statement.compile(dialect=postgresql.dialect()))
+
+
+def test_file_lock_failure_is_truthful(monkeypatch, tmp_path):
+    manager = _file_manager(monkeypatch, tmp_path)
+    before = manager.read_session_metadata(SESSION_ID)["metadata"]
+
+    @contextmanager
+    def _denied(_path, **_kwargs):
+        yield False
+
+    monkeypatch.setattr(csm, "_interprocess_file_lock", _denied)
+    assert manager.update_session_metadata(
+        SESSION_ID, {"blocked": 1}) is False
+    after = manager.read_session_metadata(SESSION_ID)["metadata"]
+    assert after == before
+    assert "blocked" not in after
+
+
+def test_file_write_failure_is_truthful(monkeypatch, tmp_path):
+    manager = _file_manager(monkeypatch, tmp_path)
+    before = manager.read_session_metadata(SESSION_ID)["metadata"]
+
+    def _boom(*_args, **_kwargs):
+        raise OSError("synthetic temp write failure")
+
+    monkeypatch.setattr(csm.tempfile, "mkstemp", _boom)
+    assert manager.update_session_metadata(
+        SESSION_ID, {"blocked": 1}) is False
+    after = manager.read_session_metadata(SESSION_ID)["metadata"]
+    assert after == before
+    assert "blocked" not in after
+
+
+def test_malformed_file_is_unavailable_and_not_written(monkeypatch, tmp_path):
+    manager = _file_manager(monkeypatch, tmp_path)
+    with open(manager.sessions_file, "w") as f:
+        f.write("{not json")
+    read = manager.read_session_metadata(SESSION_ID)
+    assert read["readable"] is False
+    assert read["found"] is False
+    assert manager.update_session_metadata(
+        SESSION_ID, {"blocked": 1}) is False
+    with open(manager.sessions_file) as f:
+        assert f.read() == "{not json"
+
+
+def test_file_metadata_cas_preserves_two_legit_patches(monkeypatch, tmp_path):
+    manager = _file_manager(monkeypatch, tmp_path)
+    assert manager.update_session_metadata(SESSION_ID, {"a": 1}) is True
+    assert manager.update_session_metadata(SESSION_ID, {"b": 2}) is True
+    final = manager.read_session_metadata(SESSION_ID)["metadata"]
+    assert final["a"] == 1 and final["b"] == 2
+    assert final["_metadata_revision"]
+
+
+# ---------------------------------------------------------------------------
+# 9. Two INDEPENDENT file-mode processes: one winner, no lost keys
+# ---------------------------------------------------------------------------
+
+_FILE_CHILD_SCRIPT = r'''
+import json, os, sys, time
+from core.chat_session_manager import ChatSessionManager
+
+sessions_file, barrier, spec_json = sys.argv[1:4]
+spec = json.loads(spec_json)
+while not os.path.exists(barrier):
+    time.sleep(0.005)
+manager = ChatSessionManager(sessions_file=sessions_file)
+ok = manager.update_session_metadata(
+    spec["session_id"], spec["patch"], expected=spec.get("expected"))
+print("RESULT:" + json.dumps({"ok": bool(ok)}))
+'''
+
+
+def _run_file_process_pair(tmp_path, specs, seed_metadata):
+    sessions_file = str(tmp_path / "proc-sessions.json")
+    barrier = str(tmp_path / "proc-go")
+    with open(sessions_file, "w") as f:
+        json.dump([{
+            "session_id": SESSION_ID,
+            "user_id": USER_ID,
+            "metadata": dict(seed_metadata),
+        }], f)
+
+    env = dict(os.environ)
+    env.update({
+        "TESTING": "1",
+        "ATOM_CHAT_STORAGE": "file",
+        "CHAT_PERSISTENCE_MODE": "FILE",
+        "ATOM_DATA_DIR": str(tmp_path / "proc-data"),
+        "DATABASE_URL": f"sqlite:///{tmp_path / 'proc-db.sqlite'}",
+        "PYTHONPATH": BACKEND_DIR,
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_DATASETS_OFFLINE": "1",
+    })
+    os.makedirs(env["ATOM_DATA_DIR"], exist_ok=True)
+
+    processes = [
+        subprocess.Popen(
+            [
+                sys.executable, "-c", _FILE_CHILD_SCRIPT,
+                sessions_file, barrier,
+                json.dumps({"session_id": SESSION_ID, **spec}),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            cwd=BACKEND_DIR,
+        )
+        for spec in specs
+    ]
+    # Let both children reach their barrier spin before releasing them.
+    time.sleep(0.2)
+    with open(barrier, "w") as f:
+        f.write("go")
+
+    results = []
+    for process in processes:
+        try:
+            out, err = process.communicate(timeout=60)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            out, err = process.communicate()
+            raise AssertionError(f"child file writer timed out: {err[-2000:]}")
+        if process.returncode != 0:
+            raise AssertionError(
+                f"child file writer failed ({process.returncode}): "
+                f"{err[-2000:]}")
+        line = next(
+            (ln for ln in out.splitlines() if ln.startswith("RESULT:")), "")
+        assert line, f"no RESULT in stdout={out!r} stderr={err[-2000:]}"
+        results.append(json.loads(line[len("RESULT:"):]))
+    with open(sessions_file) as f:
+        final = json.load(f)
+    return results, final[0]["metadata"]
+
+
+def test_two_processes_compete_one_saved_revision(tmp_path):
+    results, final = _run_file_process_pair(
+        tmp_path,
+        [
+            {
+                "patch": {"guard": "v1a", "winner_a": 1},
+                "expected": {"guard": "v0"},
+            },
+            {
+                "patch": {"guard": "v1b", "winner_b": 1},
+                "expected": {"guard": "v0"},
+            },
+        ],
+        {"guard": "v0", "unrelated": 0},
+    )
+
+    assert sum(1 for result in results if result["ok"]) == 1, results
+    assert final["unrelated"] == 0
+    assert final["guard"] in ("v1a", "v1b")
+    assert ("winner_a" in final) != ("winner_b" in final)
+    if final["guard"] == "v1a":
+        assert final.get("winner_a") == 1
+    else:
+        assert final.get("winner_b") == 1
+    assert final["_metadata_revision"]
+
+
+def test_two_processes_disjoint_patches_both_preserved(tmp_path):
+    results, final = _run_file_process_pair(
+        tmp_path,
+        [
+            {"patch": {"a": 1}},
+            {"patch": {"b": 2}},
+        ],
+        {"unrelated": 0},
+    )
+
+    assert all(result["ok"] for result in results), results
+    assert final["a"] == 1
+    assert final["b"] == 2
+    assert final["unrelated"] == 0
+    assert final["_metadata_revision"]
