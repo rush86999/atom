@@ -376,6 +376,26 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest ../scripts/tests/test_browser_document_export_ui.py -q --tb=short --timeout=300 --timeout-method=thread
+
+      # Launcher world-storage preflight (additive): the integrated-local
+      # launcher must consume the guard/validator's authoritative storage
+      # config and must never parse the checkout config or create a missing
+      # worlds root, including with ATOM_WORLD_STORAGE_PATHS set. These
+      # controls run the REAL shell launcher, guard and validator against
+      # absolute runner-temp fixtures and stop at a labelled pre-server
+      # boundary (the test PYTHON shim records and exits before uvicorn): no
+      # server, browser, provider, model or live DB is started. Complete file
+      # only; no selectors, deselection or continue-on-error.
+      - name: Run launcher world-storage preflight controls
+        env:
+          TESTING: "1"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-launcher-storage/scratch.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${{ runner.temp }}/atom-launcher-storage"
+          python -m pytest ../scripts/tests/test_launcher_world_storage_preflight.py -q --tb=short --timeout=300 --timeout-method=thread
       # Opt-in invoice replay harness guards (additive): the four offline
       # modules prove the default scripted lane is unchanged, the relay refuses
       # everything outside its loopback/synthetic or fixed-live destination,

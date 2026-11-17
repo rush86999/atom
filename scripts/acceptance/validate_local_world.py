@@ -40,23 +40,63 @@ def port_open(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
-def _storage_config(repo: Path) -> dict:
-    """Read the config the storage guard will read (env relocation included)."""
-    import core.world_storage_guard as guard  # sys.path inserted below
+class StorageConfigError(RuntimeError):
+    """The authoritative storage config cannot be resolved."""
+
+
+def resolve_storage_config(repo: Path) -> dict:
+    """Resolve the config the storage guard will read (env relocation included).
+
+    Shared by the launcher validation, the browser preflight and the canvas
+    acceptance harness so none of them can parse a different config or a
+    different layout precedence.
+
+    The env relocation is authoritative: when ``ATOM_WORLD_STORAGE_PATHS`` is
+    set but its config file is missing, this refuses instead of silently
+    falling back to the checkout config and its canonical worlds root. A
+    missing relocated config is a misconfigured isolation boundary, and the
+    fallback is exactly how a launcher ends up creating the canonical tree a
+    relocated run meant to leave untouched.
+    """
+    backend_dir = repo / "backend"
+    if str(backend_dir) not in sys.path:
+        sys.path.insert(0, str(backend_dir))
+    import core.world_storage_guard as guard
 
     relocated = (os.environ.get(STORAGE_PATHS_ENV) or "").strip()
     config_dir = (Path(relocated).expanduser() if relocated
-                  else repo / "backend" / "config")
+                  else backend_dir / "config")
+    config_path = config_dir / "world_storage.json"
+    if relocated and not config_path.is_file():
+        raise StorageConfigError(
+            f"{STORAGE_PATHS_ENV} is set to {relocated}, but "
+            f"{config_path} does not exist; refusing to fall back to the "
+            f"checkout config or its canonical worlds root")
     try:
-        config = guard.load_config(config_dir / "world_storage.json")
+        config = guard.load_config(config_path)
     except guard.WorldStorageError as exc:
-        fail(str(exc))
+        raise StorageConfigError(str(exc)) from exc
+    try:
+        root = Path(config.root).expanduser().resolve(strict=False)
+    except OSError as exc:
+        raise StorageConfigError(f"cannot resolve {config.root}: {exc}") from exc
     return {
-        "config_path": str(config_dir / "world_storage.json"),
+        "config_path": str(config_path),
+        "config_exists": config_path.is_file(),
         "relocated_by_env": bool(relocated),
+        "relocation_env": STORAGE_PATHS_ENV if relocated else None,
+        "enabled": bool(config.enabled),
         "layout": config.layout,
-        "root": str(real(Path(config.root))),
+        "root": str(root),
     }
+
+
+def _storage_config(repo: Path) -> dict:
+    """CLI-facing wrapper: a config refusal exits 2 with a named message."""
+    try:
+        return resolve_storage_config(repo)
+    except StorageConfigError as exc:
+        fail(str(exc))
 
 
 def main() -> int:
