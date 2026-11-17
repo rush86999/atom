@@ -32,9 +32,15 @@ import json
 import logging
 import os
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
+
+from core.personal_scope import (
+    PERSONAL_TENANT_ID,
+    PERSONAL_WORKSPACE_ID,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,26 @@ ENV_BENCHMARK_ID = "ATOM_EMPLOYEE_BENCHMARK_ID"
 ENV_ARTIFACT_DIR = "ATOM_EMPLOYEE_BENCHMARK_ARTIFACT_DIR"
 
 DEFAULT_CAMPAIGN_ID = "employee-heldout-two-domain"
+
+# Attribution refusal reasons. These are durable facts about the server plan
+# and the registry, never a client-supplied claim: callers may log them, but a
+# refusal is final for that execution id.
+REASON_AGENT_MISSING = "campaign_agent_missing"
+REASON_AGENT_REGISTRY_UNAVAILABLE = "campaign_agent_registry_unavailable"
+REASON_AGENT_NOT_FOUND = "campaign_agent_not_found"
+REASON_AGENT_TENANT_MISMATCH = "campaign_agent_tenant_mismatch"
+REASON_AGENT_WORKSPACE_MISMATCH = "campaign_agent_workspace_mismatch"
+REASON_EMPLOYEE_REGISTRY_UNAVAILABLE = "campaign_employee_registry_unavailable"
+REASON_EMPLOYEE_NOT_FOUND = "campaign_employee_not_found"
+REASON_EMPLOYEE_TENANT_MISMATCH = "campaign_employee_tenant_mismatch"
+REASON_EMPLOYEE_WORKSPACE_MISMATCH = "campaign_employee_workspace_mismatch"
+REASON_CAMPAIGN_RUN_MISSING = "campaign_run_identity_missing"
+REASON_ROW_ATTRIBUTION_MISMATCH = "campaign_row_attribution_mismatch"
+REASON_ROW_CAMPAIGN_MISMATCH = "campaign_row_identity_mismatch"
+REASON_ROW_TERMINAL = "campaign_row_terminal"
+REASON_COMPLETION_MISMATCH = "campaign_completion_mismatch"
+REASON_ROW_AGENT_UNRESOLVED = "campaign_row_agent_unresolved"
+REASON_ROW_AGENT_SCOPE_MISMATCH = "campaign_row_agent_scope_mismatch"
 
 
 def _truthy(value: Any) -> bool:
@@ -286,13 +312,255 @@ def _session_factory(db_path: Path):
     return engine, sessionmaker(bind=engine, expire_on_commit=False)
 
 
+# ---------------------------------------------------------------------------
+# Campaign agent attribution (durable, shared by both create paths)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CampaignAttribution:
+    """The resolved durable identity of one campaign execution.
+
+    ``agent_id`` comes only from the server plan's validated
+    ``provenance.agent_id``; ``employee_id`` stays the human/User assignment
+    target. The two are deliberately NOT required to be equal: the established
+    authorization helpers validate tenant/workspace scope, and shared/system
+    agents legitimately have a NULL or different owner.
+    """
+
+    ok: bool
+    agent_id: str = ""
+    employee_id: str = ""
+    tenant_id: str = ""
+    workspace_id: str = ""
+    campaign_id: str = ""
+    run_id: str = ""
+    reason: Optional[str] = None
+    detail: Optional[str] = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "ok": self.ok,
+            "agent_id": self.agent_id,
+            "employee_id": self.employee_id,
+            "tenant_id": self.tenant_id,
+            "workspace_id": self.workspace_id,
+            "campaign_id": self.campaign_id,
+            "run_id": self.run_id,
+            "reason": self.reason,
+            "detail": self.detail,
+        }
+
+
+class CampaignAttributionError(ValueError):
+    """Explicit refusal: no campaign row may be created, completed or sealed."""
+
+    def __init__(self, resolution: CampaignAttribution):
+        self.reason = resolution.reason or REASON_ROW_ATTRIBUTION_MISMATCH
+        self.detail = resolution.detail
+        self.resolution = resolution
+        message = f"campaign attribution refused: {self.reason}"
+        if self.detail:
+            message = f"{message}: {self.detail}"
+        super().__init__(message)
+
+
+def _canonical_scope(value: Any, default: str) -> str:
+    """Personal-Edition NULL/``default`` equivalence, never a new scope."""
+    text = str(value or "").strip()
+    return text or default
+
+
+def _table_exists(db: Any, table: str) -> bool:
+    from sqlalchemy import inspect
+
+    try:
+        return bool(inspect(db.get_bind()).has_table(table))
+    except Exception:  # noqa: BLE001 — an unreadable schema is unresolvable
+        return False
+
+
+def _refused(reason: str, detail: Optional[str] = None) -> CampaignAttribution:
+    return CampaignAttribution(ok=False, reason=reason, detail=detail)
+
+
+def _resolve_campaign_attribution(
+    db: Any,
+    assignment: Mapping[str, Any],
+    *,
+    campaign: Optional[str] = None,
+    run_id: Optional[str] = None,
+) -> CampaignAttribution:
+    """Resolve the agent/employee/scope identity from durable server facts.
+
+    The only agent claim read is ``assignment["provenance"]["agent_id"]`` —
+    the field the trusted assignment planner stamps from the validated request
+    agent. There is no fallback to ``employee_id``, the sole registry agent, a
+    model name or any client metadata.
+    """
+    from core.models import AgentRegistry, User
+
+    assignment = assignment if isinstance(assignment, Mapping) else {}
+    provenance = assignment.get("provenance")
+    provenance = provenance if isinstance(provenance, Mapping) else {}
+    claimed_agent = str(provenance.get("agent_id") or "").strip()
+    if not claimed_agent:
+        return _refused(
+            REASON_AGENT_MISSING,
+            "the server plan carries no provenance.agent_id")
+
+    employee_id = str(assignment.get("employee_id") or "").strip()
+    tenant_id = _canonical_scope(
+        assignment.get("tenant_id"), PERSONAL_TENANT_ID)
+    workspace_id = _canonical_scope(
+        assignment.get("workspace_id"), PERSONAL_WORKSPACE_ID)
+    run_key = str(run_id or assignment.get("run_id") or "").strip()
+    if not run_key:
+        return _refused(
+            REASON_CAMPAIGN_RUN_MISSING,
+            "a campaign execution requires a durable run identity")
+    campaign_key = str(campaign or campaign_id()).strip() or DEFAULT_CAMPAIGN_ID
+
+    if not _table_exists(db, AgentRegistry.__tablename__):
+        return _refused(
+            REASON_AGENT_REGISTRY_UNAVAILABLE,
+            "the durable agent registry is not readable")
+    agent = db.get(AgentRegistry, claimed_agent)
+    if agent is None:
+        return _refused(
+            REASON_AGENT_NOT_FOUND,
+            f"agent {claimed_agent!r} is not in the durable registry")
+    agent_tenant = _canonical_scope(agent.tenant_id, PERSONAL_TENANT_ID)
+    agent_workspace = _canonical_scope(
+        agent.workspace_id, PERSONAL_WORKSPACE_ID)
+    if agent_tenant != tenant_id:
+        return _refused(
+            REASON_AGENT_TENANT_MISMATCH,
+            f"agent tenant {agent_tenant!r} != assignment tenant {tenant_id!r}")
+    if agent_workspace != workspace_id:
+        return _refused(
+            REASON_AGENT_WORKSPACE_MISMATCH,
+            f"agent workspace {agent_workspace!r} != assignment workspace "
+            f"{workspace_id!r}")
+
+    if employee_id:
+        if not _table_exists(db, User.__tablename__):
+            return _refused(
+                REASON_EMPLOYEE_REGISTRY_UNAVAILABLE,
+                "the durable employee registry is not readable")
+        employee = db.get(User, employee_id)
+        if employee is None:
+            return _refused(
+                REASON_EMPLOYEE_NOT_FOUND,
+                f"employee {employee_id!r} is not in the durable registry")
+        employee_tenant = _canonical_scope(
+            employee.tenant_id, PERSONAL_TENANT_ID)
+        employee_workspace = _canonical_scope(
+            employee.workspace_id, PERSONAL_WORKSPACE_ID)
+        if employee_tenant != tenant_id:
+            return _refused(
+                REASON_EMPLOYEE_TENANT_MISMATCH,
+                f"employee tenant {employee_tenant!r} != assignment tenant "
+                f"{tenant_id!r}")
+        if employee_workspace != workspace_id:
+            return _refused(
+                REASON_EMPLOYEE_WORKSPACE_MISMATCH,
+                f"employee workspace {employee_workspace!r} != assignment "
+                f"workspace {workspace_id!r}")
+
+    return CampaignAttribution(
+        ok=True,
+        agent_id=claimed_agent,
+        employee_id=employee_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        campaign_id=campaign_key,
+        run_id=run_key,
+    )
+
+
+def resolve_campaign_attribution(
+    *,
+    db_path: Any,
+    assignment: Mapping[str, Any],
+    campaign: Optional[str] = None,
+    run_id: Optional[str] = None,
+) -> CampaignAttribution:
+    """Durable public resolver shared by both campaign create paths."""
+    path = Path(str(db_path or ""))
+    if not path.is_file():
+        return _refused(
+            REASON_ROW_ATTRIBUTION_MISMATCH, "the campaign database is absent")
+    engine, factory = _session_factory(path)
+    try:
+        with factory() as db:
+            return _resolve_campaign_attribution(
+                db, assignment, campaign=campaign, run_id=run_id)
+    finally:
+        engine.dispose()
+
+
+def _campaign_block(metadata: Any) -> Mapping[str, Any]:
+    if not isinstance(metadata, Mapping):
+        return {}
+    block = metadata.get("campaign")
+    return block if isinstance(block, Mapping) else {}
+
+
+def _require_existing_attribution(
+    execution: Any,
+    resolution: CampaignAttribution,
+    *,
+    completing: bool,
+) -> Optional[CampaignAttribution]:
+    """Exact idempotency: same agent, scope and campaign/run identity only."""
+    row_agent = str(getattr(execution, "agent_id", None) or "").strip()
+    row_tenant = _canonical_scope(
+        getattr(execution, "tenant_id", None), PERSONAL_TENANT_ID)
+    row_workspace = _canonical_scope(
+        getattr(execution, "workspace_id", None), PERSONAL_WORKSPACE_ID)
+    if (row_agent != resolution.agent_id
+            or row_tenant != resolution.tenant_id
+            or row_workspace != resolution.workspace_id):
+        return _refused(
+            REASON_ROW_ATTRIBUTION_MISMATCH,
+            "the existing execution row is owned by a different agent or "
+            "scope; it is never reused or re-attributed")
+    status = str(getattr(execution, "status", None) or "").strip().casefold()
+    allowed = {"running", "completed"} if completing else {"running"}
+    if status not in allowed:
+        return _refused(
+            REASON_ROW_TERMINAL,
+            f"the existing execution row is {status or 'unknown'}; start a "
+            "new campaign run instead")
+    block = _campaign_block(getattr(execution, "metadata_json", None))
+    block_campaign = str(block.get("id") or "").strip()
+    block_run = str(block.get("run_id") or "").strip()
+    if (block_campaign != resolution.campaign_id
+            or block_run != resolution.run_id):
+        return _refused(
+            REASON_ROW_CAMPAIGN_MISMATCH,
+            "the existing execution row belongs to a different campaign run; "
+            "it is never reused or re-attributed")
+    return None
+
+
 def start_campaign_execution(
     *,
     db_path: Any,
     execution_id: str,
     assignment: Mapping[str, Any],
+    run_id: Optional[str] = None,
+    campaign: Optional[str] = None,
 ) -> Optional[str]:
-    """Create the campaign's durable execution row (status ``running``)."""
+    """Create the campaign's durable execution row (status ``running``).
+
+    The row is attributed to the durable server plan's validated
+    ``provenance.agent_id`` — never to ``employee_id``. A missing, foreign or
+    unresolvable agent raises :class:`CampaignAttributionError` before any row
+    is written. An existing row is reused only for the exact same agent,
+    tenant, workspace, campaign and run; anything else is refused.
+    """
     path = Path(str(db_path or ""))
     if not path.is_file():
         return None
@@ -302,19 +570,29 @@ def start_campaign_execution(
     try:
         AgentExecution.__table__.create(engine, checkfirst=True)
         with factory() as db:
-            if db.get(AgentExecution, execution_id) is not None:
+            resolution = _resolve_campaign_attribution(
+                db, assignment, campaign=campaign, run_id=run_id)
+            if not resolution.ok:
+                raise CampaignAttributionError(resolution)
+            existing = db.get(AgentExecution, execution_id)
+            if existing is not None:
+                problem = _require_existing_attribution(
+                    existing, resolution, completing=False)
+                if problem is not None:
+                    raise CampaignAttributionError(problem)
                 return execution_id
             assignment = assignment if isinstance(assignment, Mapping) else {}
             db.add(AgentExecution(
                 id=execution_id,
-                agent_id=(
-                    str(assignment.get("employee_id") or "")
-                    or "employee-campaign"),
-                tenant_id=str(assignment.get("tenant_id") or "") or None,
-                workspace_id=str(assignment.get("workspace_id") or "") or None,
+                agent_id=resolution.agent_id,
+                tenant_id=resolution.tenant_id,
+                workspace_id=resolution.workspace_id,
                 status="running",
                 input_summary=str(assignment.get("objective") or "")[:500],
-                metadata_json={},
+                metadata_json={"campaign": {
+                    "id": resolution.campaign_id,
+                    "run_id": resolution.run_id,
+                }},
             ))
             db.commit()
         return execution_id
@@ -329,8 +607,16 @@ def complete_campaign_execution(
     assignment: Mapping[str, Any],
     completed_at: Any,
     served_identity: Optional[Mapping[str, Any]] = None,
+    run_id: Optional[str] = None,
+    campaign: Optional[str] = None,
 ) -> bool:
-    """Mark the campaign execution completed at the durable assignment time."""
+    """Mark the campaign execution completed at the durable assignment time.
+
+    Completion never rewrites agent/tenant/workspace. A completed row is
+    immutable: only an identical re-completion (same identity and completion
+    time) returns ``True`` without writing. A foreign, colliding, misattributed
+    or legacy row raises :class:`CampaignAttributionError`.
+    """
     path = Path(str(db_path or ""))
     if not path.is_file():
         return False
@@ -340,23 +626,43 @@ def complete_campaign_execution(
     try:
         AgentExecution.__table__.create(engine, checkfirst=True)
         with factory() as db:
+            resolution = _resolve_campaign_attribution(
+                db, assignment, campaign=campaign, run_id=run_id)
+            if not resolution.ok:
+                raise CampaignAttributionError(resolution)
             execution = db.get(AgentExecution, execution_id)
             if execution is None:
-                assignment = assignment if isinstance(assignment, Mapping) else {}
+                assignment = (
+                    assignment if isinstance(assignment, Mapping) else {})
                 execution = AgentExecution(
                     id=execution_id,
-                    agent_id=(
-                        str(assignment.get("employee_id") or "")
-                        or "employee-campaign"),
-                    tenant_id=(
-                        str(assignment.get("tenant_id") or "") or None),
-                    workspace_id=(
-                        str(assignment.get("workspace_id") or "") or None),
+                    agent_id=resolution.agent_id,
+                    tenant_id=resolution.tenant_id,
+                    workspace_id=resolution.workspace_id,
                     input_summary=str(
                         assignment.get("objective") or "")[:500],
-                    metadata_json={},
+                    metadata_json={"campaign": {
+                        "id": resolution.campaign_id,
+                        "run_id": resolution.run_id,
+                    }},
                 )
                 db.add(execution)
+            else:
+                problem = _require_existing_attribution(
+                    execution, resolution, completing=True)
+                if problem is not None:
+                    raise CampaignAttributionError(problem)
+                if str(execution.status or "").strip().casefold() == "completed":
+                    requested = _datetime_value(completed_at)
+                    existing_completed = _datetime_value(
+                        execution.completed_at)
+                    if (requested is not None and existing_completed is not None
+                            and requested != existing_completed):
+                        raise CampaignAttributionError(_refused(
+                            REASON_COMPLETION_MISMATCH,
+                            "the completed execution has a different durable "
+                            "completion time; sealed history is immutable"))
+                    return True
             execution.status = "completed"
             execution.completed_at = _datetime_value(completed_at)
             execution.output_summary = str(
@@ -375,13 +681,93 @@ def complete_campaign_execution(
                         "serving_models": [{
                             "provider": provider, "model": model}],
                     }
-            metadata.setdefault("campaign", {
-                "id": campaign_id(),
-                "run_id": str(assignment.get("run_id") or "") or None,
-            })
+            metadata["campaign"] = {
+                "id": resolution.campaign_id,
+                "run_id": resolution.run_id,
+            }
             execution.metadata_json = metadata
             db.commit()
         return True
+    finally:
+        engine.dispose()
+
+
+def _execution_assignment_refusal(
+    path: Path,
+    execution_id: str,
+    assignment: Mapping[str, Any],
+    *,
+    campaign: Optional[str] = None,
+) -> Optional[str]:
+    """When the caller supplies the plan, the row must match it exactly."""
+    if not path.is_file():
+        return None
+    from core.models import AgentExecution
+
+    engine, factory = _session_factory(path)
+    try:
+        with factory() as db:
+            resolution = _resolve_campaign_attribution(
+                db, assignment, campaign=campaign,
+                run_id=str(assignment.get("run_id") or "") or None)
+            if not resolution.ok:
+                return resolution.reason or REASON_ROW_ATTRIBUTION_MISMATCH
+            if not _table_exists(db, AgentExecution.__tablename__):
+                return REASON_ROW_ATTRIBUTION_MISMATCH
+            execution = db.get(AgentExecution, execution_id)
+            if execution is None:
+                return REASON_ROW_ATTRIBUTION_MISMATCH
+            problem = _require_existing_attribution(
+                execution, resolution, completing=True)
+            if problem is not None:
+                return problem.reason or REASON_ROW_ATTRIBUTION_MISMATCH
+            return None
+    finally:
+        engine.dispose()
+
+
+def _execution_attribution_refusal(
+    path: Path, execution_id: str,
+) -> Optional[str]:
+    """The durable row's agent must resolve inside the row's own scope.
+
+    Returns a refusal reason, or ``None`` when the row is absent/unreadable (the
+    producer reports those) or already correctly attributed. A completed
+    legacy row attributed to a ``User.id`` (or the old ``employee-campaign``
+    fallback) has no registry row and is refused here, so it can never be
+    sealed after the fact.
+    """
+    if not path.is_file():
+        return None
+    from core.models import AgentExecution, AgentRegistry
+
+    engine, factory = _session_factory(path)
+    try:
+        with factory() as db:
+            if not _table_exists(db, AgentExecution.__tablename__):
+                return None
+            execution = db.get(AgentExecution, execution_id)
+            if execution is None:
+                return None
+            row_agent = str(execution.agent_id or "").strip()
+            row_tenant = _canonical_scope(
+                execution.tenant_id, PERSONAL_TENANT_ID)
+            row_workspace = _canonical_scope(
+                execution.workspace_id, PERSONAL_WORKSPACE_ID)
+            if not row_agent:
+                return REASON_ROW_AGENT_UNRESOLVED
+            if not _table_exists(db, AgentRegistry.__tablename__):
+                return REASON_ROW_AGENT_UNRESOLVED
+            agent = db.get(AgentRegistry, row_agent)
+            if agent is None:
+                return REASON_ROW_AGENT_UNRESOLVED
+            if (_canonical_scope(agent.tenant_id, PERSONAL_TENANT_ID)
+                    != row_tenant
+                    or _canonical_scope(
+                        agent.workspace_id, PERSONAL_WORKSPACE_ID)
+                    != row_workspace):
+                return REASON_ROW_AGENT_SCOPE_MISMATCH
+            return None
     finally:
         engine.dispose()
 
@@ -402,6 +788,7 @@ def record_campaign_evidence(
     registry: Optional[Mapping[str, Any]] = None,
     benchmark: Optional[str] = None,
     out_dir: Optional[Any] = None,
+    assignment: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Seal the transport journal and invoke the production producer.
 
@@ -412,6 +799,12 @@ def record_campaign_evidence(
     lacks an explicit provider ``response_identity`` the campaign is
     ``rejected`` as a whole — even when other accepted calls echoed one — and
     nothing is written.
+
+    ``assignment`` is optional: when supplied (the runner always does), the
+    durable row must match the server plan's exact agent/scope/campaign-run
+    identity before sealing. Without it, the row's agent must still resolve to
+    a real ``AgentRegistry`` row in the row's own scope, so a legacy
+    user-attributed row can never be sealed.
     """
     from core.employee_benchmark_evidence import (
         REASON_IDENTITY_MISSING,
@@ -440,6 +833,28 @@ def record_campaign_evidence(
         return {
             "status": "skipped",
             "reason": "no_accepted_transport_calls",
+            "campaign_id": campaign,
+        }
+    # Independent, durable gate: a row whose agent is not a real registry row
+    # in the row's own scope is not agent-qualifying evidence. When the caller
+    # supplies the server plan, the row must also match that plan's exact
+    # agent/scope/campaign-run identity. This closes the legacy
+    # user-attributed row and a foreign row reached without the create paths
+    # (the producer itself stays row-authority).
+    if isinstance(assignment, Mapping):
+        attribution_refusal = _execution_assignment_refusal(
+            Path(str(db_path)), execution_id, assignment, campaign=campaign)
+    else:
+        attribution_refusal = _execution_attribution_refusal(
+            Path(str(db_path)), execution_id)
+    if attribution_refusal is not None:
+        logger.warning(
+            "employee campaign %s: refusing to seal execution %s: %s",
+            campaign, execution_id, attribution_refusal)
+        return {
+            "status": "rejected",
+            "reason": attribution_refusal,
+            "reasons": [attribution_refusal],
             "campaign_id": campaign,
         }
     journal = open_campaign_transport_journal(
@@ -480,6 +895,8 @@ def record_campaign_evidence(
 
 
 __all__ = [
+    "CampaignAttribution",
+    "CampaignAttributionError",
     "DEFAULT_CAMPAIGN_ID",
     "ENV_ARTIFACT_DIR",
     "ENV_BENCHMARK_ID",
@@ -494,6 +911,7 @@ __all__ = [
     "complete_campaign_execution",
     "durable_assignment",
     "record_campaign_evidence",
+    "resolve_campaign_attribution",
     "route_decisions",
     "start_campaign_execution",
     "unique_served_identity",
