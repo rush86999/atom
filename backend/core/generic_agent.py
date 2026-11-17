@@ -3623,7 +3623,7 @@ What is your next step?"""
                         if not approval_material.get("ok"):
                             return self._refuse_approved_material(
                                 tool_name, evidence, approval_material,
-                                mutating, context)
+                                mutating, context, reviewed_request)
                         governance_reason = (
                             await self._revalidate_approved_action(
                                 tool_name, auth_check, context))
@@ -3632,7 +3632,7 @@ What is your next step?"""
                                 tool_name, evidence,
                                 {"code": "approval_governance_changed",
                                  "message": governance_reason},
-                                mutating, context)
+                                mutating, context, reviewed_request)
                         # Last safe-point fence AFTER the awaited re-check:
                         # scope/revocation/material changes that happened
                         # during that await must not reach the handler.
@@ -3642,7 +3642,7 @@ What is your next step?"""
                         if not fenced_material.get("ok"):
                             return self._refuse_approved_material(
                                 tool_name, evidence, fenced_material,
-                                mutating, context)
+                                mutating, context, reviewed_request)
                         approval_material = fenced_material
                         authorized = copy.deepcopy(
                             approval_material["effective_params"])
@@ -3696,7 +3696,7 @@ What is your next step?"""
                 if not approval_material.get("ok"):
                     return self._refuse_approved_material(
                         tool_name, evidence, approval_material, mutating,
-                        context)
+                        context, reviewed_request)
                 governance_reason = await self._revalidate_approved_action(
                     tool_name, approval_reviewed_check, context)
                 if governance_reason:
@@ -3704,7 +3704,7 @@ What is your next step?"""
                         tool_name, evidence,
                         {"code": "approval_governance_changed",
                          "message": governance_reason},
-                        mutating, context)
+                        mutating, context, reviewed_request)
                 # Same last safe-point fence as the sequential consumer.
                 fenced_material = self._fence_approved_material(
                     approval_action_id, tool_name, reviewed_request, context,
@@ -3712,7 +3712,7 @@ What is your next step?"""
                 if not fenced_material.get("ok"):
                     return self._refuse_approved_material(
                         tool_name, evidence, fenced_material, mutating,
-                        context)
+                        context, reviewed_request)
                 approval_material = fenced_material
                 authorized = copy.deepcopy(
                     approval_material["effective_params"])
@@ -4669,13 +4669,50 @@ What is your next step?"""
     def _refuse_approved_material(
         self, tool_name: str, evidence: Optional[Dict[str, Any]],
         refusal: Dict[str, Any], mutating: bool, context: Dict = None,
+        authorized: Optional[Dict] = None,
     ) -> Any:
         """Build an approval refusal and keep terminal actor denials durable."""
         out = self._approved_material_refusal(
             tool_name, evidence, refusal, mutating)
         if isinstance(out, dict) and out.get("terminal_authority_denial"):
             self._record_terminal_authority_denial(context, tool_name, out)
+            if mutating:
+                self._record_refused_mutation_claim(
+                    tool_name, authorized or {}, context)
         return out
+
+    def _record_refused_mutation_claim(
+        self, tool_name: str, authorized: Dict, context: Dict = None,
+    ) -> None:
+        """Persist a terminal no-effect refusal in the existing claim table.
+
+        A terminal actor/scope denial is a final, non-retryable decision for
+        this logical operation: the handler never ran, so the durable operation
+        arbiter (the same ``TaskOperationRecord`` used by every generic
+        mutation) records ``failed_before_effect`` rather than leaving no
+        evidence at all. Nothing is dispatched and ``dispatching`` is never
+        written. A store failure is logged and never changes the refusal.
+        """
+        try:
+            from core import outbound_operation_claim as claims
+
+            operation_id = str((context or {}).get("operation_id") or "")
+            if not operation_id:
+                operation_id = self._server_operation_id(
+                    tool_name, authorized or {}, context or {})
+            if not operation_id:
+                return
+            claim = self._claim_mutation_operation(
+                tool_name, authorized or {}, context or {}, operation_id)
+            if not claim or not claim.get("won"):
+                return
+            self._mark_claim_status(
+                claim, claims.FAILED_BEFORE_EFFECT,
+                expected_status=claims.CLAIMED)
+        except Exception as exc:  # noqa: BLE001 - refusal stays authoritative
+            logger.debug(
+                "refused mutation claim not recorded for %s: %s",
+                tool_name, exc)
 
     @staticmethod
     def _approved_material_refusal(

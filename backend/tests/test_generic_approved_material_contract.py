@@ -467,6 +467,15 @@ async def test_revoked_admitted_actor_is_a_typed_terminal_non_effect(
     assert out["effect_state"] == "none"
     assert out["requires_reconciliation"] is False
     assert out["error_class"] == "approval_actor_inactive"
+    # The terminal refusal is a final no-effect decision for this logical
+    # operation, so the existing durable claim arbiter records it. No handler
+    # ran and no dispatched/succeeded claim exists.
+    rows = _claim_rows(env, "exec-actor-revoked")
+    assert len(rows) == 1, rows
+    assert rows[0].status == claims.FAILED_BEFORE_EFFECT
+    assert rows[0].operation_type == "generic:agent:tasks.create"
+    assert rows[0].operation_id.startswith("auto-")
+    assert rows[0].idempotency_key == rows[0].operation_id
 
 
 @pytest.mark.asyncio
