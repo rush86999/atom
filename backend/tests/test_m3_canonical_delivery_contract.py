@@ -624,6 +624,154 @@ def test_m3_on_unavailable_validation_never_releases_raw_claim(
     assert http_message == durable == done
 
 
+@pytest.mark.parametrize("withheld", [None, "", "   ", "unreleased-span"])
+@pytest.mark.asyncio
+async def test_m3_unavailable_validation_never_releases_known_claim(
+        monkeypatch, withheld):
+    """ROOT COUNTER (2026-11-17): an explicit EMPTY withheld string must not
+    disable the frozen-claim-shape check.
+
+    Empty ``withheld`` means "no CURRENT unreleased span", not "the whole
+    raw buffer was validated". The incremental gate only sees its current
+    window, so a claim split across already-released chunks can leave
+    ``withheld == ""`` while the full raw buffer still carries a frozen
+    claim. An unavailable receipt read must then return the honest notice,
+    never the raw claim and never "unchanged".
+    """
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    monkeypatch.setattr(
+        ChatOrchestrator, "_canvas_claim_correction",
+        AsyncMock(side_effect=OSError(
+            "synthetic unavailable receipt read")))
+
+    text, status = await ChatOrchestrator._m3_canonical_delivery_text(
+        "I updated the draft.",
+        {"canvas_id": "synthetic"}, "session", "user", False,
+        execution_id="execution", withheld=withheld,
+    )
+
+    assert status == "unavailable", (withheld, text, status)
+    assert "I updated the draft." not in text
+    assert "Unverified" in text
+
+
+@pytest.mark.parametrize("withheld", [None, "", "   "])
+@pytest.mark.asyncio
+async def test_m3_unavailable_validation_keeps_benign_text(
+        monkeypatch, withheld):
+    """A benign direct reply with no claim shape is still delivered
+    unchanged when the receipt read is unavailable."""
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    monkeypatch.setattr(
+        ChatOrchestrator, "_canvas_claim_correction",
+        AsyncMock(side_effect=OSError(
+            "synthetic unavailable receipt read")))
+    benign = "The draft is ready for your review."
+
+    text, status = await ChatOrchestrator._m3_canonical_delivery_text(
+        benign, {"canvas_id": "synthetic"}, "session", "user", False,
+        execution_id="execution", withheld=withheld,
+    )
+
+    assert (text, status) == (benign, "unchanged")
+
+
+@pytest.mark.asyncio
+async def test_m3_off_is_not_affected(monkeypatch):
+    """M3 OFF returns before any validation (the guard must not be called)."""
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    claim = "I updated the draft."
+    monkeypatch.delenv("CHAT_FINALIZATION_M3", raising=False)
+    monkeypatch.setattr(
+        ChatOrchestrator, "_canvas_claim_correction",
+        AsyncMock(side_effect=OSError("must not be called")))
+
+    text, status = await ChatOrchestrator._m3_canonical_delivery_text(
+        claim, {"canvas_id": "synthetic"}, "session", "user", False,
+        execution_id="execution", withheld="",
+    )
+    assert (text, status) == (claim, "off")
+
+
+@pytest.mark.asyncio
+async def test_m3_normal_noncanvas_turn_is_unchanged(monkeypatch):
+    """A normal non-canvas turn has no operation outcome and is unchanged."""
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    claim = "I updated the draft."
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+
+    text, status = await ChatOrchestrator._m3_canonical_delivery_text(
+        claim, None, "session", "user", False,
+        execution_id="execution", withheld="",
+    )
+    assert (text, status) == (claim, "unchanged")
+
+
+def test_m3_on_stream_empty_withheld_unavailable_guard_does_not_release_claim(
+        client, world, ws_capture, user_token, monkeypatch):
+    """PUBLIC STREAM FAULT CONTROL: with M3=1, the claim is split across
+    already-released chunks so the close receives ``withheld == ""`` and the
+    original raw buffer still contains the frozen claim. The final receipt
+    read is unavailable. WS close, HTTP and the durable row must not
+    reintroduce that raw claim; they must carry the truthful non-empty
+    unverified notice.
+
+    The spy proves the stream-close call really saw the EMPTY span — this is
+    the exact root counter, not an inferred internal state.
+    """
+    user, token = user_token
+    monkeypatch.setenv("CHAT_FINALIZATION_M3", "1")
+    claim = "I updated the draft."
+    llm = _FakeLLM(claim)
+    _install_orchestrator(monkeypatch, llm)
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    seen_withheld = []
+    real_canonical = ChatOrchestrator._m3_canonical_delivery_text
+
+    async def _spy(content, *args, **kwargs):
+        if "withheld" in kwargs:
+            seen_withheld.append(kwargs["withheld"])
+        return await real_canonical(content, *args, **kwargs)
+
+    monkeypatch.setattr(
+        ChatOrchestrator, "_m3_canonical_delivery_text",
+        staticmethod(_spy))
+    monkeypatch.setattr(
+        ChatOrchestrator, "_canvas_claim_correction",
+        AsyncMock(side_effect=OSError(
+            "synthetic unavailable receipt read")))
+
+    resp = _post(client, token, user.id, READ_ONLY_ASK)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    assert seen_withheld and seen_withheld[0] == "", (
+        "the stream-close boundary must receive the empty withheld span")
+    assert len(llm.stream_calls) == 1
+
+    http_message = str(body["message"])
+    durable = _durable_assistant(world)
+    done = _done_content(ws_capture)
+
+    for text in (http_message, durable, done):
+        assert claim not in text
+        assert "Unverified" in text
+        assert text.strip()
+    assert http_message == durable == done
+    # NOTE: the incremental legacy gate can release a frozen claim that is
+    # split across already-released chunks (pre-existing limitation, NOT
+    # this repair). The contract under test is that the FINAL carriers do
+    # not reintroduce it; no assertion is made about the mid-stream delta.
+
+
 def test_m3_on_noncanvas_turn_is_untouched(
         client, world, ws_capture, user_token, monkeypatch):
     """No canvas operation outcome exists, so M3 has no boundary: the reply

@@ -49,10 +49,14 @@ One canonical text boundary, `_m3_canonical_delivery_text`, reuses:
 - **Incremental withholding unchanged:** `_m3_gate_stream_chunk` still
   holds unverified claims mid-stream. The final canonical text strips the
   same claims, so invisible held chunks never become visible at close.
-- **Fail closed:** a guard fault with an unreleased withheld span or a
+- **Fail closed:** a guard fault with a non-empty withheld span or a
   claim-shaped reply returns a non-empty honest notice that neither claims
-  a send/write nor says "nothing happened". Empty/`None` stay empty and a
-  benign reply with no claim shape is delivered unchanged.
+  a send/write nor says "nothing happened". **An EMPTY withheld span does
+  not disable the claim-shape check**: the incremental gate only sees its
+  current window, so a claim split across already-released chunks can
+  leave `withheld == ""` while the full raw buffer still carries a frozen
+  claim (root counter, 2026-11-17). Empty/`None` stay empty and a benign
+  reply with no claim shape is delivered unchanged.
 
 No vocabulary/regex expansion, no new intent classifier, no email-provider
 special case, no extra LLM call, no flag flip. `CHAT_FINALIZATION_M3`
@@ -83,6 +87,12 @@ Covered:
 - structured payload delivered unchanged;
 - protocol-rejected stream does not deliver its raw text;
 - guard fault fails closed with the honest delivery notice;
+- **guard fault with explicit empty / whitespace / `None` / non-empty
+  withheld controls** (the empty and whitespace cases are the root counter);
+- **public stream fault control**: a frozen claim split so the close sees
+  `withheld == ""` while the raw buffer still carries it, then an
+  unavailable receipt read — WS close, HTTP and durable all carry the
+  truthful unverified notice, never the raw claim;
 - non-canvas turn untouched;
 - empty/`None`/no-op semantics preserved.
 
@@ -91,7 +101,7 @@ Commands run (backend dir, cached venv, `TESTING=1`,
 
 ```
 python -m pytest -q tests/test_m3_canonical_delivery_contract.py
-  -> 12 passed
+  -> 22 passed
 
 python -m pytest -q \
   tests/test_m3_canonical_delivery_contract.py \
@@ -99,7 +109,7 @@ python -m pytest -q \
   tests/test_finalization_m2.py tests/test_chat_finalization_seam.py \
   tests/test_f6_orchestrator_delivery.py \
   "tests/test_pending_file_task_resume.py::TestCanvasTruthGate"
-  -> 99 passed, 2 xfailed
+  -> 110 passed, 2 xfailed
 ```
 
 The two xfails are the pre-existing strict-XFAIL safety checks in
@@ -114,12 +124,18 @@ A broader three-file run (`test_l2_guard_order.py`,
 baseline with this change stashed fails identically — it is a pre-existing
 cross-file order failure, not a regression from this work.
 
-Paired baseline for the new contract file itself: with only
-`chat_orchestrator.py` stashed (the test file kept), the same command gives
-**8 failed, 4 passed** — the leaking claim cases fail and only the intended
-controls (M3 OFF, benign, non-canvas, structured) pass. With the repair:
-**12 passed**. The new tests therefore reproduce the defect, not just the
-fix.
+Paired baselines for the contract file (test file kept, only the source
+under test stashed):
+
+- original repair baseline (before `fec3411fa`, 12 tests): **8 failed,
+  4 passed** — the leaking claim cases fail, only the intended controls
+  (M3 OFF, benign, non-canvas, structured) pass;
+- follow-up baseline (the empty-withheld fix reverted, 22 tests): **3
+  failed, 19 passed** — exactly `withheld=""`, `withheld="   "` and the
+  public empty-span stream fault control fail. With the fix: **22
+  passed**.
+
+The tests therefore reproduce the defects, not just the fixes.
 
 ## Limits (recorded, not hidden)
 
@@ -137,3 +153,35 @@ fix.
 - If validation itself faults, a benign sentence that happens to match a
   frozen claim shape is replaced by the honest notice (fail-closed
   trade-off; normal operation is unaffected).
+- The incremental M3 gate can still release a frozen legacy claim that is
+  split across already-released chunks (it only inspects the current
+  unreleased window). That pre-existing mid-stream limitation is unchanged
+  by this repair; the final close/HTTP/durable boundary now refuses to
+  reintroduce such a claim when the receipt read is unavailable.
+
+## Addendum 2026-11-17 — empty-withheld follow-up (root counter)
+
+The root counter showed that `_m3_canonical_delivery_text(..., withheld="")`
+returned the raw claim unchanged when `_canvas_claim_correction` raised,
+because the fault predicate was:
+
+```
+withheld_unreleased OR (withheld is None AND claim_shape)
+```
+
+so an explicit empty string disabled the frozen-claim-shape check. Empty
+`withheld` means **no currently unreleased span**, not that the whole raw
+buffer was validated (the incremental gate sees only its window). The
+predicate is now:
+
+```
+withheld_unreleased OR claim_shape(text)
+```
+
+The withheld span is additive evidence; it never gates the shape check.
+Benign direct text (no claim shape), M3 OFF, normal non-canvas, structured,
+protocol and rejection semantics are unchanged. Permanent regressions:
+`None`, `""`, `"   "` and non-empty withheld controls plus a public stream
+fault control that proves the close received `withheld == ""` via a spy and
+that WS close / HTTP / durable carry only the truthful notice.
+

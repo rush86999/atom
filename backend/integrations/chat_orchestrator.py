@@ -21983,9 +21983,14 @@ class ChatOrchestrator:
                               unchanged text is returned.
 
         ``withheld`` is the incremental gate's unreleased text for a
-        stream: an unreleased span is direct evidence that releasing the
-        raw buffer would leak, so an unavailable validation fails closed
-        even if the assembled text no longer matches a frozen shape.
+        stream. A NON-EMPTY unreleased span is direct evidence that
+        releasing the raw buffer would leak. An EMPTY span is NOT proof
+        that the raw buffer was validated: the incremental gate only sees
+        the currently-unreleased window, so a claim can be split across
+        already-released chunks (or a held span can be flushed) and leave
+        ``withheld == ""`` while the raw buffer still carries a frozen
+        claim. The claim-shape check therefore always runs when validation
+        is unavailable; the span only adds evidence, it never removes it.
 
         Fail-closed semantics are preserved: ``None``/empty input is
         returned as-is, a guard fault never fabricates a send/write
@@ -22025,9 +22030,10 @@ class ChatOrchestrator:
                 session_id or "?", execution_id or "?", exc_info=True,
             )
             withheld_unreleased = bool(str(withheld or "").strip())
-            if withheld_unreleased or (
-                withheld is None and cls._m3_claim_shape_present(text)
-            ):
+            # A known claim shape in the FULL raw buffer blocks release even
+            # when no span is currently withheld (see docstring). The span
+            # is additive evidence, not a gate on the shape check.
+            if withheld_unreleased or cls._m3_claim_shape_present(text):
                 return cls._M3_UNVERIFIED_DELIVERY_NOTICE, "unavailable"
             return text, "unchanged"
         if not canonical:
