@@ -3,8 +3,11 @@
 > **Status:** Phase 1 (P1a–P1d) implemented behind feature flags. The
 > previously-dead `route_with_governance` path is wired into the live
 > `AtomMetaAgent.execute()` dispatch; the fleet recruits real ranked
-> specialists with depth-enforced nesting. **Flags default OFF — kill-switch
-> parity with pre-P1 behavior.**
+> specialists with depth-enforced nesting. The W4/P1 wiring first shipped with
+> both flags OFF (historical kill-switch parity); since **2026-08-21** the
+> master switch defaults **ON in shadow** (`ATOM_FLEET_ROUTING_ENABLED=true`),
+> while `ATOM_FLEET_ROUTING_FORCE_ENFORCE` still defaults false. Setting the
+> master false remains the full kill switch restoring exact pre-P1 behavior.
 >
 > **Last Updated:** Nov 17, 2026
 >
@@ -18,9 +21,13 @@
 ## TL;DR
 
 - The dead fleet path (`route_with_governance` had zero live callers) is now
-  reachable from `execute()` behind `ATOM_FLEET_ROUTING_ENABLED` (default
-  false). A fleet-eligible ONE_OFF task routes through governance and returns
-  a recruitment summary.
+  reachable from `execute()`. Since 2026-08-21 `ATOM_FLEET_ROUTING_ENABLED`
+  defaults **on in shadow**: a fleet-eligible ONE_OFF task computes/audits
+  governed recruitment, while the response still comes from Queen→ReAct until
+  enforcement is approved. `ATOM_FLEET_ROUTING_FORCE_ENFORCE` defaults false,
+  and `resolved_fleet_enforce()` can also honor the latest applied `enable`
+  pilot action (approval-mode actions require operator consent). The master
+  switch still gates everything, and setting it false restores pre-P1 behavior.
 - `SpecialistMatcher` is real: ranked candidates from `AgentRegistry` via an
   explicit scoring metric (capability overlap + tier + verified-episode ratio
   + confidence + recency).
@@ -35,10 +42,11 @@
 
 | Flag | Default | Gates |
 |---|---|---|
-| `ATOM_FLEET_ROUTING_ENABLED` | **false** | Master switch — whether TASK intents route through the governed fleet path |
-| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | false | Shadow mode: compute/audit recruitment but fall through to Queen→ReAct for the response |
+| `ATOM_FLEET_ROUTING_ENABLED` | **true** (shadow since 2026-08-21) | Master switch — whether TASK intents route through the governed fleet path. `false` is the full kill switch. |
+| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | false | Shadow-mode control: when false (default), compute/audit recruitment but fall through to Queen→ReAct for the response. Enforcement can also be enabled by the latest applied `enable` pilot action (`resolved_fleet_enforce`; approval-mode actions require operator consent), but never with the master off. |
 
-Kill-switch parity: both off == exact pre-P1 behavior (covered by
+Kill-switch parity: master `ATOM_FLEET_ROUTING_ENABLED=false` == exact pre-P1
+behavior regardless of the enforce setting (covered by
 `test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance`).
 
 ## Architecture
@@ -517,11 +525,13 @@ that requirement; there is no second parser or phrase regex. Authorization
 fails closed without a validated accepted requirement, so a directly
 constructed program cannot self-authorize delegation.
 
-**Bounded request material.** At most 10 roles (`COLLABORATION_ROLE_LIMIT`),
-200 characters per role label and 4 000 characters for the objective (the
-whole request). Over-limit requests CLARIFY with the full original request and
-every requested role preserved — the tail is never dropped and a label is
-never renamed. Role labels resolve through the shipped specialist
+**Bounded request material.** At most 10 roles execute
+(`COLLABORATION_ROLE_LIMIT`), 200 characters per role label and 4 000
+characters for the objective (the whole request); the structured label list is
+capped at the first 64 entries (`COLLABORATION_HARD_ROLE_CAP`, a memory bound).
+An over-limit request CLARIFIES and the exact original request string is
+preserved separately; the label list never carries more than 64 entries, and a
+label is never renamed. Role labels resolve through the shipped specialist
 matcher/canonical domains; requested domains constrain recruitment exactly and
 an unknown domain clarifies instead of substituting an available specialist.
 
@@ -529,7 +539,8 @@ an unknown domain clarifies instead of substituting an available specialist.
 after the deterministic edit/ask lanes and BEFORE `_get_qwen_response`, so the
 turn cannot answer from one perspective and hope a later route replaces it.
 The existing gates still decide what happens, in order:
-`ATOM_FLEET_ROUTING_ENABLED` (master off ⇒ `fleet_routing_disabled`),
+`ATOM_FLEET_ROUTING_ENABLED` (master off ⇒ `fleet_routing_disabled`; the
+master defaults on in shadow, so `false` is the kill switch),
 `resolved_fleet_enforce()` (shadow/pilot not approved ⇒
 `fleet_pilot_not_enforced`), requirement authorization (`roles_ambiguous`) and
 the remaining turn deadline (`turn_budget_exhausted`). **A task request is not
@@ -547,9 +558,14 @@ outcomes are explicit (`found` / `inactive` / `absent` / `inconsistent` /
 and the stored request digest. A save is published to the cache only after the
 store confirms, and a missing manager, `False` or exception is reported as
 not-saved with `request_preserved=False` — never a hard-coded success. Resume
-CAS-transitions to `dispatching` and uses the existing task-operation claim as
-an independent duplicate guard; a completed receipt blocks replay even if the
-later metadata clear failed. A stale writer cannot clobber a newer pending.
+CAS-transitions to `dispatching` in durable metadata, and nothing dispatches
+unless that save confirms. In **DB mode** it also claims the existing
+`task_operation_records` receipt as an independent durable guard; a completed
+receipt blocks replay even if the later metadata clear failed. **File mode has
+no receipt**: it relies on the stable OS file lock plus the metadata CAS
+dispatching state, requires no DB and promises no independent DB receipt or
+crash recovery. Both modes remain first-class. A stale writer cannot clobber a
+newer pending.
 
 **One canonical conversation id.** `process_chat_message` resolves
 `_get_or_create_session` once at turn entry and normalizes `session_id` before
@@ -561,12 +577,15 @@ the foreign user's rows and pending are untouched. Ordinary same-user two-turn
 continuation keeps the same id.
 
 **Shared metadata contract.** `ChatSessionManager.update_session_metadata` is a
-bounded whole-raw-JSON-snapshot CAS loop: exact `CAST(metadata_json AS TEXT)`
-read, typed `expected=` preconditions, `UPDATE ... WHERE metadata_json =
-<exact snapshot>`, re-read/re-merge on a miss. Unrelated keys (including typed
-JSON `null`) survive a concurrent legacy patch on SQLite and PostgreSQL. File
-mode adds a stable sibling cross-process lock with truthful failure and
-fail-closed behavior when no OS lock primitive exists. The direct
+bounded whole-raw-JSON-snapshot CAS loop: an exact `CAST(metadata_json AS TEXT)`
+read, typed `expected=` preconditions, and a guarded
+`UPDATE ... WHERE id = :session_id AND metadata_json IS NULL` (SQL `NULL`) or
+`... AND CAST(metadata_json AS TEXT) = :raw_snapshot` (JSON literal `null` /
+object) — a cast-text comparison, not untyped JSON equality; PostgreSQL JSONB
+compares its canonical cast text. A miss re-reads and re-merges. Unrelated keys
+(including typed JSON `null`) survive a concurrent legacy patch on SQLite and
+PostgreSQL. File mode adds a stable sibling cross-process lock with truthful
+failure and fail-closed behavior when no OS lock primitive exists. The direct
 `AgentContextResolver.set_session_agent` writer now uses the shared
 `merge_in_session` CAS. This is a cross-caller behavior change, not a
 fleet-only one: the return value is now a truthful boolean and existing
@@ -580,9 +599,10 @@ Only model outputs are doubled, so the public HTTP/JWT, scoped factory,
 governed dispatch, durable persistence and child-to-synthesis dataflow are real
 but answer quality is not. A fresh manager/orchestrator is not a whole-app
 restart; the PostgreSQL evidence is 12 shared-method checks on a socket-only
-cluster, not app-wide PostgreSQL. Fleet cases 6/7/8 remain failed, and two
-unrelated open strict XFAILs remain in
-`tests/test_pending_file_task_resume.py`. See
+cluster, not app-wide PostgreSQL. Fleet cases 6/7/8 remain failed, and two open
+strict XFAILs remain in `tests/test_pending_file_task_resume.py` (a separate
+root investigation at the public boundary has no result yet; no cause is
+claimed here). See
 [EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md](../engineering/EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md)
 and its
 [filtered result](../engineering/evidence/explicit_collaboration_authority_20261117/result.json).

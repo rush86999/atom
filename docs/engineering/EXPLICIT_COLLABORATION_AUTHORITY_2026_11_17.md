@@ -32,13 +32,16 @@ domain clarifies rather than substituting an available specialist.
 
 | Material | Limit | On overflow |
 |---|---|---|
-| Specialist roles | 10 carried (`COLLABORATION_ROLE_LIMIT`) | Clarify; the whole original request is preserved, never tail-truncated. A larger safety cap exists only to bound memory. |
+| Specialist roles | 10 executed (`COLLABORATION_ROLE_LIMIT`); the structured label list is capped at the first 64 entries (`COLLABORATION_HARD_ROLE_CAP`) | Clarify; the exact original request string is preserved separately, and the label list never carries more than 64 entries. |
 | One role label | 200 characters | Clarify and ask for a shorter label; the label is never renamed to fit. |
-| Collaboration objective (the whole request) | 4 000 characters | Clarify and ask to shorten/split; execution still uses the turn's original message. |
+| Collaboration objective (the whole request) | 4 000 characters | Clarify and ask to shorten/split; execution still uses the turn's original message, which is retained in the requirement. |
 
 Duplicate roles are deduplicated and whitespace-normalized; nothing else is
-rewritten. Eight and nine role requests are carried end to end, and an
-over-limit request keeps every requested role in the clarification record.
+rewritten. Eight and nine role requests are carried end to end, and an 11-role
+request retains all 11 structured labels in its clarification record. Beyond
+64 structured labels the label list itself is bounded (`hard_cap_exceeded`
+also forces clarification): what is preserved without truncation is the exact
+original request string, not an unbounded role-list copy.
 
 ## Early route, unchanged operator gates
 
@@ -49,7 +52,8 @@ edit/ask lanes and before `_get_qwen_response`.
 
 The gates are unchanged and are evaluated in this order:
 
-1. `ATOM_FLEET_ROUTING_ENABLED` (master) — off ⇒ pending reason
+1. `ATOM_FLEET_ROUTING_ENABLED` (master; defaults on in shadow since
+   2026-08-21, `false` is the full kill switch) — off ⇒ pending reason
    `fleet_routing_disabled`.
 2. `resolved_fleet_enforce()` (approved pilot/enforcement) — false ⇒ pending
    reason `fleet_pilot_not_enforced` (shadow).
@@ -96,11 +100,20 @@ exception becomes `saved=False` / outcome `unavailable` with
 response, and the objective stays pending). The route never hard-codes
 `request_preserved=True`.
 
-Dispatch uses one durable claim before execution: resume CAS-transitions
-`pending → dispatching`, then the existing task-operation claim
-(`claim_generic_operation` / `mark_status`) is the independent duplicate guard.
-A completed receipt blocks a replay even if the later metadata clear failed,
-and the task question is resolved only after the durable clear succeeds. A
+Dispatch first CAS-transitions `pending → dispatching` in durable metadata, and
+nothing dispatches unless that save confirms. In **DB mode** the resume then
+also claims the existing `task_operation_records` receipt
+(`claim_generic_operation` / `mark_status`) as an independent durable guard: a
+second process/turn can only observe the winner, and a completed receipt
+blocks a replay even if the later metadata clear failed. **File mode has no
+receipt**: `_claim_collaboration_receipt` returns `None` when the session
+manager is not DB-backed, so file mode relies on the stable OS file lock plus
+the metadata CAS dispatching state, requires no DB and promises no independent
+DB receipt or crash recovery. Both storage modes remain first-class. The
+durable-clear-vs-stale-cache, cancellation and revision-mismatch controls are
+DB-backed (the durable metadata is the authority); the file-mode control covers
+cold-manager resume, and the completed-receipt replay guard is DB-mode only.
+The task question is resolved only after the durable clear succeeds, and a
 stale writer cannot clobber a newer pending (created-at check plus CAS).
 
 ## One canonical conversation id
@@ -123,14 +136,19 @@ unchanged.
 
 `ChatSessionManager.update_session_metadata` is a bounded optimistic CAS loop
 over a whole raw-JSON snapshot, not a single-key guard. All 2-argument and
-`expected=` callers are protected: a concurrent commit to any other key makes
-the guarded `UPDATE ... WHERE metadata_json = <exact pre-read snapshot>` miss,
-and the writer re-reads and re-merges (bounded; `False` on exhaustion).
+`expected=` callers are protected: the guarded statement is
+`UPDATE ... WHERE id = :session_id AND metadata_json IS NULL` for SQL `NULL`,
+or `... AND CAST(metadata_json AS TEXT) = :raw_snapshot` for a JSON literal
+`null`/object — a cast-text comparison, never untyped JSON equality (which
+would be misleading on PostgreSQL JSONB). A concurrent commit to any other key
+makes that condition miss, and the writer re-reads and re-merges (bounded;
+`False` on exhaustion).
 
 - The raw stored JSON is read with `CAST(metadata_json AS TEXT)` and parsed
   locally, so SQL `NULL`, the JSON literal `null`, compact/spaced/pretty text,
   escaped unicode, numeric forms and key order all match the actual bytes.
-  PostgreSQL JSONB uses the canonical cast text and JSONB semantics.
+  PostgreSQL JSONB uses the canonical cast text and JSONB semantics (12
+  shared-method checks, not whole-app PostgreSQL).
 - `expected=` is a typed JSON-scalar contract evaluated in Python (`str`/`int`/
   `float`/`bool`/`None`, exact type; `True ≠ 1`, `1 ≠ "1"`; `None` matches
   missing/JSON `null`). Composites and non-finite floats are refused. The
@@ -187,10 +205,11 @@ dataflow, **not** model answer quality.
   is a new real-model pass. Two existing strict XFAILs in
   `tests/test_pending_file_task_resume.py`
   (`test_no_unsupported_workflow_claim_reaches_output`,
-  `test_no_unsupported_claim_in_mixed_body`) are unrelated open
-  negative/supporting defects; they are not skipped or weakened here. The
-  earlier collaboration envelope strict XFAIL was removed by the canonical-id
-  fix and is now a passing assertion.
+  `test_no_unsupported_claim_in_mixed_body`) remain open: a separate root
+  investigation at the public boundary has no result yet, so no cause is
+  claimed here, and they are not skipped or weakened. The earlier
+  collaboration envelope strict XFAIL was removed by the canonical-id fix and
+  is now a passing assertion.
 - No original audit, 143-claim identity or historical score is modified, and
   no readiness percentage is invented.
 

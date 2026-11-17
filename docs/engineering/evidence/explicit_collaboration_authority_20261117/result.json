@@ -42,12 +42,12 @@
   },
   "bounded_offline_proof": [
     "one shared structured interpretation expresses collaboration; no second parser or phrase regex",
-    "role/label/objective limits clarify and preserve the whole request instead of truncating",
+    "role/label/objective limits clarify and preserve the exact original request string; the structured role list is bounded to 64 labels and never silently extended",
     "early pre-reply route with master-off/shadow/pilot gates unchanged; naming specialists is not admin pilot consent",
     "master-off and shadow persist an honest pending with zero chain, zero specialists, zero fleet audit and no paid specialist call",
     "approved pilot executes the exact original request; bare approval resumes the stored original request",
     "pending clarification earns no calibration row and no fleet-success credit",
-    "durable pending load/save/claim truth, scope/revision/digest refusal, single claim receipt, completed-receipt dedupe",
+    "durable pending load/save/claim truth, scope/revision/digest refusal, DB-mode single claim receipt and completed-receipt dedupe, file-mode OS-lock plus metadata CAS dispatching state with no DB receipt",
     "one canonical admitted conversation id before every consumer; same-user two-turn continuation stable; foreign envelope id not reused",
     "whole-raw-JSON metadata CAS preserves unrelated typed null values and concurrent live keys",
     "cross-process file locking with truthful failure and fail-closed missing OS lock",
@@ -68,7 +68,7 @@
       "tests/test_pending_file_task_resume.py::test_no_unsupported_workflow_claim_reaches_output",
       "tests/test_pending_file_task_resume.py::test_no_unsupported_claim_in_mixed_body"
     ],
-    "open_xfail_disposition": "unrelated negative/supporting defects retained; not skipped, deselected or weakened here",
+    "open_xfail_disposition": "open; a separate root investigation at the public boundary has no result yet, so no cause is claimed; not skipped, deselected or weakened here",
     "collaboration_envelope_xfail": "removed by the canonical-id fix and now a passing assertion"
   },
   "postgres_scope": "12 shared-metadata-method checks on a socket-only PostgreSQL 14.24 cluster; owned PID verified absent after cleanup; not whole-app PostgreSQL",
