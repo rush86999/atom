@@ -219,7 +219,11 @@ class World:
         else:
             self.db_path = tmp_path / "graduation-route-runtime.db"
             self._connect()
-        started = _utc_now() - timedelta(days=2)
+        # The qualification baseline record stays comfortably inside the
+        # freshness window while being older than the route-evidence rows a
+        # test adds at ``now - 2 days``; that keeps newest-build and exact
+        # row-order assertions about the test's own evidence.
+        started = _utc_now() - timedelta(days=20)
         tenant = self.ids["tenant"]
         workspace = self.ids["workspace"]
         supervisor = self.ids["supervisor"]
@@ -266,8 +270,10 @@ class World:
                 status="student", enabled=True, confidence_score=0.62,
                 configuration={"learning": {"role": "operations", "log": []}},
             ))
-            # The receipt's own qualification evidence: baseline serving route
-            # observed next to a complete benchmark identity.
+            # The receipt's own qualification evidence: the baseline campaign
+            # run is scored by the ACTUAL producer below, so the binding comes
+            # from a digest-sealed record bound to this execution rather than
+            # from hand-written metadata.
             db.add(AgentExecution(
                 id="exec-1", agent_id=agent_id, tenant_id=tenant,
                 workspace_id=workspace, status="completed",
@@ -288,15 +294,17 @@ class World:
                 started_at=started,
                 completed_at=started + timedelta(minutes=5),
                 metadata_json={
-                    "benchmark_identity": {
-                        "dataset_sha256": DATASET_SHA,
-                        "rubric_version": RUBRIC,
-                        "task_scope": dict(SCOPE),
-                    },
                     "model_provenance": dict(baseline_provenance),
                 },
             ))
             db.commit()
+        baseline_record = self.produce_benchmark_evidence(
+            "exec-1", *baseline_route,
+            observed_at=started + timedelta(minutes=5),
+            execution_provenance=dict(baseline_provenance),
+            echo_model=baseline_build,
+        )
+        assert baseline_record["status"] == "recorded", baseline_record
         self.receipt_id = self._approve_receipt()
         # Repeat-task routing resolves the runtime baseline from the committed
         # promotion transition into the agent's current tier, so the world
@@ -403,15 +411,22 @@ class World:
         )
 
         with self.Session() as db:
-            db.add(AgentExecution(
-                id=exec_id, agent_id=self.ids["agent"],
-                tenant_id=self.ids["tenant"],
-                workspace_id=self.ids["workspace"], status="completed",
-                input_summary="held-out benchmark campaign run",
-                result_summary="campaign observation (unscored material)",
-                completed_at=observed_at,
-                metadata_json=dict(execution_provenance or {}),
-            ))
+            row = db.get(AgentExecution, exec_id)
+            if row is None:
+                db.add(AgentExecution(
+                    id=exec_id, agent_id=self.ids["agent"],
+                    tenant_id=self.ids["tenant"],
+                    workspace_id=self.ids["workspace"], status="completed",
+                    input_summary="held-out benchmark campaign run",
+                    result_summary="campaign observation (unscored material)",
+                    completed_at=observed_at,
+                    metadata_json=dict(execution_provenance or {}),
+                ))
+            else:
+                # Reuse the durable run exactly as the campaign intake does;
+                # the row's own scope and completion time remain authority.
+                row.status = "completed"
+                row.completed_at = observed_at
             db.commit()
         journal = open_campaign_transport_journal(
             campaign_id=f"heldout-{exec_id}", execution_id=exec_id)
@@ -1073,9 +1088,9 @@ def test_entry_point_rejects_failed_candidate_and_keeps_baseline(
 
 def test_entry_point_supervises_when_all_evidence_is_stale(
         world, tmp_path, monkeypatch):
-    world.add_benchmark_evidence(
-        "exec-baseline", *BASELINE,
-        observed_at=_utc_now() - timedelta(days=45))
+    # Age the fixture's own qualification baseline record as well: without
+    # any current same-benchmark observation the resolver must supervise.
+    world.age_all_observations(days=45)
     calls: list = []
     _install_entry_fakes(
         monkeypatch, calls=calls,
@@ -2332,7 +2347,9 @@ def test_writer_records_are_the_route_evidence(world):
         agent = db.get(AgentRegistry, AGENT)
         rows = load_repeat_task_evidence(db, agent)
         assert [row["evidence_id"] for row in rows] == [
-            f"employee-benchmark:{BENCHMARK_ID}:exec-writer"]
+            f"employee-benchmark:{BENCHMARK_ID}:exec-writer",
+            f"employee-benchmark:{BENCHMARK_ID}:exec-1",
+        ]
         row = rows[0]
         assert row["source"] == "employee_benchmark"
         assert row["provider"] == BASELINE[0] and row["model"] == BASELINE[1]
@@ -2426,7 +2443,9 @@ def test_versioned_provider_echo_keeps_callable_route_through_durable_read(
         agent = db.get(AgentRegistry, AGENT)
         rows = load_repeat_task_evidence(db, agent)
         assert [row["evidence_id"] for row in rows] == [
-            f"employee-benchmark:{BENCHMARK_ID}:exec-versioned"]
+            f"employee-benchmark:{BENCHMARK_ID}:exec-versioned",
+            f"employee-benchmark:{BENCHMARK_ID}:exec-1",
+        ]
         assert rows[0]["provider"] == ALIAS[0]
         assert rows[0]["model"] == ALIAS[1]
         assert rows[0]["resolved_model"] == ALIAS_BUILD
@@ -2595,7 +2614,9 @@ def test_generic_metadata_is_never_route_evidence(world):
         decision = resolve_repeat_task_route(
             db, agent, assignment=_matching_assignment())
     assert [row["evidence_id"] for row in rows] == [
-        f"employee-benchmark:{BENCHMARK_ID}:exec-baseline"]
+        f"employee-benchmark:{BENCHMARK_ID}:exec-baseline",
+        f"employee-benchmark:{BENCHMARK_ID}:exec-1",
+    ]
     assert decision["route_state"] == STATE_PINNED, decision["reasons"]
     assert decision["selected_route"] == {
         "provider": BASELINE[0], "model": BASELINE[1]}
@@ -2669,7 +2690,9 @@ def test_forged_benchmark_records_are_rejected(world):
         decision = resolve_repeat_task_route(
             db, agent, assignment=_matching_assignment())
     assert [item["evidence_id"] for item in rows] == [
-        f"employee-benchmark:{BENCHMARK_ID}:exec-baseline"]
+        f"employee-benchmark:{BENCHMARK_ID}:exec-baseline",
+        f"employee-benchmark:{BENCHMARK_ID}:exec-1",
+    ]
     assert decision["route_state"] == STATE_PINNED, decision["reasons"]
     assert decision["selected_route"] == {
         "provider": BASELINE[0], "model": BASELINE[1]}

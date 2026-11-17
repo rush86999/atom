@@ -44,7 +44,10 @@ export interface SelfDirectedEvidence {
 
 export interface QualificationEvidenceBundle {
   bundle_id: string;
-  episode_id: string;
+  /** Present for episode work; null for a scored campaign execution. */
+  episode_id?: string | null;
+  /** Present for a scored campaign execution bundle. */
+  execution_id?: string;
   task_preview: string;
   output_preview: string;
   evidence_refs: Array<{ kind: string; id: string }>;

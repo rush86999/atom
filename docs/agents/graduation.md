@@ -196,8 +196,14 @@ endpoint is:
 GET /api/episodes/graduation/qualification/evidence/{agent_id}?target_maturity=INTERN
 ```
 
-It returns eligible bundles and the frozen rubric criteria. The reviewer then
-requests a review:
+It returns eligible bundles and the frozen rubric criteria. Scored campaign
+executions are listed by the same enumerator: a completed execution whose
+reserved `benchmark_evidence` record passes the producer's canonical validator
+and names that exact execution, agent and scope appears as
+`bundle:execution:<id>` with the measured binding. An execution already
+covered by an episode bundle is not listed twice, and an execution whose
+record is missing, tampered, bound to another execution/agent/scope, or
+internally conflicting is never offered. The reviewer then requests a review:
 
 ```http
 POST /api/episodes/graduation/qualification/request
@@ -287,7 +293,14 @@ with a model route the recorded evidence still supports, without a new review fo
   effect gate rechecks current evidence after restart.
 - **Receipt binding is the baseline.** The promotion receipt binds a complete benchmark
   identity (dataset hash, rubric version, canonical workload scope) plus the actually-served
-  routes, from validated evidence records only. The runtime baseline is the newest committed
+  routes, from validated evidence records only. Bare `benchmark_identity`/dataset/rubric/scope
+  keys in generic execution metadata are not measured authority: they can neither bind nor
+  override the producer's record. Every validated record bound to the reviewed durable
+  execution is included, so differing identities become a `conflict` and fail closed rather
+  than a first/last winner. A v2-binding receipt whose evidence carried bare identity keys — or
+  a campaign execution that was unbound before this projection existed — no longer matches its
+  recomputed source revision and revalidates as stale; it must be re-reviewed, not silently
+  rebound. The runtime baseline is the newest committed
   promotion transition into the current tier plus its receipt. Selection requires the
   assignment's server-derived `workload_scope` to exactly match the binding's scope; a
   candidate needs fresh *passing* observations on the same benchmark (same dataset hash,
