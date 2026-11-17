@@ -579,7 +579,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "learning_review_root=$(mktemp -d \"${RUNNER_TEMP}/learning-review-XXXXXX\")\nDATABASE_URL=\"sqlite:///${learning_review_root}/conversation-learning.db\" \\\n  python -m pytest tests/test_conversation_learning.py tests/test_conversation_learning_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${learning_review_root}/native-chat-teaching.db\" \\\n  python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_chat_teaching_route.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\nDATABASE_URL=\"sqlite:///${learning_review_root}/assignment-routes.db\" \\\n  python -m pytest tests/test_assignment_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "learning_review_root=$(mktemp -d \"${RUNNER_TEMP}/learning-review-XXXXXX\")\nDATABASE_URL=\"sqlite:///${learning_review_root}/conversation-learning.db\" \\\n  python -m pytest tests/test_conversation_learning.py tests/test_conversation_learning_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread --durations=20\nDATABASE_URL=\"sqlite:///${learning_review_root}/native-chat-teaching.db\" \\\n  python -m pytest tests/api/test_conversation_learning_native_chat.py tests/test_chat_teaching_route.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread --durations=20\nDATABASE_URL=\"sqlite:///${learning_review_root}/assignment-routes.db\" \\\n  python -m pytest tests/test_assignment_routes.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread --durations=20\n"
   },
   {
     "name": "Run never-autonomous task boundary controls",
@@ -606,6 +606,6 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "mkdir -p \"${RUNNER_TEMP}/atom-document-lineage/data\" \"${RUNNER_TEMP}/atom-document-lineage/office\"\npython -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py tests/test_document_connector_lineage.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-document-lineage/data\" \"${RUNNER_TEMP}/atom-document-lineage/office\"\npython -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py tests/test_document_connector_lineage.py tests/test_postgres_document_lineage_upgrade_acceptance.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
