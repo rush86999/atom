@@ -21868,6 +21868,22 @@ class ChatOrchestrator:
     _READY_FOR_REVIEW_NOTE = (
         "The revised draft is verified and ready for review — not yet "
         "accepted.")
+    # M3 CANONICAL FINAL-TEXT NOTICES (2026-11-17). Two honest outcomes:
+    # never a fabricated send/write confirmation, and never the raw withheld
+    # claim. The canvas notice is the existing close-time wording (the reply
+    # body was only the unsupported workflow claim); the delivery notice is
+    # used when validation itself was unavailable and a claim shape (or an
+    # unreleased withheld span) could be in play, so the caller cannot
+    # truthfully say either "nothing happened" or "it happened".
+    _M3_UNVERIFIED_CANVAS_NOTICE = (
+        "*(Unverified: no canvas write from this operation is on the "
+        "audit trail — treat the canvas as unchanged.)*"
+    )
+    _M3_UNVERIFIED_DELIVERY_NOTICE = (
+        "*(Unverified: this reply could not be checked against this "
+        "operation's record this turn — treat any send or write it "
+        "described as unconfirmed and verify before relying on it.)*"
+    )
 
     @classmethod
     def _verified_finalization_statement(
@@ -22011,6 +22027,150 @@ class ChatOrchestrator:
         return rewritten
 
     @classmethod
+    def _m3_claim_shape_present(cls, text: str) -> bool:
+        """Whether the reply carries a shape the FROZEN matchers know.
+
+        Reuses only the existing patterns (legacy canvas-claim and the M3
+        workflow vocabulary) — this adds no vocabulary and no classifier.
+        It exists for the one distinction the canonical boundary needs when
+        no incremental withholding evidence exists (non-streaming): a text
+        with no claim shape is safe to deliver unchanged even if validation
+        is unavailable, while a claim-shaped text must not be released raw.
+        """
+        if not text:
+            return False
+        return bool(
+            cls._CANVAS_CLAIM_SENTENCE_RE.search(text)
+            or cls._M3_WORKFLOW_CLAIM_RE.search(text)
+        )
+
+    @classmethod
+    def _m3_strip_workflow_claims(
+        cls, text: str, canvas_context: Optional[Dict[str, Any]],
+    ) -> str:
+        """Remove unsupported workflow narration in canvas-bound turns only.
+
+        This is the EXISTING M3 pre-delivery strip (same pattern, same
+        whitespace normalization). ``_CANVAS_CLAIM_SENTENCE_RE`` stays
+        frozen; the M3 vocabulary is not expanded here or anywhere else.
+        Non-canvas turns have no operation outcome to validate against, so
+        their text is returned untouched.
+        """
+        canvas_id = (
+            canvas_context.get("canvas_id")
+            if isinstance(canvas_context, dict) else None
+        )
+        if not canvas_id or not text:
+            return text
+        if not cls._M3_WORKFLOW_CLAIM_RE.search(text):
+            return text
+        stripped = cls._M3_WORKFLOW_CLAIM_RE.sub("", text)
+        stripped = re.sub(r"\n\s*\n\s*\n+", "\n\n", stripped).strip()
+        stripped = re.sub(r"[ \t]{2,}", " ", stripped)
+        return stripped
+
+    @classmethod
+    async def _m3_canonical_delivery_text(
+        cls,
+        content: Optional[str],
+        canvas_context: Optional[Dict[str, Any]],
+        session_id: Optional[str],
+        user_id: Optional[str],
+        background_forked: bool,
+        execution_id: Optional[str] = None,
+        withheld: Optional[str] = None,
+    ) -> Tuple[str, str]:
+        """ONE canonical pre-delivery text boundary under M3.
+
+        Reuses the EXISTING legacy guard/receipt renderer
+        (``_canvas_claim_correction``) and then the EXISTING M3 workflow
+        strip. Every delivery surface (WS close, HTTP response/content and
+        the durable assistant row) must carry the text this returns, so an
+        ordinary "payload is valid" check can never bypass enabled M3
+        workflow validation.
+
+        Returns ``(text, status)``:
+
+        * ``"off"``         — M3 disabled; the input is returned untouched.
+        * ``"unchanged"``   — validation ran (or nothing claim-shaped could
+                              be validated) and the input is safe as-is.
+        * ``"reconciled"``  — the returned text is the guarded canonical
+                              replacement (legacy receipt renderer and/or
+                              unsupported-workflow strip, or the honest
+                              canvas notice when the body was only the
+                              unsupported claim).
+        * ``"unavailable"`` — validation could not run. When an unreleased
+                              withheld span or a claim shape could be in
+                              play, the returned text is the honest
+                              delivery notice — never the raw claim and
+                              never an empty reply. Otherwise the safe
+                              unchanged text is returned.
+
+        ``withheld`` is the incremental gate's unreleased text for a
+        stream. A NON-EMPTY unreleased span is direct evidence that
+        releasing the raw buffer would leak. An EMPTY span is NOT proof
+        that the raw buffer was validated: the incremental gate only sees
+        the currently-unreleased window, so a claim can be split across
+        already-released chunks (or a held span can be flushed) and leave
+        ``withheld == ""`` while the raw buffer still carries a frozen
+        claim. The claim-shape check therefore always runs when validation
+        is unavailable; the span only adds evidence, it never removes it.
+
+        Fail-closed semantics are preserved: ``None``/empty input is
+        returned as-is, a guard fault never fabricates a send/write
+        confirmation, and unknown evidence is never reported as "nothing
+        happened".
+        """
+        text = "" if content is None else str(content)
+        if os.getenv("CHAT_FINALIZATION_M3") != "1":
+            return text, "off"
+        if not text:
+            return text, "unchanged"
+        try:
+            corrected = await cls._canvas_claim_correction(
+                text, canvas_context, session_id, user_id,
+                background_forked,
+                execution_id=execution_id,
+            )
+            # IDEMPOTENT RE-ENTRY: canonical text can legitimately pass the
+            # boundary again after a later guard appended deterministic
+            # content. If the renderer only APPENDED a section that the text
+            # already carries, keep the text (a second identical section
+            # would be a duplicate). A different section or an in-place
+            # replacement is still processed normally.
+            _appended = corrected[len(text):] if corrected.startswith(
+                text) else ""
+            _appended_section = _appended.strip().lstrip("—").strip()
+            if _appended_section and _appended_section in text:
+                corrected = text
+            canonical = cls._m3_strip_workflow_claims(
+                corrected, canvas_context)
+        except Exception:
+            logger.warning(
+                "[m3-canonical] pre-delivery validation unavailable "
+                "(canvas=%s, session=%s, execution=%s)",
+                (canvas_context or {}).get("canvas_id")
+                if isinstance(canvas_context, dict) else "?",
+                session_id or "?", execution_id or "?", exc_info=True,
+            )
+            withheld_unreleased = bool(str(withheld or "").strip())
+            # A known claim shape in the FULL raw buffer blocks release even
+            # when no span is currently withheld (see docstring). The span
+            # is additive evidence, not a gate on the shape check.
+            if withheld_unreleased or cls._m3_claim_shape_present(text):
+                return cls._M3_UNVERIFIED_DELIVERY_NOTICE, "unavailable"
+            return text, "unchanged"
+        if not canonical:
+            # The body was only the unsupported workflow claim and no
+            # authoritative section survived: withhold with an honest
+            # notice rather than releasing the hallucination or an empty
+            # bubble.
+            return cls._M3_UNVERIFIED_CANVAS_NOTICE, "reconciled"
+        if canonical != text:
+            return canonical, "reconciled"
+        return text, "unchanged"
+
+    @classmethod
     async def _m3_reconcile_stream_done(
         cls,
         streamed: Optional[str],
@@ -22020,60 +22180,23 @@ class ChatOrchestrator:
         background_forked: bool,
         execution_id: Optional[str] = None,
     ) -> Optional[str]:
-        """Corrected stream-closing text, or None to keep legacy behavior.
+        """Canonical stream-closing text, or None to keep legacy behavior.
 
-        The streamed reply never passes through the canvas-claim guard —
-        only the non-streaming return does — so on final-text validation
-        failure the frontend keeps the raw streamed text. Under the M3
-        flag, run the same guard over the streamed text and return it only
-        when a claim was actually rewritten; any error or no-op yields
-        None and the caller emits the legacy empty content.
-
-        M3 PRE-DELIVERY BOUNDARY (no verb-list expansion): workflow
-        completion narration ("I sent the email.") needs its own operation
-        evidence — canvas evidence never verifies a send. The frozen legacy
-        guard supersedes but cannot strip it, so M3 strips unsupported
-        workflow sentences here while preserving the authoritative
-        Operation-status section. Pure chat without workflow shape flows
-        untouched (None).
+        Thin compatibility wrapper over the ONE canonical boundary: it
+        returns the guarded text only when the boundary actually rewrote
+        it. Callers that must deliver a text on every path use
+        ``_m3_canonical_delivery_text`` directly; ``None`` here retains the
+        legacy empty-content behavior for protocol-rejection handling.
         """
         if not streamed or os.getenv("CHAT_FINALIZATION_M3") != "1":
             return None
-        try:
-            corrected = await cls._canvas_claim_correction(
-                streamed, canvas_context, session_id, user_id,
-                background_forked,
-                execution_id=execution_id,
-            )
-        except Exception:
-            return None
-        # Strip unsupported workflow narration in canvas-bound turns only.
-        # Legacy _CANVAS_CLAIM_SENTENCE_RE is frozen; this M3-only pattern
-        # is the pre-delivery boundary, not an expansion.
-        try:
-            canvas_id = (
-                canvas_context.get("canvas_id")
-                if isinstance(canvas_context, dict) else None
-            )
-            if canvas_id and cls._M3_WORKFLOW_CLAIM_RE.search(corrected):
-                stripped = cls._M3_WORKFLOW_CLAIM_RE.sub("", corrected)
-                stripped = re.sub(r"\n\s*\n\s*\n+", "\n\n", stripped).strip()
-                stripped = re.sub(r"[ \t]{2,}", " ", stripped)
-                if stripped != corrected:
-                    if stripped:
-                        return stripped
-                    # Body was only the unsupported workflow claim and no
-                    # section survived: withhold with an honest notice
-                    # rather than releasing the hallucination or an empty
-                    # bubble.
-                    return (
-                        "*(Unverified: no canvas write from this operation "
-                        "is on the audit trail — treat the canvas as "
-                        "unchanged.)*"
-                    )
-        except Exception:
-            pass
-        return corrected if corrected != streamed else None
+        canonical, status = await cls._m3_canonical_delivery_text(
+            streamed, canvas_context, session_id, user_id,
+            background_forked, execution_id=execution_id,
+        )
+        if status == "reconciled":
+            return canonical
+        return None
 
     @classmethod
     async def _m3_gate_stream_chunk(
@@ -28626,6 +28749,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _streamed: Optional[str] = None
             _stream_zero_visible = False
             _turn_reasoning: Optional[str] = None
+            # Tracks the EXACT text the streaming leg's canonical M3
+            # boundary delivered. Initialised for every leg; the shared tail
+            # re-applies the boundary only when a later guard replaced that
+            # text, so a regenerated answer can never bypass M3 and the raw
+            # stream buffer is never reintroduced by a truthiness check.
+            _m3_canonical_text: Optional[str] = None
             # Ranked fallback ROUTES for this turn, filled by the streaming leg
             # when it runs. Initialised here so the non-streaming leg's guards
             # can offer the same bounded cross-route retry instead of raising
@@ -29397,7 +29526,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     content_type="text/plain",
                                 )
                                 if _stream_done_validation.valid:
+                                    # M3 CANONICAL FINAL TEXT (2026-11-17):
+                                    # PAYLOAD VALIDITY IS NOT WORKFLOW
+                                    # AUTHORIZATION. This branch used to
+                                    # assign the raw stream buffer here, so
+                                    # every sink (WS close, HTTP content,
+                                    # durable assistant) carried an
+                                    # unsupported workflow claim even though
+                                    # M3 was enabled — validation passed and
+                                    # the reconcile call was skipped
+                                    # entirely. Under the flag, run the ONE
+                                    # canonical boundary (the SAME legacy
+                                    # receipt renderer + M3 strip the close
+                                    # always used) and deliver only its text.
                                     _stream_done_content = _streamed
+                                    if os.getenv("CHAT_FINALIZATION_M3") == "1":
+                                        _canonical_text, _m3_status = (
+                                            await self._m3_canonical_delivery_text(
+                                                _streamed, canvas_context,
+                                                session_id, user_id,
+                                                async_continuation_forked,
+                                                execution_id=execution_id,
+                                                withheld=_m3_pending,
+                                            )
+                                        )
+                                        logger.debug(
+                                            "[m3-canonical] stream-close "
+                                            "status=%s", _m3_status)
+                                        _stream_done_content = _canonical_text
+                                        _m3_canonical_text = _canonical_text
+                                        if _canonical_text != _streamed:
+                                            # Feed the guarded text to the
+                                            # HTTP/durable carriers too: the
+                                            # raw buffer is never
+                                            # reintroduced by a later
+                                            # truthiness check.
+                                            _streamed = _canonical_text
                                 else:
                                     _reconciled = await self._m3_reconcile_stream_done(
                                         _streamed, canvas_context, session_id,
@@ -30929,11 +31093,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if _structured_review_response is not None:
                     response_data = dict(_structured_review_response)
                     _content = str(response_data.get("content") or "")
-                _claimed_content = await self._canvas_claim_correction(
-                    _content, canvas_context, session_id, user_id,
-                    async_continuation_forked,
-                    execution_id=execution_id,
-                )
+                if (_m3_canonical_text is not None
+                        and str(_content or "") == _m3_canonical_text):
+                    # The streaming leg already delivered this EXACT text
+                    # through the canonical boundary (WS close + HTTP +
+                    # durable). Re-running the legacy renderer here would
+                    # append a second Operation-status section.
+                    _claimed_content = _content
+                elif os.getenv("CHAT_FINALIZATION_M3") == "1":
+                    # NON-STREAMING M3 CONTRACT: the SAME existing guard
+                    # after the legacy correction — the canonical helper
+                    # runs the legacy receipt renderer first, then the M3
+                    # workflow strip, so an enabled pre-delivery contract is
+                    # consistent across surfaces. A later guard may also
+                    # have REPLACED the streamed text (regeneration): that
+                    # replacement re-enters the same boundary here, so it
+                    # can never bypass M3. This is the explicit,
+                    # flag-controlled cross-caller behavior change.
+                    _claimed_content, _m3_status = (
+                        await self._m3_canonical_delivery_text(
+                            _content, canvas_context, session_id, user_id,
+                            async_continuation_forked,
+                            execution_id=execution_id,
+                        )
+                    )
+                    logger.debug(
+                        "[m3-canonical] delivery-tail status=%s", _m3_status)
+                else:
+                    _claimed_content = await self._canvas_claim_correction(
+                        _content, canvas_context, session_id, user_id,
+                        async_continuation_forked,
+                        execution_id=execution_id,
+                    )
                 logger.info(
                     "[review-diag] generation_completed content_len=%d "
                     "review_ask=%s",
