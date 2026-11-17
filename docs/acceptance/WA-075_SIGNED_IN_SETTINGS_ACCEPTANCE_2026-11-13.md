@@ -84,7 +84,7 @@ was `skipped` (the capture is incomplete).
 | `scripts/acceptance/browser_settings_acceptance.mjs` | **new** WA-075 driver (Playwright, no dependencies beyond the workspace's own Playwright) |
 | `scripts/acceptance/lib/settings_contract.mjs` | **new** pure helpers (RFC 6238 TOTP, policy normalization, routing-stat normalization) unit-tested without a browser |
 | `scripts/acceptance/browser_settings_preflight.py` | **new** preflight/refusal report; launches nothing, writes only `--report` |
-| `scripts/acceptance/launch_integrated_local_candidate.sh` | unchanged; the supported way to serve the scratch world (validates the world path, runs `core.world_storage_guard`, `storage_policy space`, then starts backend + built frontend and verifies the serving identity) |
+| `scripts/acceptance/launch_integrated_local_candidate.sh` | the supported way to serve the scratch world (validates the world path, runs `core.world_storage_guard`, `storage_policy space`, then starts backend + built frontend and verifies the serving identity). It never creates a missing worlds root: provision an explicit isolated store (below) |
 | `scripts/acceptance/validate_local_world.py` | world/live-DB/port/space contract used by both the launcher and the preflight |
 | `core.world_storage_guard` | worlds-root volume/layout preflight and maintenance interlock; bypass is refused |
 | `scripts/acceptance/scratch_admin_password.py` | recovery helper if a password rotation is interrupted; now accepts any `<world>/atom.db` under the configured worlds root and still refuses the live DB |
@@ -109,9 +109,19 @@ cannot validate different roots. An isolated run on a private scratch config
 therefore uses:
 
 ```bash
+RUN_DIR=/private/tmp/<run>
+python scripts/acceptance/provision_isolated_world_store.py \
+  --base "$RUN_DIR" --name isolated-worlds \
+  --config-dir "$RUN_DIR/isolated-config"
+
 export ATOM_WORLD_STORAGE_PATHS=/private/tmp/<run>/isolated-config   # holds world_storage.json
 export WORLD=/private/tmp/<run>/isolated-worlds/wa075_settings
 ```
+
+The provisioner creates only the empty store root plus the config outside it,
+then runs the real `core.world_storage_guard` preflight. It never creates the
+canonical `backend/data/acceptance_worlds`; a missing declared root is a guard
+refusal, not a bootstrap.
 
 ```bash
 export PYTHON=/path/to/backend/venv314/bin/python     # existing interpreter

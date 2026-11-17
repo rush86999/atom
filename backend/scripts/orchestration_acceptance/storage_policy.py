@@ -42,6 +42,10 @@ Design rules
   extra steps.
 * **Free space is injectable.** Tests simulate exhaustion deterministically
   instead of filling a real disk, and the caller can pass a probe.
+* **The probe is the target's filesystem.** A world/run estimate carries its
+  actual path, so a relocated/isolated store is measured on its own volume.
+  The canonical root is never assumed; a missing relocated config, dangling
+  drive symlink or unusable drive identity is a refusal, not a local probe.
 * **The live database is reserved for, not spent on.** The headroom is the
   live DB plus its WAL plus the `db_safety` snapshot floor, all read at
   call time, so a world build can never be the thing that silences the live
@@ -109,6 +113,11 @@ RESULTS_ROOT = BACKEND / "data" / "acceptance_worlds_results"
 ACC = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
 LIVE_DB = BACKEND / "data" / "atom.db"
 FRONTEND = REPO / "frontend-nextjs"
+
+#: Same relocation contract as ``core.world_storage_guard``. The guard owns
+#: the config; this policy never invents a second registry or a parallel root.
+STORAGE_PATHS_ENV = "ATOM_WORLD_STORAGE_PATHS"
+BYPASS_ENV = "ATOM_WORLD_STORAGE_BYPASS"
 
 MB = 1024 * 1024
 GB = 1024 * MB
@@ -229,6 +238,119 @@ class DeletionRefused(StoragePolicyError):
     complete. The message names which one, because "it said no" without a
     reason is indistinguishable from a crash.
     """
+
+
+# ---------------------------------------------------------------------------
+# The guard's storage config is the one root authority
+# ---------------------------------------------------------------------------
+def _guard_storage_config():
+    """Load the config ``core.world_storage_guard`` will enforce.
+
+    ``ATOM_WORLD_STORAGE_PATHS`` relocates the guard's config/lock/runner
+    paths together. This policy must resolve the SAME root; otherwise a
+    relocated world is space-checked against the canonical internal disk and a
+    low target volume passes. An explicit relocation with a missing or
+    disabled config is refused rather than silently falling back to
+    ``WORLDS_ROOT``.
+
+    The config path is derived here (rather than reading the module-level
+    ``guard.CONFIG_PATH``) so in-process callers/tests that set the env after
+    import still get the documented contract. ``load_config`` itself is the
+    guard's own parser — no second config schema.
+    """
+    try:
+        from core.world_storage_guard import WorldStorageError, load_config, preflight
+    except Exception as exc:  # pragma: no cover - import failure is loud
+        raise StoragePolicyError(
+            f"cannot import core.world_storage_guard: {exc}") from exc
+
+    relocated = (os.environ.get(STORAGE_PATHS_ENV) or "").strip()
+    if os.environ.get(BYPASS_ENV):
+        raise StoragePolicyError(
+            f"{BYPASS_ENV} is set; refusing to resolve the target filesystem "
+            f"or space budget under a storage-guard bypass")
+    if relocated:
+        config_path = Path(relocated).expanduser() / "world_storage.json"
+        if not config_path.is_file():
+            raise StoragePolicyError(
+                f"{STORAGE_PATHS_ENV} is set to {relocated}, but "
+                f"{config_path} does not exist; refusing to fall back to the "
+                f"canonical worlds root")
+    else:
+        config_path = BACKEND / "config" / "world_storage.json"
+    try:
+        config = load_config(config_path)
+    except WorldStorageError as exc:
+        raise StoragePolicyError(str(exc)) from exc
+    if relocated and not config.enabled:
+        raise StoragePolicyError(
+            f"{STORAGE_PATHS_ENV} is set to {relocated}, but that config does "
+            f"not enable the storage guard; refusing a canonical fallback")
+    return config, config_path, preflight
+
+
+def configured_worlds_root() -> Path:
+    """The guard-configured worlds root, with drive layouts validated.
+
+    A ``drive_symlink`` config is passed through the guard's real preflight so
+    a missing/wrong volume, plain local directory or dangling symlink is a
+    refusal here too — never a silent probe of the local canonical volume.
+    """
+    config, _, preflight = _guard_storage_config()
+    root = Path(config.root)
+    if config.enabled and config.is_drive_layout:
+        try:
+            preflight(config)
+        except Exception as exc:
+            raise StoragePolicyError(
+                f"configured drive_symlink worlds root is not usable: {exc}") from exc
+    return root
+
+
+def _filesystem_probe(path: Path) -> Path:
+    """Nearest existing ancestor, refusing to cross a dangling symlink.
+
+    ``real_free_bytes`` probes a path with ``statvfs``. If a relocated drive
+    root is dangling, walking past it would silently measure the local parent
+    filesystem — precisely the wrong-volume pass this repair removes. A
+    configured drive layout is additionally validated by the guard above.
+    """
+    target = Path(path)
+    for candidate in [target, *target.parents]:
+        if candidate.is_symlink() and not candidate.exists():
+            try:
+                link = os.readlink(candidate)
+            except OSError:
+                link = "?"
+            raise StoragePolicyError(
+                f"target path {target} traverses a dangling symlink "
+                f"{candidate} -> {link}; refusing to probe a different "
+                f"filesystem")
+        if candidate.exists():
+            # A drive-backed configured root must be validated before its
+            # filesystem number is trusted (missing volume / wrong UUID).
+            config, _, preflight = _guard_storage_config()
+            if config.enabled:
+                configured_root = Path(config.root)
+                try:
+                    target.relative_to(configured_root)
+                except ValueError:
+                    pass
+                else:
+                    if not configured_root.exists():
+                        raise StoragePolicyError(
+                            f"configured worlds root does not exist: "
+                            f"{configured_root}; refusing to probe a parent "
+                            f"filesystem as if it were the target")
+            if config.enabled and config.is_drive_layout:
+                try:
+                    preflight(config)
+                except Exception as exc:
+                    raise StoragePolicyError(
+                        f"configured drive_symlink worlds root is not usable: "
+                        f"{exc}") from exc
+            return candidate
+    return Path("/")
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +510,10 @@ class SpaceEstimate:
 
     target: str
     components: List[Component] = field(default_factory=list)
+    #: The actual target path whose filesystem must hold the new bytes. Kept
+    #: separate from ``target`` (a display id) so a relocated world is probed
+    #: on its own volume, not the canonical one.
+    target_path: Optional[Path] = None
 
     @property
     def total_bytes(self) -> int:
@@ -400,6 +526,7 @@ class SpaceEstimate:
 
     def as_dict(self) -> Dict[str, Any]:
         return {"target": self.target, "total_bytes": self.total_bytes,
+                "target_path": str(self.target_path) if self.target_path else None,
                 "components": [c.as_dict() for c in self.components]}
 
 
@@ -431,6 +558,7 @@ class SpaceReport:
     free_bytes: int
     free_bytes_source: str
     probe_path: Path
+    probe_source: str = "unspecified"
 
     @property
     def required_bytes(self) -> int:
@@ -452,6 +580,7 @@ class SpaceReport:
             "free_bytes": self.free_bytes,
             "free_bytes_source": self.free_bytes_source,
             "probe_path": str(self.probe_path),
+            "probe_source": self.probe_source,
             "shortfall_bytes": self.shortfall_bytes,
             "estimate": self.estimate.as_dict(),
             "headroom": self.headroom.as_dict(),
@@ -568,8 +697,8 @@ def _measure_sibling_run(world: Path, worlds_root: Path) -> Tuple[Optional[int],
         f"(e.g. {source_paths[0]})")
 
 
-def _measure_build_cache(world: Path) -> Tuple[Optional[int], str]:
-    for sib in sibling_worlds(world, WORLDS_ROOT):
+def _measure_build_cache(world: Path, worlds_root: Path) -> Tuple[Optional[int], str]:
+    for sib in sibling_worlds(world, worlds_root):
         if not (sib / "code").exists():
             continue
         base = FRONTEND / ".preview-instance" / sib.name
@@ -590,11 +719,16 @@ def estimate_world_build(
     world: Path,
     *,
     full_dev_db: bool = False,
-    worlds_root: Path = WORLDS_ROOT,
+    worlds_root: Optional[Path] = None,
     with_build_cache: bool = True,
     with_run_data: bool = True,
 ) -> SpaceEstimate:
     """Estimate what building ``world`` is about to write.
+
+    Sibling measurements come from the world's ACTUAL parent root by default,
+    so a relocated world is estimated from its relocated siblings, not the
+    canonical tree. An explicit ``worlds_root`` still wins for callers/tests
+    that pass one.
 
     Components, in the order they are written:
 
@@ -612,7 +746,8 @@ def estimate_world_build(
         from a sibling world when one exists.
     """
     world = Path(world)
-    est = SpaceEstimate(target=f"world:{world.name}")
+    root = Path(worlds_root) if worlds_root is not None else world.parent
+    est = SpaceEstimate(target=f"world:{world.name}", target_path=world)
 
     fixture = size_of(world / "fixture" / "atom.db")
     if full_dev_db:
@@ -631,7 +766,7 @@ def estimate_world_build(
     if (world / "code").is_symlink():
         est.add("code_export", 0, "shared-export:symlinked, nothing copied", True)
     else:
-        size, source = _measure_sibling(world, worlds_root, "code")
+        size, source = _measure_sibling(world, root, "code")
         if size is None:
             size, source = FALLBACK_CODE_EXPORT_BYTES, (
                 "fallback:no sibling world has a code export")
@@ -641,7 +776,7 @@ def estimate_world_build(
         # Per-run cost, not per-world: measure an actual run dir when one
         # exists, else fall back to the fixture (a run is seeded from it,
         # so the fixture size is the floor, not a wild guess).
-        run_sample, run_source = _measure_sibling_run(world, worlds_root)
+        run_sample, run_source = _measure_sibling_run(world, root)
         if run_sample:
             est.add("run_data", run_sample, run_source, True)
         else:
@@ -651,7 +786,7 @@ def estimate_world_build(
                     "fixture, so the fixture size is the floor", False)
 
     if with_build_cache:
-        size, source = _measure_build_cache(world)
+        size, source = _measure_build_cache(world, root)
         if size:
             est.add("build_cache", size, source, True)
         else:
@@ -660,23 +795,28 @@ def estimate_world_build(
     return est
 
 
-def estimate_new_run(world: Path, *, worlds_root: Path = WORLDS_ROOT,
+def estimate_new_run(world: Path, *, worlds_root: Optional[Path] = None,
                      with_build_cache: bool = False) -> SpaceEstimate:
-    """Estimate one more run directory inside an existing world."""
+    """Estimate one more run directory inside an existing world.
+
+    Sibling measurements default to the world's actual parent root, matching
+    ``estimate_world_build`` for a relocated layout.
+    """
     world = Path(world)
-    est = SpaceEstimate(target=f"run:{world.name}")
+    root = Path(worlds_root) if worlds_root is not None else world.parent
+    est = SpaceEstimate(target=f"run:{world.name}", target_path=world)
     fixture = size_of(world / "fixture" / "atom.db")
     if fixture:
         est.add("run_data", fixture, f"measured:{world / 'fixture' / 'atom.db'}", True)
     else:
-        sample, source = _measure_sibling_run(world, worlds_root)
+        sample, source = _measure_sibling_run(world, root)
         if sample:
             est.add("run_data", sample, source, True)
         else:
             est.add("run_data", FALLBACK_FULL_DEV_DB_BYTES,
                     "fallback:no measured run data on this box", False)
     if with_build_cache:
-        size, source = _measure_build_cache(world)
+        size, source = _measure_build_cache(world, root)
         est.add("build_cache",
                 size or FALLBACK_BUILD_CACHE_BYTES,
                 source if size else "fallback:no measured frontend distDir", bool(size))
@@ -684,9 +824,15 @@ def estimate_new_run(world: Path, *, worlds_root: Path = WORLDS_ROOT,
 
 
 def _probe_for(target: str) -> Path:
-    """The directory whose filesystem the target will be created on."""
+    """The directory whose filesystem the target will be created on.
+
+    ``world``/``run`` targets fall back to the guard-configured worlds root —
+    never the module constant — so a relocated layout is never probed on the
+    canonical local disk. Estimates built by this module carry an explicit
+    ``target_path`` and bypass this fallback entirely.
+    """
     if target.startswith("world:") or target.startswith("run:"):
-        return WORLDS_ROOT
+        return configured_worlds_root()
     return BACKEND
 
 
@@ -699,10 +845,23 @@ def check_space(
 ) -> SpaceReport:
     """Refuse creation when the estimate plus reserved headroom will not fit.
 
-    ``free_bytes`` is the injection point the tests use: exhaustion is
-    simulated, never produced by filling a real disk.
+    ``free_probe`` is the explicit caller seam (and ``free_bytes`` the test
+    injection seam). Without either, the probe is the estimate's actual
+    ``target_path`` — the relocated world/run volume — never a canonical
+    constant. A dangling drive symlink or unusable drive config refuses here
+    rather than measuring the local parent.
     """
-    probe = Path(free_probe) if free_probe else _probe_for(estimate.target)
+    if free_probe is not None:
+        probe = Path(free_probe)
+        probe_source = "explicit"
+    elif estimate.target_path is not None:
+        probe = _filesystem_probe(estimate.target_path)
+        probe_source = "target_path"
+    else:
+        probe = _probe_for(estimate.target)
+        probe_source = "configured_worlds_root" if (
+            estimate.target.startswith("world:")
+            or estimate.target.startswith("run:")) else "backend"
     if free_bytes is None:
         free = real_free_bytes(probe)
         source = "statvfs"
@@ -710,9 +869,14 @@ def check_space(
         free = int(free_bytes)
         source = "injected"
     report = SpaceReport(estimate=estimate, headroom=headroom or live_db_headroom(),
-                         free_bytes=free, free_bytes_source=source, probe_path=probe)
+                         free_bytes=free, free_bytes_source=source, probe_path=probe,
+                         probe_source=probe_source)
     if not report.ok:
-        raise InsufficientStorage(report.message())
+        failure = InsufficientStorage(report.message())
+        # The CLI exposes the refused report (probe path/source included), so
+        # "which volume was checked" is evidence, not a guess.
+        failure.report = report  # type: ignore[attr-defined]
+        raise failure
     return report
 
 
@@ -2160,7 +2324,12 @@ def world_storage_report(world: Path, *, max_runs: int = 0,
             build_cache_source = f"measured:{d}"
     breakdown["build_cache"] = build_cache
 
-    probe = Path(free_probe) if free_probe else _existing_ancestor(world)
+    if free_probe is not None:
+        probe = Path(free_probe)
+        probe_source = "explicit"
+    else:
+        probe = _filesystem_probe(world)
+        probe_source = "target_path"
     free = real_free_bytes(probe)
     headroom = live_db_headroom()
     warnings: List[str] = []
@@ -2194,6 +2363,7 @@ def world_storage_report(world: Path, *, max_runs: int = 0,
         "run_data_bytes": breakdown.get("run_data", 0),
         "free_bytes": free,
         "free_probe": str(probe),
+        "probe_source": probe_source,
         "reserved_headroom_bytes": headroom.total_bytes,
         "headroom": headroom.as_dict(),
         "usable_after_reserve_bytes": usable,
@@ -2210,7 +2380,8 @@ def render_report(rep: Dict[str, Any]) -> str:
         "=" * 78,
         f"  total on disk : {human(rep['total_on_disk_bytes'])} "
         f"({rep['file_count']} files)",
-        f"  free          : {human(rep['free_bytes'])} at {rep['free_probe']}",
+        f"  free          : {human(rep['free_bytes'])} at {rep['free_probe']}"
+        f"  [{rep['probe_source']}]",
         f"  reserved      : {human(rep['reserved_headroom_bytes'])} for the live DB "
         f"(live {human(rep['headroom']['live_db']['bytes'])}"
         f" + WAL {human(rep['headroom']['live_wal']['bytes'])}"
@@ -2242,7 +2413,8 @@ def render_report(rep: Dict[str, Any]) -> str:
 def render_space(rep: SpaceReport) -> str:
     lines = [
         f"space check OK for {rep.estimate.target}",
-        f"  free    : {human(rep.free_bytes)} ({rep.free_bytes_source}) at {rep.probe_path}",
+        f"  free    : {human(rep.free_bytes)} ({rep.free_bytes_source}) at {rep.probe_path}"
+        f"  [{rep.probe_source}]",
         f"  need    : {human(rep.estimate.total_bytes)}",
         f"  reserve : {human(rep.headroom.total_bytes)}",
     ]
@@ -2251,6 +2423,15 @@ def render_space(rep: SpaceReport) -> str:
     for c in (rep.headroom.live_db, rep.headroom.live_wal, rep.headroom.snapshot_floor):
         lines.append(f"    {c.name:<14} {human(c.bytes):>10}  {c.source}")
     return "\n".join(lines)
+
+
+def _world_arg_path(raw: str) -> Path:
+    """CLI ``--world``: absolute is used as-is; relative is under the
+    guard-configured root (never ``WORLDS_ROOT`` when a relocation is set)."""
+    path = Path(raw).expanduser()
+    if path.is_absolute():
+        return path
+    return configured_worlds_root() / path
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -2307,7 +2488,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--json", action="store_true")
 
     args = ap.parse_args(argv)
-    world = WORLDS_ROOT / args.world
+    try:
+        world = _world_arg_path(args.world)
+    except StoragePolicyError as exc:
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 1
 
     if args.cmd == "space":
         src = resolve_fixture_source(args.full_dev_db)
@@ -2318,11 +2503,22 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             rep = check_space(est, free_bytes=args.free_bytes)
         except InsufficientStorage as exc:
-            if args.json:
-                print(json.dumps({"ok": False, "message": str(exc),
-                                  "estimate": est.as_dict()}, indent=2))
-            else:
-                print(str(exc))
+            failure = {"ok": False, "message": str(exc),
+                       "estimate": est.as_dict()}
+            refused = getattr(exc, "report", None)
+            if refused is not None:
+                failure.update({
+                    "probe_path": str(refused.probe_path),
+                    "probe_source": refused.probe_source,
+                    "free_bytes": refused.free_bytes,
+                    "free_bytes_source": refused.free_bytes_source,
+                    "required_bytes": refused.required_bytes,
+                    "shortfall_bytes": refused.shortfall_bytes,
+                })
+            print(json.dumps(failure, indent=2) if args.json else str(exc))
+            return 1
+        except StoragePolicyError as exc:
+            print(f"REFUSED: {exc}", file=sys.stderr)
             return 1
         print(json.dumps(rep.as_dict(), indent=2) if args.json else render_space(rep))
         return 0
@@ -2361,7 +2557,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1 if result.get("refused") else 0
 
     if args.cmd == "report":
-        rep = world_storage_report(world, max_runs=args.max_runs)
+        try:
+            rep = world_storage_report(world, max_runs=args.max_runs)
+        except StoragePolicyError as exc:
+            print(f"REFUSED: {exc}", file=sys.stderr)
+            return 1
         print(json.dumps(rep, indent=2) if args.json else render_report(rep))
         return 0
 
