@@ -44,3 +44,8 @@ report for independent adjudication; it did not infer success from an absent
 file or rerun the task. Fresh source/configuration checks and new explicit
 allowance are required before another live model test.
 [Filtered failed-run result](evidence/fleet_case7_20261117/result.json).
+
+A separately approved [case 8](FLEET_LIVE_DELEGATION_2026_11_17.md) later
+recovered an optional-logprob rejection on merged main, then failed fleet
+acceptance because it chose direct conversation. It does not establish the
+original case7 error cause or retroactively change this failed result.
