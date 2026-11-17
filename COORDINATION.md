@@ -639,3 +639,203 @@ candidate` then `TestLearnRouteSignedToken`) 3/3;
 `test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12; autodev
 review/apply/boundary suites 21/21. No live DB, provider call, generated-
 code execution, push or PR.
+
+---
+
+## Session: chat-message actor scope (2026-11-17, branch `codex/chat-message-actor-scope-20261117`)
+
+Scope: persisted chat transcripts attributed to the module-level
+`ChatOrchestrator()` singleton's default tenant instead of the authenticated
+actor (observed real API signup/login/chat: correct `ChatRequestRecord`
+tenant, both `ChatMessage` rows `tenant_id='default'`).
+
+Files owned/edited this session (only these):
+
+- `backend/core/chat_message_authority.py` (new) — thin seam over the existing
+  `goal_run_decision_service._resolve_actor` / `claim_fresh_reviewer`
+  fresh-actor fence plus the durable `ChatSession` owner check. The
+  chat-session placeholder class moved here from `chat_routes` so read and
+  write paths share one definition; `external_agent_user` is a separate
+  system-scope identity (deliberately NOT reclaimable by local callers).
+- `backend/integrations/chat_orchestrator.py` — turn-scoped write-actor pin;
+  `_update_session` resolves/fences the owned actor + session in the write
+  transaction, writes that tenant, and only publishes the assistant message
+  id after a successful commit.
+- `backend/integrations/chat_routes.py` — imports the shared placeholder
+  definitions (no behavior change on the read paths).
+- `backend/tests/test_chat_message_actor_scope.py` +
+  `backend/tests/fixtures/served_chat_scope_app.py` (new) — served real
+  uvicorn/SQLite/JWT/singleton boundary controls (two tenants, concurrent
+  model await, NULL-tenant global user, foreign/changed/revoked refusals,
+  storage outage, cold restart).
+- `.github/workflows/ci.yml` + `backend/tests/fixtures/ci_backend_additions.json`
+  + `backend/tests/fixtures/ci_backend_core_extra.json` — additive step.
+- Four unit tests updated only to construct the direct/no-actor writer shape
+  they exercise (`test_covpush_emailcrm`, `test_covpush_w89_webhooks_orch_ocr`,
+  `test_covpush_comms_services3`, `test_mail_completion` fake query).
+
+Not changed: async/fork/background-delivery writer paths keep their existing
+job-record/declared scope contracts; the foreign-session public read envelope
+(separate PR) was not touched. No live DB, provider call, restart, push or PR.
+
+---
+
+## Session: chat-message admitted scope follow-up (2026-11-17, same branch)
+
+Scope: the transcript writer re-resolved the actor at write time but compared
+it only with itself. A real root counter showed a turn admitted as UserA in
+tenant/workspace A that waited on the model while the SAME user row moved to
+legitimate tenant/workspace B: the write-time read saw B, the fence agreed
+with B, and the turn's transcript was appended under B while the keyed
+transport record stayed A (`rows_match_transport: false`).
+
+Files edited this session (additive; only these):
+
+- `backend/core/chat_message_authority.py` — the turn pin now captures the
+  admitted actor + scope snapshot (existing `_resolve_actor`) before awaited
+  work; the write compares the fresh actor with THAT snapshot (tenant,
+  workspace, role, status) and refuses on any change. An unreadable pin fails
+  closed at write time. Declared external identities (`external_agent_user`,
+  `ext_<sender>`) keep the writer's construction scope but can never be
+  adopted by a local caller; an external id that became a local user during
+  the turn is refused. Placeholder reclaims are re-owned in the SAME durable
+  transaction that fences the row (verified by owner, not an in-memory
+  label).
+- `backend/integrations/chat_orchestrator.py` — the turn-entry pin comment
+  and the post-commit in-memory session owner publish.
+- `backend/tests/test_chat_message_actor_scope.py` +
+  `backend/tests/fixtures/served_chat_scope_app.py` — served cases for
+  independent and combined tenant/workspace moves, authority-read outage,
+  actor deletion, durable placeholder reclaim across restart, external
+  bridge declared scope and warm/cold local adoption refusal.
+- `backend/tests/test_covpush_w89_webhooks_orch_ocr.py`,
+  `backend/tests/test_covpush_comms_services3.py` — comments only, recording
+  why those unit tests construct the direct/no-actor writer shape.
+
+Not changed: the foreign-session public read envelope (served GET still
+returns a system-owned conversation's rows on a cold process; the write then
+refuses, and the durable owner/rows are unchanged). This read behavior is a
+pre-existing boundary and is NOT attributed to PR #984 — that is the fleet
+collaboration release; no other PR's scope is claimed for it. No live DB,
+provider call, restart of the dev app, push or PR.
+
+---
+
+## Session: public chat read-envelope authorization (2026-11-17, same branch)
+
+Scope: the write fence landed earlier the same day, but the public READ
+surfaces still trusted the in-memory/JSON-file session label. A paired served
+counter recorded the actual pre-fix behavior on `ba0f056e5`: an ordinary
+non-default user cold-loading a conversation durably owned by
+`external_agent_user` got `200` with both rows from `GET /api/chat/history`,
+the linked run from `/api/chat/trace`, the session details, and (after a turn)
+the bridge conversation. The same user also read a foreign local user's
+conversation, and a durable owner change was ignored while the warm in-memory
+label still said caller; a cold process repeated it by lazy-creating a
+caller-owned projection before reading rows by conversation id. A
+default-scope legacy placeholder conversation was also served to a
+non-default caller. This read behavior was pre-existing and is NOT attributed
+to PR #984 (that is the fleet collaboration release).
+
+Files edited this session (only these):
+
+- `backend/core/chat_message_authority.py` — new
+  `resolve_chat_read_scope`: the read-side twin of the write resolver. The
+  durable `ChatSession.user_id` is authority on every request; the caller is
+  re-read with the existing `_resolve_actor`; a named owner is served only to
+  that owner; a legacy placeholder is reclaimable only when its durable
+  message-row scope matches the caller's CURRENT canonical scope (empty
+  placeholders have no scope evidence and are not reclaimable); an external/
+  system owner resolves to no local User row and is refused. No second
+  registry, no per-session grant invention, no admin-all-tenant bypass.
+- `backend/integrations/chat_routes.py` — history, memory, trace, task,
+  session details, session list, fork, rename/delete and feedback ride one
+  `_authorize_chat_read` gate. DB owner wins over a stale cache in BOTH
+  directions; placeholder reclaim is a CAS update of the durable row before
+  the response. Trace/task for an unknown id now return no runs/task instead
+  of querying rows that merely name the id.
+- `backend/tests/test_chat_read_scope.py` (new) — served real
+  uvicorn/SQLite/JWT/singleton controls for system/foreign warm+cold refusal,
+  owner change, placeholder scope reclaim, own/default/bridge positives,
+  stale file labels in the session list, unverifiable rows, unknown trace ids
+  and authority outage.
+- `backend/tests/test_chat_agent_trace.py` — trace fixtures now seed the
+  durable User+ChatSession owner a served chat turn would create (an
+  execution that merely names a session id is not a read grant).
+- `backend/tests/test_covpush_w92_chat_routes.py`,
+  `backend/tests/test_covpush_w95_services_batch5.py` — the DB-failure
+  history test now asserts unavailable (503, no cached content) instead of
+  serving the in-memory fallback.
+- `.github/workflows/ci.yml` + `backend/tests/fixtures/ci_backend_additions.json`
+  — the existing additive actor-scope step runs both whole served files; the
+  exact step ledger matches the YAML (CI contract suite: 628 passed).
+
+Measured pair (scratch worlds, `/private/tmp/atom-chat-history-reader-scope-
+paired-counter-20261117.py`; baseline/final JSONs alongside): system-owned
+history/trace/details `200` + row/run content → `403` with no content;
+foreign local history `200` + rows → `403`; warm/cold after owner change
+`200` → `403`; placeholder reclaim by a non-default caller `200` → `403` with
+the durable owner untouched; admin default-scope placeholder reclaim stays
+`200` and is durably rebound; own and admin-default history, the bridge
+writer's 2 `default` rows and the external bridge turn stay unchanged. No
+live DB, provider/model API, owner credentials, restart of the dev app,
+`/Volumes`, push, PR or merge.
+
+---
+
+## Session: chat M3/fleet joined-gate follow-up (2026-11-17, same branch)
+
+Scope: repair the combined chat actor/read + M3/fleet tree's 11 joined-gate
+failures **without touching production authority, privacy or M3 rendering**.
+Base `42e00b8ea` (tree `389ab30eb69d21a804d9d51d0f345fb53a442a10`).
+
+Root evidence: `/private/tmp/atom-root-chat-m3-fleet-joined-gate-20261117.log`
+(746 passed, 11 failed, 757 total, 476.96 s). Ten M3 failures logged
+`CHAT_SESSION_UNVERIFIED`: the test fixture doubled
+`_get_or_create_session` (the in-memory projection) but never created the
+durable owned `ChatSession` row the real admission producer writes, so the
+write-time owned-session guard correctly refused the transcript. One legacy
+reclaim assertion required `assistant_message_id is None`, which conflicts
+with the intentional fresh-owned canonical admission already documented and
+asserted by `test_collaboration_public_http_contract.py` and adjudicated from
+root SQL.
+
+Fixture migration (tests only):
+
+- `backend/tests/test_m3_canonical_delivery_contract.py` — `user_token` now
+  seeds the durable `ChatSession` row (same fields
+  `ChatSessionManager.create_session` writes) for the REAL JWT user before the
+  turn. `resolve_chat_message_scope`, the admission snapshot, actor fencing,
+  receipt reader and finalization are **not** mocked; a mismatch still
+  refuses.
+
+Contract migration (tests only):
+
+- `backend/tests/test_chat_message_actor_scope.py` — legacy placeholder
+  reclaim: a cross-user requested session now yields a FRESH owned canonical
+  session. The old over-narrow `assistant_message_id is None` expectation was
+  replaced with stronger exact binding: the request record keeps the ORIGINAL
+  requested session key (Stripe-style unique identity), the response id equals
+  the durable assistant conversation id, the canonical session owner is the
+  actor, and assistant/tenant/execution ids are exact. The foreign
+  conversation's rows/owner/content are byte-unchanged, and the legitimate
+  owner's subsequent turn keeps its own id and appends only there.
+- Same original request-id replay AFTER fresh canonical allocation: exact
+  stored response/canonical id/execution id/assistant id replay, one request
+  record, one unchanged execution row and no new history rows.
+- New control: forged client `context` canonical/session/owner/tenant fields
+  cannot choose the target conversation; a valid own session keeps its
+  requested id; verifier negative controls reject wrong canonical id, owner,
+  tenant, assistant rowid, rewritten request key, wrong execution id and
+  tampered foreign rows.
+
+Not changed: production code, auth/JWT checks, public read-route or external
+bridge write/read restrictions, M3 vocabulary/rendering, and the exact CI
+lanes. No raw case9 access, no relaxed assistant-tenant assertion, no new
+flags/defaults.
+
+Verification: focused M3 file 22 passed; legacy + control 2 passed; whole
+8-file joined selection 758 passed in 374.54 s (scratch
+`/private/tmp/atom-chat-m3-fleet-followup-20261117`). The count differs from
+root's 757 by the one added control test. No model-quality claim; root
+verifies independently after this terminal.

@@ -1238,6 +1238,32 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/atom-m3-canonical/data" "${RUNNER_TEMP}/atom-m3-canonical/lancedb"
           python -m pytest tests/test_m3_canonical_delivery_contract.py -q --tb=short --timeout=300 --timeout-method=thread
+      # Served chat transcript actor-scope and durable read-envelope
+      # regressions (additive): real uvicorn + real SQLite + real JWT
+      # signup/login + the real module-level ChatOrchestrator singleton; only
+      # the LLM/embedding transports are doubled
+      # (tests/fixtures/served_chat_scope_app.py). The write suite covers
+      # tenant/workspace scope admission, foreign/changed/revoked writes, a
+      # storage outage and cold readback; the read suite covers durable
+      # owner/scope envelopes for history/memory/trace/task/session rows,
+      # warm-cache vs DB owner changes, legacy placeholder scope reclaim and
+      # unverifiable/unavailable authority.
+      - name: Run chat transcript actor-scope controls
+        env:
+          TESTING: "1"
+          PYTHON_DOTENV_DISABLED: "1"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-chat-actor-scope/parent.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-chat-actor-scope/data"
+          LANCEDB_URI: "${{ runner.temp }}/atom-chat-actor-scope/lancedb"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-chat-actor-scope/data" "${RUNNER_TEMP}/atom-chat-actor-scope/lancedb"
+          served_chat_scope_root=$(mktemp -d "${RUNNER_TEMP}/served-chat-scope-XXXXXX")
+          python -m pytest tests/test_chat_message_actor_scope.py \
+            tests/test_chat_read_scope.py \
+            -q --tb=short --timeout=900 --timeout-method=thread \
+            --basetemp="${served_chat_scope_root}/pytest"
 
       - name: Run owner-scoped audit evidence and correction controls
         env:
