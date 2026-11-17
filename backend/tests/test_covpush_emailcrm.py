@@ -28,10 +28,15 @@ import integrations.chat_orchestrator as co
 # =========================================================================
 
 class FakeAioResponse:
-    def __init__(self, status=200, body=None, data=None):
+    def __init__(self, status=200, body=None, data=None,
+                 content_type="application/json", raw=None):
         self.status = status
         self._body = body if body is not None else "server error"
         self._data = data if data is not None else {"value": [{"id": "1"}]}
+        self.headers = {"Content-Type": content_type}
+        # Binary /content replies carry bytes, not JSON.
+        self._raw = (raw if raw is not None
+                     else body.encode() if isinstance(body, str) else b"file-bytes")
 
     async def __aenter__(self):
         return self
@@ -44,6 +49,9 @@ class FakeAioResponse:
 
     async def json(self):
         return self._data
+
+    async def read(self):
+        return self._raw
 
 
 class FakeAioSession:
@@ -62,6 +70,10 @@ class FakeAioSession:
     def request(self, method, url, headers=None, json=None):
         self.last_url = url
         self.last_json = json
+        return self.response
+
+    def get(self, url, headers=None):
+        self.last_url = url
         return self.response
 
     def put(self, url, headers=None, data=None):
@@ -292,12 +304,18 @@ async def test_m365_onedrive_list_files(dev_env):
     assert result["status"] == "success"
 
 
-async def test_m365_onedrive_get_content(dev_env):
+async def test_m365_onedrive_get_content(monkeypatch, dev_env):
     svc = make_service()
     result = await svc.execute_onedrive_action("fake_token", "get_content", {})
     assert result["status"] == "error"
+    # /content is a bytes endpoint (redirects to a CDN); the fake must expose
+    # headers + read() so the test stays hermetic.
+    session = FakeAioSession(FakeAioResponse(
+        200, content_type="application/octet-stream", raw=b"abc"))
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: session)
     result = await svc.execute_onedrive_action("fake_token", "get_content", {"path": "a/b.txt"})
     assert result["status"] == "success"
+    assert result["data"]["size"] == 3
 
 
 async def test_m365_onedrive_upload(monkeypatch, dev_env):
@@ -911,10 +929,14 @@ async def test_gmail_init_file_token(gmail_env, monkeypatch, tmp_path):
     assert svc.service is not None
 
 
-async def test_gmail_init_stored_token_refresh(gmail_env, monkeypatch):
+async def test_gmail_init_stored_token_refresh(gmail_env, monkeypatch, tmp_path):
     saved = {}
     gmail_env.get_token = lambda provider: {"access_token": "old", "refresh_token": "rt"}
     gmail_env.save_token = lambda provider, data: saved.update(data)
+    # __init__ only auto-authenticates when a credentials/token FILE exists.
+    # Synthetic file, isolated from any real Gmail state.
+    token_file = tmp_path / "gmail_token.json"
+    token_file.write_text("{}", encoding="utf-8")
 
     class ExpiredCredentials(FakeCredentials):
         def __init__(self, *a, **k):
@@ -926,7 +948,7 @@ async def test_gmail_init_stored_token_refresh(gmail_env, monkeypatch):
 
     monkeypatch.setattr(gs, "Credentials", ExpiredCredentials)
     monkeypatch.setattr(gs, "build", fake_build)
-    svc = gs.GmailService(tenant_id="t1", config={})
+    svc = gs.GmailService(tenant_id="t1", config={"token_path": str(token_file)})
     assert svc.service is not None
     assert saved.get("access_token") == "refreshed-at"
 
@@ -2095,6 +2117,9 @@ def make_orch(**attrs):
     orch.llm_service = None
     orch.session_manager = None
     orch._cancelled_sessions = set()
+    # __init__ state the bare-object helper bypasses; process_chat_message
+    # reads this set on the reply leg.
+    orch._budget_exceeded_runs = set()
     orch.__dict__.update(attrs)
     return orch
 
@@ -2140,19 +2165,12 @@ class TestChatSessions:
         db.__exit__ = MagicMock(return_value=False)
         db.query.return_value.filter.return_value.first.return_value = None
 
-        class FakeChatMessage:
-            def __init__(self, **kw):
-                self.__dict__.update(kw)
-
-        class FakeChatSession:
-            def __init__(self, **kw):
-                self.__dict__.update(kw)
-
         monkeypatch.setattr("core.database.get_db_session", lambda: db)
-        monkeypatch.setattr("core.models.ChatMessage", FakeChatMessage)
-        monkeypatch.setattr("core.models.ChatSession", FakeChatSession)
         orch = make_orch()
-        session = orch._get_or_create_session("u1", "s1", None)
+        # Direct/legacy writer shape: no authenticated actor is supplied, so
+        # the writer's declared construction scope applies. The owned-actor
+        # path is exercised by the real boundary suite.
+        session = {"id": "s1", "history": []}
         orch._update_session(session, "hi", {"message": "hello"}, {"primary_intent": "x"})
         assert len(session["history"]) == 1
         assert session["history"][0]["message"] == "hi"
@@ -2197,7 +2215,12 @@ class TestChatSessions:
         monkeypatch.setattr("core.websockets.get_connection_manager", lambda: manager)
         orch = make_orch()
         await orch._emit_agent_step(1, "thought", "action", "obs")
-        assert manager.broadcast_event.await_count == 1
+        channels = orch._workspace_channels()
+        assert channels == ["workspace:default", "workspace:t1"]
+        assert manager.broadcast_event.await_count == len(channels)
+        sent = manager.broadcast_event.await_args_list
+        assert {call.args[0] for call in sent} == set(channels)
+        assert {call.args[1] for call in sent} == {"agent_step_update"}
 
         manager.broadcast_event = AsyncMock(side_effect=RuntimeError("ws-down"))
         await orch._emit_agent_step(1, "t", "a", "o")
@@ -2290,7 +2313,13 @@ class TestChatQwen:
         })
         orch = make_orch(llm_service=llm)
         result = await orch._get_qwen_response("hi", [], routing_overrides={"model": "x", "tier": "t", "intent": "i"}, sticky_hint=("p1", "m1"))
-        assert result == {"content": "hello there", "model": "m1", "provider": "p1"}
+        # Documented minimal contract: stripped content + routed model/provider.
+        # The implementation also returns optional memory/provenance context
+        # keys (a pre-existing, documented-in-code extension), so assert the
+        # required keys rather than exact dict equality.
+        assert result["content"] == "hello there"
+        assert result["model"] == "m1"
+        assert result["provider"] == "p1"
         kwargs = llm.generate_completion.call_args[1]
         assert kwargs["model"] == "x"
         assert kwargs["cognitive_tier"] == "t"
@@ -2378,10 +2407,13 @@ class TestChatProcessMessage:
             orch.feature_handlers = {}
             orch.session_manager = None
             orch._cancelled_sessions = set()
+            orch._budget_exceeded_runs = set()
             orch.tenant_id = "t1"
-            result = await orch.process_chat_message("u1", "find reports")
-        assert result["success"] is False
-        assert "error" in result
+            # Conversation admission is deliberately OUTSIDE the turn's
+            # best-effort try: a session that cannot be admitted fails loudly
+            # instead of being turned into a plausible-looking error reply.
+            with pytest.raises(RuntimeError, match="session-detail"):
+                await orch.process_chat_message("u1", "find reports")
 
     async def test_process_chat_message_dedup(self, monkeypatch):
         idx = MagicMock()
@@ -2452,12 +2484,20 @@ class TestChatRouting:
     async def test_route_to_features_agent_fallback_failure(self):
         orch = make_orch()
         orch._initialize_feature_handlers()
-        agent = MagicMock()
-        agent.execute_task = AsyncMock(side_effect=RuntimeError("agent-down"))
-        with patch.object(co, "agent_service", agent):
+        atom = MagicMock()
+        atom.execute = AsyncMock(side_effect=RuntimeError("agent-down"))
+        with patch("core.atom_meta_agent.get_atom_agent", return_value=atom):
             intent = {"primary_intent": co.ChatIntent.AGENT_REQUEST}
             responses = await orch._route_to_features("do something", intent, {"id": "s1"}, None)
-        assert co.FeatureType.AGENT not in responses
+        # AGENT_REQUEST is admitted to the Atom route; an interruption after
+        # Atom was entered is a terminal partial that OWNS the turn (no
+        # duplicate legacy ComputerUseAgent fallback task).
+        agent_resp = responses[co.FeatureType.AGENT]
+        assert agent_resp["success"] is False
+        assert agent_resp["handled"] is True
+        assert agent_resp["terminal"] is True
+        assert agent_resp["outcome"] == "partial"
+        assert agent_resp["error_code"] == "agent_execution_interrupted"
 
     async def test_route_to_features_multi_step(self):
         orch = make_orch()
@@ -2551,27 +2591,39 @@ class TestChatFeatureHandlers:
         assert result["success"] is True
 
     async def test_task_handler(self, monkeypatch):
-        create_task = AsyncMock(return_value={"success": True, "task": SimpleNamespace(id="t1")})
-        monkeypatch.setattr("core.unified_task_endpoints.create_task", create_task)
+        task = SimpleNamespace(id="t1", title="buy milk",
+                               as_dict=lambda: {"id": "t1", "title": "buy milk"})
+        create_task = MagicMock(return_value=task)
+        monkeypatch.setattr("core.user_task_service.create_user_task", create_task)
         orch = make_orch()
-        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1", "user_id": "u1"}, None)
+        # Task creation requires an authenticated session AND a stored session
+        # owned by the same user (the durable task authority contract).
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
+        session = {"id": "s1", "user_id": "u1"}
+        result = await orch._handle_task_request("create task: buy milk", {}, session, None)
         assert result["success"] is True
         assert result["data"]["task_id"] == "t1"
 
-        create_task.return_value = {"success": False}
-        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1"}, None)
+        from core.user_task_service import TaskServiceError
+
+        create_task.side_effect = TaskServiceError("refused")
+        result = await orch._handle_task_request("create task: buy milk", {}, session, None)
         assert result["success"] is False
 
         create_task.side_effect = RuntimeError("task-down")
-        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1"}, None)
+        result = await orch._handle_task_request("create task: buy milk", {}, session, None)
         assert result["success"] is False
 
     async def test_task_handler_long_title(self, monkeypatch):
-        create_task = AsyncMock(return_value={"success": True, "task": SimpleNamespace(id="t1")})
-        monkeypatch.setattr("core.unified_task_endpoints.create_task", create_task)
+        task = SimpleNamespace(id="t1", title="review the quarterly...",
+                               as_dict=lambda: {"id": "t1"})
+        create_task = MagicMock(return_value=task)
+        monkeypatch.setattr("core.user_task_service.create_user_task", create_task)
         orch = make_orch()
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
         long_msg = "please make a task to review the quarterly financial report and prepare a summary for the board meeting tomorrow morning"
-        result = await orch._handle_task_request(long_msg, {}, {"id": "s1"}, None)
+        result = await orch._handle_task_request(
+            long_msg, {}, {"id": "s1", "user_id": "u1"}, None)
         assert result["success"] is True
 
     async def test_workflow_handler(self, monkeypatch):
@@ -2766,11 +2818,13 @@ class TestChatFeatureHandlers:
         assert result["status"] == "success"
         assert result["spawned_agent"] == "sp"
 
-        atom.execute = AsyncMock(return_value={"final_output": "halted", "failure_reason": "budget cap", "actions_executed": []})
+        atom.execute = AsyncMock(return_value={"final_output": "halted", "failure_reason": "budget_exceeded", "actions_executed": []})
         result = await orch._handle_agent_request("do it", {}, {"id": "s1", "user_id": "u1"}, None)
         assert result["success"] is False
         assert result["error_code"] == "budget_exceeded"
 
-        atom.execute = AsyncMock(side_effect=RuntimeError("atom-down"))
+        monkeypatch.setattr("core.atom_meta_agent.get_atom_agent",
+                            MagicMock(side_effect=RuntimeError("atom-down")))
         result = await orch._handle_agent_request("do it", {}, {"id": "s1", "user_id": "u1"}, None)
         assert result["status"] == "error"
+        assert result["error"] == "agent_request_failed"

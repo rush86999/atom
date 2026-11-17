@@ -15,17 +15,18 @@ import asyncio
 import importlib
 import json
 import jwt
+import os
 import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from integrations import chat_orchestrator as co
-
-BACKEND = "/Users/rushiparikh/projects/atom/backend"
 
 
 def _teams_module():
@@ -1054,13 +1055,22 @@ class TestOrchestratorHandlers:
         di = MagicMock()
         di.extract_task_details.return_value = {"title": "T", "description": "D"}
         orch.ai_engines = {"data_intelligence": di}
-        result = await orch._handle_task_request("please create a task: buy milk", {}, {}, None)
+        # Durable task creation requires an authenticated session AND a stored
+        # session owned by the same user.
+        session = {"id": "s1", "user_id": "u1"}
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
+        task = SimpleNamespace(id="t1", title="T",
+                               as_dict=lambda: {"id": "t1", "title": "T"})
+        with patch("core.user_task_service.create_user_task", return_value=task):
+            result = await orch._handle_task_request("please create a task: buy milk", {}, session, None)
         assert result["success"] is True
+        assert result["data"]["task_id"] == "t1"
         orch.ai_engines = {}
-        result2 = await orch._handle_task_request("create task: buy milk", {}, {}, None)
+        with patch("core.user_task_service.create_user_task", return_value=task):
+            result2 = await orch._handle_task_request("create task: buy milk", {}, session, None)
         assert result2["success"] is True
-        with patch("core.unified_task_endpoints.create_task", side_effect=RuntimeError("boom")):
-            result3 = await orch._handle_task_request("create a task to buy milk", {}, {}, None)
+        with patch("core.user_task_service.create_user_task", side_effect=RuntimeError("boom")):
+            result3 = await orch._handle_task_request("create a task to buy milk", {}, session, None)
         assert result3["success"] is False
 
     async def test_workflow_handler(self):
@@ -1176,7 +1186,7 @@ class TestOrchestratorHandlers:
         assert result["success"] is True
         assert result["status"] == "success"
         atom.execute = AsyncMock(return_value={
-            "final_output": "halted", "failure_reason": "budget",
+            "final_output": "halted", "failure_reason": "budget_exceeded",
         })
         with patch("core.atom_meta_agent.get_atom_agent", return_value=atom):
             result2 = await orch._handle_agent_request("complex", {}, {"id": "s1"}, None)
@@ -1250,13 +1260,19 @@ class TestOrchestratorRemaining:
     async def test_task_handler_long_title_and_failures(self):
         orch = make_orchestrator()
         orch.ai_engines = {}
-        result = await orch._handle_task_request("please create a task: " + "x" * 60, {}, {}, None)
+        session = {"id": "s1", "user_id": "u1"}
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
+        task = SimpleNamespace(id="t2", title="x" * 47 + "...",
+                               as_dict=lambda: {"id": "t2"})
+        with patch("core.user_task_service.create_user_task", return_value=task):
+            result = await orch._handle_task_request("please create a task: " + "x" * 60, {}, session, None)
         assert result["success"] is True
-        result2 = await orch._handle_task_request("create task", {}, {}, None)
+        with patch("core.user_task_service.create_user_task", return_value=task):
+            result2 = await orch._handle_task_request("create task", {}, session, None)
         assert result2["success"] is True
-        with patch("core.unified_task_endpoints.create_task",
-                   new=AsyncMock(return_value={"success": False})):
-            result3 = await orch._handle_task_request("please create a task to buy milk", {}, {}, None)
+        with patch("core.user_task_service.create_user_task",
+                   side_effect=RuntimeError("boom")):
+            result3 = await orch._handle_task_request("please create a task to buy milk", {}, session, None)
         assert result3["success"] is False
 
     async def test_workflow_run_by_ids_and_failure(self):
@@ -1347,7 +1363,11 @@ class TestOrchestratorRemaining:
 
     async def test_update_session_row_backfill(self):
         orch = make_orchestrator()
-        session = {"id": "s1", "user_id": "u1", "channel_id": "ch1", "thread_id": "th1", "history": []}
+        # Direct/legacy writer shape: this MagicMock DB cannot represent a
+        # real User row, so the writer's declared construction scope applies.
+        # The authenticated-actor path is exercised by
+        # tests/test_chat_message_actor_scope.py.
+        session = {"id": "s1", "channel_id": "ch1", "thread_id": "th1", "history": []}
         db = MagicMock()
         row = MagicMock()
         row.channel_id = None
@@ -1364,9 +1384,81 @@ class TestOrchestratorRemaining:
         assert row.channel_id == "ch1"
         assert row.thread_id == "th1"
 
-    async def test_import_guards_subprocess(self):
+    async def test_import_guards_subprocess(self, tmp_path):
+        """The import-guard contract, exercised in a hermetic child process.
+
+        The child must observe THIS checkout, the explicit scratch database as
+        its actual SQLAlchemy engine, and an isolated home/BYOK/cache/runtime
+        tree.  It never inherits the live shell environment and never resolves
+        paths from another checkout.
+        """
+        backend = Path(__file__).resolve().parents[1]
+        scratch = tmp_path / "guards-subprocess"
+        for sub in ("data", "home", "home/.cache", "tmp", "byok",
+                    "pair_memo", "lance", "office", "journal"):
+            (scratch / sub).mkdir(parents=True, exist_ok=True)
+        db_path = scratch / "data" / "guards.db"
+        (scratch / "byok" / "byok_config.json").write_text("{}", encoding="utf-8")
+        (scratch / "byok" / "byok_keys.json").write_text('{"keys": {}}', encoding="utf-8")
+        (scratch / "byok" / "provider_model_catalog.json").write_text(
+            '{"providers": []}', encoding="utf-8")
+
+        env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin:/usr/local/bin"),
+            "PYTHONPATH": str(backend),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "TESTING": "1",
+            "ENVIRONMENT": "test",
+            "SECRET_KEY": "import-guard-subprocess-secret",
+            "DATABASE_URL": f"sqlite:///{db_path}",
+            "HOME": str(scratch / "home"),
+            "TMPDIR": str(scratch / "tmp"),
+            "XDG_CACHE_HOME": str(scratch / "home" / ".cache"),
+            "BYOK_CONFIG_FILE": str(scratch / "byok" / "byok_config.json"),
+            "BYOK_KEYS_FILE": str(scratch / "byok" / "byok_keys.json"),
+            "BYOK_ENC_KEY_FILE": str(scratch / "byok" / "byok_encryption_key"),
+            "ATOM_PROVIDER_MODEL_CATALOG_PATH":
+                str(scratch / "byok" / "provider_model_catalog.json"),
+            "ATOM_PAIR_MEMO_PATH": str(scratch / "pair_memo"),
+            "ATOM_LANCEDB_PATH": str(scratch / "lance"),
+            "ATOM_OFFICE_PATH": str(scratch / "office"),
+            "ATOM_JOURNAL_PATH": str(scratch / "journal"),
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "HF_DATASETS_OFFLINE": "1",
+            "ATOM_LLM_OFFLINE": "1",
+            "NO_PROXY": "*",
+            "HTTP_PROXY": "http://127.0.0.1:9",
+            "HTTPS_PROXY": "http://127.0.0.1:9",
+            # core.database honors an explicit non-dev DATABASE_URL only when
+            # it sees pytest's own marker; TESTING=1 would otherwise force the
+            # checkout's backend/test_integration.db instead of this scratch DB.
+            "PYTEST_CURRENT_TEST": os.environ.get(
+                "PYTEST_CURRENT_TEST", "test_import_guards_subprocess"),
+        }
+
         code = (
-            "import sys, builtins, importlib\n"
+            "import json, os, sys, builtins, importlib\n"
+            "from pathlib import Path\n"
+            "mod = importlib.import_module('integrations.chat_orchestrator')\n"
+            "from core.database import DATABASE_URL as _DB_URL, engine as _engine\n"
+            "probe = {\n"
+            "    'module_file': str(Path(mod.__file__).resolve()),\n"
+            "    'cwd': str(Path.cwd().resolve()),\n"
+            "    'testing': os.environ.get('TESTING'),\n"
+            "    'database_url': os.environ.get('DATABASE_URL'),\n"
+            "    'core_database_url': _DB_URL,\n"
+            "    'engine_database': _engine.url.database,\n"
+            "    'home': os.environ.get('HOME'),\n"
+            "    'tmpdir': os.environ.get('TMPDIR'),\n"
+            "    'byok_config': os.environ.get('BYOK_CONFIG_FILE'),\n"
+            "    'byok_keys': os.environ.get('BYOK_KEYS_FILE'),\n"
+            "    'byok_enc_key': os.environ.get('BYOK_ENC_KEY_FILE'),\n"
+            "    'pair_memo': os.environ.get('ATOM_PAIR_MEMO_PATH'),\n"
+            "    'lancedb': os.environ.get('ATOM_LANCEDB_PATH'),\n"
+            "    'sys_path': [str(Path(p or '.').resolve()) for p in sys.path[:3]],\n"
+            "}\n"
+            "print('GUARD_PROBE=' + json.dumps(probe, sort_keys=True))\n"
             "_orig = builtins.__import__\n"
             "def _blocked(names):\n"
             "    def _inner(name, *a, **k):\n"
@@ -1374,7 +1466,6 @@ class TestOrchestratorRemaining:
             "            raise ImportError('blocked ' + name)\n"
             "        return _orig(name, *a, **k)\n"
             "    return _inner\n"
-            "mod = importlib.import_module('integrations.chat_orchestrator')\n"
             "builtins.__import__ = _blocked(['core.llm_service'])\n"
             "importlib.reload(mod)\n"
             "assert mod.LLM_SERVICE_AVAILABLE is False\n"
@@ -1388,7 +1479,39 @@ class TestOrchestratorRemaining:
         )
         proc = subprocess.run(
             [sys.executable, "-c", code],
-            cwd=BACKEND, capture_output=True, text=True,
-            env={"PYTHONPATH": BACKEND, "PATH": "/usr/bin:/bin:/usr/local/bin"},
+            cwd=str(backend), capture_output=True, text=True, env=env,
         )
+        assert proc.returncode == 0, f"guards failed: {proc.stderr[-2000:]}"
         assert "GUARDS_OK" in proc.stdout, f"guards failed: {proc.stderr[-2000:]}"
+
+        probe_line = next(
+            line for line in proc.stdout.splitlines() if line.startswith("GUARD_PROBE="))
+        probe = json.loads(probe_line.split("=", 1)[1])
+
+        # The child observes the intended checkout, not another working tree.
+        backend_resolved = backend.resolve()
+        assert Path(probe["module_file"]) == (
+            backend_resolved / "integrations" / "chat_orchestrator.py").resolve()
+        assert Path(probe["cwd"]) == backend_resolved
+        assert str(backend_resolved) in probe["sys_path"]
+
+        # The explicit scratch DB is what the engine actually bound to; it is
+        # absolute and not the checkout's TESTING=1 fallback file.
+        assert probe["testing"] == "1"
+        assert probe["database_url"] == env["DATABASE_URL"]
+        assert probe["core_database_url"] == env["DATABASE_URL"]
+        assert Path(probe["engine_database"]).is_absolute()
+        assert Path(probe["engine_database"]).resolve() == db_path.resolve()
+        assert Path(probe["engine_database"]).resolve() != (
+            backend_resolved / "test_integration.db")
+
+        # Every writable runtime/data location the child would use lives in
+        # this test's scratch tree, never in the checkout's data/ directory.
+        scratch_resolved = scratch.resolve()
+        backend_data = (backend_resolved / "data").resolve()
+        for key in ("home", "tmpdir", "byok_config", "byok_keys",
+                    "byok_enc_key", "pair_memo", "lancedb"):
+            resolved = Path(probe[key]).resolve()
+            assert scratch_resolved == resolved or scratch_resolved in resolved.parents, (
+                f"{key} escaped scratch: {resolved}")
+            assert backend_data not in resolved.parents

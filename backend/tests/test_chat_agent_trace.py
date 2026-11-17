@@ -30,6 +30,29 @@ EXEC_ID = "exec-trace-1"
 _seed_counter = {"n": 0}
 
 
+def _seed_trace_owner(db, session_id=SESSION_ID):
+    """A trace's session must have a durable owner for the read envelope.
+
+    The endpoint is a public chat read surface: an execution that merely
+    names a session id is not authority (the 2026-11-17 envelope fix). These
+    fixtures therefore seed the same real ``User`` + ``ChatSession`` rows a
+    served chat turn would create.
+    """
+    from core.models import ChatSession, User
+
+    if db.query(User).filter(User.id == "trace-user-1").first() is None:
+        db.add(User(
+            id="trace-user-1", email="trace@example.com",
+            first_name="Trace", last_name="User", role="member",
+            status="active", is_active=True))
+    if db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first() is None:
+        db.add(ChatSession(
+            id=session_id, user_id="trace-user-1", title="Trace session"))
+    db.commit()
+
+
 def _seed_run(db, execution_id=EXEC_ID, session_id=SESSION_ID, status="completed"):
     """Seed one execution + two reasoning steps; returns the execution id.
 
@@ -37,6 +60,8 @@ def _seed_run(db, execution_id=EXEC_ID, session_id=SESSION_ID, status="completed
     id get a unique one to avoid cross-test UNIQUE collisions.
     """
     from core.models import AgentExecution, AgentReasoningStep
+
+    _seed_trace_owner(db, session_id)
 
     if execution_id == EXEC_ID:
         _seed_counter["n"] += 1
@@ -176,7 +201,20 @@ class TestSessionTraceEndpoint:
         finally:
             db.close()
 
-    def test_other_users_session_denied(self, client):
+    def test_other_users_session_denied(self, client, worker_database):
+        from core.models import ChatSession, User
+
+        db = worker_database()
+        _seed_trace_owner(db, SESSION_ID)
+        if db.query(User).filter(User.id == "owner-user").first() is None:
+            db.add(User(
+                id="owner-user", email="owner@example.com",
+                first_name="Owner", last_name="User", role="member",
+                status="active", is_active=True))
+        db.query(ChatSession).filter(ChatSession.id == SESSION_ID).update(
+            {"user_id": "owner-user"})
+        db.commit()
+        db.close()
         chat_orchestrator.conversation_sessions[SESSION_ID] = {
             "id": SESSION_ID, "user_id": "owner-user", "history": [],
         }

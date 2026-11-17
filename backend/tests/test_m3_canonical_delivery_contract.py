@@ -40,7 +40,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.auth import create_access_token
 from core.llm.byok_handler import QueryComplexity
-from core.models import ChatMessage, User
+from core.models import ChatMessage, ChatSession, User
 from core.models_registration import Base
 from integrations import chat_routes as cr
 
@@ -146,6 +146,33 @@ def _seed_user(world) -> tuple[User, str]:
         token = create_access_token(
             {"sub": user.id, "type": "access"}, user=user)
     return user, token
+
+
+def _seed_owned_session(world, user: User) -> None:
+    """Persist the owned ``ChatSession`` row the real admission producer writes.
+
+    ``_install_orchestrator`` doubles only the in-memory session projection
+    (``_get_or_create_session``) plus the external model transport. In the
+    served boundary that producer also persists a durable ``ChatSession`` row
+    through ``ChatSessionManager.create_session`` BEFORE the turn's transcript
+    write. Without that row the write-time owned-session guard correctly
+    refuses the append (``CHAT_SESSION_UNVERIFIED``) — so the fixture must
+    materialise the same row, not bypass the guard.
+
+    This is faithful fixture setup, not an authority substitute: the writer
+    still re-reads this row, the actor and the admission snapshot and fences
+    them inside its own transaction; any mismatch still refuses.
+    """
+    with world.Session() as db:
+        db.add(ChatSession(
+            id=SESSION_ID,
+            user_id=user.id,
+            metadata_json={},
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            message_count=0,
+        ))
+        db.commit()
 
 
 class _FakeLLM:
@@ -396,7 +423,9 @@ def _seed_verified_canvas(world, user_id, execution_id):
 
 @pytest.fixture()
 def user_token(world):
-    return _seed_user(world)
+    user, token = _seed_user(world)
+    _seed_owned_session(world, user)
+    return user, token
 
 
 @pytest.fixture()
