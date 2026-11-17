@@ -10100,6 +10100,25 @@ class ChatOrchestrator:
                 ``intent`` keys. Threaded through to the LLM call.
         """
 
+        # CANONICAL CONVERSATION ADMISSION (2026-11-17): resolve the
+        # authoritative session id ONCE, before ANY session-scoped read or
+        # write (standing preferences, async-continuation supersede, task
+        # lifecycle, teaching/pending resume, trace, planner, durable
+        # assistant row, and the HTTP response). `_get_or_create_session`
+        # is the admission authority: for a foreign user's session id it
+        # creates a fresh own-scope session and returns THAT identity; a
+        # legitimate same-user continuation returns the same identity. The
+        # caller previously kept the client-supplied foreign id, so the
+        # durable row was written under the new session while every response
+        # and later lane still spoke the stolen id. Normalizing here makes
+        # every downstream consumer agree without a fleet-only rewrite and
+        # without inventing a response-only id.
+        _claimed_session_id = session_id or str(uuid.uuid4())
+        session = self._get_or_create_session(
+            user_id, _claimed_session_id, context)
+        session_id = str(
+            (session or {}).get("id") or _claimed_session_id)
+
         # STANDING-PREFERENCE CAPTURE — THE UNIVERSAL SEAM (2026-10-01
         # live-e2e finding): a taught preference ("always include the
         # tennsmith sheet for roper whitney searches") must become a durable
@@ -10178,10 +10197,12 @@ class ChatOrchestrator:
             except Exception:  # noqa: BLE001 — supersede is best-effort
                 pass
 
-            # Create or get session
-            session_id = session_id or str(uuid.uuid4())
+            # Session identity was canonically admitted at turn entry (see
+            # CANONICAL CONVERSATION ADMISSION above); do not re-resolve it
+            # here from the client-supplied id.
+            session_id = str(
+                (session or {}).get("id") or session_id)
             _execution_id: Optional[str] = None  # chat-trace run (set below)
-            session = self._get_or_create_session(user_id, session_id, context)
             # TURN-SCOPED AGENT (round 59): every task-creation lane
             # persists the acting agent on the job — durable workers'
             # taught-lesson source. Set once at turn entry.
@@ -37919,6 +37940,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             existing = self.conversation_sessions[session_id]
             if existing.get("user_id") and str(existing["user_id"]) != str(user_id):
                 # Don't reveal the session exists — just create a fresh one.
+                # CANONICAL ADMISSION BINDING (2026-11-17): the fresh
+                # own-scope identity must be DURABLE and authoritative for
+                # the rest of this turn. Persist the ChatSession row here so
+                # the caller's normalized id, the assistant row and the HTTP
+                # envelope all name the same owned conversation.
                 session_id = str(uuid.uuid4())
                 self.conversation_sessions[session_id] = {
                     "id": session_id,
@@ -37928,6 +37954,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "created_at": datetime.now().isoformat(),
                     "history": []
                 }
+                try:
+                    if self.session_manager:
+                        self.session_manager.create_session(
+                            user_id=str(user_id),
+                            session_id=session_id,
+                            channel_id=channel_id,
+                            thread_id=thread_id,
+                        )
+                except Exception as session_create_err:  # noqa: BLE001
+                    logger.debug(
+                        "foreign-session admission row persist skipped: %r",
+                        session_create_err)
             else:
                 # Sessions preloaded from the legacy file store at boot arrive
                 # with empty history — hydrate from the DB so a returning

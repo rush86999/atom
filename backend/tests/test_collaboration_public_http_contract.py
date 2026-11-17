@@ -66,7 +66,8 @@ from core.database import Base
 from core.fleet_admiral import TaskAnalysis
 from core.models import (
     AgentExecution, AgentRegistry, ChainLink, ChatMessage as ChatMessageModel,
-    DelegationChain, FleetRoutingAudit, Tenant, User, Workspace,
+    ChatSession as ChatSessionModel, DelegationChain, FleetRoutingAudit,
+    Tenant, User, Workspace,
 )
 from core.react_models import ReActStep
 from core.recruitment_intelligence_service import RecruitmentPlan
@@ -568,17 +569,15 @@ def test_second_actor_gets_own_scope_agents_and_no_cross_session_leak(
             b_message_id = str(b_durable[-1].id)
             b_message_content = str(b_durable[-1].content or "")
 
-        # A uses B's session id + forged foreign workspace. The shipped
-        # ownership logic creates a fresh A session internally. The response
-        # envelope currently echoes the client-supplied B id (separate known
-        # product bug, pinned by the xfail below), so this assertion proves
-        # the durable safety property instead: A's answer is never written
-        # into B's conversation, and B's row is untouched.
+        # A uses B's session id + forged foreign workspace. Canonical
+        # admission must create/return an owned A session, and every response
+        # consumer must speak that authoritative id.
         response_a = _post(
             client, http_boundary["token_a"], MESSAGE,
             session_id=session_b, context={"workspace_id": "w-foreign"})
         assert response_a.status_code == 200, response_a.text
         body_a = response_a.json()
+        assert body_a["session_id"] != session_b, body_a
         assert FINANCE in body_a["message"] and SALES in body_a["message"]
         assert B_FINANCE not in body_a["message"]
         assert FOREIGN_FINANCE not in body_a["message"]
@@ -597,6 +596,19 @@ def test_second_actor_gets_own_scope_agents_and_no_cross_session_leak(
             assert all(str(row.conversation_id) != session_b
                        for row in a_assistant_rows), (
                 "A answer leaked into B's conversation")
+            assert {str(row.conversation_id)
+                    for row in a_assistant_rows} == {
+                body_a["session_id"]}, (
+                "HTTP envelope id disagrees with the durable assistant "
+                "conversation")
+            owned = db.query(ChatSessionModel).filter(
+                ChatSessionModel.id == body_a["session_id"]).first()
+            assert owned is not None and str(owned.user_id) == "u-a"
+            a_exec = db.query(AgentExecution).filter(
+                AgentExecution.id == body_a["execution_id"]).first()
+            assert a_exec is not None
+            assert a_exec.workspace_id == "w-a"
+            assert a_exec.tenant_id == "t-http"
             a_chains = [c for c in db.query(DelegationChain).all()
                         if (c.metadata_json or {}).get("workspace_id") == "w-a"]
             assert len(a_chains) == 1
@@ -612,15 +624,6 @@ def test_second_actor_gets_own_scope_agents_and_no_cross_session_leak(
             if c["kind"] == "scoped"][-2:] == ["w-b", "w-a"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Known public-route bug: when an authenticated user reuses another "
-        "user's session id, ChatOrchestrator._get_or_create_session creates a "
-        "fresh internal session but process_chat_message/the route still echo "
-        "the client-supplied foreign session_id in the HTTP envelope. Durable "
-        "data is isolated (A's assistant row is under the new id; B's row is "
-        "untouched), but the envelope id is stale/foreign."))
 def test_cross_user_session_id_is_not_reused_in_http_envelope(
         http_boundary, monkeypatch):
     monkeypatch.setenv("ATOM_FLEET_ROUTING_ENABLED", "true")
@@ -632,11 +635,124 @@ def test_cross_user_session_id_is_not_reused_in_http_envelope(
         response_b = _post(client, http_boundary["token_b"], MESSAGE,
                            session_id=session_b, context={})
         assert response_b.status_code == 200, response_b.text
+        body_b = response_b.json()
         response_a = _post(client, http_boundary["token_a"], MESSAGE,
                            session_id=session_b, context={})
         assert response_a.status_code == 200, response_a.text
+        body_a = response_a.json()
 
-    assert response_a.json()["session_id"] != session_b
+    assert body_a["session_id"] != session_b
+    with http_boundary["Session"]() as db:
+        owned = db.query(ChatSessionModel).filter(
+            ChatSessionModel.id == body_a["session_id"]).first()
+        assert owned is not None and str(owned.user_id) == "u-a"
+        a_rows = db.query(ChatMessageModel).filter(
+            ChatMessageModel.conversation_id == body_a["session_id"],
+            ChatMessageModel.role == "assistant").all()
+        assert a_rows and FINANCE in "\n".join(
+            str(row.content or "") for row in a_rows)
+        b_rows = db.query(ChatMessageModel).filter(
+            ChatMessageModel.conversation_id == session_b,
+            ChatMessageModel.role == "assistant").all()
+        assert b_rows and B_FINANCE in "\n".join(
+            str(row.content or "") for row in b_rows)
+        a_exec = db.query(AgentExecution).filter(
+            AgentExecution.id == body_a["execution_id"]).first()
+        assert a_exec is not None
+        assert a_exec.workspace_id == "w-a"
+        assert a_exec.tenant_id == "t-http"
+
+
+def test_ordinary_current_session_continuation_keeps_authoritative_id(
+        http_boundary, monkeypatch):
+    """Generic admission fix: same-user, non-collaboration turns keep id."""
+    monkeypatch.setenv("ATOM_FLEET_ROUTING_ENABLED", "true")
+    monkeypatch.setenv("ATOM_FLEET_ROUTING_FORCE_ENFORCE", "true")
+    _install_fake_llm(monkeypatch, mode="conversation")
+    session_id = f"http-ordinary-{uuid.uuid4().hex}"
+
+    with TestClient(http_boundary["app"]) as client:
+        first = _post(client, http_boundary["token_a"], ORDINARY_MESSAGE,
+                      session_id=session_id, context={})
+        second = _post(client, http_boundary["token_a"], "Thanks, continue.",
+                       session_id=session_id, context={})
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()["session_id"] == session_id
+    assert second.json()["session_id"] == session_id
+    assert first.json()["intent"] != "collaboration" or first.json()[
+        "outcome"] != "completed"
+    with http_boundary["Session"]() as db:
+        owned = db.query(ChatSessionModel).filter(
+            ChatSessionModel.id == session_id).first()
+        assert owned is not None and str(owned.user_id) == "u-a"
+        assistant_rows = db.query(ChatMessageModel).filter(
+            ChatMessageModel.conversation_id == session_id,
+            ChatMessageModel.role == "assistant").all()
+        assert len(assistant_rows) >= 2
+        assert db.query(DelegationChain).count() == 0
+        assert db.query(FleetRoutingAudit).count() == 0
+
+
+def test_cross_user_foreign_pending_approval_cannot_execute_or_clear_b(
+        http_boundary, monkeypatch):
+    """A with B's id + 'go ahead' must not read, clear or execute B's pending."""
+    monkeypatch.setenv("ATOM_FLEET_ROUTING_ENABLED", "true")
+    monkeypatch.setenv("ATOM_FLEET_ROUTING_FORCE_ENFORCE", "false")
+    _install_fake_llm(monkeypatch, mode="collaboration")
+    session_b = f"http-pending-b-{uuid.uuid4().hex}"
+
+    with TestClient(http_boundary["app"]) as client:
+        pending_b = _post(client, http_boundary["token_b"], MESSAGE,
+                          session_id=session_b, context={})
+        assert pending_b.status_code == 200, pending_b.text
+        pending_body = pending_b.json()
+        assert pending_body["outcome"] == "pending"
+        assert pending_body["session_id"] == session_b
+
+        # B's real pending is now durable in B's session metadata.
+        with http_boundary["Session"]() as db:
+            b_session = db.query(ChatSessionModel).filter(
+                ChatSessionModel.id == session_b).first()
+            assert b_session is not None
+            b_meta = dict(b_session.metadata_json or {})
+            b_pending = b_meta.get("_pending_collaboration")
+            assert isinstance(b_pending, dict)
+            assert b_pending.get("state") == "pending"
+            assert b_pending.get("request") == MESSAGE
+
+        # The pilot is now approved. A supplies B's id and an approval.
+        monkeypatch.setenv("ATOM_FLEET_ROUTING_FORCE_ENFORCE", "true")
+        _install_fake_llm(monkeypatch, mode="conversation")
+        response_a = _post(
+            client, http_boundary["token_a"], "go ahead",
+            session_id=session_b, context={"workspace_id": "w-foreign"})
+        assert response_a.status_code == 200, response_a.text
+        body_a = response_a.json()
+        assert body_a["session_id"] != session_b, body_a
+        assert FINANCE not in body_a["message"]
+        assert B_FINANCE not in body_a["message"]
+
+    with http_boundary["Session"]() as db:
+        assert db.query(DelegationChain).count() == 0
+        assert db.query(FleetRoutingAudit).count() == 0
+        b_session = db.query(ChatSessionModel).filter(
+            ChatSessionModel.id == session_b).first()
+        assert b_session is not None
+        b_pending_after = dict(b_session.metadata_json or {}).get(
+            "_pending_collaboration")
+        assert isinstance(b_pending_after, dict)
+        assert b_pending_after.get("state") == "pending"
+        assert b_pending_after.get("request") == MESSAGE
+        owned_a = db.query(ChatSessionModel).filter(
+            ChatSessionModel.id == body_a["session_id"]).first()
+        assert owned_a is not None and str(owned_a.user_id) == "u-a"
+        a_exec = db.query(AgentExecution).filter(
+            AgentExecution.id == body_a["execution_id"]).first()
+        assert a_exec is not None
+        assert (a_exec.metadata_json or {}).get("session_id") == (
+            body_a["session_id"])
 
 
 def test_unauthenticated_http_fails_before_any_model_call(
