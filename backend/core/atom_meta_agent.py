@@ -3911,8 +3911,10 @@ What is your next step?"""
 
             if judge_result is not None:
                 verdict = getattr(judge_result, "verdict", None)
+                verdict_text = str(
+                    getattr(verdict, "value", verdict) or "").strip().lower()
                 rationale = getattr(judge_result, "rationale", None)
-                if verdict == "block":
+                if verdict_text == "block":
                     logger.warning(
                         "ActionJudge BLOCK: %s -> %s (%s)",
                         ctx.get("agent_id", "atom_main"),
@@ -3923,7 +3925,7 @@ What is your next step?"""
                         f"Action {tool_name} was blocked by the safety judge: "
                         f"{rationale}"
                     )
-                if verdict == "escalate":
+                if verdict_text == "escalate":
                     with SessionLocal() as judge_db:
                         binding = self._approval_binding(ctx)
                         gov = AgentGovernanceService(
