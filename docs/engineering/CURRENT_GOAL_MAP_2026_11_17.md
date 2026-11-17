@@ -71,6 +71,16 @@ That local head is not published and the earlier remote head remains open.
 For #988, the 706 current-head checks and preceding 1,034-check gate overlap;
 they are not an additive test total, and hosted CI is still required.
 
+Later root CI observation on November 17: main #989's
+[CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691)
+completed successfully at exact `ba66f5e22`. Its first attempt took 46m 14s
+from workflow start to the last job finishing, compared with 68m 24s for
+[main #986 CI 44141818847](https://github.com/rush86999/atom/actions/runs/44141818847)
+at exact `8afac828c`. These are two observed successful hosted runs, not a
+controlled benchmark: cache, runner contention and queue differences were not
+normalized. This is delivery evidence, not application latency or Goal 17
+acceptance. The earlier pending-at-cut record above remains historical.
+
 ## Status vocabulary used below
 
 - **merged implementation** — commit is in first-parent main; merge is not
