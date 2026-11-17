@@ -21,6 +21,7 @@ from core.conversation_learning import (
     applicable_method_lessons,
     apply_lesson_method,
     build_candidate,
+    candidate_history,
     candidate_readiness,
     candidate_visible_to_user,
     collect_thread_evidence,
@@ -85,6 +86,9 @@ class CandidateRevise(BaseModel):
     format_spec: Optional[Dict[str, Any]] = None
     conditions: Optional[Dict[str, Any]] = None
     decision_options: Optional[List[str]] = None
+    # Optional reviewer-authored plain text. Absent means "not recorded";
+    # the server never substitutes a rationale the reviewer did not give.
+    reason: str = ""
     changed_by: str = ""
 
 
@@ -355,6 +359,29 @@ def get_candidate(candidate_id: str, thread_id: str,
     return _payload(candidate)
 
 
+@router.get("/candidates/{candidate_id}/history")
+def get_candidate_history(candidate_id: str, thread_id: str,
+                          source_kind: str = SOURCE_KIND_EMAIL,
+                          limit: int = 20, offset: int = 0,
+                          db: Session = Depends(get_db),
+                          current_user: User = Depends(get_current_user)):
+    """Read the stored revisions of this exact candidate. Writes nothing.
+
+    Authorization is the existing candidate guard (active member, same
+    workspace/tenant, visible source, authorized employee). The rows come from
+    the append-only ledger already written by revisions, confirmations,
+    promotions, rejections and invalidations -- not from client input, and not
+    from a re-verification of old evidence against current state.
+    """
+    user, _ = _require_learning_authority(db, current_user)
+    _load_scoped(db, user, thread_id, candidate_id, source_kind)
+    workspace_id, tenant_id = _scope(user)
+    return candidate_history(
+        db, thread_id=thread_id, candidate_id=candidate_id,
+        source_kind=source_kind, workspace_id=workspace_id,
+        tenant_id=tenant_id, limit=limit, offset=offset)
+
+
 @router.post("/candidates/{candidate_id}/revise")
 def revise(candidate_id: str, request: CandidateRevise,
            db: Session = Depends(get_db),
@@ -379,7 +406,8 @@ def revise(candidate_id: str, request: CandidateRevise,
             decision_options=request.decision_options,
             expected_revision=request.expected_revision,
             expected_status=request.expected_status or None,
-            changed_by=_reviewer(user))
+            changed_by=_reviewer(user),
+            reason=request.reason)
     except ValueError as exc:
         detail = str(exc)
         status_code = 409 if detail in {
