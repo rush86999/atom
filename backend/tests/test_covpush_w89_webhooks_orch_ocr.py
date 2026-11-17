@@ -1337,6 +1337,10 @@ class TestSessions:
         cm = MagicMock()
         cm.__enter__.return_value = fake_db
         orch.session_manager = None
+        # Direct/legacy writer shape: this MagicMock DB cannot represent a
+        # real User row, so the writer's declared construction scope applies.
+        # The authenticated-actor path is exercised by
+        # tests/test_chat_message_actor_scope.py.
         sess = {"id": "s1", "channel_id": "c1", "thread_id": "t1",
                 "history": []}
         with patch.object(cdb, "get_db_session", return_value=cm):

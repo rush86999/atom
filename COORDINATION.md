@@ -677,3 +677,44 @@ Files owned/edited this session (only these):
 Not changed: async/fork/background-delivery writer paths keep their existing
 job-record/declared scope contracts; the foreign-session public read envelope
 (separate PR) was not touched. No live DB, provider call, restart, push or PR.
+
+---
+
+## Session: chat-message admitted scope follow-up (2026-11-17, same branch)
+
+Scope: the transcript writer re-resolved the actor at write time but compared
+it only with itself. A real root counter showed a turn admitted as UserA in
+tenant/workspace A that waited on the model while the SAME user row moved to
+legitimate tenant/workspace B: the write-time read saw B, the fence agreed
+with B, and the turn's transcript was appended under B while the keyed
+transport record stayed A (`rows_match_transport: false`).
+
+Files edited this session (additive; only these):
+
+- `backend/core/chat_message_authority.py` — the turn pin now captures the
+  admitted actor + scope snapshot (existing `_resolve_actor`) before awaited
+  work; the write compares the fresh actor with THAT snapshot (tenant,
+  workspace, role, status) and refuses on any change. An unreadable pin fails
+  closed at write time. Declared external identities (`external_agent_user`,
+  `ext_<sender>`) keep the writer's construction scope but can never be
+  adopted by a local caller; an external id that became a local user during
+  the turn is refused. Placeholder reclaims are re-owned in the SAME durable
+  transaction that fences the row (verified by owner, not an in-memory
+  label).
+- `backend/integrations/chat_orchestrator.py` — the turn-entry pin comment
+  and the post-commit in-memory session owner publish.
+- `backend/tests/test_chat_message_actor_scope.py` +
+  `backend/tests/fixtures/served_chat_scope_app.py` — served cases for
+  independent and combined tenant/workspace moves, authority-read outage,
+  actor deletion, durable placeholder reclaim across restart, external
+  bridge declared scope and warm/cold local adoption refusal.
+- `backend/tests/test_covpush_w89_webhooks_orch_ocr.py`,
+  `backend/tests/test_covpush_comms_services3.py` — comments only, recording
+  why those unit tests construct the direct/no-actor writer shape.
+
+Not changed: the foreign-session public read envelope (served GET still
+returns a system-owned conversation's rows on a cold process; the write then
+refuses, and the durable owner/rows are unchanged). This read behavior is a
+pre-existing boundary and is NOT attributed to PR #984 — that is the fleet
+collaboration release; no other PR's scope is claimed for it. No live DB,
+provider call, restart of the dev app, push or PR.

@@ -10136,13 +10136,15 @@ class ChatOrchestrator:
         except Exception:  # noqa: BLE001 — classification only, never blocks
             _interactive_token = None
         try:
-            # DURABLE-WRITE ACTOR PIN (2026-11-17): the transcript writer
-            # resolves the CURRENT User row again at write time; this pin is
-            # only the admitted principal id for the error fallback when the
-            # session projection is unavailable (e.g. session creation
-            # failed). Deliberately a separate contextvar —
-            # ``request_scope`` is splatted into LLM dispatch calls, whose
-            # signatures own their own keyword contract.
+            # ADMITTED-SCOPE PIN (2026-11-17 follow-up): capture the actor +
+            # scope ONCE, here, before session load and before any awaited
+            # provider work. The transcript writer re-reads the actor at write
+            # time and compares it with THIS admission snapshot — a tenant or
+            # workspace move that lands while the turn waits on the model
+            # refuses the append instead of re-scoping the turn's content.
+            # A pin that cannot be read fails closed at write time. Deliberately
+            # a separate contextvar: ``request_scope`` is splatted into LLM
+            # dispatch calls, whose signatures own their own keyword contract.
             from core.chat_message_authority import pin_chat_write_actor
 
             _write_actor_token = pin_chat_write_actor(user_id)
@@ -37581,6 +37583,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.chat_message_authority import resolve_chat_message_scope
             session_id = session.get("id")
             _durable_assistant_message_id = None
+            _session_rebound_to = None
             if session_id:
                 with get_db_session() as db:
                     # OWNED-SESSION WRITE AUTHORITY (2026-11-17): the
@@ -37604,6 +37607,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _write_scope.get("tenant_id")
                         or self.tenant_id
                         or "default")
+                    _session_rebound_to = _write_scope.get(
+                        "session_rebound_to")
                     # R72 Workstream I — backfill channel/thread binding on the
                     # session row (covers legacy sessions created pre-fix).
                     try:
@@ -37770,6 +37775,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # failed insert/commit must not leave an in-memory
                             # "durable" message id for the transport pin.
                             _durable_assistant_message_id = _asst_msg_id
+                if _session_rebound_to:
+                    # The durable claim is the authority; publish the same
+                    # owner into this turn's in-memory projection only after
+                    # the surrounding transaction committed.
+                    try:
+                        session["user_id"] = _session_rebound_to
+                    except Exception:
+                        pass
                 if _durable_assistant_message_id:
                     try:
                         session["history"][-1]["assistant_message_id"] = (

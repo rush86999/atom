@@ -1347,6 +1347,10 @@ class TestOrchestratorRemaining:
 
     async def test_update_session_row_backfill(self):
         orch = make_orchestrator()
+        # Direct/legacy writer shape: this MagicMock DB cannot represent a
+        # real User row, so the writer's declared construction scope applies.
+        # The authenticated-actor path is exercised by
+        # tests/test_chat_message_actor_scope.py.
         session = {"id": "s1", "channel_id": "ch1", "thread_id": "th1", "history": []}
         db = MagicMock()
         row = MagicMock()

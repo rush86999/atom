@@ -23,6 +23,18 @@ connection and from a cold/new server process):
 * the keyed transport record, assistant-message id and execution id agree;
 * the legitimate global/default user (admin bootstrap, NULL tenant) still
   writes the default tenant;
+* the authority admitted at the start of the turn is the authority at the
+  write: a tenant move, a workspace move, or both landing while the model is
+  awaited refuse the append (the answer is still delivered and the transport
+  pin gets no assistant id) instead of re-scoping the turn's content;
+* an authority read outage during the write fails closed the same way, and a
+  turn with an unchanged scope after the refusals still writes normally;
+* a legacy placeholder-owned session is reclaimed DURABLY in the write
+  transaction: the first caller owns it across a restart, and a different
+  local user can neither append to nor adopt it;
+* an authenticated local user targeting a durable external-platform
+  (`external_agent_user`) conversation is refused, warm and after a cold
+  restart, while the external bridge's own declared-scope write stays valid;
 * a foreign durable session, an owner changed while the turn awaits the
   model, and a user revoked while the turn awaits the model all refuse the
   append;
@@ -613,7 +625,230 @@ def test_foreign_changed_and_revoked_scopes_refuse_the_append(world):
 
 
 # ---------------------------------------------------------------------------
-# 3. Storage outage: answer delivered, durable transcript NOT claimed
+# 3. Mid-turn authority moves: refuse, never re-scope the turn's content
+# ---------------------------------------------------------------------------
+def _user_scope(served: ServedWorld, user_id: str) -> dict:
+    rows = served.rows(
+        "SELECT tenant_id, workspace_id FROM users WHERE id=?", (user_id,))
+    assert len(rows) == 1, rows
+    return rows[0]
+
+
+def _gated_refused_turn(world: ServedWorld, actor: dict, tag: str,
+                        *, expected_tenant: str, mutate) -> dict:
+    """Run one turn, mutate durable authority while the model is awaited."""
+    session_id = f"{tag}-{uuid.uuid4().hex[:10]}"
+    request_id = f"req-{tag}-{uuid.uuid4().hex[:10]}"
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            _chat, world, actor,
+            f"[[probe:{tag}]] move authority while awaiting the model",
+            session_id=session_id, request_id=request_id)
+        world.wait_for_gate(tag)
+        mutate()
+        world.release(tag)
+        response = future.result(timeout=240)
+    # The answer is still delivered: refusing a transcript append must not
+    # withhold the turn.
+    assert response["success"] is True, response
+    assert tag in response["message"], response["message"]
+    # ...but nothing durable was appended under the changed scope, and the
+    # transport pin has no assistant row to point at.
+    assert _messages(world, session_id) == [], tag
+    record = _request_record(world, request_id)
+    assert record["assistant_message_id"] is None, record
+    assert record["tenant_id"] == expected_tenant, record
+    assert record["user_id"] == actor["id"], record
+    return record
+
+
+def test_midturn_scope_moves_and_authority_outage_refuse_the_append(world):
+    actor = _actor(world, "scope-mover")
+    other = _actor(world, "scope-destination")
+    original = _user_scope(world, actor["id"])
+    assert original["tenant_id"] and original["workspace_id"]
+    assert other["tenant_id"] and other["tenant_id"] != original["tenant_id"]
+    assert (other["workspace_id"]
+            and other["workspace_id"] != original["workspace_id"])
+
+    def move(tenant=None, workspace=None):
+        world.sql(
+            "UPDATE users SET tenant_id=?, workspace_id=? WHERE id=?",
+            (tenant or original["tenant_id"],
+             workspace or original["workspace_id"], actor["id"]))
+
+    try:
+        # Independent moves and the combined move (the root counter's shape).
+        _gated_refused_turn(
+            world, actor, "scope-tenant-move",
+            expected_tenant=original["tenant_id"],
+            mutate=lambda: move(tenant=other["tenant_id"]))
+        move()
+        _gated_refused_turn(
+            world, actor, "scope-workspace-move",
+            expected_tenant=original["tenant_id"],
+            mutate=lambda: move(workspace=other["workspace_id"]))
+        move()
+        _gated_refused_turn(
+            world, actor, "scope-tenant-and-workspace-move",
+            expected_tenant=original["tenant_id"],
+            mutate=lambda: move(tenant=other["tenant_id"],
+                                workspace=other["workspace_id"]))
+    finally:
+        # Restore before the outage case: it needs a readable `users` table to
+        # set up, and a failed assertion above must not poison teardown.
+        move()
+
+    # Authority read outage at WRITE time: the actor table is momentarily
+    # unreadable. Fail closed rather than invent a snapshot or fall back to
+    # the writer's construction scope.
+    try:
+        _gated_refused_turn(
+            world, actor, "scope-authority-outage",
+            expected_tenant=original["tenant_id"],
+            mutate=lambda: world.sql(
+                "ALTER TABLE users RENAME TO users_scope_outage"))
+    finally:
+        if (not world.table_exists("users")
+                and world.table_exists("users_scope_outage")):
+            world.sql("ALTER TABLE users_scope_outage RENAME TO users")
+
+    # The admitted actor row disappears while the model is awaited: the
+    # write-time authority read finds no row and must refuse, never adopt a
+    # different scope for the old turn's content.
+    victim = _actor(world, "scope-victim")
+    victim_scope = _user_scope(world, victim["id"])
+    _gated_refused_turn(
+        world, victim, "scope-actor-deleted",
+        expected_tenant=victim_scope["tenant_id"],
+        mutate=lambda: world.sql(
+            "DELETE FROM users WHERE id=?", (victim["id"],)))
+    assert world.rows(
+        "SELECT id FROM users WHERE id=?", (victim["id"],)) == []
+
+    # A correct, unchanged scope after every refusal still writes normally.
+    session_id = f"scope-restored-{uuid.uuid4().hex[:10]}"
+    request_id = f"req-scope-restored-{uuid.uuid4().hex[:10]}"
+    response = _chat(
+        world, actor, "unchanged scope after the refusals",
+        session_id=session_id, request_id=request_id)
+    capture = _assert_actor_rows(world, actor, session_id, request_id, response)
+    assert {row["tenant_id"] for row in capture["rows"]} == {
+        original["tenant_id"]}
+
+
+# ---------------------------------------------------------------------------
+# 4. Legacy placeholder reclaim is durable in the write transaction
+# ---------------------------------------------------------------------------
+def test_legacy_placeholder_reclaim_is_durable_across_restart(world):
+    owner = _actor(world, "reclaimer")
+    other = _actor(world, "later-visitor")
+    legacy_session = f"legacy-{uuid.uuid4().hex[:10]}"
+    world.sql(
+        "INSERT INTO chat_sessions (id, user_id, title, metadata_json, "
+        "channel_id, thread_id, created_at, updated_at, message_count) "
+        "VALUES (?, 'default', ?, '{}', NULL, NULL, datetime('now'), "
+        "datetime('now'), 0)",
+        (legacy_session, "legacy conversation"),
+    )
+    owner_req = f"req-legacy-owner-{uuid.uuid4().hex[:10]}"
+    response = _chat(
+        world, owner, "reclaim this legacy conversation",
+        session_id=legacy_session, request_id=owner_req)
+    _assert_actor_rows(world, owner, legacy_session, owner_req, response)
+    # The reclaim is a durable transaction, not an in-memory label.
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (legacy_session,)) == [{"user_id": owner["id"]}]
+
+    # A cold process: another local user must neither append to nor adopt the
+    # reclaimed conversation.
+    world.restart()
+    other = _login(world, other["email"], other["password"])
+    other_req = f"req-legacy-other-{uuid.uuid4().hex[:10]}"
+    other_response = _chat(
+        world, other, "claim somebody else's reclaimed conversation",
+        session_id=legacy_session, request_id=other_req)
+    assert other_response["success"] is True
+    rows = _messages(world, legacy_session)
+    assert sorted(row["role"] for row in rows) == ["assistant", "user"], rows
+    assert {row["tenant_id"] for row in rows} == {owner["tenant_id"]}, rows
+    assert _request_record(
+        world, other_req)["assistant_message_id"] is None
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (legacy_session,)) == [{"user_id": owner["id"]}]
+
+    # The owner still owns it after the same cold restart.
+    owner = _login(world, owner["email"], owner["password"])
+    owner_again = f"req-legacy-owner-2-{uuid.uuid4().hex[:10]}"
+    second = _chat(
+        world, owner, "the owner continues the conversation",
+        session_id=legacy_session, request_id=owner_again)
+    assert second["success"] is True
+    rows = _messages(world, legacy_session)
+    assert len(rows) == 4, rows
+    assert {row["tenant_id"] for row in rows} == {owner["tenant_id"]}, rows
+    record = _request_record(world, owner_again)
+    assert record["tenant_id"] == owner["tenant_id"], record
+    assert record["user_id"] == owner["id"], record
+    assert record["assistant_message_id"] in {
+        row["id"] for row in rows if row["role"] == "assistant"}, record
+
+
+# ---------------------------------------------------------------------------
+# 5. External-platform declared scope: valid for the bridge, not adoptable
+# ---------------------------------------------------------------------------
+def test_external_bridge_scope_stays_declared_and_local_callers_cannot_adopt_it(
+        world):
+    bridge_turn = httpx.post(
+        world.base_url + "/__fixture/external-bridge-turn",
+        json={"sender_id": "fixture-sender", "recipient_id": "fixture-bot",
+              "message": "external bridge turn"},
+        # The app's CSRF middleware exempts Bearer-authenticated calls; this
+        # fixture-only endpoint has no browser session to protect.
+        headers={"Authorization": "Bearer served-chat-scope-fixture"},
+        timeout=180,
+        trust_env=False,
+    )
+    assert bridge_turn.status_code == 200, bridge_turn.text
+    assert bridge_turn.json().get("status") == "success", bridge_turn.text
+    # The universal bridge's canonical session key for an `agent` message.
+    session_id = "agent_fixture-bot_fixture-sender_"
+    rows = _messages(world, session_id)
+    assert sorted(row["role"] for row in rows) == ["assistant", "user"], rows
+    assert {row["tenant_id"] for row in rows} == {"default"}, rows
+    assert world.rows(
+        "SELECT user_id FROM chat_sessions WHERE id=?",
+        (session_id,)) == [{"user_id": "external_agent_user"}]
+
+    local = _actor(world, "scope-local-intruder")
+
+    def attempt(tag: str, actor: dict) -> None:
+        request_id = f"req-{tag}-{uuid.uuid4().hex[:10]}"
+        response = _chat(
+            world, actor,
+            "claim the external-platform conversation",
+            session_id=session_id, request_id=request_id)
+        assert response["success"] is True
+        assert _messages(world, session_id) == rows
+        assert _request_record(
+            world, request_id)["assistant_message_id"] is None
+        assert world.rows(
+            "SELECT user_id FROM chat_sessions WHERE id=?",
+            (session_id,)) == [{"user_id": "external_agent_user"}]
+
+    # Warm process.
+    attempt("scope-external-warm", local)
+
+    # Cold/new process: the durable owner is still the system identity.
+    world.restart()
+    local = _login(world, local["email"], local["password"])
+    attempt("scope-external-cold", local)
+
+
+# ---------------------------------------------------------------------------
+# 6. Storage outage: answer delivered, durable transcript NOT claimed
 # ---------------------------------------------------------------------------
 def test_storage_outage_never_claims_a_durable_transcript(world):
     actor = _actor(world, "outage")

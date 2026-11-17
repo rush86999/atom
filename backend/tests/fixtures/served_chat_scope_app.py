@@ -83,8 +83,11 @@ import main_api_app  # noqa: E402  (must follow the network guard)
 
 app = main_api_app.app
 
+from fastapi import Request as _FixtureRequest  # noqa: E402
+
 from core.embedding_service import EmbeddingService  # noqa: E402
 from core.llm_service import LLMService  # noqa: E402
+from core.agent_integration_gateway import AgentIntegrationGateway  # noqa: E402
 
 _TAG_RE = re.compile(r"\[\[probe:([A-Za-z0-9_.-]{1,80})\]\]")
 _GATED: set = set()
@@ -259,3 +262,42 @@ LLMService.generate_completion = _fake_generate_completion
 LLMService.generate = _fake_generate
 LLMService.generate_structured_response = _fake_structured_response
 LLMService.stream_completion = _fake_stream_completion
+
+
+# ---------------------------------------------------------------------------
+# External-platform bridge transport double
+# ---------------------------------------------------------------------------
+# The universal bridge answers the platform back after the chat turn. That
+# outbound leg is a transport, not durable authority: double it so the served
+# world never reaches a real integration connector. The bridge's INBOUND path
+# (declared external identity -> ChatOrchestrator -> real transcript writer)
+# stays real, which is what the external-writer control exercises.
+async def _fake_gateway_execute_action(self, action_type, platform, params):
+    return {"status": "fixture_sent", "platform": platform}
+
+
+AgentIntegrationGateway.execute_action = _fake_gateway_execute_action
+
+
+@app.post("/__fixture/external-bridge-turn")
+async def _fixture_external_bridge_turn(request: _FixtureRequest):
+    """Drive the REAL universal webhook bridge inbound path once.
+
+    Test plumbing only: a served process has no platform webhook to call, so
+    this endpoint hands the real bridge a standardized ``agent`` message. No
+    auth, authority, session or transcript code is substituted.
+    """
+    payload = await request.json()
+    from integrations.universal_webhook_bridge import UniversalWebhookBridge
+
+    bridge = UniversalWebhookBridge()
+    result = await bridge.process_incoming_message("agent", {
+        "agent_id": payload.get("sender_id") or "fixture-sender",
+        "target_id": payload.get("recipient_id") or "fixture-bot",
+        "message": payload.get("message") or "external bridge turn",
+        "metadata": {"id": "served-chat-scope-fixture"},
+    })
+    return {
+        "status": result.get("status"),
+        "orchestrator_response": result.get("orchestrator_response"),
+    }
