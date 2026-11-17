@@ -1200,6 +1200,9 @@ async def propose_adaptation(
     deadline: Optional[float] = None,
     attempt_journal: Any = None,
     strict_pin: Optional[bool] = None,
+    expected_route: Optional[Sequence[str]] = None,
+    expected_build: Optional[str] = None,
+    qualification_authority: Any = None,
 ) -> Dict[str, Any]:
     """Propose a response; a provider failure falls back deterministically.
 
@@ -1207,6 +1210,22 @@ async def propose_adaptation(
     initial call and its one bounded repair. A repair never gets a fresh
     budget, and a timeout is returned as a typed stage failure instead of
     ``None`` hiding which boundary died.
+
+    ``expected_route``/``expected_build`` are the OPTIONAL qualification
+    identity contract: SERVER-resolved values from the current durable route
+    decision (never client plan metadata). Every model stage of this consumer
+    (initial, compact, repair, wait choice) is gated on that exact route/build
+    through the existing identity validator before its proposal may be used.
+    A missing/conflicting identity keeps the actual served identity for audit
+    and takes the ordinary deterministic fallback instead of model work.
+    Callers without a qualification decision pass neither and keep the
+    historical contract byte-identically.
+
+    ``qualification_authority`` is the OPTIONAL server-minted measured-evidence
+    reference for the same qualification pin. It is forwarded with each PINNED
+    model stage only (never a stage that drops the pin) so the dispatch floor
+    can substitute the measured quality component the resolver selected. It
+    carries no identity, effect or operational permission.
     """
     response_model = _response_model_for(context)
     journal = attempt_journal
@@ -1393,6 +1412,8 @@ async def propose_adaptation(
             attempt_observer=_observer(stage_name),
             provenance=provenance,
             strict_pin=strict_pin_forced,
+            qualification_authority=(
+                qualification_authority if provider_model else None),
         )
         try:
             if remaining is None:
@@ -1420,6 +1441,48 @@ async def propose_adaptation(
             raise
         finally:
             last_routing_result_id = provenance.get("routing_result_id")
+        if result is not None and (
+                expected_route is not None or expected_build is not None):
+            from core.employee_routing_feedback import (
+                record_discarded_qualification_identity,
+            )
+
+            rejection = await record_discarded_qualification_identity(
+                {
+                    "source": "model",
+                    "routing": _routing_snapshot(provenance),
+                    "routing_result_id": provenance.get(
+                        "routing_result_id"),
+                },
+                expected_route=(
+                    provider_model if provider_model is not None
+                    else expected_route),
+                expected_build=expected_build,
+                stage=f"employee_adaptation:{stage_name}",
+                workspace_id=context.get("identity", {}).get("workspace_id"),
+                tenant_id=context.get("identity", {}).get("tenant_id"),
+            )
+            if rejection is not None:
+                # The accepted transport route/build stays on the audit
+                # snapshot. Only the pinned-identity claim is refused, and
+                # the caller takes its ordinary deterministic fallback.
+                provenance["error"] = {
+                    "code": rejection["error_code"],
+                    "detail": rejection["detail"],
+                }
+                stage_no_results.setdefault(stage_name, []).append({
+                    "kind": rejection["error_code"],
+                    "detail": rejection["detail"],
+                    "label": label,
+                })
+                if journal is not None:
+                    journal.record(
+                        "identity_rejected", call_stage=stage_name,
+                        label=label, attempt=0,
+                        identity_state=rejection["identity_state"],
+                        identity_build=rejection["identity_build"],
+                        expected_build=rejection["expected_build"])
+                return None
         return result
 
     def _normalize(

@@ -25,40 +25,45 @@ Usage:
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 REPO = Path(__file__).resolve().parents[2]
-BACKEND = REPO / "backend"
+VALIDATOR = REPO / "scripts" / "acceptance" / "validate_local_world.py"
 WORLD_DB_MARKER = "/whole-app-world/data/atom.db"
-#: Same relocation contract as ``core.world_storage_guard``. Recovery must
-#: target the root the guard/launcher actually used, never a parallel one.
-STORAGE_PATHS_ENV = "ATOM_WORLD_STORAGE_PATHS"
+
+_VALIDATOR_MODULE: Optional[Any] = None
 
 
-def _load_storage_guard():
-    backend = str(BACKEND)
-    if backend not in sys.path:
-        sys.path.insert(0, backend)
-    import core.world_storage_guard as guard
-    return guard
+def _validator():
+    """Load the SAME storage resolver the launcher/guard contract uses."""
+    global _VALIDATOR_MODULE
+    if _VALIDATOR_MODULE is None:
+        spec = importlib.util.spec_from_file_location(
+            "validate_local_world", VALIDATOR)
+        if spec is None or spec.loader is None:  # pragma: no cover - defensive
+            raise RuntimeError(f"cannot load {VALIDATOR}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _VALIDATOR_MODULE = module
+    return _VALIDATOR_MODULE
 
 
 def _configured_worlds_root(repo: Path = REPO) -> Path:
-    """The canonical worlds root (honours ``ATOM_WORLD_STORAGE_PATHS``)."""
-    guard = _load_storage_guard()
-    relocated = (os.environ.get(STORAGE_PATHS_ENV) or "").strip()
-    config_dir = (Path(relocated).expanduser() if relocated
-                  else repo / "backend" / "config")
+    """The configured worlds root, resolved by the guard's one resolver.
+
+    Honors ``ATOM_WORLD_STORAGE_PATHS`` and its missing-config refusal. The
+    recovery helper must never fall back to the canonical root while an
+    isolated relocation is declared.
+    """
     try:
-        config = guard.load_config(config_dir / "world_storage.json")
-    except guard.WorldStorageError:
-        # An unreadable config cannot authorize anything; returning the
-        # default root makes every path fail the containment check below.
-        return (repo / "backend" / "data" / "acceptance_worlds").resolve()
-    return Path(config.root).resolve()
+        return Path(_validator().resolve_storage_config(repo)["root"])
+    except Exception as exc:
+        raise RuntimeError(
+            f"cannot resolve the configured worlds root: {exc}") from exc
 
 
 def authorized_world_database(
@@ -82,7 +87,11 @@ def authorized_world_database(
     if WORLD_DB_MARKER in db_url:
         return True, "historical isolated whole-app world"
 
-    worlds_root = _configured_worlds_root(repo)
+    worlds_root = None
+    try:
+        worlds_root = _configured_worlds_root(repo)
+    except RuntimeError as exc:
+        return False, f"REFUSED: {exc}"
     if worlds_root not in resolved.parents:
         return False, (
             f"REFUSED: {resolved} is not under the configured worlds root "

@@ -13,6 +13,15 @@ Usage:
     --phase start --state /private/tmp/g5-heldout/state.json ...
   # restart the application on the same world/source
   python ... --phase finish --state ... --db ...
+
+Benchmark evidence is opt-in (``--benchmark-evidence`` or
+``ATOM_EMPLOYEE_BENCHMARK_EVIDENCE=1``) and requires an explicit
+``--agent-id`` naming the existing AgentRegistry row the campaign is
+attributed to. The agent id is sent through the normal validated
+``/api/assignments/from-objective`` route and retained in the server plan;
+there is no auto-selection from the user, the sole registry row or a
+model/name. Benchmark intent without it fails before login or any provider
+work.
 """
 from __future__ import annotations
 
@@ -167,6 +176,7 @@ def _record_benchmark_evidence(
     assignment: Dict[str, Any],
     completed_at: Any,
     observation: Dict[str, Any],
+    agent_id: str = "",
 ) -> Optional[Dict[str, Any]]:
     """Bind this campaign's real transport evidence to its completed execution.
 
@@ -174,10 +184,19 @@ def _record_benchmark_evidence(
     transport recorded on this run, sealed with the assignment's completion
     time, and handed to the production producer. The runner never supplies a
     score, timestamp or served pair of its own.
+
+    Attribution is a server-plan fact. A refused start/completion (or a flag
+    that disagrees with the durable plan) stops here: no foreign row is
+    completed and no evidence is sealed from it.
     """
+    if state.get("benchmark_refused"):
+        state["benchmark_evidence"] = state["benchmark_refused"]
+        return state["benchmark_refused"]
     try:
         from core.employee_campaign_intake import (
+            CampaignAttributionError,
             accepted_transport_calls,
+            campaign_id as intake_campaign_id,
             complete_campaign_execution,
             record_campaign_evidence,
             route_decisions,
@@ -188,6 +207,20 @@ def _record_benchmark_evidence(
             "benchmark_evidence": {
                 "status": "unavailable", "detail": f"{type(exc).__name__}: {exc}"}}))
         return None
+    durable_agent = str(
+        ((assignment.get("provenance") or {}).get("agent_id") or "")
+        if isinstance(assignment.get("provenance"), dict) else "").strip()
+    if agent_id and durable_agent and agent_id != durable_agent:
+        refusal = {
+            "status": "refused",
+            "reason": "campaign_agent_flag_mismatch",
+            "detail": (
+                f"--agent-id {agent_id!r} does not match the durable plan "
+                f"agent {durable_agent!r}"),
+        }
+        state["benchmark_refused"] = refusal
+        state["benchmark_evidence"] = refusal
+        return refusal
     execution_id = str(
         state.get("benchmark_execution_id")
         or _benchmark_execution_id(run_id))
@@ -195,20 +228,34 @@ def _record_benchmark_evidence(
     calls = accepted_transport_calls(decisions)
     served = unique_served_identity(calls)
     if completed_at:
-        complete_campaign_execution(
-            db_path=db,
-            execution_id=execution_id,
-            assignment=assignment,
-            completed_at=completed_at,
-            served_identity=served,
-        )
+        try:
+            complete_campaign_execution(
+                db_path=db,
+                execution_id=execution_id,
+                assignment=assignment,
+                completed_at=completed_at,
+                served_identity=served,
+                run_id=run_id,
+                campaign=intake_campaign_id(),
+            )
+        except CampaignAttributionError as exc:
+            refusal = {
+                "status": "refused",
+                "reason": exc.reason,
+                "detail": exc.detail,
+            }
+            state["benchmark_refused"] = refusal
+            state["benchmark_evidence"] = refusal
+            print(json.dumps({"benchmark_evidence": refusal}))
+            return refusal
     result = record_campaign_evidence(
         db_path=db,
         execution_id=execution_id,
-        campaign="employee-heldout-two-domain",
+        campaign=intake_campaign_id(),
         observation=observation,
         completed_at=completed_at,
         decisions=decisions,
+        assignment=assignment,
     )
     state["benchmark_evidence"] = result
     return result
@@ -269,10 +316,30 @@ def main() -> int:
             "benchmark (also enabled by ATOM_EMPLOYEE_BENCHMARK_EVIDENCE=1). "
             "No benchmark work happens when this is not enabled."))
     parser.add_argument("--benchmark-id", default="")
+    parser.add_argument(
+        "--agent-id", default="",
+        help=(
+            "The registered AgentRegistry id this campaign is attributed to. "
+            "Required for benchmark evidence; it is sent through the normal "
+            "validated assignment route and retained in the server plan. "
+            "Never auto-selected."))
     args = parser.parse_args()
     if args.benchmark_id:
         os.environ["ATOM_EMPLOYEE_BENCHMARK_ID"] = args.benchmark_id
     benchmark = _benchmark_enabled(args.benchmark_evidence)
+    agent_id = str(args.agent_id or "").strip()
+    if benchmark and not agent_id:
+        # Fail before login, model dispatch or any provider work: benchmark
+        # intent without an explicit agent is a refusal, not a guess.
+        print(json.dumps({
+            "error": "benchmark_agent_id_required",
+            "message": (
+                "benchmark campaign evidence requires an explicit "
+                "--agent-id naming an existing AgentRegistry row; no agent is "
+                "auto-selected from the user, the sole registry row or a "
+                "model/name"),
+        }))
+        return 2
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     state_path = Path(args.state)
@@ -317,6 +384,10 @@ def main() -> int:
             "budget": {"max_steps": 30},
             "use_model": True,
         }
+        if agent_id:
+            # The normal route validates this agent's existence + scope and
+            # retains it on the server plan as provenance.agent_id.
+            payload["agent_id"] = agent_id
         started = requests.post(
             API + "/api/assignments/from-objective", headers=headers,
             json=payload, timeout=600)
@@ -331,7 +402,7 @@ def main() -> int:
         quote = step(assignment, "quote.calculate")
         state = {
             "phase": "start", "run_id": run_id, "request": payload,
-            "response": started.json(),
+            "agent_id": agent_id, "response": started.json(),
             "status": assignment.get("status"),
             "wait": wait.get("waiting") or {},
             "start_quote_present": bool(quote),
@@ -345,17 +416,45 @@ def main() -> int:
         if benchmark:
             try:
                 from core.employee_campaign_intake import (
+                    CampaignAttributionError,
+                    campaign_id as intake_campaign_id,
                     start_campaign_execution,
                 )
 
                 execution_id = _benchmark_execution_id(run_id)
                 durable_start = durable(args.db, run_id)
-                start_campaign_execution(
-                    db_path=args.db,
-                    execution_id=execution_id,
-                    assignment=durable_start or record(body),
-                )
-                state["benchmark_execution_id"] = execution_id
+                plan_agent = str(
+                    ((durable_start or {}).get("provenance") or {}).get(
+                        "agent_id") or "").strip()
+                if plan_agent != agent_id:
+                    # The route did not retain the explicit agent: refuse
+                    # before creating any agent-qualifying row.
+                    refusal = {
+                        "status": "refused",
+                        "reason": "campaign_agent_not_retained",
+                        "detail": (
+                            f"request agent {agent_id!r} != durable plan "
+                            f"provenance.agent_id {plan_agent!r}"),
+                    }
+                    state["benchmark_refused"] = refusal
+                    state["benchmark_evidence"] = refusal
+                else:
+                    start_campaign_execution(
+                        db_path=args.db,
+                        execution_id=execution_id,
+                        assignment=durable_start or record(body),
+                        run_id=run_id,
+                        campaign=intake_campaign_id(),
+                    )
+                    state["benchmark_execution_id"] = execution_id
+            except CampaignAttributionError as exc:
+                refusal = {
+                    "status": "refused",
+                    "reason": exc.reason,
+                    "detail": exc.detail,
+                }
+                state["benchmark_refused"] = refusal
+                state["benchmark_evidence"] = refusal
             except Exception as exc:  # noqa: BLE001 — additive evidence
                 state["benchmark_start_error"] = (
                     f"{type(exc).__name__}: {exc}")
@@ -522,6 +621,7 @@ def main() -> int:
             assignment={**durable_assignment, "run_id": run_id},
             completed_at=completed_at,
             observation=observation,
+            agent_id=agent_id,
         )
     state_path.write_text(json.dumps(state, indent=1, default=str) + "\n")
     print(json.dumps(checks, indent=1))

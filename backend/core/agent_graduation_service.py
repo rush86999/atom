@@ -9,7 +9,7 @@ Based on 2025-2026 research on memory for autonomous LLM agents.
 """
 
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 import logging
@@ -1675,10 +1675,6 @@ QUALIFICATION_EVIDENCE_KINDS = {"agent_episode", "agent_execution", "artifact", 
 QUALIFICATION_BINDING_SCHEMA = "atom-qualification-binding-1"
 QUALIFICATION_BINDING_SOURCE_REVISION = "v2-binding"
 RUNTIME_BASELINE_SCHEMA = "atom-runtime-qualification-baseline-1"
-BENCHMARK_IDENTITY_KEYS = ("benchmark_identity", "benchmark")
-BENCHMARK_DATASET_KEYS = ("dataset_sha256", "dataset_hash", "dataset_sha")
-BENCHMARK_RUBRIC_KEYS = ("rubric_version", "rubric")
-BENCHMARK_SCOPE_KEYS = ("task_scope", "workload_scope", "workload")
 
 
 class QualificationReviewError(Exception):
@@ -1820,51 +1816,111 @@ def _first_binding_text(mapping: dict, *keys: str) -> Optional[str]:
     return None
 
 
-def _benchmark_identity_from_metadata(metadata: Any) -> Optional[Dict[str, Any]]:
-    """Read an optional benchmark identity from durable evidence metadata.
+def _campaign_benchmark_identity(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Measured identity from one producer-validated benchmark record.
 
-    Only server-written evidence metadata is consulted; a request/evidence-ref
-    claim is never an input. A partial identity stays partial (no missing
-    member is invented) and therefore can never establish comparability.
+    The values are copied, never repaired: a record the canonical reader
+    already accepted carries the frozen dataset digest, the registry rubric
+    and the canonical task scope. Incomplete material stays incomplete so it
+    can never establish comparability.
     """
-    if not isinstance(metadata, dict):
-        return None
-    raw = None
-    for key in BENCHMARK_IDENTITY_KEYS:
-        candidate = metadata.get(key)
-        if isinstance(candidate, dict):
-            raw = candidate
-            break
-    if raw is None:
-        # Also accept the canonical fields directly on the evidence metadata;
-        # this is still server-owned durable record material, never request
-        # input.
-        if any(
-            key in metadata
-            for key in (
-                *BENCHMARK_DATASET_KEYS,
-                *BENCHMARK_RUBRIC_KEYS,
-                *BENCHMARK_SCOPE_KEYS,
-            )
-        ):
-            raw = metadata
-        else:
-            return None
-    dataset = _first_binding_text(raw, *BENCHMARK_DATASET_KEYS)
-    rubric = _first_binding_text(raw, *BENCHMARK_RUBRIC_KEYS)
-    workload_scope = None
-    for key in BENCHMARK_SCOPE_KEYS:
-        workload_scope = _binding_scope(raw.get(key))
-        if workload_scope is not None:
-            break
+    dataset = record.get("dataset")
+    dataset_sha = (
+        _binding_text(dataset.get("sha256"))
+        if isinstance(dataset, dict) else None)
+    rubric = _binding_text(record.get("rubric_version"))
+    workload_scope = _binding_scope(record.get("task_scope"))
     identity: Dict[str, Any] = {}
-    if dataset:
-        identity["dataset_sha256"] = dataset
+    if dataset_sha:
+        identity["dataset_sha256"] = dataset_sha
     if rubric:
         identity["rubric_version"] = rubric
     if workload_scope is not None:
         identity["workload_scope"] = workload_scope
     return identity or None
+
+
+def _binding_timestamp(value: Any) -> Optional[datetime]:
+    """A durable timestamp as aware UTC, or None. Never invents a value."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _campaign_records_for_row(
+    row: Any, *, execution_id: str,
+) -> List[Dict[str, Any]]:
+    """Validated producer records that belong to exactly this durable row.
+
+    Only the reserved ``benchmark_evidence`` block is read, and only through
+    the producer's canonical validator (authority marker, record/core digests,
+    canonical scope digest and the server-controlled frozen registry pin).
+    The record's embedded execution identity must name this durable execution,
+    agent, tenant and workspace; a valid record copied from another row is not
+    this row's evidence. Bare ``benchmark_identity``/dataset/rubric/scope keys
+    in generic metadata are never read, so caller-written metadata cannot
+    manufacture measured comparability. All validated records are returned
+    (stable order); the caller treats differing identities as a conflict
+    instead of choosing a first/last winner.
+
+    Agent attribution is a durable-row property, not something this reader can
+    infer: a campaign run whose ``AgentExecution.agent_id`` names a different
+    identity (for example the employee user id rather than the AgentRegistry
+    id) is not this agent's evidence. Producer-side attribution is a separate
+    decision and is deliberately not guessed from metadata here.
+    """
+    if not execution_id:
+        return []
+    metadata = getattr(row, "metadata_json", None)
+    if not isinstance(metadata, dict):
+        return []
+    from core.employee_benchmark_evidence import (
+        EVIDENCE_KEY,
+        inspect_employee_benchmark_evidence,
+    )
+
+    if not isinstance(metadata.get(EVIDENCE_KEY), (dict, list, tuple)):
+        return []
+    inspection = inspect_employee_benchmark_evidence(metadata)
+    row_agent = str(getattr(row, "agent_id", None) or "")
+    row_tenant = str(getattr(row, "tenant_id", None) or "")
+    row_workspace = str(getattr(row, "workspace_id", None) or "")
+    row_completed = _binding_timestamp(getattr(row, "completed_at", None))
+    records: List[Dict[str, Any]] = []
+    for record in inspection.get("records") or []:
+        execution = record.get("execution")
+        if not isinstance(execution, dict):
+            continue
+        if str(execution.get("id") or "") != str(execution_id):
+            continue
+        # A record only speaks for one agent and scope. The durable row and
+        # the record must agree exactly; an empty identity never matches.
+        if not row_agent or str(execution.get("agent_id") or "") != row_agent:
+            continue
+        if str(execution.get("tenant_id") or "") != row_tenant:
+            continue
+        if str(execution.get("workspace_id") or "") != row_workspace:
+            continue
+        # The producer binds ``observed_at`` to this completion time; a record
+        # re-pointed at a row that completed at a different time is not this
+        # row's observation.
+        record_completed = _binding_timestamp(
+            execution.get("completed_at"))
+        if (row_completed is None or record_completed is None
+                or record_completed != row_completed):
+            continue
+        records.append(record)
+    records.sort(key=lambda item: str(item.get("evidence_id") or ""))
+    return records
 
 
 def _serving_routes_from_metadata(metadata: Any) -> List[Dict[str, str]]:
@@ -1912,21 +1968,60 @@ def _serving_routes_from_metadata(metadata: Any) -> List[Dict[str, str]]:
 
 
 def _binding_observations(
-    record: Any, parent_episode: Any = None,
+    record: Any, parent_episode: Any = None, *, kind: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
+    """Binding material from one validated evidence item.
+
+    A measured identity and its serving route come only from producer records
+    that the canonical reader accepted for this exact durable execution
+    (``_campaign_records_for_row``). The generic-metadata observation keeps
+    its historical shape and stays audit-only: its routes are never promoted
+    into a binding unless a validated record carries the same observation's
+    complete identity, and its ``benchmark_identity`` is always ``None`` so a
+    bare metadata key can neither bind nor override the producer's record.
+    """
     observations: List[Dict[str, Any]] = []
     for item in (record, parent_episode):
         if item is None:
             continue
         metadata = getattr(item, "metadata_json", None)
-        benchmark = _benchmark_identity_from_metadata(metadata)
         routes = _serving_routes_from_metadata(metadata)
-        if benchmark or routes:
+        if routes:
             observations.append({
-                "benchmark_identity": benchmark,
+                "benchmark_identity": None,
                 "serving_routes": routes,
             })
-    return observations
+
+    durable = None
+    execution_id = ""
+    if kind == "agent_execution":
+        durable = record
+        execution_id = str(getattr(record, "id", "") or "")
+    elif kind == "agent_episode":
+        durable = record
+        execution_id = str(getattr(record, "execution_id", "") or "")
+    elif kind == "episode_segment":
+        durable = parent_episode or record
+        execution_id = str(getattr(durable, "execution_id", "") or "")
+
+    authoritative: List[Dict[str, Any]] = []
+    for validated in (
+            _campaign_records_for_row(durable, execution_id=execution_id)
+            if durable is not None else []):
+        identity = _campaign_benchmark_identity(validated)
+        provider = _binding_text(validated.get("provider"))
+        model = _binding_text(validated.get("model"))
+        route = (
+            {"provider": provider, "model": model}
+            if provider and model else None)
+        authoritative.append({
+            "benchmark_identity": identity,
+            "serving_routes": [route] if route else [],
+        })
+    # Producer-validated observations lead; the audit-only metadata
+    # observation follows. The order is deterministic and part of the source
+    # revision, so a later evidence change still invalidates a receipt.
+    return authoritative + observations
 
 
 def _canonical_binding_json(value: Any) -> str:
@@ -2249,6 +2344,7 @@ def validate_qualification_evidence(
             observations = _binding_observations(
                 record,
                 parent_episode if kind == "episode_segment" else None,
+                kind=kind,
             )
             identities: Dict[str, Dict[str, Any]] = {}
             routes: List[Dict[str, str]] = []
@@ -2909,6 +3005,101 @@ def resolve_runtime_qualification_baseline(
     }
 
 
+def _campaign_evidence_bundles(
+    db: Session,
+    agent: AgentRegistry,
+    tenant_id: str,
+    workspace_id: str,
+    *,
+    policy: Any,
+    limit: int,
+    skip_execution_ids: Optional[set] = None,
+) -> List[Dict[str, Any]]:
+    """Reviewable campaign executions with authoritative scored evidence.
+
+    A bundle is offered only when the completed durable execution carries at
+    least one producer-validated record bound to that exact row and the
+    resulting binding is ``bound`` (complete identity plus its recorded
+    serving route). Bare metadata, a tampered/rejected record, a foreign or
+    wrong-execution record, a conflicting identity and an execution with no
+    inspectable task/output are never offered.
+    """
+    if limit <= 0:
+        return []
+    from core.employee_benchmark_evidence import EVIDENCE_KEY
+    from core.llm.model_provenance import (
+        provenance_from_metadata,
+        unknown_provenance,
+    )
+
+    skip = skip_execution_ids or set()
+    executions = (
+        db.query(AgentExecution)
+        .filter(AgentExecution.agent_id == str(agent.id),
+                AgentExecution.status == "completed")
+        .order_by(
+            AgentExecution.completed_at.desc(),
+            AgentExecution.started_at.desc(),
+        )
+        .populate_existing()
+        .limit(200)
+        .all()
+    )
+    items: List[Dict[str, Any]] = []
+    for execution in executions:
+        execution_id = str(execution.id or "")
+        if not execution_id or execution_id in skip:
+            continue
+        metadata = getattr(execution, "metadata_json", None)
+        if not isinstance(metadata, dict) or not metadata.get(EVIDENCE_KEY):
+            continue
+        if not _campaign_records_for_row(execution, execution_id=execution_id):
+            continue
+        task = str(execution.input_summary or "").strip()
+        output = str(
+            execution.result_summary or execution.output_summary or "").strip()
+        if not task or not output:
+            continue
+        refs = [{"kind": "agent_execution", "id": execution_id}]
+        ok, normalized, source_revision, _error = validate_qualification_evidence(
+            db, agent, refs,
+            tenant_id=tenant_id, workspace_id=workspace_id,
+            rubric_version=policy.rubric_version,
+            include_binding=True,
+        )
+        if not ok:
+            continue
+        binding = qualification_binding_from_normalized(normalized)
+        if binding.get("binding_state") != "bound":
+            continue
+        provenance = provenance_from_metadata(metadata)
+        item: Dict[str, Any] = {
+            "bundle_id": f"bundle:execution:{execution_id}",
+            "episode_id": None,
+            "execution_id": execution_id,
+            "task_preview": task[:500],
+            "output_preview": output[:500],
+            "evidence_refs": refs,
+            "source_revision": source_revision,
+            "binding": binding,
+            "benchmark_identity": binding.get("benchmark_identity"),
+            "serving_routes": binding.get("serving_routes") or [],
+            "repeat_task_comparable": bool(
+                binding.get("repeat_task_comparable")),
+        }
+        if provenance:
+            item["model_provenance"] = dict(provenance)
+            for key in ("provider", "model"):
+                if provenance.get(key):
+                    item[key] = provenance[key]
+        else:
+            item["model_provenance"] = unknown_provenance()
+        items.append(item)
+        if len(items) >= limit:
+            break
+    return items
+
+
 def list_qualification_evidence_bundles(
     db: Session,
     agent: AgentRegistry,
@@ -2942,6 +3133,7 @@ def list_qualification_evidence_bundles(
         .all()
     )
     items = []
+    covered_execution_ids = set()
     for episode in episodes:
         task = str(episode.task_description or "").strip()
         output = ""
@@ -3034,8 +3226,28 @@ def list_qualification_evidence_bundles(
             # unavailable for this evidence — never silently inherited.
             item["model_provenance"] = unknown_provenance()
         items.append(item)
+        if execution is not None:
+            covered_execution_ids.add(str(execution.id))
         if len(items) >= limit:
             break
+
+    # Authoritative scored campaign evidence is discoverable through the same
+    # normal bundle enumerator. A completed execution carrying at least one
+    # producer-validated record bound to that exact row is reviewable work even
+    # when no episode wrapper exists; it is listed before episode work so the
+    # episode limit can never hide it. Executions already covered by an
+    # episode bundle are not listed twice, and an unbound/conflicting record
+    # is never offered.
+    campaign_items = _campaign_evidence_bundles(
+        db,
+        agent,
+        tenant_id,
+        workspace_id,
+        policy=policy,
+        limit=limit,
+        skip_execution_ids=covered_execution_ids,
+    )
+    items = (campaign_items + items)[:limit]
     return {
         "agent_id": str(agent.id),
         "target_level": str(target_level or "").upper(),

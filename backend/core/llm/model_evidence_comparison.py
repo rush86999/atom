@@ -286,6 +286,11 @@ class _Record:
     issues: List[str] = field(default_factory=list)
     reasons: List[str] = field(default_factory=list)
     reason_classes: List[str] = field(default_factory=list)
+    #: Sealed-record digests when the caller supplied a validated durable
+    #: record. They are carried through for the dispatch authority; the
+    #: comparator itself never treats them as a score.
+    record_sha256: Optional[str] = None
+    core_sha256: Optional[str] = None
 
 
 def _served_identity(
@@ -518,6 +523,8 @@ def _normalize_record(raw: Mapping[str, Any], index: int) -> _Record:
         phase=str(record.get("phase") or "").strip(),
         build=_model_build(record, nested),
         issues=issues,
+        record_sha256=(str(record.get("record_sha256") or "").strip() or None),
+        core_sha256=(str(record.get("core_sha256") or "").strip() or None),
     )
 
 
@@ -674,6 +681,8 @@ def _evidence_summary(record: _Record) -> Dict[str, Any]:
         "accuracy": record.accuracy, "passed": record.passed,
         "abstention": record.abstention, "model_build": record.build,
         "registry_status": record.registry_status or None,
+        "record_sha256": record.record_sha256,
+        "core_sha256": record.core_sha256,
     }
 
 

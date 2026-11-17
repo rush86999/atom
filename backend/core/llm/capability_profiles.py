@@ -536,7 +536,14 @@ def select_profile_candidates(
         reasons: List[str] = []
         quality = _quality(candidate)
         if quality < profile.min_quality:
-            reasons.append("below_quality_prior")
+            # Provenance-honest reason: a measured benchmark quality that
+            # misses the floor is not a "prior" verdict. Existing callers
+            # never set ``quality_basis`` and keep the historical label.
+            reasons.append(
+                "below_measured_quality"
+                if str(candidate.get("quality_basis") or "") == (
+                    "measured_benchmark")
+                else "below_quality_prior")
         capabilities = {
             str(item).strip().lower()
             for item in (candidate.get("capabilities") or [])
@@ -669,18 +676,27 @@ def pin_decision(
     supports_structured: bool = True,
     supports_tools: bool = True,
     evidence: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    quality_basis: str = "prior",
 ) -> Dict[str, Any]:
     """Strict qualification-pin decision: exact route or failed attempt.
 
     A pin never silently escapes to another model. The caller records this
     decision and fails the qualification attempt; production auto-routing
     (without a pin) may still choose another eligible route.
+
+    ``quality_basis`` names the provenance of ``quality`` only. ``"prior"``
+    (the default, and every legacy caller) keeps the historical static-prior
+    semantics. ``"measured_benchmark"`` marks a server-revalidated measured
+    accuracy; the profile floor is still enforced against it and the reported
+    reason/evidence state say "measured" rather than pretending a prior ran.
     """
+    basis = str(quality_basis or "prior")
     candidate = {
         "provider": provider, "model": model, "quality": quality,
         "cost": 0.0, "context_window": context_window,
         "supports_structured": supports_structured,
         "supports_tools": supports_tools,
+        "quality_basis": basis,
     }
     selected = select_profile_candidates(
         profile, [candidate], evidence=evidence,
@@ -691,7 +707,10 @@ def pin_decision(
             "route": (provider, model),
             "profile": profile.metadata(),
             "reasons": [],
-            "evidence_state": selected["ranked"][0]["evidence_state"],
+            "quality_basis": basis,
+            "evidence_state": (
+                "measured_benchmark" if basis == "measured_benchmark"
+                else selected["ranked"][0]["evidence_state"]),
         }
     return {
         "eligible": False,
@@ -699,8 +718,12 @@ def pin_decision(
         "profile": profile.metadata(),
         "reasons": (selected["excluded"][0]["reasons"]
                     if selected["excluded"] else ["not_eligible"]),
-        "evidence_state": "measured"
-        if evidence and _evidence_for(evidence, provider, model) else "prior",
+        "quality_basis": basis,
+        "evidence_state": (
+            "measured_benchmark" if basis == "measured_benchmark"
+            else "measured"
+            if evidence and _evidence_for(evidence, provider, model)
+            else "prior"),
     }
 
 

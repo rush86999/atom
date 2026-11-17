@@ -39,6 +39,10 @@ RUN_ID = "run-heldout-scratch"
 COMPLETED = datetime(2026, 11, 11, 18, 30, tzinfo=timezone.utc)
 SERVED = {"provider": "ollama", "model": "llama3.1:8b-instruct-q4_K_M"}
 REQUESTED = {"provider": "ollama", "model": "llama3.1:8b"}
+TENANT = "tenant-heldout"
+WORKSPACE = "workspace-heldout"
+EMPLOYEE = "employee-heldout-user"
+AGENT = "employee-heldout-agent"
 
 RUNNER = (
     Path(__file__).resolve().parents[2]
@@ -59,9 +63,11 @@ def _durable_assignment(artifact: Path):
         "run_id": RUN_ID,
         "assignment_id": "asg-heldout-scratch",
         "objective": "Reconcile INV-4491 and prepare the held-out review",
-        "employee_id": "employee-1",
-        "workspace_id": "ws-1",
-        "tenant_id": "tenant-1",
+        # A distinct User assignment target; the row must be attributed to the
+        # plan's registry agent instead.
+        "employee_id": EMPLOYEE,
+        "workspace_id": WORKSPACE,
+        "tenant_id": TENANT,
         "status": "completed",
         "completed_at": COMPLETED.isoformat(),
         "steps": [
@@ -94,7 +100,7 @@ def _durable_assignment(artifact: Path):
         "completion_criteria": [{
             "kind": "business_result", "required": True,
             "criterion_id": "employee_result:objective"}],
-        "provenance": {"agent_id": "agent-1"},
+        "provenance": {"agent_id": AGENT},
     }
 
 
@@ -102,6 +108,10 @@ def _seed_world(tmp_path, decisions=None):
     import sqlite3
 
     from docx import Document
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from core.models import AgentExecution, AgentRegistry, User
 
     database = tmp_path / "campaign.db"
     artifact = tmp_path / "heldout-review.docx"
@@ -109,6 +119,32 @@ def _seed_world(tmp_path, decisions=None):
     document.add_paragraph(
         "Held-out review: quote 96.30 USD; reconciled 140.25 USD.")
     document.save(str(artifact))
+
+    # Real registry identities: the assignment targets EMPLOYEE (a User) while
+    # the campaign row must be attributed to the distinct AGENT registry row.
+    engine = create_engine(f"sqlite:///{database}")
+    try:
+        for table in (User.__table__, AgentRegistry.__table__,
+                      AgentExecution.__table__):
+            table.create(engine, checkfirst=True)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        with factory() as db:
+            db.add(User(
+                id=EMPLOYEE, tenant_id=TENANT, workspace_id=WORKSPACE,
+                email="heldout-employee@campaign.test", first_name="Em",
+                last_name="Ployee", role="member", status="active",
+                is_active=True))
+            db.add(AgentRegistry(
+                id=AGENT, name="Held-out Campaign Agent",
+                category="operations", role="agent", type="personal",
+                capabilities=[], module_path="core.generic_agent",
+                class_name="GenericAgent", user_id=EMPLOYEE,
+                workspace_id=WORKSPACE, tenant_id=TENANT,
+                status="student", enabled=True, confidence_score=0.62,
+                configuration={}))
+            db.commit()
+    finally:
+        engine.dispose()
 
     assignment = _durable_assignment(artifact)
     if decisions is None:
@@ -213,6 +249,28 @@ class _ControlledTransport:
         return None
 
 
+def test_benchmark_intent_without_agent_fails_before_auth(
+        tmp_path, monkeypatch, capsys):
+    """No agent means no login, model dispatch or provider work — ever."""
+    runner = _runner_module()
+    monkeypatch.setenv("ATOM_EMPLOYEE_BENCHMARK_EVIDENCE", "1")
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("auth/model work ran without an agent id")
+
+    monkeypatch.setattr(runner, "token", forbidden)
+    monkeypatch.setattr(sys, "argv", [
+        str(RUNNER), "--phase", "start",
+        "--state", str(tmp_path / "state.json"),
+        "--db", str(tmp_path / "campaign.db"),
+        "--out", str(tmp_path / "out"),
+    ])
+    assert runner.main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "benchmark_agent_id_required"
+    assert "explicit" in payload["message"].lower()
+
+
 def test_accepted_transport_identity_is_recorded_not_requested():
     clear_route_attribution()
     set_requested_route(REQUESTED["provider"], REQUESTED["model"])
@@ -253,6 +311,7 @@ def test_heldout_runner_finish_records_durable_evidence(
         "--state", str(state_path),
         "--db", str(database),
         "--out", str(tmp_path / "out"),
+        "--agent-id", AGENT,
     ])
 
     # The normal runner finish path, not a hand-written producer call. Its
@@ -268,6 +327,9 @@ def test_heldout_runner_finish_records_durable_evidence(
                 AgentExecution, f"employee-campaign-{RUN_ID}")
             assert execution is not None
             assert execution.status == "completed"
+            assert execution.agent_id == AGENT
+            assert execution.tenant_id == TENANT
+            assert execution.workspace_id == WORKSPACE
             assert execution.completed_at == COMPLETED.replace(tzinfo=None)
             metadata = execution.metadata_json or {}
     finally:
@@ -283,6 +345,8 @@ def test_heldout_runner_finish_records_durable_evidence(
     assert record["model"] == SERVED["model"]
     assert record["observed_at"] == COMPLETED.isoformat()
     assert record["execution"]["id"] == f"employee-campaign-{RUN_ID}"
+    assert record["execution"]["agent_id"] == AGENT
+    assert record["execution"]["agent_id"] != EMPLOYEE
     assert load_employee_benchmark_evidence(metadata)[0]["model"] == (
         SERVED["model"])
 
@@ -377,6 +441,7 @@ def test_finish_rejects_campaign_when_any_accepted_call_lacks_echo(
         "--state", str(state_path),
         "--db", str(database),
         "--out", str(tmp_path / "out"),
+        "--agent-id", AGENT,
     ])
 
     runner.main()

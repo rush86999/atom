@@ -672,6 +672,19 @@ def resolve_repeat_task_route(
     decision["target_level"] = baseline_resolution.get("target_level")
     decision["promotion_id"] = baseline_resolution.get("promotion_id")
     decision["source_level"] = baseline_resolution.get("source_level")
+    # Durable receipt/binding identity for the dispatch authority reference.
+    # The resolver's measured route is only usable at the dispatch floor when
+    # the handler can prove the SAME current receipt/binding/revision; these
+    # fields are copied from the canonical baseline resolution, never from a
+    # caller. They are audit material, not authority.
+    decision["tenant_id"] = baseline_resolution.get("tenant_id")
+    decision["workspace_id"] = baseline_resolution.get("workspace_id")
+    decision["receipt_revision"] = baseline_resolution.get("source_revision")
+    decision["receipt_fingerprint"] = baseline_resolution.get(
+        "receipt_fingerprint")
+    decision["review_fingerprint"] = baseline_resolution.get(
+        "review_fingerprint")
+    decision["binding_state"] = baseline_resolution.get("binding_state")
     decision["benchmark"] = {
         "dataset_sha256": benchmark.get("dataset_sha256"),
         "rubric_version": rubric_version,
