@@ -662,17 +662,30 @@ async def test_foreign_actor_and_reviewer_are_refused(env, monkeypatch):
     assert leaf.calls == []
     assert "approval_actor_mismatch" in str(out)
 
-    # A reviewer outside the approval's scope is not authority.
-    foreign_context = _context(execution="meta-foreign-review")
+    # The shared decision writer now fences the reviewer there as well
+    # (DECISION_SCOPE_DENIED), so the consumer's own independent fence is
+    # pinned through the reachable shape: a reviewer who was in scope when the
+    # decision was written and durably moved out of scope before dispatch. The
+    # requester is a different, unmoved actor so only the reviewer fence fires.
+    foreign_context = _context(execution="meta-foreign-review", user="member-1")
+    foreign_agent = _agent(leaf, user="member-1")
     foreign_id = _file_approval(
-        env, _agent(leaf), foreign_context, action="read_data",
+        env, foreign_agent, foreign_context, action="read_data",
         params={"query": "foreign-review"})
-    await _approve_async(foreign_id, reviewer="lead-other")
-    out = await _agent(leaf)._execute_tool_with_governance(
+    await _approve_async(foreign_id, reviewer="lead-1")
+    with env.Session() as db:
+        db.get(User, "lead-1").workspace_id = "ws-other"
+        db.commit()
+    out = await foreign_agent._execute_tool_with_governance(
         "read_data", {"query": "foreign-review"}, foreign_context,
         pre_approved=True, approval_action_id=foreign_id)
     assert leaf.calls == []
     assert "approval_reviewer_scope_denied" in str(out)
+
+    # Restore the reviewer's admitted scope for the deactivation case below.
+    with env.Session() as db:
+        db.get(User, "lead-1").workspace_id = "ws-test"
+        db.commit()
 
     # A reviewer deactivated after the decision is not authority either.
     stale_context = _context(execution="meta-stale-review")

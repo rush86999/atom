@@ -384,19 +384,34 @@ async def test_foreign_or_inactive_reviewer_is_refused(env, monkeypatch):
     _review_verdict(monkeypatch)
     context = _context(execution="exec-reviewer")
 
+    # The shared decision writer now fences the reviewer there as well
+    # (DECISION_SCOPE_DENIED), so the consumer's own independent fence is
+    # pinned through the reachable shape: a reviewer who was in scope when the
+    # decision was written and durably moved out of scope before dispatch. The
+    # requester is a different, unmoved actor so only the reviewer fence fires.
+    member_context = _context(execution="exec-reviewer", user="member-1")
     foreign_id = _request_approval(
-        env, context, action="read_data", params={"query": "foreign"})
+        env, member_context, action="read_data", params={"query": "foreign"},
+        user_id="member-1")
     foreign_agent = _agent(captured)
 
     async def foreign_reviewer(action_id):
-        await _approve(action_id, reviewer="lead-other")
+        await _approve(action_id, reviewer="lead-1")
+        with env.Session() as db:
+            db.get(User, "lead-1").workspace_id = "ws-other"
+            db.commit()
         return True
 
     foreign_agent._wait_for_approval = foreign_reviewer
     out = await foreign_agent._step_act_unaudited(
-        "read_data", {"query": "foreign"}, context=context)
+        "read_data", {"query": "foreign"}, context=member_context)
     assert captured == []
     assert "approval_reviewer_scope_denied" in str(out)
+
+    # Restore the reviewer's admitted scope for the deactivation case below.
+    with env.Session() as db:
+        db.get(User, "lead-1").workspace_id = "ws-test"
+        db.commit()
 
     stale_id = _request_approval(
         env, context, action="read_data", params={"query": "stale"})
