@@ -49,7 +49,7 @@ quality, PostgreSQL migration/runtime, deployment, or any whole goal.
 
 | # | Goal | Audit state (unchanged) | Latest source-bound evidence and scope | Class | Concrete still-open user boundary |
 |---:|---|---|---|---|---|
-| 1 | Setup and ordinary account use | accepted-bounded | [Account browser lifecycle](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) @ `97e43`; [TOTP login/replay](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) @ candidate `268efd405`; [SMTP trust](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) merged #971; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) login/settings | browser + API proof; merged auth | SSO/live IdP, account deletion, rate-limit breadth, actual one-hour reset expiry, external mail delivery, other deployment audiences, and a current-main full-lifecycle replay. |
+| 1 | Setup and ordinary account use | accepted-bounded | [Account browser lifecycle](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) @ `97e43`; [TOTP login/replay](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) @ candidate `268efd405`; [SMTP trust](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) merged #971; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) login/settings | browser + API proof; merged auth | SSO/live IdP, rate-limit breadth, actual one-hour reset expiry, external mail delivery, other deployment audiences, and a current-main full-lifecycle replay. |
 | 2 | BYOK and suitable model selection | accepted-bounded | [Audit ROUTE/GW rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [readiness §2](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-2); #942 `d08892617` preserves query complexity | merged routing; **model-quality gap**; `ROUTE-07` external | Two or more real served models with requested/served identity and scored quality/cost, including capable Flash as first-class. No new key or spend authority. |
 | 3 | Authorized common data and search | accepted-bounded | [Documents browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) @ `ed6ae3c98` (33KB synthetic TXT, all three downloads, delete/readback); [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) 88-byte TXT; WorkDrive 56/56 was bound to `24794f257` (readiness §11) | browser/API proof, synthetic; **live connector gap**; multi-format harness **in flight, not credited** | Fresh-grant current-main WorkDrive replay; multi-format upload/open/search/export/delete and grounding; live connector qualification. `INT-09` remains external. Do not credit the in-flight multi-format search/API harness. |
 | 4 | Spreadsheet and calculation | accepted-bounded | [24-sheet workbook browser](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) @ `3316b0fe7` (exact 34,610 total, formula/cache checks, export before/after restart); full-population API replay 34,533 @ `6ad2738ed` (readiness §4) | browser + API proof, synthetic; **model/live-source gap** | Live connected source; model-driven extraction of the contributing population; reconciliation of ambiguous requests. The historical 1758.00 single-sheet counterexample remains retained. |
@@ -100,6 +100,9 @@ changed-file scan is clean. Neither result closes DOCS-REF-01.
 - The old 43-case scripted fleet pass is **not** a current real-model fleet pass;
   the current case 6 live attempt failed and the 16-admission guard was consumed.
 - The frozen documentation inventory is **not** DOCS-REF-01 closure.
+
+Account deletion is a separately inferred possible improvement, not an original
+143-claim requirement or an added completion gate for Goal 1.
 
 ## Preserved, not reopened
 
