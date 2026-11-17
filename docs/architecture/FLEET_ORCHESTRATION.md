@@ -6,7 +6,7 @@
 > specialists with depth-enforced nesting. **Flags default OFF — kill-switch
 > parity with pre-P1 behavior.**
 >
-> **Last Updated:** Aug 8, 2026
+> **Last Updated:** Nov 17, 2026
 >
 > **Related code:** `backend/core/atom_meta_agent.py`,
 > `backend/core/fleet_routing_config.py`, `backend/core/specialist_matcher.py`,
@@ -504,3 +504,85 @@ asynchronous overlapping handlers, plus a normal-startup synthetic HTTP
 failure path. The latter used intentionally unavailable catalog models and
 seeded INTERN specialists; it proves truthful visible/durable failure, not
 successful model output. See the current readiness evidence index, section 15.
+
+## Explicit specialist collaboration (2026-11-17)
+
+A chat turn that asks to work "with finance and sales specialists" is now
+carried as an accepted COLLABORATION requirement instead of silently becoming
+one perspective. This is semantic, not lexical: the one existing structured
+interpretation prompt/schema can express a `collaboration` action with the
+user's role labels and `explicit`/`generic` semantics. The deterministic turn
+decision, action program (`CollaborateOp`), planner and orchestrator only CARRY
+that requirement; there is no second parser or phrase regex. Authorization
+fails closed without a validated accepted requirement, so a directly
+constructed program cannot self-authorize delegation.
+
+**Bounded request material.** At most 10 roles (`COLLABORATION_ROLE_LIMIT`),
+200 characters per role label and 4 000 characters for the objective (the
+whole request). Over-limit requests CLARIFY with the full original request and
+every requested role preserved — the tail is never dropped and a label is
+never renamed. Role labels resolve through the shipped specialist
+matcher/canonical domains; requested domains constrain recruitment exactly and
+an unknown domain clarifies instead of substituting an available specialist.
+
+**Early route, unchanged operator gates.** An accepted requirement is handled
+after the deterministic edit/ask lanes and BEFORE `_get_qwen_response`, so the
+turn cannot answer from one perspective and hope a later route replaces it.
+The existing gates still decide what happens, in order:
+`ATOM_FLEET_ROUTING_ENABLED` (master off ⇒ `fleet_routing_disabled`),
+`resolved_fleet_enforce()` (shadow/pilot not approved ⇒
+`fleet_pilot_not_enforced`), requirement authorization (`roles_ambiguous`) and
+the remaining turn deadline (`turn_budget_exhausted`). **A task request is not
+admin pilot consent.** Master-off and shadow persist an honest pending with the
+original request, roles and objective, and dispatch no chain, no specialist and
+no paid specialist call. Only an approved pilot runs the exact original request
+through the existing governed fleet lane. A pending clarification records no
+`FleetRoutingAudit` row and no chain, so it earns no calibration row and no
+fleet-success credit.
+
+**Durable pending authority.** The durable session-metadata record is
+authoritative; the in-memory cache is never used on an unreadable read. Load
+outcomes are explicit (`found` / `inactive` / `absent` / `inconsistent` /
+`unavailable`); resume is scoped to the current actor/workspace/tenant/session
+and the stored request digest. A save is published to the cache only after the
+store confirms, and a missing manager, `False` or exception is reported as
+not-saved with `request_preserved=False` — never a hard-coded success. Resume
+CAS-transitions to `dispatching` and uses the existing task-operation claim as
+an independent duplicate guard; a completed receipt blocks replay even if the
+later metadata clear failed. A stale writer cannot clobber a newer pending.
+
+**One canonical conversation id.** `process_chat_message` resolves
+`_get_or_create_session` once at turn entry and normalizes `session_id` before
+every consumer (preferences, continuation supersede, task lifecycle,
+teaching/pending resume, trace, planner, assistant persistence, response
+composition). A foreign client session id gets a fresh owned session, and the
+HTTP envelope, durable assistant conversation and owned `ChatSession` agree;
+the foreign user's rows and pending are untouched. Ordinary same-user two-turn
+continuation keeps the same id.
+
+**Shared metadata contract.** `ChatSessionManager.update_session_metadata` is a
+bounded whole-raw-JSON-snapshot CAS loop: exact `CAST(metadata_json AS TEXT)`
+read, typed `expected=` preconditions, `UPDATE ... WHERE metadata_json =
+<exact snapshot>`, re-read/re-merge on a miss. Unrelated keys (including typed
+JSON `null`) survive a concurrent legacy patch on SQLite and PostgreSQL. File
+mode adds a stable sibling cross-process lock with truthful failure and
+fail-closed behavior when no OS lock primitive exists. The direct
+`AgentContextResolver.set_session_agent` writer now uses the shared
+`merge_in_session` CAS. This is a cross-caller behavior change, not a
+fleet-only one: the return value is now a truthful boolean and existing
+2-argument callers benefit from snapshot CAS.
+
+**Verified and not verified.** 85 focused offline checks (9 public-HTTP, 28
+semantic, 48 durable-authority) plus 642 existing CI-preservation contracts
+passed with network denied, scratch DB/data and empty offline model caches, and
+the three complete files are gated by one additive `backend-core-extra` step.
+Only model outputs are doubled, so the public HTTP/JWT, scoped factory,
+governed dispatch, durable persistence and child-to-synthesis dataflow are real
+but answer quality is not. A fresh manager/orchestrator is not a whole-app
+restart; the PostgreSQL evidence is 12 shared-method checks on a socket-only
+cluster, not app-wide PostgreSQL. Fleet cases 6/7/8 remain failed, and two
+unrelated open strict XFAILs remain in
+`tests/test_pending_file_task_resume.py`. See
+[EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md](../engineering/EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md)
+and its
+[filtered result](../engineering/evidence/explicit_collaboration_authority_20261117/result.json).
