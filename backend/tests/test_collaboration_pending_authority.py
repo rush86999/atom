@@ -49,15 +49,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.dialects import postgresql, sqlite  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import core.chat_session_manager as csm  # noqa: E402
 import core.turn_decision as td  # noqa: E402
 import integrations.chat_orchestrator as co  # noqa: E402
+from core.agent_context_resolver import AgentContextResolver  # noqa: E402
 from core.chat_session_manager import ChatSessionManager  # noqa: E402
-from core.models import Base, ChatSession, TaskOperationRecord  # noqa: E402
+from core.models import (  # noqa: E402
+    AgentRegistry, Base, ChatSession, TaskOperationRecord,
+)
 from core.turn_decision import (  # noqa: E402
     apply_interpretation_actions,
     build_turn_decision,
@@ -973,15 +976,17 @@ def _interleave_cas(
     paused = threading.Event()
     resume = threading.Event()
     snapshots = []
+    raw_snapshots = []
     original = paused_manager._conditional_metadata_update
 
-    def _paused_cas(session_id, current, merged, raw_is_null):
+    def _paused_cas(session_id, current, raw_snapshot, merged):
         snapshots.append(dict(current))
+        raw_snapshots.append(raw_snapshot)
         if len(snapshots) == 1:
             paused.set()
             if not resume.wait(10):
                 raise AssertionError("interleaved writer was not released")
-        return original(session_id, current, merged, raw_is_null)
+        return original(session_id, current, raw_snapshot, merged)
 
     paused_manager._conditional_metadata_update = _paused_cas
     results = {}
@@ -1005,7 +1010,7 @@ def _interleave_cas(
     assert not thread.is_alive(), "paused writer did not finish"
     if "paused_error" in results:
         raise results["paused_error"]
-    return results, snapshots
+    return results, snapshots, raw_snapshots
 
 
 def test_metadata_cas_preserves_unrelated_concurrent_legacy_patch(
@@ -1017,7 +1022,7 @@ def test_metadata_cas_preserves_unrelated_concurrent_legacy_patch(
 
     # The root counter: A reads {guard:v0, unrelated:0} and pauses BEFORE its
     # UPDATE; B's legacy 2-arg patch commits; A resumes with a stale snapshot.
-    results, snapshots = _interleave_cas(
+    results, snapshots, raw_snapshots = _interleave_cas(
         manager_a, manager_b,
         {"guard": "v1"},
         {"unrelated": 1},
@@ -1041,7 +1046,7 @@ def test_stale_pending_condition_loser_refuses_without_overwrite(
     manager_a = _db_manager(monkeypatch, Session, tmp_path)
     manager_b = _db_manager(monkeypatch, Session, tmp_path)
 
-    results, snapshots = _interleave_cas(
+    results, snapshots, raw_snapshots = _interleave_cas(
         manager_a, manager_b,
         {"guard": "v1", "loser": "a"},
         {"guard": "v2"},
@@ -1067,7 +1072,7 @@ def test_reverse_order_legacy_writer_preserves_cas_new_field(
 
     # Reverse order: the legacy writer reads first and pauses; the CAS writer
     # commits a new field; the legacy writer must re-merge, not clobber it.
-    results, snapshots = _interleave_cas(
+    results, snapshots, raw_snapshots = _interleave_cas(
         manager_b, manager_a,
         {"unrelated": 1},
         {"new_field": 1},
@@ -1145,8 +1150,9 @@ def test_pg_and_sqlite_compiled_metadata_cas_statement():
     merged = {
         **current, "guard": "v1", "_metadata_revision": "tok",
     }
+    raw_snapshot = '{"guard": "v0", "unrelated": 0}'
     statement = ChatSessionManager._metadata_update_statement(
-        SESSION_ID, current, merged, False)
+        SESSION_ID, raw_snapshot, merged)
     pg_sql = str(statement.compile(dialect=postgresql.dialect()))
     sqlite_sql = str(statement.compile(dialect=sqlite.dialect()))
 
@@ -1155,15 +1161,23 @@ def test_pg_and_sqlite_compiled_metadata_cas_statement():
         assert "WHERE" in compiled
         assert "metadata_json" in compiled
     assert "JSONB" in pg_sql
-    # The whole pre-read snapshot, not a single expected key, is the CAS arm.
+    # The whole exact stored snapshot, not a single expected key, is the CAS
+    # arm; both the SET and the WHERE reference the column.
     assert pg_sql.count("metadata_json") >= 2
     assert sqlite_sql.count("metadata_json") >= 2
+    assert "CAST" in sqlite_sql.upper() or "JSON_EXTRACT" in sqlite_sql.upper()
 
-    null_statement = ChatSessionManager._metadata_update_statement(
-        SESSION_ID, {}, merged, True)
-    assert "IS NULL" in str(null_statement.compile(dialect=sqlite.dialect()))
-    assert "IS NULL" in str(
-        null_statement.compile(dialect=postgresql.dialect()))
+    # SQL NULL uses IS NULL; a JSON literal null is a distinct exact text arm.
+    sql_null = ChatSessionManager._metadata_update_statement(
+        SESSION_ID, None, merged)
+    assert "IS NULL" in str(sql_null.compile(dialect=sqlite.dialect()))
+    assert "IS NULL" in str(sql_null.compile(dialect=postgresql.dialect()))
+    json_null = ChatSessionManager._metadata_update_statement(
+        SESSION_ID, "null", merged)
+    json_null_sql = str(json_null.compile(dialect=sqlite.dialect()))
+    assert "IS NULL" not in json_null_sql
+    assert "CAST" in json_null_sql.upper() or (
+        "JSON_EXTRACT" in json_null_sql.upper())
 
 
 def test_file_lock_failure_is_truthful(monkeypatch, tmp_path):
@@ -1345,3 +1359,345 @@ def test_two_processes_disjoint_patches_both_preserved(tmp_path):
     assert final["b"] == 2
     assert final["unrelated"] == 0
     assert final["_metadata_revision"]
+
+
+# ---------------------------------------------------------------------------
+# 10. Raw JSON snapshot semantics: literal null, SQL NULL, arbitrary text
+# ---------------------------------------------------------------------------
+
+def _raw_set_metadata(Session, raw_literal, session_id=SESSION_ID):
+    """Set metadata_json with a RAW SQL literal, bypassing the JSON type.
+
+    ``None`` is SQL NULL; the string "null" is a JSON literal null; any other
+    string is stored exactly as supplied (compact/spaced/pretty/escaped/etc.).
+    """
+    with Session() as db:
+        db.execute(
+            text(
+                "UPDATE chat_sessions SET metadata_json = :raw "
+                "WHERE id = :sid"),
+            {"raw": raw_literal, "sid": session_id},
+        )
+        db.commit()
+
+
+@pytest.mark.parametrize("raw_literal, expected", [
+    (None, {}),                                  # SQL NULL
+    ("null", {}),                                # JSON literal null
+    ('{"guard":"v0"}', {"guard": "v0"}),         # compact raw SQL
+    ('{"guard": "v0"}', {"guard": "v0"}),        # spaced raw SQL
+    ('{\n  "guard": "v0"\n}', {"guard": "v0"}),  # pretty raw SQL
+    ('{"s":"\\u00e9"}', {"s": "é"}),             # escaped unicode
+    ('{"n":1,"f":1.50}', {"n": 1, "f": 1.5}),    # numeric encoding
+    ("{}", {}),                                  # empty object
+])
+def test_raw_json_snapshot_forms_update_safely(
+        db_world, monkeypatch, tmp_path, raw_literal, expected):
+    _engine, Session = db_world
+    _raw_set_metadata(Session, raw_literal)
+    manager = _db_manager(monkeypatch, Session, tmp_path)
+
+    assert manager.update_session_metadata(
+        SESSION_ID, {"patched": True}) is True
+
+    final = _row_metadata(Session)
+    assert final["patched"] is True
+    for key, value in expected.items():
+        assert final[key] == value
+    # The committed value is a JSON object in every case.
+    assert isinstance(final, dict)
+
+
+def test_stale_null_to_object_transition_preserves_both_patches(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _raw_set_metadata(Session, "null")
+    manager_a = _db_manager(monkeypatch, Session, tmp_path)
+    manager_b = _db_manager(monkeypatch, Session, tmp_path)
+
+    results, snapshots, raw_snapshots = _interleave_cas(
+        manager_a, manager_b, {"a": 1}, {"b": 2})
+
+    assert results == {"paused": True, "other": True}
+    assert len(snapshots) >= 2
+    assert raw_snapshots[0] == "null"
+    final = _row_metadata(Session)
+    assert final["a"] == 1
+    assert final["b"] == 2
+
+
+def test_stale_object_to_null_transition_does_not_resurrect_cleared_keys(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    _set_row_metadata(Session, {"b": 1, "unrelated": 0})
+    manager = _db_manager(monkeypatch, Session, tmp_path)
+
+    paused = threading.Event()
+    resume = threading.Event()
+    raw_seen = []
+    original = manager._conditional_metadata_update
+
+    def _paused_cas(session_id, current, raw_snapshot, merged):
+        raw_seen.append(raw_snapshot)
+        if len(raw_seen) == 1:
+            paused.set()
+            if not resume.wait(10):
+                raise AssertionError("writer was not released")
+        return original(session_id, current, raw_snapshot, merged)
+
+    manager._conditional_metadata_update = _paused_cas
+    result = {}
+
+    def _run():
+        try:
+            result["ok"] = manager.update_session_metadata(
+                SESSION_ID, {"a": 1})
+        except Exception as exc:  # noqa: BLE001
+            result["error"] = exc
+
+    thread = threading.Thread(target=_run)
+    thread.start()
+    try:
+        assert paused.wait(10), "writer never reached its CAS"
+        _raw_set_metadata(Session, "null")
+    finally:
+        resume.set()
+        thread.join(10)
+    assert not thread.is_alive()
+    if "error" in result:
+        raise result["error"]
+
+    assert result["ok"] is True
+    assert raw_seen[0] is not None
+    assert raw_seen[1] == "null"
+    final = _row_metadata(Session)
+    assert final["a"] == 1
+    # The stale object snapshot must not resurrect keys cleared by the null.
+    assert "b" not in final
+    assert "unrelated" not in final
+
+
+# ---------------------------------------------------------------------------
+# 11. Lock context manager: body errors, contention, unsupported OS
+# ---------------------------------------------------------------------------
+
+_LOCK_CHILD_SCRIPT = r'''
+import json, sys
+from core.chat_session_manager import _interprocess_file_lock
+
+lock_path = sys.argv[1]
+with _interprocess_file_lock(lock_path) as acquired:
+    print("RESULT:" + json.dumps({"acquired": bool(acquired)}), flush=True)
+'''
+
+_LOCK_HOLDER_SCRIPT = r'''
+import os, sys, time
+from core.chat_session_manager import _interprocess_file_lock
+
+lock_path, release_path = sys.argv[1:3]
+with _interprocess_file_lock(lock_path) as acquired:
+    print("HELD:" + ("1" if acquired else "0"), flush=True)
+    while not os.path.exists(release_path):
+        time.sleep(0.01)
+'''
+
+
+def _lock_child_env(tmp_path):
+    env = dict(os.environ)
+    env.update({
+        "TESTING": "1",
+        "ATOM_CHAT_STORAGE": "file",
+        "CHAT_PERSISTENCE_MODE": "FILE",
+        "ATOM_DATA_DIR": str(tmp_path / "lock-child-data"),
+        "DATABASE_URL": f"sqlite:///{tmp_path / 'lock-child.sqlite'}",
+        "PYTHONPATH": BACKEND_DIR,
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_DATASETS_OFFLINE": "1",
+    })
+    os.makedirs(env["ATOM_DATA_DIR"], exist_ok=True)
+    return env
+
+
+def test_lock_body_exception_propagates_and_releases(tmp_path):
+    lock_path = str(tmp_path / "body-error.lock")
+
+    # The original body exception must propagate (not RuntimeError "generator
+    # didn't stop after throw"), and the lock must be released by the finally.
+    with pytest.raises(ValueError, match="synthetic-body-failure"):
+        with csm._interprocess_file_lock(lock_path) as acquired:
+            assert acquired is True
+            raise ValueError("synthetic-body-failure")
+
+    # Same-process re-acquisition.
+    with csm._interprocess_file_lock(lock_path) as acquired:
+        assert acquired is True
+
+    # Independent-process re-acquisition.
+    completed = subprocess.run(
+        [sys.executable, "-c", _LOCK_CHILD_SCRIPT, lock_path],
+        cwd=BACKEND_DIR,
+        env=_lock_child_env(tmp_path),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr[-2000:]
+    result_line = next(
+        (ln for ln in completed.stdout.splitlines()
+         if ln.startswith("RESULT:")), "")
+    assert result_line, completed.stdout
+    assert json.loads(result_line[len("RESULT:"):])["acquired"] is True
+
+
+def test_lock_contention_times_out_false_then_releases(tmp_path):
+    lock_path = str(tmp_path / "contention.lock")
+    release_path = str(tmp_path / "contention.release")
+    holder = subprocess.Popen(
+        [sys.executable, "-c", _LOCK_HOLDER_SCRIPT, lock_path, release_path],
+        cwd=BACKEND_DIR,
+        env=_lock_child_env(tmp_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    held = []
+    reader = threading.Thread(
+        target=lambda: held.append(holder.stdout.readline()))
+    reader.start()
+    reader.join(10)
+    try:
+        assert held and held[0].strip() == "HELD:1", held
+
+        # A second independent process cannot acquire while the holder owns it.
+        with csm._interprocess_file_lock(lock_path, timeout=0.2) as acquired:
+            assert acquired is False
+
+        with open(release_path, "w") as f:
+            f.write("go")
+        holder.wait(timeout=30)
+
+        # Once released, a later attempt succeeds.
+        with csm._interprocess_file_lock(lock_path, timeout=2.0) as acquired:
+            assert acquired is True
+    finally:
+        if holder.poll() is None:
+            holder.kill()
+        holder.communicate(timeout=10)
+
+
+def test_no_os_lock_primitive_fails_closed(monkeypatch, tmp_path):
+    manager = _file_manager(monkeypatch, tmp_path)
+    before = manager.read_session_metadata(SESSION_ID)["metadata"]
+    lock_path = str(tmp_path / "no-os.lock")
+
+    monkeypatch.setattr(csm, "fcntl", None)
+    monkeypatch.setattr(csm, "msvcrt", None)
+
+    with csm._interprocess_file_lock(lock_path) as acquired:
+        assert acquired is False
+    assert manager.update_session_metadata(
+        SESSION_ID, {"blocked": 1}) is False
+    after = manager.read_session_metadata(SESSION_ID)["metadata"]
+    assert after == before
+    assert "blocked" not in after
+
+
+# ---------------------------------------------------------------------------
+# 12. Direct ORM metadata writer routed through the shared CAS
+# ---------------------------------------------------------------------------
+
+def _seed_agent(Session, agent_id):
+    with Session() as db:
+        db.add(AgentRegistry(
+            id=agent_id,
+            name="Session Agent",
+            category="custom",
+            module_path="test",
+            class_name="SessionAgent",
+            confidence_score=0.6,
+            status="intern",
+            enabled=True,
+        ))
+        db.commit()
+
+
+def test_direct_agent_assignment_reverse_order_preserves_pending_revision(
+        db_world, monkeypatch, tmp_path):
+    _engine, Session = db_world
+    agent_id = "agent-session-1"
+    _seed_agent(Session, agent_id)
+    pending = {
+        "state": "pending",
+        "revision": "r0",
+        "request": MESSAGE,
+        "session_id": SESSION_ID,
+        "user_id": USER_ID,
+        "workspace_id": WORKSPACE_ID,
+        "tenant_id": TENANT_ID,
+    }
+    _set_row_metadata(Session, {
+        co._PENDING_COLLABORATION_KEY: pending,
+        co._PENDING_COLLABORATION_REVISION_KEY: "r0",
+        "unrelated": 0,
+    })
+    manager = _db_manager(monkeypatch, Session, tmp_path)
+
+    direct_paused = threading.Event()
+    pending_done = threading.Event()
+    original = ChatSessionManager.merge_in_session.__func__
+
+    def _paused_merge(cls, db, session_id, metadata, **kwargs):
+        # The resolver's existence checks opened a read transaction. Release
+        # it so the independent pending writer can commit on SQLite; the
+        # seeded data is already committed.
+        db.rollback()
+        direct_paused.set()
+        if not pending_done.wait(10):
+            raise AssertionError("pending writer was not released")
+        return original(cls, db, session_id, metadata, **kwargs)
+
+    monkeypatch.setattr(
+        ChatSessionManager, "merge_in_session",
+        classmethod(_paused_merge))
+
+    result = {}
+
+    def _run_resolver():
+        try:
+            with Session() as db:
+                resolver = AgentContextResolver(db)
+                result["agent"] = resolver.set_session_agent(
+                    SESSION_ID, agent_id)
+        except Exception as exc:  # noqa: BLE001
+            result["error"] = exc
+
+    thread = threading.Thread(target=_run_resolver)
+    thread.start()
+    try:
+        assert direct_paused.wait(10), "direct caller never reached its patch"
+        pending_writer = _db_manager(monkeypatch, Session, tmp_path)
+        assert pending_writer.update_session_metadata(
+            SESSION_ID,
+            {
+                co._PENDING_COLLABORATION_KEY: {
+                    **pending, "revision": "r1"},
+                co._PENDING_COLLABORATION_REVISION_KEY: "r1",
+                "unrelated_pending": 1,
+            },
+            expected={co._PENDING_COLLABORATION_REVISION_KEY: "r0"},
+        ) is True
+    finally:
+        pending_done.set()
+        thread.join(10)
+    assert not thread.is_alive(), "direct caller did not finish"
+    if "error" in result:
+        raise result["error"]
+
+    assert result["agent"] is True
+    final = _row_metadata(Session)
+    assert final[co._PENDING_COLLABORATION_REVISION_KEY] == "r1"
+    assert final[co._PENDING_COLLABORATION_KEY]["revision"] == "r1"
+    assert final["unrelated_pending"] == 1
+    assert final["unrelated"] == 0
+    assert final["agent_id"] == agent_id

@@ -16,7 +16,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 import uuid
-from sqlalchemy import desc, update
+from sqlalchemy import String, cast, desc, text, update
 from sqlalchemy.orm import Session
 
 try:  # POSIX
@@ -136,12 +136,19 @@ def _interprocess_file_lock(
                 try:
                     if fcntl is not None:
                         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    elif msvcrt is not None:  # pragma: no cover - Windows
+                        acquired = True
+                        break
+                    if msvcrt is not None:  # pragma: no cover - Windows
                         os.lseek(fd, 0, os.SEEK_SET)
                         msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                    # If neither primitive exists the thread RLock is the
-                    # documented same-process fallback (no OS coordination).
-                    acquired = True
+                        acquired = True
+                        break
+                    # No OS coordination exists. Do not claim a cross-process
+                    # lock; fail closed so file-mode callers report not-saved.
+                    logger.error(
+                        "no OS advisory file-lock primitive is available; "
+                        "refusing file-mode write without cross-process "
+                        "coordination")
                     break
                 except OSError:
                     if time.monotonic() >= deadline:
@@ -588,48 +595,97 @@ class ChatSessionManager:
                 return False
         return True
 
-    def _read_metadata_snapshot(self, session_id: str):
-        """Read one committed metadata snapshot, then end the read txn.
+    @staticmethod
+    def _read_snapshot_from_db(db, session_id: str):
+        """Read parsed metadata plus the exact stored JSON representation.
 
-        Returns ``(status, metadata, raw_is_null)`` where status is
-        ``found``/``missing``/``error``. Closing the read session before the
-        caller pauses on its expected conditions is deliberate: it does not
-        hold a SQLite shared read lock across the interleaving, so a competing
-        writer can commit and the conditional UPDATE can observe the conflict.
+        Returns ``(status, metadata, raw_snapshot)``:
+
+        * ``raw_snapshot is None``  -> SQL NULL;
+        * ``raw_snapshot == "null"`` -> a JSON literal null;
+        * otherwise the stored JSON text/canonical JSONB text.
+
+        The raw representation is what the conditional UPDATE compares, so a
+        compact/pretty/escaped/numeric-key-order-preserving raw SQL value is
+        handled exactly without guessing how SQLAlchemy would re-serialize the
+        Python dict. A JSON literal null and SQL NULL are distinct even though
+        the ORM decodes both to Python ``None``.
         """
         try:
-            with get_db_session() as db:
-                row = db.query(ChatSession).filter(
-                    ChatSession.id == session_id).first()
-                if row is None:
-                    return "missing", {}, False
-                raw = row.metadata_json
-                return "found", dict(raw or {}), raw is None
+            row = db.execute(
+                text(
+                    "SELECT CAST(metadata_json AS TEXT) FROM "
+                    f"{ChatSession.__tablename__} WHERE id = :session_id"
+                ),
+                {"session_id": session_id},
+            ).first()
+            if row is None:
+                return "missing", {}, None
+            raw_snapshot = row[0]
+            if raw_snapshot is None:
+                # SQL NULL: distinct from a JSON literal null below.
+                return "found", {}, None
+            try:
+                parsed = json.loads(raw_snapshot)
+            except Exception:  # noqa: BLE001 — invalid stored JSON
+                logger.warning(
+                    "session %s metadata is not valid JSON", session_id)
+                return "error", {}, None
+            if parsed is None:
+                # JSON literal null: the raw text (e.g. "null") is the guard.
+                current: Dict[str, Any] = {}
+            elif isinstance(parsed, dict):
+                current = dict(parsed)
+            else:
+                # Session metadata is a JSON object contract.
+                logger.warning(
+                    "session %s metadata is not a JSON object", session_id)
+                return "error", {}, None
+            return "found", current, raw_snapshot
         except Exception as e:  # noqa: BLE001 — report unreadable
             logger.warning(
                 f"DB metadata read failed for {session_id}: {e}")
-            return "error", {}, False
+            return "error", {}, None
+
+    def _read_metadata_snapshot(self, session_id: str):
+        """Read one committed metadata snapshot, then end the read txn."""
+        try:
+            with get_db_session() as db:
+                return self._read_snapshot_from_db(db, session_id)
+        except Exception as e:  # noqa: BLE001 — report unreadable
+            logger.warning(
+                f"DB metadata read failed for {session_id}: {e}")
+            return "error", {}, None
 
     @staticmethod
     def _metadata_update_statement(
         session_id: str,
-        current: Dict[str, Any],
+        raw_snapshot: Optional[str],
         merged: Dict[str, Any],
-        raw_is_null: bool,
     ):
         """Whole-snapshot conditional UPDATE (optimistic CAS).
 
-        The WHERE binds the ENTIRE pre-read metadata value, not one key.
-        Any writer that commits a different snapshot — including a legacy
-        2-arg caller or a direct ORM metadata writer — makes the condition
-        miss; the caller then re-reads and re-merges. That is the property a
-        single-key condition lacks.
+        The WHERE binds the ENTIRE exact stored snapshot, not one key and not
+        a re-serialized Python dict:
+
+        * SQL NULL        -> ``metadata_json IS NULL``;
+        * JSON literal null -> ``CAST(metadata_json AS TEXT) = 'null'``;
+        * JSON object     -> ``CAST(metadata_json AS TEXT) = <exact text>``.
+
+        On SQLite ``CAST(... AS TEXT)`` returns the bytes-as-text exactly as
+        stored (compact, pretty, escaped unicode, `1.50`, key order). On
+        PostgreSQL JSONB the cast is the canonical JSONB text and JSONB
+        equality semantics remain in force. Any concurrent commit changes the
+        stored representation (or the JSONB value), so the condition misses;
+        the caller re-reads and re-merges. There is no OR-widening and no
+        single-key guard that could overwrite a concurrent change.
         """
         conditions = [ChatSession.id == session_id]
-        if raw_is_null:
+        if raw_snapshot is None:
             conditions.append(ChatSession.metadata_json.is_(None))
         else:
-            conditions.append(ChatSession.metadata_json == current)
+            conditions.append(
+                cast(ChatSession.metadata_json, String) == raw_snapshot)
         return update(ChatSession).where(
             *conditions,
         ).values(
@@ -641,16 +697,20 @@ class ChatSessionManager:
         self,
         session_id: str,
         current: Dict[str, Any],
+        raw_snapshot: Optional[str],
         merged: Dict[str, Any],
-        raw_is_null: bool,
     ) -> str:
-        """Execute one CAS attempt. Returns saved|conflict|error."""
+        """Execute one CAS attempt. Returns saved|conflict|error.
+
+        ``current`` is carried for diagnostics/test interleaving; the SQL
+        guard uses ``raw_snapshot``.
+        """
         from sqlalchemy.exc import OperationalError
 
         try:
             with get_db_session() as db:
                 statement = self._metadata_update_statement(
-                    session_id, current, merged, raw_is_null)
+                    session_id, raw_snapshot, merged)
                 db.expire_all()
                 written = db.execute(statement)
                 db.expire_all()
@@ -665,6 +725,64 @@ class ChatSessionManager:
             logger.warning(f"DB metadata update failed: {e}")
             return "error"
 
+    @classmethod
+    def merge_in_session(
+        cls,
+        db,
+        session_id: str,
+        metadata: Dict[str, Any],
+        *,
+        expected: Optional[Dict[str, Any]] = None,
+        commit: bool = True,
+    ) -> bool:
+        """CAS-merge metadata using a caller-owned SQLAlchemy session.
+
+        Shared API for an existing direct ORM metadata writer (currently
+        ``AgentContextResolver.set_session_agent``). It never reads/copies the
+        metadata and re-assigns the whole dict; it reads the exact stored
+        snapshot, applies only the caller's patch, and writes it back behind
+        the same whole-snapshot guard. A concurrent commit therefore makes
+        this return False instead of clobbering the other writer.
+
+        The caller owns the session/transaction. On write/commit failure the
+        helper rolls back and returns False; it never falls back to the file
+        store (this path is for a caller that has a ChatSession row).
+        """
+        if not session_id or not isinstance(metadata, dict):
+            return False
+        if not cls._valid_expected(expected):
+            logger.error(
+                "refusing unsupported in-session metadata CAS for %s",
+                session_id)
+            return False
+        try:
+            status, current, raw_snapshot = cls._read_snapshot_from_db(
+                db, session_id)
+            if status != "found":
+                return False
+            if expected and not cls._expected_matches(current, expected):
+                return False
+            merged = dict(current)
+            merged.update(metadata)
+            merged[_METADATA_REVISION_KEY] = uuid.uuid4().hex
+            statement = cls._metadata_update_statement(
+                session_id, raw_snapshot, merged)
+            written = db.execute(
+                statement.execution_options(synchronize_session=False))
+            if int(written.rowcount or 0) != 1:
+                # A newer snapshot won; do not retry with stale local state.
+                return False
+            if commit:
+                db.commit()
+            return True
+        except Exception as e:  # noqa: BLE001 — truthful failure
+            logger.warning("in-session metadata CAS failed: %s", e)
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001 — best-effort cleanup
+                pass
+            return False
+
     def _db_metadata_cas(
         self,
         session_id: str,
@@ -673,7 +791,7 @@ class ChatSessionManager:
     ):
         """Bounded read/check/merge/CAS loop. Returns (status, merged)."""
         for attempt in range(_METADATA_CAS_ATTEMPTS):
-            status, current, raw_is_null = self._read_metadata_snapshot(
+            status, current, raw_snapshot = self._read_metadata_snapshot(
                 session_id)
             if status != "found":
                 return status, None
@@ -686,7 +804,7 @@ class ChatSessionManager:
             # diagnostic only; correctness rests on the snapshot equality.
             merged[_METADATA_REVISION_KEY] = uuid.uuid4().hex
             result = self._conditional_metadata_update(
-                session_id, current, merged, raw_is_null)
+                session_id, current, raw_snapshot, merged)
             if result == "saved":
                 return "saved", merged
             if result == "error":
