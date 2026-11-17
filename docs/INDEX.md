@@ -279,3 +279,5 @@ blanket qualification of every feature or connector.
 ---
 
 *Last Updated: August 2026*
+
+- [Document source authority and derived-data lifecycle](engineering/DOCUMENT_SOURCE_AUTHORITY_2026_11_17.md) — bounded DOCX/PDF/CSV API evidence and remaining gaps.
