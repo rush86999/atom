@@ -82,6 +82,18 @@ AUTH_NEEDS_GRANT = "needs_grant"
 _KIND_RESEARCH = "research"
 _KIND_LEARNING = "learning"
 _KIND_CANVAS_EDIT = "canvas_edit"
+_KIND_COLLABORATION = "collaboration"
+
+#: Collaboration contract bounds. These are EXECUTION limits, not labels to
+#: trim: when a request exceeds one, the turn must clarify before any paid
+#: call and preserve the original request. 10 matches the fleet's existing
+#: ``TaskAnalysis.specialist_count`` / ``RecruitmentPlan`` ceiling.
+COLLABORATION_ROLE_LIMIT = 10
+COLLABORATION_ROLE_LABEL_MAX = 200
+COLLABORATION_OBJECTIVE_MAX = 4000
+#: Memory-safety guard only. Exceeding it is an explicit clarification, never
+#: a silent drop of the user's participant list.
+COLLABORATION_HARD_ROLE_CAP = 64
 
 # 2026-10-08 Phase-2 interpretation slice: the async entry point proposes
 # semantics; this schema version identifies its records beside the
@@ -101,7 +113,7 @@ SCOPE_CHANGES = ("replace", "extend", "subset", "continue", "unresolved")
 #: authorization policy and prompt already use).
 INTERPRETATION_ACTION_KINDS = (
     "research", "learning", "canvas_edit", "calculation",
-    "presentation", "conversation",
+    "presentation", "conversation", "collaboration", "delegation",
 )
 
 # A negated edit command. "Research this; don't change the draft" carries
@@ -153,6 +165,254 @@ def edit_authorization(
     return (AUTH_GRANTED, instruction)
 
 
+def _collaboration_roles(value: Any) -> List[str]:
+    """Normalize role labels supplied by the structured interpretation.
+
+    Labels are the USER'S vocabulary copied by the interpreter; this
+    function only trims whitespace, dedupes identical labels and applies a
+    memory-safety cap. It never shortens or renames a label — an
+    over-limit request is reported by ``collaboration_requirement_from_action``
+    so the caller can clarify before dispatch.
+    """
+    roles: List[str] = []
+    seen = set()
+    for raw in (value or [])[:COLLABORATION_HARD_ROLE_CAP]:
+        role = " ".join(str(raw or "").split()).strip(" ,;:-")
+        if not role:
+            continue
+        key = role.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        roles.append(role)
+    return roles
+
+
+def _collaboration_overflow(
+    raw_roles: Any, roles: List[str], objective: str,
+) -> Dict[str, Any]:
+    """Explicit limits for an accepted participant list.
+
+    Selection limits are NOT exhaustive-request truncation: a request that
+    names more participants than one fleet can carry is answered with a
+    clarification that preserves the whole original ask, never by silently
+    dropping the tail.
+    """
+    raw_list = list(raw_roles or []) if isinstance(
+        raw_roles, (list, tuple, set)) else []
+    raw_distinct = []
+    seen = set()
+    for raw in raw_list:
+        label = " ".join(str(raw or "").split()).strip(" ,;:-")
+        key = label.casefold()
+        if not label or key in seen:
+            continue
+        seen.add(key)
+        raw_distinct.append(label)
+    requested_count = len(raw_distinct)
+    label_overflow = [
+        role for role in raw_distinct
+        if len(role) > COLLABORATION_ROLE_LABEL_MAX
+    ]
+    return {
+        "requested_count": requested_count,
+        "carried_count": len(roles),
+        "role_limit": COLLABORATION_ROLE_LIMIT,
+        "label_limit": COLLABORATION_ROLE_LABEL_MAX,
+        "objective_limit": COLLABORATION_OBJECTIVE_MAX,
+        "role_limit_exceeded": requested_count > COLLABORATION_ROLE_LIMIT,
+        "hard_cap_exceeded": requested_count > COLLABORATION_HARD_ROLE_CAP,
+        "label_overflow": label_overflow,
+        "objective_overflow": len(objective) > COLLABORATION_OBJECTIVE_MAX,
+    }
+
+
+def collaboration_requirement_from_action(
+    action: Dict[str, Any], message: str = "",
+) -> Optional[Dict[str, Any]]:
+    """The ACCEPTED collaboration requirement carried by one action.
+
+    Representation/completeness only — this does not inspect the message
+    for domain words or phrasing. ``explicit`` is the shared semantic
+    interpretation's statement that the user asked for actual specialist
+    work rather than a perspective/framing answer; when the field is
+    absent, a collaboration action that names participants is explicit by
+    construction. An empty, non-generic participant list is AMBIGUOUS and
+    must clarify, never silently become a single-answer reply.
+    """
+    action = action if isinstance(action, dict) else {}
+    kind = str(action.get("kind") or "").strip().lower()
+    if kind not in (_KIND_COLLABORATION, "delegation"):
+        return None
+    raw_roles = action.get("roles") or action.get("specialists") or []
+    roles = _collaboration_roles(raw_roles)
+    objective = str(message or "")
+    generic = bool(action.get("generic"))
+    explicit = action.get("explicit")
+    if explicit is None:
+        explicit = bool(roles or generic)
+    explicit = bool(explicit)
+    if not explicit:
+        return None
+    limits = _collaboration_overflow(raw_roles, roles, objective)
+    clarification = bool(
+        (not roles and not generic)
+        or limits["role_limit_exceeded"]
+        or limits["hard_cap_exceeded"]
+        or limits["label_overflow"]
+        or limits["objective_overflow"])
+    question = ""
+    if not roles and not generic:
+        question = (
+            "Which specialist roles or agents should collaborate on this "
+            "request?")
+    elif limits["role_limit_exceeded"] or limits["hard_cap_exceeded"]:
+        question = (
+            f"You named {limits['requested_count']} specialist roles. One "
+            f"fleet can carry at most {COLLABORATION_ROLE_LIMIT} at a time; "
+            "the original request is preserved. Please split it into groups "
+            "of at most "
+            f"{COLLABORATION_ROLE_LIMIT} roles, or confirm a smaller set.")
+    elif limits["label_overflow"]:
+        question = (
+            "A specialist role label is longer than "
+            f"{COLLABORATION_ROLE_LABEL_MAX} characters and would have to be "
+            "renamed to match it. Please shorten the label; the original "
+            "request is preserved.")
+    elif limits["objective_overflow"]:
+        question = (
+            "The collaboration request is longer than "
+            f"{COLLABORATION_OBJECTIVE_MAX} characters. Please shorten or "
+            "split it; the original request is preserved.")
+    requirement = {
+        "required": True,
+        "authorization": (
+            AUTH_NEEDS_CONFIRMATION if clarification else AUTH_GRANTED),
+        "explicit": True,
+        "roles": roles,
+        # Compatibility alias for consumers that already speak the
+        # participant vocabulary.
+        "specialists": list(roles),
+        "generic": generic,
+        "clarification_required": clarification,
+        "reason": "explicit_specialist_collaboration",
+        # The FULL accepted request, never a truncated objective. Execution
+        # uses the turn's original request; this field lets resume/pending
+        # carriers preserve it.
+        "objective": objective,
+        "limits": limits,
+    }
+    if question:
+        requirement["question"] = question
+    return requirement
+
+
+def turn_collaboration_requirement(
+    decision: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """The turn decision's accepted collaboration requirement, or a
+    no-op record. Safe for every caller: an absent/malformed decision
+    means ``required=False`` (the existing single-answer behavior)."""
+    if not isinstance(decision, dict):
+        return {"required": False, "roles": [], "authorization": None}
+    recorded = decision.get("collaboration")
+    if isinstance(recorded, dict):
+        normalized = collaboration_requirement_from_action({
+            "kind": _KIND_COLLABORATION,
+            "roles": recorded.get("roles") or recorded.get("specialists"),
+            "generic": recorded.get("generic"),
+            "explicit": recorded.get("explicit", True),
+        }, str(decision.get("message") or ""))
+        if normalized is not None:
+            return normalized
+    for action in decision.get("requested_actions") or []:
+        if not isinstance(action, dict):
+            continue
+        requirement = collaboration_requirement_from_action(
+            action, str(decision.get("message") or ""))
+        if requirement is not None:
+            return requirement
+    return {"required": False, "roles": [], "authorization": None}
+
+
+def apply_interpretation_actions(
+    decision: Optional[Dict[str, Any]],
+    interpretation: Optional[Dict[str, Any]],
+    session: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Compose a RESOLVED interpretation's collaboration action into the
+    accepted decision.
+
+    This is plumbing, not a second interpreter: the single shared model
+    interpretation owns the semantic reading; the deterministic contract
+    only carries the requirement forward so the program, planner and
+    existing fleet lane can execute it. Degraded/unresolved
+    interpretations never add an action, and no model-supplied
+    authorization is trusted — the verdict is recomputed here.
+
+    An explicit collaboration action REPLACES the floor's no-op
+    ``conversation`` (the defect: the plan said converse and the request
+    was silently downgraded). Other requested actions (research, edit,
+    learning) are preserved, so a compound request keeps both halves.
+    """
+    if not isinstance(decision, dict) or not isinstance(
+            interpretation, dict):
+        return decision
+    origin = str(interpretation.get("origin") or "")
+    scope_change = str(interpretation.get("scope_change") or "")
+    if origin == "unresolved" or scope_change == "unresolved":
+        return decision
+    proposed = [
+        action for action in (interpretation.get("actions") or [])
+        if isinstance(action, dict)
+        and str(action.get("kind") or "").strip().lower() in (
+            _KIND_COLLABORATION, "delegation")]
+    if not proposed:
+        return decision
+    requirement = collaboration_requirement_from_action(
+        proposed[0], str(decision.get("message")
+                         or interpretation.get("message") or ""))
+    if requirement is None:
+        return decision
+    action = {
+        "kind": _KIND_COLLABORATION,
+        "reason": requirement["reason"],
+        "roles": list(requirement["roles"]),
+        "specialists": list(requirement["specialists"]),
+        "generic": requirement["generic"],
+        "explicit": True,
+        "objective": requirement["objective"],
+        "clarification_required": requirement["clarification_required"],
+        "authorization": requirement["authorization"],
+    }
+    if requirement.get("question"):
+        action["question"] = requirement["question"]
+    retained = [
+        existing for existing in (decision.get("requested_actions") or [])
+        if isinstance(existing, dict)
+        and str(existing.get("kind") or "") != "conversation"]
+    composed = dict(decision)
+    composed["requested_actions"] = [*retained, action]
+    composed["collaboration"] = dict(requirement)
+    # The executable shadow must be recompiled: leaving the floor's
+    # converse-only program here made program consumers read "converse"
+    # and silently downgrade the accepted collaboration (the live defect).
+    try:
+        from core.action_program import program_from_decision
+
+        _program = program_from_decision(composed)
+        composed["action_program"] = (
+            _program.to_record() if _program is not None else None)
+    except Exception:  # noqa: BLE001 — a shadow must never fail the turn
+        pass
+    signals = list((decision.get("provenance") or {}).get("signals") or [])
+    if "interpretation_collaboration" not in signals:
+        signals.append("interpretation_collaboration")
+    composed["provenance"] = {
+        **(decision.get("provenance") or {}), "signals": signals}
+    return composed
+
+
 def _authorization_for_proposed_action(
     action: Dict[str, Any],
     message: str,
@@ -165,8 +425,12 @@ def _authorization_for_proposed_action(
     decision applies. Reads/analysis are granted (they mutate nothing);
     learning needs confirmation; a canvas edit needs the same
     user-grounded, non-negated command the sync path requires.
+    Collaboration is granted only when its structured requirement is
+    complete (named roles or an explicit generic ask); an empty,
+    non-generic request is ambiguous and needs confirmation.
     """
-    kind = str((action or {}).get("kind") or "").strip().lower()
+    action = action if isinstance(action, dict) else {}
+    kind = str(action.get("kind") or "").strip().lower()
     if kind in (_KIND_RESEARCH, "presentation", "conversation",
                 "calculation"):
         return AUTH_GRANTED
@@ -176,6 +440,11 @@ def _authorization_for_proposed_action(
         verdict, _ = edit_authorization(
             message, "", canvas_id=canvas_id)
         return verdict
+    if kind in (_KIND_COLLABORATION, "delegation"):
+        requirement = collaboration_requirement_from_action(action, message)
+        if requirement is not None:
+            return requirement["authorization"]
+        return AUTH_NEEDS_CONFIRMATION
     return AUTH_NEEDS_GRANT
 
 
@@ -2272,15 +2541,28 @@ def _interpretation_prompt(
     parts.append("SUPPORTED SOURCE KINDS: " + supported_kinds)
     parts.append(
         "Interpret the REQUEST. Propose: actions (research / learning / "
-        "canvas_edit / calculation / presentation / conversation — more "
-        "than one allowed). Questions and follow-up comparisons are actions "
-        "too: propose the applicable read-only action for answering, "
-        "presenting, or consulting evidence (research/presentation/"
-        "conversation as appropriate). 'continue' describes the relationship "
-        "to prior work; it does not replace the action list. If the request "
-        "cannot be interpreted, return explicit unresolved scope. A "
-        "resolved scope must include at least one action; use an empty "
-        "actions list only when scope_change is 'unresolved'. Specify "
+        "canvas_edit / calculation / presentation / conversation / "
+        "collaboration — more than one allowed). Questions and follow-up "
+        "comparisons are actions too: propose the applicable read-only "
+        "action for answering, presenting, or consulting evidence "
+        "(research/presentation/conversation as appropriate). 'continue' "
+        "describes the relationship to prior work; it does not replace the "
+        "action list. If the request cannot be interpreted, return explicit "
+        "unresolved scope. A resolved scope must include at least one "
+        "action; use an empty actions list only when scope_change is "
+        "'unresolved'. "
+        "COLLABORATION is a distinct action: use it ONLY when the user "
+        "explicitly asks that named specialist roles or agents actually "
+        "work on the request alongside the assistant ('analyze this with "
+        "finance and sales specialists', 'ask legal and security to review "
+        "this'). Put the user's exact role labels in roles (copy them; never "
+        "invent one), set explicit=true, and set generic=true only when the "
+        "user asks for specialists without naming roles. A request for a "
+        "perspective, framing, hypothetical, quoted example, or a negated "
+        "or ordinary single-answer analysis is NOT collaboration — use "
+        "conversation or the ordinary action. Never infer specialist "
+        "collaboration from a domain word alone. "
+        "Specify "
         "the FULL subject names exactly as the user "
         "means them, EXTERNAL evidence sources requiring consultation "
         "(if the request names a specific source, copy that source's "
@@ -2362,9 +2644,17 @@ async def interpret_turn_request(
         model_config = ConfigDict(hide_input_in_errors=True)
         kind: Literal[
             "research", "learning", "canvas_edit", "calculation",
-            "presentation", "conversation",
+            "presentation", "conversation", "collaboration", "delegation",
         ]
         subjects: List[str] = Field(default_factory=list)
+        # COLLABORATION (2026-11-17): the user's explicit request that
+        # named specialist roles/agents actually work on the request.
+        # ``roles`` are the user's labels, copied — never invented.
+        # ``explicit`` distinguishes real delegated work from perspective
+        # framing; ``generic`` covers "with specialists" (no named role).
+        roles: List[str] = Field(default_factory=list)
+        explicit: bool = True
+        generic: bool = False
         note: str = ""
 
     class _Interpretation(BaseModel):
@@ -2393,6 +2683,17 @@ async def interpret_turn_request(
             "replace", "extend", "subset", "continue", "unresolved"
         ]
         confidence: float = 0.0
+
+        @model_validator(mode="before")
+        @classmethod
+        def _normalize_specialist_alias(cls, data):
+            # Accept the compatibility spelling ``specialists`` as the same
+            # structured participant list; ``roles`` is canonical.
+            if isinstance(data, dict) and not data.get("roles"):
+                aliases = data.get("specialists")
+                if isinstance(aliases, list) and aliases:
+                    data = {**data, "roles": list(aliases)}
+            return data
 
         @model_validator(mode="before")
         @classmethod
@@ -2603,7 +2904,9 @@ async def interpret_turn_request(
     actions_out: List[Dict[str, Any]] = []
     for a in raw_actions:
         kind = str(a.get("kind") or "").strip().lower()
-        actions_out.append({
+        if kind == "delegation":
+            kind = _KIND_COLLABORATION
+        action_record = {
             "kind": kind,
             "subjects": [
                 str(s)[:200] for s in (a.get("subjects") or [])[:12]
@@ -2612,8 +2915,20 @@ async def interpret_turn_request(
             # POLICY OVERWRITES THE MODEL: deterministic authorization
             # only — a proposed edit never carries model-granted rights.
             "authorization": _authorization_for_proposed_action(
-                {"kind": kind}, message, canvas_id),
-        })
+                {**a, "kind": kind}, message, canvas_id),
+        }
+        if kind == _KIND_COLLABORATION:
+            action_record.update({
+                "roles": _collaboration_roles(
+                    a.get("roles") or a.get("specialists")),
+                "specialists": _collaboration_roles(
+                    a.get("roles") or a.get("specialists")),
+                "explicit": (
+                    bool(a.get("explicit"))
+                    if "explicit" in a else True),
+                "generic": bool(a.get("generic")),
+            })
+        actions_out.append(action_record)
     _interpret_failures = 0
     _interpret_metrics["ok"] += 1
     _emit_interpret("ok", latency_ms=latency_ms)
@@ -2625,7 +2940,7 @@ async def interpret_turn_request(
             origin = f"llm:{str(model)[:80]}"
     except Exception:  # noqa: BLE001 — origin is best-effort
         pass
-    return {
+    record = {
         "schema": INTERPRETATION_SCHEMA,
         "request_id": request_id,
         "origin": origin,
@@ -2650,6 +2965,17 @@ async def interpret_turn_request(
             data.get("confidence") or 0.0))),
         "deterministic_decision": deterministic,
     }
+    # Keep the embedded floor consistent with the accepted interpretation:
+    # a resolved collaboration action must be visible on the decision the
+    # record carries, not only on the orchestrator's later composition.
+    try:
+        record["deterministic_decision"] = apply_interpretation_actions(
+            deterministic, record)
+        record["collaboration"] = turn_collaboration_requirement(
+            record["deterministic_decision"])
+    except Exception:  # noqa: BLE001 — composition is additive
+        pass
+    return record
 
 
 def _note_breaker() -> None:

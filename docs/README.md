@@ -113,3 +113,8 @@ durable work. They are implementation requirements, not additional acceptance cl
 The [domain-independent product contract](engineering/DOMAIN_INDEPENDENCE.md)
 keeps company policies in teaching/configuration and provider behavior in adapters;
 Brennan is a reference deployment, not a hardcoded product boundary.
+
+The [explicit collaboration authority record](engineering/EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md)
+documents the semantic specialist-request requirement, the early pre-reply
+route with unchanged operator pilot/shadow gates, and durable pending/CAS
+authority — bounded offline evidence, not model-quality or app-wide acceptance.

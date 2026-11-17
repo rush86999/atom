@@ -279,7 +279,8 @@ Return JSON matching the RecruitmentPlan schema."""
         user_id: str,
         context: Dict,
         max_specialists: int = 5,
-        chain_id: Optional[str] = None
+        chain_id: Optional[str] = None,
+        requested_domains: Optional[List[str]] = None,
     ) -> Dict:
         """
         Orchestrate full recruitment flow: analysis -> matching -> governance -> optimization.
@@ -294,6 +295,11 @@ Return JSON matching the RecruitmentPlan schema."""
             context: Additional context for recruitment
             max_specialists: Maximum number of specialists to recruit
             chain_id: Optional delegation chain ID
+            requested_domains: Domains the user's accepted collaboration
+                requirement named. When supplied, recruitment keeps EXACTLY
+                these canonical domains (no model-added or dropped role);
+                an unknown domain fails honestly instead of silently
+                substituting another specialist.
 
         Returns:
             Dict with recruitment success/failure status and roster
@@ -312,6 +318,42 @@ Return JSON matching the RecruitmentPlan schema."""
                 user_id=user_id,
                 max_specialists=max_specialists
             )
+
+            # EXPLICIT COLLABORATION IS A CONSTRAINT, NOT A SUGGESTION.
+            # The accepted turn interpretation named the participant roles;
+            # recruitment must not let the goal-analysis model add, drop or
+            # replace them. Unknown labels fail honestly (the caller turns
+            # that into a clarification) rather than recruiting a subset.
+            if requested_domains:
+                requested_canonical: List[str] = []
+                unresolved: List[str] = []
+                for requested in requested_domains:
+                    canonical = canonical_domain(
+                        requested, allowed=self.AVAILABLE_DOMAINS)
+                    if canonical is None:
+                        unresolved.append(str(requested))
+                        continue
+                    if canonical not in requested_canonical:
+                        requested_canonical.append(canonical)
+                if unresolved or not requested_canonical:
+                    return {
+                        "success": False,
+                        "error": (
+                            "Unresolved requested specialist domains: "
+                            + ", ".join(unresolved or list(requested_domains))),
+                        "recruitment_plan": recruitment_plan.dict(),
+                        "unresolved_domains": unresolved,
+                    }
+                retained_rationale = dict(
+                    recruitment_plan.domain_rationale or {})
+                recruitment_plan.required_domains = requested_canonical
+                recruitment_plan.suggested_specialist_count = max(
+                    1, len(requested_canonical))
+                recruitment_plan.domain_rationale = {
+                    domain: retained_rationale.get(
+                        domain, f"User explicitly requested {domain}")
+                    for domain in requested_canonical
+                }
 
             logger.info(
                 f"[RecruitmentIntelligence] Goal: {goal}\n"
