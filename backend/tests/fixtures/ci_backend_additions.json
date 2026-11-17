@@ -626,5 +626,25 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${RUNNER_TEMP}/atom-explicit-collaboration\"\npython -m pytest tests/test_collaboration_public_http_contract.py tests/test_explicit_collaboration_semantics.py tests/test_collaboration_pending_authority.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run generic approved-material consumption controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "PYTEST_CURRENT_TEST": "generic_approved_material_ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-approved-material/approved-material.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-approved-material/data",
+      "HF_HOME": "${{ runner.temp }}/atom-approved-material/hf-home",
+      "HF_HUB_CACHE": "${{ runner.temp }}/atom-approved-material/hf-hub",
+      "FASTEMBED_CACHE_PATH": "${{ runner.temp }}/atom-approved-material/fastembed-cache",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-approved-material/data\"\npython -m pytest tests/test_generic_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
