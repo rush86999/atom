@@ -120,7 +120,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
     "governance": {
         "label": "Governance",
         "enabled": False,
-        "job": "Admin, audit, forensics and self-healing tools.",
+        "job": "Admin, forensics and self-healing tools.",
     },
     "connectors": {
         "label": "Connector Management",
@@ -147,6 +147,10 @@ ROUTE_CAPABILITY: Dict[str, str] = {
     "/execution-history": "activity",
     "/activity": "activity",
     "/assignments": "activity",
+    # Owner-scoped audit evidence belongs to the member Activity workflow
+    # (the backend scopes every read); admin, forensics and self-healing
+    # routes stay governance-only.
+    "/audit-trail": "activity",
     "/approvals": "approvals",
     "/settings/harness-evolution": "governance",
     "/settings": "settings",
@@ -170,7 +174,6 @@ ROUTE_CAPABILITY: Dict[str, str] = {
     "/health": "productivity",
     "/voice": "productivity",
     "/admin": "governance",
-    "/audit-trail": "governance",
     "/dashboard/owner": "governance",
     "/dashboard/forensics": "governance",
     "/dashboard/risk": "governance",

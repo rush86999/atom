@@ -164,7 +164,12 @@ after with the running app.
 
 Per the owner request, the Audit Trail nav entry is now available to ordinary
 members (capability `activity`) instead of being hidden behind the supervisor
-minimum level. The backend still enforces scope.
+minimum level. The release scope now agrees with that surface: `/audit-trail`
+is mapped to `activity` in both the backend product profile and the frontend
+core fallback, so a direct link and the Activity nav entry render the explorer
+instead of the deferred-scope page. Admin, forensics, owner-cockpit, system
+status and self-healing harness routes stay `governance` (deferred in core).
+The backend still enforces the audit read/correction scope.
 
 ## 6. Verification performed vs. what the root must run
 
