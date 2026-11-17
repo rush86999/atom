@@ -4684,31 +4684,69 @@ What is your next step?"""
     def _record_refused_mutation_claim(
         self, tool_name: str, authorized: Dict, context: Dict = None,
     ) -> None:
-        """Persist a terminal no-effect refusal in the existing claim table.
+        """Atomically persist a terminal no-effect refusal for this operation.
 
         A terminal actor/scope denial is a final, non-retryable decision for
-        this logical operation: the handler never ran, so the durable operation
-        arbiter (the same ``TaskOperationRecord`` used by every generic
-        mutation) records ``failed_before_effect`` rather than leaving no
-        evidence at all. Nothing is dispatched and ``dispatching`` is never
-        written. A store failure is logged and never changes the refusal.
+        this logical operation: the handler never ran, so the existing durable
+        operation arbiter records ``failed_before_effect`` directly. The write
+        is a SINGLE insert of the final state (never
+        ``claimed`` -> ``failed_before_effect``): an interruption cannot strand
+        an unresolved claim that would later be reported as uncertainty. An
+        existing row is never transitioned or overwritten -- it remains the
+        arbiter's authoritative record. Nothing is dispatched, and a store
+        failure is logged without changing the refusal.
         """
         try:
             from core import outbound_operation_claim as claims
 
-            operation_id = str((context or {}).get("operation_id") or "")
+            ctx = context or {}
+            # Same server-owned identity the dispatcher would use: an explicit
+            # admitted operation id, else an adopted unresolved operation of
+            # this action in this execution, else the minted auto id. Model
+            # material alone never licenses the identity.
+            operation_id = str(ctx.get("operation_id") or "")
+            if not operation_id:
+                slot = str(
+                    ctx.get("operation_slot") or ctx.get("intent_id")
+                    or ctx.get("authorization_id") or "")
+                if not slot:
+                    prior = self._unresolved_prior_operation(tool_name, ctx)
+                    if isinstance(prior, dict) and prior.get("unavailable"):
+                        return
+                    if prior:
+                        operation_id = str(prior.get("operation_id") or "")
             if not operation_id:
                 operation_id = self._server_operation_id(
-                    tool_name, authorized or {}, context or {})
-            if not operation_id:
+                    tool_name, authorized or {}, ctx)
+            identity = self._operation_claim_identity(
+                tool_name, authorized or {}, ctx, operation_id)
+            if identity is None:
                 return
-            claim = self._claim_mutation_operation(
-                tool_name, authorized or {}, context or {}, operation_id)
-            if not claim or not claim.get("won"):
-                return
-            self._mark_claim_status(
-                claim, claims.FAILED_BEFORE_EFFECT,
-                expected_status=claims.CLAIMED)
+            payload_hash = claims.operation_payload_sha256(
+                workspace_id=identity["workspace_id"],
+                tenant_id=identity["tenant_id"],
+                actor_id=identity["actor_id"],
+                actor_kind=identity["actor_kind"],
+                agent_id=identity["agent_id"],
+                execution_id=identity["execution_id"],
+                execution_kind=identity["execution_kind"],
+                action=identity["action"],
+                frozen_args=identity["frozen_args"],
+            )
+            record = claims.record_failed_before_effect(
+                workspace_id=identity["workspace_id"],
+                tenant_id=identity["tenant_id"],
+                operation_id=identity["operation_id"],
+                action=identity["action"],
+                payload_hash=payload_hash,
+                execution_id=identity["execution_id"],
+                scope_id=identity["claim_scope"],
+                db_factory=get_db_session,
+            )
+            if not record.get("recorded"):
+                logger.debug(
+                    "terminal refusal not re-recorded for %s (%s): %s",
+                    tool_name, operation_id, record.get("status"))
         except Exception as exc:  # noqa: BLE001 - refusal stays authoritative
             logger.debug(
                 "refused mutation claim not recorded for %s: %s",

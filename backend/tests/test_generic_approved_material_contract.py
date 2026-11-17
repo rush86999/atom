@@ -446,6 +446,24 @@ async def test_revoked_admitted_actor_is_a_typed_terminal_non_effect(
         user_id="member-1")
     agent = _agent(captured)
 
+    # The terminal record is one insert of the FINAL state. A claim followed
+    # by a CAS commit is interruptible (a stranded `claimed` row would later
+    # read as unresolved), so the refusal path must not use those seams.
+    transition_calls = []
+    real_claim = claims.claim_generic_operation
+    real_mark = claims.mark_status
+
+    def _spy_claim(**kwargs):
+        transition_calls.append("claim")
+        return real_claim(**kwargs)
+
+    def _spy_mark(*args, **kwargs):
+        transition_calls.append("mark")
+        return real_mark(*args, **kwargs)
+
+    monkeypatch.setattr(claims, "claim_generic_operation", _spy_claim)
+    monkeypatch.setattr(claims, "mark_status", _spy_mark)
+
     async def approve_then_revoke_actor(action_id):
         await _approve(action_id, reviewer="lead-1")
         with env.Session() as db:
@@ -461,6 +479,7 @@ async def test_revoked_admitted_actor_is_a_typed_terminal_non_effect(
         {"title": "Revoked task", "board_id": "board-1"},
         context=context)
     assert captured == []
+    assert transition_calls == []
     assert isinstance(out, dict)
     assert out["terminal_authority_denial"] is True
     assert out["status"] == "failed_before_effect"
@@ -476,6 +495,19 @@ async def test_revoked_admitted_actor_is_a_typed_terminal_non_effect(
     assert rows[0].operation_type == "generic:agent:tasks.create"
     assert rows[0].operation_id.startswith("auto-")
     assert rows[0].idempotency_key == rows[0].operation_id
+    first_id = rows[0].id
+
+    # A repeated refusal for the same logical operation is the same terminal
+    # decision: it must not duplicate, transition, or overwrite the arbiter.
+    repeats = _agent([])
+    repeats._record_refused_mutation_claim(
+        "tasks.create",
+        {"title": "Revoked task", "board_id": "board-1"},
+        context)
+    repeated = _claim_rows(env, "exec-actor-revoked")
+    assert len(repeated) == 1, repeated
+    assert repeated[0].id == first_id
+    assert repeated[0].status == claims.FAILED_BEFORE_EFFECT
 
 
 @pytest.mark.asyncio
