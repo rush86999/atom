@@ -163,6 +163,10 @@ def _generic_agent(db):
     agent.world_model = MagicMock()
     agent.world_model.recall_experiences = AsyncMock(
         return_value={"experiences": []})
+    # Async on the production leaf: a plain MagicMock turned an intended
+    # ``model_calls == []`` assertion into a TypeError at the experience
+    # write, masking the real failure.
+    agent.world_model.record_experience = AsyncMock(return_value=None)
     agent.reflection_service = MagicMock()
     agent.reflection_service.add_critique = AsyncMock()
     return agent
