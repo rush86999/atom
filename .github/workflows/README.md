@@ -25,7 +25,10 @@ flowchart TB
   boot["full-app-boots"]
   install["quickstart-install: Python 3.11 / 3.12 / 3.13"]
   quick["quickstart"]
-  core["backend-core"]
+  core["backend-core: shared-DB S1/S2"]
+  coreisolated["backend-core-isolated"]
+  extra["backend-core-extra"]
+  extraisolated["backend-core-extra-isolated"]
   oracle["backend-oracle"]
   docker["backend-docker"]
   backend["backend-tests"]
@@ -33,6 +36,9 @@ flowchart TB
   frontend["frontend-typecheck"]
   install --> quick
   core --> backend
+  coreisolated --> backend
+  extra --> backend
+  extraisolated --> backend
   oracle --> backend
   docker --> backend
 ```
@@ -43,12 +49,44 @@ flowchart TB
 | `full-app-boots` | Install backend requirements, import the full app, start it and probe `/alive`. This is a boot check, not a business-task completion test. |
 | `quickstart-install` | Fresh `make setup`, storage binary compatibility, setup artifacts and app boot for Python 3.11, 3.12 and 3.13 with Node 20. `fail-fast: false` keeps other matrix entries running after a failure. |
 | `quickstart` | Aggregate all install entries; `always()` runs the result check and explicitly refuses a non-success matrix result. |
-| `backend-core` | Explicit backend test selections and supporting controls listed in the YAML. It does not run or certify every repository test. |
+| `backend-core` | The shared-resource cohort: every `sqlite:///test_ci.db` step (S1), every step with no explicit `DATABASE_URL` that resolves to `backend/test_integration.db` (S2), the lane-preservation contract and the remaining un-isolated controls listed in the YAML. It does not run or certify every repository test. |
+| `backend-core-isolated` | The T/U-class core steps that declare their own absolute `runner.temp` state or a unique scratch database filename. `MINI-03` and its real-process record restart stay adjacent here. |
+| `backend-core-extra` | First contiguous shard of the original extra-lane order (14 steps, ending at the shared email-draft controls). |
+| `backend-core-extra-isolated` | Remaining 27 contiguous extra-lane steps, ending with the served chat transcript actor-scope controls. |
 | `backend-oracle` | Explicit oracle/governance/consumer boundary selections in the YAML. This does not close whole-app ORACLE coverage. |
 | `backend-docker` | Hosted real-Docker acceptance for reviewed executable skills: the focused unit test plus the full-service service-restart journey. The container path has no host fallback, `ATOM_REQUIRE_DOCKER_SANDBOX=1` makes an unavailable daemon fail, and the step fails closed unless the emitted receipt proves a real `skill_*` container and a durable receipt re-read after the service restart. |
-| `backend-tests` | Aggregate `backend-core`, `backend-oracle` and `backend-docker`; `always()` plus explicit result checks require all three lanes to succeed. |
+| `backend-tests` | Aggregate all six backend lanes (`backend-core`, `backend-core-isolated`, `backend-core-extra`, `backend-core-extra-isolated`, `backend-oracle`, `backend-docker`); `always()` plus explicit result checks require every lane to succeed. |
 | `e2e-journey` | Boot the backend and frontend and run the selected API/browser journeys. See the gating distinctions below. |
 | `frontend-typecheck` | Install frontend dependencies, attempt the web type check, and run the named frontend regression tests plus the menu bar companion install, strict TypeScript/Vite build and Jest controls. The web type-check step itself is currently best-effort; the companion build is gating. |
+
+### Backend lane split performance
+
+The split moves whole step dictionaries; it does not edit, merge, split or
+deselect any command, environment variable, timeout or process boundary. The
+immutable fixtures (`ci_backend_before_parallel.json`,
+`ci_backend_additions.json`, `ci_backend_docker_lane.json`,
+`ci_backend_core_extra.json`) remain the coverage evidence, and
+`ci_backend_layout_v2.json` models the current placement only.
+
+- Measured baseline: `backend-core` = 72.0 min and `backend-core-extra` = 67.8
+  min from the step-row sum in run `44107629339` (that artifact predates the
+  M3 step). These were already serial chains inside one job each.
+- Estimated largest backend lane after this split: **≈42.6 min**
+  (`backend-core`, 2,391 measured step-seconds + a ~165 s setup/install
+  allowance). Estimated `backend-core-isolated` ≈32.1 min,
+  `backend-core-extra` ≈36.3 min, `backend-core-extra-isolated` ≈34.4 min.
+- Estimated cost: two extra setup/install jobs, ≈+5.7 runner-minutes across
+  `backend-core` + `backend-core-extra` (139.8 → 145.5 min). No new runner SKU,
+  service, action or billing surface.
+- These are arithmetic estimates from step-second sums, **not measured wall
+  clocks**. Queueing, runner capacity, cache misses and post-job steps are not
+  included. `backend-core-extra-isolated` includes the unmetered M3 step, so its
+  estimate is a lower bound. If M3 measures large, rebalance the suffix rather
+  than changing a command.
+- Deployments with a simultaneous-job limit below the new peak will queue and
+  invalidate the estimates. The S1/S2 cohorts are deliberately not split; a
+  further reduction requires cold-start evidence and a written
+  `split_justification` in the layout fixture.
 
 ### What a green job means
 
@@ -62,6 +100,11 @@ flowchart TB
   with `always()`. Missing screenshots do not imply successful browser coverage.
 - Backend tests and app boots use runner-owned scratch database paths specified
   in the YAML. Do not point reproduction scripts at a developer or production DB.
+- `backend-tests` is green only when every one of the six backend lanes returns
+  `success`. `always()` keeps the aggregate running after a failure, and the
+  explicit result checks refuse `failure`, `cancelled`, `skipped` and an empty
+  result. A shard that never starts keeps the aggregate pending rather than
+  green.
 - No fixed duration, universal pass-rate/coverage threshold, full-provider
   comparison or full-app qualification follows from these workflow definitions.
 
