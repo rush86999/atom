@@ -17,7 +17,7 @@
  * server-validated deep link into an existing governed review surface.
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
     Bot,
     ChevronDown,
@@ -180,6 +180,9 @@ function TimelineEvent({
     onReport: (event: AuditEvent) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
+    // Stable disclosure linkage: the panel exists (empty while collapsed) so
+    // aria-controls always resolves without forcing the metadata to render.
+    const detailsId = `audit-timeline-event-details-${useId().replace(/:/g, "")}`;
 
     const isLlm = event.event_type === "llm_call";
     const isTool = (event.action || "").startsWith("tool:");
@@ -217,6 +220,8 @@ function TimelineEvent({
                     type="button"
                     className="flex w-full items-center gap-2 text-left"
                     onClick={() => setExpanded((v) => !v)}
+                    aria-expanded={expanded}
+                    aria-controls={detailsId}
                     data-testid="audit-timeline-event-toggle"
                 >
                     {expanded ? (
@@ -267,56 +272,63 @@ function TimelineEvent({
                         Report a problem
                     </Button>
                 </div>
-                {expanded && (
-                    <div className="mt-2 space-y-2">
-                        {identity && (
-                            <p
-                                className="rounded-md border border-border bg-muted/40 p-2 text-xs"
-                                data-testid="audit-model-identity"
+                <div
+                    id={detailsId}
+                    hidden={!expanded}
+                    className="mt-2 space-y-2"
+                    data-testid="audit-timeline-event-details"
+                >
+                    {expanded && (
+                        <>
+                            {identity && (
+                                <p
+                                    className="rounded-md border border-border bg-muted/40 p-2 text-xs"
+                                    data-testid="audit-model-identity"
+                                >
+                                    {identity.recorded_label ? (
+                                        <>
+                                            <strong>recorded label:</strong> {identity.recorded_label}{" "}
+                                            <span className="text-muted-foreground">
+                                                ({identity.label_kind === "router_tier_or_alias"
+                                                    ? "router-requested label — served model not recorded"
+                                                    : identity.label_kind})
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span>model: unknown — no label recorded</span>
+                                    )}
+                                </p>
+                            )}
+                            <pre
+                                className="max-h-72 overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed"
+                                data-testid="audit-timeline-event-metadata"
                             >
-                                {identity.recorded_label ? (
-                                    <>
-                                        <strong>recorded label:</strong> {identity.recorded_label}{" "}
-                                        <span className="text-muted-foreground">
-                                            ({identity.label_kind === "router_tier_or_alias"
-                                                ? "router-requested label — served model not recorded"
-                                                : identity.label_kind})
-                                        </span>
-                                    </>
-                                ) : (
-                                    <span>model: unknown — no label recorded</span>
-                                )}
-                            </p>
-                        )}
-                        <pre
-                            className="max-h-72 overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed"
-                            data-testid="audit-timeline-event-metadata"
-                        >
-                            {metaEntries.length
-                                ? JSON.stringify(Object.fromEntries(metaEntries), null, 2)
-                                : "(no metadata)"}
-                            {event.error_message ? `\nerror: ${event.error_message}` : ""}
-                        </pre>
-                        {event.correction_targets && event.correction_targets.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Linked review channel: {event.correction_targets[0].label}. Opening it
-                                changes nothing by itself.
-                            </p>
-                        )}
-                        {event.authority && (
-                            <p className="text-xs text-muted-foreground" data-testid="audit-recorded-authority">
-                                recorded authority:{" "}
-                                {[
-                                    event.authority.reviewed_by ? `reviewed by ${String(event.authority.reviewed_by)}` : null,
-                                    event.authority.reviewed_at ? `at ${formatTime(String(event.authority.reviewed_at))}` : null,
-                                    event.authority.required_role ? `required role ${String(event.authority.required_role)}` : null,
-                                ]
-                                    .filter(Boolean)
-                                    .join(" · ") || "recorded decision details are shown in the metadata"}
-                            </p>
-                        )}
-                    </div>
-                )}
+                                {metaEntries.length
+                                    ? JSON.stringify(Object.fromEntries(metaEntries), null, 2)
+                                    : "(no metadata)"}
+                                {event.error_message ? `\nerror: ${event.error_message}` : ""}
+                            </pre>
+                            {event.correction_targets && event.correction_targets.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    Linked review channel: {event.correction_targets[0].label}. Opening it
+                                    changes nothing by itself.
+                                </p>
+                            )}
+                            {event.authority && (
+                                <p className="text-xs text-muted-foreground" data-testid="audit-recorded-authority">
+                                    recorded authority:{" "}
+                                    {[
+                                        event.authority.reviewed_by ? `reviewed by ${String(event.authority.reviewed_by)}` : null,
+                                        event.authority.reviewed_at ? `at ${formatTime(String(event.authority.reviewed_at))}` : null,
+                                        event.authority.required_role ? `required role ${String(event.authority.required_role)}` : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" · ") || "recorded decision details are shown in the metadata"}
+                                </p>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -350,7 +362,7 @@ function CorrectionRequestForm({
     const selectedTarget = targets.find((target) => target.channel === channel) || null;
 
     const submit = async () => {
-        if (!event.agent_id || !event.agent_execution_id) {
+        if (!event.agent_id || !executionId) {
             setError({
                 title: "No linked correction available",
                 detail:
@@ -359,12 +371,21 @@ function CorrectionRequestForm({
             });
             return;
         }
+        if (event.agent_execution_id && event.agent_execution_id !== executionId) {
+            setError({
+                title: "Correction subject changed",
+                detail:
+                    "The event no longer belongs to the displayed run, so nothing was " +
+                    "submitted.",
+            });
+            return;
+        }
         setSubmitting(true);
         setError(null);
         try {
             const receipt = await auditAPI.correctionRequest({
                 agentId: event.agent_id,
-                executionId: event.agent_execution_id,
+                executionId,
                 auditId: event.id,
                 description: event.description || undefined,
                 eventAction: event.action,
@@ -536,50 +557,117 @@ function CorrectionRequestForm({
     );
 }
 
+type TimelineState = {
+    executionId: string | null;
+    status: "idle" | "loading" | "ready" | "error";
+    timeline: ExecutionTimeline | null;
+    error: { title: string; detail: string } | null;
+};
+
+const NO_TIMELINE: TimelineState = {
+    executionId: null,
+    status: "idle",
+    timeline: null,
+    error: null,
+};
+
 export default function AuditTrailExplorer() {
     const [stats, setStats] = useState<AuditSummaryStats | null>(null);
     const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [timeline, setTimeline] = useState<ExecutionTimeline | null>(null);
+    const [timelineState, setTimelineState] = useState<TimelineState>(NO_TIMELINE);
     const [loading, setLoading] = useState(true);
-    const [timelineLoading, setTimelineLoading] = useState(false);
     const [error, setError] = useState<{ title: string; detail: string } | null>(null);
-    const [timelineError, setTimelineError] = useState<{ title: string; detail: string } | null>(null);
     const [agentFilter, setAgentFilter] = useState("");
     const [reporting, setReporting] = useState<{ event: AuditEvent; executionId: string } | null>(
         null,
     );
 
+    // Timeline and overview responses resolve asynchronously. Each request
+    // remembers the exact subject it was made for and a monotonic generation;
+    // a response may touch state only while it is still the newest request for
+    // the still-selected run and the component is mounted. A late page (or a
+    // late failure) from run A therefore cannot render, export or prefill a
+    // correction under run B.
+    const mountedRef = useRef(true);
+    const selectedRef = useRef<string | null>(null);
+    const overviewRequestRef = useRef(0);
+    const timelineRequestRef = useRef(0);
+
+    // Written during render on purpose: the subject must be current before an
+    // already-queued promise callback can run after this commit.
+    selectedRef.current = selectedId;
+
     const loadOverview = useCallback(async () => {
+        const requestId = overviewRequestRef.current + 1;
+        overviewRequestRef.current = requestId;
+        const isCurrent = () =>
+            mountedRef.current && overviewRequestRef.current === requestId;
+        setError(null);
         try {
-            setError(null);
             const [summary, execs] = await Promise.all([
                 auditAPI.summary(7),
                 auditAPI.executions(undefined, 100),
             ]);
+            if (!isCurrent()) return;
             setStats(summary);
             setExecutions(execs.items);
         } catch (err) {
+            if (!isCurrent()) return;
             console.error("Failed to load audit overview", err);
             setError(describeError(err, "Failed to load the audit trail"));
         } finally {
-            setLoading(false);
+            if (isCurrent()) setLoading(false);
         }
     }, []);
 
     const loadTimeline = useCallback(async (executionId: string) => {
-        setTimelineLoading(true);
-        setTimelineError(null);
+        const requestId = timelineRequestRef.current + 1;
+        timelineRequestRef.current = requestId;
+        const isCurrent = () =>
+            mountedRef.current
+            && timelineRequestRef.current === requestId
+            && selectedRef.current === executionId;
+
+        setTimelineState({ executionId, status: "loading", timeline: null, error: null });
         try {
             const tl = await auditAPI.timeline(executionId);
-            setTimeline(tl);
+            if (!isCurrent()) return;
+            if (!tl || tl.execution_id !== executionId) {
+                // Defense in depth: never paint one run's rows under another
+                // run's header, even if a response is mislabelled.
+                setTimelineState({
+                    executionId,
+                    status: "error",
+                    timeline: null,
+                    error: {
+                        title: "Timeline response did not match the selected run",
+                        detail: "No rows from another run are shown.",
+                    },
+                });
+                return;
+            }
+            setTimelineState({ executionId, status: "ready", timeline: tl, error: null });
         } catch (err) {
+            if (!isCurrent()) return;
             console.error("Failed to load timeline", err);
-            setTimeline(null);
-            setTimelineError(describeError(err, "Failed to load this run's timeline"));
-        } finally {
-            setTimelineLoading(false);
+            setTimelineState({
+                executionId,
+                status: "error",
+                timeline: null,
+                error: describeError(err, "Failed to load this run's timeline"),
+            });
         }
+    }, []);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            // Unmount invalidates every in-flight response.
+            mountedRef.current = false;
+            overviewRequestRef.current += 1;
+            timelineRequestRef.current += 1;
+        };
     }, []);
 
     useEffect(() => {
@@ -590,25 +678,52 @@ export default function AuditTrailExplorer() {
 
     useEffect(() => {
         setReporting(null);
-        if (selectedId) loadTimeline(selectedId);
-        else setTimeline(null);
+        if (selectedId) {
+            loadTimeline(selectedId);
+        } else {
+            timelineRequestRef.current += 1;
+            setTimelineState(NO_TIMELINE);
+        }
     }, [selectedId, loadTimeline]);
 
     const visibleExecutions = agentFilter
         ? executions.filter((e) => (e.agent_id || "").includes(agentFilter))
         : executions;
 
-    const scope = stats?.read_scope || timeline?.read_scope || null;
-    const executionUsage = timeline?.execution?.usage;
+    const timelineMatchesSelection = timelineState.executionId === selectedId;
+    const displayedTimeline =
+        timelineMatchesSelection && timelineState.status === "ready"
+            ? timelineState.timeline
+            : null;
+    const activeTimelineError =
+        timelineMatchesSelection && timelineState.status === "error"
+            ? timelineState.error
+            : null;
+    // A newly selected run is pending until its own request settles; while
+    // that is true the previous run's rows are neither shown nor exported.
+    const timelinePending =
+        Boolean(selectedId)
+        && (!timelineMatchesSelection || timelineState.status === "loading");
+
+    const correctionSubject =
+        reporting
+        && displayedTimeline
+        && reporting.executionId === displayedTimeline.execution_id
+        && displayedTimeline.events.some((event) => event.id === reporting.event.id)
+            ? { event: reporting.event, executionId: displayedTimeline.execution_id }
+            : null;
+
+    const scope = stats?.read_scope || displayedTimeline?.read_scope || null;
+    const executionUsage = displayedTimeline?.execution?.usage;
     const executionVerification: VerificationSummary | undefined =
-        timeline?.execution?.verification;
-    const correctionTargets = reporting?.event.correction_targets?.length
-        ? reporting.event.correction_targets
-        : timeline?.execution?.correction_targets || [];
+        displayedTimeline?.execution?.verification;
+    const correctionTargets = correctionSubject?.event.correction_targets?.length
+        ? correctionSubject.event.correction_targets
+        : displayedTimeline?.execution?.correction_targets || [];
 
     const downloadEvidence = () => {
-        if (!timeline) return;
-        const bundle = buildAuditEvidenceBundle(timeline, {
+        if (!displayedTimeline) return;
+        const bundle = buildAuditEvidenceBundle(displayedTimeline, {
             appVersion: process.env.NEXT_PUBLIC_APP_VERSION || "unknown",
         });
         downloadAuditEvidenceBundle(bundle);
@@ -632,7 +747,7 @@ export default function AuditTrailExplorer() {
                     variant="outline"
                     size="sm"
                     onClick={downloadEvidence}
-                    disabled={!timeline}
+                    disabled={!displayedTimeline}
                     title="Download a bounded JSON copy of the authorized rows for the selected run"
                     data-testid="audit-download-evidence"
                 >
@@ -771,13 +886,13 @@ export default function AuditTrailExplorer() {
                         <CardTitle className="text-base">
                             {selectedId ? `Decision Timeline — ${selectedId}` : "Decision Timeline"}
                         </CardTitle>
-                        {timeline?.found_events && (
+                        {displayedTimeline?.found_events && (
                             <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                <span>{timeline.counts.tool_calls} tool calls</span>
-                                <span>{timeline.counts.llm_calls} LLM calls</span>
-                                {timeline.counts.failed_events > 0 && (
+                                <span>{displayedTimeline.counts.tool_calls} tool calls</span>
+                                <span>{displayedTimeline.counts.llm_calls} LLM calls</span>
+                                {displayedTimeline.counts.failed_events > 0 && (
                                     <span className="text-destructive">
-                                        {timeline.counts.failed_events} failures
+                                        {displayedTimeline.counts.failed_events} failures
                                     </span>
                                 )}
                                 <span data-testid="audit-usage-status">
@@ -800,78 +915,78 @@ export default function AuditTrailExplorer() {
                             <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
                                 Select a run to replay every decision the agent made.
                             </div>
-                        ) : timelineLoading ? (
+                        ) : timelinePending ? (
                             <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Loading timeline…
                             </div>
-                        ) : timelineError ? (
+                        ) : activeTimelineError ? (
                             <div
                                 className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
                                 data-testid="audit-timeline-error"
                             >
-                                <p className="font-medium">{timelineError.title}</p>
-                                {timelineError.detail && (
-                                    <p className="mt-1 text-xs">{timelineError.detail}</p>
+                                <p className="font-medium">{activeTimelineError.title}</p>
+                                {activeTimelineError.detail && (
+                                    <p className="mt-1 text-xs">{activeTimelineError.detail}</p>
                                 )}
                             </div>
-                        ) : timeline ? (
+                        ) : displayedTimeline ? (
                             <div className="space-y-3" data-testid="audit-timeline-list">
-                                {timeline.execution.status && (
+                                {displayedTimeline.execution.status && (
                                     <div className="flex flex-wrap items-center gap-2 text-sm">
                                         <span className="text-muted-foreground">outcome:</span>
-                                        <Badge variant={statusVariant(timeline.execution.status)}>
-                                            {timeline.execution.status}
+                                        <Badge variant={statusVariant(displayedTimeline.execution.status)}>
+                                            {displayedTimeline.execution.status}
                                         </Badge>
                                         <span className="text-xs text-muted-foreground">
-                                            {timeline.execution.outcome?.note ||
+                                            {displayedTimeline.execution.outcome?.note ||
                                                 "Recorded run status; not independently re-verified."}
                                         </span>
                                     </div>
                                 )}
-                                {timeline.execution.model_identity && (
+                                {displayedTimeline.execution.model_identity && (
                                     <p
                                         className="text-xs text-muted-foreground"
                                         data-testid="audit-execution-model-identity"
                                     >
-                                        {timeline.execution.model_identity.resolved_models.length > 0 ? (
+                                        {displayedTimeline.execution.model_identity.resolved_models.length > 0 ? (
                                             <>
                                                 recorded served model(s):{" "}
-                                                {timeline.execution.model_identity.resolved_models.join(", ")}
+                                                {displayedTimeline.execution.model_identity.resolved_models.join(", ")}
                                             </>
                                         ) : (
                                             "served model: unknown — only the recorded label is available"
                                         )}
-                                        {timeline.execution.model_identity.recorded_llm_call_labels.length > 0 && (
+                                        {displayedTimeline.execution.model_identity.recorded_llm_call_labels.length > 0 && (
                                             <>
                                                 {" "}· LLM-call labels:{" "}
-                                                {timeline.execution.model_identity.recorded_llm_call_labels.join(", ")}
+                                                {displayedTimeline.execution.model_identity.recorded_llm_call_labels.join(", ")}
                                             </>
                                         )}
                                     </p>
                                 )}
-                                {reporting && (
+                                {correctionSubject && (
                                     <CorrectionRequestForm
-                                        event={reporting.event}
-                                        executionId={reporting.executionId}
+                                        event={correctionSubject.event}
+                                        executionId={correctionSubject.executionId}
                                         targets={correctionTargets}
                                         onCancel={() => setReporting(null)}
                                     />
                                 )}
-                                {timeline.events.length === 0 && (
+                                {displayedTimeline.events.length === 0 && (
                                     <div className="p-6 text-center text-sm text-muted-foreground">
                                         This run has an execution record but no per-event audit
                                         trail (it may predate per-event auditing).
                                     </div>
                                 )}
-                                {timeline.events.map((event) => (
+                                {displayedTimeline.events.map((event) => (
                                     <TimelineEvent
                                         key={event.id}
                                         event={event}
                                         onReport={(subject) =>
                                             setReporting({
                                                 event: subject,
-                                                executionId: timeline.execution_id,
+                                                executionId: displayedTimeline.execution_id,
                                             })
                                         }
                                     />

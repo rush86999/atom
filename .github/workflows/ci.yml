@@ -1763,3 +1763,12 @@ jobs:
       - name: Run never-autonomous task basket UI controls
         run: npx jest components/canvas/__tests__/AutonomyPanel.test.tsx --runInBand --no-coverage --watchman=false
 
+      # Audit trail selection identity (additive end step): the complete audit
+      # explorer surface — the existing read/timeline suite, the owner-scope
+      # correction/export suite and the deferred-response selection regression
+      # — is gated as whole files so a late run A response can never render,
+      # export or prefill a correction under run B. Complete files only; no
+      # selectors, deselection or continue-on-error.
+      - name: Run audit trail selection identity UI controls
+        run: npx jest components/Audit/__tests__/AuditTrailExplorer.test.tsx components/Audit/__tests__/AuditTrailExplorer.scope-correction.test.tsx components/Audit/__tests__/AuditTrailExplorer.selection-race.test.tsx --runInBand --no-coverage --watchman=false
+
