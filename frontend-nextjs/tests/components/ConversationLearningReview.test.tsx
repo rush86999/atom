@@ -16,6 +16,7 @@ jest.mock("@/lib/conversation-learning-api", () => ({
   listLearningEmployees: jest.fn(),
   listLearningCandidates: jest.fn(),
   getLearningCandidate: jest.fn(),
+  getLearningCandidateHistory: jest.fn(),
   createLearningCandidate: jest.fn(),
   reviseLearningCandidate: jest.fn(),
   resolveLearningDependency: jest.fn(),
@@ -28,6 +29,7 @@ jest.mock("@/lib/conversation-learning-api", () => ({
 const listEmployees = learningApi.listLearningEmployees as jest.Mock;
 const listCandidates = learningApi.listLearningCandidates as jest.Mock;
 const reviseCandidate = learningApi.reviseLearningCandidate as jest.Mock;
+const historyFor = learningApi.getLearningCandidateHistory as jest.Mock;
 
 function review(overrides: Record<string, any> = {}) {
   return {
@@ -85,6 +87,76 @@ function payload(overrides: Record<string, any> = {}) {
   };
 }
 
+function snapshot(revision: number, lesson: string) {
+  return {
+    revision,
+    status: "review_ready",
+    recorded_digest: `digest-${revision}`,
+    proposed_lesson: lesson,
+    method_status: "explicit",
+    applies_to: ["pricing"],
+    decision_options: [],
+    context: {},
+    format_spec: {},
+    conditions: {},
+    method: {},
+  };
+}
+
+function historyPage(overrides: Record<string, any> = {}) {
+  return {
+    thread_id: "thread-1",
+    source_kind: "email",
+    candidate_id: "cand/1",
+    events: [
+      {
+        event_id: "ev-2",
+        kind: "learning_candidate_revised",
+        recorded_at: "2026-11-17T10:00:00+00:00",
+        revision: 2,
+        status: "review_ready",
+        recorded_digest: "digest-2",
+        actor: "owner@example.com",
+        actor_role: "author",
+        reason: "Wrong workbook was cited.",
+        reason_recorded: true,
+        changed_fields: ["proposed_lesson"],
+        before: snapshot(1, "Use the approved rates workbook."),
+        after: snapshot(2, "Use the corrected rates workbook."),
+      },
+      {
+        event_id: "ev-1",
+        kind: "learning_candidate_created",
+        recorded_at: "2026-11-17T09:00:00+00:00",
+        revision: 1,
+        status: "confirmed",
+        recorded_digest: "digest-1",
+        actor: null,
+        actor_role: "author",
+        reason: null,
+        reason_recorded: false,
+        changed_fields: [],
+        before: null,
+        after: null,
+      },
+    ],
+    coverage: {
+      history_complete: true,
+      scan_limit: 2000,
+      scan_truncated: false,
+      out_of_scope_events_excluded: 0,
+      total_events: 2,
+      returned: 2,
+      limit: 10,
+      offset: 0,
+      has_more: false,
+    },
+    signatures: { present: false, detail: "no signature mechanism" },
+    read_only: true,
+    ...overrides,
+  };
+}
+
 async function openEditor() {
   render(
     <ConversationLearningReview
@@ -99,6 +171,8 @@ async function openEditor() {
 
 describe("ConversationLearningReview correction", () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+    historyFor.mockResolvedValue(historyPage());
     listEmployees.mockResolvedValue([{
       id: "agent-1",
       name: "Learning Agent",
@@ -264,5 +338,193 @@ describe("ConversationLearningReview correction", () => {
       <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
     );
     expect(await screen.findByTestId("learning-revise")).toBeDisabled();
+  });
+
+  test("shows every proposal with its status instead of hiding all but the first", async () => {
+    listCandidates.mockResolvedValue([
+      payload({ candidate_id: "cand/1", status: "review_ready" }),
+      payload({
+        candidate_id: "cand/2",
+        status: "rejected",
+        review_ready: false,
+        proposed_lesson: "Use the superseded vendor rate.",
+        rejected_by: "dana@example.com",
+        rejected_reason: "Rates expired in March.",
+      }),
+    ]);
+
+    render(
+      <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
+    );
+
+    const select = await screen.findByTestId("learning-candidate-select");
+    expect((select as HTMLSelectElement).value).toBe("cand/1");
+    const options = Array.from(
+      (select as HTMLSelectElement).options).map((option) => option.value);
+    expect(options).toEqual(["cand/1", "cand/2"]);
+    expect(screen.getByText(/rejected · revision 1/)).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: "cand/2" } });
+
+    expect(await screen.findByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("Use the superseded vendor rate.");
+    expect(screen.getByTestId("learning-rejected-reason"))
+      .toHaveTextContent("Rates expired in March.");
+    expect(screen.getByTestId("learning-revise")).toBeDisabled();
+  });
+
+  test("opens the stored revision history only on request and reports it truthfully", async () => {
+    render(
+      <ConversationLearningReview
+        threadId="thread-1"
+        sourceKind="email"
+        reviewer="owner"
+      />,
+    );
+    expect(await screen.findByTestId("learning-proposed-lesson"))
+      .toBeInTheDocument();
+    // The primary review makes no history request.
+    expect(historyFor).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("learning-history-toggle"));
+
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+    expect(historyFor.mock.calls[0]).toEqual([
+      "thread-1", "cand/1", { limit: 10, offset: 0 }, "email"]);
+
+    const events = await screen.findAllByTestId("learning-history-event");
+    expect(events).toHaveLength(2);
+    expect(events[0]).toHaveTextContent("Revision saved");
+    expect(events[0]).toHaveTextContent("Author: owner@example.com");
+    expect(events[0]).toHaveTextContent("Reason: Wrong workbook was cited.");
+    expect(screen.getAllByTestId("learning-history-diff")[0])
+      .toHaveTextContent("Before: Use the approved rates workbook.");
+    // No reason was stored on the creation event; none is invented.
+    expect(events[1]).toHaveTextContent("Reason: not recorded");
+    expect(events[1]).toHaveTextContent("Actor not recorded");
+    expect(screen.getByTestId("learning-history-coverage"))
+      .toHaveTextContent("Showing 2 of 2 recorded entries.");
+    expect(screen.getByTestId("learning-history-panel"))
+      .toHaveTextContent("they are not signed");
+    expect(screen.queryByTestId("learning-history-more"))
+      .not.toBeInTheDocument();
+  });
+
+  test("loads older stored entries on request and appends them once", async () => {
+    historyFor.mockResolvedValueOnce(historyPage({
+      coverage: {
+        ...historyPage().coverage,
+        history_complete: false,
+        total_events: 3,
+        returned: 2,
+        has_more: true,
+      },
+    }));
+    historyFor.mockResolvedValueOnce(historyPage({
+      events: [{
+        event_id: "ev-0",
+        kind: "learning_candidate_rejected",
+        recorded_at: "2026-11-16T09:00:00+00:00",
+        revision: 1,
+        status: "rejected",
+        recorded_digest: "digest-0",
+        actor: "dana@example.com",
+        actor_role: "reviewer",
+        reason: "Not applicable.",
+        reason_recorded: true,
+        changed_fields: [],
+        before: null,
+        after: null,
+      }],
+      coverage: {
+        ...historyPage().coverage,
+        history_complete: false,
+        total_events: 3,
+        returned: 1,
+        offset: 2,
+        has_more: false,
+      },
+    }));
+
+    render(
+      <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
+    );
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(await screen.findByTestId("learning-history-more"));
+
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(2));
+    expect(historyFor.mock.calls[1]).toEqual([
+      "thread-1", "cand/1", { limit: 10, offset: 2 }, "email"]);
+    expect(await screen.findAllByTestId("learning-history-event"))
+      .toHaveLength(3);
+    expect(screen.getByTestId("learning-history-coverage"))
+      .toHaveTextContent("Showing 3 of 3 recorded entries.");
+    expect(screen.queryByTestId("learning-history-more"))
+      .not.toBeInTheDocument();
+  });
+
+  test("sends the optional reason only when the reviewer typed one", async () => {
+    reviseCandidate.mockResolvedValue(payload({
+      revision: 2,
+      proposed_lesson: "Use the corrected rates workbook.",
+    }));
+
+    await openEditor();
+    fireEvent.change(screen.getByTestId("learning-edit-lesson"), {
+      target: { value: "Use the corrected rates workbook." },
+    });
+    fireEvent.change(screen.getByTestId("learning-edit-reason"), {
+      target: { value: "  Superseded by the April workbook.  " },
+    });
+    fireEvent.click(screen.getByTestId("learning-revise-save"));
+
+    await waitFor(() => expect(reviseCandidate).toHaveBeenCalledTimes(1));
+    expect(reviseCandidate.mock.calls[0][2].reason).toBe(
+      "Superseded by the April workbook.");
+    expect(screen.getByTestId("learning-notice"))
+      .toHaveTextContent("The reason was recorded with this revision.");
+  });
+
+  test("a reason without a content change is not saved as a revision", async () => {
+    await openEditor();
+    fireEvent.change(screen.getByTestId("learning-edit-reason"), {
+      target: { value: "No content change." },
+    });
+    fireEvent.click(screen.getByTestId("learning-revise-save"));
+
+    expect(reviseCandidate).not.toHaveBeenCalled();
+    expect(screen.getByTestId("learning-notice"))
+      .toHaveTextContent("The reason is optional");
+    expect(screen.getByTestId("learning-edit-form")).toBeInTheDocument();
+  });
+
+  test("shows invalidated and outdated-evidence state plainly", async () => {
+    listCandidates.mockResolvedValue([payload({
+      status: "invalidated",
+      review_ready: false,
+      invalidated_reason: "source_changed",
+      referenced_data_and_versions: [{
+        reference: "rates.xlsx",
+        relation: "attachment",
+        status: "stale",
+        basis: "resource_stale",
+        resource_id: "ds-1",
+        file_name: "rates.xlsx",
+        sheet: null,
+        source_version: "v1",
+        candidates: [],
+      }],
+    })]);
+
+    render(
+      <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
+    );
+
+    expect(await screen.findByTestId("learning-invalidated-reason"))
+      .toHaveTextContent("the source conversation changed");
+    expect(screen.getByTestId("learning-evidence-stale"))
+      .toHaveTextContent("rates.xlsx (stale)");
   });
 });

@@ -1648,6 +1648,244 @@ def list_candidates(
     return list(latest.values())
 
 
+# ---------------------------------------------------------------------------
+# Read-only revision history (projection of the same append-only ledger)
+# ---------------------------------------------------------------------------
+
+HISTORY_DEFAULT_LIMIT = 20
+HISTORY_MAX_LIMIT = 50
+# The ledger has no candidate column, so a candidate's rows are selected by
+# scanning this thread's learning events. The scan is bounded and the response
+# reports when the bound was reached instead of implying full coverage.
+HISTORY_SCAN_LIMIT = 2000
+_HISTORY_VALUE_CHARS = 1200
+
+# Fields the reader may compare between two stored snapshots. Values are only
+# surfaced through the bounded summary below, never as raw source content.
+_HISTORY_DIFF_FIELDS = (
+    "proposed_lesson",
+    "method_status",
+    "applies_to",
+    "context",
+    "format_spec",
+    "conditions",
+    "decision_options",
+    "method",
+    "status",
+)
+
+# kind -> (payload key holding the recorded actor, actor role)
+_HISTORY_ACTORS = {
+    "learning_candidate_created": ("created_by", "author"),
+    "learning_candidate_revised": ("changed_by", "author"),
+    "learning_candidate_dependency_resolved": ("resolved_by", "author"),
+    "learning_candidate_confirmed": ("reviewer", "reviewer"),
+    "learning_candidate_promoted": ("reviewer", "reviewer"),
+    "learning_candidate_rejected": ("reviewer", "reviewer"),
+}
+
+_HISTORY_CONTENT_KINDS = {
+    "learning_candidate_revised",
+    "learning_candidate_dependency_resolved",
+}
+
+
+def _recorded_at(value: Any) -> str:
+    """Event time as stored. The column default is naive UTC."""
+    if isinstance(value, datetime):
+        moment = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return moment.isoformat()
+    return str(value or "")
+
+
+def _bounded_record(value: Any, limit: int = _HISTORY_VALUE_CHARS) -> Any:
+    """Stored value when it fits; an explicit size marker when it does not.
+
+    History stays bounded and never dumps more of a stored value than the
+    review already shows. Truncation is reported, never silently cut.
+    """
+    try:
+        encoded = json.dumps(value, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        return {"_truncated": True}
+    if len(encoded) <= limit:
+        return value
+    return {"_truncated": True, "_stored_chars": len(encoded)}
+
+
+def _snapshot_summary(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Bounded, review-shaped projection of one stored candidate snapshot."""
+    method = raw.get("method") if isinstance(raw.get("method"), dict) else {}
+    applies_to = raw.get("applies_to") if isinstance(
+        raw.get("applies_to"), list) else []
+    decisions = raw.get("decision_options") if isinstance(
+        raw.get("decision_options"), list) else []
+    return {
+        "revision": int(raw.get("revision") or 0),
+        "status": str(raw.get("status") or ""),
+        # Digest exactly as recorded at that write; it is not recomputed, so a
+        # historical snapshot is never re-verified against current content.
+        "recorded_digest": str(raw.get("digest") or ""),
+        "proposed_lesson": _bounded(raw.get("proposed_lesson"), 2000),
+        "method_status": str(raw.get("method_status") or ""),
+        "applies_to": [_bounded(item, 80) for item in applies_to][:20],
+        "decision_options": [_bounded(item, 80) for item in decisions][:20],
+        "context": _bounded_record(raw.get("context") or {}),
+        "format_spec": _bounded_record(raw.get("format_spec") or {}),
+        "conditions": _bounded_record(raw.get("conditions") or {}),
+        "method": _bounded_record(method),
+    }
+
+
+def candidate_history(
+    db: Session,
+    *,
+    thread_id: str,
+    candidate_id: str,
+    source_kind: str = SOURCE_KIND_EMAIL,
+    workspace_id: str = "",
+    tenant_id: str = "",
+    limit: int = HISTORY_DEFAULT_LIMIT,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """Read the candidate's stored revision history. Writes nothing.
+
+    Every row is selected by the exact candidate identity, thread, source kind
+    and the caller's current workspace/tenant. A snapshot bound to another
+    scope is excluded (and counted), so one workspace's revisions can never be
+    read through another workspace's candidate. No current-state check is
+    re-run here: an old snapshot keeps the status/digest it was written with.
+    """
+    from core.models import ConversationEvent
+
+    try:
+        kind = normalize_source_kind(source_kind)
+    except ValueError:
+        kind = ""
+    try:
+        page_limit = max(1, min(int(limit), HISTORY_MAX_LIMIT))
+    except (TypeError, ValueError):
+        page_limit = HISTORY_DEFAULT_LIMIT
+    try:
+        page_offset = max(0, int(offset))
+    except (TypeError, ValueError):
+        page_offset = 0
+
+    rows = (
+        db.query(ConversationEvent)
+        .filter(
+            ConversationEvent.conversation_id == str(thread_id or ""),
+            ConversationEvent.kind.in_(sorted(_LEARNING_EVENT_KINDS)),
+        )
+        .order_by(ConversationEvent.created_at.desc(),
+                  ConversationEvent.id.desc())
+        .limit(HISTORY_SCAN_LIMIT + 1)
+        .all()
+    )
+    scan_truncated = len(rows) > HISTORY_SCAN_LIMIT
+    # Take the NEWEST rows when the scan bound is hit, then restore recorded
+    # order for the before/after comparison.
+    rows = list(reversed(rows[:HISTORY_SCAN_LIMIT]))
+
+    matched: List[Tuple[Any, Dict[str, Any], Dict[str, Any]]] = []
+    out_of_scope = 0
+    for row in rows:
+        try:
+            payload = json.loads(row.payload_json or "{}")
+        except (TypeError, ValueError):
+            continue
+        raw = payload.get("candidate")
+        if not isinstance(raw, dict):
+            continue
+        if str(raw.get("candidate_id") or "") != str(candidate_id or ""):
+            continue
+        if str(raw.get("thread_id") or "") != str(thread_id or ""):
+            continue
+        if str(raw.get("source_kind") or SOURCE_KIND_EMAIL) != kind:
+            continue
+        if (str(raw.get("workspace_id") or "") != str(workspace_id or "")
+                or str(raw.get("tenant_id") or "") != str(tenant_id or "")):
+            out_of_scope += 1
+            continue
+        matched.append((row, payload, raw))
+
+    events: List[Dict[str, Any]] = []
+    previous_raw: Optional[Dict[str, Any]] = None
+    for row, payload, raw in matched:
+        kind_name = str(row.kind or "")
+        actor_key, actor_role = _HISTORY_ACTORS.get(
+            kind_name, ("", "system"))
+        actor_value = payload.get(actor_key) if actor_key else None
+        actor = str(actor_value or "").strip()
+        reason_value = payload.get("reason")
+        if not reason_value:
+            if kind_name == "learning_candidate_invalidated":
+                reason_value = raw.get("invalidated_reason")
+            elif kind_name == "learning_candidate_rejected":
+                reason_value = raw.get("rejected_reason")
+        reason_text = _bounded(reason_value, 500)
+        summary = _snapshot_summary(raw)
+        changed_fields: List[str] = []
+        if previous_raw is not None:
+            changed_fields = sorted(
+                field for field in _HISTORY_DIFF_FIELDS
+                if previous_raw.get(field) != raw.get(field))
+        is_content_change = kind_name in _HISTORY_CONTENT_KINDS
+        events.append({
+            "event_id": str(row.id),
+            "kind": kind_name,
+            "recorded_at": _recorded_at(row.created_at),
+            "revision": summary["revision"],
+            "status": summary["status"],
+            "recorded_digest": summary["recorded_digest"],
+            "actor": actor or None,
+            "actor_role": actor_role,
+            # Missing means it genuinely was not recorded at that write.
+            "reason": reason_text or None,
+            "reason_recorded": bool(reason_text),
+            "changed_fields": changed_fields,
+            "before": (
+                _snapshot_summary(previous_raw)
+                if is_content_change and previous_raw is not None else None),
+            "after": summary if is_content_change else None,
+        })
+        previous_raw = raw
+
+    events.reverse()  # newest recorded first
+    total = len(events)
+    page = events[page_offset:page_offset + page_limit]
+    return {
+        "thread_id": str(thread_id or ""),
+        "source_kind": kind,
+        "candidate_id": str(candidate_id or ""),
+        "events": page,
+        "coverage": {
+            "history_complete": bool(
+                not scan_truncated
+                and not out_of_scope
+                and page_offset == 0
+                and len(page) == total),
+            "scan_limit": HISTORY_SCAN_LIMIT,
+            "scan_truncated": scan_truncated,
+            "out_of_scope_events_excluded": out_of_scope,
+            "total_events": total,
+            "returned": len(page),
+            "limit": page_limit,
+            "offset": page_offset,
+            "has_more": page_offset + len(page) < total,
+        },
+        # This ledger has no signature or hash-chain mechanism; say so rather
+        # than implying tamper evidence that does not exist.
+        "signatures": {
+            "present": False,
+            "detail": (
+                "Append-only ConversationEvent rows. This ledger has no "
+                "signature or hash-chain mechanism."),
+        },
+        "read_only": True,
+    }
+
+
 def _find_edge(candidate: LearningCandidate,
                dep: LearningDependency) -> Optional[ReferenceEdge]:
     if dep.edge_id:
@@ -1795,6 +2033,7 @@ def revise_candidate(
     expected_revision: Optional[int] = None,
     expected_status: Optional[str] = None,
     changed_by: str = "",
+    reason: str = "",
 ) -> LearningCandidate:
     """Change candidate content; any prior approval is no longer valid.
 
@@ -1804,6 +2043,10 @@ def revise_candidate(
     fresh proposal instead of resurrecting the old one. Revising an already
     promoted candidate retires the promoted lesson through the existing
     revalidation channel before the new revision becomes reviewable.
+
+    ``reason`` is optional, reviewer-authored plain text. It is recorded on
+    the revised event only when the caller actually supplied one; no default
+    rationale is invented. ``changed_by`` must be the server-derived actor.
     """
     if candidate.status in ("rejected", "invalidated"):
         raise ValueError(f"candidate_{candidate.status}")
@@ -1843,9 +2086,18 @@ def revise_candidate(
     candidate.confirmed_digest = None
     candidate.status = "draft"
     candidate = refresh_candidate(candidate)
+    revision_extra: Dict[str, Any] = {
+        # The actor is server-derived by the route, never a client claim, and
+        # the timestamp is the server clock at this write.
+        "changed_by": changed_by,
+        "changed_at": _now_iso(),
+    }
+    recorded_reason = _bounded(reason, 500)
+    if recorded_reason:
+        revision_extra["reason"] = recorded_reason
     _append_candidate_event(
         db, "learning_candidate_revised", candidate,
-        extra={"changed_by": changed_by}, commit=False)
+        extra=revision_extra, commit=False)
     return candidate
 
 

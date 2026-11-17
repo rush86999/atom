@@ -156,6 +156,76 @@ export async function createLearningCandidate(payload: {
   return data;
 }
 
+export interface LearningHistoryEvent {
+  event_id: string;
+  kind: string;
+  recorded_at: string;
+  revision: number;
+  status: string;
+  recorded_digest: string;
+  actor: string | null;
+  actor_role: string;
+  reason: string | null;
+  reason_recorded: boolean;
+  changed_fields: string[];
+  before: LearningHistorySnapshot | null;
+  after: LearningHistorySnapshot | null;
+}
+
+export interface LearningHistorySnapshot {
+  revision: number;
+  status: string;
+  recorded_digest: string;
+  proposed_lesson: string;
+  method_status: string;
+  applies_to: string[];
+  decision_options: string[];
+  context: unknown;
+  format_spec: unknown;
+  conditions: unknown;
+  method: unknown;
+}
+
+export interface LearningCandidateHistory {
+  thread_id: string;
+  source_kind: string;
+  candidate_id: string;
+  events: LearningHistoryEvent[];
+  coverage: {
+    history_complete: boolean;
+    scan_limit: number;
+    scan_truncated: boolean;
+    out_of_scope_events_excluded: number;
+    total_events: number;
+    returned: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+  signatures: { present: boolean; detail: string };
+  read_only: boolean;
+}
+
+export async function getLearningCandidateHistory(
+  threadId: string,
+  candidateId: string,
+  options: { limit?: number; offset?: number } = {},
+  sourceKind = "email"
+): Promise<LearningCandidateHistory> {
+  const { data } = await apiClient.get(
+    `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/history`,
+    {
+      params: {
+        thread_id: threadId,
+        source_kind: sourceKind,
+        ...(options.limit ? { limit: options.limit } : {}),
+        ...(options.offset ? { offset: options.offset } : {}),
+      },
+    }
+  );
+  return data;
+}
+
 export async function reviseLearningCandidate(
   threadId: string,
   candidateId: string,
@@ -170,6 +240,7 @@ export async function reviseLearningCandidate(
     format_spec?: Record<string, unknown>;
     conditions?: Record<string, unknown>;
     decision_options?: string[];
+    reason?: string;
   },
   sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
