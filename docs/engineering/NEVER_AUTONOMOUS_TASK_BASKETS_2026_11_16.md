@@ -13,10 +13,11 @@ PR [#977](https://github.com/rush86999/atom/pull/977) merged as
 `9386a4861e9ed2fef14d96fda64fc5cedba6b3b3`, parent #976
 `8b48dd84ad845e79c27bfcfa45cae669586d2b88`). Its exact PR head
 `488e956c688383d2a220b05442fb47b51c8cc4f4` had all **15** check runs
-successful. At the root handoff, post-merge main CI run
+successful. Post-merge main CI run
 [43985428885](https://github.com/rush86999/atom/actions/runs/43985428885) and
 Docker run [43985428863](https://github.com/rush86999/atom/actions/runs/43985428863)
-were both still running. **No post-merge green is claimed.**
+both completed successfully on the exact merge commit. Root independently
+re-queried both workflow identities and conclusions on 2026-11-17.
 
 The merge and exact-head CI do not widen the qualification below: the browser
 journey, 319 backend checks, 642 CI-contract checks, 110 UI/type checks and

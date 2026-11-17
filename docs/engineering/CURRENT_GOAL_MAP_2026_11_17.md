@@ -24,7 +24,7 @@ intact; this map is the current navigation layer over them.
 | Activity merge | PR [#976](https://github.com/rush86999/atom/pull/976) → `8b48dd84ad845e79c27bfcfa45cae669586d2b88` |
 | Task-family merge | PR [#977](https://github.com/rush86999/atom/pull/977) → `0e9b0dfc9c7ee41b047714c1e1a5fc8a1f2bb464` |
 | #977 exact PR head | `488e956c688383d2a220b05442fb47b51c8cc4f4` — all **15** check runs completed successfully (independently queried) |
-| #977 post-merge main | [CI 43985428885](https://github.com/rush86999/atom/actions/runs/43985428885) and [Docker 43985428863](https://github.com/rush86999/atom/actions/runs/43985428863) — both reported still running at the root handoff; this pass does not use them as acceptance and claims no post-merge green |
+| #977 post-merge main | [CI 43985428885](https://github.com/rush86999/atom/actions/runs/43985428885) and [Docker 43985428863](https://github.com/rush86999/atom/actions/runs/43985428863) — both completed successfully on exact merge `0e9b0dfc9`; root independently re-queried both runs on 2026-11-17 |
 | #976 post-merge main | [CI 43950917401](https://github.com/rush86999/atom/actions/runs/43950917401) and [Docker 43950917434](https://github.com/rush86999/atom/actions/runs/43950917434) — both successful |
 | #975 post-merge main | [CI 43934281143](https://github.com/rush86999/atom/actions/runs/43934281143) and [Docker 43934281125](https://github.com/rush86999/atom/actions/runs/43934281125) — both successful |
 
@@ -80,7 +80,7 @@ changed-file scan is clean. Neither result closes DOCS-REF-01.
 
 | Delivery | Source-bound scope | Does not establish |
 |---|---|---|
-| **#977 optional never-autonomous task families** | Product source `d271e25eb`; independent root **319 backend** checks, **642 CI-contract** checks, **110 UI** checks plus TypeScript/build; ordinary browser empty/default rule CRUD, two-tab stale-save 409, restart readback, exact synthetic task approval, and cold receipt that accepts only the unchanged task and refuses changed material. Merged at `0e9b0dfc9`. | Real-model output quality; a completed worker run; PostgreSQL migration (only SQLite migration exercised); every integration approval surface; post-merge CI green. |
+| **#977 optional never-autonomous task families** | Product source `d271e25eb`; independent root **319 backend** checks, **642 CI-contract** checks, **110 UI** checks plus TypeScript/build; ordinary browser empty/default rule CRUD, two-tab stale-save 409, restart readback, exact synthetic task approval, and cold receipt that accepts only the unchanged task and refuses changed material. Merged at `0e9b0dfc9`. | Real-model output quality; a completed worker run; PostgreSQL migration (only SQLite migration exercised); every integration approval surface. |
 | **#976 Activity checkpoint decisions** | Product source `1f70c1708`; 234 backend and 68 frontend controls; ordinary browser approve/reject and restart; atomic stale-claim refusal and current reviewer authority across callers. Merged at `8b48dd84a`. | Model competence; goal evaluator work (fixture goals were already achieved); every approval family; PostgreSQL concurrency. |
 | **#975 Learning correction** | Product source `1d4f409e1`; 162 backend, 12 frontend, 642 CI-contract checks; correction/repromotion and exact 15 USD deterministic reuse after full-stack restart. Merged at `7a22e6d07`. | Live model quality; external indexed resources; PostgreSQL concurrency; broader Learning. |
 | **#974 inline DOCX pictures** | Product source `8d98b0689`; 674 focused checks; real drawing XML/references and decoded pixels preserved through native edits and restart. Merged at `7316a0155`. | Every drawing/media case; all Office families; whole Goal 5. |
@@ -92,8 +92,8 @@ changed-file scan is clean. Neither result closes DOCS-REF-01.
   whole-goal or whole-app acceptance.
 - #977's 319/642/110 checks and synthetic browser journey are **not** a
   readiness percentage and **not** real-model quality.
-- #977's exact-head success is **not** post-merge main CI success. CI
-  `43985428885` was still running at the root handoff.
+- #977's exact-head and post-merge main CI successes are delivery evidence,
+  not a substitute for broader user-boundary or real-model acceptance.
 - A SQLite migration pass is **not** PostgreSQL migration or concurrency.
 - The in-flight Goal 3 multi-format search/API harness is **not** accepted and
   contributes no evidence here.
