@@ -446,8 +446,27 @@ class ConverseOp(_Op):
     op: str = Field(default="converse", frozen=True)
 
 
+class CollaborateOp(_Op):
+    """Delegate bounded specialist work through the EXISTING fleet lane.
+
+    A PROPOSAL, like every op: the fleet's own governance, recruitment,
+    contracts, budgets and durable chain remain the executors. The op
+    carries only what the shared interpretation accepted — the user's
+    participant labels and whether the ask was generic. Empty roles with
+    ``generic=False`` is an AMBIGUOUS request and must clarify, never
+    silently become a direct answer.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    op: str = Field(default="collaborate", frozen=True)
+    roles: List[str] = Field(default_factory=list)
+    generic: bool = False
+    objective: str = ""
+
+
 _OPS = (WorkbookReadOp, SourceReadOp, FilterEvidenceOp, FilterPreviousOp,
-        RenderOp, ProposeLessonOp, ProposePatchOp, ConverseOp)
+        RenderOp, ProposeLessonOp, ProposePatchOp, ConverseOp,
+        CollaborateOp)
 _OP_BY_KIND = {cls.model_fields["op"].default: cls for cls in _OPS}
 
 
@@ -539,13 +558,19 @@ def program_from_decision(decision: Dict[str, Any]) -> Optional[ActionProgram]:
     decision = decision if isinstance(decision, dict) else {}
     actions: List[Any] = []
     seq = 0
+    _requested = [
+        a for a in (decision.get("requested_actions") or [])
+        if isinstance(a, dict)]
+    _has_collaboration = any(
+        str(a.get("kind") or "") in ("collaboration", "delegation")
+        for a in _requested)
 
     def _next_id(prefix: str) -> str:
         nonlocal seq
         seq += 1
         return f"{prefix}{seq}"
 
-    for a in decision.get("requested_actions") or []:
+    for a in _requested:
         if not isinstance(a, dict):
             continue
         kind = str(a.get("kind") or "")
@@ -630,7 +655,25 @@ def program_from_decision(decision: Dict[str, Any]) -> Optional[ActionProgram]:
                 user_grounded_instruction=a.get(
                     "user_grounded_instruction") or None,
             ))
+        elif kind in ("collaboration", "delegation"):
+            # The accepted structured interpretation's participant labels
+            # ride the executable shadow unchanged; the fleet lane is the
+            # executor (recruitment, contracts, budget, durable chain).
+            actions.append(CollaborateOp(
+                action_id=_next_id("collab"),
+                roles=[str(role)[:120] for role in
+                       (a.get("roles") or a.get("specialists") or [])
+                       if str(role).strip()],
+                generic=bool(a.get("generic")),
+                objective=str(a.get("objective")
+                              or decision.get("message") or "")[:500],
+            ))
         elif kind == "conversation":
+            if _has_collaboration:
+                # A collaboration action already represents the turn; a
+                # companion no-op would let a consumer read "converse" and
+                # silently downgrade the request (the live defect).
+                continue
             actions.append(ConverseOp(action_id=_next_id("converse")))
     if not actions:
         return None
@@ -708,6 +751,19 @@ def compute_authorizations(program: ActionProgram,
             out[a.action_id] = (
                 AUTH_GRANTED if facts.get("user_grounded_edit_instruction")
                 else AUTH_NEEDS_GRANT)
+        elif isinstance(a, CollaborateOp):
+            # Fail closed without a validated accepted requirement. The
+            # fleet spends budget and runs other agents, so a program
+            # constructed directly cannot self-authorize a delegation.
+            requirement = facts.get("collaboration_requirement") or {}
+            out[a.action_id] = (
+                AUTH_GRANTED
+                if isinstance(requirement, dict)
+                and requirement.get("required") is True
+                and requirement.get("authorization") == AUTH_GRANTED
+                and (requirement.get("roles")
+                     or requirement.get("generic") is True)
+                else AUTH_NEEDS_CONFIRMATION)
         else:
             out[a.action_id] = AUTH_GRANTED
     return out
@@ -939,6 +995,19 @@ def execute_program(program: ActionProgram,
                          # integration lane as its future executor.
                          "executor": ("canvas-edit-lane" if wired
                                       else "integration-lane")})
+        elif isinstance(action, CollaborateOp):
+            # The existing governed fleet is the executor. The program
+            # records the accepted requirement; it does not recruit or
+            # spend anything itself.
+            base.update({
+                "status": (STATUS_NEEDS_CONFIRMATION
+                           if base["authorization"] == AUTH_NEEDS_CONFIRMATION
+                           else STATUS_PROPOSED),
+                "roles": list(action.roles),
+                "generic": action.generic,
+                "objective": action.objective,
+                "executor": "fleet-lane",
+            })
         else:  # ConverseOp
             base.update({"status": STATUS_OK})
         record.outcomes.append(base)

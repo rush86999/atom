@@ -38,7 +38,7 @@ from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, PrivateAttr, field_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 try:  # canvas-target text for the relevance judgments below; the module
       # is fault-isolated at every use site, so absence degrades to "".
@@ -1264,6 +1264,11 @@ Rules:
   genuinely already present.
 - If the needed integration is NOT in the available list, use_tool=false and
   say which integration is missing in `reason`.
+- ACCEPTED COLLABORATION REQUIREMENT: when a block with that title is
+  present, the turn decision has already accepted real specialist work.
+  Set collaboration_required=true, copy specialist_roles exactly, and set
+  suggested_intent=agent_request. Never re-read perspective, quoted,
+  negated, or hypothetical wording as delegation.
 - DATE EXTRACTION: when the user's latest message states WHEN something was
   sent, received or happened ("sent 9/11 friday", "the august 26 quote",
   "yesterday's email"), set mentioned_date to that date as YYYY-MM-DD,
@@ -1399,6 +1404,14 @@ class ToolPlan(BaseModel):
     # low-confidence, or unrecognized.
     suggested_intent: Optional[str] = None
     routing_confidence: Optional[float] = None
+    # ACCEPTED COLLABORATION REQUIREMENT (2026-11-17). Additive, optional:
+    # the turn decision's structured interpretation already established
+    # that the user asked named specialist roles/agents to work on the
+    # request. The planner carries that requirement; it does not
+    # re-interpret the message or invent roles. ``collaboration_required``
+    # routes the turn to the existing governed agent/fleet lane.
+    collaboration_required: bool = False
+    specialist_roles: List[str] = Field(default_factory=list)
     # Date PIGGYBACK (2026-09-15): the planner reads the same message the
     # date parser does — let it resolve messy relative expressions the
     # regex cannot ('end of last month', 'two Tuesdays ago') at zero extra
@@ -1953,6 +1966,7 @@ async def plan_tool_use(
     provenance: str = "",
     allow_canvas_target: bool = False,
     evidence_requirement: Optional[Dict[str, Any]] = None,
+    collaboration_requirement: Optional[Dict[str, Any]] = None,
     planning_timeout: Optional[float] = None,
 ) -> Optional[ToolPlan]:
     """Decide (via cheap structured LLM output) whether this turn needs live
@@ -1984,10 +1998,36 @@ async def plan_tool_use(
     connected = get_connected_services(user_id)
     catalog = _catalog_line(connected)
     canvas_block = _planner_canvas_block(canvas)
+    _collaboration = (
+        collaboration_requirement
+        if isinstance(collaboration_requirement, dict)
+        and collaboration_requirement.get("required") is True
+        else None)
+    collaboration_block = ""
+    if _collaboration:
+        _roles = [
+            str(role).strip()
+            for role in (_collaboration.get("roles")
+                         or _collaboration.get("specialists") or [])
+            if str(role or "").strip()
+        ][:8]
+        collaboration_block = (
+            "ACCEPTED COLLABORATION REQUIREMENT (the turn decision already "
+            "accepted this; do not re-classify the wording, do not add or "
+            "drop roles): "
+            + (
+                "roles=" + ", ".join(_roles)
+                if _roles else "generic specialist collaboration")
+            + ". Set collaboration_required=true, copy specialist_roles "
+            "exactly, and set suggested_intent=agent_request with honest "
+            "routing_confidence. This is not permission to invent a "
+            "specialist or to treat perspective/example/hypothetical "
+            "wording as delegation.")
     prompt = (
         f"{_PLANNER_SYSTEM}\n\n"
         f"TODAY IS {_dt_module.date.today().isoformat()}.\n"
         f"Available tools:\n{catalog}\n\n"
+        + (f"{collaboration_block}\n\n" if collaboration_block else "")
         + (f"{canvas_block}\n\n" if canvas_block else "")
         + (f"{provenance}\n\n" if provenance else "")
         + f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
@@ -2048,6 +2088,37 @@ async def plan_tool_use(
         plan_meta["source"] = "unavailable"
         if _planning_error:
             plan_meta["optional_planning_error"] = _planning_error
+    # ACCEPTED COLLABORATION IS AN OBLIGATION, NOT A PREFERENCE. The turn
+    # decision's single structured interpretation already accepted that
+    # the user asked named specialist roles/agents to work on the request.
+    # The planner must carry that requirement to the existing governed
+    # agent/fleet lane; it must not let a declined or data-analysis-shaped
+    # plan silently downgrade it to one direct answer. This composes the
+    # accepted requirement — it does not re-read the message.
+    if _collaboration:
+        if plan is None:
+            plan = ToolPlan()
+        plan.collaboration_required = True
+        plan.specialist_roles = [
+            str(role).strip()
+            for role in (_collaboration.get("roles")
+                         or _collaboration.get("specialists") or [])
+            if str(role or "").strip()
+        ][:8]
+        plan.suggested_intent = "agent_request"
+        try:
+            plan.routing_confidence = max(
+                0.95, float(plan.routing_confidence or 0.0))
+        except (TypeError, ValueError):
+            plan.routing_confidence = 0.95
+        _collab_reason = (
+            "accepted collaboration requirement: "
+            + (", ".join(plan.specialist_roles)
+               if plan.specialist_roles else "generic specialist request"))
+        plan.reason = (
+            f"{plan.reason}; {_collab_reason}"
+            if str(plan.reason or "").strip() else _collab_reason)
+        plan_meta.update(source="accepted_collaboration", recovered=True)
     # EXPLICIT-RESEARCH FLOOR: a message that explicitly instructs web
     # research must END in a web tool whenever web is configured — whether
     # the first pass declined, failed, or validly routed somewhere else

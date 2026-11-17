@@ -11731,6 +11731,7 @@ class ChatOrchestrator:
                     try:
                         from core.turn_decision import (
                             apply_degraded_continuation_references,
+                            apply_interpretation_actions,
                             apply_interpretation_references,
                             build_turn_decision,
                             deterministic_continuation_ready,
@@ -12079,6 +12080,16 @@ class ChatOrchestrator:
                             # same refs the requirement consumes.
                             _td = apply_interpretation_references(
                                 _td, _td_interpretation, session)
+                        # COLLABORATION OBLIGATION (2026-11-17): a
+                        # RESOLVED shared interpretation that proposed
+                        # explicit specialist collaboration must not be
+                        # silently downgraded to the floor's conversation
+                        # action. This composes the requirement (roles,
+                        # generic/explicit, recomputed authorization) into
+                        # the accepted decision; program/planner/fleet
+                        # consume it. Degraded interpretations add nothing.
+                        _td = apply_interpretation_actions(
+                            _td, _td_interpretation, session)
                         _td_decision = _td
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
@@ -15730,9 +15741,12 @@ class ChatOrchestrator:
                     # None when the decision layer is absent (unchanged
                     # behavior for the requirement-less path).
                     _plan_evidence_req: Optional[Dict[str, Any]] = None
+                    _plan_collaboration_req: Optional[Dict[str, Any]] = None
                     try:
                         if isinstance(_td_decision, dict):
                             from core.turn_decision import (
+                                turn_collaboration_requirement as
+                                _tcr_plan,
                                 turn_evidence_required as _ter_plan,
                             )
 
@@ -15746,8 +15760,10 @@ class ChatOrchestrator:
                                 workspace_id=(context or {}).get(
                                     "workspace_id"),
                                 canvas_attached=_req_canvas_attached)
+                            _plan_collaboration_req = _tcr_plan(_td_decision)
                     except Exception:  # noqa: BLE001 — carry is additive
                         _plan_evidence_req = None
+                        _plan_collaboration_req = None
                     _plan_task_wait = (
                         _resume_plan_wait_seconds
                         if _pending_file_task
@@ -15761,6 +15777,8 @@ class ChatOrchestrator:
                                     message, {"canvas": _canvas_ctx})
                                 or _canvas_referencing_message(message)),
                             evidence_requirement=_plan_evidence_req,
+                            collaboration_requirement=(
+                                _plan_collaboration_req),
                             planning_timeout=max(
                                 1.0,
                                 _plan_task_wait
@@ -18499,6 +18517,44 @@ class ChatOrchestrator:
                         _tool_plan_task.result())
                 except (asyncio.CancelledError, Exception):
                     intent_analysis = None
+            # ACCEPTED COLLABORATION OWNS THE ROUTE (2026-11-17). The
+            # shared structured interpretation accepted that the user asked
+            # named specialist roles/agents to collaborate. That obligation
+            # outranks a planner label ("data_analysis") or NLU label: the
+            # existing governed agent/fleet lane is where specialists can
+            # actually contribute. The requirement rides the internal
+            # intent record (server-constructed below), never client text;
+            # an ambiguous requirement still routes so the fleet lane can
+            # ask the clarification question instead of answering from one
+            # perspective.
+            _collab_route_req: Dict[str, Any] = {"required": False}
+            try:
+                from core.turn_decision import (
+                    turn_collaboration_requirement as _tcr_route,
+                )
+
+                _collab_route_req = _tcr_route(_td_decision)
+            except Exception:  # noqa: BLE001 — additive routing fact
+                _collab_route_req = {"required": False}
+            if _collab_route_req.get("required") is True:
+                intent_analysis = {
+                    "primary_intent": ChatIntent.AGENT_REQUEST,
+                    "confidence": 1.0,
+                    "entities": [],
+                    "platforms": [],
+                    "command_type": "search",
+                    "raw_nlp": None,
+                    "source": "turn_decision_collaboration",
+                    "collaboration_requirement": dict(_collab_route_req),
+                }
+                logger.info(
+                    "[collaboration] accepted requirement routes to the "
+                    "governed agent/fleet lane (roles=%s generic=%s "
+                    "clarify=%s)",
+                    _collab_route_req.get("roles"),
+                    bool(_collab_route_req.get("generic")),
+                    bool(_collab_route_req.get(
+                        "clarification_required")))
             # DEADLINE GATE ON THE LEGACY FALLBACK (round 9). This path exists
             # for turns the reply leg did not answer, and it is NOT free: an NLU
             # completion plus one or more feature handlers, each with its own
@@ -39731,6 +39787,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             }
             execute_context.pop("_authenticated_workspace_id", None)
             execute_context.pop("_authenticated_tenant_id", None)
+            # ACCEPTED COLLABORATION (2026-11-17): the requirement is
+            # server-constructed from the turn decision and carried on the
+            # internal intent record. Never trust a same-named client key:
+            # drop the incoming context's copy, then add only the
+            # normalized server requirement.
+            execute_context.pop("_accepted_collaboration_requirement", None)
+            _raw_collab = (
+                (intent_analysis or {}).get("collaboration_requirement")
+                if isinstance(intent_analysis, dict) else None)
+            if isinstance(_raw_collab, dict) and (
+                    _raw_collab.get("required") is True):
+                _roles = [
+                    " ".join(str(role).split())[:120]
+                    for role in (_raw_collab.get("roles")
+                                 or _raw_collab.get("specialists") or [])[:8]
+                    if str(role or "").strip()
+                ]
+                _generic = bool(_raw_collab.get("generic"))
+                _clarify = bool(
+                    _raw_collab.get("clarification_required"))
+                if _roles or _generic or _clarify:
+                    execute_context["_accepted_collaboration_requirement"] = {
+                        "required": True,
+                        "roles": _roles,
+                        "generic": _generic,
+                        "authorization": str(
+                            _raw_collab.get("authorization") or ""),
+                        "clarification_required": _clarify,
+                        "question": str(
+                            _raw_collab.get("question") or "")[:300],
+                        "objective": str(
+                            _raw_collab.get("objective") or message)[:500],
+                        "reason": "explicit_specialist_collaboration",
+                    }
             if tenant_id is not None:
                 execute_context["tenant_id"] = tenant_id
 
