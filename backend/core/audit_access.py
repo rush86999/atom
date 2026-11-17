@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
@@ -303,6 +303,43 @@ def correction_href(channel: str, target_id: Optional[str]) -> Optional[str]:
     if channel == "autodev":
         return "/agents"
     return None
+
+
+def recorded_correction_targets(source: Any) -> List[Dict[str, Any]]:
+    """Validated repair-channel targets already present in recorded metadata.
+
+    No inference, no domain regex: a target exists only when the run itself
+    recorded one of these allowlisted identifiers. Anything URL-shaped or
+    containing a path separator is rejected, so a stored value can never be
+    replayed as an arbitrary link. Both the audit read endpoints and the
+    correction-subject validator use this ONE derivation so a caller cannot
+    have a caller-asserted target relabelled as a recorded subject target.
+    """
+    if not isinstance(source, dict):
+        return []
+    candidates = (
+        ("goal_run_id", "activity"),
+        ("learning_thread_id", "learning"),
+        ("assignment_agent_id", "assignment"),
+        ("autodev_candidate_id", "autodev"),
+    )
+    targets: List[Dict[str, Any]] = []
+    seen = set()
+    for key, channel in candidates:
+        value = source.get(key)
+        if not isinstance(value, str) or not CORRECTION_TARGET_ID_RE.match(value):
+            continue
+        key_id = (channel, value)
+        if key_id in seen:
+            continue
+        seen.add(key_id)
+        targets.append({
+            "channel": channel,
+            "label": CORRECTION_CHANNELS.get(channel, channel),
+            "target_id": value,
+            "href": correction_href(channel, value),
+        })
+    return targets
 
 
 def read_scope_payload(scope: Dict[str, Any]) -> Dict[str, Any]:

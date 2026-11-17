@@ -33,6 +33,10 @@ export interface CorrectionReceipt {
     verified: boolean;
     channel: string | null;
     target_id: string | null;
+    /** How the target was established: recorded subject metadata vs caller-asserted. */
+    channel_target_basis?: string | null;
+    /** True only when the server recorded this exact channel/target for the subject. */
+    repair_link_proven?: boolean | null;
     reason: string | null;
 }
 
@@ -356,5 +360,7 @@ export interface CorrectionRequestResult {
     verified: false;
     channel?: string | null;
     channel_target_id?: string | null;
+    channel_target_basis?: string | null;
+    repair_link_proven?: boolean;
     status_note: string;
 }

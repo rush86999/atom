@@ -42,17 +42,15 @@ from sqlalchemy.orm import Session
 
 from core.audit_access import (
     AUDIT_EVENT_TYPES,
-    CORRECTION_CHANNELS,
-    CORRECTION_TARGET_ID_RE,
     AuditAccessDenied,
     audit_row_condition,
     authoritative_actor,
-    correction_href,
     exact_execution_condition,
     execution_identifier_valid,
     execution_workspace_visible,
     parse_metadata,
     read_scope_payload,
+    recorded_correction_targets,
     resolve_audit_scope,
     row_execution_id,
     scoped_event_query,
@@ -149,38 +147,12 @@ def _model_identity(event_type: str, meta: Dict[str, Any]) -> Optional[Dict[str,
 
 
 def _correction_targets(source: Any) -> List[Dict[str, Any]]:
-    """Validated repair-channel targets already present in recorded metadata.
+    """Backwards-compatible alias for the shared recorded-target derivation.
 
-    No inference, no domain regex: a target exists only when the run itself
-    recorded one of these allowlisted identifiers. Anything URL-shaped or
-    containing a path separator is rejected, so a stored value can never be
-    replayed as an arbitrary link.
+    The implementation lives in ``core.audit_access`` so the audit reader and
+    the correction-subject validator cannot drift.
     """
-    if not isinstance(source, dict):
-        return []
-    candidates = (
-        ("goal_run_id", "activity"),
-        ("learning_thread_id", "learning"),
-        ("assignment_agent_id", "assignment"),
-        ("autodev_candidate_id", "autodev"),
-    )
-    targets: List[Dict[str, Any]] = []
-    seen = set()
-    for key, channel in candidates:
-        value = source.get(key)
-        if not isinstance(value, str) or not CORRECTION_TARGET_ID_RE.match(value):
-            continue
-        key_id = (channel, value)
-        if key_id in seen:
-            continue
-        seen.add(key_id)
-        targets.append({
-            "channel": channel,
-            "label": CORRECTION_CHANNELS.get(channel, channel),
-            "target_id": value,
-            "href": correction_href(channel, value),
-        })
-    return targets
+    return recorded_correction_targets(source)
 
 
 def _correction_receipt(meta: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -194,6 +166,13 @@ def _correction_receipt(meta: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "verified": False if meta.get("verified") is None else bool(meta.get("verified")),
         "channel": meta.get("channel"),
         "target_id": meta.get("channel_target_id"),
+        # Whether the channel target was proven from server-recorded subject
+        # metadata. A caller-asserted (or absent) target is never a proven link.
+        "channel_target_basis": meta.get("channel_target_basis"),
+        "repair_link_proven": (
+            None if meta.get("repair_link_proven") is None
+            else bool(meta.get("repair_link_proven"))
+        ),
         "reason": meta.get("reason"),
     }
 

@@ -520,6 +520,446 @@ def test_correction_request_rejects_mismatched_identity_and_channel(audit_app):
         assert resp.status_code == 422, (overrides, resp.text)
 
 
+# --------------------------------------------------------------------------- #
+# F2 follow-up: the COMPLETE subject must be a linked, server-proven object.
+# --------------------------------------------------------------------------- #
+def _correction_receipt_count(session) -> int:
+    return (
+        session.query(AuditLog)
+        .filter(AuditLog.action == "correction_requested")
+        .count()
+    )
+
+
+def test_owned_unbound_event_cannot_authorize_foreign_execution(audit_app):
+    """Root counter (2026-11-17): a member-owned event with no recorded
+    execution must not bind a caller-supplied foreign execution."""
+    session = audit_app.session
+    session.add(_event(
+        row_id="owned-unbound-execution", user_id="member",
+        workspace_id="ws-1", execution_id=None))
+    session.commit()
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="owned-unbound-execution",
+            execution_id="exec-foreign",
+            run_id="exec-foreign",
+        ),
+    )
+
+    assert resp.status_code in (404, 422), resp.text
+    assert session.query(AgentFeedback).count() == before_feedback
+    assert _correction_receipt_count(session) == before_receipts
+    assert (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.agent_execution_id == "exec-foreign")
+        .count()
+    ) == 0
+
+
+def test_unbound_event_cannot_borrow_an_authorized_execution(audit_app):
+    """Even an execution the actor can read is not proof that an unbound event
+    belongs to it; the event/execution link must be recorded, not inferred."""
+    session = audit_app.session
+    session.add(_event(
+        row_id="owned-unbound-execution", user_id="member",
+        workspace_id="ws-1", execution_id=None))
+    session.commit()
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="owned-unbound-execution",
+            execution_id="exec-member",
+            run_id="exec-member",
+        ),
+    )
+
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"]["code"] == "CORRECTION_SUBJECT_UNBOUND"
+    assert session.query(AgentFeedback).count() == before_feedback
+    assert _correction_receipt_count(session) == before_receipts
+
+
+def test_event_only_owned_correction_is_recorded_without_execution(audit_app):
+    """Documented legacy/event-only positive: an owned event with no recorded
+    execution is still correctable; no execution is invented for it."""
+    session = audit_app.session
+    session.add(_event(
+        row_id="ev-member-eventonly", user_id="member",
+        workspace_id="ws-1", execution_id=None))
+    session.commit()
+    before_feedback = session.query(AgentFeedback).count()
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="ev-member-eventonly",
+            execution_id=None,
+            run_id="",
+            subject_step_number=None,
+        ),
+    )
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["correction_status"] == "recorded"
+    assert data["applied"] is False and data["verified"] is False
+    assert session.query(AgentFeedback).count() == before_feedback + 1
+
+    feedback = (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.id == data["feedback_id"])
+        .one()
+    )
+    assert feedback.agent_execution_id is None
+    receipt = (
+        session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    meta = json.loads(receipt.metadata_json)
+    assert meta["subject_audit_id"] == "ev-member-eventonly"
+    assert "subject_execution_id" not in meta
+
+    # Replay is still idempotent and still claims nothing was applied.
+    replay = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="ev-member-eventonly",
+            execution_id=None,
+            run_id="",
+            subject_step_number=None,
+        ),
+    )
+    assert replay.status_code == 200
+    assert replay.json()["data"]["correction_status"] == "already_recorded"
+    assert replay.json()["data"]["applied"] is False
+    assert _correction_receipt_count(session) == 1
+
+
+def test_supplied_execution_is_authorized_independently_of_the_event(audit_app):
+    """A supplied execution that matches the event's recorded (foreign) id is
+    still refused: matching strings do not make a foreign run readable."""
+    session = audit_app.session
+    session.add(_event(
+        row_id="ev-member-contradictory", user_id="member",
+        workspace_id="ws-1", execution_id="exec-foreign"))
+    session.commit()
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="ev-member-contradictory",
+            execution_id="exec-foreign",
+            run_id="exec-foreign",
+        ),
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"]["code"] == "AUDIT_SUBJECT_NOT_FOUND"
+    assert session.query(AgentFeedback).count() == before_feedback
+    assert _correction_receipt_count(session) == before_receipts
+
+
+def test_execution_only_correction_refuses_unowned_runs(audit_app):
+    headers = _headers(audit_app.session, "member")
+    before_feedback = audit_app.session.query(AgentFeedback).count()
+    for execution_id in ("exec-other", "exec-foreign", "legacy-ws1"):
+        resp = audit_app.client.post(
+            "/api/reasoning/feedback",
+            json=_correction_payload(
+                subject_audit_id=None,
+                execution_id=execution_id,
+                run_id=execution_id,
+            ),
+            headers=headers,
+        )
+        assert resp.status_code == 404, (execution_id, resp.text)
+    assert audit_app.session.query(AgentFeedback).count() == before_feedback
+
+
+def test_correction_run_id_must_match_the_proven_execution(audit_app):
+    before_feedback = audit_app.session.query(AgentFeedback).count()
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(audit_app.session, "member"),
+        json=_correction_payload(run_id="exec-other"),
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"]["code"] == "CORRECTION_SUBJECT_MISMATCH"
+    assert audit_app.session.query(AgentFeedback).count() == before_feedback
+
+
+def test_correction_subject_step_must_belong_to_the_proven_execution(audit_app):
+    session = audit_app.session
+    before_feedback = session.query(AgentFeedback).count()
+
+    unknown = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(subject_step_number=999),
+    )
+    assert unknown.status_code == 422, unknown.text
+    assert unknown.json()["detail"]["code"] == "CORRECTION_STEP_NOT_FOUND"
+
+    session.add(_event(
+        row_id="ev-member-eventonly", user_id="member",
+        workspace_id="ws-1", execution_id=None))
+    session.commit()
+    no_execution = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="ev-member-eventonly",
+            execution_id=None,
+            run_id="",
+            subject_step_number=1,
+        ),
+    )
+    assert no_execution.status_code == 422, no_execution.text
+    assert no_execution.json()["detail"]["code"] == "CORRECTION_STEP_UNVERIFIED"
+    assert session.query(AgentFeedback).count() == before_feedback
+
+
+def test_refused_correction_does_not_mutate_a_foreign_step(audit_app):
+    from core.models import AgentReasoningStep
+
+    session = audit_app.session
+    session.add(_event(
+        row_id="owned-unbound-execution", user_id="member",
+        workspace_id="ws-1", execution_id=None))
+    session.add(AgentReasoningStep(
+        id=str(uuid.uuid4()), execution_id="exec-other", step_number=1,
+        step_type="action"))
+    session.commit()
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(session, "member"),
+        json=_correction_payload(
+            subject_audit_id="owned-unbound-execution",
+            execution_id="exec-other",
+            run_id="exec-other",
+            step_number=1,
+            subject_step_number=1,
+        ),
+    )
+    assert resp.status_code in (404, 422), resp.text
+
+    foreign_step = (
+        session.query(AgentReasoningStep)
+        .filter(
+            AgentReasoningStep.execution_id == "exec-other",
+            AgentReasoningStep.step_number == 1,
+        )
+        .one()
+    )
+    session.refresh(foreign_step)
+    assert foreign_step.feedback_score is None
+    assert foreign_step.feedback_text is None
+
+
+def test_correction_request_never_stamps_a_canvas(audit_app, monkeypatch):
+    """Canvas chat-feedback is ordinary-thumbs behaviour. A correction request
+    must not write into a caller-named (possibly foreign) canvas context."""
+    calls = []
+    monkeypatch.setattr(
+        reasoning_routes, "_stamp_canvas_chat_feedback",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    headers = _headers(audit_app.session, "member")
+
+    correction = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=headers,
+        json=_correction_payload(step_content={
+            "source": "canvas_chat",
+            "canvas_id": "canvas-foreign",
+            "input_summary": "correction-msg",
+            "thought": "wrong tool args",
+        }),
+    )
+    assert correction.status_code == 200, correction.text
+    assert calls == []
+
+    ordinary = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=headers,
+        json={
+            "agent_id": "agent-1",
+            "run_id": "exec-member",
+            "step_index": 0,
+            "step_content": {
+                "source": "canvas_chat",
+                "canvas_id": "canvas-foreign",
+                "input_summary": "thumbs-msg",
+                "thought": "fine",
+            },
+            "feedback_type": "thumbs_up",
+            "comment": "looks right",
+        },
+    )
+    assert ordinary.status_code == 200, ordinary.text
+    assert len(calls) == 1
+
+
+def test_channel_target_is_proven_only_when_server_recorded(audit_app):
+    session = audit_app.session
+    session.add(_event(
+        row_id="ev-member-goal", user_id="member", workspace_id="ws-1",
+        execution_id="exec-member", metadata={"goal_run_id": "goal-123"}))
+    session.commit()
+    headers = _headers(session, "member")
+
+    proven = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=headers,
+        json=_correction_payload(
+            subject_audit_id="ev-member-goal",
+            correction_channel="activity",
+            correction_target_id="goal-123",
+        ),
+    )
+    assert proven.status_code == 200, proven.text
+    proven_data = proven.json()["data"]
+    assert proven_data["channel_target_basis"] == "recorded_subject_target"
+    assert proven_data["repair_link_proven"] is True
+    proven_meta = json.loads(
+        session.query(AuditLog)
+        .filter(AuditLog.id == proven_data["correction_audit_id"])
+        .one()
+        .metadata_json
+    )
+    assert proven_meta["channel_target_basis"] == "recorded_subject_target"
+    assert proven_meta["repair_link_proven"] is True
+
+    forged = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=headers,
+        json=_correction_payload(
+            subject_audit_id="ev-member-goal",
+            comment="pointing at a different target",
+            correction_channel="activity",
+            correction_target_id="goal-forged",
+        ),
+    )
+    assert forged.status_code == 200, forged.text
+    forged_data = forged.json()["data"]
+    assert forged_data["channel_target_basis"] == "caller_asserted_unverified"
+    assert forged_data["repair_link_proven"] is False
+    assert forged_data["applied"] is False
+    assert forged_data["verified"] is False
+    assert "not presented as a proven repair link" in forged_data["status_note"]
+
+    timeline = audit_app.client.get(
+        "/api/audit/executions/exec-member", headers=headers).json()
+    receipt_event = next(
+        event for event in timeline["events"]
+        if event["id"] == forged_data["correction_audit_id"])
+    assert receipt_event["correction"]["repair_link_proven"] is False
+    assert (
+        receipt_event["correction"]["channel_target_basis"]
+        == "caller_asserted_unverified"
+    )
+
+
+def test_execution_only_correction_with_own_step_still_records(audit_app):
+    """AgentWorkspace path: no audit id, own execution + own step."""
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(audit_app.session, "member"),
+        json=_correction_payload(
+            subject_audit_id=None,
+            execution_id="exec-member",
+            run_id="exec-member",
+            subject_step_number=1,
+        ),
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["correction_status"] == "recorded"
+    meta = json.loads(
+        audit_app.session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+        .metadata_json
+    )
+    assert meta["subject_execution_id"] == "exec-member"
+    assert meta["subject_step_number"] == 1
+    assert "subject_audit_id" not in meta
+
+
+def test_supervisor_correction_stays_inside_the_current_workspace(audit_app):
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(audit_app.session, "lead"),
+        json=_correction_payload(
+            subject_audit_id="ev-other",
+            execution_id="exec-other",
+            run_id="exec-other",
+            subject_step_number=None,
+        ),
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    receipt = (
+        audit_app.session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    assert receipt.user_id == "lead"
+    assert receipt.workspace_id == "ws-1"
+    assert json.loads(receipt.metadata_json)["subject_execution_id"] == "exec-other"
+
+
+def test_personal_scope_event_correction_keeps_default_compatibility(audit_app):
+    """Personal/null workspace keeps the documented default bucket, and an
+    event whose execution has no AgentExecution row is still a valid subject."""
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        headers=_headers(audit_app.session, "personal"),
+        json=_correction_payload(
+            subject_audit_id="ev-personal",
+            execution_id=None,
+            run_id="",
+            subject_step_number=None,
+        ),
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    receipt = (
+        audit_app.session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    assert receipt.user_id == "personal"
+    assert receipt.workspace_id == "default"
+    meta = json.loads(receipt.metadata_json)
+    assert meta["subject_audit_id"] == "ev-personal"
+    assert meta["subject_execution_id"] == "exec-personal"
+    feedback = (
+        audit_app.session.query(AgentFeedback)
+        .filter(AgentFeedback.id == data["feedback_id"])
+        .one()
+    )
+    # No AgentExecution row exists, so no binding is invented.
+    assert feedback.agent_execution_id is None
+
+
 def test_correction_request_refuses_deactivated_actor(audit_app):
     stale = SimpleNamespace(id="gone", role=UserRole.MEMBER.value,
                             workspace_id="ws-1", tenant_id="t-1")

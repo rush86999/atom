@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Set, Tuple
 import uuid
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
@@ -13,10 +14,12 @@ from core.audit_access import (
     CORRECTION_TARGET_ID_RE,
     AuditAccessDenied,
     authoritative_actor,
+    exact_execution_condition,
     execution_identifier_valid,
     execution_visible_to_scope,
     load_visible_audit_row,
     parse_metadata,
+    recorded_correction_targets,
     resolve_audit_scope,
     row_execution_id,
     scoped_event_query,
@@ -24,7 +27,7 @@ from core.audit_access import (
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AgentExecution, User
+from core.models import AgentExecution, AgentReasoningStep, User
 
 logger = logging.getLogger(__name__)
 
@@ -97,106 +100,266 @@ def _resolve_correction_authority(db: Session, current_user: User):
     return actor, resolve_audit_scope(actor)
 
 
+@dataclass(frozen=True)
+class _CorrectionSubject:
+    """The proven correction subject — server-recorded ids only.
+
+    ``execution_id`` is always the id recorded on the subject audit row (or
+    the independently authorized execution for an execution-only request).
+    A caller-supplied id never becomes the binding by itself.
+    """
+
+    execution_id: Optional[str]
+    audit_id: Optional[str]
+    step_number: Optional[int]
+    channel_target_basis: Optional[str]
+    repair_link_proven: bool
+
+
+def _correction_refusal(
+    status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={"code": code, "message": message},
+    )
+
+
+def _authorized_execution(
+    db: Session,
+    scope: Dict[str, Any],
+    execution_id: str,
+    agent_id: str,
+) -> None:
+    """Independently authorize one supplied execution id.
+
+    A supplied execution is a claim, not evidence: it must be visible under
+    the SAME audit read scope as the subject row and, when a persisted run
+    exists, name the same agent. A member's ownership evidence is an
+    owner-scoped audit row (or a workspace-bound run for a supervisor).
+    """
+    if (
+        not execution_identifier_valid(execution_id)
+        or not execution_visible_to_scope(db, scope, execution_id)
+    ):
+        raise _correction_refusal(
+            404,
+            "AUDIT_SUBJECT_NOT_FOUND",
+            (
+                "That execution is not in your authorized audit scope; "
+                "no correction was recorded."
+            ),
+        )
+    execution = (
+        db.query(AgentExecution)
+        .filter(AgentExecution.id == execution_id)
+        .first()
+    )
+    if (
+        execution is not None
+        and execution.agent_id
+        and str(execution.agent_id) != str(agent_id)
+    ):
+        raise _correction_refusal(
+            422,
+            "CORRECTION_SUBJECT_MISMATCH",
+            "The agent id does not match the execution.",
+        )
+
+
+def _subject_recorded_targets(
+    db: Session,
+    scope: Dict[str, Any],
+    row: Any,
+    execution_id: Optional[str],
+) -> Set[Tuple[str, str]]:
+    """Server-recorded (channel, target) pairs for the proven subject.
+
+    Mirrors the audit reader: the subject event's own metadata, the bound
+    execution's metadata, and the scoped events of that execution. Only
+    allowlisted keys written by the server count; a caller-asserted pair can
+    never enter this set.
+    """
+    sources: list = []
+    if row is not None:
+        sources.append(parse_metadata(row.metadata_json))
+    if execution_id:
+        execution = (
+            db.query(AgentExecution)
+            .filter(AgentExecution.id == execution_id)
+            .first()
+        )
+        if execution is not None:
+            raw = execution.metadata_json
+            sources.append(raw if isinstance(raw, dict) else parse_metadata(raw))
+        for event_row in (
+            scoped_event_query(db, scope)
+            .filter(exact_execution_condition(execution_id))
+            .all()
+        ):
+            sources.append(parse_metadata(event_row.metadata_json))
+    pairs: Set[Tuple[str, str]] = set()
+    for source in sources:
+        for target in recorded_correction_targets(source):
+            pairs.add((str(target["channel"]), str(target["target_id"])))
+    return pairs
+
+
 def _validate_correction_subject(
     db: Session,
     scope: Dict[str, Any],
     feedback: ReasoningStepFeedback,
-) -> Optional[str]:
-    """Prove the referenced audit subject is visible to this actor.
+) -> _CorrectionSubject:
+    """Prove the COMPLETE correction subject is a linked, server-known object.
 
-    The subject may be an audit row id, an execution id, or both. Both are
-    checked against the SAME audit read scope used by /api/audit; a mismatch
-    between the claimed ids, a foreign workspace row, or an unowned execution
-    is refused before any feedback is written.
+    The subject may be an audit row and/or an execution. Every supplied
+    identifier is authorized independently against the same audit read scope
+    used by /api/audit, and the event/execution/agent/step binding must be
+    proven from recorded data — never inferred from a caller-supplied id.
+    Validation happens before any feedback row is written.
+
+    Rules:
+    * An owned audit row with no recorded execution supports an event-only
+      correction (no ``execution_id``). Supplying an execution for that
+      unbound event is refused: there is no recorded link to prove.
+    * A supplied execution must be visible to the actor and match the
+      execution recorded on the event (and its agent) when both exist.
+    * ``run_id`` must agree with the proven execution when both are present.
+    * A supplied step (``subject_step_number``/``step_number``) must belong to
+      the proven execution; an unknown step is refused, not silently accepted.
+    * A channel target is labelled ``recorded_subject_target`` only when the
+      server recorded that exact (channel, target) pair for the subject;
+      otherwise it stays caller-asserted and never implies repair authority.
     """
     execution_id = (feedback.execution_id or "").strip() or None
     subject_audit_id = (feedback.subject_audit_id or "").strip() or None
+    row: Any = None
 
     if subject_audit_id:
         try:
             row = load_visible_audit_row(db, scope, subject_audit_id)
         except AuditAccessDenied as exc:
             raise _audit_denial(exc) from exc
-        row_execution = row_execution_id(row)
-        if execution_id and row_execution and row_execution != execution_id:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "CORRECTION_SUBJECT_MISMATCH",
-                    "message": "The audit event and execution ids do not match.",
-                },
-            )
-        execution_id = execution_id or row_execution
         row_meta = parse_metadata(row.metadata_json)
         row_agent = row_meta.get("agent_id") or row.resource
         if row_agent and str(row_agent) != str(feedback.agent_id):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "CORRECTION_SUBJECT_MISMATCH",
-                    "message": "The agent id does not match the audit event.",
-                },
+            raise _correction_refusal(
+                422,
+                "CORRECTION_SUBJECT_MISMATCH",
+                "The agent id does not match the audit event.",
             )
-    elif execution_id:
-        if (
-            not execution_identifier_valid(execution_id)
-            or not execution_visible_to_scope(db, scope, execution_id)
-        ):
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "code": "AUDIT_SUBJECT_NOT_FOUND",
-                    "message": (
-                        "That execution is not in your authorized audit scope; "
-                        "no correction was recorded."
+        recorded_execution = row_execution_id(row)
+        if execution_id:
+            # A visible event with a different recorded execution is a
+            # mismatch the actor can be told about (the row is already theirs
+            # to read). Visibility of the supplied id is then checked on its
+            # own, so a foreign id cannot ride an owned event.
+            if recorded_execution is not None and recorded_execution != execution_id:
+                raise _correction_refusal(
+                    422,
+                    "CORRECTION_SUBJECT_MISMATCH",
+                    "The audit event and execution ids do not match.",
+                )
+            _authorized_execution(db, scope, execution_id, feedback.agent_id)
+            if recorded_execution is None:
+                raise _correction_refusal(
+                    422,
+                    "CORRECTION_SUBJECT_UNBOUND",
+                    (
+                        "That audit event has no recorded execution, so a "
+                        "supplied execution id cannot be proven to belong to "
+                        "it; no correction was recorded."
                     ),
-                },
+                )
+        # The binding is the id recorded on the event, never the caller's id.
+        execution_id = recorded_execution
+    elif execution_id:
+        _authorized_execution(db, scope, execution_id, feedback.agent_id)
+    else:
+        raise _correction_refusal(
+            422,
+            "CORRECTION_SUBJECT_REQUIRED",
+            "A correction request must reference an audited event or execution.",
+        )
+
+    claimed_run = (feedback.run_id or "").strip() or None
+    if execution_id and claimed_run and claimed_run != execution_id:
+        raise _correction_refusal(
+            422,
+            "CORRECTION_SUBJECT_MISMATCH",
+            "The run id does not match the proven execution.",
+        )
+
+    step_number = (
+        feedback.subject_step_number
+        if feedback.subject_step_number is not None
+        else feedback.step_number
+    )
+    if step_number is not None:
+        if not execution_id:
+            raise _correction_refusal(
+                422,
+                "CORRECTION_STEP_UNVERIFIED",
+                (
+                    "No execution is recorded for this subject, so the step "
+                    "cannot be verified; no correction was recorded."
+                ),
             )
-        execution = (
-            db.query(AgentExecution)
-            .filter(AgentExecution.id == execution_id)
+        step_exists = (
+            db.query(AgentReasoningStep.id)
+            .filter(
+                AgentReasoningStep.execution_id == execution_id,
+                AgentReasoningStep.step_number == step_number,
+            )
             .first()
         )
-        if (
-            execution is not None
-            and execution.agent_id
-            and str(execution.agent_id) != str(feedback.agent_id)
-        ):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "CORRECTION_SUBJECT_MISMATCH",
-                    "message": "The agent id does not match the execution.",
-                },
+        if step_exists is None:
+            raise _correction_refusal(
+                422,
+                "CORRECTION_STEP_NOT_FOUND",
+                (
+                    "That step is not recorded for the proven execution; "
+                    "no correction was recorded."
+                ),
             )
-    else:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "CORRECTION_SUBJECT_REQUIRED",
-                "message": "A correction request must reference an audited event or execution.",
-            },
-        )
 
     channel = (feedback.correction_channel or "").strip() or None
     if channel and channel not in CORRECTION_CHANNELS:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "CORRECTION_CHANNEL_UNSUPPORTED",
-                "message": "That repair channel is not supported.",
-            },
+        raise _correction_refusal(
+            422,
+            "CORRECTION_CHANNEL_UNSUPPORTED",
+            "That repair channel is not supported.",
         )
     target_id = (feedback.correction_target_id or "").strip() or None
     if target_id and not CORRECTION_TARGET_ID_RE.match(target_id):
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "CORRECTION_TARGET_INVALID",
-                "message": "The correction target identifier is not valid.",
-            },
+        raise _correction_refusal(
+            422,
+            "CORRECTION_TARGET_INVALID",
+            "The correction target identifier is not valid.",
         )
-    return execution_id
+
+    recorded_targets: Set[Tuple[str, str]] = set()
+    if channel or target_id:
+        recorded_targets = _subject_recorded_targets(
+            db, scope, row, execution_id)
+    if channel and target_id:
+        if (channel, target_id) in recorded_targets:
+            basis, proven = "recorded_subject_target", True
+        else:
+            basis, proven = "caller_asserted_unverified", False
+    elif channel:
+        basis, proven = "channel_only_unverified", False
+    elif target_id:
+        basis, proven = "target_without_channel", False
+    else:
+        basis, proven = None, False
+
+    return _CorrectionSubject(
+        execution_id=execution_id,
+        audit_id=str(row.id) if row is not None else None,
+        step_number=step_number,
+        channel_target_basis=basis,
+        repair_link_proven=proven,
+    )
 
 
 def _existing_correction_link(
@@ -256,8 +419,31 @@ def _correction_payload(
     status: str,
     audit_id: Optional[str],
     feedback: ReasoningStepFeedback,
+    subject: _CorrectionSubject,
 ) -> Dict[str, Any]:
     """Truthful receipt: requested/recorded only — never applied/verified."""
+    note = {
+        "recorded": (
+            "Correction request recorded and linked to the audited item. "
+            "Nothing was applied or verified."
+        ),
+        "already_recorded": (
+            "An identical correction request is already recorded and linked. "
+            "Nothing was applied or verified."
+        ),
+        "feedback_recorded_audit_unavailable": (
+            "Feedback was recorded, but the audit link could not be written. "
+            "The request is not shown as applied or verified."
+        ),
+    }.get(status, "Correction request recorded. Nothing was applied or verified.")
+    if (
+        status in ("recorded", "already_recorded")
+        and subject.channel_target_basis == "caller_asserted_unverified"
+    ):
+        note += (
+            " The named review target is caller-asserted: it is not recorded "
+            "on this subject and is not presented as a proven repair link."
+        )
     return {
         "id": feedback_id,
         "feedback_id": feedback_id,
@@ -267,20 +453,9 @@ def _correction_payload(
         "verified": False,
         "channel": (feedback.correction_channel or "").strip() or None,
         "channel_target_id": (feedback.correction_target_id or "").strip() or None,
-        "status_note": {
-            "recorded": (
-                "Correction request recorded and linked to the audited item. "
-                "Nothing was applied or verified."
-            ),
-            "already_recorded": (
-                "An identical correction request is already recorded and linked. "
-                "Nothing was applied or verified."
-            ),
-            "feedback_recorded_audit_unavailable": (
-                "Feedback was recorded, but the audit link could not be written. "
-                "The request is not shown as applied or verified."
-            ),
-        }.get(status, "Correction request recorded. Nothing was applied or verified."),
+        "channel_target_basis": subject.channel_target_basis,
+        "repair_link_proven": subject.repair_link_proven,
+        "status_note": note,
     }
 
 
@@ -290,26 +465,25 @@ def _write_correction_receipt(
     actor: User,
     feedback_row: Any,
     feedback: ReasoningStepFeedback,
-    execution_id: str,
+    subject: _CorrectionSubject,
 ) -> Dict[str, Any]:
     existing_link = _existing_correction_link(db, scope, str(feedback_row.id))
     if existing_link is not None:
         return _correction_payload(
-            str(feedback_row.id), "already_recorded", str(existing_link.id), feedback)
+            str(feedback_row.id), "already_recorded",
+            str(existing_link.id), feedback, subject)
     audit_id = log_correction_request(
         feedback_id=str(feedback_row.id),
         user_id=str(actor.id),
         workspace_id=scope["workspace_id"],
         agent_id=feedback.agent_id,
-        execution_id=execution_id,
-        subject_audit_id=(feedback.subject_audit_id or "").strip() or None,
-        subject_step_number=(
-            feedback.subject_step_number
-            if feedback.subject_step_number is not None
-            else feedback.step_number
-        ),
+        execution_id=subject.execution_id,
+        subject_audit_id=subject.audit_id,
+        subject_step_number=subject.step_number,
         channel=(feedback.correction_channel or "").strip() or None,
         target_id=(feedback.correction_target_id or "").strip() or None,
+        channel_target_basis=subject.channel_target_basis,
+        repair_link_proven=subject.repair_link_proven,
         reason=(feedback.correction_reason or "").strip()[:2000] or None,
     )
     return _correction_payload(
@@ -317,8 +491,8 @@ def _write_correction_receipt(
         "recorded" if audit_id else "feedback_recorded_audit_unavailable",
         audit_id,
         feedback,
+        subject,
     )
-
 
 
 def _stamp_canvas_chat_feedback(db, feedback, db_feedback, user_id: str = None) -> None:
@@ -380,11 +554,11 @@ async def submit_step_feedback(
     # written, so a refused request leaves no half-recorded dispute behind.
     correction_actor: Optional[User] = None
     correction_scope: Optional[Dict[str, Any]] = None
-    correction_execution_id: Optional[str] = None
+    correction_subject: Optional[_CorrectionSubject] = None
     if feedback.correction_requested:
         correction_actor, correction_scope = _resolve_correction_authority(
             db, current_user)
-        correction_execution_id = _validate_correction_subject(
+        correction_subject = _validate_correction_subject(
             db, correction_scope, feedback)
 
     # Context payload describing the step being reviewed. feedback_type is
@@ -396,14 +570,15 @@ async def submit_step_feedback(
         "feedback_type": feedback.feedback_type,
         "step_content": feedback.step_content
     }
-    if feedback.correction_requested:
+    if correction_subject is not None:
         # A correction against a different audit subject is a different
         # dispute; keeping it in the idempotency key prevents the old
-        # thumbs-dedup from silently swallowing it.
+        # thumbs-dedup from silently swallowing it. Only the proven subject
+        # ids are stored, never the raw caller-asserted ones.
         context_payload["correction"] = {
-            "subject_audit_id": feedback.subject_audit_id,
-            "subject_execution_id": correction_execution_id,
-            "subject_step_number": feedback.subject_step_number,
+            "subject_audit_id": correction_subject.audit_id,
+            "subject_execution_id": correction_subject.execution_id,
+            "subject_step_number": correction_subject.step_number,
             "channel": feedback.correction_channel,
             "target_id": feedback.correction_target_id,
         }
@@ -431,12 +606,14 @@ async def submit_step_feedback(
         .first()
     )
     if existing is not None:
-        _stamp_canvas_chat_feedback(db, feedback, existing, user_id=str(current_user.id))
-        if feedback.correction_requested and correction_scope is not None:
-            _bind_feedback_execution(db, existing, correction_execution_id)
+        if correction_subject is None:
+            _stamp_canvas_chat_feedback(
+                db, feedback, existing, user_id=str(current_user.id))
+        if correction_subject is not None and correction_scope is not None:
+            _bind_feedback_execution(db, existing, correction_subject.execution_id)
             data = _write_correction_receipt(
                 db, correction_scope, correction_actor, existing, feedback,
-                correction_execution_id or "",
+                correction_subject,
             )
             data["duplicate"] = True
             return router.success_response(
@@ -469,19 +646,27 @@ async def submit_step_feedback(
             user_correction=user_correction,
             input_context=input_context
         )
-        _stamp_canvas_chat_feedback(db, feedback, db_feedback, user_id=str(current_user.id))
+        if correction_subject is None:
+            _stamp_canvas_chat_feedback(
+                db, feedback, db_feedback, user_id=str(current_user.id))
 
         # Write-through: when the reviewed step belongs to a persisted run,
         # stamp the polarity + comment directly on the reasoning-step row so
         # training consumers (harness evolution, failure-pattern mining) can
         # query it without parsing AgentFeedback input_context blobs.
-        if feedback.execution_id and feedback.step_number is not None:
-            from core.models import AgentReasoningStep
-
+        # On a correction request the execution is the PROVEN subject
+        # execution, so a client-supplied foreign id can never reach a
+        # reasoning-step row (a canvas is likewise never touched above).
+        step_execution_id = (
+            correction_subject.execution_id
+            if correction_subject is not None
+            else feedback.execution_id
+        )
+        if step_execution_id and feedback.step_number is not None:
             step_row = (
                 db.query(AgentReasoningStep)
                 .filter(
-                    AgentReasoningStep.execution_id == feedback.execution_id,
+                    AgentReasoningStep.execution_id == step_execution_id,
                     AgentReasoningStep.step_number == feedback.step_number,
                 )
                 .first()
@@ -494,11 +679,12 @@ async def submit_step_feedback(
                     step_row.feedback_text = feedback.comment
                 db.commit()
 
-        if feedback.correction_requested and correction_scope is not None:
-            _bind_feedback_execution(db, db_feedback, correction_execution_id)
+        if correction_subject is not None and correction_scope is not None:
+            _bind_feedback_execution(
+                db, db_feedback, correction_subject.execution_id)
             data = _write_correction_receipt(
                 db, correction_scope, correction_actor, db_feedback, feedback,
-                correction_execution_id or "",
+                correction_subject,
             )
             return router.success_response(
                 data=data,

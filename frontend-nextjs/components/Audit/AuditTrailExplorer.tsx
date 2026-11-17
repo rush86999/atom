@@ -431,7 +431,9 @@ function CorrectionRequestForm({
                             No audit receipt was written; nothing is shown as applied.
                         </p>
                     )}
-                    {targets.length > 0 && selectedTarget?.href && (
+                    {targets.length > 0 &&
+                        selectedTarget?.href &&
+                        result.repair_link_proven !== false && (
                         <a
                             className="inline-block text-xs font-medium text-primary underline"
                             href={selectedTarget.href}
@@ -439,6 +441,16 @@ function CorrectionRequestForm({
                         >
                             Open {selectedTarget.label} to review a repair
                         </a>
+                    )}
+                    {selectedTarget && result.repair_link_proven === false && (
+                        <p
+                            className="text-xs text-muted-foreground"
+                            data-testid="audit-correction-channel-unverified"
+                        >
+                            The review channel reference was recorded, but that target is
+                            not recorded on this event, so it is not shown as a linked
+                            repair channel. Opening it changes nothing automatically.
+                        </p>
                     )}
                     {targets.length === 0 && (
                         <p className="text-xs text-muted-foreground">

@@ -59,11 +59,33 @@ Flow:
 - The subject must be an audit row and/or execution visible under the same
   audit read scope. Validation happens BEFORE feedback is written, so a
   refused request leaves no half-recorded dispute.
+- The COMPLETE subject is validated as one linked server-known object:
+  - An owned audit row with no recorded execution supports an event-only
+    correction. Supplying an execution id for that unbound event is refused
+    (422) — an unrecorded event/execution link is never inferred.
+  - Every supplied execution id is authorized independently of the event
+    (visibility + agent). Matching an event's recorded id does not make a
+    foreign run readable.
+  - When the event records an execution, the submitted id must equal it; the
+    receipt's `subject_execution_id` is always the recorded id.
+  - `run_id` must agree with the proven execution.
+  - A submitted step (`subject_step_number` or `step_number`) must belong to
+    the proven execution; an unknown step is refused, not silently recorded.
 - Claimed agent/execution/audit ids must agree; an arbitrary URL, path or
   unknown channel is rejected (422).
 - The audit receipt carries `status="requested"`, `applied=false`,
   `verified=false`, the feedback id, actor, timestamp, reason and (when
   present) `channel` + `channel_target_id`.
+- A channel target is only a **proven** link when the exact
+  `(channel, target_id)` pair appears in allowlisted metadata the server
+  recorded for the subject (the event, its bound execution, or that
+  execution's scoped events). Otherwise the receipt records
+  `channel_target_basis="caller_asserted_unverified"` and
+  `repair_link_proven=false`; the UI does not render it as a linked review
+  channel. No new target registry is introduced.
+- Correction requests never stamp a canvas: canvas chat-feedback remains
+  ordinary-thumbs behaviour, so a caller-named canvas id cannot be mutated
+  through the correction path.
 - Retries are idempotent: the existing feedback dedup key includes the audit
   subject, and the receipt is reused if already written.
 - If the audit link cannot be written, the response says

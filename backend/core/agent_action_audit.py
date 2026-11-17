@@ -232,6 +232,8 @@ def log_correction_request(
     subject_step_number: Optional[int] = None,
     channel: Optional[str] = None,
     target_id: Optional[str] = None,
+    channel_target_basis: Optional[str] = None,
+    repair_link_proven: bool = False,
     reason: Optional[str] = None,
 ) -> Optional[str]:
     """Record a correction REQUEST (never an applied/verified repair).
@@ -241,6 +243,11 @@ def log_correction_request(
     truthfully that nothing was applied or independently verified. The
     governed Activity/Learning/assignment/Auto-Dev surface still owns any
     actual change.
+
+    ``channel_target_basis`` records HOW the named target was established:
+    ``recorded_subject_target`` only when the caller matched metadata the
+    server recorded for the subject; otherwise the target stays
+    caller-asserted and ``repair_link_proven`` remains false.
     """
     from datetime import datetime, timezone
 
@@ -264,6 +271,9 @@ def log_correction_request(
         metadata["channel_status"] = "requested"
     if target_id:
         metadata["channel_target_id"] = str(target_id)
+    if channel_target_basis:
+        metadata["channel_target_basis"] = str(channel_target_basis)
+    metadata["repair_link_proven"] = bool(repair_link_proven)
     if reason:
         metadata["reason"] = str(reason)
 

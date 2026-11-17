@@ -337,6 +337,36 @@ test("report problem is prefilled and records a REQUEST with a safe channel link
   );
 });
 
+test("a caller-asserted channel target is not presented as a proven link", async () => {
+  mockedCorrection.mockResolvedValue({
+    id: "fb-3",
+    feedback_id: "fb-3",
+    correction_status: "recorded",
+    correction_audit_id: "aud-3",
+    applied: false,
+    verified: false,
+    channel: "activity",
+    channel_target_id: "goal-forged",
+    channel_target_basis: "caller_asserted_unverified",
+    repair_link_proven: false,
+    status_note: "recorded; caller-asserted target is not a proven link",
+  });
+  await openTimeline();
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[1]);
+  fireEvent.change(screen.getByTestId("audit-correction-channel"), {
+    target: { value: "activity" },
+  });
+  fireEvent.click(screen.getByTestId("audit-correction-submit"));
+
+  const result = await screen.findByTestId("audit-correction-result");
+  expect(result).toHaveTextContent("recorded");
+  expect(screen.queryByTestId("audit-correction-channel-link")).toBeNull();
+  expect(
+    screen.getByTestId("audit-correction-channel-unverified"),
+  ).toHaveTextContent("not shown as a linked repair channel");
+  expect(result.textContent || "").not.toMatch(/verified:\s*yes/i);
+});
+
 test("a denied correction request is reported as not recorded", async () => {
   mockedCorrection.mockRejectedValue(
     new AuditApiError("denied", { kind: "forbidden", status: 403 }),
