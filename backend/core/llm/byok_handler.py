@@ -10633,8 +10633,17 @@ class BYOKHandler:
                         _structured_skipped += 1
                         failed_providers.add(provider_id)
                         continue
+                    # Endpoint identity is read from this server-owned client
+                    # (never a request field). A client without a readable
+                    # base_url is UNKNOWN, not attested: legacy path.
+                    try:
+                        _configured_endpoint = getattr(
+                            client, "base_url", None)
+                    except Exception:  # noqa: BLE001 — unknown endpoint
+                        _configured_endpoint = None
                     _wire_contract = resolve_structured_wire_contract(
-                        provider_id, model)
+                        provider_id, model,
+                        configured_endpoint=_configured_endpoint)
                     _wire_protocol = (
                         _wire_contract.protocol if _wire_contract else None)
                     _json_mode = (
@@ -10799,7 +10808,16 @@ class BYOKHandler:
                     _logprobs_key = f"{provider_id}/{model}"
                     # PROVIDER/MODEL WIRE CONTRACT (2026-11-17): ONLY an
                     # exact, dated (provider, model) declaration in
-                    # core.llm.wire_capabilities changes the request shape.
+                    # core.llm.wire_capabilities, bound to the client's ACTUAL
+                    # configured base URL, changes the request shape. A
+                    # provider label is not an endpoint: OPENCODE_BASE_URL can
+                    # repoint opencode-go at Zen/custom/loopback, and that
+                    # client must not inherit the Go route's attestation.
+                    # Endpoint identity comes from this server-owned client,
+                    # never from a request field. A missing/overridden/
+                    # look-alike endpoint resolves None and keeps the legacy
+                    # payload + reactive recovery below.
+                    #
                     # A declared route gets the thinking switch its vendor
                     # documents, not the OpenRouter extension. DeepSeek's API
                     # enables thinking by default and rejects forced/named

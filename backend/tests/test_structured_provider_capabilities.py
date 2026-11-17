@@ -19,10 +19,16 @@ behavior:
   and accept ``reasoning_effort: "none"``; native docs list ``logprobs``;
 * the exact OpenCode Go ``deepseek-v4-pro`` route captures the documented
   rejection + JSON-mode success; no other Go/DeepSeek model, and no other
-  gateway, inherits it;
+  gateway OR endpoint under the same label, inherits it;
 * an unknown, future or legacy route gets the historical payload and the
   existing typed-error recovery (one changed retry, then a pair memo — never
   an identical repeat).
+
+Attestation is bound to the configured SDK base URL, not to the provider
+label. The tests exercise that with real clients over ``MockTransport``:
+official DeepSeek/Go base URLs take the declared payload; ``OPENCODE_BASE_URL``
+overrides (Zen, custom host, loopback), missing endpoints, and hostname
+look-alikes take the legacy payload and reactive recovery.
 
 No live provider, model, key or network call is used.
 """
@@ -47,6 +53,14 @@ from tests.test_reasoning_mandatory_retry import _handler as _minimal_handler
 
 class _WireProbe(BaseModel):
     value: str
+
+
+#: Server-owned official base URLs used by the real SDK clients below. Tests
+#: never add a localhost/test URL to the attested catalogue: overrides and
+#: look-alikes must go through the same legacy path as production.
+_NATIVE_ENDPOINT = "https://api.deepseek.com/v1"
+_NATIVE_ENDPOINT_ALIAS = "https://api.deepseek.com"
+_GO_ENDPOINT = "https://opencode.ai/inference/go/openai/v1"
 
 
 def _completion_body(body: dict, content: dict, model: str) -> dict:
@@ -92,21 +106,25 @@ def _error(status: int, message: str) -> httpx.Response:
     })
 
 
-def _client(responder, provider_id: str) -> openai.OpenAI:
+def _client(responder, provider_id: str,
+            base_url: str | None = None) -> openai.OpenAI:
     transport = httpx.MockTransport(responder)
-    base = "https://api.deepseek.com/v1" if provider_id == "deepseek" else (
-        "https://opencode.ai/inference/go/openai/v1"
-        if provider_id == "opencode-go" else "http://localhost:11434/v1")
+    if base_url is None:
+        base_url = _NATIVE_ENDPOINT if provider_id == "deepseek" else (
+            _GO_ENDPOINT
+            if provider_id == "opencode-go" else "http://localhost:11434/v1")
     return openai.OpenAI(
-        base_url=base, api_key="offline-test",
+        base_url=base_url, api_key="offline-test",
         http_client=httpx.Client(transport=transport))
 
 
-def _handler_for(provider_id: str, model: str, responder) -> BYOKHandler:
+def _handler_for(provider_id: str, model: str, responder,
+                 *, base_url: str | None = None) -> BYOKHandler:
     handler = _minimal_handler()
     handler.get_ranked_providers = MagicMock(
         return_value=AwaitableResult([(provider_id, model)]))
-    handler.clients = {provider_id: _client(responder, provider_id)}
+    handler.clients = {
+        provider_id: _client(responder, provider_id, base_url=base_url)}
     handler.async_clients = {}
     # The wire tests double the accounting boundary; the durable ledger
     # contract has its own regression below with the full scratch handler.
@@ -156,15 +174,25 @@ def test_contract_resolution_is_exact_and_sourced():
     )
 
     # The catalogue itself is pinned: three exact routes, no family expansion.
-    assert {(d.provider_id, d.model_id) for d in declared_routes()} == {
+    declared = {
+        (d.provider_id, d.model_id): d for d in declared_routes()}
+    assert set(declared) == {
         ("deepseek", "deepseek-flash"),
         ("deepseek", "deepseek-v4-pro"),
         ("opencode-go", "deepseek-v4-pro"),
     }
+    # Attestation is bound to the official endpoint, not only to the label.
+    for model in ("deepseek-flash", "deepseek-v4-pro"):
+        assert _NATIVE_ENDPOINT in declared[
+            ("deepseek", model)].attested_endpoints
+        assert _NATIVE_ENDPOINT_ALIAS in declared[
+            ("deepseek", model)].attested_endpoints
+    assert declared[("opencode-go", "deepseek-v4-pro")].attested_endpoints == (
+        _GO_ENDPOINT,)
 
-    # The exact Go route with served evidence (2026-10-18).
+    # The exact Go route with served evidence (2026-10-18), on the Go endpoint.
     gateway = resolve_structured_wire_contract(
-        "opencode-go", "deepseek-v4-pro")
+        "opencode-go", "deepseek-v4-pro", configured_endpoint=_GO_ENDPOINT)
     assert gateway is not None
     assert gateway.protocol == "json"
     assert gateway.supports_logprobs is False
@@ -172,7 +200,8 @@ def test_contract_resolution_is_exact_and_sourced():
 
     # The two native identifiers the first-party endpoint reported as served.
     for model in ("deepseek-flash", "deepseek-v4-pro"):
-        native = resolve_structured_wire_contract("deepseek", model)
+        native = resolve_structured_wire_contract(
+            "deepseek", model, configured_endpoint=_NATIVE_ENDPOINT)
         assert native is not None, model
         assert native.protocol == "tools", model
         assert native.requires_thinking_disabled is True, model
@@ -183,34 +212,114 @@ def test_contract_resolution_is_exact_and_sourced():
 
     # Identifier normalization is case/whitespace only.
     assert resolve_structured_wire_contract(
-        " OpenCode-Go ", " DeepSeek-V4-Pro ").protocol == "json"
+        " OpenCode-Go ", " DeepSeek-V4-Pro ",
+        configured_endpoint=_GO_ENDPOINT).protocol == "json"
 
     # An UNVERIFIED future id on a declared gateway inherits NOTHING from the
     # brand token.
     assert resolve_structured_wire_contract(
-        "opencode-go", "deepseek-unannounced-synthetic-v999") is None
+        "opencode-go", "deepseek-unannounced-synthetic-v999",
+        configured_endpoint=_GO_ENDPOINT) is None
     # Nor does a legacy/native distill id inherit the native v4 cohort.
     assert resolve_structured_wire_contract(
-        "deepseek", "deepseek-r1-distill-synthetic") is None
+        "deepseek", "deepseek-r1-distill-synthetic",
+        configured_endpoint=_NATIVE_ENDPOINT) is None
     # Nor does the Go Flash route inherit the v4-pro declaration.
     assert resolve_structured_wire_contract(
-        "opencode-go", "deepseek-v4.1-flash") is None
+        "opencode-go", "deepseek-v4.1-flash",
+        configured_endpoint=_GO_ENDPOINT) is None
     # A date/snapshot tail is NOT stripped into the declared id.
     assert resolve_structured_wire_contract(
-        "opencode-go", "deepseek-v4-pro-20261018") is None
+        "opencode-go", "deepseek-v4-pro-20261018",
+        configured_endpoint=_GO_ENDPOINT) is None
     # A vendor-path tail is NOT matched against a first-party id.
     assert resolve_structured_wire_contract(
-        "deepseek", "deepseek/deepseek-v4-pro") is None
+        "deepseek", "deepseek/deepseek-v4-pro",
+        configured_endpoint=_NATIVE_ENDPOINT) is None
     # Go evidence is never transplanted to another gateway/provider.
     assert resolve_structured_wire_contract(
-        "opencode", "deepseek/deepseek-v4-pro") is None
+        "opencode", "deepseek/deepseek-v4-pro",
+        configured_endpoint="https://opencode.ai/zen/v1") is None
     assert resolve_structured_wire_contract(
-        "zen", "deepseek-v4-pro") is None
+        "zen", "deepseek-v4-pro",
+        configured_endpoint="https://opencode.ai/zen/v1") is None
     assert resolve_structured_wire_contract(
-        "openrouter", "deepseek/deepseek-v4-pro") is None
+        "openrouter", "deepseek/deepseek-v4-pro",
+        configured_endpoint="https://openrouter.ai/api/v1") is None
     assert resolve_structured_wire_contract(
-        "mystery-provider", "mystery-model") is None
-    assert resolve_structured_wire_contract("deepseek", "") is None
+        "mystery-provider", "mystery-model",
+        configured_endpoint="https://example.test/v1") is None
+    assert resolve_structured_wire_contract(
+        "deepseek", "", configured_endpoint=_NATIVE_ENDPOINT) is None
+
+
+def test_contract_requires_the_actual_configured_wire_endpoint():
+    """A provider/model label is not an endpoint, and no field can claim one."""
+    from core.llm.wire_capabilities import resolve_structured_wire_contract
+
+    def _resolve(provider, model, endpoint):
+        return resolve_structured_wire_contract(
+            provider, model, configured_endpoint=endpoint)
+
+    # Positive controls: documented official paths (incl. the /v1 alias and a
+    # trailing slash / explicit 443) are the attested endpoint.
+    for model in ("deepseek-flash", "deepseek-v4-pro"):
+        for endpoint in (
+                _NATIVE_ENDPOINT,
+                _NATIVE_ENDPOINT_ALIAS,
+                _NATIVE_ENDPOINT + "/",
+                "https://api.deepseek.com:443/v1"):
+            assert _resolve("deepseek", model, endpoint) is not None, (
+                model, endpoint)
+    assert _resolve(
+        "opencode-go", "deepseek-v4-pro", _GO_ENDPOINT) is not None
+
+    # Missing/blank/unparseable endpoint: legacy behavior, never an inference.
+    for missing in (None, "", "   ", "not-a-url", "api.deepseek.com/v1"):
+        assert _resolve("deepseek", "deepseek-v4-pro", missing) is None, missing
+        assert _resolve(
+            "opencode-go", "deepseek-v4-pro", missing) is None, missing
+
+    # A label repointed by OPENCODE_BASE_URL at Zen, a custom host or loopback
+    # did not serve the attested route.
+    for overridden in (
+            "https://opencode.ai/zen/v1",
+            "https://opencode.ai/zen/go/v1",
+            "https://custom-gateway.example/v1",
+            "http://127.0.0.1:11434/v1",
+            "http://localhost:8080/v1",
+    ):
+        assert _resolve(
+            "opencode-go", "deepseek-v4-pro", overridden) is None, overridden
+    # Neither did a native DeepSeek label repointed at another host/path.
+    for overridden in (
+            "https://api.deepseek.com/v2",
+            "http://api.deepseek.com/v1",
+            "https://deepseek.example/v1",
+    ):
+        assert _resolve(
+            "deepseek", "deepseek-v4-pro", overridden) is None, overridden
+
+    # Hostname look-alikes, userinfo, queries, fragments and path suffixes are
+    # NOT the official endpoint.
+    for lookalike in (
+            "https://api.deepseek.com.evil.test/v1",
+            "https://api.deepseek.com@evil.test/v1",
+            "https://api.deepseek.com/v1/evil",
+            "https://api.deepseek.com/v1?x=1",
+            "https://api.deepseek.com/v1#fragment",
+            "https://opencode.ai.evil.test/inference/go/openai/v1",
+            "https://opencode.ai@evil.test/inference/go/openai/v1",
+            "https://opencode.ai/inference/go/openai/v2",
+    ):
+        assert _resolve(
+            "deepseek", "deepseek-v4-pro", lookalike) is None, lookalike
+        assert _resolve(
+            "opencode-go", "deepseek-v4-pro", lookalike) is None, lookalike
+
+    # Go Flash stays unknown even on the official Go endpoint.
+    assert _resolve(
+        "opencode-go", "deepseek-v4.1-flash", _GO_ENDPOINT) is None
 
 
 def _deepseek_twin(
@@ -547,6 +656,155 @@ def test_unverified_gateway_does_not_inherit_go_route(monkeypatch):
     assert "tools" not in seen[1], seen[1]
     from core.llm import byok_handler as bh
     assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+    _clear_pair_memos(provider, model)
+
+
+# ---------------------------------------------------------------------------
+# Endpoint binding: a declared LABEL on a different endpoint is legacy
+# ---------------------------------------------------------------------------
+class _LegacyEndpointTwin:
+    """Endpoint that only knows the historical payload + reactive recovery.
+
+    It actively rejects the declared extensions (``reasoning_effort`` for a
+    native/Go declaration and JSON mode chosen from the start), so a body that
+    arrives with them proves an attestation leaked across endpoints.
+    """
+
+    def __init__(self, model: str):
+        self.model = model
+        self.bodies: list[dict] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        self.bodies.append(body)
+        if body.get("reasoning_effort") is not None:
+            return _error(
+                400, "Unrecognized request argument supplied: reasoning_effort")
+        if "reasoning" in body:
+            return _error(
+                400, "Unrecognized request argument supplied: reasoning")
+        if body.get("tools") and body.get("tool_choice") not in (
+                None, "auto", "none"):
+            return _error(
+                400, "Thinking mode does not support this tool_choice")
+        if body.get("tools"):
+            return _error(400, "tools are not accepted on this endpoint")
+        if body.get("response_format") == {"type": "json_object"}:
+            return httpx.Response(200, json=_completion_body(
+                body, {"value": "legacy-endpoint-ok"}, self.model))
+        return _error(400, "unexpected request shape")
+
+
+@pytest.mark.parametrize("overridden", [
+    "https://opencode.ai/zen/v1",
+    "https://opencode.ai/zen/go/v1",
+    "https://custom-gateway.example/v1",
+    "http://127.0.0.1:11434/v1",
+    "http://localhost:8080/v1",
+])
+def test_overridden_go_label_does_not_inherit_go_contract(
+        monkeypatch, overridden):
+    """OPENCODE_BASE_URL can repoint the label; the endpoint did not serve it."""
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode-go", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    twin = _LegacyEndpointTwin(model)
+    handler = _handler_for(provider, model, twin, base_url=overridden)
+
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "legacy-endpoint-ok"
+    # Historical payload first: tools + the legacy reasoning object + the
+    # historical soft-SC logprobs field. NOT JSON mode, NOT reasoning_effort.
+    assert len(twin.bodies) == 3, twin.bodies
+    assert twin.bodies[0].get("tools"), twin.bodies[0]
+    assert twin.bodies[0].get("reasoning") == {
+        "enabled": False, "exclude": True}, twin.bodies[0]
+    assert "reasoning_effort" not in twin.bodies[0], twin.bodies[0]
+    assert twin.bodies[0].get("logprobs") is True, twin.bodies[0]
+    # Then the two pre-existing reactive corrections, each a DIFFERENT payload:
+    # drop the rejected reasoning object, then switch to JSON after the
+    # thinking-mode tool_choice rejection. This is legacy recovery, not the
+    # declared Go JSON contract from the start.
+    assert "reasoning" not in twin.bodies[1], twin.bodies[1]
+    assert twin.bodies[1].get("tools"), twin.bodies[1]
+    assert "tools" not in twin.bodies[2], twin.bodies[2]
+    assert twin.bodies[2].get("response_format") == {
+        "type": "json_object"}, twin.bodies[2]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._REASONING_MANDATORY
+    assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+    # The unsupported-thinking-switch memo does not exist for this pair (the
+    # declared switch was never sent), so it cannot affect this endpoint.
+    assert f"{provider}/{model}" not in bh._THINKING_SWITCH_UNSUPPORTED
+    _clear_pair_memos(provider, model)
+
+
+@pytest.mark.parametrize("lookalike", [
+    "https://api.deepseek.com.evil.test/v1",
+])
+def test_hostname_lookalike_native_endpoint_keeps_legacy_wire(
+        monkeypatch, lookalike):
+    """An exact host match is required; a look-alike is an unknown endpoint."""
+    monkeypatch.delenv("ATOM_SC_SOFT", raising=False)
+    provider, model = "deepseek", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    twin = _LegacyEndpointTwin(model)
+    handler = _handler_for(provider, model, twin, base_url=lookalike)
+
+    result = _call(handler, disable_reasoning=False)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "legacy-endpoint-ok"
+    # Legacy first attempt: forced tool choice, WITHOUT the native
+    # reasoning_effort switch. The existing tool_choice recovery then moves to
+    # JSON. A declared native contract would have put reasoning_effort on the
+    # first body; the twin rejects it, so this asserts no leak.
+    assert len(twin.bodies) == 2, twin.bodies
+    assert twin.bodies[0].get("tools"), twin.bodies[0]
+    assert "reasoning_effort" not in twin.bodies[0], twin.bodies[0]
+    assert "response_format" not in twin.bodies[0], twin.bodies[0]
+    assert "tools" not in twin.bodies[1], twin.bodies[1]
+    assert twin.bodies[1].get("response_format") == {
+        "type": "json_object"}, twin.bodies[1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+    assert f"{provider}/{model}" not in bh._THINKING_SWITCH_UNSUPPORTED
+    _clear_pair_memos(provider, model)
+
+
+def test_existing_thinking_switch_memo_cannot_affect_undeclared_endpoint(
+        monkeypatch):
+    """The process memo is scoped to the declared endpoint, never to a label.
+
+    A previous official-native call can leave
+    ``_THINKING_SWITCH_UNSUPPORTED`` for ``deepseek/deepseek-v4-pro``. A later
+    client whose base URL is a hostname look-alike has NO contract (endpoint
+    mismatch), so the memo must not force JSON mode before the first request.
+    This is the route where the memo would matter: the native declaration has
+    ``requires_thinking_disabled=True``.
+    """
+    monkeypatch.delenv("ATOM_SC_SOFT", raising=False)
+    provider, model = "deepseek", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    from core.llm import byok_handler as bh
+    bh._THINKING_SWITCH_UNSUPPORTED.add(f"{provider}/{model}")
+    twin = _LegacyEndpointTwin(model)
+    handler = _handler_for(
+        provider, model, twin,
+        base_url="https://api.deepseek.com.evil.test/v1")
+
+    result = _call(handler, disable_reasoning=False)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "legacy-endpoint-ok"
+    # First body is the historical TOOLS payload, NOT the memo-selected JSON.
+    assert len(twin.bodies) >= 1, twin.bodies
+    assert twin.bodies[0].get("tools"), twin.bodies[0]
+    assert "response_format" not in twin.bodies[0], twin.bodies[0]
+    assert "reasoning_effort" not in twin.bodies[0], twin.bodies[0]
+    # The existing tool_choice recovery still moves to JSON afterwards.
+    assert "tools" not in twin.bodies[-1], twin.bodies[-1]
+    assert twin.bodies[-1].get("response_format") == {
+        "type": "json_object"}, twin.bodies[-1]
     _clear_pair_memos(provider, model)
 
 
