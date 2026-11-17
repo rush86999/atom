@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AlertTriangle, CheckCircle2, History, Link2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -370,6 +376,27 @@ export function ConversationLearningReview({
   const [history, setHistory] = useState<LearningCandidateHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // History pages are fetched asynchronously and can land after the reviewer
+  // has already moved on. Each request remembers the exact scope it was made
+  // for and a monotonically increasing generation; a response is applied only
+  // while it is still the current one for that same thread/source/candidate/
+  // revision. Any invalidation (selection, adopted revision, thread change,
+  // unmount) bumps the generation so a late page can never repopulate a
+  // drawer it no longer describes.
+  const historyRequestRef = useRef(0);
+  const historyScopeRef = useRef("");
+  const historyMountedRef = useRef(true);
+  const historyScope = [
+    threadId,
+    sourceKind,
+    payload?.review.candidate_id ?? "",
+    String(payload?.review.revision ?? ""),
+  ].join("\u0000");
+  // Written during render on purpose: the scope must be current before any
+  // already-queued promise callback can run after this commit.
+  historyScopeRef.current = historyScope;
+
   const [draft, setDraft] = useState({
     agentId: "",
     lesson: "",
@@ -390,6 +417,14 @@ export function ConversationLearningReview({
     conditions: "",
     decisionOptions: "",
   });
+
+  /** Drop the cached page and invalidate any in-flight request for it. */
+  const resetHistory = useCallback(() => {
+    historyRequestRef.current += 1;
+    setHistory(null);
+    setHistoryError(null);
+    setHistoryLoading(false);
+  }, []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -421,9 +456,8 @@ export function ConversationLearningReview({
     setEditDraft(null);
     setEditReason("");
     setApplyResult(null);
-    setHistory(null);
+    resetHistory();
     setHistoryOpen(false);
-    setHistoryError(null);
     setNotice(null);
     setError(null);
   };
@@ -447,6 +481,15 @@ export function ConversationLearningReview({
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Unmount invalidates any in-flight history page.
+    historyMountedRef.current = true;
+    return () => {
+      historyMountedRef.current = false;
+      historyRequestRef.current += 1;
     };
   }, []);
 
@@ -502,13 +545,29 @@ export function ConversationLearningReview({
     });
     // The stored ledger changed; drop the cached page so an open drawer
     // reloads once instead of showing a stale revision list.
-    setHistory(null);
-    setHistoryError(null);
-  }, []);
+    resetHistory();
+  }, [resetHistory]);
 
   const loadHistory = useCallback(async (offset: number) => {
     const candidateKey = payload?.review.candidate_id;
-    if (!candidateKey) return;
+    const revision = payload?.review.revision;
+    if (!candidateKey || revision == null) return;
+    const requestScope = [
+      threadId,
+      sourceKind,
+      candidateKey,
+      String(revision),
+    ].join("\u0000");
+    const requestId = historyRequestRef.current + 1;
+    historyRequestRef.current = requestId;
+    // A response may only touch state while this exact request is still the
+    // newest one for the still-selected thread/source/candidate/revision and
+    // the component is still mounted. Late A pages, late A errors, late
+    // pagination after a switch, and pages for a superseded revision are all
+    // dropped here instead of leaking into the visible drawer.
+    const isCurrent = () => historyMountedRef.current
+      && historyRequestRef.current === requestId
+      && historyScopeRef.current === requestScope;
     setHistoryLoading(true);
     setHistoryError(null);
     try {
@@ -518,6 +577,7 @@ export function ConversationLearningReview({
         { limit: HISTORY_PAGE_SIZE, offset },
         sourceKind,
       );
+      if (!isCurrent()) return;
       setHistory((current) => {
         if (!offset || !current) return page;
         const seen = new Set(current.events.map((event) => event.event_id));
@@ -536,11 +596,12 @@ export function ConversationLearningReview({
         };
       });
     } catch (err: any) {
+      if (!isCurrent()) return;
       setHistoryError(errorText(err, "Could not load the revision history"));
     } finally {
-      setHistoryLoading(false);
+      if (isCurrent()) setHistoryLoading(false);
     }
-  }, [payload?.review.candidate_id, threadId, sourceKind]);
+  }, [payload?.review.candidate_id, payload?.review.revision, threadId, sourceKind]);
 
   useEffect(() => {
     // Explicit opening only: the review itself issues no history request.
@@ -649,7 +710,7 @@ export function ConversationLearningReview({
       setCandidates((rows) => rows.map((row) =>
         row.review.candidate_id === resolved.review.candidate_id
           ? resolved : row));
-      setHistory(null);
+      resetHistory();
       setNotice("Answer recorded. The candidate needs review again.");
     } catch (err: any) {
       setError(errorText(err, "Could not resolve the question"));
@@ -685,7 +746,7 @@ export function ConversationLearningReview({
         review.revision, review.digest, sourceKind, review.status);
       setNotice(`Lesson promoted (${promoted.lesson_id}).`);
       await load();
-      setHistory(null);
+      resetHistory();
     } catch (err: any) {
       setError(errorText(err, "Could not promote the lesson"));
     } finally {
@@ -813,10 +874,9 @@ export function ConversationLearningReview({
     setEditInitial(null);
     setEditDraft(null);
     setEditReason("");
-    setHistory(null);
+    resetHistory();
     setHistoryOpen(false);
-    setHistoryError(null);
-  }, [threadId, sourceKind, candidateId]);
+  }, [threadId, sourceKind, candidateId, resetHistory]);
 
   return (
     <section className={`space-y-3 text-xs ${className}`} data-testid="conversation-learning-review">

@@ -8,7 +8,7 @@
  * overwriting a newer revision.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConversationLearningReview } from "@/components/learning/ConversationLearningReview";
 import * as learningApi from "@/lib/conversation-learning-api";
 
@@ -154,6 +154,39 @@ function historyPage(overrides: Record<string, any> = {}) {
     signatures: { present: false, detail: "no signature mechanism" },
     read_only: true,
     ...overrides,
+  };
+}
+
+function historyPageWithReason(reason: string, candidateId = "cand/1") {
+  const page = historyPage();
+  return {
+    ...page,
+    candidate_id: candidateId,
+    events: [{
+      ...page.events[0],
+      event_id: `ev-${reason}`,
+      reason,
+      reason_recorded: true,
+    }],
+    coverage: {
+      ...page.coverage,
+      total_events: 1,
+      returned: 1,
+    },
+  };
+}
+
+function emptyHistoryPage(candidateId = "cand/2") {
+  const page = historyPage();
+  return {
+    ...page,
+    candidate_id: candidateId,
+    events: [],
+    coverage: {
+      ...page.coverage,
+      total_events: 0,
+      returned: 0,
+    },
   };
 }
 
@@ -526,5 +559,180 @@ describe("ConversationLearningReview correction", () => {
       .toHaveTextContent("the source conversation changed");
     expect(screen.getByTestId("learning-evidence-stale"))
       .toHaveTextContent("rates.xlsx (stale)");
+  });
+
+  test("ROOT deferred history cannot appear under another candidate", async () => {
+    let resolveA: (value: any) => void = () => {};
+    historyFor.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveA = resolve;
+    }));
+    historyFor.mockResolvedValue(historyPage({ candidate_id: "cand/2", events: [] }));
+    listCandidates.mockResolvedValue([
+      payload(),
+      payload({ candidate_id: "cand/2", proposed_lesson: "SECOND CANDIDATE" }),
+    ]);
+    render(<ConversationLearningReview threadId="thread-1" sourceKind="email" />);
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByTestId("learning-candidate-select"), {
+      target: { value: "cand/2" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("SECOND CANDIDATE"));
+    fireEvent.click(screen.getByTestId("learning-history-toggle"));
+    await act(async () => {
+      resolveA(historyPage());
+    });
+    await waitFor(() => expect(screen.queryByText(/Wrong workbook was cited/))
+      .not.toBeInTheDocument());
+    expect(historyFor.mock.calls.some((call: any[]) => call[1] === "cand/2"))
+      .toBe(true);
+  });
+
+  test("the newly selected candidate shows its own history while the first is pending", async () => {
+    let resolveA: (value: any) => void = () => {};
+    historyFor.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveA = resolve;
+    }));
+    historyFor.mockResolvedValueOnce(
+      historyPageWithReason("B recorded history.", "cand/2"));
+    listCandidates.mockResolvedValue([
+      payload(),
+      payload({ candidate_id: "cand/2", proposed_lesson: "SECOND CANDIDATE" }),
+    ]);
+    render(<ConversationLearningReview threadId="thread-1" sourceKind="email" />);
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByTestId("learning-candidate-select"), {
+      target: { value: "cand/2" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("SECOND CANDIDATE"));
+    fireEvent.click(screen.getByTestId("learning-history-toggle"));
+
+    expect(await screen.findByText(/B recorded history/)).toBeInTheDocument();
+    expect(historyFor.mock.calls[1][1]).toBe("cand/2");
+    await act(async () => {
+      resolveA(historyPage());
+    });
+    expect(screen.getByText(/B recorded history/)).toBeInTheDocument();
+    expect(screen.queryByText(/Wrong workbook was cited/))
+      .not.toBeInTheDocument();
+    expect(historyFor).toHaveBeenCalledTimes(2);
+  });
+
+  test("a late error from the previous candidate does not surface under the new one", async () => {
+    let rejectA: (reason?: any) => void = () => {};
+    historyFor.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectA = reject;
+    }));
+    historyFor.mockResolvedValueOnce(
+      historyPageWithReason("B recorded history.", "cand/2"));
+    listCandidates.mockResolvedValue([
+      payload(),
+      payload({ candidate_id: "cand/2", proposed_lesson: "SECOND CANDIDATE" }),
+    ]);
+    render(<ConversationLearningReview threadId="thread-1" sourceKind="email" />);
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByTestId("learning-candidate-select"), {
+      target: { value: "cand/2" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("SECOND CANDIDATE"));
+    fireEvent.click(screen.getByTestId("learning-history-toggle"));
+    expect(await screen.findByText(/B recorded history/)).toBeInTheDocument();
+
+    await act(async () => {
+      rejectA(new Error("deferred A failure"));
+    });
+    expect(screen.queryByTestId("learning-history-error"))
+      .not.toBeInTheDocument();
+    expect(screen.getByText(/B recorded history/)).toBeInTheDocument();
+  });
+
+  test("returning to the first candidate ignores its earlier deferred page", async () => {
+    let resolveFirstA: (value: any) => void = () => {};
+    historyFor.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFirstA = resolve;
+    }));
+    historyFor.mockResolvedValueOnce(
+      historyPageWithReason("Fresh A history."));
+    listCandidates.mockResolvedValue([
+      payload(),
+      payload({ candidate_id: "cand/2", proposed_lesson: "SECOND CANDIDATE" }),
+    ]);
+    render(<ConversationLearningReview threadId="thread-1" sourceKind="email" />);
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByTestId("learning-candidate-select"), {
+      target: { value: "cand/2" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("SECOND CANDIDATE"));
+    fireEvent.change(screen.getByTestId("learning-candidate-select"), {
+      target: { value: "cand/1" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-proposed-lesson"))
+      .toHaveTextContent("Use the approved rates workbook."));
+    fireEvent.click(screen.getByTestId("learning-history-toggle"));
+
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/Fresh A history/)).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirstA(historyPageWithReason("STALE first A page."));
+    });
+    expect(screen.queryByText(/STALE first A page/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Fresh A history/)).toBeInTheDocument();
+    expect(historyFor).toHaveBeenCalledTimes(2);
+  });
+
+  test("a page for the pre-revision candidate is dropped after a revision is saved", async () => {
+    let resolveOldRevision: (value: any) => void = () => {};
+    historyFor.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveOldRevision = resolve;
+    }));
+    historyFor.mockResolvedValueOnce(
+      historyPageWithReason("Fresh revision history."));
+    listCandidates.mockResolvedValue([payload({
+      status: "confirmed",
+      confirmed_by: "owner",
+      confirmed_revision: 1,
+    })]);
+    reviseCandidate.mockResolvedValue(payload({
+      status: "review_ready",
+      revision: 2,
+      proposed_lesson: "Use the corrected rates workbook.",
+    }));
+    render(<ConversationLearningReview threadId="thread-1" sourceKind="email" />);
+    fireEvent.click(await screen.findByTestId("learning-history-toggle"));
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId("learning-revise"));
+    fireEvent.change(screen.getByTestId("learning-edit-lesson"), {
+      target: { value: "Use the corrected rates workbook." },
+    });
+    fireEvent.click(screen.getByTestId("learning-revise-save"));
+
+    await waitFor(() => expect(screen.getByText("revision 2"))
+      .toBeInTheDocument());
+    // The cached page was dropped for the new revision, so the open drawer
+    // reloads exactly once.
+    await waitFor(() => expect(historyFor).toHaveBeenCalledTimes(2));
+    expect(historyFor.mock.calls[1][1]).toBe("cand/1");
+    expect(await screen.findByText(/Fresh revision history/))
+      .toBeInTheDocument();
+
+    await act(async () => {
+      resolveOldRevision(historyPageWithReason("STALE pre-revision page."));
+    });
+    expect(screen.queryByText(/STALE pre-revision page/))
+      .not.toBeInTheDocument();
+    expect(screen.getByText(/Fresh revision history/)).toBeInTheDocument();
+    expect(historyFor).toHaveBeenCalledTimes(2);
   });
 });
