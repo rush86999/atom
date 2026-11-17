@@ -10128,6 +10128,7 @@ class ChatOrchestrator:
         # the finally below so fire-and-forget work spawned at turn end
         # (fact extraction, dedup indexing) is background again.
         _interactive_token = None
+        _write_actor_token = None
         try:
             from core.llm.interactive_context import mark_interactive_chat
 
@@ -10135,6 +10136,16 @@ class ChatOrchestrator:
         except Exception:  # noqa: BLE001 — classification only, never blocks
             _interactive_token = None
         try:
+            # DURABLE-WRITE ACTOR PIN (2026-11-17): the transcript writer
+            # resolves the CURRENT User row again at write time; this pin is
+            # only the admitted principal id for the error fallback when the
+            # session projection is unavailable (e.g. session creation
+            # failed). Deliberately a separate contextvar —
+            # ``request_scope`` is splatted into LLM dispatch calls, whose
+            # signatures own their own keyword contract.
+            from core.chat_message_authority import pin_chat_write_actor
+
+            _write_actor_token = pin_chat_write_actor(user_id)
             # THE TURN DEADLINE STARTS HERE — the first statement of the request,
             # before session load, provenance hydration, planning or any provider
             # call. Everything downstream spends from this one clock (see
@@ -19773,6 +19784,12 @@ class ChatOrchestrator:
                 from core.request_scope import reset_request_scope
 
                 reset_request_scope(_scope_token)
+            except Exception:  # noqa: BLE001 — hygiene, never masks the turn
+                pass
+            try:
+                from core.chat_message_authority import reset_chat_write_actor
+
+                reset_chat_write_actor(_write_actor_token)
             except Exception:  # noqa: BLE001 — hygiene, never masks the turn
                 pass
             if _interactive_token is not None:
@@ -37561,10 +37578,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         try:
             from core.database import get_db_session
             from core.models import ChatMessage as ChatMessageModel
+            from core.chat_message_authority import resolve_chat_message_scope
             session_id = session.get("id")
-            tenant_id = self.tenant_id or "default"
+            _durable_assistant_message_id = None
             if session_id:
                 with get_db_session() as db:
+                    # OWNED-SESSION WRITE AUTHORITY (2026-11-17): the
+                    # orchestrator is a default-scope singleton, so its
+                    # construction tenant can never own a user's transcript
+                    # rows. Resolve the acting User and its durable
+                    # ChatSession owner HERE, in the same transaction as the
+                    # append, and fence both before writing. A foreign,
+                    # changed or revoked scope refuses the append outright
+                    # (the turn's answer is still delivered) instead of
+                    # falling back to the default tenant.
+                    _write_scope = resolve_chat_message_scope(db, session)
+                    if not _write_scope.get("ok"):
+                        logger.warning(
+                            "Chat transcript write refused for session %s "
+                            "(%s): %s", session_id,
+                            _write_scope.get("error_code"),
+                            _write_scope.get("message"))
+                        return None
+                    tenant_id = (
+                        _write_scope.get("tenant_id")
+                        or self.tenant_id
+                        or "default")
                     # R72 Workstream I — backfill channel/thread binding on the
                     # session row (covers legacy sessions created pre-fix).
                     try:
@@ -37605,11 +37644,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         import uuid as _uuid_msg
 
                         _asst_msg_id = str(_uuid_msg.uuid4())
-                        try:
-                            session["history"][-1]["assistant_message_id"] = (
-                                _asst_msg_id)
-                        except Exception:
-                            pass
                         _msg_meta: Dict[str, Any] = {}
                         _msg_meta["assistant_message_id"] = _asst_msg_id
                         _turn_execution_id = (
@@ -37730,6 +37764,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ))
                         except Exception:
                             pass
+                        else:
+                            # The row id becomes the turn's identity ONLY
+                            # after the surrounding transaction commits; a
+                            # failed insert/commit must not leave an in-memory
+                            # "durable" message id for the transport pin.
+                            _durable_assistant_message_id = _asst_msg_id
+                if _durable_assistant_message_id:
+                    try:
+                        session["history"][-1]["assistant_message_id"] = (
+                            _durable_assistant_message_id)
+                    except Exception:
+                        pass
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
 

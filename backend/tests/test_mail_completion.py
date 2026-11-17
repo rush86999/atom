@@ -251,6 +251,9 @@ class _FakeQuery:
         self._limit_n = n
         return self
 
+    def first(self):
+        return self._rows[0] if self._rows else None
+
     def all(self):
         return list(self._rows[:self._limit_n] if self._limit_n else self._rows)
 

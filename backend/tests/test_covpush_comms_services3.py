@@ -1347,7 +1347,7 @@ class TestOrchestratorRemaining:
 
     async def test_update_session_row_backfill(self):
         orch = make_orchestrator()
-        session = {"id": "s1", "user_id": "u1", "channel_id": "ch1", "thread_id": "th1", "history": []}
+        session = {"id": "s1", "channel_id": "ch1", "thread_id": "th1", "history": []}
         db = MagicMock()
         row = MagicMock()
         row.channel_id = None

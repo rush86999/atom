@@ -2140,19 +2140,12 @@ class TestChatSessions:
         db.__exit__ = MagicMock(return_value=False)
         db.query.return_value.filter.return_value.first.return_value = None
 
-        class FakeChatMessage:
-            def __init__(self, **kw):
-                self.__dict__.update(kw)
-
-        class FakeChatSession:
-            def __init__(self, **kw):
-                self.__dict__.update(kw)
-
         monkeypatch.setattr("core.database.get_db_session", lambda: db)
-        monkeypatch.setattr("core.models.ChatMessage", FakeChatMessage)
-        monkeypatch.setattr("core.models.ChatSession", FakeChatSession)
         orch = make_orch()
-        session = orch._get_or_create_session("u1", "s1", None)
+        # Direct/legacy writer shape: no authenticated actor is supplied, so
+        # the writer's declared construction scope applies. The owned-actor
+        # path is exercised by the real boundary suite.
+        session = {"id": "s1", "history": []}
         orch._update_session(session, "hi", {"message": "hello"}, {"primary_intent": "x"})
         assert len(session["history"]) == 1
         assert session["history"][0]["message"] == "hi"

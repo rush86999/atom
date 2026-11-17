@@ -28,6 +28,10 @@ from core.security.rbac import require_role
 from core.database import get_db
 from sqlalchemy.orm import Session as _Session
 from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
+from core.chat_message_authority import (
+    LEGACY_PLACEHOLDER_USER_IDS,
+    is_legacy_placeholder_owner as _is_legacy_placeholder_owner,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,24 +42,6 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()
-
-LEGACY_PLACEHOLDER_USER_IDS = frozenset({
-    "", "default", "default_user", "anonymous", "anonymous_sales_user", "guest",
-    "user", "test_user", "test_user_context", "test_user_agent", "test_user_e2e",
-    "test_user_001", "test-user", "test-user-id", "unit_test_user",
-    # Greptile PR #583 follow-up: sessions persisted with the all-zero (nil)
-    # UUID owner are ownerless ghosts — no real user id can ever equal it, so
-    # without this entry they load at startup and stay permanently unclaimable.
-    "00000000-0000-0000-0000-000000000000",
-})
-
-
-def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
-    return (
-        owner is None
-        or not str(owner).strip()
-        or str(owner) in LEGACY_PLACEHOLDER_USER_IDS
-    )
 
 
 def _context_canvas_id(context: Any) -> Optional[str]:

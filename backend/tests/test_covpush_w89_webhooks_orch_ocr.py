@@ -1337,7 +1337,7 @@ class TestSessions:
         cm = MagicMock()
         cm.__enter__.return_value = fake_db
         orch.session_manager = None
-        sess = {"id": "s1", "user_id": "u1", "channel_id": "c1", "thread_id": "t1",
+        sess = {"id": "s1", "channel_id": "c1", "thread_id": "t1",
                 "history": []}
         with patch.object(cdb, "get_db_session", return_value=cm):
             orch._update_session(sess, "hello",

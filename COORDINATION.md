@@ -639,3 +639,41 @@ candidate` then `TestLearnRouteSignedToken`) 3/3;
 `test_covpush_w72b_api_routes.py -k TestLearnRoutes` 12/12; autodev
 review/apply/boundary suites 21/21. No live DB, provider call, generated-
 code execution, push or PR.
+
+---
+
+## Session: chat-message actor scope (2026-11-17, branch `codex/chat-message-actor-scope-20261117`)
+
+Scope: persisted chat transcripts attributed to the module-level
+`ChatOrchestrator()` singleton's default tenant instead of the authenticated
+actor (observed real API signup/login/chat: correct `ChatRequestRecord`
+tenant, both `ChatMessage` rows `tenant_id='default'`).
+
+Files owned/edited this session (only these):
+
+- `backend/core/chat_message_authority.py` (new) — thin seam over the existing
+  `goal_run_decision_service._resolve_actor` / `claim_fresh_reviewer`
+  fresh-actor fence plus the durable `ChatSession` owner check. The
+  chat-session placeholder class moved here from `chat_routes` so read and
+  write paths share one definition; `external_agent_user` is a separate
+  system-scope identity (deliberately NOT reclaimable by local callers).
+- `backend/integrations/chat_orchestrator.py` — turn-scoped write-actor pin;
+  `_update_session` resolves/fences the owned actor + session in the write
+  transaction, writes that tenant, and only publishes the assistant message
+  id after a successful commit.
+- `backend/integrations/chat_routes.py` — imports the shared placeholder
+  definitions (no behavior change on the read paths).
+- `backend/tests/test_chat_message_actor_scope.py` +
+  `backend/tests/fixtures/served_chat_scope_app.py` (new) — served real
+  uvicorn/SQLite/JWT/singleton boundary controls (two tenants, concurrent
+  model await, NULL-tenant global user, foreign/changed/revoked refusals,
+  storage outage, cold restart).
+- `.github/workflows/ci.yml` + `backend/tests/fixtures/ci_backend_additions.json`
+  + `backend/tests/fixtures/ci_backend_core_extra.json` — additive step.
+- Four unit tests updated only to construct the direct/no-actor writer shape
+  they exercise (`test_covpush_emailcrm`, `test_covpush_w89_webhooks_orch_ocr`,
+  `test_covpush_comms_services3`, `test_mail_completion` fake query).
+
+Not changed: async/fork/background-delivery writer paths keep their existing
+job-record/declared scope contracts; the foreign-session public read envelope
+(separate PR) was not touched. No live DB, provider call, restart, push or PR.
