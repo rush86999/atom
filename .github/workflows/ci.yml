@@ -903,11 +903,13 @@ jobs:
           python -m pytest tests/test_promotion_evidence_gate.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # Pinned planning failure isolation (additive): per-call failure
-      # diagnostics are exercised against a fake provider service only — no
-      # provider, network, credentials or live data — proving a later
-      # refusal cannot inherit an earlier call's error. The DATABASE_URL is
-      # an explicit dedicated scratch sqlite file so the lane never touches
-      # the repo dev DB.
+      # diagnostics are exercised against a fake provider service, plus one
+      # actual-boundary arm using the real service/handler and an in-process
+      # httpx.MockTransport (no socket) — no provider, network, credentials or
+      # live data — proving a later refusal cannot inherit an earlier call's
+      # error and a strict qualification pin cannot unpin onto a weaker route.
+      # The DATABASE_URL is an explicit dedicated scratch sqlite file so the
+      # lane never touches the repo dev DB.
       - name: Run pinned planning failure isolation controls
         env:
           TESTING: "1"

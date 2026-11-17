@@ -9917,6 +9917,10 @@ class BYOKHandler:
         claim_wait_seconds: Optional[float] = None,  # bounded sibling-claim wait
         capability_profile: Optional[str] = None,  # server-selected workload contract
         capability_preference: Optional[str] = None,  # economy|balanced|quality
+        # Explicit qualification pin: exact route or failed attempt at THIS
+        # boundary too. Forwarded by pinned_structured_call for a strict pin;
+        # ``None`` (every legacy/ordinary caller) keeps historical behavior.
+        strict_pin: Optional[bool] = None,
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -9951,6 +9955,13 @@ class BYOKHandler:
           single tuple (used by MoA samples + the aggregator) and disables
           MoA dispatch to prevent recursion. ``allow_moa=False`` opts out of
           MoA entirely (used by the self-consistency voter's own samples).
+          ``strict_pin=True`` (forwarded by ``pinned_structured_call`` for an
+          explicit qualification pin) makes that pin exact-route-or-failure
+          at THIS boundary too: provider/model cooldown, local-only, provider
+          policy, request context fit and failed-pin exclusion fail closed
+          BEFORE dispatch instead of dropping the pin and re-ranking onto the
+          caller's weaker eligible pool. ``None`` keeps the historical
+          re-rank for ordinary pins.
           Defaults are chosen so an unmodified call is byte-identical to
           pre-R72 behavior (MoA only fires for hard tasks when enabled).
 
@@ -10061,6 +10072,42 @@ class BYOKHandler:
                 capability_profile, task_type)
             if _capability is not None:
                 set_routing_profile(_capability.name, _capability.version)
+
+            # EXPLICIT STRICT QUALIFICATION PIN (dispatch-floor repair).
+            # ``pinned_structured_call`` forwards ``strict_pin=True`` only
+            # for a call whose contract is exact-route-or-failure. The
+            # availability/policy gates below must then REFUSE BEFORE any
+            # dispatch instead of dropping the pin and re-ranking onto the
+            # caller's already-eligible (weaker/unmeasured) pool: that
+            # re-rank used to return a normal model answer before the later
+            # identity/effect gate could demote it. ``None`` is every legacy
+            # and ordinary caller and keeps the historical re-rank.
+            _strict_pin = bool(strict_pin) and provider_model is not None
+
+            def _refuse_strict_pin(reason: str, detail: str) -> None:
+                """Record and fail ONE strict pin attempt; never dispatch."""
+                entry: Dict[str, Any] = {
+                    "event": "pin_refused",
+                    "route": list(provider_model or ()),
+                    "reason": reason,
+                    "workspace_id": self.workspace_id or "default",
+                    "tenant_id": self.tenant_id or "default",
+                }
+                if _capability is not None:
+                    entry["profile"] = _capability.metadata()
+                record_capability_decision(entry)
+                set_routing_error("pin_failed", detail)
+                _route = tuple(provider_model or ("?", "?"))
+                logger.warning(
+                    "STRICT PIN %s/%s refused before dispatch (%s): %s — "
+                    "no re-ranking, no weaker route",
+                    _route[0], _route[1], reason, detail)
+                # An availability/policy refusal is an explicit failure of
+                # THIS qualification attempt; it never becomes permission to
+                # dispatch a different route. The handler's structured
+                # contract returns None so the caller keeps its no-result
+                # protocol, and the journal carries the precise reason.
+                raise RuntimeError(detail)
             
             # Structured generation requires structured support (Phase 6.6)
             requires_tools = _task_requires_tools(agent_id, task_type)
@@ -10269,6 +10316,11 @@ class BYOKHandler:
                 _policy = getattr(self, "provider_policy", None)
                 if _policy is not None and not _policy.allows(
                         provider_model[0], provider_model[1]):
+                    if _strict_pin:
+                        _refuse_strict_pin(
+                            "provider_policy",
+                            "the qualification pin is outside the allowed "
+                            "provider policy")
                     # The pin arrived by a path that did not pass the pin
                     # gate. Never dispatch it; the ranked (already policy-
                     # filtered) options govern instead.
@@ -10283,6 +10335,11 @@ class BYOKHandler:
                     pass
                 elif _local_only_blocks_provider(
                         provider_model[0], self._local_routes):
+                    if _strict_pin:
+                        _refuse_strict_pin(
+                            "local_only",
+                            "the qualification pin is a cloud route blocked "
+                            "by the local-only policy")
                     # LOCAL-ONLY PROVIDER BOUNDARY (owner directive
                     # 2026-10-15): the pin arrived by some path that did
                     # not pass the pin gate (build_provider_model_pin) —
@@ -10299,6 +10356,11 @@ class BYOKHandler:
                 elif self._provider_cooldown_active(provider_model[0]) or self._model_cooldown_active(
                     provider_model[0], provider_model[1]
                 ):
+                    if _strict_pin:
+                        _refuse_strict_pin(
+                            "cooldown",
+                            "the qualification pin's provider or model is "
+                            "on cooldown")
                     # A pinned provider on cooldown (rejected credential,
                     # exhausted balance) fails exactly as unpinned — and the
                     # pin BYPASSES the ranking gate where cooldowns are
@@ -10315,6 +10377,11 @@ class BYOKHandler:
                     provider_model[1],
                     estimated_input_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
                 ):
+                    if _strict_pin:
+                        _refuse_strict_pin(
+                            "context_too_small",
+                            "the qualification pin's context window cannot "
+                            "hold this request plus completion headroom")
                     logger.warning(
                         f"Unpinning {provider_model[1]} — context window cannot "
                         f"hold ~{estimated_input_tokens} input tokens + completion; "
@@ -10330,6 +10397,16 @@ class BYOKHandler:
             # identically). Filtered where the pin filters — before vision
             # coordination and dispatch.
             options = apply_failed_pin_exclusion(options, exclude_provider_model)
+            if _strict_pin and provider_model is not None and (
+                    tuple(provider_model) == tuple(exclude_provider_model or ())
+                    or tuple(provider_model) not in options):
+                # A single-option pool is historically left intact so the
+                # cascade is never empty. For a STRICT pin that would dispatch
+                # a route the caller explicitly excluded, borrowing an answer
+                # from it; the strict contract refuses instead.
+                _refuse_strict_pin(
+                    "excluded",
+                    "the qualification pin was excluded from dispatch")
 
             # --- Phase 14.5: Coordinated Vision Logic ---
             # Job identity exists before the auxiliary vision dispatch (its
@@ -10368,6 +10445,13 @@ class BYOKHandler:
                 
                 if vision_options:
                     options = vision_options
+                elif _strict_pin:
+                    # The panic default is a DIFFERENT route. A strict pin
+                    # refuses instead of borrowing it.
+                    _refuse_strict_pin(
+                        "vision_unsupported",
+                        "the qualification pin cannot serve the request's "
+                        "vision payload")
                 else:
                     logger.warning("No standard vision models found for structured output. Defaulting to GPT-4o.")
                     options = [("openai", "gpt-4o")] # Panic fallback
@@ -10403,6 +10487,11 @@ class BYOKHandler:
                         "no_suitable_configured_model",
                         detail.get("selection_reason"))
                     raise NoSuitableConfiguredModelError(_capability, detail)
+                if _strict_pin:
+                    _refuse_strict_pin(
+                        "no_eligible_route",
+                        "the qualification pin was filtered out of the "
+                        "dispatch options")
                 return None
 
             # --- R72 Workstream F: Mixture-of-Agents dispatch ---
@@ -11753,6 +11842,7 @@ class BYOKHandler:
                     and last_was_schema_error
                     and not cascade_attempted
                     and not is_frontier_model(model)
+                    and not _strict_pin
                 ):
                     frontier = get_frontier_model_for_provider(provider_id)
                     if frontier and frontier != model:
@@ -11771,7 +11861,8 @@ class BYOKHandler:
                 _attempted_any,
                 [])
             _strict_capability_pin = bool(
-                provider_model is not None and _capability is not None)
+                provider_model is not None
+                and (_strict_pin or _capability is not None))
             if not _strict_capability_pin and (
                     not _sweep_depth or (
                         last_error is None and not _attempted_any
@@ -11876,6 +11967,11 @@ class BYOKHandler:
                     "All structured candidates SKIPPED before dispatch "
                     f"(gate/budget/rate exclusions; {cascade_idx} of "
                     f"{len(cascade_options)} examined) — no request was made")
+                if _strict_pin:
+                    set_routing_error(
+                        "pin_failed",
+                        "the qualification pin was not dispatchable after "
+                        "all eligibility gates")
             else:
                 logger.error(
                     f"All structured providers failed after "

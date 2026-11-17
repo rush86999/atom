@@ -458,6 +458,14 @@ async def pinned_structured_call(
         attempt's own observer event. When the retry also produces nothing,
         the last attempt's failure kind is retained, so "fallback empty"
         still reads as a failure.
+
+        ``strict_pin=True`` marks an explicit qualification pin as
+        exact-route-or-failure at EVERY layer: the wrapper runs no unpinned
+        retry AND forwards the marker so the service/handler refuses
+        cooldown/policy/local-only/context/exclusion re-ranking before any
+        weaker provider call. ``None`` keeps the historical derivation (an
+        explicitly passed capability profile makes the pin strict; an
+        auto-derived profile does not).
     """
     # A call's diagnostics are its own: open a fresh record before any
     # provider work, so a previous or overlapping call can neither lend this
@@ -560,8 +568,42 @@ async def pinned_structured_call(
     # directly (``strict_pin=True``) for an evidence-pinned graduation route
     # whose profile is resolved by the call label; ``None`` keeps the
     # historical behavior byte-identically.
-    strict_pin = bool(pinned) and (
+    _strict_explicitly_requested = strict_pin is True
+    _strict_requested = (
         bool(capability_profile) if strict_pin is None else bool(strict_pin))
+    strict_pin = bool(pinned) and _strict_requested
+    # STRICTNESS MUST CROSS THE SERVICE BOUNDARY (dispatch-floor repair):
+    # refusing the wrapper's own unpinned retry is not enough. The handler can
+    # silently DROP the pin internally (provider/model cooldown, local-only,
+    # provider policy, context fit, failed-pin exclusion) and answer from the
+    # caller's already-eligible weaker pool — the answer is consumed before
+    # the later identity/effect gate. Forward the explicit marker on the
+    # pinned attempt only: ordinary (non-strict) pins and non-pinned calls
+    # keep their existing kwargs and fallback behavior byte-identically.
+    if pinned and strict_pin:
+        pin_kwargs["strict_pin"] = True
+    if _strict_explicitly_requested and not pinned:
+        # A strict qualification call whose pin never materialized (a caller
+        # built no pin, or build_provider_model_pin refused it for policy/
+        # local-only/missing-client) has no exact route to preserve. Issuing
+        # it UNPINNED would silently weaken the contract, so fail explicitly
+        # before any provider work. ``strict_pin=None`` is unaffected.
+        _unrouted = RuntimeError(
+            "strict qualification pin requested without a dispatchable route")
+        _publish_failure(log_label, _unrouted, failure)
+        if set_route_mode is not None:
+            set_route_mode("pinned")
+        if set_routing_error is not None:
+            set_routing_error("pin_failed", str(_unrouted))
+        _observer_notify(
+            attempt_observer, "no_result", label=log_label, attempt=0,
+            route="pinned", seconds=0.0, failure=dict(failure))
+        logger.warning(
+            "%s strict qualification pin requested without a dispatchable "
+            "route — no unpinned dispatch", log_label)
+        _capture_provenance(provenance)
+        _finish_failure()
+        return None
 
     _t0 = _time.monotonic()
     _pinned_attempt = 0

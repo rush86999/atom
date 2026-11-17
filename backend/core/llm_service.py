@@ -1039,6 +1039,7 @@ class LLMService:
         tenant_id: Optional[str] = None,
         capability_profile: Optional[str] = None,
         capability_preference: Optional[str] = None,
+        strict_pin: Optional[bool] = None,
         **kwargs
     ) -> Any:
         """Generate structured response using Pydantic model."""
@@ -1089,15 +1090,22 @@ class LLMService:
         # editor both returned no plan in 0.2s (observed live 2026-09-10).
         effective_task_type = kwargs.pop("task_type", None) or model
 
-        return await handler.generate_structured_response(
+        # STRICT PIN PASSTHROUGH (dispatch-floor repair): an explicit strict
+        # qualification pin must reach the handler (which refuses cooldown/
+        # policy/local-only/context/exclusion re-ranking). Every other call
+        # keeps the exact handler kwargs it had before this parameter existed.
+        forward: Dict[str, Any] = dict(
             prompt=prompt,
             system_instruction=system_instruction,
             response_model=response_model,
             task_type=effective_task_type,
             capability_profile=capability_profile,
             capability_preference=capability_preference,
-            **kwargs
         )
+        if strict_pin is not None:
+            forward["strict_pin"] = strict_pin
+        forward.update(kwargs)
+        return await handler.generate_structured_response(**forward)
 
     async def generate_speech(
         self,
