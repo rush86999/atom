@@ -25,7 +25,7 @@ layer over them.
 | #989 post-merge main | [Docker Build 44157075848](https://github.com/rush86999/atom/actions/runs/44157075848) recorded successful at this cut; [CI 44157075691](https://github.com/rush86999/atom/actions/runs/44157075691) still **pending** when this work order was cut. The root receipt at `2026-11-17T19:23:16Z` observed both as `in_progress`. No GitHub query was made by this worker, and the pending run is not described as successful |
 | Structured wire contracts | PR [#980](https://github.com/rush86999/atom/pull/980) → `ecce2df80e1949083405eeb1e56a417dc5bbefee` |
 | PostgreSQL existing-table lineage | PR [#981](https://github.com/rush86999/atom/pull/981) → `0ef449aeae4235b31ba0e1d7d83bdc1f585b07fe` |
-| CI per-test durations | PR [#982](https://github.com/rush86999/atom/pull/982) → `708b7ae2dd1971b34a523a34dc887e9db736a21a2` (reporting only) |
+| CI per-test durations | PR [#982](https://github.com/rush86999/atom/pull/982) → `708b7ae2dd1971b34a523a34dc887e9db736a21a` (reporting only) |
 | Canvas historical wording | PR [#983](https://github.com/rush86999/atom/pull/983) → `fbabef87fe85a00f9d9fea9f97fd3c43c9c99752` (documentation only) |
 | Explicit collaboration authority | PR [#984](https://github.com/rush86999/atom/pull/984) → `7f7952c65cd8014fcf60da6bce51720f85658ea9` |
 | M3 canonical final reply | PR [#985](https://github.com/rush86999/atom/pull/985) → `7e51e097675943a72ebc31067187e17cdac505a2` |
@@ -59,9 +59,17 @@ may be stale and no CI state is asserted by this worker.
 
 - PR #987: remote head `6973…`; a new current-main local `69f12…` root HTTP
   replay was reported as running at the cut.
-- PR #988: remote head `4459e680d22fb688191436a81d1a6336e064eaa2`, root `706…`;
+- PR #988: remote head `4459e680d22fb688191436a81d1a6336e064eaa2`, **706 root CI checks passed**;
   CI checks and transfer of the old `1034…` synthetic product gate, with all
   `18927` non-CI tracked entries exact, were reported at the cut.
+
+Later root review on November 17: #987's broader 16-file replay at local
+`69f12d7388f9a141134dc9434d1244a08e965abe` finished with **1,424 passed and
+59 failed**, with no errors or skips. Its 12 actor/history cases passed, but
+the broader result remains **unqualified**, with causes under investigation.
+That local head is not published and the earlier remote head remains open.
+For #988, the 706 current-head checks and preceding 1,034-check gate overlap;
+they are not an additive test total, and hosted CI is still required.
 
 ## Status vocabulary used below
 
