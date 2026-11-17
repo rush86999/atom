@@ -670,16 +670,24 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
 - **Exact sources:** audit `ORACLE-01` (827 mutating routes / 366 high-risk /
   311 provider writes at the historical cut; a later read-only inventory at
   `8ded00232` recorded 836 / 371 / 311); merged scoped families #650–#695;
-  `#938` `471494e5d` adds hosted delete-truth selection; `GOV-02/03/06` and
+  `#938` `471494e5d` adds hosted delete-truth selection; `#763` `c97dada13`
+  repairs Canvas delete/undelete current-actor authority; `GOV-02/03/06` and
   `SEC-01..08` remain baseline-verified at their historical sources.
 - **Remaining user-boundary acceptance:** every reachable mutation family
   enforcing current authority/material, exact operation, durable effect and
   independent readback; replay/rollback/unknown truth; refreshed inventory on
   current main; PostgreSQL/multi-worker.
-- **Preserved negatives:** four real mounted-route delete/undelete cases
-  confirmed current-scope defects for former coeditors; 827/366/311 (or
-  836/371/311) static routes are not runtime qualification. Green CI is not
-  whole-app ORACLE.
+- **Historical negatives, since repaired:** four real mounted-route
+  delete/undelete cases confirmed *then-current* scope defects for former
+  coeditors at the `27a1830a2` baseline; the
+  [original packet](evidence/canvas_lifecycle_scope_negative_27a1830a2/README.md)
+  is preserved unchanged. Repair PR [#763](https://github.com/rush86999/atom/pull/763)
+  merged `c97dada13`, an ancestor of current main; 54 bounded controls at the
+  actual current-main Canvas bytes now pass. See
+  [the canvas lifecycle authority reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md).
+  That rerun is not whole Canvas or whole-app ORACLE: 827/366/311 (or 836/371/311)
+  static routes are not runtime qualification, and green CI is not whole-app
+  ORACLE.
 - **Claim rows:** 16.
 
 <a id="goal-15"></a>
@@ -987,7 +995,7 @@ close the claim rows.
 | `GOV-02` | Policy-gated HITL approval | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `GOV-03` | Comprehensive audit trail | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `GOV-06` | SCIM v2 provisioning | verified | baseline-verified | sufficient-at-historical-source | audit |
-| `ORACLE-01` | Postcondition oracle on by default | partial | open | partial | inventory 836/371/311 at `8ded`; four delete/undelete current-scope failures; scoped families merged; whole-app open. |
+| `ORACLE-01` | Postcondition oracle on by default | partial | open | partial | inventory 836/371/311 at `8ded`; four historical delete/undelete scope failures retained at the `27a1830a2` baseline and repaired by [#763](https://github.com/rush86999/atom/pull/763) `c97dada13` (54 bounded current controls; [reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)); scoped families merged; whole-app open. |
 | `ORACLE-02` | Re-derive success from system of record | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `ORACLE-03` | Refuted self-report stamped UNVERIFIED | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `ORACLE-04` | `ATOM_ORACLE_ENFORCE` kill switch | verified | baseline-verified | sufficient-at-historical-source | audit |
@@ -1077,7 +1085,7 @@ reassignment; other workers own the lanes noted.
 | 7 | **Goal 4 workbook ordinary/live** | Synthetic full-population API replay at `6ad2738ed` returned 34,533.00; [ordinary 24-sheet browser edit/export/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`, including recalculated 34,610 total and unsigned denial. | Live connected source, model-driven population/grounding and ambiguous-request refusal remain unverified. |
 | 8 | **Goal 5 Canvas full families** | WA-04532/32 and Canvas list22/22 at `6ad2738ed`; [PDF rotation/readback](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) passed at `bb7017af3`; [DOCX/PPTX native edits and restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) and [24-sheet XLSX edit/restart](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) passed at `3316b0fe7`. | Full D2, embedded images, cross-user ownership, broader editing/PDF operations, other families and KVM remain open. |
 | 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion (inferred, not an original completion gate), rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
-| 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; four delete/undelete failures preserved. | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
+| 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; the four historical delete/undelete scope failures are retained at their `27a1830a2` baseline and repaired by `#763` `c97dada13`; 54 bounded current controls pass ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
 | 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; [normal named-volume container restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`, with identical 372-table snapshots and same-canvas login/readback. | Existing upgrades, async transport, abrupt outage recovery, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
 | 13 | **Goal 2 measured model selection** | Routing mechanisms verified; #942 preserved query complexity; no measured served comparison. | Two or more real served models with requested/served identity and scored quality/cost, including cheap Flash as first-class. No new spend authority. |

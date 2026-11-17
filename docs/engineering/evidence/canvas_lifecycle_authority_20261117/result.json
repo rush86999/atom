@@ -1,0 +1,63 @@
+{
+  "result_type": "docs_accuracy_reconciliation_record",
+  "verdict": "BOUNDED_CURRENT_CANVAS_LIFECYCLE_PASS",
+  "application_source": "ecce2df80e1949083405eeb1e56a417dc5bbefee",
+  "executed_tree_head": "c029470c0a24c60d685529d67679095c1eab8c15",
+  "executed_head_delta": {
+    "files": [
+      ".github/workflows/ci.yml",
+      "backend/tests/fixtures/ci_backend_additions.json",
+      "backend/tests/fixtures/ci_backend_before_parallel.json"
+    ],
+    "changed_lines": 8,
+    "description": "CI-only --durations=20 reporting flags: five flag lines in .github/workflows/ci.yml plus five mirrored across the two CI fixture files.",
+    "canvas_product_and_tests_byte_identical_to_application_source": true
+  },
+  "repair_pr": 763,
+  "repair_commit": "c97dada13b507352d7c5a8b5f92f811a4cc4ca46",
+  "repair_ancestor_of_application_source": true,
+  "command": "python -m pytest -q tests/test_canvas_lifecycle_verified.py tests/test_lead_canvas_lifecycle_authority.py",
+  "pytest_passed": 54,
+  "module_split": {
+    "backend/tests/test_canvas_lifecycle_verified.py": 37,
+    "backend/tests/test_lead_canvas_lifecycle_authority.py": 17
+  },
+  "auth_boundary": "Mounted routes inject get_current_user via dependency override. Real User/Canvas/Audit rows, writers, scoped service, fresh-session Oracle readback and real conditional writes are exercised; normal login, session/token issuance and browser flows are not.",
+  "scope": "Mounted real router + real writer/service/SQLite durable readback on fresh FK-enforced scratch DB. Four foreign tenant/workspace coeditor delete/undelete refusals, current-actor interleavings before claim, unchanged active-actor twins, replay/idempotency, material/operation conflicts, committed_unverified/effect_unknown outcomes, tool-path context authority. Not every canvas route/family, not whole-app ORACLE, not Goal 14 completion, not security/login/browser/PostgreSQL concurrency/multiworker/soak.",
+  "root_receipt": "/private/tmp/atom-root-canvas-current-scope-adjudication-20261117.json",
+  "root_receipt_log": "/private/tmp/atom-root-canvas-current-scope-20261117.log",
+  "root_receipt_log_sha256": "c4134686ffa60956d181c7955bc4455f294e3ba8db1226378fa9cff696b7e168",
+  "raw_root_log_read_for_this_record": false,
+  "fresh_full_server_launch": false,
+  "current_canvas_file_hashes_sha256": {
+    "backend/api/canvas_routes.py": "1681aa3f61959cffea58e50726ec0b20ff54fe80b1c67f70d5739a65ef494e12",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/oracle/postcondition_verifiers.py": "66470474601abb8db6d3bbe8ab3bc239198eaf004fe1499bdd9bba8560ac5047",
+    "backend/core/oracle/request_expectations.py": "0d8ff6b918d65c8460943110dd95aedfd1fe230758df2855c6e6b245eac1450d",
+    "backend/integrations/mcp_service.py": "b7eadad050232bf3d786ab2148e05f59480e4e4a375dfb04929a08815a424018",
+    "backend/tests/test_canvas_lifecycle_verified.py": "5dcc497495aa5b6b0b7f64b29a361e801617643de33bcda296885ec2c32eab4e",
+    "backend/tests/test_lead_canvas_lifecycle_authority.py": "58d4a2424e7167a17b10279a3eeb58601c9faa25b16110da20d88e4aa3bea99e"
+  },
+  "test_modules_match_previous_packet": true,
+  "product_files_advanced_since_previous_packet": true,
+  "historical_negative": {
+    "baseline_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+    "failures": 4,
+    "passes": 5,
+    "packet": "docs/engineering/evidence/canvas_lifecycle_scope_negative_27a1830a2/README.md",
+    "preserved_unchanged": true
+  },
+  "retained_other_negatives": [
+    "docs/acceptance/evidence/canvas_lifecycle_lead_8e4b494d7 (scope repair lead packet, baseline-portable-4fail5pass)",
+    "docs/acceptance/evidence/canvas_lifecycle_actor_lead_ccaa92ba3 (actor interleaving 4-fail/2-pass plus runtime and permanent-test record)",
+    "Affected selection 175 passed / 2 failed with the same two pre-existing failure IDs on the main-equivalent baseline"
+  ],
+  "audit_and_scores_unchanged": true,
+  "claim_identities": 143,
+  "goals": 18,
+  "historical_functional_result": "111/123 (90.2%)",
+  "goal_complete": false,
+  "goal_14_complete": false,
+  "goal_5_complete": false,
+  "whole_app_oracle_complete": false
+}
