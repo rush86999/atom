@@ -9,9 +9,10 @@ import json
 import logging
 import os
 from pathlib import Path
+import threading
 from typing import Any, Dict, List, Optional
 import uuid
-from sqlalchemy import desc
+from sqlalchemy import desc, func, update
 from sqlalchemy.orm import Session
 
 # Conditional Import to avoid circular dependencies if simple script
@@ -36,6 +37,13 @@ SESSIONS_FILE = os.path.join(
     os.environ.get("ATOM_DATA_DIR")
     or os.path.dirname(os.path.dirname(__file__)),
     "chat_sessions.json")
+
+#: Serialises the file-mode read/check/write window. DB mode uses the
+#: conditional UPDATE below as its arbiter. File mode has a single-process
+#: atomic replace (os.replace) but no cross-process row lock, so this lock is
+#: the best available CAS window; cross-process writers are last-writer-wins
+#: (see the module summary / commit message for the documented limit).
+_FILE_CAS_LOCK = threading.RLock()
 
 class ChatSessionManager:
     """Manages chat session metadata with DB support"""
@@ -84,16 +92,30 @@ class ChatSessionManager:
         if not os.path.exists(self.sessions_file):
             self._save_sessions_file([])
     
-    def _load_sessions_file(self) -> List[Dict[str, Any]]:
-        """Load all sessions from file"""
+    def _load_sessions_file_checked(self):
+        """Load the JSON store and report whether the read actually succeeded.
+
+        Returns ``(sessions, readable)``. ``readable=False`` means the store
+        exists but could not be parsed/read; callers that are deciding whether
+        durable state is ABSENT must not turn that into an empty list.
+        """
+        if not os.path.exists(self.sessions_file):
+            return [], True
         try:
-            if not os.path.exists(self.sessions_file):
-                return []
             with open(self.sessions_file, 'r') as f:
-                return json.load(f)
+                loaded = json.load(f)
+            if not isinstance(loaded, list):
+                logger.error("Sessions file is not a list")
+                return [], False
+            return loaded, True
         except Exception as e:
             logger.error(f"Failed to load sessions file: {e}")
-            return []
+            return [], False
+
+    def _load_sessions_file(self) -> List[Dict[str, Any]]:
+        """Load all sessions from file (legacy helper: unreadable -> [])."""
+        sessions, _readable = self._load_sessions_file_checked()
+        return sessions
             
     def _load_sessions(self) -> List[Dict[str, Any]]:
         """Load sessions from DB if available, else file"""
@@ -253,43 +275,205 @@ class ChatSessionManager:
         sessions = self._load_sessions_file()
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
-    def update_session_metadata(
-        self, session_id: str, metadata: Dict[str, Any]
-    ) -> bool:
-        """Merge durable session metadata into the active persistence store."""
-        if not session_id or not isinstance(metadata, dict):
-            return False
-        updated = False
+    def read_session_metadata(self, session_id: str) -> Dict[str, Any]:
+        """Read the authoritative metadata snapshot for one session.
+
+        Returns ``{"readable", "found", "metadata", "error"}``.  A read
+        failure is reported as ``readable=False`` and is NEVER collapsed into
+        ``found=False``: callers that decide whether durable state is absent
+        (clear/cancel/resume) must distinguish "the store said no" from "the
+        store did not answer".
+
+        In DB mode the database is authoritative.  A successful row read with
+        no row falls back to the JSON store only because HYBRID mode treats a
+        legacy file-only session as a real session; a DB *exception* does not
+        fall back (a stale file must not shadow a merely unreachable DB).
+        """
+        result: Dict[str, Any] = {
+            "readable": True,
+            "found": False,
+            "metadata": {},
+            "revision": "",
+        }
+        if not session_id:
+            return result
         if self.use_db:
             try:
                 with get_db_session() as db:
                     row = db.query(ChatSession).filter(
-                        ChatSession.id == session_id
-                    ).first()
+                        ChatSession.id == session_id).first()
                     if row is not None:
-                        merged = dict(row.metadata_json or {})
+                        metadata = dict(row.metadata_json or {})
+                        result.update({
+                            "found": True,
+                            "metadata": metadata,
+                            "revision": str(
+                                metadata.get("_metadata_revision") or ""),
+                        })
+                        return result
+            except Exception as e:  # noqa: BLE001 — report unreadable
+                logger.warning(
+                    f"DB metadata read failed for {session_id}: {e}")
+                return {
+                    "readable": False,
+                    "found": False,
+                    "metadata": {},
+                    "revision": "",
+                    "error": str(e),
+                }
+            if self.persistence_mode == "STRICT_DB":
+                return result
+
+        # File path (file-primary mode, or a legacy file-only HYBRID session).
+        sessions, readable = self._load_sessions_file_checked()
+        if not readable:
+            return {
+                "readable": False,
+                "found": False,
+                "metadata": {},
+                "revision": "",
+                "error": "sessions file unreadable",
+            }
+        for session in sessions:
+            if session.get("session_id") == session_id:
+                metadata = dict(session.get("metadata") or {})
+                result.update({
+                    "found": True,
+                    "metadata": metadata,
+                    "revision": str(
+                        metadata.get("_metadata_revision") or ""),
+                })
+                return result
+        return result
+
+    def update_session_metadata(
+        self,
+        session_id: str,
+        metadata: Dict[str, Any],
+        *,
+        expected: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Merge durable session metadata into the active persistence store.
+
+        ``expected`` turns the patch into a compare-and-swap: each key/value is
+        compared against the currently committed metadata, and the write only
+        succeeds when all of them match.  A value of ``None`` means "the key
+        is absent/empty".  Supported comparison values are JSON scalars
+        (str/int/float/bool/None); composite expectations are refused rather
+        than guessed.
+
+        DB mode uses a conditional ``UPDATE ... WHERE`` so the re-check and
+        the write are one statement under SQLite's single-writer lock and
+        PostgreSQL's READ COMMITTED row-lock/re-check rule.  File mode holds a
+        process lock around the read/compare/atomic-replace window (the file
+        store has no cross-process row lock; see the module notes).
+
+        Returns True only when the authoritative store confirmed the commit.
+        In HYBRID mode the DB is authoritative; a failed DB commit is a failed
+        save even if the supplementary file mirror succeeds.
+        """
+        if not session_id or not isinstance(metadata, dict):
+            return False
+        if expected is not None and not isinstance(expected, dict):
+            return False
+        for value in (expected or {}).values():
+            if isinstance(value, (dict, list, tuple, set, bytes)):
+                logger.error(
+                    "refusing composite metadata CAS expectation for %s",
+                    session_id)
+                return False
+
+        if self.use_db:
+            try:
+                with get_db_session() as db:
+                    row = db.query(ChatSession).filter(
+                        ChatSession.id == session_id).first()
+                    if row is not None:
+                        current = dict(row.metadata_json or {})
+                        merged = dict(current)
                         merged.update(metadata)
-                        row.metadata_json = merged
-                        row.updated_at = datetime.now(timezone.utc)
-                        db.commit()
-                        updated = True
-            except Exception as e:
-                logger.warning(f"DB metadata update failed for {session_id}: {e}")
-        if self.persistence_mode == "STRICT_DB":
-            return updated
-        try:
-            sessions = self._load_sessions_file()
+                        if expected:
+                            conditions = [ChatSession.id == session_id]
+                            for key, wanted in expected.items():
+                                column = ChatSession.metadata_json[key]
+                                actual = func.coalesce(
+                                    column.as_string(), "")
+                                conditions.append(
+                                    actual == ("" if wanted is None
+                                               else str(wanted)))
+                            db.expire_all()
+                            statement = update(ChatSession).where(
+                                *conditions,
+                            ).values(
+                                metadata_json=merged,
+                                updated_at=datetime.now(timezone.utc),
+                            ).execution_options(synchronize_session=False)
+                            written = db.execute(statement)
+                            db.expire_all()
+                            db.commit()
+                            saved = int(written.rowcount or 0) == 1
+                        else:
+                            row.metadata_json = merged
+                            row.updated_at = datetime.now(timezone.utc)
+                            db.commit()
+                            saved = True
+                        if saved and self.persistence_mode != "STRICT_DB":
+                            self._mirror_metadata_to_file(
+                                session_id, metadata)
+                        return saved
+            except Exception as e:  # noqa: BLE001 — truthful failure
+                logger.warning(
+                    f"DB metadata update failed for {session_id}: {e}")
+                return False
+            if self.persistence_mode == "STRICT_DB":
+                return False
+
+        # File-primary (or legacy file-only HYBRID) path.
+        with _FILE_CAS_LOCK:
+            sessions, readable = self._load_sessions_file_checked()
+            if not readable:
+                return False
             for row in sessions:
-                if row.get("session_id") == session_id:
+                if row.get("session_id") != session_id:
+                    continue
+                current = dict(row.get("metadata") or {})
+                if expected:
+                    for key, wanted in expected.items():
+                        actual = current.get(key)
+                        if wanted is None:
+                            if actual not in (None, ""):
+                                return False
+                        elif str(actual if actual is not None else "") != str(
+                                wanted):
+                            return False
+                merged = dict(current)
+                merged.update(metadata)
+                row["metadata"] = merged
+                row["last_active"] = datetime.now(timezone.utc).isoformat()
+                return self._save_sessions_file(sessions)
+            return False
+
+    def _mirror_metadata_to_file(
+        self, session_id: str, metadata: Dict[str, Any]
+    ) -> None:
+        """Best-effort HYBRID mirror; the DB already committed the authority."""
+        try:
+            with _FILE_CAS_LOCK:
+                sessions, readable = self._load_sessions_file_checked()
+                if not readable:
+                    return
+                for row in sessions:
+                    if row.get("session_id") != session_id:
+                        continue
                     merged = dict(row.get("metadata") or {})
                     merged.update(metadata)
                     row["metadata"] = merged
-                    row["last_active"] = datetime.now(timezone.utc).isoformat()
-                    updated = self._save_sessions_file(sessions) or updated
-                    break
-        except Exception as e:
-            logger.warning(f"File metadata update failed for {session_id}: {e}")
-        return updated
+                    row["last_active"] = datetime.now(
+                        timezone.utc).isoformat()
+                    self._save_sessions_file(sessions)
+                    return
+        except Exception as e:  # noqa: BLE001 — mirror is not authority
+            logger.debug(f"metadata mirror skipped for {session_id}: {e}")
 
     def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
         """Update session's last_active timestamp and history"""

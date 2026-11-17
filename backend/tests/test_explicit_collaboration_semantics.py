@@ -611,11 +611,11 @@ def test_unknown_requested_domain_fails_before_fleet_substitution(monkeypatch):
 # 9. Orchestrator early seam: pending before reply, exact resume on approval.
 # ---------------------------------------------------------------------------
 
-def _orch_collab():
+def _orch_collab(manager=None):
     import integrations.chat_orchestrator as co
     orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
     orch.tenant_id = "t-collab"
-    orch.session_manager = None
+    orch.session_manager = manager
     orch.conversation_sessions = {}
     orch._handle_agent_request = AsyncMock(return_value={
         "success": True, "status": "success", "outcome": "success",
@@ -626,12 +626,62 @@ def _orch_collab():
     return orch
 
 
+@pytest.fixture()
+def durable_file_manager(tmp_path, monkeypatch):
+    """A real first-class file-mode session store (durable across instances).
+
+    The pending contract is durable-authority first; an in-memory-only test
+    double cannot prove cold resume or honest save failures.
+    """
+    monkeypatch.setattr("core.chat_session_manager.DB_AVAILABLE", False)
+    monkeypatch.setattr("core.chat_session_manager.SessionLocal", None)
+    monkeypatch.setenv("ATOM_CHAT_STORAGE", "file")
+    monkeypatch.setenv("CHAT_PERSISTENCE_MODE", "FILE")
+    from core.chat_session_manager import ChatSessionManager
+
+    manager = ChatSessionManager(
+        sessions_file=str(tmp_path / "collab-sessions.json"))
+    manager.create_session(user_id="u-collab", session_id="s-collab")
+    return manager
+
+
+def _seed_durable_collab_pending(manager, session_id="s-collab"):
+    import integrations.chat_orchestrator as co
+
+    record = {
+        "state": "pending",
+        "reason": "fleet_pilot_not_enforced",
+        "request": MESSAGE,
+        "objective": MESSAGE,
+        "roles": ["finance", "sales"],
+        "generic": False,
+        "question": "The request is preserved as pending.",
+        "user_id": "u-collab",
+        "workspace_id": "t-collab",
+        "tenant_id": "t-collab",
+        "session_id": session_id,
+        "pending_id": "pending-1",
+        "created_at": "2026-11-17T00:00:00+00:00",
+        "revision": "rev-1",
+        "request_digest": co.ChatOrchestrator._collaboration_request_digest(
+            MESSAGE, MESSAGE, ["finance", "sales"], False),
+    }
+    assert manager.update_session_metadata(
+        session_id,
+        {
+            co._PENDING_COLLABORATION_KEY: record,
+            co._PENDING_COLLABORATION_REVISION_KEY: "rev-1",
+        },
+    )
+    return record
+
+
 @pytest.mark.parametrize("master,enforce,reason", [
     ("false", False, "fleet_routing_disabled"),
     ("true", False, "fleet_pilot_not_enforced"),
 ])
 def test_orchestrator_pending_before_reply_for_master_and_shadow(
-        monkeypatch, master, enforce, reason):
+        monkeypatch, durable_file_manager, master, enforce, reason):
     import core.fleet_routing_config as frc
     import core.fleet_orchestration.fleet_router_automation as fra
     monkeypatch.setattr(frc, "fleet_routing_enabled", lambda: master == "true")
@@ -644,7 +694,7 @@ def test_orchestrator_pending_before_reply_for_master_and_shadow(
     session = {"id": "s-collab", "history": []}
     deadline = MagicMock()
     deadline.remaining.return_value = 60.0
-    orch = _orch_collab()
+    orch = _orch_collab(durable_file_manager)
 
     response = asyncio.run(orch._route_accepted_collaboration(
         decision=decision, message=MESSAGE, session=session,
@@ -692,7 +742,8 @@ def test_orchestrator_approved_pilot_runs_exact_request(monkeypatch):
     assert co._PENDING_COLLABORATION_KEY not in session
 
 
-def test_orchestrator_approval_resumes_original_pending_request(monkeypatch):
+def test_orchestrator_approval_resumes_original_pending_request(
+        monkeypatch, durable_file_manager):
     import core.fleet_routing_config as frc
     import core.fleet_orchestration.fleet_router_automation as fra
     monkeypatch.setattr(frc, "fleet_routing_enabled", lambda: True)
@@ -700,21 +751,11 @@ def test_orchestrator_approval_resumes_original_pending_request(monkeypatch):
     import integrations.chat_orchestrator as co
 
     decision = build_turn_decision(MESSAGE, {})
-    session = {
-        "id": "s-collab", "history": [],
-        co._PENDING_COLLABORATION_KEY: {
-            "state": "pending",
-            "reason": "fleet_pilot_not_enforced",
-            "request": MESSAGE,
-            "objective": MESSAGE,
-            "roles": ["finance", "sales"],
-            "generic": False,
-            "question": "The request is preserved as pending.",
-        },
-    }
+    _seed_durable_collab_pending(durable_file_manager)
+    session = {"id": "s-collab", "history": []}
     deadline = MagicMock()
     deadline.remaining.return_value = 60.0
-    orch = _orch_collab()
+    orch = _orch_collab(durable_file_manager)
 
     response = asyncio.run(orch._route_accepted_collaboration(
         decision=decision, message="go ahead", session=session,
