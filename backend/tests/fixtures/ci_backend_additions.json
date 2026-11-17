@@ -705,5 +705,18 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${{ runner.temp }}/atom-launcher-storage\"\npython -m pytest ../scripts/tests/test_launcher_world_storage_preflight.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run chat transcript actor-scope controls",
+    "env": {
+      "TESTING": "1",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-chat-actor-scope/parent.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-chat-actor-scope/data",
+      "LANCEDB_URI": "${{ runner.temp }}/atom-chat-actor-scope/lancedb",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-chat-actor-scope/data\" \"${RUNNER_TEMP}/atom-chat-actor-scope/lancedb\"\nserved_chat_scope_root=$(mktemp -d \"${RUNNER_TEMP}/served-chat-scope-XXXXXX\")\npython -m pytest tests/test_chat_message_actor_scope.py \\\n  tests/test_chat_read_scope.py \\\n  -q --tb=short --timeout=900 --timeout-method=thread \\\n  --basetemp=\"${served_chat_scope_root}/pytest\"\n"
   }
 ]

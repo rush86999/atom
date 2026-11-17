@@ -251,6 +251,9 @@ class _FakeQuery:
         self._limit_n = n
         return self
 
+    def first(self):
+        return self._rows[0] if self._rows else None
+
     def all(self):
         return list(self._rows[:self._limit_n] if self._limit_n else self._rows)
 
@@ -407,7 +410,8 @@ async def test_approval_turn_reads_unresolved_ids_and_answer_names_products():
     planned_kwargs = {}
     executed_contexts = []
 
-    async def fake_plan(message, hist, user_id, llm, canvas=None, provenance=""):
+    async def fake_plan(message, hist, user_id, llm, canvas=None, provenance="",
+                        allow_canvas_target=False, **_kwargs):
         planned_kwargs["provenance"] = provenance
         return ToolPlan(use_tool=True, service="outlook", intent="read",
                         query=f"message_id: {ID1} message_id: {ID2}",

@@ -41,7 +41,7 @@ def anon_client(app):
 @pytest.fixture
 def client(app):
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
-        id="user_1", tenant_id="t1")
+        id="user_1", tenant_id="t1", role="admin")
     return TestClient(app)
 
 
@@ -509,8 +509,12 @@ class TestGetChatHistory:
     def test_db_fallback(self, client, orch):
         orch.conversation_sessions = {"s1": make_session(history=[])}
         rows = [
-            SimpleNamespace(id="m1", role="user", content="hi", created_at=datetime(2026, 1, 1, 10)),
-            SimpleNamespace(id="m2", role="assistant", content="hello", created_at=datetime(2026, 1, 1, 10, 1)),
+            SimpleNamespace(id="m1", role="user", content="hi",
+                            created_at=datetime(2026, 1, 1, 10),
+                            metadata_json=None),
+            SimpleNamespace(id="m2", role="assistant", content="hello",
+                            created_at=datetime(2026, 1, 1, 10, 1),
+                            metadata_json=None),
         ]
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = rows
@@ -523,14 +527,20 @@ class TestGetChatHistory:
         assert messages[0]["message"] == "hi"
         assert messages[1]["response"] == {"message": "hello"}
 
-    def test_db_fallback_failure_tolerated(self, client, orch):
-        orch.conversation_sessions = {"s1": make_session(history=[])}
+    def test_db_failure_is_unavailable_not_cached(self, client, orch):
+        """A read whose durable owner cannot be verified must fail closed.
+
+        Serving the in-memory fallback here would let a stale cache label
+        outlive a DB owner/scope change (the 2026-11-17 read-envelope bug).
+        """
+        orch.conversation_sessions = {"s1": make_session(
+            history=[{"message": "stale cached payload"}])}
         cm = MagicMock()
         cm.__enter__.side_effect = RuntimeError("db down")
         with patch("core.database.get_db_session", return_value=cm):
             resp = client.get("/api/chat/history/s1", params={"user_id": "u"})
-        assert resp.status_code == 200
-        assert resp.json()["messages"] == []
+        assert resp.status_code == 503
+        assert "stale cached payload" not in resp.text
 
     def test_internal_error_500(self, client, orch):
         orch.conversation_sessions = MagicMock()
