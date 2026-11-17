@@ -52,7 +52,7 @@ flowchart TB
 | `backend-core` | The shared-resource cohort: every `sqlite:///test_ci.db` step (S1), every step with no explicit `DATABASE_URL` that resolves to `backend/test_integration.db` (S2), the lane-preservation contract and the remaining un-isolated controls listed in the YAML. It does not run or certify every repository test. |
 | `backend-core-isolated` | The T/U-class core steps that declare their own absolute `runner.temp` state or a unique scratch database filename. `MINI-03` and its real-process record restart stay adjacent here. |
 | `backend-core-extra` | First contiguous shard of the original extra-lane order (14 steps, ending at the shared email-draft controls). |
-| `backend-core-extra-isolated` | Remaining 26 contiguous extra-lane steps, ending with the M3 canonical chat delivery controls. |
+| `backend-core-extra-isolated` | Remaining 27 contiguous extra-lane steps, ending with the whole-file generic approved-material consumption controls. |
 | `backend-oracle` | Explicit oracle/governance/consumer boundary selections in the YAML. This does not close whole-app ORACLE coverage. |
 | `backend-docker` | Hosted real-Docker acceptance for reviewed executable skills: the focused unit test plus the full-service service-restart journey. The container path has no host fallback, `ATOM_REQUIRE_DOCKER_SANDBOX=1` makes an unavailable daemon fail, and the step fails closed unless the emitted receipt proves a real `skill_*` container and a durable receipt re-read after the service restart. |
 | `backend-tests` | Aggregate all six backend lanes (`backend-core`, `backend-core-isolated`, `backend-core-extra`, `backend-core-extra-isolated`, `backend-oracle`, `backend-docker`); `always()` plus explicit result checks require every lane to succeed. |
