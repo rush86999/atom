@@ -47,8 +47,13 @@ One canonical text boundary, `_m3_canonical_delivery_text`, reuses:
   append-only deterministic suffix is not given a second Operation-status
   section (idempotent re-entry).
 - **Incremental withholding unchanged:** `_m3_gate_stream_chunk` still
-  holds unverified claims mid-stream. The final canonical text strips the
-  same claims, so invisible held chunks never become visible at close.
+  holds unverified claims mid-stream, and the final canonical text strips
+  the same claims at close. This is NOT a guarantee that every claim was
+  invisible during streaming: a frozen legacy claim split across
+  already-released chunks can already have reached the live bubble before
+  the close (the gate only inspects its current unreleased window). The
+  repair's guarantee is the FINAL carriers — WS close, HTTP and durable —
+  never reintroduce such a claim when the receipt read is unavailable.
 - **Fail closed:** a guard fault with a non-empty withheld span or a
   claim-shaped reply returns a non-empty honest notice that neither claims
   a send/write nor says "nothing happened". **An EMPTY withheld span does
@@ -184,4 +189,39 @@ protocol and rejection semantics are unchanged. Permanent regressions:
 `None`, `""`, `"   "` and non-empty withheld controls plus a public stream
 fault control that proves the close received `withheld == ""` via a spy and
 that WS close / HTTP / durable carry only the truthful notice.
+
+## CI selection (2026-11-17)
+
+The whole contract file now runs unconditionally in the existing hosted
+`backend-core-extra` lane (the isolated-DB core lane), not a parallel
+workflow:
+
+- step: **Run M3 canonical chat delivery contract controls**
+  (`.github/workflows/ci.yml`, appended after the document-lineage step);
+- env: `TESTING=1`, runner-temp absolute scratch `DATABASE_URL`,
+  `ATOM_DATA_DIR`, `LANCEDB_URI`, `HF_HUB_OFFLINE=1`,
+  `TRANSFORMERS_OFFLINE=1`, `PYTHON_DOTENV_DISABLED=1`;
+- selector: `tests/test_m3_canonical_delivery_contract.py` (whole file,
+  no `-k`, no skip, no marker filter);
+- ledgers updated to match the existing CI partition mechanism:
+  `backend/tests/fixtures/ci_backend_additions.json` (step definition) and
+  `backend/tests/fixtures/ci_backend_core_extra.json` (`step_names`).
+
+Validation (cached venv, unique mktemp scratch DB/data/Lance, offline env):
+
+```
+pytest -q tests/test_ci_backend_lane_contract.py
+  -> 628 passed
+
+pytest -q tests/test_m3_canonical_delivery_contract.py \
+  --timeout=300 --timeout-method=thread     (CI env above)
+  -> 22 passed
+```
+
+Every existing selector, order and gate in the workflow is preserved; the
+only workflow change is the additive step above. This proof covers the M3
+canonical final-text boundary only — it is **not** a whole-app readiness
+claim. Historical negatives, the default-OFF flag, and the two pre-existing
+strict-XFAIL checks remain as recorded.
+
 
