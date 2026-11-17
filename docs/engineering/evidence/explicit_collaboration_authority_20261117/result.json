@@ -68,7 +68,7 @@
       "tests/test_pending_file_task_resume.py::test_no_unsupported_workflow_claim_reaches_output",
       "tests/test_pending_file_task_resume.py::test_no_unsupported_claim_in_mixed_body"
     ],
-    "open_xfail_disposition": "open; a separate root investigation at the public boundary has no result yet, so no cause is claimed; not skipped, deselected or weakened here",
+    "open_xfail_disposition": "open and unchanged by this release; separate public-boundary investigation and successor repair are outside this record; not skipped, deselected or weakened",
     "collaboration_envelope_xfail": "removed by the canonical-id fix and now a passing assertion"
   },
   "postgres_scope": "12 shared-metadata-method checks on a socket-only PostgreSQL 14.24 cluster; owned PID verified absent after cleanup; not whole-app PostgreSQL",

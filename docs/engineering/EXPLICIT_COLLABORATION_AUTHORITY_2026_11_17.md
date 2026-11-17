@@ -205,9 +205,10 @@ dataflow, **not** model answer quality.
   is a new real-model pass. Two existing strict XFAILs in
   `tests/test_pending_file_task_resume.py`
   (`test_no_unsupported_workflow_claim_reaches_output`,
-  `test_no_unsupported_claim_in_mixed_body`) remain open: a separate root
-  investigation at the public boundary has no result yet, so no cause is
-  claimed here, and they are not skipped or weakened. The earlier
+  `test_no_unsupported_claim_in_mixed_body`) remain open and are not
+  corrected by this release. Separate public-boundary investigation and any
+  successor repair are outside this record; these checks are not skipped or
+  weakened. The earlier
   collaboration envelope strict XFAIL was removed by the canonical-id fix and
   is now a passing assertion.
 - No original audit, 143-claim identity or historical score is modified, and
