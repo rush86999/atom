@@ -275,8 +275,10 @@ async def test_unchanged_approval_dispatches_the_reviewed_request_once(
 
     agent._wait_for_approval = approve
     reviewed = {"query": "unchanged-filter"}
+    context = _context(
+        execution="exec-unchanged", agent_id="parent-orchestrator")
     await agent._step_act_unaudited(
-        "read_data", reviewed, context=_context(execution="exec-unchanged"))
+        "read_data", reviewed, context=context)
 
     assert len(captured) == 1
     assert captured[0]["tool"] == "read_data"

@@ -4540,7 +4540,10 @@ What is your next step?"""
         ctx = context or {}
         return load_approved_material(
             action_id,
-            agent_id=identity["agent_id"],
+            # The HITL row was filed by THIS runtime agent. A context
+            # ``agent_id`` can name a parent/orchestrator; it must not
+            # re-target the approval binding.
+            agent_id=str(getattr(self, "id", "") or ""),
             action_type=tool_name,
             reviewed_params=reviewed_request,
             actor_id=identity["actor_id"],
