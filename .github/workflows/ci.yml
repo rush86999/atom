@@ -658,6 +658,36 @@ jobs:
           done
 
 
+      # Meta consumer of the SAME durable approval seam (additive). MetaAgent
+      # files its own HITL rows and previously dispatched the model's original
+      # args even when the human edited them before approval. The whole file
+      # drives the real Meta entry + real approval writer/decision writer +
+      # SQLite, with only the MCP leaf / policy verdict / judge verdict as test
+      # doubles. Absolute runner-temp scratch DB + data/office dirs and offline
+      # HF/FastEmbed caches: no download, live DB, provider, credential or
+      # network. Complete file only: no node-id subsets, skips or
+      # continue-on-error. No earlier step or selection is changed.
+      - name: Run Meta approved-material consumption controls
+        env:
+          TESTING: "1"
+          PYTEST_VERSION: "ci"
+          PYTHON_DOTENV_DISABLED: "1"
+          PYTEST_CURRENT_TEST: "meta_approved_material_ci"
+          DATABASE_URL: "sqlite:///${{ runner.temp }}/atom-meta-approved-material/meta-approved-material.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-meta-approved-material/data"
+          ATOM_OFFICE_DIR: "${{ runner.temp }}/atom-meta-approved-material/office"
+          HF_HOME: "${{ runner.temp }}/atom-meta-approved-material/hf-home"
+          HF_HUB_CACHE: "${{ runner.temp }}/atom-meta-approved-material/hf-hub"
+          FASTEMBED_CACHE_PATH: "${{ runner.temp }}/atom-meta-approved-material/fastembed-cache"
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          HF_DATASETS_OFFLINE: "1"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          mkdir -p "${RUNNER_TEMP}/atom-meta-approved-material/data" "${RUNNER_TEMP}/atom-meta-approved-material/office"
+          python -m pytest tests/test_meta_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread
+
   backend-core-extra:
     runs-on: ubuntu-latest
     defaults:

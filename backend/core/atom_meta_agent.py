@@ -3,6 +3,7 @@ Atom Meta-Agent - Central Orchestrator for ATOM Platform
 The main intelligent agent that can spawn specialty agents and access all platform features.
 """
 
+import copy
 import json
 import logging
 import os
@@ -48,6 +49,47 @@ from core.turn_fact_extractor import (
     prompt_sensitivity_ceiling as _prompt_ceiling,
 )
 _pending_extraction_tasks: set = set()  # module-level — prevents GC of in-flight tasks
+
+# The meta-agent's runtime identity. An approval row filed by this consumer is
+# bound to THIS id; a context ``agent_id`` (e.g. a parent orchestrator hint)
+# must never re-target the binding on either the write or the read side.
+_META_RUNTIME_AGENT_ID = "atom_main"
+
+# Approval refusal codes that mean the admitted actor's authority was revoked
+# (or was never valid for this scope). These are external authority truth, not
+# repairable tool errors, so the loop halts instead of letting a final answer
+# turn the refused effect into a business success.
+_TERMINAL_APPROVAL_CODES = frozenset({
+    "approval_actor_inactive",
+    "approval_actor_scope_denied",
+})
+
+
+def _is_failed_tool_result(result: Any) -> bool:
+    """True when a dispatch result is a failure envelope or error string.
+
+    Meta tool errors are historically plain strings (``is_error_result``), but
+    approval refusals for revoked actor authority are typed
+    ``failed_before_effect`` envelopes. Audit classification must read both so
+    a refusal is never ledgered as a successful tool call.
+    """
+    if isinstance(result, str):
+        from core.agent_action_audit import is_error_result
+
+        return is_error_result(result)
+    if isinstance(result, dict):
+        if result.get("success") is False:
+            return True
+        if result.get("business_success") is False:
+            return True
+        if result.get("requires_reconciliation") is True:
+            return True
+        if result.get("terminal_authority_denial") is True:
+            return True
+        return str(result.get("status") or "").strip().lower() in {
+            "uncertain", "failed", "conflict", "failed_before_effect",
+        }
+    return False
 
 
 def _is_error_observation(observation: Any) -> bool:
@@ -3176,9 +3218,305 @@ What is your next step?"""
             logger.error(f"Failed to trigger workflow {workflow_id}: {e}")
             return f"Error triggering workflow {workflow_id}: {e}"
 
+    # ------------------------------------------------------------------
+    # Durable human-approval consumption (Meta consumer)
+    # ------------------------------------------------------------------
+    #
+    # The meta-agent files its own HITL rows (``AgentGovernanceService.
+    # request_approval``) and then must run the material the human actually
+    # approved. A status boolean is not authority: the durable row must still
+    # bind the runtime agent, tool, actor, execution, scope, reviewer and
+    # reviewed/effective payload. The binding/validator itself lives in the
+    # shared ``core.approved_action_material`` seam (existing HITL receipt +
+    # reviewer/role/scope authority); this consumer only supplies the trusted
+    # identity and then re-runs the independent gates.
+
+    def _approval_binding(self, context: Optional[Dict[str, Any]]) -> Dict[str, str]:
+        """Server-owned identity for a Meta HITL approval (writer + reader).
+
+        The runtime agent is ``atom_main`` — a context ``agent_id`` can name a
+        parent/orchestrator hint and must never re-target the approval. Scope
+        comes from this agent instance (constructed by the authenticated
+        route/worker), never from caller context. The actor is the
+        server-bound ``self.user``; context is only a fallback for legacy
+        background callers that carry no authenticated principal. The
+        execution identity is the durable id the loop stamps into ``context``.
+        """
+        ctx = context if isinstance(context, dict) else {}
+        workspace_id, tenant_id = _governance_scope(self)
+        server_user = getattr(self, "user", None)
+        actor_id = str(getattr(server_user, "id", "") or "").strip()
+        if not actor_id:
+            actor_id = str(
+                ctx.get("actor_id") or ctx.get("user_id") or "").strip()
+        return {
+            "agent_id": _META_RUNTIME_AGENT_ID,
+            "workspace_id": str(workspace_id or "default"),
+            "tenant_id": str(tenant_id or ""),
+            "actor_id": actor_id,
+            "execution_id": str(
+                ctx.get("execution_id") or ctx.get("run_id") or "").strip(),
+            "job_id": str(ctx.get("job_id") or "").strip(),
+        }
+
+    @staticmethod
+    def _approval_tenant_arg(binding: Dict[str, str]) -> Optional[str]:
+        """Tenant to pass to the governance service (Personal NULL parity).
+
+        The Personal Edition scope persists as NULL and is canonicalised to
+        ``"default"`` on comparison; passing it explicitly would change the
+        budget scope for legacy callers. Any real tenant is passed exactly.
+        """
+        tenant = str(binding.get("tenant_id") or "")
+        return tenant if tenant and tenant != "default" else None
+
+    def _request_meta_approval(
+        self, gov: Any, *, tool_name: str, params: Optional[Dict[str, Any]],
+        reason: str, context: Optional[Dict[str, Any]],
+    ) -> str:
+        """File one HITL row with the exact material and runtime binding."""
+        binding = self._approval_binding(context)
+        execution_context = {
+            key: value for key, value in {
+                "job_id": binding["job_id"],
+                "execution_id": binding["execution_id"],
+                "workspace_id": binding["workspace_id"],
+                "tenant_id": binding["tenant_id"],
+                "actor_id": binding["actor_id"],
+                "user_id": binding["actor_id"],
+            }.items() if value
+        } or None
+        return gov.request_approval(
+            agent_id=binding["agent_id"],
+            action_type=tool_name,
+            params=params if params is not None else {},
+            reason=reason,
+            execution_context=execution_context,
+            user_id=binding["actor_id"] or None,
+        )
+
+    def _consume_approved_material(
+        self, action_id: str, tool_name: str,
+        reviewed_request: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Re-read the durable human decision and return its effective material.
+
+        Reuses the shared seam (no second registry/validator): the caller's
+        exact reviewed request, the runtime agent, actor, scope, execution and
+        reviewer are all bound, and ``effective_params`` is what the human
+        approved (possibly edited before approval).
+        """
+        from core.approved_action_material import load_approved_material
+
+        binding = self._approval_binding(context)
+        return load_approved_material(
+            action_id,
+            agent_id=binding["agent_id"],
+            action_type=tool_name,
+            reviewed_params=reviewed_request,
+            actor_id=binding["actor_id"],
+            tenant_id=binding["tenant_id"],
+            workspace_id=binding["workspace_id"],
+            execution_id=binding["execution_id"],
+            db_factory=SessionLocal,
+        )
+
+    @staticmethod
+    def _stamp_approval_provenance(
+        target: Optional[Dict[str, Any]], material: Dict[str, Any],
+        *, dispatched: bool,
+    ) -> None:
+        """Attach redacted approval provenance to the tool-call audit metadata.
+
+        Only identity + payload digests are copied. The reviewed original and
+        the effective payload stay in the durable HITL authority row; the
+        audit trail must not become a second copy of parameter material.
+        """
+        if not isinstance(target, dict):
+            return
+        if not isinstance(material, dict) or not material.get("ok"):
+            return
+        target["approval"] = {
+            "action_id": str(material.get("action_id") or ""),
+            "approved_by": str(material.get("approved_by") or ""),
+            "approved_role": str(material.get("approved_role") or ""),
+            "reviewed_at": material.get("reviewed_at"),
+            "reviewed_sha256": str(material.get("reviewed_sha256") or ""),
+            "effective_sha256": str(material.get("effective_sha256") or ""),
+            "material_changed": bool(material.get("material_changed")),
+            "binding": dict(material.get("binding") or {}),
+            "dispatched": bool(dispatched),
+        }
+
+    @staticmethod
+    def _stamp_approval_refusal(
+        target: Optional[Dict[str, Any]], action_id: Optional[str],
+        refusal: Dict[str, Any],
+    ) -> None:
+        """Record the refusal (and that nothing was dispatched) in the audit."""
+        if not isinstance(target, dict):
+            return
+        code = str((refusal or {}).get("code") or "approval_refused")
+        target["approval"] = {
+            "action_id": str(action_id or ""),
+            "consumed": False,
+            "refusal_code": code,
+            "refusal": str((refusal or {}).get("message") or "")[:500],
+            "dispatched": False,
+        }
+
+    @staticmethod
+    def _approval_refusal(tool_name: str, refusal: Dict[str, Any]) -> Any:
+        """Honest non-effect outcome for an approval that cannot authorize.
+
+        Reads keep the historical governance-error string; a revoked admitted
+        actor returns the producer-owned typed ``failed_before_effect``
+        envelope so a later model final answer cannot read the refusal as a
+        business success. No handler ran on any refusal path.
+        """
+        code = str((refusal or {}).get("code") or "approval_refused")
+        message = str((refusal or {}).get("message") or "Approval refused.")
+        if code in _TERMINAL_APPROVAL_CODES:
+            return {
+                "success": False,
+                "status": "failed_before_effect",
+                "action_result": "not_applied",
+                "business_success": False,
+                "effect_state": "none",
+                "durable_claim": False,
+                "oracle_verified": False,
+                "terminal_authority_denial": True,
+                "denial_kind": code,
+                "denial_scope": "actor",
+                "code": code,
+                "error_class": code,
+                "requires_reconciliation": False,
+                "retryable": False,
+                "message": (
+                    f"Refusing to run {tool_name} for an actor whose authority "
+                    f"is no longer valid ({code}): {message} No effect was "
+                    f"attempted."),
+            }
+        return (
+            f"Governance Error: approval for {tool_name} could not authorize "
+            f"this call ({code}): {message}")
+
+    @classmethod
+    def _approval_material_refusal(
+        cls, tool_name: str, material: Optional[Dict[str, Any]],
+    ) -> Optional[Any]:
+        if isinstance(material, dict) and material.get("ok"):
+            return None
+        return cls._approval_refusal(tool_name, material or {})
+
+    async def _revalidate_approved_action(
+        self, tool_name: str, reviewed_check: Optional[Dict[str, Any]],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """Re-run the independent gates for a human-approved Meta action.
+
+        Approval satisfies the review requirement it was filed for. It cannot
+        waive maturity, budget, recursion or a changed never-autonomous rule
+        set — those are re-read against CURRENT state after the wait. Returns
+        ``None`` only when the current verdict is allowed or is the SAME
+        review/risk shape the human reviewed.
+        """
+        binding = self._approval_binding(context)
+        ctx = context if isinstance(context, dict) else {}
+        try:
+            from core.task_classification import task_profile_from_context
+
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(
+                    db,
+                    workspace_id=binding["workspace_id"],
+                    tenant_id=self._approval_tenant_arg(binding),
+                )
+                fresh = await gov.can_perform_action_async(
+                    binding["agent_id"], tool_name,
+                    task_profile=task_profile_from_context(ctx),
+                    never_clearance=ctx,
+                    include_global_agent_id=binding["agent_id"],
+                )
+            finally:
+                db.close()
+        except Exception as exc:  # noqa: BLE001 — unreadable fails closed
+            logger.warning(
+                "approved action governance recheck unavailable for %s: %s",
+                tool_name, type(exc).__name__)
+            return (
+                "The independent governance decision could not be re-read; "
+                "a fresh review is required.")
+
+        fresh = dict(fresh or {})
+        # A verified hard/soft budget or recursion stop is a final refusal and
+        # keeps its own reason (it is not a maturity review that an approval
+        # can cover).
+        status_code = str(fresh.get("status_code") or "")
+        if status_code in ("BUDGET_EXCEEDED", "RECURSION_LIMIT"):
+            return str(
+                fresh.get("reason")
+                or "An independent budget/recursion limit now refuses this "
+                   "action; a fresh review is required.")
+
+        # Same Propose-Only rule this consumer applied when it asked.
+        if int(fresh.get("action_complexity", 2) or 2) > 1:
+            fresh["requires_human_approval"] = True
+            fresh["reason"] = (
+                f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' "
+                f"requires confirmation.")
+
+        try:
+            from core.autonomy_policy import NEVER_OUTCOME_REVIEW, decision_covers
+
+            reviewed_never = (
+                (reviewed_check or {}).get("never_autonomous")
+                if isinstance(reviewed_check, dict) else None)
+            fresh_never = fresh.get("never_autonomous")
+            if (
+                isinstance(fresh_never, dict)
+                and fresh_never.get("outcome") == NEVER_OUTCOME_REVIEW
+                and not decision_covers(reviewed_never, fresh_never)
+            ):
+                return (
+                    "The never-autonomous policy changed while waiting for "
+                    "approval; a fresh human review is required.")
+        except Exception:  # noqa: BLE001 — cannot prove coverage -> refuse
+            return (
+                "The never-autonomous policy could not be re-checked; a "
+                "fresh human review is required.")
+
+        if fresh.get("requires_human_approval"):
+            if not isinstance(reviewed_check, dict) or not (
+                    reviewed_check.get("requires_human_approval")):
+                return (
+                    "The current governance verdict requires review, but the "
+                    "reviewed verdict is unavailable; a fresh human review is "
+                    "required.")
+            # The review requirement may remain (a single action approval does
+            # not consume the maturity review), but its risk shape must be
+            # unchanged.
+            for key in ("action_complexity", "required_status", "agent_status"):
+                if key in reviewed_check and key in fresh:
+                    if reviewed_check.get(key) != fresh.get(key):
+                        return (
+                            f"The {key.replace('_', ' ')} changed while "
+                            f"waiting for approval; a fresh human review is "
+                            f"required.")
+            return None
+        if fresh.get("allowed") is True:
+            return None
+        return str(
+            fresh.get("reason")
+            or "Independent governance now refuses this action.")
+
     async def _execute_tool_with_governance(self, tool_name: str, args: Dict,
                                             context: Dict, step_callback: Optional[callable] = None,
-                                            pre_approved: bool = False) -> str:
+                                            pre_approved: bool = False,
+                                            approval_action_id: Optional[str] = None,
+                                            approval_reviewed_check: Optional[Dict[str, Any]] = None) -> Any:
         """Auditing wrapper around every meta-agent tool invocation (R84c parity).
 
         Mirrors GenericAgent._step_act: ledgers success, error-string results,
@@ -3186,14 +3524,21 @@ What is your next step?"""
         guarded so a downed audit store never breaks the tool call; KillRun
         aborts still audit (success=False) before re-raising. Delegates to
         ``_execute_tool_with_governance_unaudited`` for the actual work.
+
+        ``approval_action_id``/``approval_reviewed_check`` let the parallel
+        batch hand its durable approval row (and the verdict the human
+        reviewed) to the dispatch instead of trusting ``pre_approved``.
         """
         import time as _time
-        from core.agent_action_audit import is_error_result
 
         _start = _time.monotonic()
+        audit_provenance: Dict[str, Any] = {}
         try:
             result = await self._execute_tool_with_governance_unaudited(
-                tool_name, args, context, step_callback, pre_approved
+                tool_name, args, context, step_callback, pre_approved,
+                approval_action_id=approval_action_id,
+                approval_reviewed_check=approval_reviewed_check,
+                audit_provenance=audit_provenance,
             )
         except Exception as tool_err:
             try:
@@ -3205,6 +3550,9 @@ What is your next step?"""
                         "tool": tool_name,
                         "params": args,
                         "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                        **({"approval": audit_provenance["approval"]}
+                           if isinstance(audit_provenance.get("approval"), dict)
+                           else {}),
                     },
                     success=False,
                     error_message=str(tool_err)[:2000],
@@ -3213,7 +3561,7 @@ What is your next step?"""
                 pass
             raise
 
-        _is_err = is_error_result(result)
+        _is_err = _is_failed_tool_result(result)
         try:
             from core.agent_action_audit import log_agent_action
             log_agent_action(
@@ -3223,39 +3571,77 @@ What is your next step?"""
                     "tool": tool_name,
                     "params": args,
                     "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    **({"approval": audit_provenance["approval"]}
+                       if isinstance(audit_provenance.get("approval"), dict)
+                       else {}),
                 },
                 success=not _is_err,
-                error_message=result[:2000] if _is_err else None,
+                error_message=str(result)[:2000] if _is_err else None,
             )
         except Exception:  # noqa: BLE001
             pass
         return result
 
-    async def _execute_tool_with_governance_unaudited(self, tool_name: str, args: Dict,
-                                                      context: Dict, step_callback: Optional[callable] = None,
-                                                      pre_approved: bool = False) -> str:
-        """Execute a tool via MCP with governance checks
+    async def _execute_tool_with_governance_unaudited(
+        self, tool_name: str, args: Dict, context: Dict,
+        step_callback: Optional[callable] = None,
+        pre_approved: bool = False,
+        approval_action_id: Optional[str] = None,
+        approval_reviewed_check: Optional[Dict[str, Any]] = None,
+        audit_provenance: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Execute a tool via MCP with governance checks.
 
-        ``pre_approved`` (Workstream G): when True, the governance/HITL check is
-        skipped (already granted by the parallel-batch approval).
+        ``pre_approved`` (Workstream G): the parallel batch already ran the
+        up-front governance check and filed the HITL row(s). When an action
+        needed human review the batch also passes ``approval_action_id``; this
+        consumer then re-reads that durable row, re-runs the independent gates
+        and dispatches the material the human actually approved — the boolean
+        alone is never authority for a reviewed action.
         """
         from core.sandbox_killrun import KillRunAborted
 
+        ctx = context if isinstance(context, dict) else {}
+        # Freeze the reviewed request BEFORE governance/handler. The handler
+        # gets a deep copy, so an in-place mutation can neither rewrite the
+        # caller's dict nor the original request kept for the receipt.
+        reviewed_request = copy.deepcopy(args if isinstance(args, dict) else {})
+        effective_args = copy.deepcopy(reviewed_request)
+        approval_material: Optional[Dict[str, Any]] = None
+
+        def _mark_dispatched() -> None:
+            if isinstance(audit_provenance, dict):
+                approval = audit_provenance.get("approval")
+                if isinstance(approval, dict):
+                    approval["dispatched"] = True
+
+        def _refuse(refusal: Dict[str, Any], action_id: Optional[str]) -> Any:
+            self._stamp_approval_refusal(
+                audit_provenance, action_id, refusal)
+            return self._approval_refusal(tool_name, refusal)
+
         try:
-            # 1. Governance Check
+            # 1. Governance + durable human approval.
             if not pre_approved:
                 db = SessionLocal()
                 try:
-                    gov = AgentGovernanceService(db)
+                    binding = self._approval_binding(ctx)
+                    gov = AgentGovernanceService(
+                        db,
+                        workspace_id=binding["workspace_id"],
+                        tenant_id=self._approval_tenant_arg(binding),
+                    )
                     # 1. Governance Check (async variant: the sync can_perform_action
                     # can't await the budget check inside a running loop, so it
                     # would skip budget enforcement entirely — a spend bypass).
                     from core.task_classification import task_profile_from_context
 
                     auth_check = await gov.can_perform_action_async(
-                        "atom_main", tool_name,
-                        task_profile=task_profile_from_context(context),
-                        never_clearance=context)
+                        binding["agent_id"], tool_name,
+                        task_profile=task_profile_from_context(ctx),
+                        never_clearance=ctx,
+                        include_global_agent_id=binding["agent_id"],
+                    )
 
                     # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
                     # The user must accept or modify any state-changing task.
@@ -3265,17 +3651,12 @@ What is your next step?"""
                         auth_check["reason"] = f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' requires confirmation."
 
                     if auth_check.get("requires_human_approval"):
-                        # request_approval's signature is (agent_id, action_type,
-                        # params, reason, chain_id=None) — it reads workspace_id off
-                        # the service instance (self.workspace_id). Passing it as a
-                        # kwarg raised TypeError every time, which the outer except
-                        # masked as "Tool error" — making the entire HITL approval
-                        # gate dead for the meta-agent.
-                        action_id = gov.request_approval(
-                            agent_id="atom_main",
-                            action_type=tool_name,
-                            params=args,
+                        action_id = self._request_meta_approval(
+                            gov,
+                            tool_name=tool_name,
+                            params=reviewed_request,
                             reason=auth_check["reason"],
+                            context=ctx,
                         )
 
                         if step_callback:
@@ -3289,21 +3670,68 @@ What is your next step?"""
                         approved = await self._wait_for_approval(action_id)
                         if not approved:
                             return f"Action {tool_name} was REJECTED or timed out."
+
+                        # Consume the durable decision: a status boolean is not
+                        # authority and an edit-before-approve payload must
+                        # reach the handler.
+                        approval_material = self._consume_approved_material(
+                            action_id, tool_name, reviewed_request, ctx)
+                        refusal = self._approval_material_refusal(
+                            tool_name, approval_material)
+                        if refusal is not None:
+                            return _refuse(approval_material, action_id)
+
+                        # Independent gates against CURRENT state.
+                        governance_reason = await self._revalidate_approved_action(
+                            tool_name, auth_check, ctx)
+                        if governance_reason:
+                            return _refuse(
+                                {"code": "approval_governance_changed",
+                                 "message": governance_reason}, action_id)
+
+                        # Final authority fence AFTER the awaited gate: re-read
+                        # the durable row so a reviewer/actor/scope/payload
+                        # change during that await cannot be dispatched, and
+                        # so the material used is the last-read authority.
+                        final_material = self._consume_approved_material(
+                            action_id, tool_name, reviewed_request, ctx)
+                        if not final_material.get("ok"):
+                            return _refuse(final_material, action_id)
+                        if (
+                            str(final_material.get("effective_sha256") or "")
+                            != str(approval_material.get("effective_sha256") or "")
+                            or str(final_material.get("action_id") or "")
+                            != str(action_id)
+                        ):
+                            return _refuse(
+                                {"code": "approval_authority_changed",
+                                 "message": (
+                                     "The approval's authority or effective "
+                                     "material changed while the independent "
+                                     "gates were re-checked; a fresh review "
+                                     "is required.")}, action_id)
+                        approval_material = final_material
+                        effective_args = copy.deepcopy(
+                            approval_material.get("effective_params") or {})
+                        self._stamp_approval_provenance(
+                            audit_provenance, approval_material,
+                            dispatched=False)
+
+                        # Grant only AFTER the binding and the independent
+                        # gates were re-verified, so a rejected approval can
+                        # never leave a task clearance behind.
                         if auth_check.get("never_autonomous"):
                             from core.autonomy_policy import (
                                 grant_never_autonomous_clearance,
                             )
-                            from core.task_classification import (
-                                task_profile_from_context,
-                            )
 
                             grant_never_autonomous_clearance(
-                                context,
+                                ctx,
                                 auth_check["never_autonomous"],
-                                task_profile=task_profile_from_context(context),
+                                task_profile=task_profile_from_context(ctx),
                                 execution_id=(
-                                    context.get("execution_id")
-                                    or context.get("run_id")),
+                                    ctx.get("execution_id")
+                                    or ctx.get("run_id")),
                                 tenant_id=self.tenant_id,
                                 workspace_id=self.workspace_id,
                             )
@@ -3312,26 +3740,89 @@ What is your next step?"""
                         return f"Governance blocked: {auth_check['reason']}"
                 finally:
                     db.close()
-            
+            elif approval_action_id:
+                # Parallel-batch consumer: consume THIS action's durable
+                # decision, re-run the gates, then dispatch the approved
+                # material. ``pre_approved`` alone is never authority.
+                approval_material = self._consume_approved_material(
+                    approval_action_id, tool_name, reviewed_request, ctx)
+                refusal = self._approval_material_refusal(
+                    tool_name, approval_material)
+                if refusal is not None:
+                    return _refuse(
+                        approval_material, approval_action_id)
+                governance_reason = await self._revalidate_approved_action(
+                    tool_name, approval_reviewed_check, ctx)
+                if governance_reason:
+                    return _refuse(
+                        {"code": "approval_governance_changed",
+                         "message": governance_reason}, approval_action_id)
+                final_material = self._consume_approved_material(
+                    approval_action_id, tool_name, reviewed_request, ctx)
+                if not final_material.get("ok"):
+                    return _refuse(final_material, approval_action_id)
+                if (
+                    str(final_material.get("effective_sha256") or "")
+                    != str(approval_material.get("effective_sha256") or "")
+                    or str(final_material.get("action_id") or "")
+                    != str(approval_action_id)
+                ):
+                    return _refuse(
+                        {"code": "approval_authority_changed",
+                         "message": (
+                             "The approval's authority or effective material "
+                             "changed while the independent gates were "
+                             "re-checked; a fresh review is required.")},
+                        approval_action_id)
+                approval_material = final_material
+                effective_args = copy.deepcopy(
+                    approval_material.get("effective_params") or {})
+                self._stamp_approval_provenance(
+                    audit_provenance, approval_material, dispatched=False)
+                _reviewed_never = (
+                    (approval_reviewed_check or {}).get("never_autonomous")
+                    if isinstance(approval_reviewed_check, dict) else None)
+                if _reviewed_never:
+                    from core.autonomy_policy import (
+                        grant_never_autonomous_clearance,
+                    )
+                    from core.task_classification import (
+                        task_profile_from_context,
+                    )
+
+                    grant_never_autonomous_clearance(
+                        ctx,
+                        _reviewed_never,
+                        task_profile=task_profile_from_context(ctx),
+                        execution_id=(
+                            ctx.get("execution_id")
+                            or ctx.get("run_id")),
+                        tenant_id=self.tenant_id,
+                        workspace_id=self.workspace_id,
+                    )
+
             # SPECIAL TOOLS (Internal)
             if tool_name == "trigger_workflow":
-                result = await self._trigger_workflow(args.get("workflow_id"), args.get("params", {}), context)
+                _mark_dispatched()
+                result = await self._trigger_workflow(effective_args.get("workflow_id"), effective_args.get("params", {}), ctx)
                 return result
 
             elif tool_name == "delegate_task":
-                result = await self._execute_delegation(args.get("agent_name"), args.get("task"), context)
+                _mark_dispatched()
+                result = await self._execute_delegation(effective_args.get("agent_name"), effective_args.get("task"), ctx)
                 return result
 
             elif tool_name == "recruit_fleet":
                 # Handle fleet recruitment
-                sub_tasks = args.get("sub_tasks", [])
-                goal = args.get("goal", "Multi-Agent Coordination")
-                result = await self._recruit_fleet(goal, sub_tasks, context, step_callback)
+                _mark_dispatched()
+                sub_tasks = effective_args.get("sub_tasks", [])
+                goal = effective_args.get("goal", "Multi-Agent Coordination")
+                result = await self._recruit_fleet(goal, sub_tasks, ctx, step_callback)
                 return result
 
             elif tool_name == "invoke_capability":
                 # Maturity-Gated Capability Invocation
-                capability_name = args.get("capability_name")
+                capability_name = effective_args.get("capability_name")
                 maturity = self.graduation_service.get_maturity("atom_main", capability_name)
 
                 logger.info(f"Invoking capability '{capability_name}' at maturity level: {maturity}")
@@ -3341,7 +3832,8 @@ What is your next step?"""
                     return f"Action 'invoke_capability({capability_name})' blocked. Capability is at STUDENT level and requires explicit governance authorization or HITL approval."
 
                 # Execute logic...
-                result = await self.mcp.call_tool(capability_name, args.get("params", {}), context=context)
+                _mark_dispatched()
+                result = await self.mcp.call_tool(capability_name, effective_args.get("params", {}), context=ctx)
 
                 # Record usage for graduation — parse the result envelope so
                 # only VERIFIED successes can promote the capability. A silent
@@ -3370,7 +3862,8 @@ What is your next step?"""
             # agent normally allowed?", sandbox decides "is this specific
             # call within bounds?". Closes the prompt-injection gap
             # (docs/security/TRUST_VS_SANDBOX.md). Shadow mode by default.
-            sandbox_decision = _meta_agent_sandbox_check(tool_name, args, context)
+            # Evaluated against the material that will actually run.
+            sandbox_decision = _meta_agent_sandbox_check(tool_name, effective_args, ctx)
             if sandbox_decision is not None and sandbox_decision.requires_review:
                 if sandbox_decision.enforced:
                     return (
@@ -3380,7 +3873,7 @@ What is your next step?"""
                 # Shadow mode — log + audit but proceed.
                 logger.info(
                     "sandbox shadow: %s -> %s (%s)",
-                    context.get("agent_id", "atom_main"),
+                    ctx.get("agent_id", "atom_main"),
                     tool_name,
                     sandbox_decision.violation_type,
                 )
@@ -3395,50 +3888,78 @@ What is your next step?"""
                 from core import sandbox_config as _sc
             except Exception:  # pragma: no cover
                 _sc = None
+            judge_result = None
             if _sc is not None and _sc.is_sandbox_judge_enabled():
+                # Only the model consult is best-effort. A human decision for
+                # an ESCALATE verdict below is NOT inside this swallow: an
+                # unreadable approval must never degrade into a dispatch of
+                # unapproved material.
                 try:
-                    from core.llm.action_judge import ActionJudge, JudgeVerdict
+                    from core.llm.action_judge import ActionJudge
                     judge = ActionJudge(llm_service=self.llm)
                     judge_result = await judge.evaluate(
-                        action_description=f"{tool_name}({json.dumps(args, default=str)})",
-                        context=context.get("original_request") or "",
+                        action_description=f"{tool_name}({json.dumps(effective_args, default=str)})",
+                        context=ctx.get("original_request") or "",
                         provenance_context=None,
                     )
-                    if judge_result.verdict == JudgeVerdict.BLOCK:
-                        logger.warning(
-                            "ActionJudge BLOCK: %s -> %s (%s)",
-                            context.get("agent_id", "atom_main"),
-                            tool_name,
-                            judge_result.rationale,
-                        )
-                        return (
-                            f"Action {tool_name} was blocked by the safety judge: "
-                            f"{judge_result.rationale}"
-                        )
-                    if judge_result.verdict == JudgeVerdict.ESCALATE:
-                        with SessionLocal() as judge_db:
-                            gov = AgentGovernanceService(judge_db)
-                            action_id = gov.request_approval(
-                                agent_id="atom_main",
-                                action_type=tool_name,
-                                params=args,
-                                reason=(
-                                    f"Safety judge escalation: {judge_result.rationale}"
-                                ),
-                            )
-                        approved = await self._wait_for_approval(action_id)
-                        if not approved:
-                            return (
-                                f"Action {tool_name} was REJECTED or timed out "
-                                f"after safety-judge escalation."
-                            )
                 except Exception as _judge_err:
                     logger.debug(
                         "ActionJudge consult skipped (%s): %s",
                         tool_name, _judge_err,
                     )
+                    judge_result = None
 
-            result = await self.mcp.call_tool(tool_name, args, context=context)
+            if judge_result is not None:
+                verdict = getattr(judge_result, "verdict", None)
+                rationale = getattr(judge_result, "rationale", None)
+                if verdict == "block":
+                    logger.warning(
+                        "ActionJudge BLOCK: %s -> %s (%s)",
+                        ctx.get("agent_id", "atom_main"),
+                        tool_name,
+                        rationale,
+                    )
+                    return (
+                        f"Action {tool_name} was blocked by the safety judge: "
+                        f"{rationale}"
+                    )
+                if verdict == "escalate":
+                    with SessionLocal() as judge_db:
+                        binding = self._approval_binding(ctx)
+                        gov = AgentGovernanceService(
+                            judge_db,
+                            workspace_id=binding["workspace_id"],
+                            tenant_id=self._approval_tenant_arg(binding),
+                        )
+                        judge_action_id = self._request_meta_approval(
+                            gov,
+                            tool_name=tool_name,
+                            params=copy.deepcopy(effective_args),
+                            reason=(
+                                f"Safety judge escalation: {rationale}"
+                            ),
+                            context=ctx,
+                        )
+                    judge_approved = await self._wait_for_approval(
+                        judge_action_id)
+                    if not judge_approved:
+                        return (
+                            f"Action {tool_name} was REJECTED or timed out "
+                            f"after safety-judge escalation."
+                        )
+                    judge_material = self._consume_approved_material(
+                        judge_action_id, tool_name, effective_args, ctx)
+                    refusal = self._approval_material_refusal(
+                        tool_name, judge_material)
+                    if refusal is not None:
+                        return _refuse(judge_material, judge_action_id)
+                    effective_args = copy.deepcopy(
+                        judge_material.get("effective_params") or {})
+                    self._stamp_approval_provenance(
+                        audit_provenance, judge_material, dispatched=False)
+
+            _mark_dispatched()
+            result = await self.mcp.call_tool(tool_name, effective_args, context=ctx)
             return str(result)
 
         except KillRunAborted:
@@ -4306,16 +4827,23 @@ Provide your Mentorship Guidance:"""
         # 1. Governance pre-check for the whole batch (all-or-nothing).
         action_ids: List[str] = []
         blocked: List["ToolCall"] = []
-        never_decisions: List[Dict[str, Any]] = []
+        batch_approvals: Dict[int, Dict[str, Any]] = {}
         with SessionLocal() as db:
-            gov = AgentGovernanceService(db)
+            binding = self._approval_binding(context)
+            gov = AgentGovernanceService(
+                db,
+                workspace_id=binding["workspace_id"],
+                tenant_id=self._approval_tenant_arg(binding),
+            )
             from core.task_classification import task_profile_from_context
 
-            for act in parallel_actions:
+            for index, act in enumerate(parallel_actions):
                 auth_check = await gov.can_perform_action_async(
-                    "atom_main", act.tool,
+                    binding["agent_id"], act.tool,
                     task_profile=task_profile_from_context(context),
-                    never_clearance=context)
+                    never_clearance=context,
+                    include_global_agent_id=binding["agent_id"],
+                )
                 complexity = auth_check.get("action_complexity", 2)
                 if complexity > 1:
                     auth_check["requires_human_approval"] = True
@@ -4324,16 +4852,20 @@ Provide your Mentorship Guidance:"""
                         f"'{act.tool}' requires confirmation."
                     )
                 if auth_check.get("requires_human_approval"):
-                    action_id = gov.request_approval(
-                        agent_id="atom_main",
-                        action_type=act.tool,
-                        params=act.params,
+                    action_id = self._request_meta_approval(
+                        gov,
+                        tool_name=act.tool,
+                        params=copy.deepcopy(act.params or {}),
                         reason=auth_check["reason"],
+                        context=context,
                     )
                     action_ids.append(action_id)
-                    if auth_check.get("never_autonomous"):
-                        never_decisions.append(
-                            auth_check["never_autonomous"])
+                    # The dispatch consumes THIS action's durable row and the
+                    # exact verdict the human reviewed.
+                    batch_approvals[index] = {
+                        "action_id": action_id,
+                        "reviewed_check": auth_check,
+                    }
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -4371,26 +4903,24 @@ Provide your Mentorship Guidance:"""
                     }
                     for a in parallel_actions
                 ]
-            from core.autonomy_policy import grant_never_autonomous_clearance
-            from core.task_classification import task_profile_from_context
+            # A never-autonomous clearance is granted per action only AFTER
+            # its durable approval + independent gates were re-verified in the
+            # dispatch below — never by the batch's all-or-nothing wait alone.
 
-            for decision in never_decisions:
-                grant_never_autonomous_clearance(
-                    context, decision,
-                    task_profile=task_profile_from_context(context),
-                    execution_id=(
-                        context.get("execution_id") or context.get("run_id")),
-                    tenant_id=self.tenant_id,
-                    workspace_id=self.workspace_id,
-                )
-
-        # 2. Execute the parallel batch. Governance already granted above.
+        # 2. Execute the parallel batch. Governance already granted above; each
+        # reviewed action still consumes its durable approval row before any
+        # handler runs (``pre_approved`` is not authority for a reviewed one).
         results = await asyncio.gather(
             *[
                 self._execute_tool_with_governance(
-                    a.tool, a.params, context, step_callback, pre_approved=True
+                    a.tool, a.params, context, step_callback,
+                    pre_approved=True,
+                    approval_action_id=(
+                        batch_approvals.get(index) or {}).get("action_id"),
+                    approval_reviewed_check=(
+                        batch_approvals.get(index) or {}).get("reviewed_check"),
                 )
-                for a in parallel_actions
+                for index, a in enumerate(parallel_actions)
             ],
             return_exceptions=True,
         )

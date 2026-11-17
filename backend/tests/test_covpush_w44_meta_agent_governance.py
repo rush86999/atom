@@ -89,6 +89,9 @@ class TestExecuteToolWithGovernance:
         assert "Governance blocked" in result
 
     async def test_hitl_approval_granted(self):
+        # Durable-consumption contract lives in
+        # tests/test_meta_approved_material_contract.py; here the approved
+        # material seam is stubbed so this unit test stays about dispatch.
         agent = make_agent()
         gov = _gov(can_perform_action_async=AsyncMock(
             return_value={"allowed": True, "action_complexity": 3,
@@ -96,6 +99,14 @@ class TestExecuteToolWithGovernance:
                           "reason": "complex action"}))
         agent.mcp = MagicMock()
         agent.mcp.call_tool = AsyncMock(return_value="done")
+        agent._consume_approved_material = MagicMock(
+            side_effect=lambda action_id, *_a, **_k: {
+                "ok": True,
+                "action_id": str(action_id),
+                "effective_params": {"a": 1},
+                "effective_sha256": "synthetic-sha",
+            })
+        agent._revalidate_approved_action = AsyncMock(return_value=None)
         with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
              patch("core.atom_meta_agent.AgentGovernanceService",
                    return_value=gov), \
@@ -250,6 +261,13 @@ class TestExecuteToolWithGovernance:
         judge_result = SimpleNamespace(verdict=JudgeVerdict.ESCALATE, rationale="review")
         agent.mcp = MagicMock()
         agent.mcp.call_tool = AsyncMock(return_value="escalated-ok")
+        agent._consume_approved_material = MagicMock(
+            side_effect=lambda action_id, *_a, **_k: {
+                "ok": True,
+                "action_id": str(action_id),
+                "effective_params": {},
+                "effective_sha256": "synthetic-sha",
+            })
         with patch("core.sandbox_config.is_sandbox_judge_enabled",
                    return_value=True), \
              patch("core.llm.action_judge.ActionJudge") as mock_judge_cls, \

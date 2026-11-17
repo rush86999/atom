@@ -646,5 +646,26 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${RUNNER_TEMP}/atom-approved-material/data\"\npython -m pytest tests/test_generic_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run Meta approved-material consumption controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "PYTEST_CURRENT_TEST": "meta_approved_material_ci",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-meta-approved-material/meta-approved-material.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-meta-approved-material/data",
+      "ATOM_OFFICE_DIR": "${{ runner.temp }}/atom-meta-approved-material/office",
+      "HF_HOME": "${{ runner.temp }}/atom-meta-approved-material/hf-home",
+      "HF_HUB_CACHE": "${{ runner.temp }}/atom-meta-approved-material/hf-hub",
+      "FASTEMBED_CACHE_PATH": "${{ runner.temp }}/atom-meta-approved-material/fastembed-cache",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-meta-approved-material/data\" \"${RUNNER_TEMP}/atom-meta-approved-material/office\"\npython -m pytest tests/test_meta_approved_material_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
