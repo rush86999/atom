@@ -26,6 +26,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -1538,3 +1539,522 @@ def test_mounted_route_order_exposes_reads_and_keeps_legacy_decision_surface(scr
     pending = client.get("/api/agents/approvals/pending")
     assert pending.status_code == 200, pending.text
     assert isinstance(pending.json(), list)
+
+
+# ============================================================================
+# Pending queue read scope (legacy + alias + governance mounted surfaces)
+# ============================================================================
+
+
+def _pending_action(
+    db,
+    *,
+    workspace,
+    tenant,
+    user_id="member-1",
+    params=None,
+):
+    """A pending HITLAction in an explicitly chosen canonical scope."""
+    return _scoped_action(
+        db,
+        workspace=workspace,
+        tenant=tenant,
+        user_id=user_id,
+        status=HITLActionStatus.PENDING.value,
+        params=params,
+    )
+
+
+def _governance_client(db, user_id):
+    from api.agent_governance_routes import router as governance_router
+
+    return _route_client(db, user_id, governance_router)
+
+
+def _client_for_actor_object(db, actor, router):
+    """Mount one router with a STALE request-token actor object.
+
+    ``get_current_user`` is replaced deliberately: the pending read must
+    re-resolve the durable row instead of trusting this object's raw scope.
+    """
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: actor
+    app.dependency_overrides[_get_db] = lambda: db
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_legacy_pending_queue_is_exact_scope_for_default_admin(scratch):
+    """Actual production legacy route: default ADMIN + named pending row.
+
+    This is the adjudicated counter shape for the queue: a real ADMIN with
+    ``tenant_id=None``/``workspace_id=None`` passes the route's AGENT_MANAGE
+    gate, so the scope fence must live in the read itself. The TEAM_LEAD arm
+    stays the preserved negative control: it is refused by permission BEFORE
+    any scope decision (403), not by the new scope predicate.
+    """
+    scratch.db.add_all([
+        _scoped_user(
+            "personal-admin", UserRole.ADMIN, workspace=None, tenant=None),
+        _scoped_user(
+            "personal-lead", UserRole.TEAM_LEAD, workspace=None, tenant=None),
+    ])
+    scratch.db.commit()
+    named = _pending_action(
+        scratch.db,
+        workspace="ws-named",
+        tenant="tenant-named",
+        params={"to": "named-secret@example.com"},
+    )
+    own = _pending_action(
+        scratch.db,
+        workspace=None,
+        tenant=None,
+        params={"to": "own@example.com"},
+    )
+
+    response = _agent_client(scratch.db, "personal-admin").get(
+        "/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()] == [own]
+    assert named not in [item["id"] for item in response.json()]
+    assert "named-secret" not in response.text
+    assert response.json()[0]["params"] == {"to": "own@example.com"}
+
+    lead = _agent_client(scratch.db, "personal-lead").get(
+        "/api/agents/approvals/pending")
+    assert lead.status_code == 403, lead.text
+
+
+def test_alias_pending_queue_is_exact_scope_for_default_actor(scratch):
+    """Alias surface proven independently of the shadowing legacy route."""
+    scratch.db.add(_scoped_user(
+        "personal-member", UserRole.MEMBER, workspace=None, tenant=None))
+    scratch.db.commit()
+    named = _pending_action(
+        scratch.db,
+        workspace="ws-named",
+        tenant="tenant-named",
+        params={"to": "named-secret@example.com"},
+    )
+    own = _pending_action(
+        scratch.db,
+        workspace=None,
+        tenant=None,
+        params={"to": "own@example.com"},
+    )
+
+    response = _alias_client(scratch.db, "personal-member").get(
+        "/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()] == [own]
+    assert named not in [item["id"] for item in response.json()]
+    assert "named-secret" not in response.text
+
+
+def test_governance_pending_queue_ignores_client_approver_as_scope(scratch):
+    """The old positional call bound ``approver_id`` to ``workspace_id``.
+
+    Actual mounted route evidence: a foreign-tenant pending row whose
+    ``workspace_id`` equals the client-supplied ``approver_id`` must not be
+    exported, and the actor's own default row must still be returned.
+    """
+    scratch.db.add(_scoped_user(
+        "personal-admin", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    foreign = _pending_action(
+        scratch.db,
+        workspace="lead-1",
+        tenant="tenant-foreign",
+        params={"to": "foreign-secret@example.com"},
+    )
+    own = _pending_action(
+        scratch.db,
+        workspace=None,
+        tenant=None,
+        params={"to": "own@example.com"},
+    )
+
+    response = _governance_client(scratch.db, "personal-admin").get(
+        "/api/agent-governance/pending-approvals?approver_id=lead-1")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["count"] == 1
+    assert [item["id"] for item in body["pending_approvals"]] == [own]
+    assert foreign not in [item["id"] for item in body["pending_approvals"]]
+    assert "foreign-secret" not in response.text
+
+
+def test_governance_pending_queue_is_exact_scope_without_client_filter(scratch):
+    scratch.db.add(_scoped_user(
+        "personal-member", UserRole.MEMBER, workspace=None, tenant=None))
+    scratch.db.commit()
+    named = _pending_action(
+        scratch.db,
+        workspace="ws-named",
+        tenant="tenant-named",
+        params={"to": "named-secret@example.com"},
+    )
+    own = _pending_action(
+        scratch.db,
+        workspace=None,
+        tenant=None,
+        params={"to": "own@example.com"},
+    )
+
+    response = _governance_client(scratch.db, "personal-member").get(
+        "/api/agent-governance/pending-approvals")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["count"] == 1
+    assert [item["id"] for item in body["pending_approvals"]] == [own]
+    assert named not in [item["id"] for item in body["pending_approvals"]]
+    assert "named-secret" not in response.text
+
+
+@pytest.mark.parametrize(
+    "actor_ws,actor_tenant,action_ws,action_tenant,allowed",
+    [
+        # Same canonical default scope (None / "" / "default" one scope).
+        (None, None, None, None, True),
+        ("default", "default", "", "", True),
+        ("", "", None, None, True),
+        # Same named scope.
+        ("ws-a", "tenant-a", "ws-a", "tenant-a", True),
+        # Same mixed scope (named tenant, default workspace) is the SAME scope.
+        (None, "tenant-a", "", "tenant-a", True),
+        # Default actor vs named action, both dimensions and each one alone.
+        (None, None, "ws-a", "tenant-a", False),
+        (None, None, "ws-a", None, False),
+        (None, None, None, "tenant-a", False),
+        # Reverse direction: named-on-one-axis actor vs default action.
+        ("ws-a", None, None, None, False),
+        (None, "tenant-a", None, None, False),
+        # Named mismatches.
+        ("ws-a", "tenant-a", "ws-b", "tenant-a", False),
+        ("ws-a", "tenant-a", "ws-a", "tenant-b", False),
+        # Mixed named/default in BOTH directions on one axis.
+        ("ws-a", None, "ws-a", "tenant-a", False),
+        ("ws-a", "tenant-a", "ws-a", None, False),
+    ],
+)
+def test_pending_scope_is_exact_not_a_default_wildcard(
+    scratch, actor_ws, actor_tenant, action_ws, action_tenant, allowed,
+):
+    """Every public pending queue applies exact canonical scope in SQL.
+
+    Same 14-case matrix as the history/recent read: default is grouped, never
+    a wildcard for a named peer, in either direction and on each axis alone.
+    """
+    uid = "pending-admin-" + uuid.uuid4().hex[:10]
+    scratch.db.add(_scoped_user(
+        uid, UserRole.ADMIN, workspace=actor_ws, tenant=actor_tenant))
+    scratch.db.commit()
+    aid = _pending_action(
+        scratch.db,
+        workspace=action_ws,
+        tenant=action_tenant,
+        params={"to": "matrix-secret@example.com"},
+    )
+
+    client = _alias_client(scratch.db, uid)
+    response = client.get("/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    listed = aid in [item["id"] for item in response.json()]
+
+    if allowed:
+        assert listed, response.text
+        assert response.json()[0]["params"] == {
+            "to": "matrix-secret@example.com"}
+    else:
+        assert not listed, response.text
+        assert "matrix-secret" not in response.text
+
+
+def test_pending_default_scope_reads_own_canonical_rows_and_stays_bounded(
+        scratch):
+    """NULL / "" / "default" are ONE legitimate Personal/default queue.
+
+    Own default rows stay readable on the legacy + alias surfaces, with the
+    established field/limit shapes; a named row never joins them.
+    """
+    scratch.db.add(_scoped_user(
+        "personal-admin", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    own = {}
+    for label, ws, tid in (
+            ("null", None, None),
+            ("empty", "", ""),
+            ("literal", "default", "default")):
+        own[label] = _pending_action(
+            scratch.db,
+            workspace=ws,
+            tenant=tid,
+            params={"to": f"{label}@example.com"},
+        )
+    named = _pending_action(
+        scratch.db,
+        workspace="ws-named",
+        tenant="tenant-named",
+        params={"to": "named-secret@example.com"},
+    )
+
+    legacy = _agent_client(scratch.db, "personal-admin").get(
+        "/api/agents/approvals/pending")
+    assert legacy.status_code == 200, legacy.text
+    ids = [item["id"] for item in legacy.json()]
+    assert set(ids) == set(own.values())
+    assert named not in ids
+    assert "named-secret" not in legacy.text
+    assert set(legacy.json()[0]) == {
+        "id", "agent_id", "action_type", "params", "reason", "created_at"}
+    assert {
+        item["params"]["to"] for item in legacy.json()
+    } == {f"{label}@example.com" for label in own}
+
+    bounded = _agent_client(scratch.db, "personal-admin").get(
+        "/api/agents/approvals/pending?limit=2")
+    assert bounded.status_code == 200, bounded.text
+    assert len(bounded.json()) == 2
+
+    alias = _alias_client(scratch.db, "personal-admin").get(
+        "/api/agents/approvals/pending")
+    assert alias.status_code == 200, alias.text
+    assert set(item["id"] for item in alias.json()) == set(own.values())
+    assert named not in [item["id"] for item in alias.json()]
+    assert all(item["status"] == "pending" for item in alias.json())
+    assert all("agent_name" in item for item in alias.json())
+
+
+def test_pending_named_scope_remains_usable_on_every_surface(scratch):
+    """A named ADMIN/member still sees legitimate named local approvals."""
+    scratch.db.add_all([
+        _scoped_user(
+            "named-admin", UserRole.ADMIN,
+            workspace="ws-a", tenant="tenant-a"),
+        _scoped_user(
+            "named-member", UserRole.MEMBER,
+            workspace="ws-a", tenant="tenant-a"),
+    ])
+    scratch.db.commit()
+    own = _pending_action(
+        scratch.db, workspace="ws-a", tenant="tenant-a",
+        params={"to": "named-own@example.com"})
+    foreign = _pending_action(
+        scratch.db, workspace="ws-b", tenant="tenant-b",
+        params={"to": "foreign-secret@example.com"})
+
+    legacy = _agent_client(scratch.db, "named-admin").get(
+        "/api/agents/approvals/pending")
+    assert legacy.status_code == 200, legacy.text
+    assert [item["id"] for item in legacy.json()] == [own]
+    assert foreign not in [item["id"] for item in legacy.json()]
+
+    alias = _alias_client(scratch.db, "named-member").get(
+        "/api/agents/approvals/pending")
+    assert alias.status_code == 200, alias.text
+    assert [item["id"] for item in alias.json()] == [own]
+    assert foreign not in [item["id"] for item in alias.json()]
+
+    governance = _governance_client(scratch.db, "named-admin").get(
+        "/api/agent-governance/pending-approvals")
+    assert governance.status_code == 200, governance.text
+    assert [item["id"] for item in governance.json()["pending_approvals"]] \
+        == [own]
+    assert "foreign-secret" not in governance.text
+
+
+def test_pending_scope_follows_current_durable_actor_after_move(scratch):
+    """A stale request-token workspace must not keep the old queue open."""
+    scratch.db.add(_scoped_user(
+        "drift-user", UserRole.ADMIN,
+        workspace="ws-old", tenant="tenant-old"))
+    scratch.db.commit()
+    old_action = _pending_action(
+        scratch.db, workspace="ws-old", tenant="tenant-old",
+        params={"to": "old-secret@example.com"})
+    new_action = _pending_action(
+        scratch.db, workspace="ws-new", tenant="tenant-new",
+        params={"to": "new@example.com"})
+
+    # The durable actor moves AND is demoted; the request object still carries
+    # the old ADMIN role and old scope.
+    scratch.db.query(User).filter(User.id == "drift-user").update({
+        User.workspace_id: "ws-new",
+        User.tenant_id: "tenant-new",
+        User.role: UserRole.MEMBER.value,
+    })
+    scratch.db.commit()
+    stale = SimpleNamespace(
+        id="drift-user",
+        role=UserRole.ADMIN.value,
+        status="active",
+        is_active=True,
+        workspace_id="ws-old",
+        tenant_id="tenant-old",
+    )
+
+    from api.approvals_routes import router as approvals_router
+
+    client = _client_for_actor_object(scratch.db, stale, approvals_router)
+    response = client.get("/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()] == [new_action]
+    assert old_action not in [item["id"] for item in response.json()]
+    assert "old-secret" not in response.text
+
+
+def test_pending_missing_or_deactivated_actor_fails_closed(scratch):
+    """The durable actor check runs even when auth handed us a live object."""
+    scratch.db.add(_scoped_user(
+        "soon-gone", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    _pending_action(
+        scratch.db, workspace=None, tenant=None,
+        params={"to": "own@example.com"})
+    stale = SimpleNamespace(
+        id="soon-gone",
+        role=UserRole.ADMIN.value,
+        status="active",
+        is_active=True,
+        workspace_id=None,
+        tenant_id=None,
+    )
+
+    from api.approvals_routes import router as approvals_router
+
+    scratch.db.query(User).filter(User.id == "soon-gone").update({
+        User.is_active: False,
+        User.status: "inactive",
+    })
+    scratch.db.commit()
+    inactive = _client_for_actor_object(
+        scratch.db, stale, approvals_router).get(
+            "/api/agents/approvals/pending")
+    assert inactive.status_code == 403, inactive.text
+    assert inactive.json()["detail"]["error"]["code"] == "ACCOUNT_INACTIVE"
+
+    scratch.db.query(User).filter(User.id == "soon-gone").delete()
+    scratch.db.commit()
+    missing = _client_for_actor_object(
+        scratch.db, stale, approvals_router).get(
+            "/api/agents/approvals/pending")
+    assert missing.status_code == 401, missing.text
+    assert missing.json()["detail"]["error"]["code"] == "UNAUTHENTICATED"
+
+
+def test_pending_storage_failure_is_a_refusal_not_empty_success(
+        scratch, monkeypatch):
+    """Unreadable storage must never look like "no pending approvals"."""
+    scratch.db.add_all([
+        _scoped_user(
+            "personal-admin", UserRole.ADMIN, workspace=None, tenant=None),
+        _scoped_user(
+            "personal-member", UserRole.MEMBER, workspace=None, tenant=None),
+    ])
+    scratch.db.commit()
+    _pending_action(
+        scratch.db, workspace=None, tenant=None,
+        params={"to": "own@example.com"})
+
+    def _boom(*args, **kwargs):
+        raise SQLAlchemyError("pending store unavailable")
+
+    monkeypatch.setattr(
+        InterventionService, "_pending_interventions_query", _boom)
+
+    surfaces = (
+        (_agent_client(scratch.db, "personal-admin"),
+         "/api/agents/approvals/pending"),
+        (_alias_client(scratch.db, "personal-member"),
+         "/api/agents/approvals/pending"),
+        (_governance_client(scratch.db, "personal-member"),
+         "/api/agent-governance/pending-approvals"),
+    )
+    for client, path in surfaces:
+        response = client.get(path)
+        assert response.status_code == 503, response.text
+        assert "PENDING_APPROVALS_UNAVAILABLE" in response.text
+
+
+def test_governance_pending_caller_uses_named_actor_scope(scratch, monkeypatch):
+    """Prove the fixed caller passes the CURRENT actor by keyword.
+
+    The old call ``get_pending_interventions(approver_id)`` bound the client
+    filter to ``workspace_id``. The new call names ``actor_id`` explicitly and
+    never forwards the optional client value as scope.
+    """
+    scratch.db.add(_scoped_user(
+        "personal-admin", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    calls = []
+    original = InterventionService.get_pending_interventions_for_actor
+
+    def _spy(self, *args, **kwargs):
+        calls.append((args, kwargs))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        InterventionService, "get_pending_interventions_for_actor", _spy)
+
+    response = _governance_client(scratch.db, "personal-admin").get(
+        "/api/agent-governance/pending-approvals?approver_id=lead-1")
+    assert response.status_code == 200, response.text
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args == ()
+    assert kwargs["actor_id"] == "personal-admin"
+    assert "db" in kwargs
+    assert "approver_id" not in kwargs
+
+
+def test_pending_production_mount_order_keeps_default_reads_exact(scratch):
+    """Real production order: legacy agent router first, then the alias."""
+    from api.agent_routes import router as agent_router
+    from api.approvals_routes import router as approvals_router
+
+    scratch.db.add(_scoped_user(
+        "personal-admin", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    own = _pending_action(
+        scratch.db, workspace=None, tenant=None,
+        params={"to": "own@example.com"})
+    named = _pending_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        params={"to": "named-secret@example.com"})
+
+    app = FastAPI()
+    app.include_router(agent_router)  # production mount order: legacy first
+    app.include_router(approvals_router)
+    user = scratch.db.query(User).filter(User.id == "personal-admin").one()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[_get_db] = lambda: scratch.db
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.get("/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()] == [own]
+    assert named not in [item["id"] for item in response.json()]
+    assert "named-secret" not in response.text
+
+
+def test_pending_scope_survives_a_cold_reopen(scratch):
+    """The queue's scope is durable data, not an in-memory request cache."""
+    scratch.db.add(_scoped_user(
+        "personal-admin", UserRole.ADMIN, workspace=None, tenant=None))
+    scratch.db.commit()
+    own = _pending_action(
+        scratch.db, workspace=None, tenant=None,
+        params={"to": "own@example.com"})
+    named = _pending_action(
+        scratch.db, workspace="ws-named", tenant="tenant-named",
+        params={"to": "named-secret@example.com"})
+    scratch.db.commit()
+
+    scratch.reopen()
+    response = _agent_client(scratch.db, "personal-admin").get(
+        "/api/agents/approvals/pending")
+    assert response.status_code == 200, response.text
+    assert [item["id"] for item in response.json()] == [own]
+    assert named not in [item["id"] for item in response.json()]
+    assert "named-secret" not in response.text

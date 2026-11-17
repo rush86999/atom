@@ -801,66 +801,190 @@ class InterventionService:
                 "message": f"Failed to persist intervention request: {str(e)}"
             }
 
+    def _pending_intervention_view(
+        self, db: Session, action: HITLAction,
+    ) -> Dict[str, Any]:
+        """Serialize one pending row in the queue's established shape."""
+        agent_name = "Unknown Agent"
+        if action.agent_id:
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == action.agent_id).first()
+            if agent:
+                agent_name = agent.name
+
+        return {
+            "id": action.id,
+            "agent_id": action.agent_id,
+            "agent_name": agent_name,
+            "user_id": action.user_id,
+            "action_type": action.action_type,
+            "platform": action.platform,
+            "params": action.params,
+            "reason": action.reason,
+            "created_at": (
+                action.created_at.isoformat()
+                if action.created_at else None),
+            "status": action.status,
+        }
+
+    def _pending_interventions_query(
+        self,
+        db: Session,
+        *,
+        workspace_id: Any = None,
+        tenant_id: Any = None,
+        user_id: Any = None,
+        include_legacy_unscoped: bool = False,
+        exact_scope: bool = False,
+        limit: Optional[int] = None,
+    ):
+        """The ONE pending-queue query; scope is applied here, before rows.
+
+        ``exact_scope=True`` is the authenticated public-read contract: BOTH
+        canonical scope ids are always applied, so ``None`` / ``""`` /
+        ``"default"`` is the legitimate Personal/default grouping rather than
+        "no filter". A named scope matches only its own literal id in either
+        direction. The compatibility path (``exact_scope=False``) keeps the
+        historical explicit-filter behavior for non-public/internal callers
+        that supply a specific id; it is not used by any mounted read.
+
+        ``include_legacy_unscoped`` remains only as an explicit internal
+        opt-in on the compatibility path. Public reads never pass it, so the
+        default scope never widens a named queue and vice versa.
+        """
+        from sqlalchemy import or_
+
+        from core.goal_run_decision_service import canonical_scope_id
+
+        scope_workspace = canonical_scope_id(workspace_id)
+        scope_tenant = canonical_scope_id(tenant_id)
+
+        query = db.query(HITLAction).filter(
+            HITLAction.status == HITLActionStatus.PENDING.value)
+
+        if exact_scope or workspace_id is not None:
+            if include_legacy_unscoped and scope_workspace != "default":
+                query = query.filter(or_(
+                    _canonical_scope_condition(
+                        HITLAction.workspace_id, scope_workspace),
+                    HITLAction.workspace_id.is_(None),
+                ))
+            else:
+                query = query.filter(_canonical_scope_condition(
+                    HITLAction.workspace_id, scope_workspace))
+        if exact_scope or tenant_id is not None:
+            query = query.filter(_canonical_scope_condition(
+                HITLAction.tenant_id, scope_tenant))
+        if user_id:
+            query = query.filter(HITLAction.user_id == user_id)
+        if limit is not None:
+            query = query.order_by(
+                HITLAction.created_at.desc()).limit(max(0, int(limit)))
+        return query
+
     def get_pending_interventions(
         self,
         workspace_id: str = None,
         user_id: str = None,
         tenant_id: str = None,
         include_legacy_unscoped: bool = False,
+        *,
+        limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Get pending interventions, optionally filtered by workspace or user
-        ownership.
+        Get pending interventions, optionally filtered by workspace/tenant/
+        user ownership.
 
-        Resource scoping is applied whenever a workspace/tenant is supplied —
-        including the literal ``"default"`` workspace. The previous
-        ``workspace_id != "default"`` exception made the default workspace a
-        cross-workspace read, which is exactly how a guessed approval id could
-        leak or approve another assignment. Legacy rows with no workspace are
-        included only when the caller explicitly asks for them.
+        A supplied workspace/tenant is scoped with the canonical grouping —
+        including the literal ``"default"`` workspace, which matches the
+        Personal/default rows (NULL / "" / "default") rather than every row.
+        The previous ``workspace_id != "default"`` exception made the default
+        workspace a cross-workspace read, which is exactly how a guessed
+        approval id could leak or approve another assignment.
+
+        This compatibility path still returns ALL pending rows when neither
+        scope id is supplied. Public authenticated reads MUST NOT call it that
+        way: use ``get_pending_interventions_for_actor`` so the scope always
+        comes from the current durable actor.
         """
         with get_db_session() as db:
-            query = db.query(HITLAction).filter(
-                HITLAction.status == HITLActionStatus.PENDING.value)
+            actions = self._pending_interventions_query(
+                db,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                include_legacy_unscoped=include_legacy_unscoped,
+                limit=limit,
+            ).all()
+            return [
+                self._pending_intervention_view(db, action)
+                for action in actions
+            ]
 
-            if workspace_id:
-                if include_legacy_unscoped:
-                    from sqlalchemy import or_
-                    query = query.filter(or_(
-                        HITLAction.workspace_id == workspace_id,
-                        HITLAction.workspace_id.is_(None),
-                    ))
-                else:
-                    query = query.filter(
-                        HITLAction.workspace_id == workspace_id)
-            if tenant_id:
-                query = query.filter(HITLAction.tenant_id == tenant_id)
-            if user_id:
-                query = query.filter(HITLAction.user_id == user_id)
+    def get_pending_interventions_for_actor(
+        self,
+        actor_id: Any,
+        *,
+        db: Optional[Session] = None,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Pending queue for the CURRENT durable actor's exact scope.
 
-            actions = query.all()
-            
-            results = []
-            for action in actions:
-                agent_name = "Unknown Agent"
-                if action.agent_id:
-                    agent = db.query(AgentRegistry).filter(AgentRegistry.id == action.agent_id).first()
-                    if agent:
-                        agent_name = agent.name
-                
-                results.append({
-                    "id": action.id,
-                    "agent_id": action.agent_id,
-                    "agent_name": agent_name,
-                    "user_id": action.user_id,
-                    "action_type": action.action_type,
-                    "platform": action.platform,
-                    "params": action.params,
-                    "reason": action.reason,
-                    "created_at": action.created_at.isoformat(),
-                    "status": action.status
-                })
-            return results
+        Every authenticated pending read (legacy `/api/agents/approvals/
+        pending`, alias and governance queue) goes through here; none of them
+        accepts a client-supplied workspace/tenant/role as scope. The actor is
+        re-read from the durable ``User`` row in a fresh session on the
+        caller's bind, so a stale request-token object cannot widen the queue
+        after a workspace/tenant move, deactivation or role change.
+
+        Scope is applied FIRST and EXACTLY on both dimensions: NULL / "" /
+        "default" form the one legitimate Personal/default scope (never a
+        wildcard for a named row), a named scope reads only itself, and a
+        mixed named/default pair matches only its own exact combination. The
+        queue is not further narrowed by ownership: ordinary permitted local
+        approvals remain visible to their scope. Storage failure is a 503
+        refusal, never an empty success.
+        """
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from core.goal_run_decision_service import _resolve_actor
+
+        def _read(session: Session) -> Dict[str, Any]:
+            authority = _resolve_actor(session, actor_id)
+            if not authority.get("ok"):
+                return _refusal(
+                    str(authority.get("message") or "Authentication required"),
+                    str(authority.get("error_code")
+                        or "AUTHENTICATION_REQUIRED"),
+                    int(authority.get("http_status") or 401),
+                )
+            try:
+                actions = self._pending_interventions_query(
+                    session,
+                    workspace_id=authority.get("workspace_id"),
+                    tenant_id=authority.get("tenant_id"),
+                    exact_scope=True,
+                    limit=limit,
+                ).all()
+                pending = [
+                    self._pending_intervention_view(session, action)
+                    for action in actions
+                ]
+            except SQLAlchemyError:
+                logger.exception("Pending approval queue unreadable")
+                return _refusal(
+                    "Pending approvals are temporarily unavailable; retry.",
+                    "PENDING_APPROVALS_UNAVAILABLE", 503)
+            return {
+                "success": True,
+                "pending": pending,
+                "count": len(pending),
+            }
+
+        if db is not None:
+            return _read(db)
+        with get_db_session() as session:
+            return _read(session)
 
     async def approve_intervention(
         self,

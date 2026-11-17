@@ -79,19 +79,33 @@ def _validate_assignment_approval_payload(
 @router.get("/pending")
 async def list_pending_approvals(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Pending HITL actions as a plain array — the shape the Approvals page
     and chat widget have always expected.
 
-    Scoped to the authenticated user's workspace/tenant: a pending action
-    from another workspace must not be listable, and a guessed id must not
-    be decidable.
+    Scoped to the CURRENT durable actor's exact canonical tenant/workspace
+    (re-read inside the service). NULL/""/"default" is the one Personal/
+    default scope, never a wildcard: a pending action from another named
+    tenant/workspace must not be listable, and a guessed id must not be
+    decidable. Storage failure is a 503, not an empty success.
     """
-    return intervention_service.get_pending_interventions(
-        workspace_id=current_user.workspace_id,
-        tenant_id=current_user.tenant_id,
-    )
+    result = intervention_service.get_pending_interventions_for_actor(
+        actor_id=current_user.id, db=db)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "PENDING_APPROVALS_UNAVAILABLE",
+                    "message": result.get(
+                        "message", "Pending approvals unavailable"),
+                },
+            },
+        )
+    return result.get("pending", [])
 
 
 @router.get("/recent")
