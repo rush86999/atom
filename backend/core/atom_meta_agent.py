@@ -119,6 +119,11 @@ _TERMINAL_FAILURE_STATUSES = frozenset({
 
 def _execution_succeeded(result: Dict) -> bool:
     """Classify a meta-agent run outcome for learning/governance signals."""
+    if result.get("objective_pending") is True:
+        # A delivered clarification/pending question may complete the TURN,
+        # but the original objective is unresolved: never credit success,
+        # graduation evidence or whole-objective completion.
+        return False
     status = str(result.get("status") or "").strip().lower()
     if status in _TERMINAL_FAILURE_STATUSES:
         return False
@@ -437,6 +442,116 @@ def _governance_scope(owner: Any) -> tuple[str, Optional[str]]:
         workspace if isinstance(workspace, str) and workspace else "default",
         tenant if isinstance(tenant, str) and tenant else None,
     )
+
+
+def _accepted_collaboration_requirement(
+    context: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Normalize the SERVER-accepted collaboration requirement, or None.
+
+    The requirement is produced by the shared turn interpretation
+    (``core.turn_decision``) and carried on the internal intent record. It
+    is additive to every existing call: absent/malformed means the
+    pre-existing single-answer routing is unchanged. It never inspects the
+    request text — participant semantics belong to the one structured
+    interpretation, not a second parser here.
+    """
+    raw = (context or {}).get("_accepted_collaboration_requirement")
+    if not isinstance(raw, dict) or raw.get("required") is not True:
+        return None
+    from core.turn_decision import (
+        COLLABORATION_OBJECTIVE_MAX,
+        COLLABORATION_ROLE_LABEL_MAX,
+        COLLABORATION_ROLE_LIMIT,
+    )
+
+    roles: List[str] = []
+    seen = set()
+    for role in (raw.get("roles") or raw.get("specialists") or []):
+        label = " ".join(str(role or "").split()).strip(" ,;:-")
+        if not label or label.casefold() in seen:
+            continue
+        seen.add(label.casefold())
+        roles.append(label)
+    generic = bool(raw.get("generic"))
+    objective = str(raw.get("objective") or "")
+    label_overflow = [
+        role for role in roles
+        if len(role) > COLLABORATION_ROLE_LABEL_MAX
+    ]
+    limits = {
+        "requested_count": len(roles),
+        "role_limit": COLLABORATION_ROLE_LIMIT,
+        "label_limit": COLLABORATION_ROLE_LABEL_MAX,
+        "objective_limit": COLLABORATION_OBJECTIVE_MAX,
+        "role_limit_exceeded": len(roles) > COLLABORATION_ROLE_LIMIT,
+        "label_overflow": label_overflow,
+        "objective_overflow": len(objective) > COLLABORATION_OBJECTIVE_MAX,
+    }
+    clarify = bool(
+        raw.get("clarification_required")
+        or limits["role_limit_exceeded"]
+        or limits["label_overflow"]
+        or limits["objective_overflow"])
+    if not roles and not generic and not clarify:
+        return None
+    question = str(raw.get("question") or "")[:1000]
+    if clarify and not question:
+        question = (
+            "The specialist collaboration request exceeds a contract limit "
+            "and was not dispatched. Which specialists should I involve?")
+    return {
+        "required": True,
+        "roles": roles,
+        "generic": generic,
+        "authorization": str(raw.get("authorization") or ""),
+        "clarification_required": clarify,
+        "question": question,
+        # FULL accepted request, never a truncated objective.
+        "objective": objective,
+        "limits": limits,
+        "reason": "explicit_specialist_collaboration",
+    }
+
+
+def _resolve_collaboration_domains(
+    db: Session,
+    roles: List[str],
+    *,
+    user_id: Optional[str],
+    workspace_id: Optional[str],
+) -> Dict[str, Any]:
+    """Resolve accepted role labels through the existing specialist catalog.
+
+    Uses ``core.specialist_matcher`` (canonical domain vocabulary + real
+    registry eligibility). Unknown/unavailable roles are returned so the
+    caller can CLARIFY; this function never invents a specialist and never
+    selects a subset silently.
+    """
+    from core.specialist_matcher import SpecialistMatcher, canonical_domain
+
+    requested = [str(role).strip() for role in (roles or [])
+                 if str(role or "").strip()]
+    if not requested:
+        return {"domains": [], "unresolved": []}
+    matcher = SpecialistMatcher(db)
+    domains: List[str] = []
+    unresolved: List[str] = []
+    for role in requested:
+        canonical = canonical_domain(role)
+        if not canonical:
+            unresolved.append(role)
+            continue
+        found = matcher.find_specialists_for_domains(
+            [canonical], user_id=user_id, limit_per_domain=1,
+            workspace_id=workspace_id,
+        ).get(canonical) or []
+        if not found:
+            unresolved.append(role)
+            continue
+        if canonical not in domains:
+            domains.append(canonical)
+    return {"domains": domains, "unresolved": unresolved}
 
 
 def _completion_text_outcome(
@@ -840,6 +955,88 @@ class AtomMetaAgent:
                 except Exception:
                     pass
 
+    async def _finalize_collaboration_pending(
+        self,
+        *,
+        execution_id: str,
+        request: str,
+        text: str,
+        start_time: datetime,
+        trigger_mode: AgentTriggerMode,
+        tenant_id: Optional[str],
+        context: Optional[Dict[str, Any]],
+        roles: List[str],
+        unresolved: List[str],
+        available_domains: List[str],
+        reason: str = "collaboration_pending",
+        step_callback: Optional[callable] = None,
+    ) -> Dict[str, Any]:
+        """Pause the ORIGINAL work while truthfully delivering the question.
+
+        A pending clarification is not a completed fleet run: no chain, no
+        specialist dispatch, no fleet outcome/credit, no satisfaction of the
+        objective or graduation evidence. The turn may still deliver the
+        question successfully, so ``question_delivered`` is True while
+        ``objective_pending`` keeps governance/whole-objective accounting
+        non-success. The request/roles ride the payload for the caller's
+        durable pending carrier.
+        """
+        payload = {
+            "execution_id": execution_id,
+            "route": "TASK",
+            "handler": "collaboration",
+            "status": "pending_collaboration",
+            # The ORIGINAL work is not done; no false fleet/objective credit.
+            "success": False,
+            "objective_pending": True,
+            "question_delivered": True,
+            "handled": True,
+            "terminal": True,
+            "outcome": "pending",
+            "final_output": text,
+            "response": text,
+            "message": text,
+            "actions_executed": [],
+            "specialist_results": [],
+            "specialists_count": 0,
+            "chain_id": None,
+            "requested_roles": list(roles),
+            "unresolved_roles": list(unresolved),
+            "available_specialist_domains": list(available_domains),
+            "request": str(request),
+            "pending_reason": reason,
+            "enforced": False,
+            "execution_attempted": False,
+            "clarification_required": True,
+        }
+        await self._finalize_agent_execution(
+            execution_id=execution_id,
+            request=request,
+            result_payload=payload,
+            # PAUSED, not completed: the original objective remains open.
+            durable_status="paused",
+            final_answer=text,
+            start_time=start_time,
+            trigger_mode=trigger_mode,
+            tenant_id=tenant_id,
+            context=context,
+            fleet_audit_id=None,
+            fleet_success=False,
+            fleet_error=reason,
+        )
+        if step_callback:
+            try:
+                await step_callback({
+                    "execution_id": execution_id,
+                    "step": 0,
+                    "step_type": "collaboration_pending",
+                    "thought": text,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:  # noqa: BLE001 — progress is best-effort
+                pass
+        return payload
+
     async def _finalize_agent_execution(
         self,
         *,
@@ -985,6 +1182,14 @@ class AtomMetaAgent:
             request, context, step_callback)
         if _never_admission is not None:
             return _never_admission
+
+        # ACCEPTED COLLABORATION (2026-11-17): a requirement composed by the
+        # shared turn interpretation. None keeps every existing route
+        # byte-for-byte; a required collaboration is a bounded specialist
+        # task for the existing governed fleet lane.
+        _collaboration_requirement = _accepted_collaboration_requirement(
+            context)
+        _explicit_collaboration = _collaboration_requirement is not None
 
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
 
@@ -1316,10 +1521,134 @@ class AtomMetaAgent:
                 fleet_routing_enabled = lambda: False  # noqa: E731
                 resolved_fleet_enforce = lambda: False  # noqa: E731
 
+            _fleet_user_id = (
+                (context.get("user_id") if context else None)
+                or (self.user.id if self.user else None)
+                or "default"
+            )
+            _master_fleet_on = bool(fleet_routing_enabled())
+            _pilot_enforced = bool(resolved_fleet_enforce())
+            _collaboration_domains: List[str] = []
+            if _explicit_collaboration:
+                _collab_roles = list(
+                    _collaboration_requirement.get("roles") or [])
+                _collab_ambiguous = bool(
+                    _collaboration_requirement.get(
+                        "clarification_required")
+                    or _collaboration_requirement.get(
+                        "authorization") != "granted")
+                _collab_unresolved: List[str] = []
+                if _collab_roles and not _collab_ambiguous:
+                    try:
+                        with SessionLocal() as _collab_db:
+                            _resolved = _resolve_collaboration_domains(
+                                _collab_db, _collab_roles,
+                                user_id=_fleet_user_id,
+                                workspace_id=(
+                                    getattr(self, "workspace_id", None)
+                                    or (context or {}).get("workspace_id")),
+                            )
+                        _collaboration_domains = list(
+                            _resolved.get("domains") or [])
+                        _collab_unresolved = list(
+                            _resolved.get("unresolved") or [])
+                    except Exception as _collab_resolve_err:
+                        logger.warning(
+                            "[collaboration] role resolution failed: %s",
+                            _collab_resolve_err)
+                        _collab_unresolved = list(_collab_roles)
+                # NO ADMINISTRATIVE CONSENT BYPASS. A user's task request is
+                # task authorization, not operator approval of the fleet
+                # pilot. Master-off and shadow (not force-enforced) both
+                # leave the original work pending with no specialist
+                # dispatch; only an already-approved pilot/enforcement runs
+                # the exact request. No flag is flipped here.
+                if (not _master_fleet_on or not _pilot_enforced
+                        or _collab_ambiguous or _collab_unresolved):
+                    try:
+                        with SessionLocal() as _avail_db:
+                            from core.specialist_matcher import (
+                                SpecialistMatcher,
+                            )
+
+                            _available_domains = (
+                                SpecialistMatcher(_avail_db)
+                                .get_all_available_domains(
+                                    user_id=_fleet_user_id,
+                                    workspace_id=(
+                                        getattr(self, "workspace_id", None)
+                                        or (context or {}).get(
+                                            "workspace_id")),
+                                )
+                            )
+                    except Exception:  # noqa: BLE001 — catalog is advisory
+                        _available_domains = []
+                    if not _master_fleet_on:
+                        _pending_reason = "fleet_routing_disabled"
+                        _collab_text = (
+                            "You asked for specialist collaboration, but "
+                            "fleet routing is disabled in this deployment. "
+                            "No specialist work was started. The request is "
+                            "preserved as pending; I can answer directly "
+                            "without specialists if you want.")
+                    elif not _pilot_enforced:
+                        _pending_reason = "fleet_pilot_not_enforced"
+                        _collab_text = (
+                            "You asked for specialist collaboration. Fleet "
+                            "routing is available only in shadow mode until "
+                            "an operator approves the pilot, so no "
+                            "specialist work was started. The request is "
+                            "preserved as pending; once the pilot is "
+                            "approved, say \"go ahead\" to resume the "
+                            "original request.")
+                    elif _collab_ambiguous:
+                        _pending_reason = "roles_ambiguous"
+                        _collab_text = (
+                            "I understood that you want specialist "
+                            "collaboration, but I need to know which "
+                            "specialist roles or agents should take part. "
+                            "Which specialists should I involve?"
+                            + (
+                                " Available specialist domains here: "
+                                + ", ".join(_available_domains) + "."
+                                if _available_domains else ""))
+                    else:
+                        _pending_reason = "roles_unavailable"
+                        _collab_text = (
+                            "I understood that you want specialist "
+                            "collaboration, but I couldn't match these "
+                            "requested roles to an available specialist: "
+                            + ", ".join(_collab_unresolved)
+                            + ". No specialist work was run."
+                            + (
+                                " Available specialist domains here: "
+                                + ", ".join(_available_domains) + "."
+                                if _available_domains else "")
+                            + " Which specialists should I involve?")
+                    return await self._finalize_collaboration_pending(
+                        execution_id=execution_id,
+                        request=request,
+                        text=_collab_text,
+                        start_time=start_time,
+                        trigger_mode=trigger_mode,
+                        tenant_id=tenant_id,
+                        context=context,
+                        roles=_collab_roles,
+                        unresolved=_collab_unresolved,
+                        available_domains=_available_domains,
+                        reason=_pending_reason,
+                        step_callback=step_callback,
+                    )
+
             _fleet_eligible = (
-                fleet_routing_enabled()
-                and route.category == RouteCategory.ONE_OFF
-                and len(request) > 40  # non-trivial long-horizon task
+                _master_fleet_on
+                and (
+                    _explicit_collaboration
+                    or (
+                        route.category == RouteCategory.ONE_OFF
+                        and len(request) > 40  # non-trivial long-horizon task
+                    )
+                )
             )
             if _fleet_eligible:
                 # Map the route result onto an IntentClassification (the governed
@@ -1335,7 +1664,12 @@ class AtomMetaAgent:
                 _fleet_intent = _FleetIntent(
                     category=_FleetCategory.TASK,
                     confidence=0.7,
-                    reasoning=f"fleet-eligible one-off task: {route.reasoning}",
+                    reasoning=(
+                        "explicit specialist collaboration accepted by the "
+                        "turn interpretation"
+                        if _explicit_collaboration
+                        else f"fleet-eligible one-off task: "
+                             f"{route.reasoning}"),
                     requires_execution=True,
                     suggested_handler="fleet_admiral",
                     is_structured=False,
@@ -1346,15 +1680,16 @@ class AtomMetaAgent:
                 _fleet_enforced_now = bool(resolved_fleet_enforce())
                 _fleet_exc = None
                 try:
-                    _fleet_user_id = (
-                        (context.get("user_id") if context else None)
-                        or (self.user.id if self.user else None)
-                        or "default"
-                    )
+                    _route_kwargs: Dict[str, Any] = {
+                        "agent_id": "atom_main",
+                        "execution_id": execution_id,
+                    }
+                    if _collaboration_domains:
+                        _route_kwargs["requested_specialist_domains"] = (
+                            list(_collaboration_domains))
                     _fleet_result = await self.route_with_governance(
                         request, _fleet_intent, _fleet_user_id,
-                        agent_id="atom_main",
-                        execution_id=execution_id,
+                        **_route_kwargs,
                     )
                 except Exception as fleet_err:
                     _fleet_exc = fleet_err
@@ -4389,6 +4724,7 @@ Provide your Mentorship Guidance:"""
         user_id: str,  # Changed from tenant_id
         agent_id: str = "atom_main",
         execution_id: Optional[str] = None,
+        requested_specialist_domains: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Route request with governance checks.
@@ -4448,6 +4784,7 @@ Provide your Mentorship Guidance:"""
             result = await self._route_to_task(
                 request, user_id, agent_id,
                 execution_id=execution_id,
+                requested_specialist_domains=requested_specialist_domains,
             )
             return {
                 **result,
@@ -4552,6 +4889,7 @@ Provide your Mentorship Guidance:"""
         user_id: str,  # Changed from tenant_id
         agent_id: str = "atom_main",
         execution_id: Optional[str] = None,
+        requested_specialist_domains: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Route TASK intent to FleetAdmiral for dynamic agent recruitment.
@@ -4562,6 +4900,9 @@ Provide your Mentorship Guidance:"""
             agent_id: Agent UUID
             execution_id: Exact persisted ``AgentExecution.id`` for this run;
                 persisted on the fleet chain as its durable root link.
+            requested_specialist_domains: Canonical domains the user's
+                accepted collaboration requirement named. Recruitment keeps
+                exactly these domains; None preserves existing recruitment.
 
         Returns:
             Fleet recruitment result
@@ -4574,14 +4915,18 @@ Provide your Mentorship Guidance:"""
         with SessionLocal() as db:
             admiral = FleetAdmiral(db, self.llm)
 
-            result = await admiral.recruit_and_execute(
-                task=request,
-                user_id=user_id,  # Changed from tenant_id
-                root_agent_id=agent_id,
-                tenant_id=getattr(self, "tenant_id", None),
-                workspace_id=getattr(self, "workspace_id", None),
-                root_execution_id=execution_id,
-            )
+            _recruit_kwargs: Dict[str, Any] = {
+                "task": request,
+                "user_id": user_id,  # Changed from tenant_id
+                "root_agent_id": agent_id,
+                "tenant_id": getattr(self, "tenant_id", None),
+                "workspace_id": getattr(self, "workspace_id", None),
+                "root_execution_id": execution_id,
+            }
+            if requested_specialist_domains:
+                _recruit_kwargs["requested_domains"] = list(
+                    requested_specialist_domains)
+            result = await admiral.recruit_and_execute(**_recruit_kwargs)
 
             return {
                 "route": "TASK",

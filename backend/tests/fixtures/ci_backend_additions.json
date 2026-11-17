@@ -607,5 +607,40 @@
       "ENVIRONMENT": "development"
     },
     "run": "mkdir -p \"${RUNNER_TEMP}/atom-document-lineage/data\" \"${RUNNER_TEMP}/atom-document-lineage/office\"\npython -m pytest tests/test_document_lineage_upgrade.py tests/test_document_derived_dataset_lineage.py tests/core/test_knowledge_vfs_scope_freshness.py tests/test_document_connector_lineage.py tests/test_postgres_document_lineage_upgrade_acceptance.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run explicit collaboration authority controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-explicit-collaboration/collaboration.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-explicit-collaboration/data",
+      "HF_HOME": "${{ runner.temp }}/atom-explicit-collaboration/hf-home",
+      "HF_HUB_CACHE": "${{ runner.temp }}/atom-explicit-collaboration/hf-hub",
+      "FASTEMBED_CACHE_PATH": "${{ runner.temp }}/atom-explicit-collaboration/fastembed-cache",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_DATASETS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-explicit-collaboration\"\npython -m pytest tests/test_collaboration_public_http_contract.py tests/test_explicit_collaboration_semantics.py tests/test_collaboration_pending_authority.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run M3 canonical chat delivery contract controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_VERSION": "ci",
+      "PYTHON_DOTENV_DISABLED": "1",
+      "DATABASE_URL": "sqlite:///${{ runner.temp }}/atom-m3-canonical/canonical-delivery.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-m3-canonical/data",
+      "LANCEDB_URI": "${{ runner.temp }}/atom-m3-canonical/lancedb",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "mkdir -p \"${RUNNER_TEMP}/atom-m3-canonical/data\" \"${RUNNER_TEMP}/atom-m3-canonical/lancedb\"\npython -m pytest tests/test_m3_canonical_delivery_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
