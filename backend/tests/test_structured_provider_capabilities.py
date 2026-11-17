@@ -3,22 +3,26 @@
 The structured path has two documented transports: Instructor's forced
 function-call scaffold (``tools`` + one synthetic tool + forced
 ``tool_choice``) and its schema-in-prompt JSON mode. Which one is legal is a
-provider/model capability, not something to discover by paying the same HTTP
-400 on every stage.
+capability of ONE exact provider route, not something to discover by paying the
+same HTTP 400 on every stage — and not something a model's brand name proves.
 
 These tests use a REAL ``openai.OpenAI`` client over ``httpx.MockTransport``
 and the real Instructor wrapper, so they assert the constructed outbound SDK
 payload rather than a forwarded keyword. The twins implement the documented
 behavior:
 
-* OpenAI accepts forced/named tool choice and documents no generic chat
-  ``thinking`` disable field;
-* DeepSeek enables thinking by default, rejects forced/named tool choice
-  while it is on, accepts ``reasoning_effort: "none"`` to disable it, and
-  documents ``response_format: {"type": "json_object"}``;
-* an unknown OpenAI-compatible endpoint gets the historical payload
-  unchanged and the existing typed-error recovery (one changed retry, then a
-  pair memo — never an identical repeat).
+* OpenAI accepts forced/named tool choice; it has NO declaration, so the
+  historical payload — including the legacy OpenRouter-style ``reasoning``
+  object when reasoning is disabled — is unchanged;
+* the two native DeepSeek ids the first-party endpoint reported as served
+  enable thinking by default, reject forced/named tool choice while it is on,
+  and accept ``reasoning_effort: "none"``; native docs list ``logprobs``;
+* the exact OpenCode Go ``deepseek-v4-pro`` route captures the documented
+  rejection + JSON-mode success; no other Go/DeepSeek model, and no other
+  gateway, inherits it;
+* an unknown, future or legacy route gets the historical payload and the
+  existing typed-error recovery (one changed retry, then a pair memo — never
+  an identical repeat).
 
 No live provider, model, key or network call is used.
 """
@@ -121,6 +125,7 @@ def _clear_pair_memos(provider_id: str, model: str) -> None:
     bh._AUTH_FAILED.discard(pair)
     bh._MODEL_TEMPERATURE.pop(pair, None)
     bh._STRUCTURED_PROTOCOL_UNSUPPORTED.discard(pair)
+    bh._LOGPROBS_UNSUPPORTED.discard(pair)
     bh._PROVIDER_COOLDOWN_UNTIL.pop(provider_id, None)
 
 
@@ -142,27 +147,70 @@ def _call(handler, *, disable_reasoning: bool, messages=None):
 
 
 # ---------------------------------------------------------------------------
-# Valid documented twins
+# Exact-route declarations: what is sourced, and what is deliberately NOT
 # ---------------------------------------------------------------------------
-def test_contract_resolution_is_family_scoped_not_exact_model():
-    from core.llm.wire_capabilities import resolve_structured_wire_contract
+def test_contract_resolution_is_exact_and_sourced():
+    from core.llm.wire_capabilities import (
+        declared_routes,
+        resolve_structured_wire_contract,
+    )
 
+    # The catalogue itself is pinned: three exact routes, no family expansion.
+    assert {(d.provider_id, d.model_id) for d in declared_routes()} == {
+        ("deepseek", "deepseek-flash"),
+        ("deepseek", "deepseek-v4-pro"),
+        ("opencode-go", "deepseek-v4-pro"),
+    }
+
+    # The exact Go route with served evidence (2026-10-18).
     gateway = resolve_structured_wire_contract(
-        "opencode-go", "deepseek-v4.1-flash-free")
+        "opencode-go", "deepseek-v4-pro")
     assert gateway is not None
     assert gateway.protocol == "json"
     assert gateway.supports_logprobs is False
+    assert gateway.observed_on == "2026-10-18"
 
-    vendor_path = resolve_structured_wire_contract(
-        "opencode", "deepseek/deepseek-v4-pro")
-    assert vendor_path is not None
-    assert vendor_path.protocol == "json"
+    # The two native identifiers the first-party endpoint reported as served.
+    for model in ("deepseek-flash", "deepseek-v4-pro"):
+        native = resolve_structured_wire_contract("deepseek", model)
+        assert native is not None, model
+        assert native.protocol == "tools", model
+        assert native.requires_thinking_disabled is True, model
+        # Native DeepSeek's current docs list logprobs; only the Go route has
+        # a conservative skip. No family-wide claim is made.
+        assert native.supports_logprobs is True, model
+        assert native.observed_on == "2026-09-16", model
 
-    # Undeclared gateways are not assumed to share DeepSeek semantics.
+    # Identifier normalization is case/whitespace only.
+    assert resolve_structured_wire_contract(
+        " OpenCode-Go ", " DeepSeek-V4-Pro ").protocol == "json"
+
+    # An UNVERIFIED future id on a declared gateway inherits NOTHING from the
+    # brand token.
+    assert resolve_structured_wire_contract(
+        "opencode-go", "deepseek-unannounced-synthetic-v999") is None
+    # Nor does a legacy/native distill id inherit the native v4 cohort.
+    assert resolve_structured_wire_contract(
+        "deepseek", "deepseek-r1-distill-synthetic") is None
+    # Nor does the Go Flash route inherit the v4-pro declaration.
+    assert resolve_structured_wire_contract(
+        "opencode-go", "deepseek-v4.1-flash") is None
+    # A date/snapshot tail is NOT stripped into the declared id.
+    assert resolve_structured_wire_contract(
+        "opencode-go", "deepseek-v4-pro-20261018") is None
+    # A vendor-path tail is NOT matched against a first-party id.
+    assert resolve_structured_wire_contract(
+        "deepseek", "deepseek/deepseek-v4-pro") is None
+    # Go evidence is never transplanted to another gateway/provider.
+    assert resolve_structured_wire_contract(
+        "opencode", "deepseek/deepseek-v4-pro") is None
+    assert resolve_structured_wire_contract(
+        "zen", "deepseek-v4-pro") is None
     assert resolve_structured_wire_contract(
         "openrouter", "deepseek/deepseek-v4-pro") is None
     assert resolve_structured_wire_contract(
         "mystery-provider", "mystery-model") is None
+    assert resolve_structured_wire_contract("deepseek", "") is None
 
 
 def _deepseek_twin(
@@ -225,10 +273,39 @@ def test_openai_twin_keeps_forced_tool_choice_unchanged():
     assert len(seen) == 1, seen
 
 
+def test_openai_legacy_reasoning_object_is_unchanged_when_disabled():
+    """The resolver returning None does NOT suppress the legacy extension.
+
+    The pre-existing OpenRouter-style ``reasoning`` object is still sent to an
+    undeclared route (OpenAI included) when the caller disables reasoning.
+    Only declared routes switch to a vendor-documented control.
+    """
+    provider, model = "openai", "gpt-4o"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        assert body.get("tools"), body
+        assert body.get("reasoning") == {
+            "enabled": False, "exclude": True}, body
+        assert "reasoning_effort" not in body, body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "openai-legacy-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "openai-legacy-ok"
+    assert len(seen) == 1, seen
+
+
+@pytest.mark.parametrize("model", ["deepseek-flash", "deepseek-v4-pro"])
 def test_native_deepseek_twin_disables_thinking_for_forced_tool_choice(
-        monkeypatch):
+        monkeypatch, model):
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
-    provider, model = "deepseek", "deepseek-v4-pro"
+    provider = "deepseek"
     _clear_pair_memos(provider, model)
     seen: list[dict] = []
 
@@ -251,10 +328,43 @@ def test_native_deepseek_twin_disables_thinking_for_forced_tool_choice(
     assert seen[0].get("logprobs") is True, seen[0]
 
 
+def test_unverified_legacy_model_keeps_the_legacy_wire(monkeypatch):
+    """A legacy distill id must not inherit a current DeepSeek declaration."""
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "openrouter", "deepseek/deepseek-r1-distill-synthetic"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        if "reasoning" in body:
+            # Legacy route: first attempt is the historical OpenRouter
+            # reasoning extension, and the existing recovery drops it once.
+            return _error(
+                400, "Unrecognized request argument supplied: reasoning")
+        assert "reasoning_effort" not in body, body
+        assert body.get("tools"), body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "legacy-native-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "legacy-native-ok"
+    assert len(seen) == 2, seen
+    assert seen[0].get("reasoning") == {
+        "enabled": False, "exclude": True}, seen[0]
+    assert "reasoning_effort" not in seen[0], seen[0]
+    assert "reasoning" not in seen[1], seen[1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._REASONING_MANDATORY
+
+
 def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
         monkeypatch):
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
-    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    provider, model = "opencode-go", "deepseek-v4-pro"
     _clear_pair_memos(provider, model)
     seen: list[dict] = []
 
@@ -264,9 +374,9 @@ def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
         if "logprobs" in body:
             return _error(
                 400, '"logprobs" is not supported by this endpoint')
-        # The Go gateway's DeepSeek route rejected forced tool_choice in
-        # thinking mode live; JSON output is documented upstream and has
-        # working live evidence on this route.
+        # The exact Go v4-pro route rejected forced tool_choice in thinking
+        # mode live; JSON output is documented upstream and has working live
+        # evidence on this exact route.
         return _deepseek_twin(request, model, expect_protocol="json")
 
     handler = _handler_for(provider, model, _responder)
@@ -286,7 +396,7 @@ def test_opencode_go_deepseek_twin_uses_json_mode_without_reasoning_extension(
 # ---------------------------------------------------------------------------
 def test_gateway_json_mode_preserves_complete_message_history(monkeypatch):
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
-    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    provider, model = "opencode-go", "deepseek-v4-pro"
     _clear_pair_memos(provider, model)
     messages = [
         {"role": "system", "content": "You return only JSON."},
@@ -357,6 +467,90 @@ def test_gateway_switch_rejection_is_dropped_once_and_memoized(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Unverified future model on the Go gateway: nothing is inherited
+# ---------------------------------------------------------------------------
+def test_unverified_future_model_on_go_gateway_keeps_legacy_payload(monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode-go", "deepseek-unannounced-synthetic-v999"
+    _clear_pair_memos(provider, model)
+    messages = [
+        {"role": "system", "content": "You return only JSON."},
+        {"role": "user", "content": "first user turn"},
+        {"role": "assistant", "content": "prior assistant answer"},
+        {"role": "user", "content": "second user turn"},
+    ]
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        # The unknown model's endpoint has no declaration. It gets the
+        # historical tools + OpenRouter reasoning payload; the legacy
+        # reasoning-mandatory recovery drops that field once. Nothing selects
+        # JSON mode or a vendor thinking switch speculatively.
+        if "reasoning" in body:
+            return _error(
+                400, "Unrecognized request argument supplied: reasoning")
+        assert body.get("tools"), body
+        assert "reasoning_effort" not in body, body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "future-model-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True, messages=messages)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "future-model-ok"
+    assert len(seen) == 2, seen
+    assert seen[0].get("reasoning") == {
+        "enabled": False, "exclude": True}, seen[0]
+    assert "reasoning_effort" not in seen[0], seen[0]
+    assert "response_format" not in seen[0], seen[0]
+    assert "reasoning" not in seen[1], seen[1]
+    # Full ordered history survives the recovery on BOTH attempts.
+    for body in seen:
+        wire_messages = body.get("messages") or []
+        roles = [m.get("role") for m in wire_messages
+                 if isinstance(m, dict)]
+        assert roles == ["system", "user", "assistant", "user"], roles
+
+
+# ---------------------------------------------------------------------------
+# Unverified gateway: Go evidence is not transplanted
+# ---------------------------------------------------------------------------
+def test_unverified_gateway_does_not_inherit_go_route(monkeypatch):
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "opencode", "deepseek-v4-pro"
+    _clear_pair_memos(provider, model)
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        if body.get("tools") and body.get("tool_choice") not in (
+                None, "auto", "none"):
+            return _error(
+                400, "Thinking mode does not support this tool_choice")
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "unverified-gateway-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder)
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "unverified-gateway-ok"
+    assert len(seen) == 2, seen
+    # No JSON declaration and no vendor thinking switch: the historical
+    # payload is used, then the pre-existing tool_choice recovery.
+    assert seen[0].get("tools"), seen[0]
+    assert seen[0].get("reasoning") == {
+        "enabled": False, "exclude": True}, seen[0]
+    assert "reasoning_effort" not in seen[0], seen[0]
+    assert "tools" not in seen[1], seen[1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+    _clear_pair_memos(provider, model)
+
+
+# ---------------------------------------------------------------------------
 # Unknown twin: historical behavior + one bounded typed-error recovery
 # ---------------------------------------------------------------------------
 class _UnknownTwin:
@@ -417,7 +611,7 @@ def test_instructor_retry_admits_and_settles_each_physical_request(
         _seed,
     )
 
-    provider, model = "opencode-go", "deepseek-v4.1-flash"
+    provider, model = "opencode-go", "deepseek-v4-pro"
     _clear_pair_memos(provider, model)
     monkeypatch.setenv("ATOM_SC_SOFT", "true")
     _seed(host, spend=0.0)

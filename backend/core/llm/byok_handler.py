@@ -10797,13 +10797,21 @@ class BYOKHandler:
                     # _LOGPROBS_UNSUPPORTED). Defined BEFORE them because the
                     # extra_body decision already consults the reasoning memo.
                     _logprobs_key = f"{provider_id}/{model}"
-                    # PROVIDER/MODEL WIRE CONTRACT (2026-11-17): a declared
-                    # route gets the thinking switch its vendor documents,
-                    # not the OpenRouter extension. DeepSeek's API enables
-                    # thinking by default and rejects forced/named
+                    # PROVIDER/MODEL WIRE CONTRACT (2026-11-17): ONLY an
+                    # exact, dated (provider, model) declaration in
+                    # core.llm.wire_capabilities changes the request shape.
+                    # A declared route gets the thinking switch its vendor
+                    # documents, not the OpenRouter extension. DeepSeek's API
+                    # enables thinking by default and rejects forced/named
                     # tool_choice in that mode; its documented OpenAI-format
                     # switch is reasoning_effort="none".
-                    # Undeclared routes keep the historical extension below.
+                    #
+                    # Everything else resolves to None and keeps the
+                    # historical payload below byte-for-byte. That includes
+                    # OpenAI: this resolver returns None for it, and the
+                    # legacy OpenRouter-style reasoning object is STILL
+                    # attached unchanged when disable_reasoning is set. The
+                    # declaration layer does not suppress it.
                     _structured_thinking_extra: Optional[Dict[str, Any]] = None
                     _structured_thinking_key: Optional[str] = None
                     if _wire_contract is not None:
@@ -10821,13 +10829,16 @@ class BYOKHandler:
                             _create_kwargs["extra_body"] = (
                                 _structured_thinking_extra)
                     elif disable_reasoning:
-                        # Legacy (undeclared route): OpenRouter unified
-                        # reasoning switch. A reasoning model burns
-                        # 1,200–2,000 hidden tokens (30–60s) BEFORE a 60-line
-                        # planning answer — measured on minimax-m3 for the
-                        # canvas editor + tool planner (2026-09-01).
-                        # Planning prompts need no thinking; this turns
-                        # minute-long stages into seconds.
+                        # Legacy (undeclared route, INCLUDING OpenAI and every
+                        # future/legacy/other-gateway model): the historical
+                        # OpenRouter unified reasoning switch, unchanged. A
+                        # reasoning model burns 1,200–2,000 hidden tokens
+                        # (30–60s) BEFORE a 60-line planning answer —
+                        # measured on minimax-m3 for the canvas editor + tool
+                        # planner (2026-09-01). Planning prompts need no
+                        # thinking; this turns minute-long stages into
+                        # seconds. The exact-route resolver returning None
+                        # does NOT remove this field.
                         #
                         # Skipped entirely for a pair already memoized as
                         # reasoning-MANDATORY (see _REASONING_MANDATORY): sending
