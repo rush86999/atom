@@ -3051,6 +3051,16 @@ class DatasetEntry(Base):
     old one is marked superseded), never an in-place overwrite. A stale copy
     can therefore never masquerade as current; the cloud source stays the
     durable store of record (AGENTS.md: stale caches shadowing durable state).
+
+    Lineage / removal contract: a row automatically derived while ingesting a
+    document records that document's id in ``source_document_id``. Deleting
+    the source document revokes the derivative (``status='removed'`` and its
+    materialized Parquet copy) and removes it from every catalog read path.
+    ``removed`` is a terminal tombstone, not a variant of ``superseded``:
+    superseded means a newer version exists; removed means the source itself
+    was revoked, so no read may serve it as current grounding. Rows without
+    lineage (independently saved/app-synced artifacts, legacy rows) are never
+    revoked merely because a filename matches.
     """
     __tablename__ = "dataset_entries"
 
@@ -3064,6 +3074,10 @@ class DatasetEntry(Base):
     source = Column(String, nullable=False)  # integration label: zoho_workdrive, google_drive, upload, ...
     external_id = Column(String, nullable=False, index=True)  # source-native file id (or content address when absent)
     file_name = Column(String, nullable=True)  # original source file name (display + search)
+    # Exact lineage to the IngestedDocument whose ingestion produced this
+    # automatic derivative. NULL for independently saved/app-synced
+    # artifacts and legacy rows; never inferred from a filename.
+    source_document_id = Column(String, nullable=True, index=True)
 
     content_hash = Column(String, nullable=False)  # sha1 of source bytes — the version key
     entity_name = Column(String, nullable=False)  # sheet name within the file (Phase 2: entity, e.g. 'invoices')
@@ -3076,7 +3090,7 @@ class DatasetEntry(Base):
 
     source_modified_at = Column(DateTime(timezone=True), nullable=True)
     ingested_at = Column(DateTime(timezone=True), server_default=func.now())
-    status = Column(String, nullable=False, default="active", server_default="active")  # active|superseded
+    status = Column(String, nullable=False, default="active", server_default="active")  # active|superseded|removed
     superseded_by = Column(String, nullable=True)  # id of the newer version, mirrors IngestedDocument
 
     __table_args__ = (

@@ -120,6 +120,320 @@ def _catalog_session():
         yield db
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Source lineage / revocation
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def source_document_id_for_source(
+    source: Optional[str], external_id: Optional[str],
+) -> Optional[str]:
+    """The IngestedDocument id the ingestion funnel assigns this source file.
+
+    ``auto_document_ingestion.process_file_bytes`` keys connector documents as
+    ``ext_sha1("<source>:<external_id>")[:24]``. The catalog stores the same
+    stable source identity (source + external_id), so the owning document can
+    be resolved without a filename — the one key that is metadata, never
+    identity. Uploads are content-addressed by the upload route and pass
+    their document id explicitly; ``None`` means "cannot prove lineage", not
+    "no source".
+    """
+    src = str(source or "").strip()
+    ext = str(external_id or "").strip()
+    if not src or not ext or src == "upload" or ext.startswith("sha1:"):
+        return None
+    if ext.startswith(f"{src}:"):
+        ext = ext[len(src) + 1:]
+    return f"ext_{hashlib.sha1(f'{src}:{ext}'.encode('utf-8')).hexdigest()[:24]}"
+
+
+def _entry_source_document_id(entry: Any) -> Optional[str]:
+    explicit = str(getattr(entry, "source_document_id", "") or "").strip()
+    if explicit:
+        return explicit
+    if str(getattr(entry, "source_kind", "") or "") != "file":
+        return None
+    return source_document_id_for_source(
+        getattr(entry, "source", None), getattr(entry, "external_id", None))
+
+
+def _filter_live_entries(db: Any, rows: List[Any]) -> List[Any]:
+    """Drop catalog rows whose owning document is no longer fresh.
+
+    ``removed``/``stale``/``outdated``/``superseded`` document rows are the
+    durable revocation/freshness markers. A derived dataset must not outlive
+    its source's truth even when a delete path did not run the catalog sweep
+    (e.g. upstream removal detected by the freshness service). Rows whose
+    lineage cannot be proven are left alone — never revoked by filename.
+    """
+    entries = list(rows or [])
+    if not entries:
+        return entries
+    try:
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+        from core.models import IngestedDocument
+
+        wanted = {
+            doc_id for doc_id in
+            (_entry_source_document_id(entry) for entry in entries)
+            if doc_id
+        }
+        if not wanted:
+            return entries
+        docs = {
+            str(doc.id): (
+                str(doc.workspace_id or "default"),
+                str(doc.freshness_status or "").strip().lower(),
+            )
+            for doc in db.query(IngestedDocument).filter(
+                IngestedDocument.id.in_(sorted(wanted))).all()
+        }
+    except Exception as exc:  # noqa: BLE001 — an unreadable guard degrades open
+        logger.debug("dataset lineage freshness guard skipped: %s", exc)
+        return entries
+
+    live: List[Any] = []
+    for entry in entries:
+        doc_id = _entry_source_document_id(entry)
+        doc = docs.get(doc_id) if doc_id else None
+        if doc is None:
+            live.append(entry)
+            continue
+        doc_ws, freshness = doc
+        entry_ws = str(getattr(entry, "workspace_id", "") or "default")
+        # A same-id document in another scope is a different row/owner; do
+        # not let it revoke this catalog entry.
+        if doc_ws != entry_ws:
+            live.append(entry)
+            continue
+        if freshness not in NON_FRESH_STATUSES:
+            live.append(entry)
+    return live
+
+
+def _source_document_revoked(
+    source_document_id: Optional[str], workspace_id: Optional[str],
+) -> bool:
+    """True when this exact document already carries a terminal state."""
+    doc_id = str(source_document_id or "").strip()
+    if not doc_id:
+        return False
+    try:
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+        from core.models import IngestedDocument
+
+        with _catalog_session() as db:
+            row = db.query(IngestedDocument).filter(
+                IngestedDocument.id == doc_id).first()
+            if row is None:
+                return False
+            if str(row.workspace_id or "default") != str(
+                    workspace_id or "default"):
+                return False
+            return str(row.freshness_status or "").strip().lower() in (
+                NON_FRESH_STATUSES)
+    except Exception as exc:  # noqa: BLE001 — unknown is not revoked
+        logger.debug("dataset source revocation probe skipped: %s", exc)
+        return False
+
+
+def _catalog_row_path_is_store_owned(parquet_path: Any) -> Optional[Path]:
+    """Resolve a materialized path only when it lives under the store root."""
+    raw = str(parquet_path or "").strip()
+    if not raw:
+        return None
+    try:
+        root = datasets_root().resolve()
+        candidate = Path(raw).resolve()
+    except OSError:
+        return None
+    if candidate == root or root in candidate.parents:
+        return candidate
+    return None
+
+
+def revoke_datasets_for_document(
+    db: Any, *, doc_id: str, workspace_id: Optional[str],
+    integration_id: Optional[str] = None,
+    external_id: Optional[str] = None,
+    materialized_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Revoke every catalog derivative that provably belongs to one document.
+
+    Identity is exact, in descending order of proof: the recorded
+    ``source_document_id``, the source-native ``(source, external_id)`` pair,
+    or the upload's byte hash (``content_hash`` = sha1 of the materialized
+    source bytes). A filename is never an identity key, so two distinct files
+    that share a name — or the same bytes in another workspace — are left
+    untouched.
+
+    The Parquet copy and formula sidecar are deleted because the catalog row
+    is the only index that may serve them; keeping the copy would leave the
+    revoked source readable through any stale by-id read. The SQL row remains
+    as a ``removed`` tombstone so a queued producer cannot recreate it as
+    fresh and replay/receipt history stays truthful.
+    """
+    from core.models import DatasetEntry
+
+    ws = str(workspace_id or "default")
+    target_doc = str(doc_id or "").strip()
+    if not target_doc:
+        return {"state": "none", "matched": 0, "revoked": 0,
+                "already_removed": 0, "files_deleted": 0}
+
+    content_hash: Optional[str] = None
+    if materialized_path:
+        try:
+            content_hash = hashlib.sha1(
+                Path(materialized_path).read_bytes()).hexdigest()
+        except OSError:
+            content_hash = None
+
+    integ = str(integration_id or "").strip()
+    ext = str(external_id or "").strip()
+    if integ and ext.startswith(f"{integ}:"):
+        ext = ext[len(integ) + 1:]
+
+    from sqlalchemy import or_ as _or
+
+    try:
+        filters = [DatasetEntry.source_document_id == target_doc]
+        if integ and ext:
+            filters.append(
+                (DatasetEntry.source == integ) & (DatasetEntry.external_id == ext))
+        if content_hash:
+            # Uploads are content-addressed; the bytes are the version key.
+            filters.append(
+                (DatasetEntry.source == "upload")
+                & (DatasetEntry.content_hash == content_hash))
+            filters.append(
+                DatasetEntry.external_id == f"sha1:{content_hash}")
+        rows = (
+            db.query(DatasetEntry)
+            .filter(
+                DatasetEntry.source_kind == "file",
+                DatasetEntry.workspace_id == ws,
+                _or(*filters),
+            )
+            .all()
+        )
+    except Exception as exc:  # noqa: BLE001 — report an unprovable effect
+        message = str(exc).lower()
+        if ("no such table" in message or "does not exist" in message) and (
+                "dataset_entries" in message):
+            return {"state": "none", "matched": 0, "revoked": 0,
+                    "already_removed": 0, "files_deleted": 0,
+                    "reason": "catalog_absent"}
+        logger.warning(
+            "dataset lineage revocation lookup failed: doc=%s error_class=%s",
+            target_doc, type(exc).__name__)
+        return {"state": "unavailable", "matched": 0, "revoked": 0,
+                "already_removed": 0, "files_deleted": 0}
+
+    revoked = 0
+    already = 0
+    files_deleted = 0
+    for row in rows:
+        if str(row.status or "") == "removed":
+            already += 1
+        else:
+            row.status = "removed"
+            revoked += 1
+        path = _catalog_row_path_is_store_owned(row.parquet_path)
+        if path is not None:
+            for candidate in (path, Path(str(path) + ".formulas.json")):
+                try:
+                    candidate.unlink()
+                    files_deleted += 1
+                except FileNotFoundError:
+                    pass
+                except OSError as unlink_err:
+                    logger.warning(
+                        "dataset derivative unlink failed: file=%s error_class=%s",
+                        candidate.name, type(unlink_err).__name__)
+    try:
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — effect is now unknown
+        db.rollback()
+        logger.warning(
+            "dataset lineage revocation commit failed: doc=%s error_class=%s",
+            target_doc, type(exc).__name__)
+        return {"state": "unavailable", "matched": len(rows),
+                "revoked": 0, "already_removed": already,
+                "files_deleted": files_deleted}
+    if revoked:
+        state = "revoked"
+    elif already:
+        state = "already_removed"
+    else:
+        state = "none"
+    return {
+        "state": state,
+        "matched": len(rows),
+        "revoked": revoked,
+        "already_removed": already,
+        "files_deleted": files_deleted,
+        "content_hash_matched": bool(content_hash),
+    }
+
+
+def link_dataset_entries_to_document(
+    db: Any, *, source: str, external_id: Optional[str],
+    workspace_id: Optional[str], document_id: str,
+    content_hash: Optional[str] = None,
+) -> int:
+    """Attach lineage to rows materialized before their document id was known.
+
+    ``process_file_bytes`` materializes the sheet copy before it parses the
+    document and computes a content-addressed id, so the backend links after
+    the fact. Only rows with the exact source identity (or the exact
+    content-addressed upload key) are touched; already-linked rows keep their
+    first, authoritative owner.
+    """
+    from core.models import DatasetEntry
+
+    src = str(source or "").strip()
+    doc_id = str(document_id or "").strip()
+    if not src or not doc_id:
+        return 0
+    ext = str(external_id or "").strip()
+    if ext.startswith(f"{src}:"):
+        ext = ext[len(src) + 1:]
+    ws = str(workspace_id or "default")
+    filters = []
+    if ext:
+        filters.append(DatasetEntry.external_id == ext)
+    if content_hash:
+        filters.append(DatasetEntry.external_id == f"sha1:{content_hash}")
+    if not filters:
+        return 0
+    from sqlalchemy import or_ as _or
+
+    try:
+        rows = (
+            db.query(DatasetEntry)
+            .filter(
+                DatasetEntry.source_kind == "file",
+                DatasetEntry.source == src,
+                DatasetEntry.workspace_id == ws,
+                _or(*filters),
+            )
+            .all()
+        )
+        changed = 0
+        for row in rows:
+            if not str(row.source_document_id or "").strip():
+                row.source_document_id = doc_id
+                changed += 1
+        if changed:
+            db.commit()
+        return changed
+    except Exception as exc:  # noqa: BLE001 — lineage is best-effort hygiene
+        db.rollback()
+        logger.debug("dataset lineage link skipped: %s", exc)
+        return 0
+
+
 def current_dataset_version(file_identity: str,
                             workspace_id: str = "default",
                             ) -> "str | None":
@@ -156,10 +470,12 @@ def current_dataset_version(file_identity: str,
         )
         row = (base.filter(
             DatasetEntry.external_id == name).first())
+        if row is not None and not _filter_live_entries(db, [row]):
+            return None
         if row is None:
-            candidates = (base.filter(
+            candidates = _filter_live_entries(db, (base.filter(
                 DatasetEntry.file_name == name)
-                .order_by(DatasetEntry.ingested_at.desc()).all())
+                .order_by(DatasetEntry.ingested_at.desc()).all()))
             # same-name sources must not collapse: one PLURAL answer is
             # no answer
             distinct = {
@@ -908,6 +1224,9 @@ def _entry_to_dict(row) -> Dict[str, Any]:
         "external_id": row.external_id,
         "content_hash": row.content_hash,
         "content_hash_algorithm": "sha1",
+        "source_document_id": getattr(row, "source_document_id", None),
+        "status": str(getattr(row, "status", "") or ""),
+        "superseded_by": getattr(row, "superseded_by", None),
         "source_metadata": getattr(row, "source_metadata", None) or {},
         "row_count": row.row_count or 0,
         "column_count": row.column_count or 0,
@@ -928,12 +1247,16 @@ def materialize_sheet_bytes_sync(
     workspace_id: Optional[str] = None,
     external_id: Optional[str] = None,
     source_modified_at=None,
+    source_document_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Extract sheets → Parquet + catalog rows, idempotent per byte hash.
 
     Called from process_file_bytes (async wrapper below) — only for files
     whose content is already being ingested, so there is no extra download
-    and no extra parse in the fresh-file case (hash check first).
+    and no extra parse in the fresh-file case (hash check first). The
+    optional ``source_document_id`` records exact lineage; connector rows
+    also derive it from their stable source identity when the caller does
+    not pass it.
     """
     if not sheet_datasets_enabled():
         return {"status": "disabled"}
@@ -953,8 +1276,23 @@ def materialize_sheet_bytes_sync(
         _raw_ext = _raw_ext[len(_prefix):]
     file_key = _raw_ext or f"sha1:{content_hash}"
     ws_id = workspace_id or "default"
+    lineage_doc_id = (
+        str(source_document_id or "").strip()
+        or source_document_id_for_source(source, file_key)
+    )
 
     from core.models import DatasetEntry
+
+    # A removed source version must never be re-materialized as fresh. The
+    # upload route schedules this copy before its own store step, and that
+    # store step refuses removed-version replay (DOCUMENT_REVOKED) — without
+    # this gate the catalog would have been resurrected by a refused upload.
+    if lineage_doc_id and _source_document_revoked(lineage_doc_id, ws_id):
+        return {
+            "status": "skipped",
+            "reason": "source_document_removed",
+            "source_document_id": lineage_doc_id,
+        }
 
     with _catalog_session() as db:
         existing = (
@@ -1004,11 +1342,35 @@ def materialize_sheet_bytes_sync(
                 )
             for row in existing:
                 row.ingested_at = now
+                if lineage_doc_id and not str(
+                        row.source_document_id or "").strip():
+                    row.source_document_id = lineage_doc_id
             db.commit()
             return {
                 "status": "current",
                 "content_hash": content_hash,
                 "datasets": [_entry_to_dict(r) for r in existing],
+            }
+
+        # A version tombstone is terminal: recreating the same content as
+        # active would make a refused/replayed ingest look current again.
+        tombstone = (
+            db.query(DatasetEntry)
+            .filter(
+                DatasetEntry.source_kind == "file",
+                DatasetEntry.source == source,
+                DatasetEntry.external_id == file_key,
+                DatasetEntry.content_hash == content_hash,
+                DatasetEntry.status == "removed",
+            )
+            .first()
+        )
+        if tombstone is not None:
+            return {
+                "status": "skipped",
+                "reason": "source_document_removed",
+                "source_document_id": (
+                    str(tombstone.source_document_id or "") or None),
             }
 
     try:
@@ -1109,6 +1471,7 @@ def materialize_sheet_bytes_sync(
                 source=source,
                 external_id=file_key,
                 file_name=file_name,
+                source_document_id=lineage_doc_id,
                 content_hash=content_hash,
                 entity_name=sheet_name,
                 dataset_name=ds_name,
@@ -1195,6 +1558,22 @@ def materialize_sheet_bytes_sync(
         except OSError:
             pass
 
+    # Race closure: the document can be deleted while this copy is parsing
+    # (the delete probe may run before the first row exists). Re-check the
+    # source tombstone AFTER the row commits; if it appeared, revoke the copy
+    # immediately instead of serving a derivative born after the delete.
+    if lineage_doc_id and _source_document_revoked(lineage_doc_id, ws_id):
+        with _catalog_session() as db:
+            revoke_datasets_for_document(
+                db, doc_id=lineage_doc_id, workspace_id=ws_id)
+        return {
+            "status": "skipped",
+            "reason": "source_document_removed",
+            "source_document_id": lineage_doc_id,
+            "content_hash": content_hash,
+            "datasets": registered,
+        }
+
     logger.info(
         f"sheet datasets: materialized {len(registered)} sheet(s) of {file_name} "
         f"(hash {content_hash[:12]})"
@@ -1216,7 +1595,8 @@ def find_entries_sync(query: str = "", user_id: Optional[str] = None,
         q = db.query(DatasetEntry).filter(DatasetEntry.status == "active")
         if workspace_id:
             q = q.filter(DatasetEntry.workspace_id == workspace_id)
-        rows = q.order_by(DatasetEntry.ingested_at.desc()).limit(500).all()
+        rows = _filter_live_entries(
+            db, q.order_by(DatasetEntry.ingested_at.desc()).limit(500).all())
         if not tokens:
             return [_entry_to_dict(r) for r in rows[:limit]]
         scored = []
@@ -1235,12 +1615,14 @@ def get_entry_by_name_sync(dataset_name: str) -> Optional[Dict[str, Any]]:
     from core.models import DatasetEntry
 
     with _catalog_session() as db:
-        row = (
+        rows = (
             db.query(DatasetEntry)
-            .filter(DatasetEntry.dataset_name == dataset_name, DatasetEntry.status == "active")
-            .first()
+            .filter(DatasetEntry.dataset_name == dataset_name,
+                    DatasetEntry.status == "active")
+            .all()
         )
-        return _entry_to_dict(row) if row else None
+        live = _filter_live_entries(db, rows)
+        return _entry_to_dict(live[0]) if live else None
 
 
 def entries_for_file_sync(source: str, external_id: str) -> List[Dict[str, Any]]:
@@ -1248,7 +1630,7 @@ def entries_for_file_sync(source: str, external_id: str) -> List[Dict[str, Any]]
     from core.models import DatasetEntry
 
     with _catalog_session() as db:
-        rows = (
+        rows = _filter_live_entries(db, (
             db.query(DatasetEntry)
             .filter(
                 DatasetEntry.source_kind == "file",
@@ -1259,7 +1641,7 @@ def entries_for_file_sync(source: str, external_id: str) -> List[Dict[str, Any]]
             .order_by(DatasetEntry.entity_name.asc())
             .limit(500)
             .all()
-        )
+        ))
         return [_entry_to_dict(r) for r in rows]
 
 
@@ -1328,7 +1710,10 @@ def resolve_dataset_entry_scoped_sync(
             ]
 
         scoped = [r for r in rows if str(r.workspace_id or "") == ws]
-        active = [r for r in scoped if str(r.status or "") == "active"]
+        # A source whose document is revoked/stale is not a usable catalog
+        # candidate, even if a delete-path sweep never flipped its status.
+        live_scoped = _filter_live_entries(db, scoped)
+        active = [r for r in live_scoped if str(r.status or "") == "active"]
 
         if len(active) > 1:
             # More than one active version means the catalog cannot name a
@@ -1349,6 +1734,7 @@ def resolve_dataset_entry_scoped_sync(
                 "state": "inactive",
                 "entry": _entry_to_dict(scoped[0]),
                 "candidates": [],
+                "revoked": not bool(live_scoped),
             }
         if rows:
             return {
@@ -1381,7 +1767,13 @@ def catalog_has_entries_sync() -> bool:
     from core.models import DatasetEntry
 
     with _catalog_session() as db:
-        return db.query(DatasetEntry.id).filter(DatasetEntry.status == "active").first() is not None
+        rows = (
+            db.query(DatasetEntry)
+            .filter(DatasetEntry.status == "active")
+            .limit(500)
+            .all()
+        )
+        return bool(_filter_live_entries(db, rows))
 
 
 def search_all_datasets_sync(
@@ -3003,7 +3395,8 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
 
 async def ensure_sheet_dataset(content: bytes, *, file_name: str, source: str,
                                user_id: Optional[str] = None, workspace_id: Optional[str] = None,
-                               external_id: Optional[str] = None, source_modified_at=None) -> Dict[str, Any]:
+                               external_id: Optional[str] = None, source_modified_at=None,
+                               source_document_id: Optional[str] = None) -> Dict[str, Any]:
     import asyncio
 
     try:
@@ -3012,6 +3405,7 @@ async def ensure_sheet_dataset(content: bytes, *, file_name: str, source: str,
             content, file_name, source,
             user_id=user_id, workspace_id=workspace_id, external_id=external_id,
             source_modified_at=source_modified_at,
+            source_document_id=source_document_id,
         )
         # INFO on EVERY outcome: a silent skip here is how the 2026-09-07
         # "two reads, zero datasets" failure stayed invisible for a day.
@@ -3086,9 +3480,15 @@ def gc_workspace_datasets_sync(workspace_id: str, max_store_bytes: Optional[floa
     now = datetime.now(timezone.utc)
     evicted = 0
     with _catalog_session() as db:
+        # ``removed`` rows are lineage tombstones (metadata only; their
+        # Parquet copies are already gone). Evicting them would erase the
+        # proof a source was revoked and let a stale producer recreate it.
         rows = (
             db.query(DatasetEntry)
-            .filter(DatasetEntry.workspace_id == (workspace_id or "default"))
+            .filter(
+                DatasetEntry.workspace_id == (workspace_id or "default"),
+                DatasetEntry.status != "removed",
+            )
             .all()
         )
 
@@ -3185,7 +3585,8 @@ _BACKGROUND_TASKS: set = set()
 def ensure_sheet_dataset_background(content: bytes, *, file_name: str, source: str,
                                     user_id: Optional[str] = None, workspace_id: Optional[str] = None,
                                     external_id: Optional[str] = None,
-                                    source_modified_hint: Any = None) -> None:
+                                    source_modified_hint: Any = None,
+                                    source_document_id: Optional[str] = None) -> None:
     """Schedule materialization without blocking the read leg.
 
     The first materialization of a large workbook costs a full pandas parse
@@ -3205,6 +3606,7 @@ def ensure_sheet_dataset_background(content: bytes, *, file_name: str, source: s
             workspace_id=workspace_id,
             external_id=external_id,
             source_modified_at=modified_at,
+            source_document_id=source_document_id,
         )
 
     spawn_background(
@@ -3254,10 +3656,10 @@ def read_sheet_row_sync(
             # COLLISION REJECTION (round 59): whitespace-normalized
             # matching must not silently choose between two DISTINCT
             # matching sheets — list the candidates and refuse.
-            matches = [
+            matches = _filter_live_entries(db, [
                 e for e in q.all()
                 if str(e.entity_name or "").strip().lower()
-                == str(sheet_name or "").strip().lower()]
+                == str(sheet_name or "").strip().lower()])
             if len(matches) > 1:
                 return {
                     "ambiguous_sheet": [

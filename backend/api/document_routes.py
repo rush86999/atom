@@ -759,6 +759,10 @@ async def upload_document(
                         user_id=str(current_user.id) if current_user else None,
                         workspace_id=ws_id or "default",
                         external_id=None,
+                        # Exact lineage: the derived catalog row records the
+                        # document whose upload produced it, so a verified
+                        # delete can revoke it (never by filename).
+                        source_document_id=doc_id,
                     )
             except Exception as ds_err:  # noqa: BLE001 — never block upload
                 logger.warning(

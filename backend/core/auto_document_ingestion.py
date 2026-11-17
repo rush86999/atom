@@ -1379,6 +1379,17 @@ class AutoDocumentIngestionService:
         # changed source = a new version (never a stale overwrite). The read
         # leg consults this copy BEFORE downloading, so value questions skip
         # the 13MB-download/10s-parse round trip entirely.
+        #
+        # Exact lineage: a connector file's document id is deterministic from
+        # its stable source identity, so it can be stamped before the copy is
+        # written. Content-addressed documents (no external id) get linked
+        # after extraction below, when their id is known.
+        _precomputed_doc_id = None
+        if _external_id:
+            _identity_input = f"{source}:{_external_id}"
+            _precomputed_doc_id = (
+                "ext_" + _hashlib_sha1(
+                    _identity_input.encode("utf-8"))[:24])
         try:
             from core.sheet_dataset_service import ensure_sheet_dataset, sheet_datasets_enabled
 
@@ -1391,6 +1402,7 @@ class AutoDocumentIngestionService:
                     workspace_id=workspace_id or self.workspace_id,
                     external_id=_external_id or None,
                     source_modified_at=source_modified_dt,
+                    source_document_id=_precomputed_doc_id,
                 )
         except Exception as ds_err:  # noqa: BLE001 — datasets never block ingestion
             logger.debug(f"sheet dataset materialization skipped for {file_name}: {ds_err}")
@@ -1483,6 +1495,27 @@ class AutoDocumentIngestionService:
             _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
         else:
             _file_doc_id = "doc_" + _hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+            # Content-addressed documents have no stable source id, so the
+            # derived catalog copy could only be linked after extraction.
+            # Link it now (the materialization above already finished).
+            try:
+                from core.database import get_db_session
+                from core.sheet_dataset_service import (
+                    link_dataset_entries_to_document,
+                )
+
+                with get_db_session() as _link_db:
+                    link_dataset_entries_to_document(
+                        _link_db,
+                        source=source,
+                        external_id=None,
+                        workspace_id=ws_id,
+                        document_id=_file_doc_id,
+                        content_hash=_hashlib.sha1(content or b"").hexdigest(),
+                    )
+            except Exception as _link_err:  # noqa: BLE001 — lineage is hygiene
+                logger.debug(
+                    f"dataset lineage link skipped for {file_name}: {_link_err}")
 
         _meta: Dict[str, Any] = {
             "file_name": file_name,

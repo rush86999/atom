@@ -65,7 +65,7 @@ def _invalidate_document_read_caches() -> None:
             "document read-cache invalidation skipped: %s", type(exc).__name__)
 
 DOCUMENT_DELETE_SCHEMA = "atom-document-delete-1"
-EFFECTS_VERSION = "document-delete-2"
+EFFECTS_VERSION = "document-delete-3"
 _OPERATION_PREFIX = "document"
 _SAFE_OPERATION_RE = re.compile(r"^[A-Za-z0-9:_-]{1,180}$")
 _ACTION = "document_deleted"
@@ -283,6 +283,13 @@ def _audit_row(
         "fts_effect": (effects or {}).get("fts"),
         "file_effect": (effects or {}).get("file"),
         "file_shared": (effects or {}).get("file_shared", False),
+        "derived_dataset_effect": (effects or {}).get("derived"),
+        "derived_datasets_matched": int(
+            (effects or {}).get("derived_matched", 0) or 0),
+        "derived_datasets_revoked": int(
+            (effects or {}).get("derived_revoked", 0) or 0),
+        "derived_dataset_files_deleted": int(
+            (effects or {}).get("derived_files_deleted", 0) or 0),
         "complete": bool((effects or {}).get("complete")),
     }
     success = outcome == "verified"
@@ -432,6 +439,8 @@ def _sql_target(
                 "doc_id": str(doc_id),
                 "workspace_id": str(row.workspace_id),
                 "file_path": file_path,
+                "integration_id": str(getattr(row, "integration_id", "") or ""),
+                "external_id": str(getattr(row, "external_id", "") or ""),
                 "version": (
                     str(row.source_content_hash)
                     if row.source_content_hash is not None else None),
@@ -585,6 +594,37 @@ def _file_present(plan: Dict[str, Any]) -> Optional[bool]:
         return Path(path).exists()
     except Exception:  # noqa: BLE001
         return None
+
+
+def _revoke_derived_datasets(
+    db: Session, *, target: Dict[str, Any], doc_id: str,
+    workspace_id: Optional[str], materialized_path: Optional[str],
+) -> Dict[str, Any]:
+    """Revoke catalog rows that provably derive from this document.
+
+    The upload's materialized bytes are still on disk at this point, so the
+    catalog can match the byte hash for content-addressed upload derivatives
+    that predate lineage stamps. The deletion receipt must carry this effect:
+    "document gone, derived copy still answerable" is not a verified delete.
+    """
+    try:
+        from core.sheet_dataset_service import revoke_datasets_for_document
+
+        with _fresh_session(db) as fresh:
+            return revoke_datasets_for_document(
+                fresh,
+                doc_id=doc_id,
+                workspace_id=workspace_id,
+                integration_id=target.get("integration_id"),
+                external_id=target.get("external_id"),
+                materialized_path=materialized_path,
+            )
+    except Exception as exc:  # noqa: BLE001 — unprovable is reported, not hidden
+        logger.warning(
+            "derived dataset revocation failed: doc=%s error_class=%s",
+            doc_id, type(exc).__name__)
+        return {"state": "unavailable", "matched": 0, "revoked": 0,
+                "already_removed": 0, "files_deleted": 0}
 
 
 # ---------------------------------------------------------------------------
@@ -743,6 +783,13 @@ async def _replay(
                 "fts": metadata.get("fts_effect"),
                 "file": metadata.get("file_effect"),
                 "file_shared": bool(metadata.get("file_shared")),
+                "derived": metadata.get("derived_dataset_effect"),
+                "derived_matched": int(
+                    metadata.get("derived_datasets_matched") or 0),
+                "derived_revoked": int(
+                    metadata.get("derived_datasets_revoked") or 0),
+                "derived_files_deleted": int(
+                    metadata.get("derived_dataset_files_deleted") or 0),
                 "complete": bool(metadata.get("complete")),
             }
             if current is not None and current == (0, 0):
@@ -872,15 +919,30 @@ async def delete_document_verified(
     if pre == (0, 0) and sql_target.get("state") in ("absent", "removed"):
         if _prior_receipt_exists(
                 db, workspace_id=workspace_id, doc_id=doc_id):
+            # Old receipts predate derived-dataset invalidation. The document
+            # is already gone, but a still-active catalog derivative would
+            # remain stale grounding; revoke by exact lineage now (no second
+            # document deletion, no new receipt).
+            derived = _revoke_derived_datasets(
+                db, target=sql_target, doc_id=doc_id,
+                workspace_id=workspace_id, materialized_path=None)
             return _no_change(
                 operation_id, target_id=doc_id,
                 data=_data(
                     doc_id=doc_id, workspace_id=workspace_id,
-                    counts=_counts(pre, pre), no_change=True),
+                    counts=_counts(pre, pre), no_change=True,
+                    effects={
+                        "derived": derived.get("state"),
+                        "derived_matched": derived.get("matched", 0),
+                        "derived_revoked": derived.get("revoked", 0),
+                        "derived_files_deleted": derived.get(
+                            "files_deleted", 0),
+                    }),
                 message=(
                     f"Document '{doc_id}' is already absent; an earlier "
                     "deletion receipt was found and no new receipt was "
-                    "created."))
+                    "created. Derived catalog rows for the removed source "
+                    f"were re-checked ({derived.get('state')})."))
         return _refused(
             "Document not found", http_status=404, error_code="NOT_FOUND")
 
@@ -930,6 +992,13 @@ async def delete_document_verified(
             if mid is not None and mid[0] == 0:
                 family_ok = await _delete_family(handler, doc_id)
 
+    # Catalog derivatives must be revoked while the upload's materialized
+    # bytes still exist: for legacy content-addressed upload rows the byte
+    # hash is the only identity proof (a filename is not).
+    derived = _revoke_derived_datasets(
+        db, target=sql_target, doc_id=doc_id, workspace_id=workspace_id,
+        materialized_path=file_plan.get("path"))
+
     file_effect = _unlink_file(file_plan)
     _invalidate_document_read_caches()
 
@@ -954,7 +1023,12 @@ async def delete_document_verified(
         sql_effect == "absent"
         or fts_effect in ("deleted", "not_sqlite", "absent", "revoked"))
     file_ok = file_effect in ("deleted", "absent", "shared")
-    complete = bool(vector_ok and sql_ok and fts_ok and file_ok)
+    # An unreadable/unprovable derived effect means the delete cannot claim a
+    # clean source removal: a stale dataset answer may still be served.
+    derived_ok = derived.get("state") in (
+        "none", "revoked", "already_removed", "absent")
+    complete = bool(
+        vector_ok and sql_ok and fts_ok and file_ok and derived_ok)
 
     if complete:
         outcome = "verified"
@@ -976,6 +1050,11 @@ async def delete_document_verified(
         "fts": fts_effect,
         "file": file_effect,
         "file_shared": bool(sql_target.get("shared")),
+        "derived": derived.get("state"),
+        "derived_matched": int(derived.get("matched", 0) or 0),
+        "derived_revoked": int(derived.get("revoked", 0) or 0),
+        "derived_files_deleted": int(
+            derived.get("files_deleted", 0) or 0),
         "complete": complete,
     }
 
@@ -1028,8 +1107,8 @@ async def delete_document_verified(
                 audit_id=operation_id),
             "message": (
                 f"Document '{doc_id}' deletion verified: vector rows, SQL "
-                "mirror/FTS and materialized-file effects are absent or "
-                "authorized elsewhere."),
+                "mirror/FTS, materialized-file and derived-catalog effects "
+                "are absent or authorized elsewhere."),
             "operation_id": operation_id,
             "audit_id": operation_id,
             "target_id": doc_id,

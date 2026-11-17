@@ -15,6 +15,11 @@ and downloads nothing.
 
 This is an API-boundary harness, not a browser journey and not whole-Goal-3
 acceptance. One synthetic file per format.
+
+The CSV case also exercises the automatic sheet-dataset derivative: the
+harness asserts the derivative is live grounding before the document delete
+and is revoked from every scoped catalog resolution/search/row-read path
+after it, while a same-filename file in another workspace survives.
 """
 from __future__ import annotations
 
@@ -26,23 +31,75 @@ import json
 import os
 import subprocess
 import sys
+import time
 import traceback
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _scratch_dir(explicit: str | None) -> Path:
+def _validated_scratch_root(explicit: str | None) -> Path:
+    """Refuse protected/existing non-empty scratch BEFORE any mkdir/DB use.
+
+    An acceptance run may create one scratch tree; it must never adopt a
+    directory that already holds someone's data (or a protected location) and
+    then write acceptance documents into it.
+    """
     if explicit:
-        root = Path(explicit).expanduser().resolve()
+        root = Path(explicit).expanduser()
+        if not root.is_absolute():
+            raise ValueError("--scratch must be an absolute path")
+        root = root.resolve()
     else:
-        root = Path("/private/tmp") / f"atom-goal3-docs-acceptance-{uuid.uuid4().hex[:8]}"
+        root = Path("/private/tmp") / (
+            f"atom-goal3-docs-acceptance-{uuid.uuid4().hex[:8]}")
+        root = root.resolve()
+
+    protected_anywhere = (
+        _REPO_ROOT,
+        Path.home(),
+        Path("/System"),
+        Path("/Library"),
+        Path("/Applications"),
+        Path("/usr"),
+        Path("/bin"),
+        Path("/sbin"),
+        Path("/etc"),
+        Path("/var"),
+        Path("/Volumes"),
+    )
+    for protected in protected_anywhere:
+        try:
+            if root == protected or protected in root.parents:
+                raise ValueError(
+                    f"refusing protected scratch location: {root}")
+        except OSError:
+            continue
+    if root in (Path("/"), Path("/private/tmp"), Path("/tmp"),
+                Path("/private/var")):
+        raise ValueError(f"refusing protected scratch location: {root}")
+    if root.exists():
+        if not root.is_dir():
+            raise ValueError(f"scratch exists and is not a directory: {root}")
+        if any(root.iterdir()):
+            raise ValueError(
+                "refusing existing non-empty scratch directory; remove it "
+                f"explicitly before running: {root}")
+    return root
+
+
+def _scratch_dir(explicit: str | None) -> Path:
+    root = _validated_scratch_root(explicit)
     (root / "data").mkdir(parents=True, exist_ok=True)
     (root / "office").mkdir(parents=True, exist_ok=True)
+    (root / ".atom-acceptance-scratch").write_text(
+        "owned by documents_common_formats_public_api_acceptance.py\n")
     return root
 
 
@@ -195,6 +252,12 @@ def run(scratch: Path, env: dict) -> dict:
     from core.auth import create_access_token
     from core.hybrid_search.fts_bootstrap import ensure_documents_fts_for_session
     from core.models import IngestedDocument, DatasetEntry, Tenant, User, Workspace
+    from core.sheet_dataset_service import (
+        find_entries_sync,
+        read_sheet_row_sync,
+        resolve_dataset_entry_scoped_sync,
+        search_all_datasets_sync,
+    )
 
     tag = uuid.uuid4().hex[:8]
     tenant_id = f"tenant-{tag}"
@@ -262,9 +325,12 @@ def run(scratch: Path, env: dict) -> dict:
             "One synthetic file per format; not every parser/format variant.",
             "No generative/provider call; semantic search uses cached local FastEmbed.",
             "Stored-text export, not original-binary download.",
-            "CSV also creates the separate Goal-4 sheet-dataset catalog; this "
-            "document slice neither claims nor purges that derived catalog.",
-            "Not live WorkDrive, connector breadth, restart, or whole Goal 3.",
+            "The CSV derivative is the automatic sheet-dataset catalog row; "
+            "its lineage-scoped revocation is asserted. Independently saved "
+            "or app-synced datasets are not document derivatives and are not "
+            "deleted by document removal.",
+            "Not live WorkDrive, connector breadth, process restart, or whole "
+            "Goal 3.",
         ],
     }
 
@@ -414,6 +480,90 @@ def run(scratch: Path, env: dict) -> dict:
             stages["peer_agent_open_denied"] = {
                 "status": peer_cat["status"], "fact_absent": True}
 
+            derived_pre = None
+            peer_derived = None
+            if spec["name"] == "CSV":
+                # NEGATIVE TWIN: same filename, different workspace/content.
+                # It must survive the owner's document delete untouched.
+                peer_bytes = _make_csv("1180")
+                peer_upload = client.post(
+                    "/api/documents/upload",
+                    files={"file": (spec["filename"], peer_bytes,
+                                    spec["content_type"])},
+                    headers=headers_b,
+                )
+                assert peer_upload.status_code == 200, peer_upload.text
+
+                def _catalog_rows(factory, workspace_id, filename):
+                    from core.models import DatasetEntry as _Entry
+
+                    with factory() as session:
+                        return session.query(_Entry).filter(
+                            _Entry.workspace_id == workspace_id,
+                            _Entry.source == "upload",
+                            _Entry.file_name == filename,
+                        ).all()
+
+                def _wait_rows(factory, workspace_id, filename, timeout=10.0):
+                    deadline = time.monotonic() + timeout
+                    last = []
+                    while time.monotonic() < deadline:
+                        last = _catalog_rows(
+                            factory, workspace_id, filename)
+                        if last:
+                            return last
+                        time.sleep(0.05)
+                    return last
+
+                peer_rows = _wait_rows(SessionLocal, ws_b, spec["filename"])
+                assert peer_rows, (
+                    "peer same-filename upload never materialized a "
+                    "derived dataset")
+                peer_derived = {
+                    "id": peer_rows[0].id,
+                    "dataset_name": peer_rows[0].dataset_name,
+                    "entity_name": peer_rows[0].entity_name,
+                    "file_name": peer_rows[0].file_name,
+                }
+                assert peer_rows[0].status == "active"
+
+                rows = _wait_rows(SessionLocal, ws_a, spec["filename"])
+                assert len(rows) == 1, rows
+                entry = rows[0]
+                assert entry.status == "active", entry.status
+                assert entry.source_document_id == doc_id, (
+                    entry.source_document_id, doc_id)
+                derived_pre = {
+                    "id": entry.id,
+                    "dataset_name": entry.dataset_name,
+                    "entity_name": entry.entity_name,
+                    "parquet_path": entry.parquet_path,
+                    "source_document_id": entry.source_document_id,
+                }
+                assert Path(entry.parquet_path).exists()
+                owner_catalog = find_entries_sync(
+                    "orchid", workspace_id=ws_a)
+                assert any(e["id"] == entry.id for e in owner_catalog), (
+                    owner_catalog)
+                resolved = resolve_dataset_entry_scoped_sync(
+                    entry.dataset_name, workspace_id=ws_a)
+                assert resolved["state"] == "active", resolved
+                probe = search_all_datasets_sync("9241", workspace_id=ws_a)
+                assert any(
+                    h.get("dataset_name") == entry.dataset_name
+                    for h in probe.get("hits") or []), probe
+                row_read = read_sheet_row_sync(
+                    spec["filename"], entry.entity_name, 2,
+                    workspace_id=ws_a)
+                assert row_read and row_read["row"]["value"] == 9241, row_read
+                stages["pre_delete_derived_grounding"] = {
+                    "catalog_entry": entry.id,
+                    "source_document_id": entry.source_document_id,
+                    "resolved": "active",
+                    "value_probe_hit": True,
+                    "row_read_value": row_read["row"]["value"],
+                }
+
             delete = client.delete(f"/api/documents/{doc_id}", headers=headers_a)
             assert delete.status_code == 200, delete.text
             receipt = delete.json()
@@ -519,15 +669,61 @@ def run(scratch: Path, env: dict) -> dict:
                     DatasetEntry.source == "upload",
                     DatasetEntry.file_name == spec["filename"],
                 ).all()
-                record["derived_catalog_observation"] = {
-                    "entries_after_document_delete": len(derived),
-                    "statuses": [d.status for d in derived],
-                    "in_document_read_search_export_boundary": False,
-                    "note": (
-                        "CSV upload also materializes the separate Goal-4 "
-                        "sheet-dataset catalog; this document slice does not "
-                        "claim or purge that derived analysis catalog."),
-                }
+                if spec["name"] == "CSV":
+                    assert derived_pre is not None
+                    assert len(derived) == 1, derived
+                    row = derived[0]
+                    assert row.status == "removed", row.status
+                    assert row.source_document_id == doc_id
+                    assert not Path(derived_pre["parquet_path"]).exists()
+                    assert deleted_data.get("effects", {}).get(
+                        "derived") == "revoked", receipt
+                    assert find_entries_sync(
+                        "orchid", workspace_id=ws_a) == []
+                    resolved = resolve_dataset_entry_scoped_sync(
+                        derived_pre["dataset_name"], workspace_id=ws_a)
+                    assert resolved["state"] == "inactive", resolved
+                    assert resolved["entry"]["status"] == "removed"
+                    assert resolved.get("revoked") is True
+                    probe = search_all_datasets_sync(
+                        "9241", workspace_id=ws_a)
+                    assert probe["hits"] == [], probe
+                    assert read_sheet_row_sync(
+                        spec["filename"], derived_pre["entity_name"], 2,
+                        workspace_id=ws_a) is None
+
+                    # Same-filename twin in the peer workspace is a different
+                    # source and must remain live and readable.
+                    peer_rows = session.query(DatasetEntry).filter(
+                        DatasetEntry.workspace_id == ws_b,
+                        DatasetEntry.source == "upload",
+                        DatasetEntry.file_name == spec["filename"],
+                    ).all()
+                    assert len(peer_rows) == 1, peer_rows
+                    assert peer_rows[0].status == "active", peer_rows[0].status
+                    peer_resolved = resolve_dataset_entry_scoped_sync(
+                        peer_derived["dataset_name"], workspace_id=ws_b)
+                    assert peer_resolved["state"] == "active", peer_resolved
+                    peer_read = read_sheet_row_sync(
+                        spec["filename"], peer_derived["entity_name"], 2,
+                        workspace_id=ws_b)
+                    assert peer_read and peer_read["row"]["value"] == 1180, (
+                        peer_read)
+                    record["derived_catalog_observation"] = {
+                        "owner_entry_after_delete": "removed",
+                        "owner_parquet_absent": True,
+                        "owner_catalog_resolution": resolved["state"],
+                        "owner_search_hits_after_delete": 0,
+                        "owner_row_read_after_delete": None,
+                        "peer_same_filename_entry_after_delete": "active",
+                        "peer_resolution": peer_resolved["state"],
+                        "peer_row_read_value": peer_read["row"]["value"],
+                    }
+                else:
+                    assert derived == [], derived
+                    record["derived_catalog_observation"] = {
+                        "entries_after_document_delete": 0,
+                    }
             record["ok"] = True
         except Exception as exc:
             record["error"] = f"{type(exc).__name__}: {exc}"
@@ -551,7 +747,15 @@ def main() -> int:
     parser.add_argument("--scratch", default=None)
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
-    scratch = _scratch_dir(args.scratch)
+    try:
+        scratch = _scratch_dir(args.scratch)
+    except ValueError as exc:
+        print(json.dumps({
+            "status": "refused",
+            "error": str(exc),
+            "source": _git_source(),
+        }, indent=2))
+        return 2
     env = _configure_environment(scratch)
     try:
         result = run(scratch, env)
