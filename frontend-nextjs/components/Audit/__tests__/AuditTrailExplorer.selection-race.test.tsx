@@ -473,3 +473,53 @@ test("event disclosure exposes a stable expanded/controls linkage and is keyboar
   expect(screen.queryByTestId("audit-timeline-event-metadata")).not.toBeInTheDocument();
   expect(mockedTimeline).toHaveBeenCalledTimes(1);
 });
+
+test("native run-selection buttons are keyboard operable, preserve mouse selection, and keep the deferred guard", async () => {
+  await mountWithRuns();
+
+  const [first, second] = screen.getAllByTestId("audit-run-select");
+  expect(first.tagName).toBe("BUTTON");
+  expect(first).toHaveAttribute("type", "button");
+  expect(first.tabIndex).toBe(0);
+  expect(first).toHaveAccessibleName("Select run exec-a from agent-exec-a");
+  expect(second).toHaveAccessibleName("Select run exec-b from agent-exec-b");
+  expect(first).not.toHaveAttribute("aria-current");
+  expect(second).not.toHaveAttribute("aria-current");
+
+  first.focus();
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() => expect(requestsFor("exec-a")).toHaveLength(1));
+  expect(screen.getByText(/Decision Timeline — exec-a/)).toBeInTheDocument();
+  expect(first).toHaveAttribute("aria-current", "true");
+  expect(second).not.toHaveAttribute("aria-current");
+
+  // Re-activating the already-selected run stays idempotent: no second request
+  // and no reset of the in-flight selection.
+  await userEvent.keyboard(" ");
+  expect(requestsFor("exec-a")).toHaveLength(1);
+  expect(screen.getByText(/Decision Timeline — exec-a/)).toBeInTheDocument();
+
+  second.focus();
+  await userEvent.keyboard(" ");
+  await waitFor(() => expect(requestsFor("exec-b")).toHaveLength(1));
+  expect(screen.getByText(/Decision Timeline — exec-b/)).toBeInTheDocument();
+  expect(second).toHaveAttribute("aria-current", "true");
+  expect(first).not.toHaveAttribute("aria-current");
+
+  // A late settle of the keyboard-selected A request still cannot replace B.
+  await resolveTimeline(requestsFor("exec-a")[0]);
+  expect(screen.queryByText("EXEC-A_ACTION")).not.toBeInTheDocument();
+  expect(screen.getByText(/Decision Timeline — exec-b/)).toBeInTheDocument();
+
+  await resolveTimeline(requestsFor("exec-b")[0]);
+  expect(await screen.findByText("EXEC-B_ACTION")).toBeInTheDocument();
+
+  // Mouse row selection is unchanged and issues a fresh request for A.
+  await selectRun(0);
+  await waitFor(() => expect(requestsFor("exec-a")).toHaveLength(2));
+  expect(screen.getByText(/Decision Timeline — exec-a/)).toBeInTheDocument();
+  expect(first).toHaveAttribute("aria-current", "true");
+
+  await resolveTimeline(requestsFor("exec-a")[1]);
+  expect(await screen.findByText("EXEC-A_ACTION")).toBeInTheDocument();
+});

@@ -834,46 +834,93 @@ export default function AuditTrailExplorer() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {visibleExecutions.map((exec) => (
-                                        <TableRow
-                                            key={exec.execution_id || exec.started_at}
-                                            className={`cursor-pointer ${
-                                                selectedId === exec.execution_id ? "bg-muted" : ""
-                                            }`}
-                                            onClick={() => setSelectedId(exec.execution_id)}
-                                            data-testid="audit-run-row"
-                                        >
-                                            <TableCell className="max-w-[180px]">
-                                                <div className="truncate font-medium" title={exec.agent_id || ""}>
-                                                    {exec.agent_id || "(unknown agent)"}
-                                                </div>
-                                                <div className="truncate text-xs text-muted-foreground">
-                                                    {formatTime(exec.started_at)}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={statusVariant(exec.status)}>
-                                                    {exec.status}
-                                                </Badge>
-                                                {exec.failed_events > 0 && (
-                                                    <div className="mt-1 text-xs text-destructive">
-                                                        {exec.failed_events} failed event
-                                                        {exec.failed_events > 1 ? "s" : ""}
-                                                    </div>
-                                                )}
-                                                {exec.usage && (
-                                                    <div
-                                                        className="mt-1 text-[11px] text-muted-foreground"
-                                                        data-testid="audit-run-usage"
-                                                    >
-                                                        {usageLabel(exec.usage)}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">{exec.tool_calls}</TableCell>
-                                            <TableCell className="text-right">{exec.llm_calls}</TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {visibleExecutions.map((exec) => {
+                                        const runId = exec.execution_id;
+                                        const isSelected =
+                                            Boolean(runId) && selectedId === runId;
+                                        const runName = exec.agent_id || "(unknown agent)";
+                                        return (
+                                            <TableRow
+                                                key={runId || exec.started_at}
+                                                className={`cursor-pointer ${
+                                                    isSelected ? "bg-muted" : ""
+                                                }`}
+                                                onClick={() => setSelectedId(runId)}
+                                                data-testid="audit-run-row"
+                                            >
+                                                <TableCell className="max-w-[180px]">
+                                                    {/* Native control: a real button owns
+                                                        selection so keyboard users can
+                                                        reach every run with Tab and
+                                                        activate with Enter/Space. The
+                                                        row click stays for mouse users;
+                                                        both paths set the same state. */}
+                                                    {runId ? (
+                                                        <button
+                                                            type="button"
+                                                            className="block w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setSelectedId(runId);
+                                                            }}
+                                                            aria-label={`Select run ${runId}${
+                                                                exec.agent_id ? ` from ${exec.agent_id}` : ""
+                                                            }`}
+                                                            aria-current={isSelected ? "true" : undefined}
+                                                            data-testid="audit-run-select"
+                                                        >
+                                                            <span
+                                                                className="block truncate font-medium"
+                                                                title={exec.agent_id || ""}
+                                                            >
+                                                                {runName}
+                                                            </span>
+                                                            <span className="block truncate text-xs text-muted-foreground">
+                                                                {formatTime(exec.started_at)}
+                                                            </span>
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <div
+                                                                className="truncate font-medium"
+                                                                title={exec.agent_id || ""}
+                                                            >
+                                                                {runName}
+                                                            </div>
+                                                            <div className="truncate text-xs text-muted-foreground">
+                                                                {formatTime(exec.started_at)}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={statusVariant(exec.status)}>
+                                                        {exec.status}
+                                                    </Badge>
+                                                    {exec.failed_events > 0 && (
+                                                        <div className="mt-1 text-xs text-destructive">
+                                                            {exec.failed_events} failed event
+                                                            {exec.failed_events > 1 ? "s" : ""}
+                                                        </div>
+                                                    )}
+                                                    {exec.usage && (
+                                                        <div
+                                                            className="mt-1 text-[11px] text-muted-foreground"
+                                                            data-testid="audit-run-usage"
+                                                        >
+                                                            {usageLabel(exec.usage)}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {exec.tool_calls}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {exec.llm_calls}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         )}
