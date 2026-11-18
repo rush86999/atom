@@ -427,10 +427,20 @@ one lexical and one vector hit, and the resulting citation opened the exact
 stored text. These isolated tests used cached local FastEmbed and synthetic
 documents. Chat generation and broader ranking quality remain open.
 
-The first-launch admin could still list and export its existing uploads, but
-semantic retrieval opened a different store and returned no hits. That
-baseline remains a failure. The correction is local and has yet to pass
-the upgrade journey. The Goal 3 status stays bounded.
+Before the repair, the first-launch admin could list and export existing
+uploads, while semantic retrieval opened a different store and returned no
+hits. The retained baseline still records that failure.
+
+[PR #998](https://github.com/rush86999/atom/pull/998) merged at
+`92379a9588c49a897893590de9a1d449ca629bcc`. Its merged tree matches the
+revision that passed all 17 hosted checks. The isolated upgrade replay kept
+the same synthetic workspace and original document IDs. The original upload
+returned through semantic search after restart, its citation contained the
+exact stored text, and the export matched the pre-upgrade SHA-256. A separate
+mixed-store replay returned both the original and newly uploaded sources
+with the expected order and zero lexical hits. The repair also passed 62
+focused tests and 864 pagination cases. Goal 3 remains bounded. Live
+connectors and generated Chat answers require separate evidence.
 
 <a id="goal-4"></a>
 ### Goal 4 — Spreadsheet and calculation

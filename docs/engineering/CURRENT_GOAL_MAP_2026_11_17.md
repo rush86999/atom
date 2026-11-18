@@ -29,7 +29,9 @@ were in progress at this observation. Both #995 post-merge runs have passed.
 
 The [Goal 3 retrieval record](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-3)
 adds source-bound lexical, restart, deletion, semantic and citation evidence
-from merged #995. The first-launch admin semantic miss remains open.
+from merged #995. The same record documents the verified first-launch admin
+semantic retrieval repair merged in #998. The replay covered a retained
+synthetic workspace and both historical and new uploads.
 
 ## Release facts at this cut — merged #995
 
