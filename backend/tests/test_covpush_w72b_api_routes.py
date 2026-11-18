@@ -371,51 +371,184 @@ class TestAiAccountingRoutes:
         assert resp.json()["data"] == {"impact": "up"}
         m.assert_called_once_with("cut costs", projection)
 
-    def test_dashboard_summary_success(self):
-        from core.ai_accounting_engine import ai_accounting
-        db = MagicMock()
-        m1 = MagicMock(); m1.metric_key = "total_revenue"; m1.value = "1200.50"
-        m2 = MagicMock(); m2.metric_key = "pending_revenue"; m2.value = "300"
-        m3 = MagicMock(); m3.metric_key = "gross_profit"; m3.value = "899.5"
-        db.query.return_value.filter.return_value.all.return_value = [m1, m2, m3]
-        client = make_client(
+    def _summary_user(self, workspace_id="ws-72", *, email="user@test.com",
+                      role=UserRole.SUPER_ADMIN):
+        """Authenticated principal with an explicit persisted scope binding."""
+        user = fake_user(email=email, role=role)
+        user.workspace_id = workspace_id
+        user.tenant_id = workspace_id
+        user.workspaces = []
+        return user
+
+    def _summary_client(self, db, user=None):
+        user = user if user is not None else self._summary_user()
+        return make_client(
             __import__("api.ai_accounting_routes", fromlist=["router"]).router,
-            overrides={get_current_user: user_override(), get_db: db_override(db)},
+            overrides={get_current_user: lambda: user, get_db: db_override(db)},
         )
-        resp = client.get("/dashboard/summary")
+
+    @staticmethod
+    def _metric(key, value):
+        m = MagicMock()
+        m.metric_key = key
+        m.value = value
+        return m
+
+    @staticmethod
+    def _queried_workspace_id(db):
+        """Workspace id used in the first (scope) filter criterion."""
+        clause = db.query.return_value.filter.call_args.args[0]
+        return clause.right.value
+
+    def test_dashboard_summary_success(self):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", "1200.50"),
+            self._metric("pending_revenue", "300"),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["total_revenue"] == 1200.5
         assert data["pending_revenue"] == 300.0
+        assert data["metric_availability"] == {
+            "total_revenue": True, "pending_revenue": True,
+        }
         assert data["runway_months"] == 12
         assert data["currency"] == "USD"
         assert data["source"] == "synced_database"
+        # Bound workspace is used; the legacy hardcoded workspace is not.
+        assert self._queried_workspace_id(db) == "ws-72"
 
     def test_dashboard_summary_null_values(self):
-        from core.ai_accounting_engine import ai_accounting
         db = MagicMock()
-        m1 = MagicMock(); m1.metric_key = "total_revenue"; m1.value = None
-        m2 = MagicMock(); m2.metric_key = "other"; m2.value = None
-        db.query.return_value.filter.return_value.all.return_value = [m1, m2]
-        client = make_client(
-            __import__("api.ai_accounting_routes", fromlist=["router"]).router,
-            overrides={get_current_user: user_override(), get_db: db_override(db)},
-        )
-        resp = client.get("/dashboard/summary")
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", None),
+            self._metric("other", None),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
         assert resp.status_code == 200
-        assert resp.json()["data"]["total_revenue"] == 0.0
-        assert resp.json()["data"]["pending_revenue"] == 0.0
+        data = resp.json()["data"]
+        assert data["total_revenue"] == 0.0
+        assert data["pending_revenue"] == 0.0
+        assert data["metric_availability"] == {
+            "total_revenue": False, "pending_revenue": False,
+        }
+
+    def test_dashboard_summary_genuine_zero_is_available(self):
+        """A synced zero — including the numeric string "0" — is data."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", "0"),
+            self._metric("pending_revenue", 0),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total_revenue"] == 0.0
+        assert data["pending_revenue"] == 0.0
+        assert data["metric_availability"] == {
+            "total_revenue": True, "pending_revenue": True,
+        }
+
+    def test_dashboard_summary_zero_versus_absent_metric(self):
+        """Availability is decided per metric, not from the blended total."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", "0"),
+            self._metric("pending_revenue", None),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total_revenue"] == 0.0
+        assert data["pending_revenue"] == 0.0
+        assert data["metric_availability"] == {
+            "total_revenue": True, "pending_revenue": False,
+        }
+
+    def test_dashboard_summary_non_finite_is_not_available(self):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", "NaN"),
+            self._metric("pending_revenue", "Infinity"),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total_revenue"] == 0.0
+        assert data["pending_revenue"] == 0.0
+        assert data["metric_availability"] == {
+            "total_revenue": False, "pending_revenue": False,
+        }
+
+    def test_dashboard_summary_invalid_values_and_finite_overflow(self):
+        """Invalid amounts are ignored; finite inputs that overflow are unusable."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [
+            self._metric("total_revenue", True),
+            self._metric("total_revenue", 10 ** 400),
+            self._metric("total_revenue", 1e308),
+            self._metric("total_revenue", 1e308),
+            self._metric("pending_revenue", False),
+            self._metric("pending_revenue", "12.5"),
+        ]
+        resp = self._summary_client(db).get("/dashboard/summary")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total_revenue"] == 0.0
+        assert data["pending_revenue"] == 12.5
+        assert data["metric_availability"] == {
+            "total_revenue": False, "pending_revenue": True,
+        }
+        assert "NaN" not in resp.text
+        assert "Infinity" not in resp.text
+
+    def test_dashboard_summary_unbound_account_fails_closed(self):
+        """Non-bootstrap account without a binding is denied before querying."""
+        db = MagicMock()
+        user = self._summary_user(workspace_id=None)
+        resp = self._summary_client(db, user).get("/dashboard/summary")
+        assert resp.status_code == 403
+        db.query.assert_not_called()
+
+    def test_dashboard_summary_bootstrap_falls_back_to_personal_workspace(self):
+        """Only the persisted bootstrap identity keeps the Personal fallback."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []
+        user = self._summary_user(
+            workspace_id=None,
+            email="admin@example.com",
+            role=UserRole.WORKSPACE_ADMIN,
+        )
+        resp = self._summary_client(db, user).get("/dashboard/summary")
+        assert resp.status_code == 200
+        assert self._queried_workspace_id(db) == "default"
+
+    def test_dashboard_summary_binding_lookup_failure_fails_closed(self):
+        class BrokenBindingUser:
+            id = "u-broken"
+            email = "user@test.com"
+            role = UserRole.SUPER_ADMIN
+            tenant_id = None
+            workspace_id = None
+
+            @property
+            def workspaces(self):
+                raise RuntimeError("binding lookup failed")
+
+        db = MagicMock()
+        resp = self._summary_client(db, BrokenBindingUser()).get(
+            "/dashboard/summary")
+        assert resp.status_code == 500
+        db.query.assert_not_called()
 
     def test_dashboard_summary_error(self):
-        from core.ai_accounting_engine import ai_accounting
         db = MagicMock()
         db.query.side_effect = RuntimeError("boom")
-        client = make_client(
-            __import__("api.ai_accounting_routes", fromlist=["router"]).router,
-            overrides={get_current_user: user_override(), get_db: db_override(db)},
-        )
-        resp = client.get("/dashboard/summary")
+        resp = self._summary_client(db).get("/dashboard/summary")
         assert resp.status_code == 500
+        assert "boom" not in resp.text
 
     def test_requires_auth(self):
         client = make_client(

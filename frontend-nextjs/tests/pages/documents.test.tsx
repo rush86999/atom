@@ -233,6 +233,53 @@ describe("DocumentsPage", () => {
     );
   });
 
+  test("a rejected upload can be retried by selecting the same file again", async () => {
+    let attempts = 0;
+    mockPost.mockImplementation(async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        const err: any = new Error("network");
+        err.response = { status: 503, data: { detail: "Failed to upload document." } };
+        throw err;
+      }
+      return { status: 200, data: { success: true } };
+    });
+
+    render(<DocumentsPage />);
+    await waitFor(() => expect(screen.getByText("Onboarding Guide")).toBeInTheDocument());
+
+    const input = uploadInput(document.body);
+    const file = makeFile("retry.md");
+    // A real browser retains the chosen path on the native input, so simulate
+    // the non-empty value a real selection leaves behind.
+    Object.defineProperty(input, "value", {
+      configurable: true,
+      writable: true,
+      value: "C:\\fakepath\\retry.md",
+    });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(screen.getByText("Failed to upload document.")).toBeInTheDocument()
+    );
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/documents/upload", expect.any(FormData), expect.anything()
+    );
+    // The native selection is cleared at the upload boundary, so selecting the
+    // same file again is not suppressed as an unchanged value.
+    expect(input.value).toBe("");
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Successfully uploaded "retry.md"/)).toBeInTheDocument()
+    );
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(input.value).toBe("");
+  });
+
   test("drag enter activates the drop zone", async () => {
     render(<DocumentsPage />);
     await waitFor(() => expect(screen.getByText("Onboarding Guide")).toBeInTheDocument());
