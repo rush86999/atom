@@ -541,3 +541,73 @@ def test_materialized_upload_disappearance_still_parks(
     assert step["status"] == "waiting", step
     assert "source_unavailable" in str(step.get("waiting") or {})
 
+
+def test_missing_authoritative_locator_rejects_asserted_opaque_path(
+        route_env):
+    """Index-only classification reads the persisted row locator, not inputs.
+
+    A row with no persisted ``file_path`` and a caller-asserted ``upload:``
+    path on the accepted step must still be rechecked as a local file. Only
+    the source row itself can say there are no bytes to reopen.
+    """
+    from core.assignment_executor import AssignmentExecutor
+    from core.assignment_plan import new_assignment, new_step
+
+    text = "ITEM,QTY\nWidget,2\n"
+    version = extraction_content_hash(text)
+    row = IngestedDocument(
+        id="doc-no-persisted-locator",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        file_name="price-book.txt",
+        file_path="",
+        file_type="txt",
+        integration_id="upload",
+        external_id="upload_doc-no-persisted-locator",
+        source_content_hash=version,
+        freshness_status="fresh",
+    )
+    route_env["db"].add(row)
+    route_env["db"].commit()
+
+    binding = {
+        "kind": "document",
+        "source": "upload",
+        "document_id": row.id,
+        "resource_id": row.id,
+        "source_version": version,
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "access_scope": {
+            "user_id": "lead-1",
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+        },
+    }
+    result = {
+        "status": "applied",
+        "source_version": version,
+        "sha256": version,
+        "extraction": {"indexed_version": version},
+    }
+    step = new_step(
+        step_id="accepted-asserted-locator",
+        title="Read the accepted upload",
+        operation_type="retrieve",
+        adapter="document.text",
+        inputs={"resource_binding": binding, "path": "upload:price-book.txt"},
+        effect="read_only",
+    )
+    step.update(status="applied", operation_id="accepted-asserted-operation",
+                result=result)
+    assignment = new_assignment(
+        objective="Consume the accepted upload", steps=[step])
+
+    problem = AssignmentExecutor(
+        route_env["lifecycle"])._source_consumption_gap(assignment, {})
+
+    assert problem is not None, (
+        "a caller-asserted upload: path exempted a row with no persisted "
+        "locator from the file check")
+    _step, gap = problem
+    assert gap["waiting"]["code"] == "source_unavailable", gap
