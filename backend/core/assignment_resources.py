@@ -48,6 +48,26 @@ def is_upload_source(value: Any) -> bool:
     return str(value or "").strip().lower() in UPLOAD_SOURCE_NAMES
 
 
+#: ``POST /api/document-ingestion/upload`` records an index-only locator
+#: (``upload:<file name>``) and never materializes source bytes. The ordinary
+#: upload route always persists an absolute ``resolve_local_path`` result, so
+#: this prefix cannot collide with a materialized document.
+_INDEX_ONLY_DOCUMENT_LOCATOR = re.compile(r"^upload:")
+
+
+def is_indexed_only_document_locator(value: Any) -> bool:
+    """True for the legacy ingestion upload's index-only source locator.
+
+    A positive answer means the source has no local bytes to reopen: the
+    authoritative ``IngestedDocument`` row plus its version-matched,
+    workspace-scoped indexed extraction are the whole representation. The
+    check is deliberately narrower than "not an absolute path": connector
+    (``<source>:<file>``) and org-bundle locators are not classified here
+    because their remote/shared-grant semantics are not established.
+    """
+    return bool(_INDEX_ONLY_DOCUMENT_LOCATOR.match(str(value or "").strip()))
+
+
 def uploaded_document_id(binding: Dict[str, Any]) -> str:
     """The IngestedDocument identity an uploaded-source binding names.
 

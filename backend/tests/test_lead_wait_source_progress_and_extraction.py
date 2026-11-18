@@ -8,6 +8,7 @@ version-matched indexed text rather than decoding the ZIP container as text.
 """
 import asyncio
 import hashlib
+import os
 from types import SimpleNamespace
 import pytest
 from core.assignment_executor import NeedsContext, _document_text_read
@@ -313,3 +314,300 @@ def test_text_and_json_path_reads_keep_their_real_content(
         }, "path": str(json_path)}, dict(CONTEXT)))
     assert json_read["data"]["invoice_id"] == "INV-1"
     assert "local notes" not in json_read["text"]
+
+
+# ---------------------------------------------------------------------------
+# Legacy ingestion upload as an assignment source
+#
+# ``POST /api/document-ingestion/upload`` stores file_path="upload:<name>" and
+# never materializes bytes. The read adapter already serves that row from the
+# version-matched indexed extraction, but consumption treated the pseudo path
+# as a missing local file and parked every accepted read as source_unavailable.
+# These mounted-route twins cover upload -> list -> accept/read -> consumption,
+# the stale-index and foreign-workspace refusals, and the preserved G2 rule for
+# a materialized upload whose file disappears after acceptance.
+# ---------------------------------------------------------------------------
+
+LEGACY_TEXT = "ITEM,QTY,PRICE\nWidget,2,10.00\nBolt,3,4.00\n"
+
+
+@pytest.fixture()
+def mounted_document_routes(route_env, tmp_path, monkeypatch):
+    """Mount the real ingest/upload routes beside the assignment routes."""
+    import numpy as np
+    import api.document_ingestion_routes as di
+    import api.document_routes as dr
+    from core.embedding_service import EmbeddingService
+    from core.lancedb_handler import LanceDBHandler
+
+    async def _deterministic_embedding(self, text):
+        return np.zeros(384, dtype=float).tolist()
+
+    monkeypatch.setattr(
+        EmbeddingService, "generate_embedding", _deterministic_embedding)
+
+    handlers = {}
+
+    def handler_for(workspace_id=None, **_kwargs):
+        workspace = str(workspace_id or "ws-1")
+        if workspace not in handlers:
+            handlers[workspace] = LanceDBHandler(
+                db_path=str(tmp_path / "lancedb" / workspace),
+                workspace_id=workspace, tenant_id="tenant-1")
+        return handlers[workspace]
+
+    monkeypatch.setattr(di, "get_lancedb_handler", handler_for)
+    monkeypatch.setattr(dr, "get_lancedb_handler", handler_for)
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", handler_for)
+    route_env["client"].app.include_router(di.router)
+    route_env["client"].app.include_router(dr.router)
+    route_env["handlers"] = handlers
+    return route_env
+
+
+def _legacy_upload(env, text=LEGACY_TEXT, name="price-book.txt"):
+    response = env["client"].post(
+        "/api/document-ingestion/upload",
+        files={"file": (name, text.encode("utf-8"), "text/plain")})
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["document_id"]
+
+
+def _start_from_document(env, monkeypatch, document_id, *,
+                         objective="Read the uploaded price book"):
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the authorized source.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read source",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = env["client"].post(
+        "/api/assignments/from-objective",
+        json={
+            "objective": objective,
+            "sources": [{"document_id": document_id}],
+            "authorized_actions": ["retrieve"],
+            "use_model": False,
+        })
+    return response
+
+
+def _document_step(assignment):
+    return next(
+        step for step in assignment["steps"]
+        if step["adapter"] == "document.text")
+
+
+def _open_gap_concepts(env, run_id):
+    record = env["lifecycle"].get_task(run_id) or {}
+    return {
+        str(question.get("concept") or "")
+        for question in
+        (record.get("task_revision") or {}).get("unresolved") or []
+        if question.get("status") == "open"
+    }
+
+
+def test_legacy_ingestion_upload_is_listed_read_and_consumable(
+        mounted_document_routes, monkeypatch):
+    env = mounted_document_routes
+    doc_id = _legacy_upload(env)
+
+    row = env["db"].query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).first()
+    assert row is not None
+    assert row.file_path == "upload:price-book.txt"
+    assert not os.path.isfile(row.file_path)
+
+    listing = env["client"].get("/api/assignments/sources")
+    assert listing.status_code == 200, listing.text
+    entry = next(
+        item for item in listing.json()
+        if item.get("document_id") == doc_id)
+    assert entry["source_version"] == row.source_content_hash
+
+    response = _start_from_document(env, monkeypatch, doc_id)
+    assert response.status_code == 200, response.text
+    assignment = env["lifecycle"].get_assignment(
+        response.json()["run_id"])
+
+    step = _document_step(assignment)
+    assert step["status"] == "applied", step
+    assert not step.get("gap_ids"), step
+    assert "Widget,2,10.00" in step["result"]["text"]
+    assert step["result"]["source_version"] == row.source_content_hash
+    assert not _open_gap_concepts(env, response.json()["run_id"])
+
+
+def test_legacy_ingestion_stale_index_is_refused(
+        mounted_document_routes, monkeypatch):
+    env = mounted_document_routes
+    doc_id = _legacy_upload(env)
+    handler = env["handlers"]["ws-1"]
+    indexed = handler.get_document_by_id("documents", doc_id)
+    metadata = dict(indexed["metadata"])
+    metadata["source_content_hash"] = extraction_content_hash(
+        "an older extraction")
+    assert handler.delete_documents_by_id("documents", doc_id)
+    assert handler.add_document(
+        "documents", text="an older extraction", source=indexed["source"],
+        metadata=metadata, user_id="lead-1", workspace_id="ws-1",
+        doc_id=doc_id, extra_columns={"freshness_status": "fresh"})
+
+    response = _start_from_document(env, monkeypatch, doc_id)
+    assert response.status_code == 200, response.text
+    assignment = env["lifecycle"].get_assignment(
+        response.json()["run_id"])
+
+    step = _document_step(assignment)
+    assert step["status"] == "waiting", step
+    assert "document_extraction_stale" in _open_gap_concepts(
+        env, response.json()["run_id"])
+    assert not (step.get("result") or {}).get("text")
+
+
+def test_legacy_ingestion_foreign_workspace_document_is_refused(
+        mounted_document_routes, monkeypatch):
+    env = mounted_document_routes
+    from core.models import GoalRun
+
+    env["current"]["user"] = env["users"]["other"]
+    try:
+        foreign_id = _legacy_upload(env, name="foreign-book.txt")
+    finally:
+        env["current"]["user"] = env["users"]["lead"]
+
+    listing = env["client"].get("/api/assignments/sources")
+    assert listing.status_code == 200, listing.text
+    assert not any(
+        item.get("document_id") == foreign_id
+        for item in listing.json())
+
+    before = env["db"].query(GoalRun).count()
+    response = _start_from_document(env, monkeypatch, foreign_id)
+    assert response.status_code == 404, response.text
+    detail = response.json()["detail"]
+    assert detail["error"] == "resource_not_found"
+    assert env["db"].query(GoalRun).count() == before
+
+
+def test_materialized_upload_disappearance_still_parks(
+        mounted_document_routes, monkeypatch):
+    env = mounted_document_routes
+    uploaded = env["client"].post(
+        "/api/documents/upload",
+        files={"file": ("notes.txt", b"local notes are the source",
+                        "text/plain")})
+    assert uploaded.status_code == 200, uploaded.text
+    doc_id = uploaded.json()["id"]
+    row = env["db"].query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).first()
+    assert row is not None and os.path.isabs(row.file_path)
+    assert os.path.isfile(row.file_path)
+
+    response = _start_from_document(env, monkeypatch, doc_id)
+    assert response.status_code == 200, response.text
+    run_id = response.json()["run_id"]
+    assert _document_step(
+        env["lifecycle"].get_assignment(run_id))["status"] == "applied"
+
+    os.unlink(row.file_path)
+    replay = env["client"].post(
+        f"/api/assignments/{run_id}/sources",
+        json={
+            "source": {
+                "kind": "document",
+                "document_id": doc_id,
+                "source_version": row.source_content_hash,
+            },
+            "reason": "same authorized source",
+        })
+    assert replay.status_code == 200, replay.text
+
+    step = _document_step(env["lifecycle"].get_assignment(run_id))
+    assert step["status"] == "waiting", step
+    assert "source_unavailable" in str(step.get("waiting") or {})
+
+
+def test_missing_authoritative_locator_rejects_asserted_opaque_path(
+        route_env):
+    """Index-only classification reads the persisted row locator, not inputs.
+
+    A row with no persisted ``file_path`` and a caller-asserted ``upload:``
+    path on the accepted step must still be rechecked as a local file. Only
+    the source row itself can say there are no bytes to reopen.
+    """
+    from core.assignment_executor import AssignmentExecutor
+    from core.assignment_plan import new_assignment, new_step
+
+    text = "ITEM,QTY\nWidget,2\n"
+    version = extraction_content_hash(text)
+    row = IngestedDocument(
+        id="doc-no-persisted-locator",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        file_name="price-book.txt",
+        file_path="",
+        file_type="txt",
+        integration_id="upload",
+        external_id="upload_doc-no-persisted-locator",
+        source_content_hash=version,
+        freshness_status="fresh",
+    )
+    route_env["db"].add(row)
+    route_env["db"].commit()
+
+    binding = {
+        "kind": "document",
+        "source": "upload",
+        "document_id": row.id,
+        "resource_id": row.id,
+        "source_version": version,
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "access_scope": {
+            "user_id": "lead-1",
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+        },
+    }
+    result = {
+        "status": "applied",
+        "source_version": version,
+        "sha256": version,
+        "extraction": {"indexed_version": version},
+    }
+    step = new_step(
+        step_id="accepted-asserted-locator",
+        title="Read the accepted upload",
+        operation_type="retrieve",
+        adapter="document.text",
+        inputs={"resource_binding": binding, "path": "upload:price-book.txt"},
+        effect="read_only",
+    )
+    step.update(status="applied", operation_id="accepted-asserted-operation",
+                result=result)
+    assignment = new_assignment(
+        objective="Consume the accepted upload", steps=[step])
+
+    problem = AssignmentExecutor(
+        route_env["lifecycle"])._source_consumption_gap(assignment, {})
+
+    assert problem is not None, (
+        "a caller-asserted upload: path exempted a row with no persisted "
+        "locator from the file check")
+    _step, gap = problem
+    assert gap["waiting"]["code"] == "source_unavailable", gap
