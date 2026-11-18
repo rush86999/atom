@@ -9274,6 +9274,11 @@ _DOCUMENTS_VFS_INTENT_ACTIONS: Dict[str, str] = {
     "head": "head", "tail": "tail",
     "tree": "tree", "scan": "scan",
 }
+# SEARCH-SHAPED intents, as opposed to an explicit VFS operation. The
+# supported leading "Using my uploaded documentation only," qualification is
+# a source scope the user stated, so these requests consult the ingested-
+# documents lane FIRST; explicit grep/cat/read keep their VFS semantics.
+_DOCUMENTS_SEARCH_SHAPED_INTENTS = frozenset({"search", "find"})
 # documents.read windows stay prompt-safe at the LANE level too: the action
 # layer clamps max_lines to 2000, but a planner-echoed hint should never ask
 # for (and inject) more than this many lines in one turn.
@@ -9410,6 +9415,225 @@ def _stamp_documents_receipt(
         pass
 
 
+async def _documents_ingested_hybrid_lookup(
+    plan: Any,
+    query: str,
+    user_id: Optional[str],
+    context: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """The ONE authenticated hybrid lookup over ingested documents.
+
+    Shared by the VFS grep zero-match fallback and by the explicitly
+    source-restricted search path (the supported leading "Using my uploaded
+    documentation only," qualification), so both reuse the same scope proof,
+    source filter, bounded retry, coverage classification and durable
+    receipt.
+
+    Returns ``{"block", "error", "query"}``: ``block`` is the rendered
+    evidence on positive hits, ``error`` is the unavailable/coverage reason,
+    and an empty error with no block is a completed zero. Callers own what a
+    zero means for their lane.
+    """
+    _hybrid_error = ""
+    _hybrid_query = str(query or "")[:_DOCUMENTS_SEARCH_QUERY_CHAR_CAP]
+    _hybrid_scope, _hybrid_unavailable = (
+        await _planner_document_scope(user_id, context))
+    _hybrid_ws = (_hybrid_scope or {}).get("workspace_id")
+    if _hybrid_scope is None:
+        _hybrid_error = _hybrid_unavailable
+        _stamp_documents_receipt(
+            plan, action="search", query=_hybrid_query,
+            executed=False, error=_hybrid_error,
+            workspace_id=None)
+        return {
+            "block": None,
+            "error": _hybrid_error,
+            "query": _hybrid_query,
+        }
+    try:
+        from core.hybrid_search.documents_hybrid import (
+            DocumentsHybridSearch,
+        )
+        from core.memory_context_assembler import (
+            _standalone_question_for_retry,
+            _successful_complete_zero_result,
+            _supported_source_restriction,
+        )
+
+        _source_filter, _ = _supported_source_restriction(query)
+        # EXACT construction from the assembler's knowledge
+        # leg: the resolver's PROVEN workspace and legacy
+        # authority, never the raw turn context. Dispatching
+        # through documents.search would lose the authority
+        # the resolver just proved (its context carries no
+        # User row), so a legacy upload stayed invisible.
+        _hybrid_kwargs: Dict[str, Any] = {}
+        if _hybrid_ws:
+            _hybrid_kwargs["workspace_id"] = _hybrid_ws
+        _hybrid_legacy = (_hybrid_scope or {}).get(
+            "legacy_authority")
+        if _hybrid_legacy:
+            _hybrid_kwargs["legacy_authority"] = dict(
+                _hybrid_legacy)
+        _hybrid_flags: Dict[str, Any] = {}
+        if _source_filter:
+            # Supported leading "uploaded documents only"
+            # qualification — the hybrid service also skips
+            # the conversations leg whenever source is set.
+            _hybrid_flags["source"] = _source_filter
+        # ONE retriever instance for both attempts: the probe
+        # must not change permissions, workspace/legacy
+        # scope, limit, or the caller's owner boundary.
+        _hybrid_searcher = DocumentsHybridSearch(
+            **_hybrid_kwargs)
+        _hybrid_res = await _hybrid_searcher.search(
+            query=_hybrid_query, limit=6,
+            owner_user_id=user_id, **_hybrid_flags)
+        # Bounded probe parity with _knowledge_leg: only a
+        # COMPLETED zero may retry, and only with an exact
+        # standalone question already in the user's words.
+        if _successful_complete_zero_result(_hybrid_res):
+            _retry_query = _standalone_question_for_retry(
+                str(query or ""))
+            if _retry_query:
+                try:
+                    _retry_res = await _hybrid_searcher.search(
+                        query=_retry_query, limit=6,
+                        owner_user_id=user_id, **_hybrid_flags)
+                except Exception:  # noqa: BLE001 — additive
+                    _retry_res = None
+                if (_retry_res or {}).get("results"):
+                    _hybrid_res = _retry_res
+        _hybrid_hits = list(
+            (_hybrid_res or {}).get("results") or [])[:10]
+        _hybrid_status = str(
+            (_hybrid_res or {}).get("status") or "").strip(
+        ).lower()
+        # INSPECT THE ACTUAL LEGS, not just the label: a leg
+        # that failed is incomplete coverage even if an
+        # envelope mislabels the overall status.
+        _hybrid_legs = (_hybrid_res or {}).get("legs") or {}
+        _hybrid_failed_legs = sorted(
+            str(name) for name, leg in _hybrid_legs.items()
+            if isinstance(leg, dict)
+            and str(leg.get("status") or "").lower()
+            == "failed")
+        # A query too short to run any leg is not a completed
+        # search: the service reports the legs as skipped, so
+        # its zero proves nothing about the corpus.
+        _hybrid_no_search = (
+            bool(_hybrid_legs)
+            and all(
+                isinstance(leg, dict)
+                and str(leg.get("status") or "").lower()
+                == "skipped"
+                and str(leg.get("skip_reason") or "")
+                == "query_too_short"
+                for leg in _hybrid_legs.values()))
+        _hybrid_incomplete = (
+            _hybrid_status != "success"
+            or bool(_hybrid_failed_legs)
+            or _hybrid_no_search)
+        # Coverage detail shared by both branches: a positive
+        # result set is still PARTIAL when a leg failed, so the
+        # receipt and the evidence text must both carry the
+        # loss instead of implying a complete search.
+        _hybrid_coverage_note = ""
+        if _hybrid_incomplete:
+            _coverage = (_hybrid_res or {}).get(
+                "coverage") or {}
+            _unavailable_legs = sorted(
+                {str(n) for n in (
+                    _coverage.get("unavailable") or [])}
+                | set(_hybrid_failed_legs))
+            _status_label = _hybrid_status or "unknown"
+            if (_hybrid_no_search
+                    or (_hybrid_status == "success"
+                        and _hybrid_failed_legs)):
+                _status_label = "incomplete"
+            _hybrid_coverage_note = (
+                "document search coverage "
+                f"{_status_label}")
+            if _unavailable_legs:
+                _hybrid_coverage_note += (
+                    " (unavailable: "
+                    + ", ".join(_unavailable_legs) + ")")
+            _hybrid_coverage_note = _hybrid_coverage_note[:140]
+        if _hybrid_hits:
+            # Usable evidence survives incomplete coverage, but
+            # the receipt marks the loss and the block says so,
+            # so the answer cannot imply a complete search.
+            _stamp_documents_receipt(
+                plan, action="search", query=_hybrid_query,
+                executed=True, match_count=len(_hybrid_hits),
+                paths=[str(h.get("id") or "")
+                       for h in _hybrid_hits],
+                degraded=_hybrid_incomplete,
+                error="",
+                workspace_id=_hybrid_ws)
+            _lines = []
+            for _h in _hybrid_hits:
+                _title = str(_h.get("title")
+                             or _h.get("id") or "")
+                _body = str(_h.get("content")
+                            or _h.get("preview") or "").strip()
+                _src = str(_h.get("source") or "documents")
+                _lines.append(
+                    f"- [{_src}] {_title}: {_body[:1200]}")
+            _partial_note = ""
+            if _hybrid_incomplete:
+                _partial_note = (
+                    "\n\nPARTIAL COVERAGE — "
+                    f"{_hybrid_coverage_note}; these results "
+                    "are usable, but the search did NOT cover "
+                    "every leg, so do not present them as a "
+                    "complete search of the workspace.")
+            return {
+                "block": _with_grounding(
+                    "LIVE TOOL RESULTS (documents.search, query="
+                    f"'{_hybrid_query}') — hybrid search over the "
+                    "workspace's ingested documents "
+                    f"({len(_hybrid_hits)} result(s)); these are "
+                    "the uploaded/ingested documents, distinct "
+                    "from the VFS conversation tree:\n"
+                    + "\n".join(_lines)
+                    + _partial_note),
+                "error": "",
+                "query": _hybrid_query,
+            }
+        if _hybrid_incomplete:
+            # A partial/failed coverage is an UNAVAILABLE
+            # lookup, never a definitive zero. The envelope
+            # names which legs could not be read.
+            _hybrid_error = _hybrid_coverage_note
+            _stamp_documents_receipt(
+                plan, action="search", query=_hybrid_query,
+                executed=False, error=_hybrid_error,
+                workspace_id=_hybrid_ws)
+        else:
+            # A completed zero-result search is still an
+            # EXECUTED scoped search; the final narration may
+            # quote its absence but not widen it.
+            _stamp_documents_receipt(
+                plan, action="search", query=_hybrid_query,
+                executed=True, match_count=0,
+                workspace_id=_hybrid_ws)
+    except Exception as _hy_err:  # noqa: BLE001 — additive lane
+        _hybrid_error = (
+            f"{type(_hy_err).__name__}: {str(_hy_err)[:120]}")
+        _stamp_documents_receipt(
+            plan, action="search", query=_hybrid_query,
+            executed=False, error=_hybrid_error,
+            workspace_id=_hybrid_ws)
+        logger.debug(
+            f"documents hybrid-search fallback skipped: {_hy_err}")
+    return {
+        "block": None,
+        "error": _hybrid_error,
+        "query": _hybrid_query,
+    }
+
+
 async def _documents_vfs_block(
     plan: Any, user_id: Optional[str], context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
@@ -9443,6 +9667,54 @@ async def _documents_vfs_block(
             )
         args: Dict[str, Any] = {}
         if action == "grep":
+            # EXPLICIT SOURCE RESTRICTION FIRST (2026-11-18): the supported
+            # leading "Using my uploaded documentation only," qualification is
+            # a source scope the USER stated, so a search-shaped request goes
+            # straight to the authenticated ingested-documents hybrid lookup
+            # with source="ingested". Grepping the VFS first let a matching
+            # CONVERSATION win before the source filter was applied — the
+            # filter used to run only after zero grep hits. Explicit
+            # grep/cat/read intents and ordinary unqualified searches keep
+            # their VFS semantics; this only reorders the existing two legs.
+            _restricted_source = None
+            if intent in _DOCUMENTS_SEARCH_SHAPED_INTENTS:
+                try:
+                    from core.memory_context_assembler import (
+                        _supported_source_restriction,
+                    )
+
+                    _restricted_source, _ = _supported_source_restriction(
+                        query)
+                except Exception:  # noqa: BLE001 — additive lane
+                    _restricted_source = None
+            if _restricted_source:
+                _lookup = await _documents_ingested_hybrid_lookup(
+                    plan, query, user_id, context)
+                if _lookup.get("block"):
+                    return _lookup["block"]
+                _restricted_query = str(_lookup.get("query") or query)
+                if _lookup.get("error"):
+                    return _with_grounding(
+                        "LIVE TOOL RESULTS (documents.search, query="
+                        f"'{_restricted_query}'): the user restricted this "
+                        "search to their uploaded documentation, and that "
+                        "ingested-documents search was unavailable "
+                        f"({_lookup.get('error')}). This turn has NOT "
+                        "established whether an uploaded document contains "
+                        "the answer — state only that the restricted search "
+                        "could not run; do not cite VFS/conversation content "
+                        "and do not claim a global absence.")
+                # The restricted lookup COMPLETED with no hits. The VFS
+                # conversation tree was deliberately not searched, so this
+                # absence is scoped to the uploaded-documents corpus only.
+                return _with_grounding(
+                    "LIVE TOOL RESULTS (documents.search, query="
+                    f"'{_restricted_query}'): the explicitly restricted "
+                    "search of the workspace's ingested/uploaded documents "
+                    "completed with no matching result. No VFS conversation "
+                    "scan was run because the user asked for uploaded "
+                    "documentation only; this absence is scoped to that "
+                    "uploaded-document search, not the user's whole corpus.")
             pattern, prefix = _split_vfs_grep_query(query)
             if not pattern:
                 _stamp_documents_receipt(
@@ -9546,191 +9818,15 @@ async def _documents_vfs_block(
                 # document scope through that same helper and use ONLY the
                 # proven workspace for the scoped search. A raw action-context
                 # workspace is never proof and is never a fail-closed fallback.
-                _hybrid_error = ""
-                _hybrid_query = str(query or "")[:_DOCUMENTS_SEARCH_QUERY_CHAR_CAP]
-                _hybrid_scope, _hybrid_unavailable = (
-                    await _planner_document_scope(user_id, context))
-                _hybrid_ws = (_hybrid_scope or {}).get("workspace_id")
-                if _hybrid_scope is None:
-                    _hybrid_error = _hybrid_unavailable
-                    _stamp_documents_receipt(
-                        plan, action="search", query=_hybrid_query,
-                        executed=False, error=_hybrid_error,
-                        workspace_id=None)
-                else:
-                    try:
-                        from core.hybrid_search.documents_hybrid import (
-                            DocumentsHybridSearch,
-                        )
-                        from core.memory_context_assembler import (
-                            _standalone_question_for_retry,
-                            _successful_complete_zero_result,
-                            _supported_source_restriction,
-                        )
-
-                        _source_filter, _ = _supported_source_restriction(query)
-                        # EXACT construction from the assembler's knowledge
-                        # leg: the resolver's PROVEN workspace and legacy
-                        # authority, never the raw turn context. Dispatching
-                        # through documents.search would lose the authority
-                        # the resolver just proved (its context carries no
-                        # User row), so a legacy upload stayed invisible.
-                        _hybrid_kwargs: Dict[str, Any] = {}
-                        if _hybrid_ws:
-                            _hybrid_kwargs["workspace_id"] = _hybrid_ws
-                        _hybrid_legacy = (_hybrid_scope or {}).get(
-                            "legacy_authority")
-                        if _hybrid_legacy:
-                            _hybrid_kwargs["legacy_authority"] = dict(
-                                _hybrid_legacy)
-                        _hybrid_flags: Dict[str, Any] = {}
-                        if _source_filter:
-                            # Supported leading "uploaded documents only"
-                            # qualification — the hybrid service also skips
-                            # the conversations leg whenever source is set.
-                            _hybrid_flags["source"] = _source_filter
-                        # ONE retriever instance for both attempts: the probe
-                        # must not change permissions, workspace/legacy
-                        # scope, limit, or the caller's owner boundary.
-                        _hybrid_searcher = DocumentsHybridSearch(
-                            **_hybrid_kwargs)
-                        _hybrid_res = await _hybrid_searcher.search(
-                            query=_hybrid_query, limit=6,
-                            owner_user_id=user_id, **_hybrid_flags)
-                        # Bounded probe parity with _knowledge_leg: only a
-                        # COMPLETED zero may retry, and only with an exact
-                        # standalone question already in the user's words.
-                        if _successful_complete_zero_result(_hybrid_res):
-                            _retry_query = _standalone_question_for_retry(
-                                str(query or ""))
-                            if _retry_query:
-                                try:
-                                    _retry_res = await _hybrid_searcher.search(
-                                        query=_retry_query, limit=6,
-                                        owner_user_id=user_id, **_hybrid_flags)
-                                except Exception:  # noqa: BLE001 — additive
-                                    _retry_res = None
-                                if (_retry_res or {}).get("results"):
-                                    _hybrid_res = _retry_res
-                        _hybrid_hits = list(
-                            (_hybrid_res or {}).get("results") or [])[:10]
-                        _hybrid_status = str(
-                            (_hybrid_res or {}).get("status") or "").strip(
-                        ).lower()
-                        # INSPECT THE ACTUAL LEGS, not just the label: a leg
-                        # that failed is incomplete coverage even if an
-                        # envelope mislabels the overall status.
-                        _hybrid_legs = (_hybrid_res or {}).get("legs") or {}
-                        _hybrid_failed_legs = sorted(
-                            str(name) for name, leg in _hybrid_legs.items()
-                            if isinstance(leg, dict)
-                            and str(leg.get("status") or "").lower()
-                            == "failed")
-                        # A query too short to run any leg is not a completed
-                        # search: the service reports the legs as skipped, so
-                        # its zero proves nothing about the corpus.
-                        _hybrid_no_search = (
-                            bool(_hybrid_legs)
-                            and all(
-                                isinstance(leg, dict)
-                                and str(leg.get("status") or "").lower()
-                                == "skipped"
-                                and str(leg.get("skip_reason") or "")
-                                == "query_too_short"
-                                for leg in _hybrid_legs.values()))
-                        _hybrid_incomplete = (
-                            _hybrid_status != "success"
-                            or bool(_hybrid_failed_legs)
-                            or _hybrid_no_search)
-                        # Coverage detail shared by both branches: a positive
-                        # result set is still PARTIAL when a leg failed, so the
-                        # receipt and the evidence text must both carry the
-                        # loss instead of implying a complete search.
-                        _hybrid_coverage_note = ""
-                        if _hybrid_incomplete:
-                            _coverage = (_hybrid_res or {}).get(
-                                "coverage") or {}
-                            _unavailable_legs = sorted(
-                                {str(n) for n in (
-                                    _coverage.get("unavailable") or [])}
-                                | set(_hybrid_failed_legs))
-                            _status_label = _hybrid_status or "unknown"
-                            if (_hybrid_no_search
-                                    or (_hybrid_status == "success"
-                                        and _hybrid_failed_legs)):
-                                _status_label = "incomplete"
-                            _hybrid_coverage_note = (
-                                "document search coverage "
-                                f"{_status_label}")
-                            if _unavailable_legs:
-                                _hybrid_coverage_note += (
-                                    " (unavailable: "
-                                    + ", ".join(_unavailable_legs) + ")")
-                            _hybrid_coverage_note = _hybrid_coverage_note[:140]
-                        if _hybrid_hits:
-                            # Usable evidence survives incomplete coverage, but
-                            # the receipt marks the loss and the block says so,
-                            # so the answer cannot imply a complete search.
-                            _stamp_documents_receipt(
-                                plan, action="search", query=_hybrid_query,
-                                executed=True, match_count=len(_hybrid_hits),
-                                paths=[str(h.get("id") or "")
-                                       for h in _hybrid_hits],
-                                degraded=_hybrid_incomplete,
-                                error="",
-                                workspace_id=_hybrid_ws)
-                            _lines = []
-                            for _h in _hybrid_hits:
-                                _title = str(_h.get("title")
-                                             or _h.get("id") or "")
-                                _body = str(_h.get("content")
-                                            or _h.get("preview") or "").strip()
-                                _src = str(_h.get("source") or "documents")
-                                _lines.append(
-                                    f"- [{_src}] {_title}: {_body[:1200]}")
-                            _partial_note = ""
-                            if _hybrid_incomplete:
-                                _partial_note = (
-                                    "\n\nPARTIAL COVERAGE — "
-                                    f"{_hybrid_coverage_note}; these results "
-                                    "are usable, but the search did NOT cover "
-                                    "every leg, so do not present them as a "
-                                    "complete search of the workspace.")
-                            return _with_grounding(
-                                "LIVE TOOL RESULTS (documents.search, query="
-                                f"'{_hybrid_query}') — hybrid search over the "
-                                "workspace's ingested documents "
-                                f"({len(_hybrid_hits)} result(s)); these are "
-                                "the uploaded/ingested documents, distinct "
-                                "from the VFS conversation tree:\n"
-                                + "\n".join(_lines)
-                                + _partial_note)
-                        if _hybrid_incomplete:
-                            # A partial/failed coverage is an UNAVAILABLE
-                            # lookup, never a definitive zero. The envelope
-                            # names which legs could not be read.
-                            _hybrid_error = _hybrid_coverage_note
-                            _stamp_documents_receipt(
-                                plan, action="search", query=_hybrid_query,
-                                executed=False, error=_hybrid_error,
-                                workspace_id=_hybrid_ws)
-                        else:
-                            # A completed zero-result search is still an
-                            # EXECUTED scoped search; the final narration may
-                            # quote its absence but not widen it.
-                            _stamp_documents_receipt(
-                                plan, action="search", query=_hybrid_query,
-                                executed=True, match_count=0,
-                                workspace_id=_hybrid_ws)
-                    except Exception as _hy_err:  # noqa: BLE001 — additive lane
-                        _hybrid_error = (
-                            f"{type(_hy_err).__name__}: {str(_hy_err)[:120]}")
-                        _stamp_documents_receipt(
-                            plan, action="search", query=_hybrid_query,
-                            executed=False, error=_hybrid_error,
-                            workspace_id=_hybrid_ws)
-                        logger.debug(
-                            f"documents hybrid-search fallback skipped: {_hy_err}")
+                # The lookup itself is shared with the explicit
+                # uploaded-only search path above, so both use the identical
+                # scope proof, source filter, retry and coverage receipt.
+                _lookup = await _documents_ingested_hybrid_lookup(
+                    plan, query, user_id, context)
+                _hybrid_error = str(_lookup.get("error") or "")
+                _hybrid_query = str(_lookup.get("query") or query)
+                if _lookup.get("block"):
+                    return _lookup["block"]
                 # DOCUMENT RESOLUTION (owner J4 directive): the grep
                 # pattern is the user's phrasing — a document that uses
                 # different words can still contain the answer. List the
