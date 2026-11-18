@@ -62,6 +62,257 @@ SNIPPET_CHAR_CAP = 220
 # other legs keep SNIPPET_CHAR_CAP.
 KNOWLEDGE_PREVIEW_CHAR_CAP = 500
 
+# Zero-result standalone-question retry (knowledge leg only). A chat turn
+# often mixes context/instructions with one clear question; the hybrid query
+# uses the whole message head, so a zero match can be dilution rather than
+# absence. The SAME authorized retriever gets ONE extra lookup with the
+# question already present verbatim in the user's words. This is not query
+# rewriting: the retry string is an exact substring, and turns whose other
+# words carry identifiers/sources/negations/paths the question cannot preserve
+# are skipped (the original zero result stands). Research basis for a bounded
+# standalone-query retrieval: https://aclanthology.org/2023.emnlp-main.322/
+RETRY_QUERY_CHAR_CAP = 500            # same transport bound as the primary query
+_SENTENCE_BOUNDARY_RE = re.compile(r"[.!?](?=\s)|\n+")
+_ABBREVIATION_TAIL_RE = re.compile(
+    r"(?:\b(?:mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|inc|ltd|co|corp|no|fig|"
+    r"approx|dept|est|mt|ft|ave|blvd|rd)\b|\b[A-Za-z])\.$",
+    re.IGNORECASE,
+)
+_MULTI_QUESTION_RE = re.compile(
+    r"\b(?:and|or)\s+(?:what|when|where|who|whom|whose|which|why|how|"
+    r"is|are|was|were|am|do|does|did|can|could|should|would|will|shall|"
+    r"may|might|must|has|have|had)\b",
+    re.IGNORECASE,
+)
+_EXPLICIT_PATH_RE = re.compile(
+    r"(?:https?://|ftp://|www\.)\S+"
+    r"|(?<![\w])(?:~|\.{1,2})?/[^\s/]+"
+    r"|(?<![\w])[A-Za-z]:[\\/][^\s]+"
+)
+_UNPRESERVABLE_QUALIFIER_RE = re.compile(
+    r"(?:n['’]t\b|\bnot\b|\bnever\b|\bwithout\b|\bexcept\b|"
+    r"\bexcluding\b|\bexclude\b|\bonly\b|\bsolely\b|\bexclusively\b|"
+    r"\bother\s+than\b|\bapart\s+from\b|"
+    r"\be-?mail\b|\bmail\b|\bchat\b|\binbox\b|\bmailbox\b|\bgmail\b|"
+    r"\boutlook\b|\bslack\b|\bteams\b|\bwhatsapp\b|\btelegram\b|"
+    r"\bdiscord\b|\bdrive\b|\bsharepoint\b|\bonedrive\b|\bdropbox\b|"
+    r"\battachments?\b|\bdocuments?\b|\bdocs?\b|\bpdfs?\b|\bfiles?\b|"
+    r"\bspreadsheets?\b|\bworkbooks?\b)\b",
+    re.IGNORECASE,
+)
+
+
+# ONE supported leading source restriction (2026-11-18): the explicit
+# "Using my uploaded documentation only," qualification. The comma is the
+# known scope-phrase separator; everything after it is the user's own wording.
+# The bounded retry query is that wording through its single question mark
+# (trailing response-presentation instructions are omitted, a trailing
+# constraint refuses the retry). The qualification is carried as
+# DocumentsHybridSearch's source filter ("ingested"), which also keeps the
+# conversations leg out. No other phrase is interpreted, and every existing
+# unpreservable-qualifier guard still applies to every other message.
+_UPLOADED_DOCS_ONLY_RE = re.compile(
+    r"^\s*using\s+my\s+uploaded\s+(?:documentation|documents?)\s+only\s*,\s*",
+    re.IGNORECASE,
+)
+
+
+def _supported_source_restriction(message: str) -> tuple[Optional[str], str]:
+    """Split the ONE supported leading source qualification from the ask.
+
+    Returns ``(source_filter, remainder)``. ``source_filter`` is
+    ``"ingested"`` only for the explicit leading uploaded-documents-only
+    qualification; every other message returns ``(None, message)`` and keeps
+    the ordinary guard path. The remainder is the exact text after the
+    separator comma — never reworded.
+    """
+    text = str(message or "")
+    match = _UPLOADED_DOCS_ONLY_RE.match(text)
+    if not match:
+        return None, text
+    remainder = text[match.end():]
+    if not remainder.strip():
+        return None, text
+    return "ingested", remainder
+
+
+# Trailing text after the question mark is only droppable when it is a
+# response-presentation instruction ("Give the code and name the source
+# document. If you cannot locate it, say so.") — it shapes the ANSWER, not the
+# lookup. A constraint changes WHAT counts as a match ("Exclude draft
+# reports."), and anything unrecognized is ambiguous; both keep the original
+# zero result. Deliberately closed verb AND object lists, matched in full —
+# never a verb followed by arbitrary text, because "Give the code from the
+# 2026 renewal letter." carries a source qualifier in its tail, not a
+# presentation instruction.
+_TRAILING_CONSTRAINT_RE = re.compile(
+    r"\b(?:only|just|exclude|excluding|except|without|not|never|solely|"
+    r"exclusively|other\s+than|apart\s+from|ignore|omit|skip)\b",
+    re.IGNORECASE,
+)
+_PRESENTATION_OBJECT_RE = (
+    r"(?:the\s+)?(?:source\s+document|reference\s+code|source|document|"
+    r"reference|code|answer|file|citation|value|name)"
+)
+_PRESENTATION_ASK_RE = (
+    rf"(?:give|cite|include|provide|name|state|show|list|quote)\s+"
+    rf"(?:me\s+)?{_PRESENTATION_OBJECT_RE}"
+)
+_PRESENTATION_CLAUSE_RE = re.compile(
+    rf"^(?:please\s+)?(?:"
+    rf"{_PRESENTATION_ASK_RE}"
+    rf"(?:\s*,?\s*and\s+{_PRESENTATION_ASK_RE})?"
+    rf"|if\s+you\s+(?:cannot|can\s+not|can't|do\s+not|don't)\s+"
+    rf"(?:locate|find)\s+"
+    rf"(?:it|this|that|one|the\s+(?:document|file|source))\s*,?\s*"
+    rf"(?:say\s+so|tell\s+me|let\s+me\s+know)"
+    rf")$",
+    re.IGNORECASE,
+)
+
+
+def _presentation_only_suffix(suffix: str) -> bool:
+    """True only when every trailing clause is a recognized presentation ask.
+
+    The list is closed (verbs and objects) and each clause must match in full:
+    an arbitrary tail, a source qualifier, a constraint, or any unrecognized
+    instruction returns False, which makes the caller keep the original zero
+    result.
+    """
+    clauses = [
+        clause.strip() for clause in re.split(r"(?<=[.!?])\s+|\n+", suffix)
+        if clause.strip()
+    ]
+    if not clauses:
+        return True
+    return all(
+        _PRESENTATION_CLAUSE_RE.match(clause.rstrip(".!?").strip())
+        for clause in clauses
+    )
+
+
+def _scoped_question_for_retry(text: str, remainder: str) -> Optional[str]:
+    """The exact ask through its one question mark, after the qualification.
+
+    The qualification itself is enforced by the source filter, not by query
+    vocabulary, so it is removed from the retry string. The span ends at the
+    single question mark: trailing response-presentation instructions are not
+    part of the lookup and are omitted, while a trailing constraint (or any
+    unrecognized suffix) makes the retry unsafe and returns None. The ordinary
+    ambiguity/path guards still apply — this never guesses or rewrites.
+    """
+    span = remainder.strip()
+    if not span or not any(ch.isalpha() for ch in span):
+        return None
+    if text.count("?") != 1:
+        return None  # no question, or multiple questions: ambiguous
+    if _EXPLICIT_PATH_RE.search(text):
+        return None  # an explicit path is a constraint we must not drop
+    q_index = remainder.find("?")
+    if q_index < 0:
+        return None
+    question = remainder[:q_index + 1].strip()
+    suffix = remainder[q_index + 1:].strip()
+    if not question or not any(ch.isalpha() for ch in question):
+        return None
+    if suffix:
+        if _TRAILING_CONSTRAINT_RE.search(suffix):
+            return None  # a trailing constraint governs what matches
+        if not _presentation_only_suffix(suffix):
+            return None  # unrecognized trailing instruction: ambiguous
+    if len(question) > RETRY_QUERY_CHAR_CAP:
+        return None  # would require truncating the ask
+    if _MULTI_QUESTION_RE.search(question):
+        return None  # one string, two asks
+    if question == text[:RETRY_QUERY_CHAR_CAP].strip():
+        return None  # the first lookup already used exactly these words
+    return question
+
+
+def _successful_complete_zero_result(result: Any) -> bool:
+    """True only for a completed coverage=success search with no hits.
+
+    ``partial``/``failed`` lookups are not retry-fixable: retrying them would
+    turn a broken/absent leg into an apparent zero and invite the model to
+    claim absence. Only a search that ran its intended coverage to completion
+    and legitimately matched nothing is eligible for one extra lookup.
+    """
+    if not isinstance(result, dict):
+        return False
+    if list(result.get("results") or []):
+        return False
+    return str(result.get("status") or "").strip().lower() == "success"
+
+
+def _standalone_question_for_retry(message: str) -> Optional[str]:
+    """The one exact question in the user's words, or None.
+
+    The return value is a VERBATIM substring of ``message`` (only the outer
+    whitespace is stripped), so a retry cannot invent vocabulary, reword a
+    clause, or drop a term from the question itself. Sentence boundaries are
+    used, but period boundaries after abbreviations/initials are ignored so
+    "What did Dr. Smith say?" is never cut to "Smith say?".
+
+    The one exception is the explicit LEADING uploaded-documents-only
+    qualification, whose known separator comma is removed and whose trailing
+    response-presentation instructions are omitted before the exact question
+    (through its single question mark) is used (the qualification is enforced
+    by the source filter).
+
+    Conservative by construction — returns None (original zero result stands)
+    when the message has no single question mark, has explicit paths, has
+    multiple question clauses, repeats the primary lookup's exact words, or
+    leaves an identifier/source/negation qualifier outside the question span
+    that the standalone lookup could not preserve.
+    """
+    text = str(message or "")
+    if not text.strip():
+        return None
+    source_filter, scoped_message = _supported_source_restriction(text)
+    if source_filter:
+        return _scoped_question_for_retry(text, scoped_message)
+    if text.count("?") != 1:
+        return None  # no question, or multiple questions: ambiguous
+    if _EXPLICIT_PATH_RE.search(text):
+        return None  # an explicit path is a constraint we must not drop
+    q_end = text.index("?") + 1
+
+    start = 0
+    for match in _SENTENCE_BOUNDARY_RE.finditer(text, 0, q_end - 1):
+        if (match.group(0)[0] == "."
+                and _ABBREVIATION_TAIL_RE.search(text[:match.start() + 1])):
+            continue  # abbreviation/initial, not a sentence start
+        start = match.end()
+        while start < q_end and text[start].isspace():
+            start += 1
+
+    span = text[start:q_end].strip()
+    if not span or not any(ch.isalpha() for ch in span):
+        return None
+    if len(span) > RETRY_QUERY_CHAR_CAP:
+        return None  # would require truncating the question
+    if _MULTI_QUESTION_RE.search(span):
+        return None  # one coordinated question mark, two asks
+
+    primary = text[:RETRY_QUERY_CHAR_CAP].strip()
+    if span == primary or span == text.strip():
+        return None  # the first lookup already used exactly these words
+
+    outside = text[:start] + " " + text[q_end:]
+    if _UNPRESERVABLE_QUALIFIER_RE.search(outside):
+        return None
+    if re.search(r"\b(?:19|20)\d{2}\b", outside):
+        return None  # a year scopes the question; the span cannot carry it
+    try:
+        from core.identifier_search import exact_identifiers
+
+        if exact_identifiers(outside):
+            return None  # an identifier outside the span would be stripped
+    except Exception:  # noqa: BLE001 — the other guards still hold
+        pass
+    return span
+
+
 # P1.4 rerank: budget-gated second pass over each leg's candidates before
 # the per-block caps truncate them — keeps the most relevant lines, not the
 # first N a store happened to return. Cross-encoder (HybridRetrievalService
@@ -251,30 +502,84 @@ async def _knowledge_leg(
     not read any store — but the conversations leg is owner-scoped and stays
     available.
 
+    A completed ``success`` search with zero hits gets at most ONE extra
+    lookup through the SAME instance/scope/limit/floor, using an exact
+    standalone question already present in the user's words. The first
+    (authorized) query is never changed; uncertain/unpreservable turns keep
+    the original zero result.
+
+    The ONE supported leading source qualification — an explicit
+    "Using my uploaded documentation only," prefix — sets
+    ``source="ingested"`` on BOTH the original lookup and the bounded retry.
+    DocumentsHybridSearch skips its conversations leg whenever a source filter
+    is set, so this qualification never widens into a chat/comms lookup. Every
+    other restriction shape keeps the ordinary guarded behavior.
+
     Runs async I/O directly; per-leg timeout applies at the call site."""
+    source_restriction, _ = _supported_source_restriction(message)
+    primary_query = message[:500]
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
+        search_kwargs: Dict[str, Any] = {}
         if documents_fail_closed:
             # FAIL CLOSED (document scope): no proven document workspace, so
             # do not open an unscoped/default document store. Conversations
             # are authorized by the owner id, not by document scope.
-            result = await DocumentsHybridSearch().search(
-                query=message[:500], limit=6, owner_user_id=owner_user_id,
-                documents_allowed=False,
-            )
+            search_flags: Dict[str, Any] = {"documents_allowed": False}
         else:
-            search_kwargs: Dict[str, Any] = {}
+            search_flags = {}
             if document_workspace_id:
                 search_kwargs["workspace_id"] = document_workspace_id
             if legacy_authority:
                 search_kwargs["legacy_authority"] = dict(legacy_authority)
-            result = await DocumentsHybridSearch(**search_kwargs).search(
-                query=message[:500], limit=6, owner_user_id=owner_user_id
-            )
+        if source_restriction:
+            # Supported leading "uploaded documents only" qualification:
+            # filter the document lanes to ingested sources for BOTH lookups.
+            # The hybrid service also skips the conversations leg whenever a
+            # source filter is set — never conversations.
+            search_flags["source"] = source_restriction
+        # ONE retriever instance for both attempts: the retry must not change
+        # permissions, workspace/legacy scope, limit, or score floor.
+        searcher = DocumentsHybridSearch(**search_kwargs)
+        result = await searcher.search(
+            query=primary_query, limit=6, owner_user_id=owner_user_id,
+            **search_flags,
+        )
     except Exception as e:
         logger.debug(f"memory assembler: knowledge leg failed: {e}")
         return []
+
+    # A completed, successful zero-match search is the only retry case. The
+    # first lookup above remains the authorized query, unchanged; at most ONE
+    # extra lookup follows, using an exact standalone question from the same
+    # user words (never a model rewrite).
+    if _successful_complete_zero_result(result):
+        retry_query = _standalone_question_for_retry(message)
+        if retry_query:
+            try:
+                retry_result = await searcher.search(
+                    query=retry_query, limit=6,
+                    owner_user_id=owner_user_id, **search_flags)
+            except Exception as e:  # noqa: BLE001 — retry is additive only
+                logger.info(
+                    "memory assembler: standalone-question retry failed (%s)",
+                    type(e).__name__)
+                retry_result = None
+            if (retry_result or {}).get("results"):
+                result = retry_result
+                logger.info(
+                    "memory assembler: standalone-question retry hit "
+                    "(query=%r, status=%r)", retry_query,
+                    (retry_result or {}).get("status"))
+            else:
+                logger.info(
+                    "memory assembler: standalone-question retry found nothing "
+                    "(query=%r)", retry_query)
+        else:
+            logger.debug(
+                "memory assembler: zero result but no unambiguous standalone "
+                "question to retry")
     if not (result or {}).get("results"):
         return []
     # REQUESTED FIELDS (F-C2, 2026-10-17): the deterministic typed-field
