@@ -1,141 +1,231 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, CreditCard, Activity, Loader2 } from "lucide-react";
+import { ArrowUpRight, Wallet, Loader2 } from "lucide-react";
 
-interface DashboardSummary {
-    total_revenue: number;
-    pending_revenue: number;
-    runway_months: number;
+interface FinanceSummary {
+    totalRevenue: number | null;
+    pendingRevenue: number | null;
     currency: string;
 }
 
-const FinanceOverview = () => {
-    const [summary, setSummary] = useState<DashboardSummary | null>(null);
-    const [loading, setLoading] = useState(true);
+const SUMMARY_URL = "/api/accounting/summary";
+const UNAVAILABLE_MESSAGE = "Finance summary unavailable. The latest revenue data could not be loaded.";
+const NOT_SYNCED_LABEL = "Not synced";
 
-    useEffect(() => {
-        const fetchSummary = async () => {
-            try {
-                const token = localStorage.getItem('auth_token');
-                const response = await fetch('/api/accounting/summary', {
-                    headers: {
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setSummary(data.data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch finance summary:", error);
-            } finally {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isFiniteNumber = (value: unknown): value is number =>
+    typeof value === "number" && Number.isFinite(value);
+
+const isSupportedCurrency = (currency: string): boolean => {
+    try {
+        Intl.NumberFormat("en-US", { style: "currency", currency }).format(0);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Extract the two revenue totals the API supplies today. Anything else in the
+ * payload (including the backend's placeholder runway value) is ignored.
+ */
+const parseSummary = (payload: unknown): FinanceSummary | null => {
+    if (!isRecord(payload)) {
+        return null;
+    }
+
+    const { data } = payload;
+    if (!isRecord(data)) {
+        return null;
+    }
+
+    const { total_revenue, pending_revenue, currency, metric_availability } = data;
+
+    // A missing or malformed availability map means the response predates the
+    // paired contract. Treat it as unavailable rather than trusting historical
+    // default zeros.
+    if (!isRecord(metric_availability)) {
+        return null;
+    }
+
+    const totalAvailable = metric_availability.total_revenue;
+    const pendingAvailable = metric_availability.pending_revenue;
+    if (typeof totalAvailable !== "boolean" || typeof pendingAvailable !== "boolean") {
+        return null;
+    }
+
+    let totalRevenue: number | null = null;
+    if (totalAvailable) {
+        if (!isFiniteNumber(total_revenue)) {
+            return null;
+        }
+        totalRevenue = total_revenue;
+    }
+
+    let pendingRevenue: number | null = null;
+    if (pendingAvailable) {
+        if (!isFiniteNumber(pending_revenue)) {
+            return null;
+        }
+        pendingRevenue = pending_revenue;
+    }
+
+    if (typeof currency !== "string") {
+        return null;
+    }
+
+    const normalizedCurrency = currency.trim().toUpperCase();
+    if (!normalizedCurrency || !isSupportedCurrency(normalizedCurrency)) {
+        return null;
+    }
+
+    return {
+        totalRevenue,
+        pendingRevenue,
+        currency: normalizedCurrency,
+    };
+};
+
+const formatAmount = (amount: number, currency: string): string => {
+    try {
+        return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+    } catch {
+        return "Unavailable";
+    }
+};
+
+const FinanceOverview = () => {
+    const [summary, setSummary] = useState<FinanceSummary | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [unavailable, setUnavailable] = useState(false);
+    const controllerRef = useRef<AbortController | null>(null);
+
+    const loadSummary = useCallback(async () => {
+        controllerRef.current?.abort();
+        const controller = new AbortController();
+        controllerRef.current = controller;
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(SUMMARY_URL, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Finance summary request failed with status ${response.status}`);
+            }
+
+            const parsed = parseSummary(await response.json());
+            if (!parsed) {
+                throw new Error("Finance summary response was malformed");
+            }
+
+            if (controller.signal.aborted) return;
+            setSummary(parsed);
+            setUnavailable(false);
+        } catch (error) {
+            if (controller.signal.aborted) return;
+            console.error("Failed to fetch finance summary:", error);
+            setSummary(null);
+            setUnavailable(true);
+        } finally {
+            if (!controller.signal.aborted) {
                 setLoading(false);
             }
-        };
-
-        fetchSummary();
+        }
     }, []);
+
+    useEffect(() => {
+        void loadSummary();
+
+        return () => {
+            controllerRef.current?.abort();
+        };
+    }, [loadSummary]);
+
+    const handleRetry = () => {
+        void loadSummary();
+    };
+
+    if (unavailable) {
+        return (
+            <div className="space-y-4">
+                <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-4">
+                    <p className="text-sm font-medium text-destructive">{UNAVAILABLE_MESSAGE}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        No figures are shown because a valid summary was not available.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleRetry}
+                        disabled={loading}
+                        className="mt-3 inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    >
+                        {loading ? "Retrying…" : "Try again"}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
-            <div className="flex justify-center p-12">
+            <div
+                role="status"
+                aria-label="Loading finance summary"
+                className="flex justify-center p-12"
+            >
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         );
     }
 
+    if (!summary) {
+        return null;
+    }
+
     const metrics = [
         {
             title: "Total Revenue",
-            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.total_revenue) : "$0.00",
-            description: "+20.1% from last month",
+            value: summary.totalRevenue === null
+                ? NOT_SYNCED_LABEL
+                : formatAmount(summary.totalRevenue, summary.currency),
             icon: Wallet,
             color: "text-muted-foreground"
         },
         {
             title: "Pending Revenue",
-            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.pending_revenue) : "$0.00",
-            description: "Awaiting settlement",
+            value: summary.pendingRevenue === null
+                ? NOT_SYNCED_LABEL
+                : formatAmount(summary.pendingRevenue, summary.currency),
             icon: ArrowUpRight,
             color: "text-green-500"
-        },
-        {
-            title: "Runway",
-            value: summary ? `${summary.runway_months} Months` : "0 Months",
-            description: "Estimated survival",
-            icon: Activity,
-            color: "text-blue-500"
-        },
-        {
-            title: "Gross Profit",
-            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.total_revenue * 0.58) : "0%",
-            description: "Estimated margin",
-            icon: CreditCard,
-            color: "text-purple-500"
         }
     ];
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {metrics.map((metric, idx) => (
-                    <Card key={idx}>
+            <div className="grid gap-4 md:grid-cols-2">
+                {metrics.map((metric) => (
+                    <Card key={metric.title}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
                             <metric.icon className={`h-4 w-4 ${metric.color}`} />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{metric.value}</div>
-                            <p className="text-xs text-muted-foreground">
-                                {metric.description}
-                            </p>
                         </CardContent>
                     </Card>
                 ))}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
-                    <CardHeader>
-                        <CardTitle>Overview</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                        <div className="h-[300px] flex items-center justify-center bg-secondary/20 rounded-md border border-dashed border-muted-foreground/25">
-                            <p className="text-muted-foreground">Chart Visualization Placeholder</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-3">
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-8">
-                            {[
-                                { name: "Stripe Payout", amount: "+$2,400.00", date: "Today", icon: ArrowUpRight, color: "text-green-500" },
-                                { name: "AWS Bill", amount: "-$142.00", date: "Yesterday", icon: ArrowDownRight, color: "text-red-500" },
-                                { name: "Client Payment", amount: "+$850.00", date: "Yesterday", icon: ArrowUpRight, color: "text-green-500" },
-                                { name: "Software Subscription", amount: "-$29.00", date: "2 days ago", icon: ArrowDownRight, color: "text-red-500" },
-                                { name: "Upwork Earnings", amount: "+$1,200.00", date: "3 days ago", icon: ArrowUpRight, color: "text-green-500" },
-                            ].map((item, index) => (
-                                <div key={index} className="flex items-center">
-                                    <div className={`h-9 w-9 rounded-full bg-secondary flex items-center justify-center mr-4`}>
-                                        <item.icon className={`h-5 w-5 ${item.color}`} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{item.name}</p>
-                                        <p className="text-xs text-muted-foreground">{item.date}</p>
-                                    </div>
-                                    <div className={`ml-auto font-medium ${item.color}`}>{item.amount}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
         </div>
     );
 };
 
 export default FinanceOverview;
-
