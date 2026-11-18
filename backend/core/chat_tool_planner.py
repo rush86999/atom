@@ -9282,10 +9282,65 @@ _DOCUMENTS_VFS_READ_MAX_LINES = 400
 # threads run to 79k chars live; the middle stays reachable via grep
 # (line + snippet) rather than dumped into the prompt.
 _DOCUMENTS_VFS_CAT_CAP = 14_000
+# Same bounded transport as the memory assembler's knowledge leg. The planner
+# query is the user's ask, not an unbounded conversation tranche.
+_DOCUMENTS_SEARCH_QUERY_CHAR_CAP = 500
+# Lazy injection point for the persisted-principal document-scope resolver.
+# Production imports core.memory_context_assembler's helper; leaving it
+# module-scoped keeps the planner importable without that dependency and lets
+# tests exercise the same seam.
+_document_scope_for_user = None
 _VFS_LEAF_RE = re.compile(
     r"(knowledge/(?:conversations|documents)/[A-Za-z0-9_.+=:-]+"
     r"(?:/(?:content\.lines|meta\.json))?)"
 )
+
+
+async def _planner_document_scope(
+    user_id: Optional[str], context: Optional[Dict[str, Any]]
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """The persisted-principal document scope for the planner fallback.
+
+    ``user_id`` is the server-resolved principal from the primary execution
+    call, never a planner/model field. The scope is resolved through the SAME
+    helper the memory assembler's knowledge leg uses, and its fail-closed
+    decision is consumed as-is: a missing principal, refused/unproven scope,
+    or resolution failure yields ``(None, reason)``. A requested workspace is
+    passed only so the resolver can log the mismatch; it is never proof and
+    never a fallback.
+    """
+    if not user_id:
+        return None, "no authenticated principal"
+    requested_workspace_id = (context or {}).get("workspace_id")
+    try:
+        resolver = _document_scope_for_user
+        if resolver is None:
+            from core.memory_context_assembler import (
+                _document_scope_for_user as resolver,
+            )
+
+        scope = await asyncio.to_thread(
+            resolver, user_id, requested_workspace_id)
+        if hasattr(scope, "__await__"):
+            # Tolerate an async resolver variant (mocks/tests); the production
+            # document resolver is synchronous and runs in the thread above.
+            scope = await scope
+    except Exception as e:  # noqa: BLE001 — no proof means no document read
+        logger.debug("documents planner: scope resolution failed: %s", e)
+        return None, (
+            f"document scope resolution failed ({type(e).__name__})")
+    if not isinstance(scope, dict):
+        return None, "document scope resolution returned no proof"
+    workspace_id = str(scope.get("workspace_id") or "") or None
+    if scope.get("fail_closed") or not workspace_id:
+        return None, (
+            "the authenticated account has no proven document workspace")
+    return {
+        "workspace_id": workspace_id,
+        "legacy_authority": (
+            dict(scope.get("legacy_authority"))
+            if isinstance(scope.get("legacy_authority"), dict) else None),
+    }, ""
 
 
 def _normalize_vfs_path(raw: str) -> str:
@@ -9484,41 +9539,177 @@ async def _documents_vfs_block(
                 # search (the J4-proven lane) before concluding nothing
                 # exists — observed: uploaded doc durably present, grep 0
                 # matches, answer "couldn't find any matching lines".
-                try:
-                    _hybrid_res = await action_registry.execute_action(
-                        "documents.search",
-                        {"query": query, "limit": 10},
-                        {"user_id": user_id,
-                         "workspace_id": (context or {}).get(
-                             "workspace_id")})
-                    _hybrid_hits = list(
-                        (_hybrid_res or {}).get("results") or [])[:10]
-                    if _hybrid_hits:
+                #
+                # AUTHORIZED SCOPE (2026-11-18): the persisted-principal proof
+                # the memory assembler's knowledge leg already uses. The Chat
+                # chain supplies the server-resolved user_id; resolve the
+                # document scope through that same helper and use ONLY the
+                # proven workspace for the scoped search. A raw action-context
+                # workspace is never proof and is never a fail-closed fallback.
+                _hybrid_error = ""
+                _hybrid_query = str(query or "")[:_DOCUMENTS_SEARCH_QUERY_CHAR_CAP]
+                _hybrid_scope, _hybrid_unavailable = (
+                    await _planner_document_scope(user_id, context))
+                _hybrid_ws = (_hybrid_scope or {}).get("workspace_id")
+                if _hybrid_scope is None:
+                    _hybrid_error = _hybrid_unavailable
+                    _stamp_documents_receipt(
+                        plan, action="search", query=_hybrid_query,
+                        executed=False, error=_hybrid_error,
+                        workspace_id=None)
+                else:
+                    try:
+                        from core.hybrid_search.documents_hybrid import (
+                            DocumentsHybridSearch,
+                        )
+                        from core.memory_context_assembler import (
+                            _standalone_question_for_retry,
+                            _successful_complete_zero_result,
+                            _supported_source_restriction,
+                        )
+
+                        _source_filter, _ = _supported_source_restriction(query)
+                        # EXACT construction from the assembler's knowledge
+                        # leg: the resolver's PROVEN workspace and legacy
+                        # authority, never the raw turn context. Dispatching
+                        # through documents.search would lose the authority
+                        # the resolver just proved (its context carries no
+                        # User row), so a legacy upload stayed invisible.
+                        _hybrid_kwargs: Dict[str, Any] = {}
+                        if _hybrid_ws:
+                            _hybrid_kwargs["workspace_id"] = _hybrid_ws
+                        _hybrid_legacy = (_hybrid_scope or {}).get(
+                            "legacy_authority")
+                        if _hybrid_legacy:
+                            _hybrid_kwargs["legacy_authority"] = dict(
+                                _hybrid_legacy)
+                        _hybrid_flags: Dict[str, Any] = {}
+                        if _source_filter:
+                            # Supported leading "uploaded documents only"
+                            # qualification — the hybrid service also skips
+                            # the conversations leg whenever source is set.
+                            _hybrid_flags["source"] = _source_filter
+                        # ONE retriever instance for both attempts: the probe
+                        # must not change permissions, workspace/legacy
+                        # scope, limit, or the caller's owner boundary.
+                        _hybrid_searcher = DocumentsHybridSearch(
+                            **_hybrid_kwargs)
+                        _hybrid_res = await _hybrid_searcher.search(
+                            query=_hybrid_query, limit=6,
+                            owner_user_id=user_id, **_hybrid_flags)
+                        # Bounded probe parity with _knowledge_leg: only a
+                        # COMPLETED zero may retry, and only with an exact
+                        # standalone question already in the user's words.
+                        if _successful_complete_zero_result(_hybrid_res):
+                            _retry_query = _standalone_question_for_retry(
+                                str(query or ""))
+                            if _retry_query:
+                                try:
+                                    _retry_res = await _hybrid_searcher.search(
+                                        query=_retry_query, limit=6,
+                                        owner_user_id=user_id, **_hybrid_flags)
+                                except Exception:  # noqa: BLE001 — additive
+                                    _retry_res = None
+                                if (_retry_res or {}).get("results"):
+                                    _hybrid_res = _retry_res
+                        _hybrid_hits = list(
+                            (_hybrid_res or {}).get("results") or [])[:10]
+                        _hybrid_status = str(
+                            (_hybrid_res or {}).get("status") or "").strip(
+                        ).lower()
+                        # INSPECT THE ACTUAL LEGS, not just the label: a leg
+                        # that failed is incomplete coverage even if an
+                        # envelope mislabels the overall status.
+                        _hybrid_legs = (_hybrid_res or {}).get("legs") or {}
+                        _hybrid_failed_legs = sorted(
+                            str(name) for name, leg in _hybrid_legs.items()
+                            if isinstance(leg, dict)
+                            and str(leg.get("status") or "").lower()
+                            == "failed")
+                        # A query too short to run any leg is not a completed
+                        # search: the service reports the legs as skipped, so
+                        # its zero proves nothing about the corpus.
+                        _hybrid_no_search = (
+                            bool(_hybrid_legs)
+                            and all(
+                                isinstance(leg, dict)
+                                and str(leg.get("status") or "").lower()
+                                == "skipped"
+                                and str(leg.get("skip_reason") or "")
+                                == "query_too_short"
+                                for leg in _hybrid_legs.values()))
+                        _hybrid_incomplete = (
+                            _hybrid_status != "success"
+                            or bool(_hybrid_failed_legs)
+                            or _hybrid_no_search)
+                        if _hybrid_hits:
+                            _stamp_documents_receipt(
+                                plan, action="search", query=_hybrid_query,
+                                executed=True, match_count=len(_hybrid_hits),
+                                paths=[str(h.get("id") or "")
+                                       for h in _hybrid_hits],
+                                workspace_id=_hybrid_ws)
+                            _lines = []
+                            for _h in _hybrid_hits:
+                                _title = str(_h.get("title")
+                                             or _h.get("id") or "")
+                                _body = str(_h.get("content")
+                                            or _h.get("preview") or "").strip()
+                                _src = str(_h.get("source") or "documents")
+                                _lines.append(
+                                    f"- [{_src}] {_title}: {_body[:1200]}")
+                            return _with_grounding(
+                                "LIVE TOOL RESULTS (documents.search, query="
+                                f"'{_hybrid_query}') — hybrid search over the "
+                                "workspace's ingested documents "
+                                f"({len(_hybrid_hits)} result(s)); these are "
+                                "the uploaded/ingested documents, distinct "
+                                "from the VFS conversation tree:\n"
+                                + "\n".join(_lines))
+                        if _hybrid_incomplete:
+                            # A partial/failed coverage is an UNAVAILABLE
+                            # lookup, never a definitive zero. The envelope
+                            # names which legs could not be read.
+                            _coverage = (_hybrid_res or {}).get(
+                                "coverage") or {}
+                            _unavailable_legs = sorted(
+                                {str(n) for n in (
+                                    _coverage.get("unavailable") or [])}
+                                | set(_hybrid_failed_legs))
+                            _status_label = _hybrid_status or "unknown"
+                            if (_hybrid_no_search
+                                    or (_hybrid_status == "success"
+                                        and _hybrid_failed_legs)):
+                                _status_label = "incomplete"
+                            _hybrid_error = (
+                                "document search coverage "
+                                f"{_status_label}")
+                            if _unavailable_legs:
+                                _hybrid_error += (
+                                    " (unavailable: "
+                                    + ", ".join(_unavailable_legs) + ")")
+                            _hybrid_error = _hybrid_error[:140]
+                            _stamp_documents_receipt(
+                                plan, action="search", query=_hybrid_query,
+                                executed=False, error=_hybrid_error,
+                                workspace_id=_hybrid_ws)
+                        else:
+                            # A completed zero-result search is still an
+                            # EXECUTED scoped search; the final narration may
+                            # quote its absence but not widen it.
+                            _stamp_documents_receipt(
+                                plan, action="search", query=_hybrid_query,
+                                executed=True, match_count=0,
+                                workspace_id=_hybrid_ws)
+                    except Exception as _hy_err:  # noqa: BLE001 — additive lane
+                        _hybrid_error = (
+                            f"{type(_hy_err).__name__}: {str(_hy_err)[:120]}")
                         _stamp_documents_receipt(
-                            plan, action="search", query=query,
-                            executed=True, match_count=len(_hybrid_hits),
-                            paths=[str(h.get("id") or "")
-                                   for h in _hybrid_hits],
-                            workspace_id=(context or {}).get("workspace_id"))
-                        _lines = []
-                        for _h in _hybrid_hits:
-                            _title = str(_h.get("title")
-                                         or _h.get("id") or "")
-                            _body = str(_h.get("content")
-                                        or _h.get("preview") or "").strip()
-                            _src = str(_h.get("source") or "documents")
-                            _lines.append(
-                                f"- [{_src}] {_title}: {_body[:1200]}")
-                        return _with_grounding(
-                            "LIVE TOOL RESULTS (documents.search, query="
-                            f"'{query}') — hybrid search over the workspace's "
-                            f"ingested documents ({len(_hybrid_hits)} "
-                            "result(s)); these are the uploaded/ingested "
-                            "documents, distinct from the VFS conversation "
-                            "tree:\n" + "\n".join(_lines))
-                except Exception as _hy_err:  # noqa: BLE001 — additive lane
-                    logger.debug(
-                        f"documents hybrid-search fallback skipped: {_hy_err}")
+                            plan, action="search", query=_hybrid_query,
+                            executed=False, error=_hybrid_error,
+                            workspace_id=_hybrid_ws)
+                        logger.debug(
+                            f"documents hybrid-search fallback skipped: {_hy_err}")
                 # DOCUMENT RESOLUTION (owner J4 directive): the grep
                 # pattern is the user's phrasing — a document that uses
                 # different words can still contain the answer. List the
@@ -9584,7 +9775,20 @@ async def _documents_vfs_block(
                     logger.debug(
                         f"documents zero-match resolution fallback "
                         f"skipped: {_fb_err}")
-                return _with_grounding(head.rstrip(":") + " — none.")
+                if _hybrid_error:
+                    return _with_grounding(
+                        f"LIVE TOOL RESULTS (documents.grep, under "
+                        f"'{args.get('path_prefix')}'): no VFS match lines. "
+                        "The workspace's ingested-document search was "
+                        f"unavailable ({_hybrid_error}), so this turn has NOT "
+                        "established that no document exists — state only "
+                        "that the VFS scan returned no hit and the document "
+                        "search could not run, never a global absence.")
+                return _with_grounding(
+                    head.rstrip(":") + " — none in the VFS. The workspace's "
+                    "ingested-document search also completed with no matching "
+                    f"result for '{_hybrid_query}'; this absence is scoped to "
+                    "those two searches, not the user's whole corpus.")
             # TOP-HIT HYDRATION (same pattern as the outlook leg's full
             # bodies): the turn is one-shot — the reply model cannot chain a
             # cat after a grep, so a narrow result (≤3 distinct messages)

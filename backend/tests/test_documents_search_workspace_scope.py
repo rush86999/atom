@@ -98,6 +98,94 @@ async def test_documents_search_falls_back_to_request_scope(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("case", [
+    "missing_principal",
+    "fail_closed",
+    "no_proven_workspace",
+    "resolution_error",
+])
+async def test_zero_match_grep_unproven_authority_never_dispatches_hybrid(
+    monkeypatch, case,
+):
+    """Regression: without an authenticated/proven document scope the planner
+    must not dispatch the hybrid search at all, and must not turn the zero VFS
+    grep into an absence claim. A requested workspace is never a fallback."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True,
+        query="Search my documents for the Zephyr launch code")
+
+    calls = []
+    resolver_calls = []
+    hybrid_calls = []
+
+    async def fake_execute(name, args, context):
+        calls.append(name)
+        if name == "documents.grep":
+            return {"success": True, "pattern": "zephyr", "matches": []}
+        if name == "documents.ls":
+            return {"success": True, "entries": []}
+        if name == "documents.search":
+            raise AssertionError(
+                "hybrid search must not dispatch without proven authority")
+        raise AssertionError(f"unexpected action {name}")
+
+    class _ForbiddenHybrid:
+        def __init__(self, **kwargs):
+            hybrid_calls.append(("init", kwargs))
+
+        async def search(self, **kwargs):
+            hybrid_calls.append(("search", kwargs))
+            return {"status": "success", "results": []}
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        resolver_calls.append((user_id, requested_workspace_id))
+        if case == "resolution_error":
+            raise RuntimeError("database unavailable")
+        if case == "no_proven_workspace":
+            return {
+                "workspace_id": None,
+                "legacy_authority": None,
+                "fail_closed": False,
+            }
+        # A fail-closed scope is final; the requested workspace may even be
+        # echoed here and still must not become a search scope.
+        return {
+            "workspace_id": "ws-requested",
+            "legacy_authority": None,
+            "fail_closed": True,
+        }
+
+    user_id = None if case == "missing_principal" else "user-1"
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _ForbiddenHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, user_id, {"workspace_id": "ws-requested"})
+
+    assert hybrid_calls == []
+    assert "documents.search" not in calls
+    assert block and "unavailable" in block
+    assert "NOT established" in block
+    assert "none in the VFS" not in block
+    if case == "missing_principal":
+        assert resolver_calls == []
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is False
+
+
+@pytest.mark.asyncio
 async def test_zero_match_grep_falls_back_to_hybrid_search(monkeypatch):
     """A source-ask that greps the VFS to zero matches must consult the
     ingested-documents hybrid search before concluding nothing exists."""
@@ -111,30 +199,385 @@ async def test_zero_match_grep_falls_back_to_hybrid_search(monkeypatch):
         query="Search my documents for the Zephyr launch code")
 
     calls = []
+    hybrid_init = []
+    hybrid_search = []
 
     async def fake_execute(name, args, context):
-        calls.append(name)
+        calls.append((name, args, context))
         if name == "documents.grep":
             return {"success": True, "pattern": "zephyr", "matches": []}
-        if name == "documents.search":
-            return {"success": True, "results": [{
-                "source": "ingested", "id": "doc_1",
-                "title": "zephyr_notes.md",
-                "preview": "Marker: ZEPHYR-9",
-                "content": "Project Zephyr-9 launch planning. The launch "
-                           "code for project Zephyr-9 is QUARTZ-77."}]}
         raise AssertionError(f"unexpected action {name}")
+
+    class _SpyHybrid:
+        def __init__(self, **kwargs):
+            hybrid_init.append(kwargs)
+
+        async def search(self, **kwargs):
+            hybrid_search.append(kwargs)
+            return {
+                "success": True,
+                "status": "success",
+                "results": [{
+                    "source": "ingested", "id": "doc_1",
+                    "title": "zephyr_notes.md",
+                    "preview": "Marker: ZEPHYR-9",
+                    "content": "Project Zephyr-9 launch planning. The launch "
+                               "code for project Zephyr-9 is QUARTZ-77."}],
+                "legs": {"lexical": {"status": "ok", "required": True}},
+                "coverage": {"unavailable": []},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        assert user_id == "u-1"
+        assert requested_workspace_id == "ws-1"
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": None,
+            "fail_closed": False,
+        }
 
     monkeypatch.setattr(
         "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
     monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _SpyHybrid)
 
     block = await ctp._documents_vfs_block(plan, "u-1", {"workspace_id": "ws-1"})
     assert block and "QUARTZ-77" in block
-    assert "documents.search" in calls
+    assert "documents.search" not in [c[0] for c in calls]
+    # The resolver's proven workspace is the ONLY scope the retriever gets;
+    # the raw requested workspace is never forwarded.
+    assert hybrid_init == [{"workspace_id": "doc-ws"}]
+    assert hybrid_search == [{
+        "query": "Search my documents for the Zephyr launch code",
+        "limit": 6,
+        "owner_user_id": "u-1",
+    }]
     receipt = (getattr(plan, "_result_meta", {}) or {}).get("documents_read") or {}
     assert receipt.get("executed") is True
     assert receipt.get("match_count") == 1
+    assert receipt.get("workspace_id") == "doc-ws"
+
+
+@pytest.mark.asyncio
+async def test_zero_match_grep_uses_trusted_principal_scope(monkeypatch):
+    """The ingested-document fallback uses the persisted-principal proof: the
+    server-resolved user_id yields the authorized document workspace, not the
+    requested workspace, and the supported leading uploaded-only qualifier is
+    carried as the compatible search filter."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    query = (
+        "Using my uploaded documentation only, what is the reference code "
+        "for car crash coverage?"
+    )
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True, query=query)
+
+    calls = []
+    hybrid_init = []
+    hybrid_search = []
+
+    async def fake_execute(name, args, context):
+        calls.append((name, args, context))
+        if name == "documents.grep":
+            return {"success": True, "pattern": query, "matches": []}
+        raise AssertionError(f"unexpected action {name}")
+
+    class _SpyHybrid:
+        def __init__(self, **kwargs):
+            hybrid_init.append(kwargs)
+
+        async def search(self, **kwargs):
+            hybrid_search.append(kwargs)
+            return {
+                "success": True,
+                "status": "success",
+                "results": [{
+                    "source": "ingested", "id": "doc-1",
+                    "title": "fleet_coverage_2026.pdf",
+                    "content": "Car crash coverage reference code: MV-2271.",
+                }],
+                "legs": {
+                    "lexical": {"status": "ok", "required": True},
+                    "vector": {"status": "ok", "required": True},
+                    "vector_legacy": {"status": "ok", "required": False},
+                },
+                "coverage": {"unavailable": []},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        assert user_id == "user-1"
+        assert requested_workspace_id == "ws-requested"
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": {
+                "workspace_id": "doc-ws", "user_id": "user-1"},
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _SpyHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1", {"workspace_id": "ws-requested"})
+
+    assert block and "MV-2271" in block
+    assert "documents.search" not in [c[0] for c in calls]
+    # EXACT assembler construction: the resolver's proven workspace AND the
+    # proven legacy authority both reach the retriever.
+    assert hybrid_init == [{
+        "workspace_id": "doc-ws",
+        "legacy_authority": {
+            "workspace_id": "doc-ws", "user_id": "user-1"},
+    }]
+    assert len(hybrid_search) == 1
+    search_call = hybrid_search[0]
+    assert search_call["source"] == "ingested"
+    assert len(search_call["query"]) <= ctp._DOCUMENTS_SEARCH_QUERY_CHAR_CAP
+    assert search_call["limit"] == 6
+    # The server owner boundary travels as the search's owner_user_id, not
+    # as a workspace fallback.
+    assert search_call["owner_user_id"] == "user-1"
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is True
+    assert receipt.get("match_count") == 1
+
+
+@pytest.mark.asyncio
+async def test_zero_match_grep_scoped_absence(monkeypatch):
+    """A completed zero-result scoped search plus a zero VFS grep may state a
+    scoped absence, never a global one."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True,
+        query="Search my documents for the Zephyr launch code")
+
+    hybrid_search = []
+
+    async def fake_execute(name, args, context):
+        if name == "documents.grep":
+            return {"success": True, "pattern": "zephyr", "matches": []}
+        if name == "documents.ls":
+            return {"success": True, "entries": []}
+        raise AssertionError(f"unexpected action {name}")
+
+    class _ZeroHybrid:
+        def __init__(self, **kwargs):
+            pass
+
+        async def search(self, **kwargs):
+            hybrid_search.append(kwargs)
+            return {
+                "success": True,
+                "status": "success",
+                "results": [],
+                "legs": {
+                    "lexical": {"status": "ok", "required": True},
+                    "vector": {"status": "ok", "required": True},
+                },
+                "coverage": {"unavailable": []},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": None,
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _ZeroHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1", {"workspace_id": "ws-requested"})
+
+    assert block and "none in the VFS" in block
+    assert "completed with no matching result" in block
+    assert "scoped to those two searches" in block
+    assert "NOT established" not in block
+    assert "unavailable" not in block
+    # No standalone question exists in this request, so the bounded probe
+    # must not add a second lookup.
+    assert len(hybrid_search) == 1
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is True
+    assert receipt.get("match_count") == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["failed", "partial"])
+async def test_zero_match_grep_incomplete_coverage_does_not_claim_absence(
+        monkeypatch, status):
+    """A partial/failed ingested-document search is reported as an unavailable
+    lookup, never a completed zero; the zero VFS grep stays scoped and cannot
+    become "nothing exists"."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True,
+        query="Search my documents for the Zephyr launch code")
+
+    async def fake_execute(name, args, context):
+        if name == "documents.grep":
+            return {"success": True, "pattern": "zephyr", "matches": []}
+        if name == "documents.ls":
+            return {"success": True, "entries": []}
+        raise AssertionError(f"unexpected action {name}")
+
+    class _BrokenHybrid:
+        def __init__(self, **kwargs):
+            pass
+
+        async def search(self, **kwargs):
+            return {
+                "success": status != "failed",
+                "status": status,
+                "results": [],
+                "legs": {
+                    "lexical": {
+                        "status": "failed", "required": True,
+                        "error_category": "source_unavailable"},
+                    "vector": {"status": "ok", "required": False},
+                },
+                "coverage": {"unavailable": ["lexical"]},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": None,
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _BrokenHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1", {"workspace_id": "ws-requested"})
+
+    assert block and "document search coverage" in block
+    assert "unavailable: lexical" in block
+    assert "unavailable" in block
+    assert "NOT established" in block
+    assert "none in the VFS" not in block
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is False
+    assert "document search coverage" in receipt.get("error")
+
+
+@pytest.mark.asyncio
+async def test_zero_match_grep_retries_only_a_complete_zero(monkeypatch):
+    """The bounded probe runs on a completed zero with an exact standalone
+    question, reusing the SAME scope/limit/owner search flags."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    query = "Please check the notes. What is the Zephyr launch code?"
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True, query=query)
+
+    hybrid_init = []
+    hybrid_search = []
+
+    async def fake_execute(name, args, context):
+        if name == "documents.grep":
+            return {"success": True, "pattern": "zephyr", "matches": []}
+        raise AssertionError(f"unexpected action {name}")
+
+    class _RetryHybrid:
+        def __init__(self, **kwargs):
+            hybrid_init.append(kwargs)
+
+        async def search(self, **kwargs):
+            hybrid_search.append(kwargs)
+            if len(hybrid_search) == 1:
+                return {
+                    "success": True,
+                    "status": "success",
+                    "results": [],
+                    "legs": {"lexical": {"status": "ok", "required": True}},
+                    "coverage": {"unavailable": []},
+                }
+            return {
+                "success": True,
+                "status": "success",
+                "results": [{
+                    "source": "ingested", "id": "doc-2",
+                    "title": "zephyr_notes.md",
+                    "content": "The Zephyr launch code is QUARTZ-77.",
+                }],
+                "legs": {"lexical": {"status": "ok", "required": True}},
+                "coverage": {"unavailable": []},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": {"workspace_id": "doc-ws"},
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _RetryHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1", {"workspace_id": "ws-requested"})
+
+    assert block and "QUARTZ-77" in block
+    assert len(hybrid_init) == 1
+    assert hybrid_init[0] == {
+        "workspace_id": "doc-ws",
+        "legacy_authority": {"workspace_id": "doc-ws"},
+    }
+    assert len(hybrid_search) == 2
+    assert hybrid_search[0] == {
+        "query": query, "limit": 6, "owner_user_id": "user-1"}
+    assert hybrid_search[1] == {
+        "query": "What is the Zephyr launch code?",
+        "limit": 6, "owner_user_id": "user-1"}
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is True
+    assert receipt.get("match_count") == 1
+    assert receipt.get("workspace_id") == "doc-ws"
 
 
 @pytest.mark.asyncio
