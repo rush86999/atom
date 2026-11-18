@@ -3,6 +3,7 @@ Unified Search Endpoints for ATOM Application
 Provides hybrid semantic + keyword search across user documents, meetings, and notes using LanceDB.
 """
 
+import asyncio
 from datetime import datetime
 import logging
 import os
@@ -21,6 +22,54 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/lancedb-search", tags=["search"])
 
 
+def _resolve_authenticated_document_workspace(current_user: User) -> str:
+    """Return the authoritative document workspace for the signed-in actor.
+
+    Mirrors upload's ``personal_scope.resolve_document_workspace_id`` lookup
+    (FK first, relationship second) and fails closed without a binding.
+    Request bodies are never scope authority.
+    """
+    from core.personal_scope import (
+        DocumentScopeResolutionError,
+        DocumentScopeUnavailable,
+        resolve_document_workspace_id,
+    )
+
+    try:
+        workspace_id = resolve_document_workspace_id(current_user)
+    except DocumentScopeUnavailable as scope_err:
+        logger.warning(
+            "Search workspace refused: no eligible scope; error_class=%s",
+            type(scope_err).__name__)
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This account has no document workspace binding, so search "
+                "was refused."),
+        ) from scope_err
+    except DocumentScopeResolutionError as scope_err:
+        logger.warning(
+            "Search workspace refused: resolution failed; error_class=%s",
+            type(scope_err).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The document workspace binding could not be resolved, so "
+                "search was refused."),
+        ) from scope_err
+
+    if not workspace_id:
+        # An authenticated principal with no authoritative workspace must not
+        # fall through to the legacy shared store.
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This account has no document workspace binding, so search "
+                "was refused."),
+        )
+    return str(workspace_id)
+
+
 # Pydantic Models
 class SearchFilters(BaseModel):
     doc_type: List[str] = Field(default_factory=list)
@@ -31,6 +80,9 @@ class SearchFilters(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+    # Accepted for wire compatibility with existing callers. Neither field is
+    # used for authorization or store routing: scope always comes from the
+    # authenticated actor resolved in ``hybrid_search``.
     user_id: Optional[str] = None
     workspace_id: Optional[str] = None
     filters: Optional[SearchFilters] = None
@@ -79,23 +131,17 @@ async def hybrid_search(
     Requires authentication.
     """
     try:
-        # BUG-098: Previously used request.workspace_id (None from frontend) →
-        # handler defaulted to "default_shared", so docs uploaded to the user's
-        # real workspace were never found. Now resolve from the authenticated
-        # user's workspace, matching how document upload scopes storage.
-        workspace_id = request.workspace_id
-        if not workspace_id and current_user:
-            workspace_id = current_user.workspaces[0].id if current_user.workspaces else "default_shared"
+        # Route by the authenticated actor's upload workspace, never the body.
+        workspace_id = _resolve_authenticated_document_workspace(current_user)
+        actor_user_id = str(current_user.id)
         handler = get_lancedb_handler(workspace_id)
-        
-        # Trigger lazy initialization before checking availability
+
         handler._ensure_db()
         handler._ensure_embedder()
-        
-        # Check if LanceDB is available
+
         if handler.db is None:
              logger.warning("LanceDB not available for search - returning empty results")
-             # Return empty success response instead of 503 error to prevent UI breakage
+             # Keep the success shape so the UI does not break.
              return SearchResponse(
                  success=True,
                  results=[],
@@ -104,64 +150,49 @@ async def hybrid_search(
                  search_type=request.search_type
              )
 
-        # Construct filter expression if needed
+        # metadata.doc_type is stored as JSON text, so filter it in Python.
         filter_expr = None
-        # NOTE: metadata.doc_type SQL filtering is disabled because metadata is stored as JSON string
-        # We will filter in Python instead.
-        # if request.filters:
-        #     conditions = []
-        #     if request.filters.doc_type:
-        #         types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
-        #         # Filter on metadata.doc_type since it's nested in the struct
-        #         conditions.append(f"metadata.doc_type IN ({types})")
-            
-        #     if conditions:
-        #         filter_expr = " AND ".join(conditions)
 
-        # Perform vector search
-        logger.info(f"DEBUG SEARCH: Query='{request.query}', User='{request.user_id}', Workspace='{request.workspace_id}'")
-        logger.info(f"DEBUG SEARCH: Filter Expr: {filter_expr}")
-        
-        # Ensure user_id is passed to handler search
-        # We increase limit slightly to account for post-filtering
+        # Over-fetch only when doc_type post-filtering may discard rows.
         search_limit = request.limit * 2 if request.filters and request.filters.doc_type else request.limit
-        results = handler.search("documents", request.query, limit=search_limit, filter_str=filter_expr, user_id=request.user_id)
-        
-        logger.info(f"DEBUG SEARCH: Raw Results Count: {len(results)}")
-        if results:
-             logger.info(f"DEBUG SEARCH: First Result Metadata: {results[0].get('metadata')}")
-        
+
+        # handler.search() embeds synchronously; on the event loop the embed
+        # guard returns None and every search is empty. Keep it off-loop.
+        results = await asyncio.to_thread(
+            handler.search,
+            "documents",
+            request.query,
+            limit=search_limit,
+            filter_str=filter_expr,
+            user_id=actor_user_id,
+        )
+
         search_results = []
         for res in results:
-            # Reconstruct document structure
             metadata = res.get("metadata", {})
-            
-            # Post-retrieval filtering for doc_type
+
             doc_type = metadata.get("doc_type", "unknown")
             if request.filters and request.filters.doc_type:
                 if doc_type not in request.filters.doc_type:
                     continue
 
-            # Calculate scores (LanceDB returns distance, we converted to similarity in handler)
             similarity_score = res.get("score", 0.0)
-            
-            # Simple keyword score for hybrid simulation (if not using FTS)
+
+            # Lightweight keyword component for hybrid/semantic simulation.
             keyword_score = 0.0
             content_lower = res.get("text", "").lower()
             query_lower = request.query.lower()
             if query_lower in content_lower:
                 keyword_score = 0.5 + (0.1 * content_lower.count(query_lower))
                 keyword_score = min(keyword_score, 1.0)
-            
-            # Combine scores
+
             if request.search_type == "hybrid":
                 combined_score = (similarity_score * 0.7) + (keyword_score * 0.3)
             elif request.search_type == "semantic":
                 combined_score = similarity_score
             else: # keyword
                 combined_score = keyword_score
-            
-            # Filter by min_score
+
             min_score = request.filters.min_score if request.filters else -10.0
             if combined_score < min_score:
                 continue
