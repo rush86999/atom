@@ -14,7 +14,38 @@ had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
 
-## Release facts at this cut
+## Release facts at this cut — merged #995
+
+| Fact | Actual source |
+|---|---|
+| Observed main | `160621dfa898ff1d17e749606d41ec3721629b3a` — Use verified indexed text for legacy assignment uploads (PR [#995](https://github.com/rush86999/atom/pull/995)); tree `999135d242a36e7221764a580503b2f7553f3dc6`, sole parent `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994) |
+| #995 exact PR head | `5d9ced7e865d32ef889a263e1d4103f5e5d4ef91` — all **17** exact-head checks successful, including GitGuardian; the merge tree equals the exact PR-head tree |
+| #995 qualified scope | The exact legacy `POST /api/document-ingestion/upload` lane is checked by the unchanged synthetic campaign at **18/18**: DOCX with the correct **USD 370.00** total, workbook source and matching SHA-256, restart/reconciliation without a second send, cancellation and resend protection. **162** focused/adjacent tests passed on the byte-identical patch. Only the producer's persisted index-only locator (`upload:<name>`) is classified, and only after the existing workspace/tenant, principal, row-freshness and indexed-revision checks; materialized uploads keep local-file/hash checks; connector and org-bundle locators are not classified. **Synthetic campaign and offline test evidence only; no cloud, model or browser effect is assumed** |
+| #995 retained negative | The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** legacy campaign remains a failure record on its earlier baseline. The 18/18 result applies to the producer's own index-only locator and does not adjudicate connector or org-bundle locators, ordinary UI, or every TASK-WAIT branch |
+| #995 post-merge main | [CI 44239946831](https://github.com/rush86999/atom/actions/runs/44239946831) and [Docker 44239946783](https://github.com/rush86999/atom/actions/runs/44239946783) were **pending** at the observed cut; no completed, failed or performance result is claimed |
+| Predecessor #994 post-merge main | [CI 44233465790](https://github.com/rush86999/atom/actions/runs/44233465790) and [Docker 44233465698](https://github.com/rush86999/atom/actions/runs/44233465698) have since passed, after their **pending** record at the #994 cut |
+
+The #995 qualification is **scoped legacy-ingestion source-representation
+evidence**. It is not ordinary UI/browser acceptance, a live-model result, a
+connector/org-bundle adjudication, or a whole-Goal 10/whole-app completion
+claim.
+
+## Release facts at the #994 cut (2026-11-18, retained)
+
+| Fact | Actual source |
+|---|---|
+| Observed main | `d701872287b16f1e74b512aa7b81fb40b92fe69a` — Make audit evidence and Learning corrections traceable (PR [#994](https://github.com/rush86999/atom/pull/994)); tree `fa66625df9423938e190d17c3425ed59d4e4ffb6`, sole parent `a33e8d8ab9352fa59324ebc067772fea4efe24d2` (#993) |
+| #994 exact PR head | `b57be40f5183c294c91f81e659e1518a7daaf8dd` — all **17** exact-head checks successful; merge tree equals the PR-head tree. Receipts: `/private/tmp/atom-pr994-final-merge-receipt.json` and `/private/tmp/atom-pr994-qualified-merge-result-20261117.json` |
+| #994 qualified scope | **520 browser assertions** and **34 acceptance cases** across the audit and Learning phases, including evidence download, truthful correction receipt, refusal, revision history, reapproval, restart readback and role boundaries; **49** selected audit/agent-access/header tests and **692** CI-contract checks. An offline recheck in a distinct local output tree held one intercepted request **1,501 ms** (1,338 ms to the pending UI snapshot plus 163 ms to release) and matched all **42** original evidence files by hash. **Synthetic browser and persistence evidence only** |
+| #994 retained verifier failure | The original verifier failure is retained as the obsolete `delayed switch report has no recorded latency` assertion. The immutable run summary still says `failed`; the 1,501 ms hold is a captured request-stage hold, not end-user latency, and the historical artifact was not rewritten |
+| #994 post-merge main | [CI 44233465790](https://github.com/rush86999/atom/actions/runs/44233465790) and [Docker 44233465698](https://github.com/rush86999/atom/actions/runs/44233465698) were **pending** at this cut; no completed, failed or performance result is claimed |
+| #993 ordinary workbook upload | PR [#993](https://github.com/rush86999/atom/pull/993) → `a33e8d8ab9352fa59324ebc067772fea4efe24d2`, tree `a69fc37d3ecea25746b317b55944adf711f63d06`, exact head `3ae4a03c4a9d8d671b4bb6d68ff6d965b3025352` with all **17** checks successful. The isolated ordinary-upload campaign improved **14/18 → 18/18** on the fix: DOCX with the correct **USD 370.00** total, workbook source and matching SHA-256, restart/reconciliation without a second send, cancellation and resend protection; **692** CI-contract checks |
+| #993 post-merge main | [CI 44217198387](https://github.com/rush86999/atom/actions/runs/44217198387) passed on **attempt 2** after the Python 3.11 package download broke attempt 1; [Docker 44217198440](https://github.com/rush86999/atom/actions/runs/44217198440) passed |
+| #993 / TASK-WAIT boundary | The **normal `/api/documents/upload` route only**. The legacy text-only ingestion route and its replay are **not adjudicated**; the prior **5 PASS / 7 FAIL / 6 NOT EVALUATED** legacy campaign remains a negative. No claim is made that the legacy route is repaired or assignable, or that every TASK-WAIT branch is supported |
+
+The #994 qualification is **scoped audit/Learning correction and persistence evidence**. It is not a compliance certification, a broader audit-integrity proof, a live-model result or a whole-goal/whole-app completion claim.
+
+## Release facts at the #990 cut (retained)
 
 | Fact | Actual source |
 |---|---|
@@ -249,20 +280,20 @@ acceptance. The earlier pending-at-cut record above remains historical.
 | 1 | Setup and ordinary account use | accepted-bounded | [Account browser lifecycle](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) @ `97e43`; [TOTP login/replay](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) @ candidate `268efd405`; [SMTP trust](SMTP_CERTIFICATE_VALIDATION_2026_11_16.md) merged #971; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) login/settings | browser + API proof; merged auth | SSO/live IdP, rate-limit breadth, actual one-hour reset expiry, external mail delivery, other deployment audiences, and a current-main full-lifecycle replay. |
 | 2 | BYOK and suitable model selection | accepted-bounded | [Audit ROUTE/GW rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [readiness §2](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-2); #942 `d08892617` preserves query complexity; [structured wire contracts](STRUCTURED_WIRE_CONTRACTS_2026_11_17.md) merged #980 `ecce2df80` with 97 focused and 11 quota-caller offline controls | merged routing; merged endpoint-bound request contracts; **model-quality gap**; `ROUTE-07` external | Two or more real served models with requested/served identity and scored quality/cost, including capable Flash as first-class. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) confirms one served Flash direct response, not a multi-model benchmark; its one-shot allowance is consumed. |
 | 3 | Authorized common data and search | accepted-bounded | [Documents browser lifecycle](DOCUMENTS_BROWSER_LIFECYCLE_2026_11_16.md) @ `ed6ae3c98` (33KB synthetic TXT, all three downloads, delete/readback); [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) 88-byte TXT; WorkDrive 56/56 was bound to `24794f257` (readiness §11) | browser/API/restart proof, synthetic; **live connector gap**; [multi-format document API proof](DOCUMENT_SOURCE_AUTHORITY_2026_11_17.md) @ `0249f3eaa` (162 checks; DOCX/PDF/CSV) | Fresh-grant current-main WorkDrive replay; live connectors and model-grounded file answers; broader parser/format variants. `INT-09` remains external. [Multi-format browser and full restart](DOCUMENT_FORMAT_BROWSER_RESTART_2026_11_17.md) passed at `8c142c101`; live connector, generative grounding and parser breadth remain open. |
-| 4 | Spreadsheet and calculation | accepted-bounded | [24-sheet workbook browser](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) @ `3316b0fe7` (exact 34,610 total, formula/cache checks, export before/after restart); full-population API replay 34,533 @ `6ad2738ed` (readiness §4) | browser + API proof, synthetic; **model/live-source gap** | Live connected source; model-driven extraction of the contributing population; reconciliation of ambiguous requests. The historical 1758.00 single-sheet counterexample remains retained. |
+| 4 | Spreadsheet and calculation | accepted-bounded | [24-sheet workbook browser](WORKBOOK_BROWSER_LIFECYCLE_2026_11_16.md) @ `3316b0fe7` (exact 34,610 total, formula/cache checks, export before/after restart); full-population API replay 34,533 @ `6ad2738ed` (readiness §4); #993 merged `a33e8d8ab` (ordinary upload **18/18**, USD 370.00 DOCX, source/SHA-256 provenance, restart/resend controls) | browser + API proof, synthetic; **model/live-source gap** | Live connected source; model-driven extraction of the contributing population; reconciliation of ambiguous requests. #993's 18/18 is the normal `/api/documents/upload` route only; legacy text-only ingestion remains separate and unadjudicated. The historical 1758.00 single-sheet counterexample remains retained. |
 | 5 | Canvas and editable outputs | accepted-bounded | [PDF browser](PDF_CANVAS_BROWSER_LIFECYCLE_2026_11_16.md) @ `bb7017af3`; [DOCX/PPTX browser + restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) @ `3316b0fe7`; [inline DOCX pictures](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) @ `8d98b0689` (merged #974) | browser + merged implementation | Full Canvas D2; other Canvas families; broader embedded media; cross-user ownership; Firecracker/KVM mini-app legs. Title/count-only renders are insufficient. |
-| 6 | Teaching and reusable agent capability | accepted-bounded | [Learning correction/renewed approval](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) @ `1d4f409e1`, merged #975; [real-Docker ordinary skill dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) @ `3316b0fe7`; [scoped maturity](SCOPED_SKILL_MATURITY_2026_11_15.md); #988 graduation evidence binding merged `59fa6b64b` (synthetic campaign scope) | browser + API/container proof; merged; **model-quality gap** | Independent real-model skill selection/consumption; unfamiliar-skill and unfamiliar-model work; generated-code promotion; a real browser/restart journey for approve→correct→renew that also covers keyboard-only, export and access checks; PostgreSQL concurrency. Scripted decisions do not establish model quality. #988 binds synthetic campaign evidence to dispatch but proves no real served-model quality. |
+| 6 | Teaching and reusable agent capability | accepted-bounded | [Learning correction/renewed approval](LEARNING_CORRECTION_REPROMOTION_2026_11_16.md) @ `1d4f409e1`, merged #975; [real-Docker ordinary skill dispatch](CURRENT_SKILL_DOCKER_ACCEPTANCE_2026_11_16.md) @ `3316b0fe7`; [scoped maturity](SCOPED_SKILL_MATURITY_2026_11_15.md); #988 graduation evidence binding merged `59fa6b64b` (synthetic campaign scope); #994 merged `d701872` (Learning source excerpt/revision history, revision clears approval, reviewer reapproval and restart readback) | browser + API/container proof; merged; **model-quality gap** | Independent real-model skill selection/consumption; unfamiliar-skill and unfamiliar-model work; generated-code promotion; a real browser/restart journey for approve→correct→renew that also covers keyboard-only, export and access checks beyond #994's synthetic run; PostgreSQL concurrency. Scripted decisions do not establish model quality. #988 binds synthetic campaign evidence to dispatch but proves no real served-model quality. #994's 520 assertions do not certify audit integrity, live models or the whole goal. |
 | 7 | Assessment and unfamiliar work | accepted-bounded | [Audit ASK/ORACLE-06](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [historical product ledger](../acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md); deterministic 18/18 V1 and 19/19 V3 | deterministic proof; **model-quality failure** | New held-out/served-domain qualification and any general adaptive judgment claim. The deterministic path does not interpret arbitrary prose; `Q-012`/`Q-021` remain preserved failures. |
 | 8 | Durable employee objectives | accepted-bounded | [Atomic Activity checkpoint decisions](ACTIVITY_CHECKPOINT_ATOMIC_DECISIONS_2026_11_16.md) @ `1f70c1708`, merged #976 (234 backend + 68 frontend controls; browser approve/reject/restart); [real 48-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0`; [goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968 | API/browser proof; merged; **model-quality gap** | Current-main ordinary-model objectives; event-order breadth; multi-worker/soak; full TASK-WAIT-01 integration. The Activity fixture goals were already achieved, so model competence is not proven. |
 | 9 | Runtime configured-budget enforcement | accepted-bounded | [PR #932](https://github.com/rush86999/atom/pull/932) merged `ab14eb391` (Whisper duration/billing and settlement controls; joint 360-test qualification); historical #722 `5b9610b56` | merged implementation; controlled proof; **live/operator gap** | One priced `TokenUsage` row, matching tenant spend delta, idempotent duplicate settle, and a second dispatch refused before transport when short. Whisper live/remote settlement and PostgreSQL remain unproven. No live spend is authorized. |
-| 10 | TASK-WAIT-01 long tasks pause/resume | open | [Real 48.0203-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0` (same job/execution, one effect, duplicate/late-answer refusal); [WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968; multi-source run @ `ad6ecbd5d`; current-main revocation contract **1 passed** (`test_task_wait_source_revocation.py`, exit 0, 1 test/0 failures/0 errors/0 skips, 3.240 s, direct grant-row revocation not an ordinary route); legacy-ingestion campaign **5 PASS / 7 FAIL / 6 NOT EVALUATED** (source-representation failure; checks 13–18 never run after a correct 409 guard) | process/API proof; **current-main/model/operator gap** | Ordinary UI; current-main real-model work; partial and independent progress; revocation/cancellation during the wait through an ordinary route; source-representation diagnosis and the ordinary-route replay (both pending); all supported surfaces; multi-worker/soak. The campaign's partial result is a negative, not a pass. Arrival alone is not completion. Never rearm the terminal elapsed-wait case. |
+| 10 | TASK-WAIT-01 long tasks pause/resume | open | [Real 48.0203-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0` (same job/execution, one effect, duplicate/late-answer refusal); [WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968; multi-source run @ `ad6ecbd5d`; current-main revocation contract **1 passed** (`test_task_wait_source_revocation.py`, exit 0, 1 test/0 failures/0 errors/0 skips, 3.240 s, direct grant-row revocation not an ordinary route); #993 merged `a33e8d8ab` (normal-upload workbook read/restart lane); #995 merged `160621dfa` (exact legacy `/api/document-ingestion/upload` lane **18/18** on the unchanged synthetic campaign: USD 370.00 DOCX with source/SHA-256, restart/no-resend/cancellation controls; 162 focused/adjacent tests); legacy-ingestion campaign **5 PASS / 7 FAIL / 6 NOT EVALUATED** (earlier-baseline source-representation failure; checks 13–18 never run after a correct 409 guard) | process/API proof; **current-main/model/operator gap** | Ordinary UI/browser; current-main real-model work; partial and independent progress; revocation/cancellation during the wait through an ordinary route; connector and org-bundle locators (deliberately not classified); all supported surfaces; multi-worker/soak. The earlier campaign's partial result remains a negative on its own baseline, not a pass. #993 covers the normal `/api/documents/upload` route; #995 covers only the producer's persisted index-only locator after the existing scope and index-freshness checks, with no cloud/model/browser effect assumed. Neither establishes every TASK-WAIT branch. Arrival alone is not completion. Never rearm the terminal elapsed-wait case. |
 | 11 | Documents, presentations and email drafts | accepted-bounded | [DOCX/PPTX browser + restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) @ `3316b0fe7`; [inline DOCX](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) @ `8d98b0689`; #919 merged `9de6ef33` (loopback path only) | browser proof for documents; **provider/email unknown** | Ordinary presentation and email-draft journey; provider draft readback; real recipient inbox delivery; authorized live invoice replay. The one-use live send authority is exhausted. |
 | 12 | Repeatable workflows and schedules | accepted-bounded | Public workflow scope `49d45c7f3`; scheduler `78d2e0ca8`; recovery `e2ba4b01c`; ORCH-01 `0fae2d46c`; [readiness §12](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-12) | merged + controlled proof; **served-model/operator gap** | One real served workflow request through the production route/deadline path; a full scheduled real-workflow result and receipt; PostgreSQL/multi-worker/soak. ORCH-01 still uses a controlled LLM double. |
 | 13 | Fleet, goals and background work | accepted-bounded | [Real fleet delegation, incomplete answer](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#fleet-real-delegation-incomplete-deliverable) @ `a868435fd` (#943, final answer not accepted); one capped synthesis sample (#951); [fleet diagnostics](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md#fleet-diagnostics-remain-separate-from-application-acceptance) (capped live test failed; 11 offline fault controls, including 17 attempted / 16 synthetic send starts) | merged implementation; scripted/API proof; **live workflow failed**; broader model quality **unknown** | Current-main live TASK with a real model, one in-scope chain, complete attributed final answer, restart/durable state, no shadow success or out-of-scope specialist. Case 6 remains **FAILED**. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) also failed fleet acceptance: 14 actual upstream requests, 13 structured HTTP 400 and one correct direct Flash reply; verifier error-contract limits prevent a definitive upstream-cause claim. Its allowance is consumed; no automatic rerun. [Case 8](FLEET_LIVE_DELEGATION_2026_11_17.md) recovered the optional-logprob rejection and completed structured calls on merged main `02c9b1674`, but chose direct conversation: zero specialist chains/links. Six starts stayed within the cap; its one-shot allowance is consumed. [Explicit collaboration authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) merged later at #984 `7f7952c65` carries an accepted specialist requirement into the existing fleet lane with 85 offline checks; case 8's source predates it, so it is not a live delegation pass and needs a fresh allowance. The old 43-case scripted pass remains source-bound, not a current live pass. |
-| 14 | Direct mutations and whole-app ORACLE | open | Activity checkpoint authority (#976) and [never-autonomous task fences](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md) (#977) are scoped mutation/authority families; static inventory 836/371/311; merged families #650–#695; Canvas delete/undelete current-actor authority repaired by [#763](https://github.com/rush86999/atom/pull/763) `c97dada13` | merged scoped implementation; **whole-app runtime unknown** | Every reachable mutation family enforcing current authority/material, exact operation, durable effect and independent readback; replay/rollback/unknown truth; refreshed current-main inventory; PostgreSQL/multi-worker. The four historical delete/undelete scope failures stay preserved at their baseline; 54 bounded current controls pass, which does not qualify every Canvas route or whole-app ORACLE ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). Adjacent bounded authority controls merged later: [entry task-profile isolation](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md) #986 `8afac828c` (737 independent checks; SQLite only), [M3 canonical final reply](../architecture/orchestration_migration/acceptance/lane3/M3_CANONICAL_DELIVERY_PROOF.md) #985 `7e51e0976` (22 public-boundary controls; flag default OFF), and [durable collaboration pending authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) #984 `7f7952c65` (85 offline checks). |
-| 15 | Remaining exposed application | open/partial | [Web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) core pages render; [signed-in Settings](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md) 29/29 @ `a53b56fdc`; Canvas list 22/22 @ `6ad2738ed`; Tasks/Projects #797 `3541e8115` | browser proof, partial; **deferred scope**; many surfaces **unknown** | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route errors, and direct admin/member behavior. Tasks/Boards are owner-deferred by the core release profile and must not be force-enabled. |
-| 16 | Installation, compatibility and operations | open | [Persistent PostgreSQL restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) @ `3316b0fe7`; [logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) @ `c1ab1af1`; [full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md); [fresh bootstrap](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) @ `5aa8c1c8`; #936/#941/#943; #991 acceptance-world storage preflight merged `4071ef9ba` | bounded operator/deployment proof; merged; **unknown breadth** | [Document-lineage existing-table revision](POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) merged #981 `0ef449aea` with a bounded PostgreSQL 14.24 proof (29 independent tests including one real cluster, clean restart/data/index preservation) for that single revision. Other existing upgrades, full migration graph/app upgrade, async transport, abrupt outage, cluster/PITR, multi-worker/soak, Linux/ARM, native mobile device, menu-bar native live chat, KVM, and full rollback/restore child flow. #977 exercised only SQLite migration, not PostgreSQL. #991's storage guard is offline preflight only: no browser, restart, fresh-world launch, drive-pull-while-running or operator deployment was exercised. |
-| 17 | Performance and comparative promises | unverified | [Audit PERF/MKT rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [performance reconciliation](APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json); cache-only benchmark `dd2610502` (37 tests) | **unknown** — no declared measurement | Reproducible measurement with declared environment, workload, sample size and command; dated source for every comparative/pricing claim. A cache-only test is not app throughput or model quality. No invented numbers. CI delivery work is explicitly **not** app performance: #982 adds `--durations=20` reporting only, and #989 repartitions lanes with an **estimated** 42.6-minute critical lane, +5.7 runner-minutes and no measured speedup or whole-app latency result. |
+| 14 | Direct mutations and whole-app ORACLE | open | Activity checkpoint authority (#976) and [never-autonomous task fences](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md) (#977) are scoped mutation/authority families; static inventory 836/371/311; merged families #650–#695; Canvas delete/undelete current-actor authority repaired by [#763](https://github.com/rush86999/atom/pull/763) `c97dada13`; #994 merged `d701872` (audit correction request/receipt/refusal and scoped timeline reads) | merged scoped implementation; **whole-app runtime unknown** | Every reachable mutation family enforcing current authority/material, exact operation, durable effect and independent readback; replay/rollback/unknown truth; refreshed current-main inventory; PostgreSQL/multi-worker. #994's audit correction/refusal path is synthetic browser evidence, not a census of mutation families or whole-app ORACLE. The four historical delete/undelete scope failures stay preserved at their baseline; 54 bounded current controls pass, which does not qualify every Canvas route or whole-app ORACLE ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). Adjacent bounded authority controls merged later: [entry task-profile isolation](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md) #986 `8afac828c` (737 independent checks; SQLite only), [M3 canonical final reply](../architecture/orchestration_migration/acceptance/lane3/M3_CANONICAL_DELIVERY_PROOF.md) #985 `7e51e0976` (22 public-boundary controls; flag default OFF), and [durable collaboration pending authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) #984 `7f7952c65` (85 offline checks). |
+| 15 | Remaining exposed application | open/partial | [Web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) core pages render; [signed-in Settings](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md) 29/29 @ `a53b56fdc`; Canvas list 22/22 @ `6ad2738ed`; Tasks/Projects #797 `3541e8115`; #994 merged `d701872` (core-workspace Audit Trail, actor/supervisor-scoped reads, correction receipt/refusal, evidence export) | browser proof, partial; **deferred scope**; many surfaces **unknown** | The signed-in Core Search refusal and Documents-to-Chat fallback passed on `d701872`. Primary actions and durable readback remain open across Tasks/Boards, marketplace install, search/grounding, finance/voice/BPE/settings/skill editor/team chat, broader blocked-route errors, and direct admin/member behavior. #994 is one synthetic 520-assertion audit/Learning campaign, not every exposed surface or broader audit integrity. Tasks/Boards are owner-deferred by the core release profile and must not be force-enabled. |
+| 16 | Installation, compatibility and operations | open | [Persistent PostgreSQL restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) @ `3316b0fe7`; [logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) @ `c1ab1af1`; [full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md); [fresh bootstrap](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) @ `5aa8c1c8`; #936/#941/#943; #991 acceptance-world storage preflight merged `4071ef9ba`; #994 `d701872` isolated fresh-store launch + same-world restart (SQLite/loopback; addendum below) | bounded operator/deployment proof; merged; **unknown breadth** | [Document-lineage existing-table revision](POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) merged #981 `0ef449aea` with a bounded PostgreSQL 14.24 proof (29 independent tests including one real cluster, clean restart/data/index preservation) for that single revision. Other existing upgrades, full migration graph/app upgrade, async transport, abrupt outage, cluster/PITR, multi-worker/soak, Linux/ARM, native mobile device, menu-bar native live chat, KVM, and full rollback/restore child flow. #977 exercised only SQLite migration, not PostgreSQL. #991's storage guard was offline preflight only **at that dated cut**: no browser, restart, fresh-world launch, drive-pull-while-running or operator deployment was exercised then. The later #994 fresh-launch/same-world restart below covers the isolated SQLite/loopback path only; browser interaction, true deployment, PostgreSQL, cloud/model, portable-drive removal and operator breadth remain open. |
+| 17 | Performance and comparative promises | unverified | [Audit PERF/MKT rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [performance reconciliation](APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json); cache-only benchmark `dd2610502` (37 tests), reproduced on `d701872` | Bounded cache measurement. Advertised end-to-end performance and comparisons remain unverified | Reproducible measurement with declared environment, workload, sample size and command; dated source for every comparative/pricing claim. A cache-only test is not app throughput or model quality. No invented numbers. CI delivery work is explicitly **not** app performance: #982 adds `--durations=20` reporting only, and #989 repartitions lanes with an **estimated** 42.6-minute critical lane, +5.7 runner-minutes and no measured speedup or whole-app latency result. |
 | 18 | Profile breadth | open/deferred | `CORE-07` profile switch; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) confirms core defers Tasks/Boards; [goal catalogue](APP_GOALS_INDEX.json) explicit requirements | **deferred scope** | Explicit owner decision on full-profile enablement and qualified journeys for the restored surfaces. Do not force-enable deferred profiles or add SaaS gates to close the row. |
 | — | **DOCS-REF-01** documentation and diagrams | open (additional closure requirement) | [Frozen reference inventory](reference_inventory_ac2b73778_20261108.json): 1,729 reference files, 11 diagram candidates, 633 image/PDF candidates at `ac2b73778`. This map is navigation only. | inventory only; **accuracy unknown** | Complete classification of every reference/diagram with owner and canonical destination; accurate user/operator paths; architecture diagrams with render + semantic review; API/config reference; reproducible safe commands; final no-contradiction acceptance audit. Inventory counts are not accuracy or rendering passes. |
 
@@ -276,13 +307,16 @@ pre-existing broken links, including two long-standing entries in
 the absent `.planning/phases/236-cross-platform-and-stress-testing/`); both are
 recorded here, not silently repaired. Neither result closes DOCS-REF-01.
 
-## What the #975–#991 deliveries do and do not establish
+## What the #975–#995 deliveries do and do not establish
 
 | Delivery | Source-bound scope | Does not establish |
 |---|---|---|
+| **#995 legacy ingestion uses verified indexed text** | `assignment_resources.is_indexed_only_document_locator` classifies only the legacy producer's persisted `upload:<name>` locator, and only after the existing workspace/tenant, principal, row-freshness and `current_extraction_revision(indexed, authoritative, accepted)` checks. The pre-consumption recheck no longer parks that row as `source_unavailable`. A caller-asserted `upload:` path cannot exempt a row whose persisted locator is blank; materialized uploads keep `os.path.isfile` and binary-hash checks; connector and org-bundle locators are not classified; there is no missing-extraction fallback. Merged at `160621dfa`, tree `999135d` (equal to exact head `5d9ced7e8`), sole parent `d701872`; all 17 exact-head checks passed, including GitGuardian. The unchanged synthetic legacy campaign scored **18/18** on `/api/document-ingestion/upload` (USD 370.00 DOCX, workbook source and matching SHA-256, restart/reconciliation without a second send, cancellation and resend protection); **162** focused/adjacent tests passed on the byte-identical patch. | Ordinary UI/browser, a live model or cloud call, PostgreSQL/multi-worker, connector or org-bundle locators, every TASK-WAIT branch, whole Goal 10 or whole-app completion. The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** campaign stays a failure record at its own baseline. Post-merge CI `44239946831` and Docker `44239946783` were pending at the cut, so no main green is claimed. |
+| **#994 audit evidence and Learning corrections traceable** | Audit Trail is reachable from the core workspace; timeline reads are scoped to the actor or an authorized workspace supervisor. The timeline, correction form and evidence export stay attached to the selected run/event, a refusal states its reason, and an unsigned export declares its read scope and integrity limits. The Learning source excerpt and revision history are shown; a revision clears approval and requires reviewer confirmation and promotion. Merged at `d701872`, tree `fa66625` (equal to exact head `b57be40f5`), sole parent `a33e8d8ab`; all 17 exact-head checks passed. Reported scope: **520 browser assertions** and **34 acceptance cases** across both phases, including evidence download, truthful correction receipt, refusal, revision history, reapproval, restart readback and role boundaries; **49** selected audit/agent-access/header tests and **692** CI-contract checks; the offline recheck measured a **1,501 ms** browser request hold from the recorded timestamps and matched all **42** original evidence files by hash. | Broader audit integrity, a compliance certification, live-model behavior, PostgreSQL/multi-worker, every route or approval family, and whole Goal 6/14/15 or whole-app completion. The original verifier failure — the obsolete `delayed switch report has no recorded latency` assertion — is retained; its immutable run summary still says `failed`. The 1,501 ms figure is a captured request-stage hold (1,338 ms + 163 ms), not end-user UX latency. Post-merge CI `44233465790` and Docker `44233465698` were pending at the cut. |
+| **#993 ordinary uploaded-workbook reads** | Binary/container uploads (`.xlsx`/`.xls`/`.xlsm`/`.ppt*`/`.pdf`) now fall through to the authoritative version-matched indexed extraction instead of decoding raw container bytes as text; text-native files keep their real-path reads, and a missing, stale or out-of-scope extraction refuses with `NeedsContext`. Merged at `a33e8d8ab`, tree `a69fc37d3` (exact head `3ae4a03c4`), all 17 exact-head checks passed. The same isolated ordinary-upload campaign improved **14/18 → 18/18**, producing a DOCX with the correct **USD 370.00** total, workbook source and matching SHA-256, then restart/reconciliation without a second send, plus cancellation and resend protection; **692** CI-contract checks. | The legacy text-only ingestion/assignment route, which remains a separate unadjudicated boundary with the prior **5 PASS / 7 FAIL / 6 NOT EVALUATED** negative preserved; live connectors; model-driven extraction; every workbook format; PostgreSQL; whole Goal 4. The 18/18 used the normal `/api/documents/upload` route, so it does not show that opaque ingestion uploads are assignable, released or repaired, or that every TASK-WAIT branch is supported. Post-merge CI `44217198387` passed on attempt 2 after the Python 3.11 package download failed on attempt 1; Docker `44217198440` passed. |
 | **#990 reviewed approval parameters through dispatch and decision history** | Merged at `a7eccddb`, tree `d2424e36` (equal to exact head `a84de131`), sole parent `31e2aebf`. An approved action's reviewed parameters are preserved into dispatch and decision history. The alias approve/reject surface answers a decision repeated on an already-terminal row with its established plain 400, after every existing authority gate; the shared intervention writer keeps strict 409 `DECISION_CONFLICT`, and a repeat performs no write, status change, scheduler call or resume. All 17 exact-head checks passed; qualification is **3 independent integrated targeted tests** and **692 CI-contract checks**, plus the local repair's 26/139/167/73/94 controls and a 264-node sweep at 257 pass / 7 identical pre-existing failures. The older `85fbd6357` hosted guided-duplicate failure remains preserved as dated evidence. | A broad replay at the integrated or merged tree; PostgreSQL, browser, restart, live provider/model or whole-app acceptance. The post-merge main CI `44201417963` and Docker `44201418036` were pending as of the merge, so no main green is claimed. Changing the alias surface back to plain 400 for a terminal repeat does not make a duplicate a success/idempotent 200, and it does not alter service/governance callers, the legacy idempotent-200 agent route or genuine claim races. |
 | **#987 durable chat ownership and scoped history access** | `core/chat_message_authority.py` resolves the write authority inside the transcript write transaction and CAS-fences the exact actor and durable `ChatSession`; the admitted actor/scope snapshot is captured at turn entry, so a same-user tenant/workspace move mid-turn, a suspension, deletion or unreadable authority refuses the append while still delivering the answer. External bridge senders keep their declared scope and cannot be adopted by a local caller. One read twin (`resolve_chat_read_scope`) authorizes history/trace/task/memory/details/list/fork/rename/delete/feedback on every request, with the durable owner beating a stale label and an authority outage returning 503 instead of an empty cache. The enabled M3 boundary feeds the same canonical text to WS close, HTTP and the durable row and fails closed when validation is unreadable. Merged at `31e2aebf`, tree `991cd1cf`; exact head `8b0e5367a` had all 17 checks successful; **1,483** independent tests on pre-merge tree `ee098d8b`, feature-patch equivalence and **692** CI-contract checks. | Live database, provider/model, browser, restart, PostgreSQL or multi-worker acceptance; whole-app semantic truth or model quality. `CHAT_FINALIZATION_M3` stays default **OFF** and remains a limited-vocabulary pre-delivery boundary; a frozen legacy claim split across already-released chunks can still reach the live bubble mid-stream (the final carriers are covered), and non-canvas or protocol-rejection turns are unchanged. No chat per-session grant or admin-all-tenant bypass was invented. No broad replay exists at the integrated head. |
-| **#991 acceptance-world storage preflight** | `validate_local_world.resolve_storage_config` is the one resolver shared by the launcher, browser preflight and canvas harness: it calls the guard's own `load_config` (env relocation + guard precedence) and refuses a missing relocated config instead of falling back to the checkout root. Both private parse-and-mkdir bootstraps are removed, the launcher re-checks `assert_worlds_root_usable` immediately before the first world `mkdir`, and `provision_isolated_world_store.py` creates only an empty store root plus an out-of-tree config, refusing the canonical root, bypass, non-empty stores and overwrite. Real shell launcher/guard/validator controls stop at a labelled pre-server boundary; **103 focused tests** passed (new 19 + browser preflight 39 + canvas 10 + guard 35), the lane ledgers register the step exactly once, the lane/quickstart contract passed **711**, and root independently ran the file as **29 passed**. Merged at `4071ef9ba`; exact head `734725186` had all 17 checks successful. | Any browser, login or restart acceptance; an actual acceptance journey from a fresh world; a root that disappears while a world is already running; drive-removal runtime behavior; PostgreSQL, provider/model or whole Goal 16. The canonical worlds root stayed absent throughout, so the fresh-world launch path itself was not exercised end to end. |
+| **#991 acceptance-world storage preflight** | `validate_local_world.resolve_storage_config` is the one resolver shared by the launcher, browser preflight and canvas harness: it calls the guard's own `load_config` (env relocation + guard precedence) and refuses a missing relocated config instead of falling back to the checkout root. Both private parse-and-mkdir bootstraps are removed, the launcher re-checks `assert_worlds_root_usable` immediately before the first world `mkdir`, and `provision_isolated_world_store.py` creates only an empty store root plus an out-of-tree config, refusing the canonical root, bypass, non-empty stores and overwrite. Real shell launcher/guard/validator controls stop at a labelled pre-server boundary; **103 focused tests** passed (new 19 + browser preflight 39 + canvas 10 + guard 35), the lane ledgers register the step exactly once, the lane/quickstart contract passed **711**, and root independently ran the file as **29 passed**. Merged at `4071ef9ba`; exact head `734725186` had all 17 checks successful. | Any browser, login or restart acceptance; an actual acceptance journey from a fresh world; a root that disappears while a world is already running; drive-removal runtime behavior; PostgreSQL, provider/model or whole Goal 16. At the #991 cut the canonical worlds root stayed absent throughout, so the fresh-world launch path itself was not exercised end to end *then*; the separate Goal 16 dated addendum below records the later isolated launch/restart. |
 | **#988 graduation evidence binding** | The campaign producer's digest-sealed `benchmark_evidence` becomes the only binding authority: embedded execution id, agent, tenant, workspace and completion time must match; bare identity/dataset/rubric/scope metadata is audit-only; multiple differing records fail closed as `conflict`; bundle enumeration lists bound campaign executions before episode work; v2 receipts bound from bare metadata revalidate as `unresolved_stale` and need a fresh review. A new end-to-end counter test drives producer → canonical validator → review/receipt → promotion → runtime baseline → resolver → real `LLMService`/`BYOKHandler` over `httpx.MockTransport`, with 21 tamper/digest/accuracy/build/receipt/revision/scope/profile/dataset/rubric/scoring/supersession/stale/echo/cooldown/401/concurrency cases. Offline **84** for the migrated plus new files, **231** in the wider graduation neighborhood and **54** decision-contract checks. Merged at `59fa6b64b`; exact head `4459e680d` had all 17 checks successful. | Real served-model quality, an unfamiliar-work qualification, a live campaign, any provider/model call, PostgreSQL, or evidence that the stricter binding improves answer quality. Synthetic campaign journal, in-repo registry and fake transport only. |
 | **#989 CI lineage-preserving lanes** | Four backend core lanes (19 / 20 / 14 / 26 post-setup steps) with all 79 existing step dictionaries byte-identical and registered once; `backend-tests` still needs all six backend lanes and adds no retry/skip/soft gate. Local contract run 706 passed. README records an **estimated** 42.6-minute critical lane and +5.7 runner-minutes, with the unmetered M3 caveat and concurrency/queueing limit. Merged at `ba66f5e22`; exact PR head `0e1b9065e` had all 17 checks successful. | Any measured speedup or app latency; the runtime behavior of the product merges it now schedules; Goal 17. Its main Docker and CI runs later completed successfully, but that is delivery, not application latency. |
 | **#986 task-profile isolation** | Product/tests at #986; root independently ran the six whole policy files plus CI preservation and quickstart contracts: **737 passed**; wider five-file set **281 passed / 1 failed**, the failure reproducing on unchanged main; all 251 original assertions preserved. Real-entry isolation covers both `GenericAgent.execute` and `WorkflowEngine._run_execution` plus the dict-scoped meta entry. | PostgreSQL or multi-worker; any live app entry observed hitting the double builder fault; reviewer approval path; browser/UI; model quality. SQLite and synthetic fault injection only. |
@@ -329,9 +363,11 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
   drift cases are **not** real served-model quality, a live campaign or a
   graduation quality improvement.
 - #991's 103 focused offline storage-preflight tests (including the 29-test
-  launcher file) are **not** browser, login or restart acceptance, and the
-  canonical worlds root stayed absent, so the fresh-world launch path was not
-  exercised end to end.
+  launcher file) are **not** browser, login or restart acceptance. At that
+  dated cut the canonical worlds root stayed absent and the fresh-world launch
+  path was not exercised end to end; the later Goal 16 pass below does exercise
+  an isolated provisioned store plus a same-world restart, bounded to SQLite
+  and loopback.
 - #987's 1,483-test pre-merge replay, its feature-patch equivalence and its
   17/17 checks are **not** a broad replay at the integrated head, and not a
   live database, provider/model, browser, restart, PostgreSQL or whole-app
@@ -361,24 +397,56 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
   checks plus the local repair controls; there is no broad replay at the
   merged tree, and the post-merge main CI `44201417963` and Docker
   `44201418036` were pending as of the merge.
+- #994 is **merged** at `d701872` (tree `fa66625`, sole parent `a33e8d8ab`,
+  exact head `b57be40f5`, 17/17 checks). Its **520 synthetic browser
+  assertions** and **34 acceptance cases**, the 49 selected tests and 692
+  CI-contract checks are **not** a compliance certification, a broader
+  audit-integrity proof, a live-model result or whole-goal/whole-app
+  acceptance. The original verifier failure is retained as an obsolete
+  latency assertion; the immutable run summary still says `failed`, and the
+  1,501 ms captured request hold is not UX latency.
+- #995 is **merged** at `160621dfa` (tree `999135d`, sole parent `d701872`,
+  exact head `5d9ced7e8`, 17/17 checks including GitGuardian). Its unchanged
+  **18/18** synthetic legacy campaign and **162** focused/adjacent tests are
+  **not** ordinary UI/browser, live-model, cloud, PostgreSQL/multi-worker,
+  connector/org-bundle or whole-goal acceptance. Only the producer's own
+  persisted `upload:` locator is classified, after the existing scope and
+  index-freshness checks; a caller-asserted `upload:` path cannot exempt a
+  blank row, and materialized uploads keep local-file/hash checks. The earlier
+  **5 PASS / 7 FAIL / 6 NOT EVALUATED** record stays a failure at its own
+  baseline. Post-merge CI `44239946831` and Docker `44239946783` were pending
+  at the cut.
+- #993 is **merged** at `a33e8d8ab` (tree `a69fc37d3`, exact head
+  `3ae4a03c4`, 17/17 checks). Its **18/18** ordinary-upload campaign is the
+  **normal `/api/documents/upload` route only**; it is **not** evidence that
+  the legacy text-only ingestion route is repaired, assignable or released.
+  The prior **5 PASS / 7 FAIL / 6 NOT EVALUATED** legacy campaign remains a
+  negative, its replay remains unadjudicated, and no claim is made that every
+  TASK-WAIT branch is supported. The post-merge CI passed only on attempt 2,
+  which is delivery, not application performance.
 - #981's single-revision PostgreSQL 14.24 run is **not** migration breadth,
   full-graph upgrade, app-on-PostgreSQL or concurrency.
 - #982 timing output and #989 lane partitioning are **delivery and observability**,
   not application performance, throughput or Goal 17; #989's lane budget is
   explicitly an estimate and no speedup is claimed.
 - The frozen documentation inventory is **not** DOCS-REF-01 closure.
-- The only open PR candidate in the dated queue is the
+- The only open PR candidate in the dated #990 queue is the
   integrated-but-unmerged `76a3bbc15` audit mapping at `72f9a8ba`; it carries
   no acceptance, even though root reports 83 audit checks and the core2 run
   reached member login, the mount and two 200 reads. #990's `a84de131` head is
   no longer an open candidate: it is merged as `a7eccddb`, but a merge and a
   scoped correction/compat suite are not broad or whole-goal acceptance.
+  (**Later dated fact:** the merged #994 audit/Learning implementation
+  supersedes that candidate's surface; the candidate record stays unmerged and
+  unaccepted as written.)
 - The TASK-WAIT-01 revocation contract pass (1 test) and the campaign's 5 PASS
   / 7 FAIL / 6 NOT EVALUATED result are **not** ordinary-UI, ordinary-route
   revocation, independent-progress, current-model or whole-goal acceptance.
-  The campaign's failures stay failures; its unrun checks stay unmeasured, and
-  the source-representation diagnosis plus ordinary-route replay remain
-  pending.
+  The campaign's failures stay failures; its unrun checks stay unmeasured.
+  #995 later resolves the producer's own persisted index-only locator, but the
+  separately prepared ordinary `/api/documents/upload` replay remains
+  unexecuted, and connector/org-bundle locators, ordinary UI and live models
+  remain unadjudicated.
 
 Account deletion is a separately inferred possible improvement, not an original
 143-claim requirement or an added completion gate for Goal 1.
@@ -403,14 +471,22 @@ Account deletion is a separately inferred possible improvement, not an original
   published.
 - #989 did not edit, merge, split or deselect a test step and did not change
   branch protection; its contract suite proves preservation, not runtime speed.
-- #987, #988, #990 and #991 are recorded as merged deliveries with their own
-  bounded limits; their addition revises no original claim, goal state, audit
-  byte or the historical **111/123** result. #987's 1,424/59 broader-gate
-  failure is preserved as a real failed run; its later tests-only fixture
-  repair and the 1,483-pass replay do not erase it. #990's older `85fbd6357`
-  hosted guided-duplicate failure and the local repair's 7 identical wider-sweep
-  failures stay preserved; merging the repaired head does not erase either. The
-  audit/learning browser attempts, replay2's sign-in pass, the
+- #987, #988, #990, #991, #993, #994 and #995 are recorded as merged
+  deliveries with their own bounded limits; their addition revises no original
+  claim, goal state, audit byte or the historical **111/123** result.
+  #987's 1,424/59 broader-gate failure is preserved as a real failed run; its
+  later tests-only fixture repair and the 1,483-pass replay do not erase it.
+  #990's older
+  `85fbd6357` hosted guided-duplicate failure and the local repair's 7 identical
+  wider-sweep failures stay preserved; merging the repaired head does not erase
+  either. #994's original verifier failure stays recorded as the obsolete
+  latency assertion, its immutable run summary is not rewritten, and all 42
+  original evidence files remain hash-identical. #993's 18/18 is the normal
+  ordinary-upload route; the earlier legacy-ingestion campaign's 5 PASS / 7
+  FAIL / 6 NOT EVALUATED stays a negative on its own baseline, while #995's
+  18/18 applies to the same unchanged campaign after the persisted
+  index-only-locator repair. Neither is ordinary UI or whole-goal acceptance.
+  The audit/learning browser attempts, replay2's sign-in pass, the
   integrated-but-unmerged `76a3bbc15` mapping and the partial `audit-core2`
   mount contribute no goal state and no score.
 - The TASK-WAIT-01 campaign's 7 failed and 6 unmeasured checks stay recorded as
@@ -593,3 +669,126 @@ Account deletion is a separately inferred possible improvement, not an original
   original audit JSON is byte-identical; the 143 claim identities, the 18 goal
   rows, the historical **111/123 (90.2%)** result and `app_complete: false` are
   unchanged.
+
+## Navigation refresh at merged #994 (this pass)
+
+- Started from a clean worktree on a fresh branch
+  `codex/readiness-evidence-through-994` at the exact actual main
+  `d701872287b16f1e74b512aa7b81fb40b92fe69a`, tree
+  `fa66625df9423938e190d17c3425ed59d4e4ffb6`, sole parent
+  `a33e8d8ab9352fa59324ebc067772fea4efe24d2` (#993). `origin/main` was
+  verified at that exact commit; branch and base needed no synthetic merge.
+- PR #994 is **merged**, not pending: exact PR head
+  `b57be40f5183c294c91f81e659e1518a7daaf8dd`, all **17** check runs
+  successful, and the squash merge keeps the PR-head tree `fa66625`. The
+  post-merge main CI `44233465790` and Docker `44233465698` were **pending**
+  at this cut, so neither a green nor a failure is claimed for them.
+  Receipts: `/private/tmp/atom-pr994-final-merge-receipt.json` and
+  `/private/tmp/atom-pr994-qualified-merge-result-20261117.json`.
+- The #994 qualified scope is recorded exactly: **520 browser assertions** and
+  **34 acceptance cases** across the audit and Learning phases, covering
+  evidence download, truthful correction receipt, refusal, revision history,
+  reapproval, restart readback and role boundaries; **49** selected
+  audit/agent-access/header tests and **692** CI-contract checks. The local
+  offline recheck measured the **1,501 ms** browser request hold from captured
+  timestamps (1,338 ms to the pending UI snapshot and 163 ms from snapshot to
+  release). All **42** original evidence files matched their hashes. This is **synthetic browser and persistence evidence only**;
+  broader audit integrity, live models and whole-app completion remain
+  unproven.
+- The original verifier failure is retained, not erased: it is the obsolete
+  `delayed switch report has no recorded latency` assertion. The immutable
+  run summary still says `failed`, and the captured hold is not presented as
+  UX latency or a before/after performance result.
+- PR #993 is also **merged** at `a33e8d8ab` (tree `a69fc37d3`, exact head
+  `3ae4a03c4`, all 17 checks successful). Its isolated ordinary-upload
+  campaign scored **18/18** on the normal `/api/documents/upload` route with a
+  USD 370.00 DOCX, workbook source and matching SHA-256, restart/reconciliation
+  without a second send, cancellation and resend protection. Post-merge CI
+  `44217198387` passed on **attempt 2** after the Python 3.11 package download
+  broke attempt 1; Docker `44217198440` passed. The legacy text-only ingestion
+  route, its replay and the prior **5 PASS / 7 FAIL / 6 NOT EVALUATED** negative
+  remain separate and unadjudicated; no legacy repair, assignability or
+  all-branch TASK-WAIT support is claimed.
+- Sources read for this pass: this work order, the scoped readiness brief,
+  the #993/#994 merge receipts and qualified-result JSON, the audit verifier
+  adjudication and hold-verifier summaries, the CI-selection summary, the
+  workbook PR body and the legacy-ingestion contract summary. No GitHub query,
+  browser, build, test run, app/server, provider/model call, PostgreSQL
+  cluster, credential, live data, install, deployment or push was made.
+- Scope of this pass: **documentation only**. No product, CI, test, schema,
+  policy, app or configuration byte changed. The original audit JSON is
+  byte-identical; the 143 claim identities, 18 goal rows, historical
+  **111/123 (90.2%)** and `app_complete: false` are unchanged.
+
+## Goal 16 isolated fresh launch and same-world restart (dated addendum)
+
+- **What passed:** on a detached, clean, exact main
+  `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994, tree
+  `fa66625df9423938e190d17c3425ed59d4e4ffb6`), the shipped provisioner created
+  the isolated store. A separate command built the production Next frontend with webpack. The documented
+  `launch_integrated_local_candidate.sh` then started the backend on loopback
+  `8071` and the frontend on `3130` using the launcher guard and a scratch
+  **SQLite** store. Real HTTP sign-in and a synthetic task create went through
+  frontend-facing routes; both processes shut down and released their ports;
+  the launcher restarted both, and an authenticated task read returned the
+  **same task ID and title** after signing in again. The runtime source stayed
+  clean at `d701872287b1`, the backend instance/child PID changed, the secret hash and
+  marker creation stayed stable, and the canonical store was untouched.
+  The build and replay both exited successfully. The local verification
+  receipt is `/private/tmp/atom-fresh-store-qa.KShIJm/launch-verification.json`.
+- **Retained first attempt:** a separate earlier child world also launched,
+  signed in and created a task, then was correctly refused a restart because
+  the verifier waited only for closed ports while the isolated backend PID was
+  still exiting. Its logs and world are kept, and the verifier now waits for
+  process exit before the official restart, which then passed.
+- **Limits:** **SQLite and loopback with existing dependencies only.** This is
+  not browser-interaction, true-deployment, PostgreSQL, cloud/model or
+  portable-drive-removal evidence. Goal 16 remains **open**, and #995 status
+  and CI are unchanged and not claimed here.
+
+## Navigation refresh at merged #995 (this pass)
+
+- PR #995 merged into main at `160621dfa898ff1d17e749606d41ec3721629b3a`, tree
+  `999135d242a36e7221764a580503b2f7553f3dc6`, sole parent
+  `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994), exact PR head
+  `5d9ced7e865d32ef889a263e1d4103f5e5d4ef91` with all **17** exact-head
+  checks successful, including GitGuardian. The merge tree equals the exact
+  PR-head tree.
+- #995 classifies only the legacy ingestion producer's own persisted
+  index-only locator (`upload:<name>`) and only after the existing
+  workspace/tenant, principal, row-freshness and
+  `current_extraction_revision(indexed, authoritative, accepted)` checks.
+  A caller-asserted `upload:` path cannot exempt a row whose persisted
+  locator is blank; materialized uploads keep `os.path.isfile` and binary-hash
+  checks; connector and org-bundle locators remain unclassified; there is no
+  missing-extraction fallback.
+- Evidence at that source: the unchanged synthetic campaign scored **18/18**
+  on the exact legacy `/api/document-ingestion/upload` lane, with the correct
+  **USD 370.00** DOCX, workbook source and matching SHA-256, restart and
+  reconciliation without a second send, and cancellation/resend protection;
+  **162** focused/adjacent tests passed on the byte-identical patch. This is
+  **synthetic campaign and offline test evidence only**; no cloud, model or
+  browser effect is assumed.
+- The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** campaign remains the
+  failure record on its earlier baseline. #995 adjudicates neither ordinary
+  UI/browser behavior, live models, connector/org-bundle locators, nor every
+  TASK-WAIT branch.
+- Post-merge main CI `44239946831` and Docker `44239946783` were **pending**
+  at the observed cut, so no green or failure is claimed. Predecessor #994's
+  main CI `44233465790` and Docker `44233465698`, pending at its own cut, have
+  since passed.
+- This local follow-up also contains a **test-only Disconnect regression** in
+  `backend/tests/test_task_wait_source_revocation.py`: it mounts the shipped
+  OAuth router and exercises `DELETE /api/v1/auth/oauth/tokens/microsoft`
+  while a quote task waits, asserting persisted revocation and the
+  `source_permission_revoked` 403 before any read/quote, with no provider call.
+  That test change is **not merged** at the observed cut and earns no
+  shipped-route or goal credit; the historical merged-main revocation record
+  stays a direct `IntegrationToken.status` row mutation.
+- Scope of this pass: **documentation only** — no app, server, browser, test
+  run, provider/model call, PostgreSQL cluster, credential, live data,
+  install, deployment, network query or push. No product, CI, test, schema or
+  configuration byte changed by this pass. The original audit JSON is
+  byte-identical; the 143 claim identities, 18 goal rows, status/counts,
+  historical **111/123 (90.2%)**, earlier negatives and `app_complete: false`
+  are unchanged.
