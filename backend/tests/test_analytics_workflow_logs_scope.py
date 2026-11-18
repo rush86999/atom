@@ -40,6 +40,12 @@ PAYLOAD_MARKERS = (
     "SECRET-ORPHAN-RESULTS",
     "SECRET-MISMATCH-TRIGGER",
     "SECRET-MISMATCH-RESULTS",
+    "SECRET-HISTORICAL-TRIGGER",
+    "SECRET-HISTORICAL-RESULTS",
+    "SECRET-HISTORICAL-TENANT-TRIGGER",
+    "SECRET-HISTORICAL-TENANT-RESULTS",
+    "SECRET-HISTORICAL-WORKSPACE-TRIGGER",
+    "SECRET-HISTORICAL-WORKSPACE-RESULTS",
 )
 
 PAYLOAD_FIELDS = {
@@ -69,12 +75,28 @@ def db():
             session.rollback()
             session.query(WorkflowExecutionLog).filter(
                 WorkflowExecutionLog.step_id.in_(
-                    ("step-alice", "step-bob", "step-orphan", "step-mismatch")
+                    (
+                        "step-alice",
+                        "step-bob",
+                        "step-orphan",
+                        "step-mismatch",
+                        "step-alice-historical",
+                        "step-historical-foreign-tenant",
+                        "step-historical-foreign-workspace",
+                    )
                 )
             ).delete(synchronize_session=False)
             session.query(WorkflowExecution).filter(
                 WorkflowExecution.execution_id.in_(
-                    ("exec-alice-1", "exec-bob-1", "exec-legacy", "exec-t1-nouser")
+                    (
+                        "exec-alice-1",
+                        "exec-bob-1",
+                        "exec-legacy",
+                        "exec-t1-nouser",
+                        "exec-alice-historical",
+                        "exec-historical-foreign-tenant",
+                        "exec-historical-foreign-workspace",
+                    )
                 )
             ).delete(synchronize_session=False)
             session.query(User).filter(User.id.in_(
@@ -159,6 +181,104 @@ def log_seeded(db, seeded):
     )
     db.commit()
     return {**seeded, "base": base}
+
+
+@pytest.fixture
+def historical_scope_seeded(db, log_seeded):
+    """Historical rows whose durable scope lives only in ``context.variables``.
+
+    The old physical ``tenant_id`` column is NULL on these rows.  Alice's row
+    is an owner read in her supported tenant/workspace scope; the other rows
+    carry a foreign tenant or workspace and must still be rejected per row.
+    """
+    from core.models import WorkflowExecution, WorkflowExecutionLog
+
+    base = datetime(2026, 1, 1, 12, 0, 0)
+    db.add_all(
+        [
+            WorkflowExecution(
+                execution_id="exec-alice-historical",
+                workflow_id="wf-alice-historical",
+                status="COMPLETED",
+                context=json.dumps({
+                    "variables": {
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "default",
+                    },
+                    "results": {"body": "SECRET-HISTORICAL-RESULTS"},
+                }),
+                user_id="user-alice",
+                owner_id="user-alice",
+                tenant_id=None,
+            ),
+            WorkflowExecution(
+                execution_id="exec-historical-foreign-tenant",
+                workflow_id="wf-historical-foreign",
+                status="COMPLETED",
+                context=json.dumps({
+                    "variables": {
+                        "tenant_id": "tenant-2",
+                        "workspace_id": "default",
+                    },
+                    "results": {"body": "SECRET-HISTORICAL-TENANT-RESULTS"},
+                }),
+                user_id="user-bob",
+                owner_id="user-bob",
+                tenant_id=None,
+            ),
+            WorkflowExecution(
+                execution_id="exec-historical-foreign-workspace",
+                workflow_id="wf-historical-foreign",
+                status="COMPLETED",
+                context=json.dumps({
+                    "variables": {
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "other",
+                    },
+                    "results": {"body": "SECRET-HISTORICAL-WORKSPACE-RESULTS"},
+                }),
+                user_id="user-bob",
+                owner_id="user-bob",
+                tenant_id=None,
+            ),
+        ]
+    )
+    db.add_all(
+        [
+            WorkflowExecutionLog(
+                workflow_id="wf-alice-historical",
+                execution_id="exec-alice-historical",
+                step_id="step-alice-historical",
+                status="COMPLETED",
+                duration_ms=55,
+                created_at=base,
+                trigger_data={"token": "SECRET-HISTORICAL-TRIGGER"},
+                results={"body": "SECRET-HISTORICAL-RESULTS"},
+            ),
+            WorkflowExecutionLog(
+                workflow_id="wf-historical-foreign",
+                execution_id="exec-historical-foreign-tenant",
+                step_id="step-historical-foreign-tenant",
+                status="COMPLETED",
+                duration_ms=66,
+                created_at=base + timedelta(seconds=1),
+                trigger_data={"token": "SECRET-HISTORICAL-TENANT-TRIGGER"},
+                results={"body": "SECRET-HISTORICAL-TENANT-RESULTS"},
+            ),
+            WorkflowExecutionLog(
+                workflow_id="wf-historical-foreign",
+                execution_id="exec-historical-foreign-workspace",
+                step_id="step-historical-foreign-workspace",
+                status="COMPLETED",
+                duration_ms=77,
+                created_at=base + timedelta(seconds=2),
+                trigger_data={"token": "SECRET-HISTORICAL-WORKSPACE-TRIGGER"},
+                results={"body": "SECRET-HISTORICAL-WORKSPACE-RESULTS"},
+            ),
+        ]
+    )
+    db.commit()
+    return {"base": base}
 
 
 @pytest.fixture
@@ -268,6 +388,42 @@ def test_orphan_and_mismatched_ids_never_authorize(client, route):
     assert permitted.status_code == 200, permitted.text
     assert {item["step_id"] for item in _items(permitted)} == {"step-alice"}
     _assert_no_payload_leak(permitted)
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_historical_context_only_owner_scope_is_readable(
+    client, historical_scope_seeded, route
+):
+    # The execution's physical tenant column is NULL; its durable scope is the
+    # caller's tenant/workspace in context.variables.  This historical read must
+    # survive the SQL pre-filter and still return metadata only.
+    _auth(client, "user-alice")
+    response = _logs(client, "wf-alice-historical", route)
+    assert response.status_code == 200, response.text
+
+    items = _items(response)
+    assert {item["step_id"] for item in items} == {"step-alice-historical"}
+
+    for item in items:
+        assert REQUIRED_METADATA <= set(item), (
+            f"missing metadata keys: {REQUIRED_METADATA - set(item)}"
+        )
+        leaked_fields = PAYLOAD_FIELDS & set(item)
+        assert not leaked_fields, (
+            f"metadata-only contract violated by fields: {leaked_fields}"
+        )
+
+    _assert_no_payload_leak(response)
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_historical_context_scope_mismatch_never_authorizes(
+    client, historical_scope_seeded, route
+):
+    # Context-only rows are candidate rows for the pre-filter, but a foreign
+    # tenant or workspace must still fail the authoritative per-row gate.
+    _auth(client, "user-alice")
+    _assert_no_visible_receipts(_logs(client, "wf-historical-foreign", route))
 
 
 @pytest.mark.parametrize("route", ROUTES)

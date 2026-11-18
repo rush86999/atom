@@ -41,6 +41,9 @@ router = APIRouter(prefix="/analytics", tags=["Workflow DNA"])
 workflow_logs_router = APIRouter(tags=["Workflow Logs"])
 
 MAX_LOG_LIMIT = 200
+# Bound how many joined log/execution rows are buffered while scanning for
+# rows that pass the authoritative per-row check.
+LOG_SCAN_BATCH = 100
 
 
 class OptimizeRequest(BaseModel):
@@ -106,18 +109,34 @@ def _log_scope_filter(user: Any, workflow_id: str):
     )
     tenant_id = str(_caller_scope(user).get("tenant_id") or "")
 
+    # Historical executions can predate the physical tenant column.  Their
+    # durable tenant/workspace scope still lives in ``context.variables`` and
+    # is resolved by ``_row_server_scope`` in the per-row check.  Include those
+    # rows in the pre-filter so they are not silently dropped; this is not an
+    # authorization grant, because ``_authorize_log_execution`` still verifies
+    # the authoritative scope (or owner, for legacy) for every yielded row.
+    missing_physical_tenant = WorkflowExecution.tenant_id.is_(None)
+
     if kind == "generated":
         # Generated rows are owner-bound; the shared helper checks the
         # definition tenant/workspace per row below.
         return owner_match
     if kind == "legacy":
         if tenant_id:
-            return or_(owner_match, WorkflowExecution.tenant_id == tenant_id)
+            return or_(
+                owner_match,
+                WorkflowExecution.tenant_id == tenant_id,
+                missing_physical_tenant,
+            )
         return owner_match
     # Unknown definition authority: only a server-bound tenant row is a
     # positive grant.  Never treat "unknown" as implicit legacy authority.
+    # Context-only historical rows are still checked per row below.
     if tenant_id:
-        return WorkflowExecution.tenant_id == tenant_id
+        return or_(
+            WorkflowExecution.tenant_id == tenant_id,
+            missing_physical_tenant,
+        )
     return false()
 
 
@@ -217,6 +236,9 @@ def get_workflow_logs(
             WorkflowExecutionLog.created_at.desc(),
             WorkflowExecutionLog.id.desc(),
         )
+        # Historical context-only rows may widen the candidate set; stream it
+        # in bounded batches instead of eagerly materializing every join.
+        .yield_per(LOG_SCAN_BATCH)
     )
 
     rows: List[Dict[str, Any]] = []
