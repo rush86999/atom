@@ -14,6 +14,23 @@ had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
 
+## Release facts at this cut — merged #996
+
+[PR #996](https://github.com/rush86999/atom/pull/996) merged into main at
+`dac04463c4e3c5621bd083a7f2b6fe2a012b27a5`, with sole parent `160621dfa898ff1d17e749606d41ec3721629b3a`. The merged tree
+`35c9e6d19f0f14163f838eea5d1079b5491e584f` matches the exact PR head `463cd4b14073a4d6da523410add30f034f8233d6`, where all 17 checks passed.
+The release contains the readiness refresh and the test-only Microsoft
+disconnect regression. That regression exercises the mounted API with
+fixture authentication. Live OAuth and a browser disconnect remain open.
+
+[Main CI 44247328140](https://github.com/rush86999/atom/actions/runs/44247328140)
+and [Docker 44247328218](https://github.com/rush86999/atom/actions/runs/44247328218)
+were in progress at this observation. Both #995 post-merge runs have passed.
+
+The [Goal 3 retrieval record](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-3)
+adds source-bound lexical, restart, deletion, semantic and citation evidence
+from merged #995. The first-launch admin semantic miss remains open.
+
 ## Release facts at this cut — merged #995
 
 | Fact | Actual source |
