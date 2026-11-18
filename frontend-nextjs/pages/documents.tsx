@@ -204,8 +204,14 @@ export default function DocumentsPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         e.preventDefault();
-        if (e.target.files && e.target.files[0]) {
-            handleFile(e.target.files[0]);
+        // A native file input keeps its selection, and choosing the same file
+        // again does not fire `change`. Capture the File first, then clear the
+        // input so a retry of the same file is selectable after a rejection.
+        // The upload uses the captured File, not the input's current value.
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (file) {
+            void handleFile(file);
         }
     };
 
