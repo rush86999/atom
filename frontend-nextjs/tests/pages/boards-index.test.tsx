@@ -1,8 +1,9 @@
 /**
  * BoardsListPage tests (pages/boards/index.tsx, was 0% coverage)
  *
- * Covers: loading / list / empty states, board card links, and the
- * create-board flow (open, enter key, validation, submit, pending state).
+ * Covers: loading / list / empty states, board card links, the create-board
+ * flow (open, enter key, validation, submit, pending state), and failed-load
+ * rendering with retry + recovery (including cached data during an error).
  */
 
 import React from "react";
@@ -17,6 +18,7 @@ import BoardsListPage from "@/pages/boards/index";
 const mockUseBoards = jest.fn();
 const mockUseCreateBoard = jest.fn();
 const mockMutateAsync = jest.fn();
+const mockRefetch = jest.fn();
 
 jest.mock("@/hooks/useBoard", () => ({
   useBoards: () => mockUseBoards(),
@@ -36,9 +38,17 @@ const BOARDS = [
 describe("BoardsListPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseBoards.mockReturnValue({ data: BOARDS, isLoading: false });
+    mockUseBoards.mockReturnValue({
+      data: BOARDS,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mockRefetch,
+      isFetching: false,
+    });
     mockUseCreateBoard.mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
     mockMutateAsync.mockResolvedValue({ id: "b3" });
+    mockRefetch.mockResolvedValue({ data: BOARDS });
   });
 
   test("shows the loading state", () => {
@@ -123,5 +133,75 @@ describe("BoardsListPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /New Board/ }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByPlaceholderText(/Board name/)).not.toBeInTheDocument();
+  });
+
+  test("shows an accessible error with a retry action instead of the empty state", () => {
+    mockUseBoards.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error("listBoards failed: 500"),
+      refetch: mockRefetch,
+      isFetching: false,
+    });
+
+    render(<BoardsListPage />);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/Couldn't load boards/);
+    expect(alert).toHaveTextContent("listBoards failed: 500");
+    expect(screen.queryByText(/No boards yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mockRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps cached boards during an error and renders the recovered results", async () => {
+    const recovered = [
+      {
+        id: "b9",
+        name: "Recovered Board",
+        description: "Fetched after retry",
+        created_at: "2026-08-03T12:00:00Z",
+      },
+    ];
+
+    mockUseBoards.mockReturnValue({
+      data: BOARDS,
+      isLoading: false,
+      isError: true,
+      error: new Error("The user aborted a request."),
+      refetch: mockRefetch,
+      isFetching: false,
+    });
+
+    const { rerender } = render(<BoardsListPage />);
+
+    // Stale data is still useful: keep it visible, but surface the failure.
+    expect(screen.getByRole("alert")).toHaveTextContent(/Couldn't load boards/);
+    expect(screen.getByText("Sprint 14")).toBeInTheDocument();
+    expect(screen.queryByText(/No boards yet/)).not.toBeInTheDocument();
+
+    mockRefetch.mockImplementation(async () => {
+      mockUseBoards.mockReturnValue({
+        data: recovered,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+        isFetching: false,
+      });
+      return { data: recovered };
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(mockRefetch).toHaveBeenCalledTimes(1));
+
+    rerender(<BoardsListPage />);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Recovered Board")).toBeInTheDocument();
+    expect(screen.queryByText("Sprint 14")).not.toBeInTheDocument();
   });
 });

@@ -328,29 +328,87 @@ async def get_accounting_dashboard_summary(
     """
     Fetch aggregated finance stats from Postgres Cache (Sync Strategy).
     Aggregates data from Stripe, Xero, etc.
+
+    Scope comes from the authenticated principal's persisted workspace binding,
+    never from request input. Only the server-owned bootstrap identity — which
+    bootstrap intentionally creates with NULL scope — falls back to the
+    Personal workspace; every other unbound account fails closed before the
+    query runs.
+
+    ``metric_availability`` reports, per metric, whether at least one synced
+    row carried a usable finite number. That lets the UI tell a genuine synced
+    zero apart from a metric with no usable synced value.
     """
+    from fastapi import HTTPException, status
+    from core.personal_scope import (
+        DocumentScopeResolutionError,
+        DocumentScopeUnavailable,
+        resolve_document_workspace_id,
+    )
+
     try:
+        workspace_id = resolve_document_workspace_id(current_user)
+    except DocumentScopeUnavailable as exc:
+        logger.warning("Accounting summary denied: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No workspace is bound to this account",
+        ) from exc
+    except DocumentScopeResolutionError as exc:
+        logger.error("Accounting summary workspace lookup failed: %s", exc)
+        raise router.internal_error("Internal error") from exc
+
+    try:
+        import math
         from core.models import IntegrationMetric
 
-        # Query cached metrics
+        # Query cached metrics for the caller's bound workspace only.
         metrics = db.query(IntegrationMetric).filter(
-            IntegrationMetric.workspace_id == "default",
-            IntegrationMetric.metric_key.in_(["total_revenue", "pending_revenue", "gross_profit"])
+            IntegrationMetric.workspace_id == workspace_id,
+            IntegrationMetric.metric_key.in_(["total_revenue", "pending_revenue"])
         ).all()
 
-        total_revenue = 0.0
-        pending_revenue = 0.0
+        def _usable_amount(value: Any) -> Optional[float]:
+            """Finite float for a synced metric value, else None (missing).
+
+            ``None`` is missing data, not zero. Numeric strings such as
+            ``"0"`` are usable zeros; booleans, values that overflow ``float``
+            and NaN/inf are not usable values.
+            """
+            if value is None or isinstance(value, bool):
+                return None
+            try:
+                amount = float(value)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            return amount if math.isfinite(amount) else None
+
+        totals = {"total_revenue": 0.0, "pending_revenue": 0.0}
+        availability = {"total_revenue": False, "pending_revenue": False}
+        unusable = set()
 
         for m in metrics:
-            if m.metric_key == "total_revenue":
-                total_revenue += float(m.value) if m.value else 0.0
-            elif m.metric_key == "pending_revenue":
-                pending_revenue += float(m.value) if m.value else 0.0
+            metric_key = getattr(m, "metric_key", None)
+            if metric_key not in totals or metric_key in unusable:
+                continue
+            amount = _usable_amount(getattr(m, "value", None))
+            if amount is None:
+                continue
+            aggregate = totals[metric_key] + amount
+            if not math.isfinite(aggregate):
+                # The true sum is not representable; never emit NaN/Infinity.
+                totals[metric_key] = 0.0
+                availability[metric_key] = False
+                unusable.add(metric_key)
+                continue
+            totals[metric_key] = aggregate
+            availability[metric_key] = True
 
         return router.success_response(
             data={
-                "total_revenue": total_revenue,
-                "pending_revenue": pending_revenue,
+                "total_revenue": totals["total_revenue"],
+                "pending_revenue": totals["pending_revenue"],
+                "metric_availability": availability,
                 "runway_months": 12, # Placeholder or calc
                 "currency": "USD",
                 "source": "synced_database"

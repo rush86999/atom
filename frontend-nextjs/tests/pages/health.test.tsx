@@ -39,7 +39,7 @@ const DRIFT = {
       latest_price: 1200,
     },
   ],
-  is_mock: true,
+  metadata: { is_mock: true },
 };
 const PRICING = {
   data: [
@@ -50,11 +50,11 @@ const PRICING = {
       target_price: 59,
     },
   ],
-  is_mock: false,
+  metadata: { is_mock: false },
 };
 const WASTE = {
   data: [{ service_name: "Trello", mrr: 24 }],
-  is_mock: false,
+  metadata: { is_mock: false },
 };
 
 const CHURN = {
@@ -82,39 +82,37 @@ const FRAUD = {
   is_mock: false,
 };
 
-const INTERVENTIONS = {
-  interventions: [
-    {
-      id: "i1",
-      type: "URGENT",
-      suggested_action: "send_reminder",
-      title: "Send payment reminder",
-      description: "Follow up with Northwind on the overdue balance.",
-      action_payload: { client: "Northwind" },
-    },
-    {
-      id: "i2",
-      type: "OPPORTUNITY",
-      suggested_action: "upsell",
-      title: "Upsell Pro plan",
-      description: "Offer migration to the Pro plan.",
-      action_payload: {},
-    },
-  ],
-};
+const INTERVENTIONS = [
+  {
+    id: "i1",
+    type: "URGENT",
+    suggested_action: "send_reminder",
+    title: "Send payment reminder",
+    description: "Follow up with Northwind on the overdue balance.",
+    action_payload: { client: "Northwind" },
+  },
+  {
+    id: "i2",
+    type: "OPPORTUNITY",
+    suggested_action: "upsell",
+    title: "Upsell Pro plan",
+    description: "Offer migration to the Pro plan.",
+    action_payload: {},
+  },
+];
 
 const okJson = (body: any) => ({ ok: true, json: async () => body });
 const errJson = { ok: false, status: 500, json: async () => ({}) };
 
 const emptyData = () => ({
-  drift: { data: [], is_mock: false },
-  pricing: { data: [], is_mock: false },
-  waste: { data: [], is_mock: false },
+  drift: { data: [], metadata: { is_mock: false } },
+  pricing: { data: [], metadata: { is_mock: false } },
+  waste: { data: [], metadata: { is_mock: false } },
   churn: { churn_risk: [], vip_opportunities: [], is_mock: false },
   alerts: { ar_alerts: [], is_mock: false },
   fraud: { anomalies: [], is_mock: false },
   priorities: { owner_advice: null, priorities: [] },
-  interventions: { interventions: [] },
+  interventions: [],
 });
 
 function routeFetch(
@@ -128,7 +126,7 @@ function routeFetch(
       if (url.includes(needle)) return Promise.resolve(response);
     }
     if (url.includes("/business-health/priorities")) {
-      return Promise.resolve(okJson(d.priorities));
+      return Promise.resolve(okJson({ success: true, data: d.priorities, timestamp: "2026-11-18T00:00:00Z" }));
     }
     if (url.includes("/forensics/price-drift")) {
       return Promise.resolve(okJson(d.drift));
@@ -149,7 +147,7 @@ function routeFetch(
       return Promise.resolve(okJson(d.fraud));
     }
     if (url.includes("/interventions/generate")) {
-      return Promise.resolve(okJson(d.interventions));
+      return Promise.resolve(okJson({ success: true, data: d.interventions, timestamp: "2026-11-18T00:00:00Z" }));
     }
     if (url.includes("/simulate")) {
       return Promise.resolve(
@@ -285,6 +283,37 @@ describe("BusinessHealthDashboard", () => {
     expect(screen.getByText("Northwind")).toBeInTheDocument();
   });
 
+  it("does not render the hard-coded business vitals", async () => {
+    routeFetch(mockFetch, fullData());
+    render(<BusinessHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Chase overdue invoices")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Business Vitals")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cash Runway")).not.toBeInTheDocument();
+    expect(screen.queryByText("Margin Health")).not.toBeInTheDocument();
+    expect(screen.queryByText("Staff Utilization")).not.toBeInTheDocument();
+  });
+
+  it("shows a truthful unavailable state when priorities fails (no perpetual loading)", async () => {
+    routeFetch(mockFetch, fullData(), { "/business-health/priorities": errJson });
+    render(<BusinessHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Priorities unavailable.")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('"Business priorities are temporarily unavailable."')
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Everything is running smoothly.")).not.toBeInTheDocument();
+    expect(screen.queryByText('"Analyzing business vitals..."')).not.toBeInTheDocument();
+    // Unrelated live sections still render.
+    expect(screen.getByText("Send payment reminder")).toBeInTheDocument();
+    expect(screen.getByText("Northwind")).toBeInTheDocument();
+  });
+
   it("runs a strategic simulation and renders the report", async () => {
     routeFetch(mockFetch, fullData());
     render(<BusinessHealthDashboard />);
@@ -322,9 +351,9 @@ describe("BusinessHealthDashboard", () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("/simulate")) return Promise.reject(new Error("boom"));
       if (url.includes("/interventions/generate")) {
-        return Promise.resolve(okJson({ interventions: [] }));
+        return Promise.resolve(okJson({ success: true, data: [] }));
       }
-      return Promise.resolve(okJson(PRIORITIES));
+      return Promise.resolve(okJson({ success: true, data: PRIORITIES }));
     });
     render(<BusinessHealthDashboard />);
 

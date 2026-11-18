@@ -4,6 +4,7 @@ Unit Tests for Unified Search (LanceDB)
 Tests for the unified search endpoints and LanceDB integration.
 """
 
+import asyncio
 import os
 import pytest
 from unittest.mock import patch, Mock
@@ -14,7 +15,8 @@ from core.unified_search_endpoints import (
     SearchRequest,
     SearchFilters,
     SearchResult,
-    SearchResponse
+    SearchResponse,
+    hybrid_search,
 )
 
 
@@ -222,3 +224,197 @@ class TestHealthEndpoint:
         """Test health check when search is disabled"""
         # When disabled, should return disabled status
         assert os.getenv('ATOM_DISABLE_LANCEDB') == 'true'
+
+
+class _Actor:
+    """Minimal authenticated principal used by the endpoint tests."""
+
+    def __init__(
+        self,
+        *,
+        user_id="user-fk-1",
+        workspace_id="ws-fk-1",
+        workspaces=None,
+        email="member@example.com",
+        tenant_id="tenant-1",
+    ):
+        self.id = user_id
+        self.workspace_id = workspace_id
+        self.workspaces = [] if workspaces is None else workspaces
+        self.email = email
+        self.tenant_id = tenant_id
+
+
+class _BrokenBindingActor:
+    """Authenticated principal whose workspace relationship cannot be read."""
+
+    id = "user-broken-1"
+    workspace_id = None
+    tenant_id = None
+    email = "member@example.com"
+
+    @property
+    def workspaces(self):
+        raise RuntimeError("workspace binding store unavailable")
+
+
+class _FakeSearchHandler:
+    """Stand-in for the real handler, including its loop-thread embed guard.
+
+    ``LanceDBHandler.search`` embeds the query synchronously through
+    ``embed_text``; on the event-loop thread that guard returns ``None`` and
+    the search degrades to ``[]``. Reproducing it here makes the positive
+    regression fail if the endpoint stops calling search off-loop.
+    """
+
+    def __init__(self, results=None):
+        self.db = object()
+        self._results = list(results or [])
+        self.search_calls = []
+        self.ran_off_loop = None
+
+    def _ensure_db(self):
+        return None
+
+    def _ensure_embedder(self):
+        return None
+
+    def search(self, table_name, query, limit=10, filter_str=None,
+               user_id=None, **_kwargs):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self.ran_off_loop = True
+        else:
+            self.ran_off_loop = False
+            return []
+
+        self.search_calls.append({
+            "table_name": table_name,
+            "query": query,
+            "limit": limit,
+            "filter_str": filter_str,
+            "user_id": user_id,
+        })
+        return list(self._results)
+
+
+_MARKER = "SYNTHETIC-UNIFIED-SEARCH-KEY-4F19"
+
+
+def _marker_row():
+    return {
+        "id": "doc_synthetic_marker",
+        "text": f"synthetic markdown body {_MARKER}",
+        "score": 0.91,
+        "source": "upload:synthetic-marker.md",
+        "metadata": {
+            "title": "synthetic-marker.md",
+            "doc_type": "document",
+        },
+    }
+
+
+class TestHybridSearchAuthenticatedScopeRegression:
+    """Regression coverage for the signed-in zero-results failure.
+
+    Runtime evidence: an ordinary signed-in account uploaded a synthetic
+    Markdown document (HTTP 200, visible in Documents, SQL mirror written),
+    then an exact-marker hybrid search returned success=true with zero raw
+    results. Two independent causes are covered:
+
+      1. FK-only accounts were routed to ``default_shared`` instead of the
+         authoritative ``users.workspace_id`` store that upload wrote.
+      2. ``handler.search`` ran on the event loop, where the synchronous
+         embed guard yields ``None`` and every search becomes empty.
+    """
+
+    def test_fk_only_actor_searches_authoritative_workspace_off_loop(self):
+        actor = _Actor(workspace_id="ws-fk-1", workspaces=[])
+        handler = _FakeSearchHandler([_marker_row()])
+
+        with patch(
+            "core.unified_search_endpoints.get_lancedb_handler",
+            return_value=handler,
+        ) as factory:
+            response = asyncio.run(hybrid_search(
+                SearchRequest(query=_MARKER, search_type="hybrid"),
+                current_user=actor,
+                db=None,
+            ))
+
+        # Upload stores under the FK; search must open that same store.
+        factory.assert_called_once_with("ws-fk-1")
+        assert handler.ran_off_loop is True
+        assert len(handler.search_calls) == 1
+        call = handler.search_calls[0]
+        assert call["table_name"] == "documents"
+        assert call["query"] == _MARKER
+        assert call["user_id"] == actor.id
+        assert call["filter_str"] is None
+
+        assert response.success is True
+        assert response.total_count == 1
+        assert response.query == _MARKER
+        assert response.search_type == "hybrid"
+        assert response.results[0].id == "doc_synthetic_marker"
+        assert response.results[0].title == "synthetic-marker.md"
+        assert _MARKER in response.results[0].content
+
+    def test_body_supplied_scope_cannot_redirect_search(self):
+        actor = _Actor(workspace_id="ws-fk-1", workspaces=[])
+        handler = _FakeSearchHandler([_marker_row()])
+
+        with patch(
+            "core.unified_search_endpoints.get_lancedb_handler",
+            return_value=handler,
+        ) as factory:
+            response = asyncio.run(hybrid_search(
+                SearchRequest(
+                    query=_MARKER,
+                    workspace_id="ws-body-supplied",
+                    user_id="someone-else",
+                    limit=5,
+                ),
+                current_user=actor,
+                db=None,
+            ))
+
+        factory.assert_called_once_with("ws-fk-1")
+        call = handler.search_calls[0]
+        assert call["user_id"] == actor.id
+        assert call["limit"] == 5
+        assert response.success is True
+        assert response.total_count == 1
+
+    def test_unbound_actor_fails_closed_without_touching_the_store(self):
+        actor = _Actor(workspace_id=None, workspaces=[])
+
+        with patch(
+            "core.unified_search_endpoints.get_lancedb_handler",
+        ) as factory:
+            with pytest.raises(HTTPException) as excinfo:
+                asyncio.run(hybrid_search(
+                    SearchRequest(query=_MARKER),
+                    current_user=actor,
+                    db=None,
+                ))
+
+        assert excinfo.value.status_code == 403
+        factory.assert_not_called()
+
+    def test_unreadable_binding_fails_closed_as_retryable(self):
+        actor = _BrokenBindingActor()
+
+        with patch(
+            "core.unified_search_endpoints.get_lancedb_handler",
+        ) as factory:
+            with pytest.raises(HTTPException) as excinfo:
+                asyncio.run(hybrid_search(
+                    SearchRequest(query=_MARKER),
+                    current_user=actor,
+                    db=None,
+                ))
+
+        assert excinfo.value.status_code == 503
+        factory.assert_not_called()
