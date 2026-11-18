@@ -457,7 +457,8 @@ class AgentGovernanceService:
         user_id: str,
         original_output: str,
         user_correction: str,
-        input_context: Optional[str] = None
+        input_context: Optional[str] = None,
+        feedback_tenant_id: Optional[str] = None,
     ) -> AgentFeedback:
         """Submit feedback and trigger continuous learning"""
         agent = self.db.query(AgentRegistry).filter(
@@ -470,6 +471,11 @@ class AgentGovernanceService:
         # Continuous learning keys the agent_learning row on
         # feedback.tenant_id; leaving it NULL failed the NOT NULL insert
         # on EVERY submission, so learning counters never persisted.
+        # ``tenant_id`` is a separate ACCOUNT key from the workspace used for
+        # the agent lookup above. A caller that already resolved the durable
+        # account (the audit correction writer) passes it explicitly; legacy
+        # callers keep the historical workspace/default value so existing
+        # learning rows are not split.
         # Polarity mirrors into the dedicated columns for the same reason:
         # update_from_feedback counts positive/negative via feedback_type
         # ("approval"/"correction"), and the route only carries the raw
@@ -477,7 +483,7 @@ class AgentGovernanceService:
         correction_token = (user_correction or "").strip().lower()
         feedback = AgentFeedback(
             agent_id=agent_id,
-            tenant_id=self.workspace_id or "default",
+            tenant_id=feedback_tenant_id or self.workspace_id or "default",
             user_id=user_id,
             original_output=original_output,
             user_correction=user_correction,

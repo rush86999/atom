@@ -509,6 +509,132 @@ describe('AgentWorkspace trace pipeline', () => {
     );
   });
 
+  // ── F2/F3: correction request + honest verification surfaces ───────────
+  test('report problem form is prefilled and records a REQUEST, not a repair', async () => {
+    mockSubmitStepFeedback.mockResolvedValue({
+      id: 'fb-1',
+      feedback_id: 'fb-1',
+      correction_status: 'recorded',
+      correction_audit_id: 'aud-1',
+      applied: false,
+      verified: false,
+    });
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
+      type: 'agent_step_update',
+      data: {
+        execution_id: 'exec-corr', agent_id: 'atom_main', session_id: 's1',
+        step: {
+          step: 3,
+          thought: 'Send the report',
+          action: 'send_email',
+          observation: 'Sent to wrong recipient',
+          verified: 'unverified',
+          verification_evidence: 'provider receipt: message-id 123',
+        },
+      },
+    });
+
+    // Verification is explicit, not hidden behind a generic success.
+    expect(await screen.findByTestId('step-unverified')).toBeInTheDocument();
+    expect(screen.getByTestId('step-verification-evidence')).toHaveTextContent(
+      'provider receipt: message-id 123'
+    );
+
+    fireEvent.click(screen.getByLabelText('Report a problem'));
+    const form = await screen.findByTestId('step-report-form');
+    expect(form).toHaveTextContent('Step 3');
+    expect(form).toHaveTextContent('send_email');
+    // The task context is prefilled — only the reason is asked for.
+    expect(screen.getByTestId('step-report-reason')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('step-report-detail'), {
+      target: { value: 'wrong recipient' },
+    });
+    fireEvent.click(screen.getByTestId('step-report-submit'));
+
+    await waitFor(() =>
+      expect(mockSubmitStepFeedback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'atom_main',
+          runId: 'exec-corr',
+          executionId: 'exec-corr',
+          stepNumber: 3,
+          subjectStepNumber: 3,
+          correctionRequested: true,
+          correctionReason: 'Wrong action taken',
+          feedbackType: 'thumbs_down',
+        })
+      )
+    );
+    expect(await screen.findByTestId('step-report-result')).toHaveTextContent(
+      'Nothing was applied or verified.'
+    );
+  });
+
+  test('report problem shows honest unsupported status for an unowned run', async () => {
+    mockSubmitStepFeedback.mockRejectedValue({ response: { status: 404 } });
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
+      type: 'agent_step_update',
+      data: {
+        execution_id: 'exec-foreign', agent_id: 'atom_main', session_id: 's1',
+        step: { step: 1, thought: 'Work', action: 'read', observation: 'ok' },
+      },
+    });
+
+    fireEvent.click(screen.getByLabelText('Report a problem'));
+    fireEvent.click(await screen.findByTestId('step-report-submit'));
+
+    expect(await screen.findByTestId('step-report-result')).toHaveTextContent(
+      'not in your authorized audit scope'
+    );
+  });
+
+  test('report problem refuses a live (unpersisted) step without faking a link', async () => {
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
+      type: 'agent_step_update',
+      data: {
+        step: { step: 1, thought: 'Streaming', action: 'read', observation: 'ok' },
+      },
+    });
+
+    fireEvent.click(screen.getByLabelText('Report a problem'));
+    fireEvent.click(await screen.findByTestId('step-report-submit'));
+
+    expect(await screen.findByTestId('step-report-result')).toHaveTextContent(
+      'not stored in a durable run yet'
+    );
+    expect(mockSubmitStepFeedback).not.toHaveBeenCalled();
+  });
+
+  test('report problem does not hide an audit-link write failure', async () => {
+    mockSubmitStepFeedback.mockResolvedValue({
+      id: 'fb-2',
+      feedback_id: 'fb-2',
+      correction_status: 'feedback_recorded_audit_unavailable',
+      correction_audit_id: null,
+      applied: false,
+      verified: false,
+    });
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    wsMock().emit({
+      type: 'agent_step_update',
+      data: {
+        execution_id: 'exec-linkfail', agent_id: 'atom_main', session_id: 's1',
+        step: { step: 1, thought: 'Work', action: 'read', observation: 'ok' },
+      },
+    });
+
+    fireEvent.click(screen.getByLabelText('Report a problem'));
+    fireEvent.click(await screen.findByTestId('step-report-submit'));
+
+    expect(await screen.findByTestId('step-report-result')).toHaveTextContent(
+      'audit link could not be recorded'
+    );
+  });
+
   test('collapsed rail renders, badges unread steps, and expands on click', () => {
     const onToggleCollapsed = jest.fn();
     const { rerender } = renderWithProviders(

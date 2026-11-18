@@ -52,7 +52,7 @@ flowchart TB
 | `backend-core` | The shared-resource cohort: every `sqlite:///test_ci.db` step (S1), every step with no explicit `DATABASE_URL` that resolves to `backend/test_integration.db` (S2), the lane-preservation contract and the remaining un-isolated controls listed in the YAML. It does not run or certify every repository test. |
 | `backend-core-isolated` | The T/U-class core steps that declare their own absolute `runner.temp` state or a unique scratch database filename. `MINI-03` and its real-process record restart stay adjacent here. |
 | `backend-core-extra` | First contiguous shard of the original extra-lane order (15 steps, ending at the shared email-draft controls). |
-| `backend-core-extra-isolated` | Remaining 28 contiguous extra-lane steps, ending with the whole-file generic approved-material consumption controls. |
+| `backend-core-extra-isolated` | Remaining 29 contiguous extra-lane steps, ending with the whole-file generic approved-material consumption controls and the owner-scoped audit evidence and correction controls. |
 | `backend-oracle` | Explicit oracle/governance/consumer boundary selections in the YAML. This does not close whole-app ORACLE coverage. |
 | `backend-docker` | Hosted real-Docker acceptance for reviewed executable skills: the focused unit test plus the full-service service-restart journey. The container path has no host fallback, `ATOM_REQUIRE_DOCKER_SANDBOX=1` makes an unavailable daemon fail, and the step fails closed unless the emitted receipt proves a real `skill_*` container and a durable receipt re-read after the service restart. |
 | `backend-tests` | Aggregate all six backend lanes (`backend-core`, `backend-core-isolated`, `backend-core-extra`, `backend-core-extra-isolated`, `backend-oracle`, `backend-docker`); `always()` plus explicit result checks require every lane to succeed. |
@@ -80,9 +80,10 @@ immutable fixtures (`ci_backend_before_parallel.json`,
   service, action or billing surface.
 - These are arithmetic estimates from step-second sums, **not measured wall
   clocks**. Queueing, runner capacity, cache misses and post-job steps are not
-  included. `backend-core-extra-isolated` includes the unmetered M3 step, so its
-  estimate is a lower bound. If M3 measures large, rebalance the suffix rather
-  than changing a command.
+  included. `backend-core-extra-isolated` includes the unmetered M3,
+  served chat actor-scope and owner-scoped audit steps, so its estimate is a
+  lower bound. If any measures large, rebalance the suffix rather than changing
+  a command.
 - Deployments with a simultaneous-job limit below the new peak will queue and
   invalidate the estimates. The S1/S2 cohorts are deliberately not split; a
   further reduction requires cold-start evidence and a written

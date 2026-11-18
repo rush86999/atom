@@ -46,6 +46,7 @@ const CORE_ROUTE_FALLBACK: Record<string, string> = {
   "/execution-history": "activity",
   "/activity": "activity",
   "/assignments": "activity",
+  "/audit-trail": "activity",
   "/approvals": "approvals",
   "/settings/harness-evolution": "governance",
   "/settings": "settings",

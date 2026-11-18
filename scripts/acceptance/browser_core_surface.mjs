@@ -37,6 +37,7 @@ const CORE_ROUTES = [
   "/agents",
   "/goal-runs",
   "/execution-history",
+  "/audit-trail",
   "/settings",
   "/settings/ai",
   "/settings/account",
@@ -64,7 +65,6 @@ const DEFERRED_ROUTES = [
   "/voice",
   "/admin/users",
   "/admin/settings",
-  "/audit-trail",
   "/dev-studio",
   "/integrations",
   "/team-chat",
@@ -184,7 +184,7 @@ async function visit(page, route, timeout = 45000) {
   for (const r of deferred) {
     if (!r.notInRelease) failures.push(`${r.route}: deferred route rendered`);
   }
-  for (const label of ["Chat", "Data", "Workspace", "Agents", "Activity", "Settings"]) {
+  for (const label of ["Chat", "Data", "Workspace", "Agents", "Activity", "Audit Trail", "Settings"]) {
     if (!navLabels.includes(label)) failures.push(`sidebar missing ${label}`);
   }
   if (ROLE === "member" && navLabels.some((l) => l.startsWith("Approvals"))) {

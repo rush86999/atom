@@ -27,6 +27,7 @@ from core.conversation_learning import (
     apply_confirmed_method,
     apply_lesson_method,
     build_candidate,
+    candidate_history,
     candidate_readiness,
     confirm_candidate,
     derive_dependencies,
@@ -2288,3 +2289,294 @@ def test_guidance_only_lesson_rejects_invalid_artifact_format(db):
     readiness = candidate_readiness(candidate)
     assert readiness["review_ready"] is False
     assert any(dep.kind == "format" for dep in readiness["blocking"])
+
+
+# ---------------------------------------------------------------------------
+# Revision history: read-only projection of the existing ledger
+# ---------------------------------------------------------------------------
+
+def _history(db, candidate_id, **kwargs):
+    payload = {
+        "thread_id": "thread-1",
+        "candidate_id": candidate_id,
+        "workspace_id": "ws-1",
+        "tenant_id": "t-1",
+    }
+    payload.update(kwargs)
+    return candidate_history(db, **payload)
+
+
+def test_revision_history_records_reason_actor_and_before_after(db):
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    revised = revise_candidate(
+        db, candidate, proposed_lesson="Corrected guidance.",
+        expected_revision=1, changed_by="owner@example.com",
+        reason="  Original  named the wrong workbook. ")
+    assert revised.revision == 2
+
+    history = _history(db, candidate.candidate_id)
+    assert history["read_only"] is True
+    # No signature/hash chain exists for this ledger; the reader says so.
+    assert history["signatures"]["present"] is False
+    assert history["coverage"]["history_complete"] is True
+    assert history["coverage"]["total_events"] == 2
+
+    newest, oldest = history["events"]
+    assert newest["kind"] == "learning_candidate_revised"
+    assert newest["revision"] == 2
+    assert newest["status"] == "review_ready"
+    assert newest["actor"] == "owner@example.com"
+    assert newest["actor_role"] == "author"
+    assert newest["reason"] == "Original named the wrong workbook."
+    assert newest["reason_recorded"] is True
+    assert newest["recorded_at"]
+    assert newest["changed_fields"] == ["proposed_lesson"]
+    assert newest["before"]["proposed_lesson"] == "Original guidance."
+    assert newest["after"]["proposed_lesson"] == "Corrected guidance."
+    # The digest is the one recorded at that write, not a recomputation.
+    assert newest["recorded_digest"] == revised.digest
+
+    assert oldest["kind"] == "learning_candidate_created"
+    # Nothing was supplied at creation time, so nothing is invented.
+    assert oldest["reason"] is None
+    assert oldest["reason_recorded"] is False
+    assert oldest["actor"] is None
+    assert oldest["before"] is None
+
+
+def test_revision_history_survives_a_cold_reader(db):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    revise_candidate(
+        db, candidate, proposed_lesson="Corrected guidance.",
+        expected_revision=1, changed_by="owner@example.com",
+        reason="Wrong workbook.")
+
+    warm = _history(db, candidate.candidate_id)
+    cold_engine = create_engine(str(db.get_bind().url))
+    cold = sessionmaker(bind=cold_engine, expire_on_commit=False)()
+    try:
+        cold_history = _history(cold, candidate.candidate_id)
+    finally:
+        cold.close()
+        cold_engine.dispose()
+
+    assert [event["event_id"] for event in cold_history["events"]] == [
+        event["event_id"] for event in warm["events"]]
+    assert [event["revision"] for event in cold_history["events"]] == [2, 1]
+    assert cold_history["events"][0]["reason"] == "Wrong workbook."
+    assert cold_history["events"][0]["actor"] == "owner@example.com"
+    assert cold_history["events"][0]["recorded_at"] == (
+        warm["events"][0]["recorded_at"])
+
+
+def test_revision_history_reads_without_writing_or_revalidating(db):
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    revise_candidate(
+        db, candidate, proposed_lesson="Corrected guidance.",
+        expected_revision=1, changed_by="owner",
+        reason="Typo in the source lesson.")
+    before = load_candidate(db, "thread-1", candidate.candidate_id)
+    events_before = db.query(ConversationEvent).count()
+
+    history = _history(db, candidate.candidate_id)
+    again = _history(db, candidate.candidate_id)
+
+    assert db.query(ConversationEvent).count() == events_before
+    after = load_candidate(db, "thread-1", candidate.candidate_id)
+    assert before is not None and after is not None
+    assert after.revision == before.revision == 2
+    assert after.status == before.status == "review_ready"
+    # The correction cleared the approval; reading history does not restore it.
+    assert after.confirmed_revision is None
+    assert after.confirmed_digest is None
+    assert [e["event_id"] for e in history["events"]] == [
+        e["event_id"] for e in again["events"]]
+
+    confirmed = next(
+        event for event in history["events"]
+        if event["kind"] == "learning_candidate_confirmed")
+    # An old confirmation keeps the revision it approved; it is not re-run
+    # against the corrected content.
+    assert confirmed["revision"] == 1
+    assert confirmed["status"] == "confirmed"
+    assert confirmed["actor"] == "owner"
+    assert confirmed["actor_role"] == "reviewer"
+
+
+def test_stale_correction_writes_no_history(db):
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    revise_candidate(
+        db, candidate, proposed_lesson="Corrected guidance.",
+        expected_revision=1, changed_by="owner")
+    total = _history(db, candidate.candidate_id)["coverage"]["total_events"]
+
+    with pytest.raises(ValueError, match="candidate_revision_changed"):
+        revise_candidate(
+            db, candidate, proposed_lesson="Stale overwrite.",
+            expected_revision=1, changed_by="other")
+
+    assert _history(db, candidate.candidate_id)["coverage"]["total_events"] == total
+    fresh = load_candidate(db, "thread-1", candidate.candidate_id)
+    assert fresh.proposed_lesson == "Corrected guidance."
+
+
+def test_revision_reason_is_bounded_and_never_defaulted(db):
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    revise_candidate(
+        db, candidate, proposed_lesson="First correction.",
+        expected_revision=1, changed_by="owner", reason="x" * 900)
+    revise_candidate(
+        db, candidate, proposed_lesson="Second correction.",
+        changed_by="owner")
+
+    history = _history(db, candidate.candidate_id)
+    newest, previous, _created = history["events"]
+    assert newest["reason"] is None
+    assert newest["reason_recorded"] is False
+    assert previous["reason_recorded"] is True
+    assert len(previous["reason"]) == 500
+
+
+def test_revision_history_excludes_other_scopes_and_threads(db):
+    import json
+
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+
+    foreign_scope = candidate.model_copy(deep=True)
+    foreign_scope.workspace_id = "ws-2"
+    foreign_scope.revision = 2
+    foreign_scope.proposed_lesson = "Another workspace's lesson."
+    db.add(ConversationEvent(
+        conversation_id="thread-1",
+        kind="learning_candidate_revised",
+        payload_json=json.dumps(
+            {"candidate": foreign_scope.model_dump(mode="json")}),
+        workspace_id="ws-2", tenant_id="t-1"))
+    other_thread = candidate.model_copy(deep=True)
+    other_thread.revision = 3
+    other_thread.thread_id = "thread-2"
+    other_thread.proposed_lesson = "Another thread's lesson."
+    db.add(ConversationEvent(
+        conversation_id="thread-1",
+        kind="learning_candidate_revised",
+        payload_json=json.dumps(
+            {"candidate": other_thread.model_dump(mode="json")}),
+        workspace_id="ws-1", tenant_id="t-1"))
+    db.commit()
+
+    history = _history(db, candidate.candidate_id)
+    assert history["coverage"]["out_of_scope_events_excluded"] == 1
+    assert history["coverage"]["history_complete"] is False
+    assert [event["revision"] for event in history["events"]] == [1]
+    serialized = json.dumps(history)
+    assert "Another workspace's lesson." not in serialized
+    assert "Another thread's lesson." not in serialized
+
+
+def test_revision_history_pagination_is_bounded_and_truthful(db):
+    _agent(db)
+    candidate = _candidate(lesson="Revision 1.")
+    save_candidate(db, candidate)
+    for number in range(4):
+        revise_candidate(
+            db, candidate, proposed_lesson=f"Revision {number + 2}.",
+            changed_by="owner")
+
+    first = _history(db, candidate.candidate_id, limit=2, offset=0)
+    assert first["coverage"]["total_events"] == 5
+    assert first["coverage"]["returned"] == 2
+    assert first["coverage"]["has_more"] is True
+    assert first["coverage"]["history_complete"] is False
+    assert [event["revision"] for event in first["events"]] == [5, 4]
+
+    second = _history(db, candidate.candidate_id, limit=2, offset=2)
+    assert [event["revision"] for event in second["events"]] == [3, 2]
+    assert second["coverage"]["has_more"] is True
+    assert not ({event["event_id"] for event in first["events"]}
+                & {event["event_id"] for event in second["events"]})
+
+    inclusive = _history(db, candidate.candidate_id, limit=10_000)
+    assert inclusive["coverage"]["limit"] == 50
+    assert inclusive["coverage"]["returned"] == 5
+    assert inclusive["coverage"]["history_complete"] is True
+
+
+def test_revision_history_scan_bound_keeps_newest_and_says_so(db):
+    import json
+    from datetime import datetime, timedelta
+
+    from core import conversation_learning as learning
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(lesson="Base lesson.")
+    save_candidate(db, candidate)
+    base = candidate.model_dump(mode="json")
+    start = datetime(2030, 1, 1, 0, 0, 0)
+    rows = []
+    for revision in range(2, learning.HISTORY_SCAN_LIMIT + 3):
+        rows.append(ConversationEvent(
+            conversation_id="thread-1",
+            kind="learning_candidate_revised",
+            payload_json=json.dumps({"candidate": {
+                **base,
+                "revision": revision,
+                "proposed_lesson": f"Lesson {revision}",
+            }}),
+            workspace_id="ws-1", tenant_id="t-1",
+            created_at=start + timedelta(seconds=revision),
+        ))
+    db.add_all(rows)
+    db.commit()
+
+    history = _history(db, candidate.candidate_id, limit=3)
+    coverage = history["coverage"]
+    assert coverage["scan_limit"] == learning.HISTORY_SCAN_LIMIT
+    assert coverage["scan_truncated"] is True
+    assert coverage["history_complete"] is False
+    assert coverage["total_events"] == learning.HISTORY_SCAN_LIMIT
+    # The bound keeps the newest rows rather than the oldest ones.
+    assert history["events"][0]["after"]["proposed_lesson"] == (
+        f"Lesson {learning.HISTORY_SCAN_LIMIT + 2}")
+    assert all(
+        event["revision"] > 1 for event in history["events"])
+
+
+def test_invalidated_review_appears_in_history_with_its_recorded_reason(db):
+    _agent(db)
+    candidate = _candidate(lesson="Original guidance.")
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    invalidate_candidate(db, candidate, reason="source_changed")
+
+    history = _history(db, candidate.candidate_id)
+    invalidated, confirmed, _created = history["events"]
+    assert invalidated["kind"] == "learning_candidate_invalidated"
+    assert invalidated["status"] == "invalidated"
+    assert invalidated["reason"] == "source_changed"
+    assert invalidated["reason_recorded"] is True
+    assert invalidated["actor"] is None
+    assert invalidated["actor_role"] == "system"
+    # Earlier reviewed state is preserved as it was recorded.
+    assert confirmed["status"] == "confirmed"
+    assert confirmed["actor"] == "owner"

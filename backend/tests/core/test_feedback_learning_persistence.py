@@ -117,3 +117,25 @@ async def test_free_text_comment_records_total_without_polarity(db):
     assert learning.total_feedback == 1
     assert learning.positive_feedback == 0
     assert learning.negative_feedback == 0
+
+
+async def test_explicit_account_tenant_is_distinct_from_workspace(db):
+    """The agent scope is the workspace; the feedback/learning account key is
+    the tenant. A caller that resolved both (the audit correction writer)
+    passes the tenant explicitly, and it wins over the historical
+    workspace/default fallback without changing other callers."""
+    _seed(db)
+    svc = AgentGovernanceService(db, workspace_id="default")
+
+    feedback = await svc.submit_feedback(
+        agent_id="agent-1",
+        user_id="user-1",
+        original_output="the draft",
+        user_correction="thumbs_down",
+        feedback_tenant_id="tenant-2",
+    )
+
+    assert feedback.tenant_id == "tenant-2"
+    learning = db.query(AgentLearning).filter_by(agent_id="agent-1").one()
+    assert learning.tenant_id == "tenant-2"
+    assert learning.negative_feedback == 1
