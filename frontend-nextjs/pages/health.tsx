@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -18,14 +17,12 @@ import {
     ArrowUpRight,
     CheckCircle2,
     DollarSign,
-    Heart,
     LayoutDashboard,
     Play,
     RefreshCw,
     Scaling,
     Stethoscope,
     TrendingUp,
-    Users,
     Zap,
     Shield
 } from "lucide-react";
@@ -42,6 +39,7 @@ interface Priority {
 const BusinessHealthDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
+    const [prioritiesUnavailable, setPrioritiesUnavailable] = useState(false);
     const [simType, setSimType] = useState("HIRING");
     const [simInput, setSimInput] = useState("");
     const [simResult, setSimResult] = useState<any>(null);
@@ -103,13 +101,30 @@ const BusinessHealthDashboard: React.FC = () => {
                   wRes = settled(wR), cRes = settled(cR), ewRes = settled(ewR),
                   fRes = settled(fR), iRes = settled(iR);
 
+            // The operational endpoints return the standard envelope
+            // ({ success, data, metadata?, timestamp }), while the risk
+            // endpoints below return raw objects. Read each contract as-is.
             if (pRes) {
-                try { setData(await pRes.json()); } catch {}
+                try {
+                    const body = await pRes.json();
+                    // `data` is the priorities payload; keep accepting a bare
+                    // payload for older servers.
+                    setData(body && typeof body === "object" && "data" in body ? body.data : body);
+                    setPrioritiesUnavailable(false);
+                } catch {
+                    setData(null);
+                    setPrioritiesUnavailable(true);
+                }
+            } else {
+                setData(null);
+                setPrioritiesUnavailable(true);
             }
             if (iRes) {
                 try {
                     const iData = await iRes.json();
-                    setInterventions(iData.interventions || []);
+                    // Generate returns the envelope with the intervention list
+                    // directly under `data`.
+                    setInterventions(Array.isArray(iData?.data) ? iData.data : []);
                 } catch {}
             }
 
@@ -118,10 +133,13 @@ const BusinessHealthDashboard: React.FC = () => {
                     const drift = await dRes.json();
                     const pricing = await prRes.json();
                     const waste = await wRes.json();
+                    // Forensics mock flags live under the response metadata.
+                    const list = (payload: any) =>
+                        Array.isArray(payload?.data) ? payload.data : [];
                     setForensics({
-                        drift: { data: drift?.data ?? [], is_mock: drift?.is_mock ?? false },
-                        pricing: { data: pricing?.data ?? [], is_mock: pricing?.is_mock ?? false },
-                        waste: { data: waste?.data ?? [], is_mock: waste?.is_mock ?? false }
+                        drift: { data: list(drift), is_mock: drift?.metadata?.is_mock ?? false },
+                        pricing: { data: list(pricing), is_mock: pricing?.metadata?.is_mock ?? false },
+                        waste: { data: list(waste), is_mock: waste?.metadata?.is_mock ?? false }
                     });
                 } catch {}
             }
@@ -250,7 +268,11 @@ const BusinessHealthDashboard: React.FC = () => {
                             <div className="space-y-1">
                                 <h3 className="text-lg font-semibold opacity-90">Daily Strategic Insight</h3>
                                 <p className="text-xl font-medium leading-snug">
-                                    &quot;{data?.owner_advice || "Analyzing business vitals..."}&quot;
+                                    &quot;{prioritiesUnavailable
+                                        ? "Business priorities are temporarily unavailable."
+                                        : data?.owner_advice || (loading
+                                            ? "Analyzing business vitals..."
+                                            : "No strategic advice available.")}&quot;
                                 </p>
                             </div>
                         </div>
@@ -372,7 +394,14 @@ const BusinessHealthDashboard: React.FC = () => {
                                             </Button>
                                         </div>
                                     ))}
-                                    {!data?.priorities?.length && !loading && (
+                                    {prioritiesUnavailable && (
+                                        <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+                                            <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+                                            <p className="font-medium">Priorities unavailable.</p>
+                                            <p className="text-sm">We couldn&apos;t load today&apos;s priorities. Refresh Diagnostics to try again.</p>
+                                        </div>
+                                    )}
+                                    {!prioritiesUnavailable && !data?.priorities?.length && !loading && (
                                         <div className="p-12 text-center text-gray-500 dark:text-gray-400">
                                             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
                                             <p className="font-medium">Everything is running smoothly.</p>
@@ -609,48 +638,8 @@ const BusinessHealthDashboard: React.FC = () => {
                         </Card>
                     </div>
 
-                    {/* Vitals Sidebar */}
+                    {/* Sidebar */}
                     <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-                                    Business Vitals
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 dark:text-gray-400">Cash Runway</span>
-                                        <span className="font-bold">14.2 Months</span>
-                                    </div>
-                                    <Progress value={85} className="h-2" />
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 dark:text-gray-400">Margin Health</span>
-                                        <span className="font-bold text-green-600">Healthy (32%)</span>
-                                    </div>
-                                    <Progress value={75} className="h-2" />
-                                </div>
-                                <div className="pt-4 border-t">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h5 className="font-semibold flex items-center gap-2">
-                                            <Users className="w-4 h-4" />
-                                            Staff Utilization
-                                        </h5>
-                                        <Badge variant="secondary">82%</Badge>
-                                    </div>
-                                    <div className="grid grid-cols-4 gap-1 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                                        <div className="bg-blue-500 h-full"></div>
-                                        <div className="bg-blue-500 h-full"></div>
-                                        <div className="bg-blue-500 h-full"></div>
-                                        <div className="bg-gray-300 h-full"></div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
                         <Card className="bg-gray-900 text-gray-900 dark:text-white">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">

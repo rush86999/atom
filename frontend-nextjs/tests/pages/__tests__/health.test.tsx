@@ -44,7 +44,7 @@ const FORENSICS = {
         latest_price: 412.5,
       },
     ],
-    is_mock: true,
+    metadata: { is_mock: true },
   },
   pricing: {
     data: [
@@ -55,11 +55,11 @@ const FORENSICS = {
         target_price: 119,
       },
     ],
-    is_mock: false,
+    metadata: { is_mock: false },
   },
   waste: {
     data: [{ service_name: "Trello", mrr: 24 }],
-    is_mock: false,
+    metadata: { is_mock: false },
   },
 };
 
@@ -109,7 +109,9 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
     (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
     mockFetch.mockImplementation((url: string, opts?: any) => {
       if (url === "/api/business-health/priorities") {
-        return Promise.resolve(okResponse(PRIORITIES));
+        return Promise.resolve(
+          okResponse({ success: true, data: PRIORITIES, timestamp: "2026-11-18T00:00:00Z" })
+        );
       }
       if (url === "/api/business-health/forensics/price-drift") {
         return Promise.resolve(okResponse(FORENSICS.drift));
@@ -120,17 +122,19 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
       if (url === "/api/business-health/forensics/waste") {
         return Promise.resolve(okResponse(FORENSICS.waste));
       }
-      if (url === "/api/risk/customer-protection?workspace_id=default") {
+      if (url === "/api/risk/customer-protection") {
         return Promise.resolve(okResponse(RISK.churn));
       }
-      if (url === "/api/risk/early-warning?workspace_id=default") {
+      if (url === "/api/risk/early-warning") {
         return Promise.resolve(okResponse(RISK.alerts));
       }
-      if (url === "/api/risk/fraud?workspace_id=default") {
+      if (url === "/api/risk/fraud") {
         return Promise.resolve(okResponse(RISK.fraud));
       }
       if (url.startsWith("/api/business-health/interventions/generate")) {
-        return Promise.resolve(okResponse({ interventions: INTERVENTIONS }));
+        return Promise.resolve(
+          okResponse({ success: true, data: INTERVENTIONS, timestamp: "2026-11-18T00:00:00Z" })
+        );
       }
       if (url.startsWith("/api/business-health/interventions/") && url.endsWith("/execute")) {
         return Promise.resolve(okResponse({ message: "Executed successfully" }));
@@ -157,7 +161,11 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
 
     expect(screen.getByText(/Analyzing business vitals/)).toBeInTheDocument();
 
-    pending.forEach((resolve) => resolve(okResponse(PRIORITIES)));
+    pending.forEach((resolve) =>
+      resolve(
+        okResponse({ success: true, data: PRIORITIES, timestamp: "2026-11-18T00:00:00Z" })
+      )
+    );
     await waitFor(() =>
       expect(screen.queryByText(/Analyzing business vitals/)).not.toBeInTheDocument()
     );
@@ -227,8 +235,21 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
 
   it("renders the smooth-sailing empty state when no issues are detected", async () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url === "/api/business-health/priorities") return Promise.resolve(okResponse({}));
-      return Promise.resolve(okResponse({ data: [], is_mock: false }));
+      if (url === "/api/business-health/priorities") {
+        return Promise.resolve(
+          okResponse({
+            success: true,
+            data: { owner_advice: null, priorities: [] },
+            timestamp: "2026-11-18T00:00:00Z",
+          })
+        );
+      }
+      if (url.startsWith("/api/business-health/interventions/generate")) {
+        return Promise.resolve(
+          okResponse({ success: true, data: [], timestamp: "2026-11-18T00:00:00Z" })
+        );
+      }
+      return Promise.resolve(okResponse({ data: [], metadata: { is_mock: false } }));
     });
 
     render(<BusinessHealthDashboard />);
@@ -243,20 +264,27 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
   it("survives partial endpoint failures — one bad endpoint does not blank the dashboard (BUG-063)", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/business-health/priorities") return Promise.resolve(badResponse(500));
-      if (url === "/api/risk/fraud?workspace_id=default") return Promise.reject(new Error("boom"));
+      if (url === "/api/risk/fraud") return Promise.reject(new Error("boom"));
       if (url.startsWith("/api/business-health/interventions/generate")) {
-        return Promise.resolve(okResponse({ interventions: INTERVENTIONS }));
+        return Promise.resolve(
+          okResponse({ success: true, data: INTERVENTIONS, timestamp: "2026-11-18T00:00:00Z" })
+        );
       }
       return Promise.resolve(okResponse(FORENSICS.drift));
     });
 
     render(<BusinessHealthDashboard />);
 
-    // Priorities failed but the rest of the dashboard still renders
+    // Priorities failed but the rest of the dashboard still renders, and the
+    // priorities panel reports the failure instead of pretending it is empty.
     expect(await screen.findByText("Active Interventions")).toBeInTheDocument();
     expect(screen.getByText("Renegotiate AWS pricing")).toBeInTheDocument();
     expect(screen.getByText("AWS")).toBeInTheDocument();
-    expect(screen.getByText("Everything is running smoothly.")).toBeInTheDocument();
+    expect(screen.getByText("Priorities unavailable.")).toBeInTheDocument();
+    expect(
+      screen.getByText('"Business priorities are temporarily unavailable."')
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Everything is running smoothly.")).not.toBeInTheDocument();
   });
 
   it("runs a strategic simulation with the selected decision type and renders the report", async () => {
@@ -354,7 +382,9 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.endsWith("/execute")) return Promise.resolve(badResponse(500));
       if (url.startsWith("/api/business-health/interventions/generate")) {
-        return Promise.resolve(okResponse({ interventions: INTERVENTIONS }));
+        return Promise.resolve(
+          okResponse({ success: true, data: INTERVENTIONS, timestamp: "2026-11-18T00:00:00Z" })
+        );
       }
       return Promise.resolve(okResponse({}));
     });
