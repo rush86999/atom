@@ -400,6 +400,385 @@ const TrainingGuide: React.FC = () => {
     );
 };
 
+type RecentDecision = {
+  id: string;
+  action_type: string;
+  status: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string | null;
+  has_parameter_history?: boolean;
+};
+
+type DecisionHistoryRevision = {
+  revision?: number | null;
+  reviewed_params?: unknown;
+  approved_params?: unknown;
+  modified?: boolean | null;
+  modified_by?: string | null;
+  modified_at?: string | null;
+  reason?: string | null;
+};
+
+type DecisionHistory = {
+  approval_id: string;
+  action_type: string;
+  status: string;
+  original_known: boolean;
+  original_params?: unknown;
+  effective_params?: unknown;
+  modified?: boolean | null;
+  revision?: number | null;
+  modified_by?: string | null;
+  modified_at?: string | null;
+  reason?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  history_entries: number;
+  legacy_unrecorded: boolean;
+  history_complete?: boolean;
+  malformed_history_entries?: number;
+  history_unreadable?: boolean;
+  revisions?: DecisionHistoryRevision[];
+  revisions_truncated?: boolean;
+  redacted?: boolean;
+};
+
+type HistoryLoadState = "idle" | "loading" | "ready" | "denied" | "notfound" | "unavailable";
+
+function formatTimestamp(value?: string | null): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+}
+
+function classifyHistoryStatus(status: number): HistoryLoadState {
+  if (status === 403) return "denied";
+  if (status === 404) return "notfound";
+  return "unavailable";
+}
+
+function TextBlock({ value, testId }: { value: unknown; testId: string }) {
+  let text: string;
+  try {
+    const serialized = JSON.stringify(value, null, 2);
+    text = serialized === undefined ? String(value) : serialized;
+  } catch {
+    text = String(value);
+  }
+  return (
+    <pre
+      data-testid={testId}
+      className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded bg-gray-950 border border-gray-800 p-2 text-xs text-gray-200"
+    >
+      {text}
+    </pre>
+  );
+}
+
+/**
+ * Redacted reviewed-vs-approved parameter history for ONE decided approval.
+ * Rendered on demand only: the ordinary pending queue performs no extra
+ * reads, and this view never receives the protected context_snapshot.
+ * "Approved" is kept distinct from "executed"/"verified".
+ */
+function ParameterHistoryDetail({
+  state,
+  history,
+}: {
+  state?: HistoryLoadState;
+  history?: DecisionHistory;
+}) {
+  if (state === "loading") {
+    return <p className="text-xs text-gray-400" data-testid="parameter-history-loading">Loading parameter history…</p>;
+  }
+  if (state === "denied") {
+    return (
+      <p role="status" data-testid="parameter-history-denied" className="text-xs text-amber-300">
+        You are not authorized to read this decision history.
+      </p>
+    );
+  }
+  if (state === "notfound") {
+    return (
+      <p role="status" data-testid="parameter-history-notfound" className="text-xs text-gray-400">
+        Approval not found.
+      </p>
+    );
+  }
+  if (state === "unavailable") {
+    return (
+      <p role="alert" data-testid="parameter-history-unavailable" className="text-xs text-red-300">
+        Decision history is unavailable right now. Retry by reopening this panel.
+      </p>
+    );
+  }
+  if (!history) return null;
+
+  const originalText =
+    history.original_known && history.original_params !== null
+      ? history.original_params
+      : null;
+  const effectiveText =
+    history.effective_params !== null && history.effective_params !== undefined
+      ? history.effective_params
+      : null;
+  const revisions = Array.isArray(history.revisions) ? history.revisions : [];
+
+  return (
+    <div className="mt-2 rounded border border-gray-700 bg-gray-900/70 p-3 text-xs" data-testid="parameter-history">
+      <p className="text-gray-200" data-testid="parameter-history-status">
+        Decision status: <span className="font-mono">{history.status || "unknown"}</span>
+      </p>
+      <p className="text-gray-400 mt-1" data-testid="parameter-history-execution">
+        {history.status === "executed"
+          ? "Execution is recorded on this approval row; this history does not verify its outcome."
+          : "This confirms the approval decision only. It does not confirm that the action executed or that its result was verified."}
+      </p>
+      <p className="text-gray-400 mt-1" data-testid="parameter-history-actor">
+        By {history.reviewed_by || "unknown reviewer"}
+        {history.reviewed_at ? ` at ${formatTimestamp(history.reviewed_at)}` : " at an unrecorded time"}
+      </p>
+      <p className="text-gray-400" data-testid="parameter-history-reason">
+        {history.reason ? `Reason: ${history.reason}` : "No reason recorded."}
+      </p>
+
+      <div className="mt-2">
+        <p className="font-medium text-gray-300">Reviewed (original)</p>
+        {originalText !== null ? (
+          <TextBlock value={originalText} testId="parameter-history-original" />
+        ) : (
+          <p className="text-amber-300" data-testid="parameter-history-original-unknown">
+            Original reviewed parameters unavailable — this decision predates parameter
+            history. Nothing was reconstructed.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-2">
+        <p className="font-medium text-gray-300">Approved (effective)</p>
+        {effectiveText !== null ? (
+          <TextBlock value={effectiveText} testId="parameter-history-effective" />
+        ) : (
+          <p className="text-gray-400" data-testid="parameter-history-effective-missing">
+            No effective parameters were recorded (no approval).
+          </p>
+        )}
+      </div>
+
+      <p className="mt-2 text-gray-400" data-testid="parameter-history-modified">
+        {history.modified === true
+          ? "Parameters were modified before approval."
+          : history.modified === false
+            ? "Approved exactly as reviewed."
+            : "Whether parameters were modified is unknown."}
+      </p>
+
+      {revisions.length > 0 && (
+        <div className="mt-2" data-testid="parameter-history-revisions">
+          <p className="font-medium text-gray-300">
+            Revisions ({history.history_entries} recorded)
+          </p>
+          <ol className="list-decimal list-inside text-gray-400">
+            {revisions.map((revision, index) => (
+              <li key={`${revision.revision ?? "unknown"}-${index}`}>
+                Revision {revision.revision ?? "unknown"} — {revision.modified_by || "unknown actor"}
+                {revision.modified_at ? ` at ${formatTimestamp(revision.modified_at)}` : ""}
+                {revision.reason ? ` — ${revision.reason}` : " — no reason recorded"}
+              </li>
+            ))}
+          </ol>
+          {history.revisions_truncated && (
+            <p className="text-gray-500" data-testid="parameter-history-truncated">
+              Only the most recent {revisions.length} revisions are shown (bounded read).
+            </p>
+          )}
+        </div>
+      )}
+
+      {history.history_complete === false && (
+        <p className="mt-2 text-amber-300" data-testid="parameter-history-incomplete">
+          Some stored history entries could not be read; this lineage is incomplete.
+        </p>
+      )}
+      {history.legacy_unrecorded && (
+        <p className="mt-2 text-amber-300" data-testid="parameter-history-legacy">
+          This approval predates parameter history. The reviewed original is unknown.
+        </p>
+      )}
+      {history.redacted && (
+        <p className="mt-2 text-gray-500" data-testid="parameter-history-redaction">
+          Credential-shaped fields are redacted in this view. This is not a signed or
+          certified record.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Discoverable, lazy audit readback on the existing Approvals page. Nothing is
+ * fetched until the supervisor opens the section; each row's history is a
+ * second on-demand read. Reloading the page reads the same durable rows.
+ */
+function DecisionHistoryPanel() {
+  const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [recentState, setRecentState] = useState<HistoryLoadState>("idle");
+  const [decisions, setDecisions] = useState<RecentDecision[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [historyState, setHistoryState] = useState<Record<string, HistoryLoadState>>({});
+  const [histories, setHistories] = useState<Record<string, DecisionHistory>>({});
+
+  const authHeaders = () => ({ Authorization: `Bearer ${getAuthToken() || ""}` });
+
+  const loadRecent = useCallback(async () => {
+    setRecentState("loading");
+    try {
+      const res = await fetch(`${API}/api/agents/approvals/recent?limit=20`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        setRecentState(classifyHistoryStatus(res.status));
+        return;
+      }
+      const body = await res.json();
+      setDecisions(Array.isArray(body) ? body : []);
+      setRecentState("ready");
+    } catch {
+      setRecentState("unavailable");
+    }
+  }, []);
+
+  const loadHistory = useCallback(async (id: string) => {
+    setHistoryState((current) => ({ ...current, [id]: "loading" }));
+    try {
+      const res = await fetch(
+        `${API}/api/agents/approvals/${encodeURIComponent(id)}/history?revision_limit=10`,
+        { headers: authHeaders() }
+      );
+      if (!res.ok) {
+        setHistoryState((current) => ({
+          ...current,
+          [id]: classifyHistoryStatus(res.status),
+        }));
+        return;
+      }
+      const body = await res.json();
+      setHistories((current) => ({ ...current, [id]: body }));
+      setHistoryState((current) => ({ ...current, [id]: "ready" }));
+    } catch {
+      setHistoryState((current) => ({ ...current, [id]: "unavailable" }));
+    }
+  }, []);
+
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !loaded) {
+      setLoaded(true);
+      loadRecent();
+    }
+  };
+
+  return (
+    <section className="mt-8" data-testid="decision-history-section">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold">Decision history</h2>
+          <p className="text-sm text-gray-400">
+            What was originally reviewed versus what was approved. Loaded on demand.
+          </p>
+        </div>
+        <button
+          onClick={toggleOpen}
+          aria-expanded={open}
+          aria-controls="decision-history-body"
+          className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium"
+        >
+          {open ? "Hide decision history" : "Show decision history"}
+        </button>
+      </div>
+
+      {open && (
+        <div id="decision-history-body" className="mt-3 rounded-xl border border-gray-800 p-4">
+          {recentState === "loading" && (
+            <p className="text-sm text-gray-400" data-testid="decision-history-loading">
+              Loading recent decisions…
+            </p>
+          )}
+          {recentState === "denied" && (
+            <p role="status" data-testid="decision-history-denied" className="text-sm text-amber-300">
+              You are not permitted to read decision history.
+            </p>
+          )}
+          {recentState === "unavailable" && (
+            <div data-testid="decision-history-unavailable">
+              <p role="alert" className="text-sm text-red-300">
+                Decision history is unavailable right now.
+              </p>
+              <button
+                onClick={loadRecent}
+                className="mt-2 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {recentState === "ready" && decisions.length === 0 && (
+            <p className="text-sm text-gray-500" data-testid="decision-history-empty">
+              No decided approvals recorded in your scope yet.
+            </p>
+          )}
+          {recentState === "ready" && decisions.length > 0 && (
+            <ul className="space-y-2">
+              {decisions.map((decision) => (
+                <li
+                  key={decision.id}
+                  data-testid={`decision-history-row-${decision.id}`}
+                  className="rounded-lg border border-gray-800 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm text-gray-300">
+                      <span className="font-medium">{decision.action_type}</span>{" "}
+                      <span className="font-mono text-xs text-gray-400" data-testid="decision-history-row-status">
+                        {decision.status}
+                      </span>{" "}
+                      <span className="text-xs text-gray-500">
+                        by {decision.reviewed_by || "unknown reviewer"}
+                        {decision.reviewed_at || decision.created_at
+                          ? ` at ${formatTimestamp(decision.reviewed_at || decision.created_at)}`
+                          : ""}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const next = !expanded[decision.id];
+                        setExpanded((current) => ({ ...current, [decision.id]: next }));
+                        if (next && !histories[decision.id]) loadHistory(decision.id);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-xs"
+                    >
+                      {expanded[decision.id] ? "Hide parameter history" : "Show parameter history"}
+                    </button>
+                  </div>
+                  {expanded[decision.id] && (
+                    <ParameterHistoryDetail
+                      state={historyState[decision.id]}
+                      history={histories[decision.id]}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+
 export default function ApprovalsPage() {
   // 2026-09-08 role-journey pass: decisions are team_lead+ on the backend.
   // Surface that BEFORE the click (members used to get raw 403 prose after
@@ -962,6 +1341,8 @@ export default function ApprovalsPage() {
             ))}
           </div>
         )}
+
+        <DecisionHistoryPanel />
 
         <div className="mt-10">
           <h2 className="text-lg font-semibold">Active Training Sessions</h2>

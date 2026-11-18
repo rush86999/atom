@@ -49,7 +49,8 @@
       "Run office canvas co-editing controls",
       "Run goal-run checkpoint approval and active-intervention controls",
       "Run reviewed lesson correction conversation learning controls",
-      "Run never-autonomous task boundary controls"
+      "Run never-autonomous task boundary controls",
+      "Run Meta approved-material consumption controls"
     ],
     "backend-core-extra": [
       "Run admitted governance tier and BPE actor controls",
@@ -96,6 +97,7 @@
       "Run explicit collaboration authority controls",
       "Run M3 canonical chat delivery contract controls",
       "Run chat transcript actor-scope controls",
+      "Run generic approved-material consumption controls",
       "Run owner-scoped audit evidence and correction controls"
     ],
     "backend-oracle": [
@@ -156,7 +158,8 @@
       "Run office canvas co-editing controls",
       "Run goal-run checkpoint approval and active-intervention controls",
       "Run reviewed lesson correction conversation learning controls",
-      "Run never-autonomous task boundary controls"
+      "Run never-autonomous task boundary controls",
+      "Run Meta approved-material consumption controls"
     ],
     "backend-core-extra": [
       "Run admitted governance tier and BPE actor controls",
@@ -201,6 +204,7 @@
       "Run explicit collaboration authority controls",
       "Run M3 canonical chat delivery contract controls",
       "Run chat transcript actor-scope controls",
+      "Run generic approved-material consumption controls",
       "Run owner-scoped audit evidence and correction controls"
     ]
   },

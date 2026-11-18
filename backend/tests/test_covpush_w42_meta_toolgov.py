@@ -92,7 +92,18 @@ class TestExecuteToolWithGovernance:
         agent.mcp.call_tool.assert_called_once()
 
     async def test_complexity_approval_approved(self):
+        # Durable-consumption contract lives in
+        # tests/test_meta_approved_material_contract.py; here the approved
+        # material seam is stubbed so this unit test stays about dispatch.
         agent = make_gov_agent()
+        agent._consume_approved_material = MagicMock(
+            side_effect=lambda action_id, *_a, **_k: {
+                "ok": True,
+                "action_id": str(action_id),
+                "effective_params": {},
+                "effective_sha256": "synthetic-sha",
+            })
+        agent._revalidate_approved_action = AsyncMock(return_value=None)
         gov = _gov({"allowed": True, "action_complexity": 3, "reason": "complex"})
         with patch("core.atom_meta_agent.AgentGovernanceService",
                    return_value=gov), \

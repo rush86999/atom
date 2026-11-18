@@ -694,6 +694,17 @@ class TestExecuteToolWithGovernance:
         gov = MagicMock()
         gov.can_perform_action_async = AsyncMock(return_value={"action_complexity": 2, "allowed": True, "requires_human_approval": False, "reason": ""})
         gov.request_approval.return_value = "action-1"
+        # Durable-consumption contract lives in
+        # tests/test_meta_approved_material_contract.py; here the approved
+        # material seam is stubbed so this unit test stays about dispatch.
+        agent._consume_approved_material = MagicMock(
+            side_effect=lambda action_id, *_a, **_k: {
+                "ok": True,
+                "action_id": str(action_id),
+                "effective_params": {"k": "v"},
+                "effective_sha256": "synthetic-sha",
+            })
+        agent._revalidate_approved_action = AsyncMock(return_value=None)
         from core.atom_meta_agent import AgentGovernanceService
         with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
             agent._wait_for_approval = AsyncMock(return_value=True)
