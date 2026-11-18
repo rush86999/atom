@@ -15,7 +15,11 @@ from core.models import (
     UserStatus,
     Workspace,
 )
-from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
+from core.personal_scope import (
+    BOOTSTRAP_ADMIN_EMAIL,
+    PERSONAL_TENANT_ID,
+    PERSONAL_WORKSPACE_ID,
+)
 
 logger = logging.getLogger("ATOM_BOOTSTRAP")
 
@@ -80,7 +84,7 @@ def ensure_admin_user():
     """
     with get_db_session() as db:
         try:
-            email = "admin@example.com"
+            email = BOOTSTRAP_ADMIN_EMAIL
             # Use environment variable or generate secure random password
             password = os.getenv("ADMIN_PASSWORD")
             is_generated = False

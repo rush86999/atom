@@ -571,18 +571,15 @@ async def upload_document(
         # invisible to search regardless of indexing quality.
         import uuid as _uuid
 
-        ws_id = None
-        try:
-            # ISOLATION (journey J3): users.workspace_id FK first — the
-            # workspaces relationship is empty for registered users whose
-            # user_workspaces row predates the register-flow fix, and a None
-            # here lands the upload in the SHARED "default_shared" store.
-            if current_user and getattr(current_user, "workspace_id", None):
-                ws_id = current_user.workspace_id
-            elif current_user and getattr(current_user, "workspaces", None):
-                ws_id = current_user.workspaces[0].id
-        except Exception as ws_err:
-            logger.warning(f"Workspace resolution failed for upload: {ws_err}")
+        # ISOLATION (journey J3 + bootstrap scope): use the SAME safe scope
+        # resolver as /api/documents/upload. Only the server-owned bootstrap
+        # account may use the Personal "default" fallback; any other unbound
+        # account (or a failed lookup) is refused. Handing None to
+        # get_lancedb_handler would select the legacy SHARED "default_shared"
+        # store while documents.search reads "default".
+        from api.document_routes import _resolve_ws_id
+
+        ws_id = _resolve_ws_id(current_user)
 
         db_handler = get_lancedb_handler(ws_id)
 

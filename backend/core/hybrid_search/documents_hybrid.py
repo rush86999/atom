@@ -190,7 +190,8 @@ class DocumentsHybridSearch:
     """Hybrid document search service (documents leg)."""
 
     def __init__(self, db: Any = None, lancedb: Any = None,
-                 workspace_id: Optional[str] = None):
+                 workspace_id: Optional[str] = None,
+                 legacy_authority: Optional[Dict[str, Any]] = None):
         self._db = db
         self._lancedb = lancedb
         # WORKSPACE SCOPE (2026-10-17): uploads write to the caller's
@@ -198,6 +199,14 @@ class DocumentsHybridSearch:
         # every uploaded document is invisible to chat (observed: upload to
         # workspace <uuid>, search on the base atom_memory store, 0 hits).
         self._workspace_id = workspace_id
+        # LEGACY NAMESPACE (bootstrap upgrade): a proven bootstrap principal
+        # may also see its OWN pre-repair uploads from the legacy shared
+        # store. ``None`` means "no legacy lane" — the envelope is unchanged
+        # for every ordinary scoped account.
+        self._legacy_authority = (
+            dict(legacy_authority)
+            if isinstance(legacy_authority, dict) else None
+        )
 
     # -- public API -----------------------------------------------------------
 
@@ -237,12 +246,31 @@ class DocumentsHybridSearch:
         if legs["vector"]["status"] != LEG_SKIPPED:
             legs["vector"]["required"] = _vector_leg_enabled()
 
+        # LEGACY NAMESPACE: only for a proven bootstrap principal, only through
+        # the same vector settings (flag, source filter, score floor, limit).
+        # A separate recorded leg keeps an unreadable legacy store visible as
+        # coverage loss instead of an innocent zero-match.
+        legacy_vector: List[Dict[str, Any]] = []
+        if self._legacy_lane_applies(source):
+            legacy_vector, _ = await self._run_leg(
+                "vector_legacy",
+                lambda: self._legacy_vector_leg(query, limit, source),
+                legs,
+                required=False,
+            )
+
         stats: Dict[str, Any] = {
             "lexical_hits": len(lexical),
-            "vector_hits": len(vector),
+            "vector_hits": len(vector) + len(legacy_vector),
         }
+        if self._legacy_authority:
+            stats["legacy_vector_hits"] = len(legacy_vector)
 
-        fused, unbridged = self._fuse_rrf(lexical, vector, legs=legs)
+        fused, unbridged = self._fuse_rrf(
+            lexical,
+            self._merge_semantic_candidates(vector, legacy_vector),
+            legs=legs,
+        )
         stats["unbridged_hits"] = unbridged
 
         has_lexical = any("lexical" in e["legs"] for e in fused)
@@ -503,6 +531,156 @@ class DocumentsHybridSearch:
                 # top hit's content so the reply can answer from the document
                 # (previews truncate before the fact in long files).
                 "text": str(r.get("text") or "")[:4000],
+            })
+        return out
+
+    @staticmethod
+    def _merge_semantic_candidates(
+        vector: List[Dict[str, Any]], legacy_vector: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Canonical + legacy semantic candidates, best normalized score first.
+
+        The legacy lane is a second candidate SOURCE, not a worse-ranked tail.
+        Concatenating it gave every legacy hit an RRF rank below every canonical
+        hit, so a pre-repair row scoring 0.50564 lost to a canonical row scoring
+        0.45507 with no lexical support on either side (measured in the
+        bootstrap scope upgrade). Both legs already report a comparable
+        similarity ``score`` (same embedder, same floor), so ranking the
+        combined set by that score lets the existing RRF and dedup do their job
+        on evidence instead of on leg order.
+
+        Inert for every ordinary search: with no legacy hits the canonical list
+        is returned untouched, so canonical-only queries keep their exact prior
+        order. Ordering is deterministic — equal scores keep canonical hits
+        first, in their original relative order (stable tie-break), so a
+        canonical hit is never displaced by a legacy hit it ties with.
+        """
+        if not legacy_vector:
+            return vector
+
+        def _score(hit: Dict[str, Any]) -> float:
+            try:
+                return float(hit.get("score") or 0.0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        tagged = [(0, idx, hit) for idx, hit in enumerate(vector)]
+        tagged += [(1, idx, hit) for idx, hit in enumerate(legacy_vector)]
+        tagged.sort(key=lambda item: (-_score(item[2]), item[0], item[1]))
+        return [hit for _, _, hit in tagged]
+
+    def _legacy_lane_applies(self, source: Optional[str]) -> bool:
+        """Whether the guarded legacy-namespace lane may run for this search."""
+        if not self._legacy_authority:
+            return False
+        if not _vector_leg_enabled():
+            return False
+        if source and str(source).strip().lower() == "knowledge":
+            return False
+        return True
+
+    async def _legacy_vector_leg(
+        self, query: str, limit: int, source: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Guarded nearest-neighbour read of this principal's pre-repair rows.
+
+        Same score floor and limit multiplier as ``_vector_leg``, but against
+        the ONE documented legacy namespace, prefilted by the store to this
+        principal + namespace. Every surviving hit must then pass the shared
+        compatibility proof (explicitly fresh SQL row, raw tenant/workspace
+        match, PG join key, source revision, fresh vector stamp) before it can
+        be materialized. The legacy namespace is never listed or scanned
+        unscoped: no query hits, no rows.
+
+        Raises instead of returning ``[]`` when the store exists but cannot be
+        read, so the envelope records lost coverage instead of claiming the
+        legacy corpus contains no match.
+        """
+        authority = self._legacy_authority or {}
+        workspace_id = str(authority.get("workspace_id") or "").strip()
+        user_id = str(authority.get("user_id") or "").strip()
+        tenant_id = authority.get("tenant_id")
+        if not user_id or not workspace_id:
+            raise _LegSkipped("no_legacy_authority")
+
+        from core.legacy_document_scope import (
+            LEGACY_SHARED_WORKSPACE_ID,
+            legacy_shared_handler,
+            legacy_shared_store_present,
+            legacy_vector_owned,
+            verify_legacy_document_authority,
+        )
+
+        # Durable authority first: the persisted row behind the request must
+        # still be the bootstrap principal (a downgraded account loses the
+        # lane). An unreadable authority store raises → coverage loss.
+        with self._get_db() as db:
+            if not verify_legacy_document_authority(db, authority):
+                raise _LegSkipped("legacy_authority_unverified")
+
+        if not legacy_shared_store_present():
+            raise _LegSkipped("legacy_store_missing")
+        handler = legacy_shared_handler(workspace_id)
+        if handler is None:
+            raise _LegSkipped("legacy_scope_not_applicable")
+        searcher = getattr(handler, "search_documents_for_owner", None)
+        if not callable(searcher):
+            raise _LegSkipped("legacy_store_unsupported")
+
+        # Embedding is synchronous; keep it off the event-loop thread exactly
+        # like the primary vector leg.
+        rows = await asyncio.to_thread(
+            searcher,
+            "documents",
+            query,
+            user_id=user_id,
+            workspace_id=LEGACY_SHARED_WORKSPACE_ID,
+            limit=limit * _VECTOR_LIMIT_MULTIPLIER,
+        )
+
+        floor = float(os.getenv("ATOM_HYBRID_VECTOR_MIN_SCORE", "0.25"))
+        candidates: List[tuple] = []
+        for row in rows or []:
+            doc_id = str(row.get("id") or "")
+            if not doc_id:
+                continue
+            similarity = float(row.get("score") or 0.0)
+            if similarity < floor:
+                continue
+            candidates.append((doc_id, row, similarity))
+        if not candidates:
+            return []
+
+        # Durable SQL proof, one bounded read for all candidates. A failure
+        # here is an unproven row, not an absent one: the leg raises.
+        from core.models import IngestedDocument
+
+        with self._get_db() as db:
+            sql_rows = (
+                db.query(IngestedDocument)
+                .filter(IngestedDocument.id.in_(
+                    [doc_id for doc_id, _, _ in candidates]))
+                .all()
+            )
+        by_id = {str(item.id): item for item in sql_rows}
+
+        out: List[Dict[str, Any]] = []
+        for doc_id, row, similarity in candidates:
+            sql_row = by_id.get(doc_id)
+            if sql_row is None:
+                continue
+            freshness = str(
+                getattr(sql_row, "freshness_status", "") or "").strip().lower()
+            if freshness != "fresh":
+                continue
+            if not legacy_vector_owned(
+                    row, user_id, sql_row, doc_id, workspace_id, tenant_id):
+                continue
+            out.append({
+                "id": doc_id,
+                "score": similarity,
+                "metadata": row.get("metadata") or {},
+                "text": str(row.get("text") or "")[:4000],
             })
         return out
 

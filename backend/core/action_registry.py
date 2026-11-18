@@ -361,6 +361,43 @@ def _context_workspace_id(context: Dict[str, Any]) -> Optional[str]:
         return None
 
 
+def _documents_legacy_authority(context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Authority for the legacy-namespace document lane, or ``None``.
+
+    The server-owned bootstrap account owns pre-repair uploads that were
+    written to the legacy shared store, but it has raw NULL workspace scope.
+    Only that persisted identity is given the legacy lane; every ordinary
+    account — scoped or not — keeps the previous search behavior exactly.
+    """
+    user = (context or {}).get("user")
+    if user is None:
+        return None
+    try:
+        from core.legacy_document_scope import legacy_document_authority
+
+        return legacy_document_authority(user)
+    except Exception:  # noqa: BLE001 — unprovable identity is not a grant
+        return None
+
+
+def _documents_workspace_id(context: Dict[str, Any]) -> Optional[str]:
+    """Document search scope: the dispatch workspace, else proven bootstrap.
+
+    Ordinary accounts resolve exactly as before. Only the bootstrap identity
+    (which resolves to the documented Personal workspace on the direct
+    document routes) is mapped to that workspace here, so its hybrid search
+    reads the same store its new uploads are written to instead of an
+    unscoped read.
+    """
+    workspace_id = _context_workspace_id(context)
+    if workspace_id:
+        return workspace_id
+    authority = _documents_legacy_authority(context)
+    if authority:
+        return str(authority.get("workspace_id") or "") or None
+    return None
+
+
 @register_action(
     "documents.search",
     description="Hybrid (BM25 + vector) search over ingested and knowledge documents. "
@@ -387,7 +424,19 @@ async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         source = (args.get("source") or "").strip().lower() or None
         author = (args.get("author") or "").strip().lower() or None
 
-        svc = DocumentsHybridSearch(workspace_id=_context_workspace_id(context))
+        # Ordinary calls keep the previous workspace-only construction: the
+        # legacy keyword is passed ONLY for a proven legacy authority, so no
+        # other caller (or double) has to know the new argument exists.
+        legacy_authority = _documents_legacy_authority(context)
+        if legacy_authority:
+            svc = DocumentsHybridSearch(
+                workspace_id=_documents_workspace_id(context),
+                legacy_authority=legacy_authority,
+            )
+        else:
+            svc = DocumentsHybridSearch(
+                workspace_id=_documents_workspace_id(context),
+            )
         resp = await svc.search(
             query=query, limit=limit, since=since, source=source, author=author,
         )
