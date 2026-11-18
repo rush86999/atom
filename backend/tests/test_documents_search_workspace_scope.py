@@ -497,6 +497,79 @@ async def test_zero_match_grep_incomplete_coverage_does_not_claim_absence(
 
 
 @pytest.mark.asyncio
+async def test_partial_hybrid_hits_keep_results_but_mark_degraded(monkeypatch):
+    """A positive hit with one failed leg stays usable, but the receipt is
+    degraded and the evidence text says coverage is partial — never a
+    complete search."""
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True,
+        query="Search my documents for the Zephyr launch code")
+
+    async def fake_execute(name, args, context):
+        if name == "documents.grep":
+            return {"success": True, "pattern": "zephyr", "matches": []}
+        raise AssertionError(f"unexpected action {name}")
+
+    class _PartialHybrid:
+        def __init__(self, **kwargs):
+            pass
+
+        async def search(self, **kwargs):
+            return {
+                "success": True,
+                "status": "partial",
+                "results": [{
+                    "source": "ingested", "id": "doc-3",
+                    "title": "zephyr_notes.md",
+                    "content": "The Zephyr launch code is QUARTZ-77.",
+                }],
+                "legs": {
+                    "lexical": {"status": "ok", "required": True},
+                    "vector": {
+                        "status": "failed", "required": False,
+                        "error_category": "source_unavailable"},
+                },
+                "coverage": {"unavailable": ["vector"]},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": None,
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", fake_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _PartialHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1", {"workspace_id": "ws-requested"})
+
+    # The positive hit remains usable...
+    assert block and "QUARTZ-77" in block
+    # ...but the block identifies the partial coverage.
+    assert "PARTIAL COVERAGE" in block
+    assert "document search coverage partial" in block
+    assert "unavailable: vector" in block
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is True
+    assert receipt.get("match_count") == 1
+    assert receipt.get("degraded") is True
+    assert receipt.get("error") == ""
+
+
+@pytest.mark.asyncio
 async def test_zero_match_grep_retries_only_a_complete_zero(monkeypatch):
     """The bounded probe runs on a completed zero with an exact standalone
     question, reusing the SAME scope/limit/owner search flags."""

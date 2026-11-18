@@ -9642,34 +9642,12 @@ async def _documents_vfs_block(
                             _hybrid_status != "success"
                             or bool(_hybrid_failed_legs)
                             or _hybrid_no_search)
-                        if _hybrid_hits:
-                            _stamp_documents_receipt(
-                                plan, action="search", query=_hybrid_query,
-                                executed=True, match_count=len(_hybrid_hits),
-                                paths=[str(h.get("id") or "")
-                                       for h in _hybrid_hits],
-                                workspace_id=_hybrid_ws)
-                            _lines = []
-                            for _h in _hybrid_hits:
-                                _title = str(_h.get("title")
-                                             or _h.get("id") or "")
-                                _body = str(_h.get("content")
-                                            or _h.get("preview") or "").strip()
-                                _src = str(_h.get("source") or "documents")
-                                _lines.append(
-                                    f"- [{_src}] {_title}: {_body[:1200]}")
-                            return _with_grounding(
-                                "LIVE TOOL RESULTS (documents.search, query="
-                                f"'{_hybrid_query}') — hybrid search over the "
-                                "workspace's ingested documents "
-                                f"({len(_hybrid_hits)} result(s)); these are "
-                                "the uploaded/ingested documents, distinct "
-                                "from the VFS conversation tree:\n"
-                                + "\n".join(_lines))
+                        # Coverage detail shared by both branches: a positive
+                        # result set is still PARTIAL when a leg failed, so the
+                        # receipt and the evidence text must both carry the
+                        # loss instead of implying a complete search.
+                        _hybrid_coverage_note = ""
                         if _hybrid_incomplete:
-                            # A partial/failed coverage is an UNAVAILABLE
-                            # lookup, never a definitive zero. The envelope
-                            # names which legs could not be read.
                             _coverage = (_hybrid_res or {}).get(
                                 "coverage") or {}
                             _unavailable_legs = sorted(
@@ -9681,14 +9659,57 @@ async def _documents_vfs_block(
                                     or (_hybrid_status == "success"
                                         and _hybrid_failed_legs)):
                                 _status_label = "incomplete"
-                            _hybrid_error = (
+                            _hybrid_coverage_note = (
                                 "document search coverage "
                                 f"{_status_label}")
                             if _unavailable_legs:
-                                _hybrid_error += (
+                                _hybrid_coverage_note += (
                                     " (unavailable: "
                                     + ", ".join(_unavailable_legs) + ")")
-                            _hybrid_error = _hybrid_error[:140]
+                            _hybrid_coverage_note = _hybrid_coverage_note[:140]
+                        if _hybrid_hits:
+                            # Usable evidence survives incomplete coverage, but
+                            # the receipt marks the loss and the block says so,
+                            # so the answer cannot imply a complete search.
+                            _stamp_documents_receipt(
+                                plan, action="search", query=_hybrid_query,
+                                executed=True, match_count=len(_hybrid_hits),
+                                paths=[str(h.get("id") or "")
+                                       for h in _hybrid_hits],
+                                degraded=_hybrid_incomplete,
+                                error="",
+                                workspace_id=_hybrid_ws)
+                            _lines = []
+                            for _h in _hybrid_hits:
+                                _title = str(_h.get("title")
+                                             or _h.get("id") or "")
+                                _body = str(_h.get("content")
+                                            or _h.get("preview") or "").strip()
+                                _src = str(_h.get("source") or "documents")
+                                _lines.append(
+                                    f"- [{_src}] {_title}: {_body[:1200]}")
+                            _partial_note = ""
+                            if _hybrid_incomplete:
+                                _partial_note = (
+                                    "\n\nPARTIAL COVERAGE — "
+                                    f"{_hybrid_coverage_note}; these results "
+                                    "are usable, but the search did NOT cover "
+                                    "every leg, so do not present them as a "
+                                    "complete search of the workspace.")
+                            return _with_grounding(
+                                "LIVE TOOL RESULTS (documents.search, query="
+                                f"'{_hybrid_query}') — hybrid search over the "
+                                "workspace's ingested documents "
+                                f"({len(_hybrid_hits)} result(s)); these are "
+                                "the uploaded/ingested documents, distinct "
+                                "from the VFS conversation tree:\n"
+                                + "\n".join(_lines)
+                                + _partial_note)
+                        if _hybrid_incomplete:
+                            # A partial/failed coverage is an UNAVAILABLE
+                            # lookup, never a definitive zero. The envelope
+                            # names which legs could not be read.
+                            _hybrid_error = _hybrid_coverage_note
                             _stamp_documents_receipt(
                                 plan, action="search", query=_hybrid_query,
                                 executed=False, error=_hybrid_error,
