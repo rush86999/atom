@@ -4,7 +4,7 @@
   "reference_order": [
     {
       "path": "CURRENT_GOAL_MAP_2026_11_17.md",
-      "purpose": "Current navigation overlay for all 18 goals plus DOCS-REF-01 at main 160621dfa898ff1d17e749606d41ec3721629b3a (#995), tree 999135d242a36e7221764a580503b2f7553f3dc6. Preserves the 143 claim identities, 18 goals, historical 111/123 result and all negative records; records scoped #993/#994/#995 evidence without promoting it; not a completion claim."
+      "purpose": "Current navigation overlay for all 18 goals plus DOCS-REF-01 at main dac04463c4e3c5621bd083a7f2b6fe2a012b27a5 (#996), tree 35c9e6d19f0f14163f838eea5d1079b5491e584f. Preserves the 143 claim identities, 18 goals, historical 111/123 result and all negative records; records scoped release and retrieval evidence through #996."
     },
     {
       "path": "APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json",
@@ -107,10 +107,10 @@
   },
   "current_goal_map_2026_11_17": {
     "path": "CURRENT_GOAL_MAP_2026_11_17.md",
-    "as_of_main": "160621dfa898ff1d17e749606d41ec3721629b3a",
-    "as_of_tree": "999135d242a36e7221764a580503b2f7553f3dc6",
-    "parent": "d701872287b16f1e74b512aa7b81fb40b92fe69a",
-    "state": "Navigation and remaining-acceptance overlay only. All 143 original claim identities, 18 goals, historical 111/123 (90.2%) and app_complete:false are preserved; #995 is recorded as merged at 160621dfa (tree 999135d equal to exact PR head 5d9ced7e8, sole parent d701872, all 17 exact-head checks including GitGuardian), with the unchanged legacy /api/document-ingestion/upload campaign at 18/18 and 162 focused/adjacent tests on the byte-identical patch; only the producer's persisted index-only locator is classified, after the existing scope and index-freshness checks; the earlier 5 PASS / 7 FAIL / 6 NOT EVALUATED legacy record stays at its own baseline; post-merge CI 44239946831 and Docker 44239946783 were pending at the observed cut; no readiness percentage is invented and no goal is marked complete.",
+    "as_of_main": "dac04463c4e3c5621bd083a7f2b6fe2a012b27a5",
+    "as_of_tree": "35c9e6d19f0f14163f838eea5d1079b5491e584f",
+    "parent": "160621dfa898ff1d17e749606d41ec3721629b3a",
+    "state": "Navigation and remaining-acceptance overlay through #996. Preserves the 143 original claim identities, 18 goals, historical 111/123 (90.2%), negative evidence and app_complete:false.",
     "navigation_relationship": "Corrects current-tense release/draft wording in CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md without replacing its historical cuts, claim rows, evidence arrays or negative records."
   },
   "explicit_user_requirements": [
