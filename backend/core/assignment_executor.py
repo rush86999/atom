@@ -2813,7 +2813,10 @@ class AssignmentExecutor:
         the source step. This method never silently substitutes a replacement
         version.
         """
-        from core.assignment_resources import uploaded_document_id
+        from core.assignment_resources import (
+            is_indexed_only_document_locator,
+            uploaded_document_id,
+        )
 
         provenance = assignment.get("provenance") or {}
         context = {
@@ -2954,6 +2957,17 @@ class AssignmentExecutor:
                     path = str(
                         getattr(row, "file_path", "")
                         or inputs.get("path") or binding.get("path") or "")
+                    # Legacy ingestion uploads record an index-only locator
+                    # (``upload:<name>``) and never materialize bytes. Their
+                    # authority is the IngestedDocument row plus the
+                    # version-matched, workspace-scoped indexed extraction
+                    # already checked above, so there is no local file to
+                    # reopen. Materialized uploads carry an absolute path and
+                    # keep the file/hash checks below, including for a deleted
+                    # or changed file (G2). No other opaque locator is
+                    # accepted here.
+                    if is_indexed_only_document_locator(path):
+                        continue
                     if path:
                         if not os.path.isfile(path):
                             return step, self._source_gap(
