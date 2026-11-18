@@ -32,7 +32,7 @@ from core import workflow_endpoints
 from core.database import DATABASE_URL as APP_DATABASE_URL
 from core.database import get_db_session
 from core.execution_state_manager import ExecutionStateManager
-from core.models import WorkflowExecution
+from core.models import WorkflowExecution, WorkflowExecutionLog
 from core.workflow_engine import WorkflowEngine, freeze_execution_scope
 from tests.test_workflow_public_approval_flow import (
     _app,
@@ -107,6 +107,39 @@ def _execution_count(workflow_id: str) -> int:
             WorkflowExecution.workflow_id == workflow_id).count()
 
 
+def _step_receipts(execution_id: str, step_id: str) -> list:
+    """Read persisted step receipts through a fresh database session."""
+    with get_db_session() as db:
+        rows = (
+            db.query(WorkflowExecutionLog)
+            .filter(
+                WorkflowExecutionLog.execution_id == execution_id,
+                WorkflowExecutionLog.step_id == step_id,
+            )
+            .order_by(WorkflowExecutionLog.id)
+            .all()
+        )
+        return [
+            {
+                "status": row.status,
+                "results": row.results,
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "duration_ms": row.duration_ms,
+            }
+            for row in rows
+        ]
+
+
+def _utc(value):
+    """Normalize a persisted timestamp (SQLite reads naive UTC) for arithmetic."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 async def test_scheduled_approval_join_survives_a_separate_process_restart(
         tmp_path):
     world = _create_world()
@@ -169,6 +202,31 @@ async def test_scheduled_approval_join_survives_a_separate_process_restart(
             assert "Scheduled execution" not in second_output, second_output
             assert _execution_count(world["workflow_id"]) == 1
             assert _dispatch_count(execution_id) == 1
+
+            # The parent now reads through a brand-new DB session: the sole
+            # step must have persisted exactly ONE terminal receipt carrying
+            # its output and a consistent time/duration. The old bug left the
+            # receipt status="running", duration 0, results empty because the
+            # naive SQLite start_time could not be subtracted from an aware
+            # end_time.
+            receipts = _step_receipts(execution_id, "s1")
+            assert len(receipts) == 1, receipts
+            receipt = receipts[0]
+            final = await state_manager.get_execution_state(execution_id)
+            assert final["steps"]["s1"]["status"] == "COMPLETED", final
+            assert receipt["status"] == "completed", receipt
+            assert receipt["results"] == final["outputs"]["s1"], receipt
+            assert receipt["start_time"] is not None, receipt
+            assert receipt["end_time"] is not None, receipt
+            started = _utc(receipt["start_time"])
+            finished = _utc(receipt["end_time"])
+            assert finished >= started, receipt
+            assert receipt["duration_ms"] is not None, receipt
+            assert receipt["duration_ms"] >= 0, receipt
+            expected_duration_ms = int(
+                (finished - started).total_seconds() * 1000)
+            assert abs(receipt["duration_ms"] - expected_duration_ms) <= 1, (
+                receipt, expected_duration_ms)
     finally:
         workflow_endpoints.load_workflows = original
         _delete_world(world)
