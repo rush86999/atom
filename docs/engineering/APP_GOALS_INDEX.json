@@ -4,7 +4,7 @@
   "reference_order": [
     {
       "path": "CURRENT_GOAL_MAP_2026_11_17.md",
-      "purpose": "Current navigation overlay for all 18 goals plus DOCS-REF-01 at main 02c9b1674 (#978). Preserves the 143 claim identities, 18 goals, historical 111/123 result and all negative records; not a completion claim."
+      "purpose": "Current navigation overlay for all 18 goals plus DOCS-REF-01 at main d701872287b16f1e74b512aa7b81fb40b92fe69a (#994), tree fa66625df9423938e190d17c3425ed59d4e4ffb6. Preserves the 143 claim identities, 18 goals, historical 111/123 result and all negative records; records scoped #993/#994 evidence without promoting it; not a completion claim."
     },
     {
       "path": "APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json",
@@ -107,10 +107,10 @@
   },
   "current_goal_map_2026_11_17": {
     "path": "CURRENT_GOAL_MAP_2026_11_17.md",
-    "as_of_main": "a7eccddb45872182a6e2af096b0ad4ee0516b7e6",
-    "as_of_tree": "d2424e36f83f90e06ab60148aca290690e3a8a70",
-    "parent": "31e2aebf7cec3fe265e131a1ad27374bbe082654",
-    "state": "Navigation and remaining-acceptance overlay only. All 143 original claim identities, 18 goals, historical 111/123 (90.2%) and app_complete:false are preserved; no readiness percentage is invented and no goal is marked complete.",
+    "as_of_main": "d701872287b16f1e74b512aa7b81fb40b92fe69a",
+    "as_of_tree": "fa66625df9423938e190d17c3425ed59d4e4ffb6",
+    "parent": "a33e8d8ab9352fa59324ebc067772fea4efe24d2",
+    "state": "Navigation and remaining-acceptance overlay only. All 143 original claim identities, 18 goals, historical 111/123 (90.2%) and app_complete:false are preserved; #993/#994 are recorded with scoped synthetic evidence, retained failures and explicit limits; no readiness percentage is invented and no goal is marked complete.",
     "navigation_relationship": "Corrects current-tense release/draft wording in CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md without replacing its historical cuts, claim rows, evidence arrays or negative records."
   },
   "explicit_user_requirements": [
