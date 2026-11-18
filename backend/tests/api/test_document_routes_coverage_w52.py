@@ -60,10 +60,14 @@ def db(engine):
 @pytest.fixture
 def user(db):
     uid = f"du-{uuid.uuid4().hex[:8]}"
+    # Ordinary registered user: an explicit workspace binding (FK authority).
+    # Unbound ordinary accounts are refused by _resolve_ws_id, so every
+    # non-bootstrap route test must carry a real binding.
     u = User(
         id=uid, email=f"{uid}@x.com",
         hashed_password="h", first_name="D", last_name="U",
-        role="member", status="active", tenant_id="t-1")
+        role="member", status="active", tenant_id="t-1",
+        workspace_id=f"ws-{uid}")
     db.add(u)
     db.commit()
     return u
@@ -169,6 +173,7 @@ class TestIngestDocument:
         ws = Workspace(id="ws-primary", tenant_id="t-1", name="Primary")
         db.add(ws)
         db.commit()
+        user.workspace_id = None  # legacy relationship-only account
         user.workspaces.append(ws)
         db.commit()
         with patch("api.document_routes.get_lancedb_handler",
@@ -390,21 +395,26 @@ class TestWorkspaceBranches:
         ws = Workspace(id=ws_id, tenant_id="t-1", name="Branch WS")
         db.add(ws)
         db.commit()
+        # Legacy relationship-only account: no FK, resolved via user_workspaces.
+        user.workspace_id = None
         user.workspaces.append(ws)
         db.commit()
         return ws_id
 
-    def test_upload_workspace_resolution_exception_warned(
+    def test_upload_workspace_resolution_exception_refused(
             self, client, db, user, handler):
-        """workspaces[0] raises → caught, logged, continues with None."""
+        """A broken binding lookup fails closed — never the shared store."""
+        user.workspace_id = None
         user.__dict__["workspaces"] = [object()]  # truthy, .id raises
         with patch("api.document_routes.DocumentParser.parse_document",
                    new=AsyncMock(return_value="parsed")):
             response = client.post(
                 "/api/documents/upload",
                 files={"file": ("a.txt", b"x", "text/plain")})
-        assert response.status_code == 200
-        assert handler.add_document.call_args.kwargs["workspace_id"] is None
+        assert response.status_code == 503
+        assert response.json()["detail"]["error"]["code"] == (
+            "DOCUMENT_SCOPE_RESOLUTION_FAILED")
+        assert not handler.add_document.called
 
     def test_search_workspace_branch(self, client, db, user, handler):
         ws_id = self._attach_workspace(db, user)

@@ -208,6 +208,52 @@ async def test_vector_leg_reads_similarity_score(db):
 
 
 @pytest.mark.asyncio
+async def test_legacy_semantic_hit_ranks_by_score_not_leg_order(db):
+    """A stronger legacy candidate outranks a weaker canonical one.
+
+    Measured during the bootstrap scope upgrade: the pre-repair row scored
+    0.50564 and the canonical row 0.45507 with no lexical hit on either, yet
+    appending the legacy lane gave it RRF rank 2 and returned the canonical row
+    first. Both legs report the same normalized similarity, so the candidates
+    must be merged by that score before RRF and dedup — while canonical-only
+    queries keep their exact prior order.
+    """
+    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+    class ScoreLanceDB:
+        def search(self, *args, **kwargs):
+            return [{"id": "doc_b", "score": 0.45507,
+                     "text": "weaker canonical", "metadata": {}}]
+
+    svc = DocumentsHybridSearch(
+        db=db,
+        lancedb=ScoreLanceDB(),
+        legacy_authority={"user_id": "u1", "workspace_id": "default",
+                          "tenant_id": None},
+    )
+
+    async def _legacy_leg(query, limit, source=None):
+        return [{"id": "doc_a", "score": 0.50564,
+                 "text": "stronger legacy", "metadata": {}}]
+
+    svc._legacy_vector_leg = _legacy_leg  # type: ignore[method-assign]
+
+    res = await svc.search("falcon budget")  # no lexical hits on either row
+
+    ids = [r["id"] for r in res["results"]]
+    assert ids == ["doc_a", "doc_b"], ids
+    assert res["stats"]["legacy_vector_hits"] == 1
+
+    # Equal scores retain canonical priority; canonical-only input is inert.
+    merged = DocumentsHybridSearch._merge_semantic_candidates(
+        [{"id": "doc_b", "score": 0.5}], [{"id": "doc_a", "score": 0.5}])
+    assert [hit["id"] for hit in merged] == ["doc_b", "doc_a"]
+    canonical_only = [{"id": "doc_b", "score": 0.1}]
+    assert DocumentsHybridSearch._merge_semantic_candidates(
+        canonical_only, []) is canonical_only
+
+
+@pytest.mark.asyncio
 async def test_unbridged_vector_hits_flagged_not_dropped(db):
     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 

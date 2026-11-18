@@ -27,6 +27,13 @@ from core.models import User
 from core.security_dependencies import get_current_user
 from core.lancedb_handler import DocumentListingUnavailable, get_lancedb_handler
 from core.auto_document_ingestion import DocumentParser
+from core.legacy_document_scope import (
+    LEGACY_SHARED_WORKSPACE_ID as _LEGACY_SHARED_WORKSPACE_ID,
+    document_row_scope_matches as _document_row_scope_matches,
+    legacy_scope_applies as _legacy_scope_applies,
+    legacy_shared_handler as _legacy_shared_handler,
+    legacy_vector_owned as _legacy_vector_owned,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,18 +49,45 @@ def _resolve_ws_id(current_user: Optional[User]) -> Optional[str]:
     Documents-UI uploads in the SHARED default_shared store while
     /api/documents/search read the user's own store — the document was
     uploaded yet invisible (Phase E, 2026-10-17).
+
+    Only the server-owned bootstrap account (``admin@example.com``, created by
+    ``admin_bootstrap`` with NULL workspace/tenant) may fall back to the
+    documented Personal ``default`` workspace. Any other account without a
+    binding, and any failed binding lookup, fails closed here — returning
+    ``None`` would hand the legacy *shared* ``default_shared`` store to an
+    authenticated principal. ``None`` is reserved for an absent user,
+    preserving the existing ``_resolve_ws_id(None) is None`` contract.
     """
+    from core.personal_scope import (
+        DocumentScopeResolutionError,
+        DocumentScopeUnavailable,
+        resolve_document_workspace_id,
+    )
+
     try:
-        if current_user is not None:
-            fk = getattr(current_user, "workspace_id", None)
-            if fk:
-                return fk
-            rel = getattr(current_user, "workspaces", None)
-            if rel:
-                return rel[0].id
-    except Exception:  # noqa: BLE001 — resolution must never break a route
-        return None
-    return None
+        return resolve_document_workspace_id(current_user)
+    except DocumentScopeUnavailable as scope_err:
+        logger.warning(
+            "Document workspace refused: no eligible scope; error_class=%s",
+            type(scope_err).__name__)
+        raise router.error_response(
+            error_code="DOCUMENT_SCOPE_UNAVAILABLE",
+            message=(
+                "This account has no document workspace binding, so document "
+                "access was refused."),
+            status_code=403,
+        ) from scope_err
+    except DocumentScopeResolutionError as scope_err:
+        logger.warning(
+            "Document workspace refused: resolution failed; error_class=%s",
+            type(scope_err).__name__)
+        raise router.error_response(
+            error_code="DOCUMENT_SCOPE_RESOLUTION_FAILED",
+            message=(
+                "The document workspace binding could not be resolved, so "
+                "document access was refused."),
+            status_code=503,
+        ) from scope_err
 
 # Global handler removed to support dynamic workspace isolation
 # lancedb_handler = get_lancedb_handler("default") -> moved to endpoints
@@ -148,23 +182,6 @@ def _legacy_content_doc_key(text: str) -> str:
     return "doc_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
 
 
-def _document_row_scope_matches(row, workspace_id: Optional[str],
-                                tenant_id: Optional[str]) -> bool:
-    """True only when an existing SQL row's authoritative owner is this scope.
-
-    Personal-Edition storage normalizes a missing workspace to ``"default"``;
-    tenant is compared raw, so a NULL tenant is not silently treated as the
-    literal ``"default"`` tenant. A digest is identity, never permission: a
-    mismatched row must never be adopted or overwritten.
-    """
-    if row is None:
-        return False
-    row_workspace = str(getattr(row, "workspace_id", "") or "default")
-    expected_workspace = str(workspace_id or "default")
-    return (row_workspace == expected_workspace
-            and getattr(row, "tenant_id", None) == tenant_id)
-
-
 def _resolve_upload_doc_id(db, text: str, workspace_id: Optional[str],
                            tenant_id: Optional[str]) -> str:
     """Choose the scoped id, reusing a legacy id only when its owner matches.
@@ -208,6 +225,303 @@ def _resolve_upload_doc_id(db, text: str, workspace_id: Optional[str],
         if _document_row_scope_matches(legacy_row, workspace_id, tenant_id):
             return legacy_id
     return scoped_id
+
+
+# ---------------------------------------------------------------------------
+# Legacy shared-store compatibility (pre-bootstrap-scope uploads)
+# ---------------------------------------------------------------------------
+#
+# Before the Personal-workspace resolver was wired into these routes, an
+# authenticated account with NULL workspace scope handed ``None`` to
+# ``get_lancedb_handler`` and its upload was written to the legacy *shared*
+# ``default_shared`` store. The SQL mirror was already stamped ``"default"``.
+# After the scope repair the resolved store is ``"default"``, so those rows
+# must remain reachable through a narrowly guarded compatibility path:
+#
+#   * only the KNOWN legacy namespace is consulted (never an arbitrary store);
+#   * only an exact record id is addressed (no shared-store scan for search);
+#   * the durable SQL row must prove the resolved workspace + raw tenant and
+#     be explicitly ``fresh``;
+#   * the vector row must be stamped to this exact user and legacy namespace,
+#     carry the same pg/join key and the same source revision.
+#
+# A digest or id is identity, never permission: a foreign or unprovable row is
+# left untouched and fails closed. This does not relocate or widen any store.
+#
+# The reusable proof (namespace, principal, SQL scope/raw tenant, freshness,
+# join key and revision) lives in ``core.legacy_document_scope`` so the direct
+# routes and the hybrid ``documents.search`` lane share ONE definition.
+
+
+def _legacy_owned_document(db: Session, current_user: User,
+                           workspace_id: Optional[str],
+                           tenant_id: Optional[str],
+                           doc_id: str):
+    """Resolve one already-written shared-store record for its exact owner.
+
+    Returns ``(handler, document)`` or ``None``. Every failure path is a
+    refusal, not a fallback to another store.
+    """
+    if current_user is None or not _legacy_scope_applies(workspace_id):
+        return None
+    try:
+        from core.models import IngestedDocument
+
+        row = (
+            db.query(IngestedDocument)
+            .filter(IngestedDocument.id == str(doc_id))
+            .first()
+        )
+    except Exception as legacy_err:  # noqa: BLE001 — unreadable is not proof
+        logger.warning(
+            "Legacy document ownership lookup unavailable; refusing; "
+            "error_class=%s",
+            type(legacy_err).__name__)
+        return None
+    if not _document_row_scope_matches(row, workspace_id, tenant_id):
+        return None
+    if str(getattr(row, "freshness_status", "") or "").lower() != "fresh":
+        return None
+
+    handler = _legacy_shared_handler(workspace_id)
+    if handler is None:
+        return None
+    document = handler.get_document_by_id("documents", str(doc_id))
+    if not document:
+        return None
+    if not _legacy_vector_owned(
+            document, current_user, row, doc_id, workspace_id, tenant_id):
+        return None
+    return handler, document
+
+
+_LEGACY_HEAD_BATCH = 50
+_LEGACY_SQL_BATCH = 100
+_NATIVE_PAGE_CHUNK = 100
+
+
+def _legacy_listing_applies(current_user: User,
+                            workspace_id: Optional[str]) -> bool:
+    """Cheap probe: is there a legacy lane to merge into this listing?"""
+    if current_user is None or not _legacy_scope_applies(workspace_id):
+        return False
+    return _legacy_shared_handler(workspace_id) is not None
+
+
+def _iter_legacy_owned_documents(db: Session, current_user: User,
+                                 workspace_id: Optional[str],
+                                 tenant_id: Optional[str],
+                                 native_handler):
+    """Walk this owner's verified legacy heads in bounded batches.
+
+    The legacy namespace is consulted only for the known pre-repair store, and
+    the store-side scan is filtered to this exact ``user_id`` + namespace
+    BEFORE materialization. Heads arrive in ``created_at DESC, id DESC`` order
+    and are re-proved against the durable SQL owner, raw tenant, source
+    revision and freshness in batches of SQL ids. A head whose id already
+    exists in the resolved canonical store is skipped: the canonical copy
+    wins regardless of which page it falls on.
+
+    Yields small list-shaped dicts without document bodies. An unreadable
+    store/DB (including an unreadable duplicate lookup) raises
+    :class:`DocumentListingUnavailable` (503) instead of silently pretending
+    the account never had legacy rows; a missing store/table is an honest
+    empty result.
+    """
+    if not _legacy_listing_applies(current_user, workspace_id):
+        return
+    handler = _legacy_shared_handler(workspace_id)
+    if handler is None:
+        return
+    lister = getattr(handler, "list_document_heads_for_owner", None)
+    if lister is None:
+        return
+
+    from core.models import IngestedDocument
+
+    seen: set[str] = set()
+    offset = 0
+    while True:
+        try:
+            page = lister(
+                "documents",
+                user_id=str(current_user.id),
+                workspace_id=_LEGACY_SHARED_WORKSPACE_ID,
+                limit=_LEGACY_HEAD_BATCH,
+                offset=offset,
+                include_text=False,
+            )
+        except Exception as legacy_err:  # noqa: BLE001 — unreadable ≠ absence
+            raise DocumentListingUnavailable(
+                "legacy document store could not be read") from legacy_err
+        heads = list(page.get("documents") or [])
+        if not heads:
+            return
+        for start in range(0, len(heads), _LEGACY_SQL_BATCH):
+            chunk = heads[start:start + _LEGACY_SQL_BATCH]
+            ids = [str(head.get("id") or "") for head in chunk]
+            try:
+                rows = (
+                    db.query(IngestedDocument)
+                    .filter(IngestedDocument.id.in_(ids))
+                    .all()
+                )
+            except Exception as legacy_err:  # noqa: BLE001
+                raise DocumentListingUnavailable(
+                    "legacy document ownership could not be verified"
+                ) from legacy_err
+            by_id = {str(item.id): item for item in rows}
+            proven: List[Dict[str, Any]] = []
+            for head in chunk:
+                doc_id = str(head.get("id") or "")
+                if not doc_id or doc_id in seen:
+                    continue
+                row = by_id.get(doc_id)
+                if row is None:
+                    continue
+                if not _document_row_scope_matches(
+                        row, workspace_id, tenant_id):
+                    continue
+                freshness = str(
+                    getattr(row, "freshness_status", "") or "").strip().lower()
+                if freshness != "fresh":
+                    continue
+                if not _legacy_vector_owned(
+                        head, current_user, row, doc_id, workspace_id,
+                        tenant_id):
+                    continue
+                proven.append({
+                    "id": doc_id,
+                    "title": (head.get("metadata") or {}).get("title")
+                    or (head.get("metadata") or {}).get("file_name")
+                    or "Untitled",
+                    "text_preview": "",
+                    "metadata": head.get("metadata") or {},
+                    "created_at": head.get("created_at", ""),
+                })
+            if not proven:
+                continue
+            canonical = set()
+            if native_handler is not None:
+                existing = getattr(
+                    native_handler, "existing_document_ids", None)
+                if callable(existing):
+                    canonical = existing(
+                        "documents", [item["id"] for item in proven])
+            for item in proven:
+                if item["id"] in canonical:
+                    continue
+                seen.add(item["id"])
+                yield item
+
+        offset += len(heads)
+        total = int(page.get("total") or 0)
+        if len(heads) < _LEGACY_HEAD_BATCH or (total and offset >= total):
+            return
+
+
+def _merge_legacy_documents(
+    native_handler, legacy_heads, *, limit: int, offset: int,
+) -> Dict[str, Any]:
+    """Merge the canonical page stream with verified legacy extras.
+
+    Both streams are already ``created_at DESC, id DESC``. The merge walks the
+    canonical store in bounded native pages (never ``offset + limit`` rows at
+    once) and the legacy stream in bounded batches, stopping as soon as the
+    requested global window is complete. Legacy ids already present in the
+    canonical store were removed by :func:`_iter_legacy_owned_documents`, so
+    ``total`` is the exact distinct authorized count: native count plus the
+    deduped legacy extras.
+    """
+    window: List[Dict[str, Any]] = []
+    merged_index = 0
+    native_cursor = 0
+    native_buffer: List[Dict[str, Any]] = []
+    native_total = 0
+    native_exhausted = native_handler is None
+    legacy_consumed = 0
+    pending = next(legacy_heads, None)
+    # Provenance for the rows actually served: only the legacy ids in ``window``
+    # (not every id that was scanned for ordering/counting).
+    legacy_page_ids: set = set()
+
+    def _key(item: Dict[str, Any]):
+        return (
+            str(item.get("created_at") or ""),
+            str(item.get("id") or ""),
+        )
+
+    # ``offset`` is applied by ``merged_index`` below, so the loop stops once
+    # the requested page itself is full — never at ``offset + limit`` rows.
+    while len(window) < limit:
+        if not native_exhausted and not native_buffer:
+            native_page = native_handler.list_documents_page(
+                "documents", limit=_NATIVE_PAGE_CHUNK, offset=native_cursor)
+            native_buffer = list(native_page.get("documents") or [])
+            native_total = int(native_page.get("total") or 0)
+            native_cursor += len(native_buffer)
+            if not native_buffer or native_cursor >= native_total:
+                native_exhausted = True
+        if pending is None and native_exhausted and not native_buffer:
+            break
+        # Exhaustion means no *further* native pages, not an empty buffer: a
+        # buffered head is still the next canonical row and must win on key.
+        take_legacy = pending is not None and (
+            not native_buffer
+            or _key(pending) > _key(native_buffer[0])
+        )
+        if take_legacy:
+            item = pending
+            legacy_consumed += 1
+            pending = next(legacy_heads, None)
+        else:
+            item = native_buffer.pop(0)
+        if merged_index >= offset:
+            window.append(item)
+            if take_legacy:
+                legacy_page_ids.add(str(item.get("id") or ""))
+        merged_index += 1
+
+    if pending is not None:
+        legacy_consumed += 1
+    for _ in legacy_heads:
+        legacy_consumed += 1
+
+    total = native_total + legacy_consumed
+    has_more = bool(window) and (offset + len(window)) < total
+    return {
+        "documents": window,
+        "total": total,
+        "count": len(window),
+        "has_more": has_more,
+        "next_offset": (offset + len(window)) if has_more else None,
+        "previous_offset": max(0, offset - limit) if offset > 0 else None,
+        "stale_page": not window and offset < total,
+        "ordering": "created_at_desc,id_desc",
+        "legacy_count": legacy_consumed,
+        # Internal only (popped by the route); the HTTP response shape is
+        # unchanged.
+        "legacy_page_ids": legacy_page_ids,
+    }
+
+
+def _fill_legacy_previews(handler, page: Dict[str, Any],
+                          legacy_ids: set[str]) -> None:
+    """Read bodies only for the few legacy rows actually being served."""
+    if handler is None or not legacy_ids:
+        return
+    for item in page["documents"]:
+        if item.get("id") not in legacy_ids:
+            continue
+        try:
+            document = handler.get_document_by_id(
+                "documents", str(item.get("id")))
+        except Exception as legacy_err:  # noqa: BLE001 — unreadable ≠ absence
+            raise DocumentListingUnavailable(
+                "legacy document body could not be read") from legacy_err
+        if document:
+            item["text_preview"] = (document.get("text") or "")[:200]
+
 
 
 async def _upsert_document(
@@ -961,12 +1275,15 @@ async def search_documents(
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
         logger.error(f"Document search failed: {e}")
         raise router.internal_error(message="Internal error")
 
 @router.get("/{doc_id}")
 async def get_document(
     doc_id: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get a specific document by ID"""
@@ -979,7 +1296,16 @@ async def get_document(
              raise router.internal_error("Search database not available")
 
         doc = lancedb_handler.get_document_by_id("documents", doc_id)
-        
+        if not doc:
+            # Pre-repair uploads for this authenticated owner live in the
+            # known legacy shared namespace; only an exact, durably-owned,
+            # fresh record is served (never a shared-store fallback).
+            legacy = _legacy_owned_document(
+                db, current_user, ws_id,
+                getattr(current_user, "tenant_id", None), doc_id)
+            if legacy is not None:
+                doc = legacy[1]
+
         if not doc:
             raise router.not_found_error("Document", doc_id)
 
@@ -1045,6 +1371,15 @@ async def export_document(
                 status_code=503,
             )
         document = handler.get_document_by_id("documents", str(doc_id))
+        if not document:
+            # Exact-ID compatibility for a pre-repair upload that this
+            # authenticated owner still durably owns. The same provenance
+            # checks below run against the legacy handler's row.
+            legacy = _legacy_owned_document(
+                db, current_user, workspace_id,
+                getattr(current_user, "tenant_id", None), str(doc_id))
+            if legacy is not None:
+                handler, document = legacy
         if not document:
             raise _export_not_found(str(doc_id))
         from core.personal_scope import resolve_tenant_id
@@ -1209,6 +1544,22 @@ async def delete_document(
     if not lancedb_handler:
             raise router.internal_error("Search database not available")
 
+    # Exact-ID compatibility: a pre-repair upload still owned by this
+    # authenticated account is deleted from the known legacy store with the
+    # SAME original id. Only the resolved-store row wins when both exist.
+    try:
+        present = getattr(
+            lancedb_handler, "count_document_rows_by_id",
+            lambda *a, **k: None)("documents", doc_id)
+    except Exception:  # noqa: BLE001 — fall back to the point read
+        present = None
+    if present in (None, 0):
+        legacy = _legacy_owned_document(
+            db, current_user, ws_id,
+            getattr(current_user, "tenant_id", None), doc_id)
+        if legacy is not None:
+            lancedb_handler = legacy[0]
+
     # Chunk-family semantics (2026-09-13 review, third site of the
     # d94a5e6df fix — auto_document_ingestion already pairs both deletes):
     #   1. An id that exists ONLY as chunks (`<doc_id>::c0..cN`, parent row
@@ -1304,13 +1655,15 @@ async def delete_document(
 async def list_documents(
     limit: int = Query(100, ge=1, le=100, description="Max results (capped at 100)"),
     offset: int = Query(0, ge=0, description="Skip offset (must be >= 0)"),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List recent documents.
 
     Pagination contract:
-      * ``total`` is the full authorized workspace count (native Lance count),
-        not the page length.
+      * ``total`` is the full authorized workspace count (native Lance count
+        plus this owner's verified pre-repair legacy rows), not the page
+        length.
       * ``count`` is the number of items in this page.
       * ``has_more``/``next_offset``/``previous_offset`` describe the page
         continuation. ``next_offset`` is only present when the page returned
@@ -1326,9 +1679,20 @@ async def list_documents(
     try:
         # Dynamic workspace resolution
         ws_id = _resolve_ws_id(current_user)
-
         lancedb_handler = get_lancedb_handler(ws_id)
-        if not lancedb_handler:
+
+        if _legacy_listing_applies(current_user, ws_id):
+            legacy_heads = _iter_legacy_owned_documents(
+                db, current_user, ws_id,
+                getattr(current_user, "tenant_id", None),
+                lancedb_handler)
+
+            page = _merge_legacy_documents(
+                lancedb_handler, legacy_heads, limit=limit, offset=offset)
+            page_legacy_ids = page.pop("legacy_page_ids", set())
+            _fill_legacy_previews(
+                _legacy_shared_handler(ws_id), page, page_legacy_ids)
+        elif not lancedb_handler:
             return router.success_response(
                 data=[],
                 metadata={
@@ -1337,9 +1701,9 @@ async def list_documents(
                     "ordering": "created_at_desc,id_desc",
                 },
             )
-
-        page = lancedb_handler.list_documents_page(
-            "documents", limit=limit, offset=offset)
+        else:
+            page = lancedb_handler.list_documents_page(
+                "documents", limit=limit, offset=offset)
 
         metadata = {
             "total": page["total"],
@@ -1365,5 +1729,7 @@ async def list_documents(
             status_code=503,
         )
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
         logger.error(f"Failed to list documents: {e}")
         raise router.internal_error(message="Internal error")

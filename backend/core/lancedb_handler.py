@@ -170,6 +170,14 @@ class DocumentListingUnavailable(RuntimeError):
     """A complete, globally ordered document page could not be produced."""
 
 
+class DocumentSearchUnavailable(RuntimeError):
+    """A document search that must be complete could not be read.
+
+    Distinct from an empty result on purpose: an unreadable store may not be
+    reported as "the corpus contains no match".
+    """
+
+
 class LanceDBHandler:
     """LanceDB vector database handler with dual vector storage support"""
 
@@ -1672,6 +1680,7 @@ class LanceDBHandler:
         limit: int = 10,
         filter_str: str = None,
         include_stale: bool = False,
+        raise_on_error: bool = False,
     ) -> list[dict[str, Any]]:
         """Search for documents in memory with optional user filtering.
 
@@ -1681,9 +1690,19 @@ class LanceDBHandler:
         superseded) are excluded from results by default. Pass
         ``include_stale=True`` to surface them (admin/observability). See
         core/doc_freshness_service.py.
+
+        ``raise_on_error=True`` is for guarded reads (the legacy-namespace
+        compatibility lane) that must not conflate an unreadable store with an
+        empty one: a missing connection/embedding/scan raises
+        :class:`DocumentSearchUnavailable`. A missing table stays an honest
+        empty result. Default ``False`` preserves the historical degrade-to-[]
+        contract for every existing caller.
         """
         self._ensure_db()
         if self.db is None:
+            if raise_on_error:
+                raise DocumentSearchUnavailable(
+                    "LanceDB connection is unavailable")
             return []
 
         try:
@@ -1694,6 +1713,9 @@ class LanceDBHandler:
             # Generate embedding for query
             query_vector = self.embed_text(query)
             if query_vector is None:
+                if raise_on_error:
+                    raise DocumentSearchUnavailable(
+                        "query embedding could not be produced")
                 return []
 
             # Build search query (embed_text may return a list or numpy array)
@@ -1767,6 +1789,14 @@ class LanceDBHandler:
                         "created_at": row["created_at"],
                         "score": max(0.0, 1.0 - row.get("_distance", 2.0)),  # Clamp to [0,1]
                     }
+                    # Ownership/freshness stamps, when the store carries
+                    # them: lets a guarded caller re-assert that the prefilter
+                    # returned only its own namespace rows. Additive — older
+                    # tables simply omit them.
+                    for extra in (
+                            "user_id", "workspace_id", "freshness_status"):
+                        if extra in results.columns:
+                            result[extra] = row[extra]
                     results_list.append(result)
                 except Exception as e:
                     logger.warning(f"Error parsing search result: {e}")
@@ -1790,6 +1820,7 @@ class LanceDBHandler:
                         limit=limit,
                         filter_str=filter_str,
                         include_stale=include_stale,
+                        raise_on_error=raise_on_error,
                     )
                 except Exception as retry_err:  # noqa: BLE001 — degrade, don't raise
                     logger.error(
@@ -1797,6 +1828,9 @@ class LanceDBHandler:
                         f"'{table_name}': {retry_err}"
                     )
             logger.error(f"Failed to search in '{table_name}': {e}")
+            if raise_on_error:
+                raise DocumentSearchUnavailable(
+                    f"document search failed in {table_name!r}") from e
             return []
 
     def list_incomplete_chunk_families(self, table_name: str = "documents", limit: int = 10) -> list[Dict[str, Any]]:
@@ -1890,6 +1924,207 @@ class LanceDBHandler:
             logger.error(f"Failed to list heads in '{table_name}': {e}")
             return []
 
+    def list_document_heads_for_owner(
+        self, table_name: str, *, user_id: str, workspace_id: str,
+        limit: Union[int, None] = None, offset: int = 0,
+        include_text: bool = True,
+    ) -> dict[str, Any]:
+        """List this exact owner's heads inside one explicitly named store.
+
+        Guarded compatibility read for pre-repair uploads that live in the
+        legacy ``default_shared`` namespace. The native Lance scan is filtered
+        to ``user_id`` AND ``workspace_id`` BEFORE materialization, so another
+        account's rows are never returned (and never loaded) by this call. It
+        is not a general search/list widening: callers must supply both
+        stamps and still re-check durable SQL ownership/freshness.
+
+        ``limit``/``offset`` are applied by the native ordered scan, so a
+        caller can walk this owner's heads in bounded batches instead of
+        loading the whole legacy corpus. ``include_text=False`` omits the
+        document body from the projection; the caller can then read only the
+        few bodies it actually serves by id.
+
+        Returns ``{"documents": [...], "total": n}``. A missing table or a
+        table without the ownership columns is an honest empty result; real
+        read failures propagate so the caller can refuse instead of claiming
+        there is no legacy content.
+        """
+        self._ensure_db()
+        if self.db is None:
+            raise DocumentListingUnavailable(
+                "LanceDB connection is unavailable")
+        table = self.get_table(table_name)
+        if table is None:
+            return {"documents": [], "total": 0}
+        if pa is None:
+            raise DocumentListingUnavailable("pyarrow is unavailable")
+        to_lance = getattr(table, "to_lance", None)
+        if not callable(to_lance):
+            raise DocumentListingUnavailable(
+                "table does not expose the Lance dataset primitive")
+
+        try:
+            from lance.dataset import ColumnOrdering
+
+            dataset = to_lance()
+            names = set(dataset.schema.names)
+            if not {"id", "user_id", "workspace_id"}.issubset(names):
+                return {"documents": [], "total": 0}
+            columns = [
+                name for name in (
+                    "id", "text", "metadata", "created_at",
+                    "user_id", "workspace_id", "freshness_status",
+                )
+                if name in names and (include_text or name != "text")
+            ]
+            safe_user = str(user_id).replace("'", "''")
+            safe_ws = str(workspace_id).replace("'", "''")
+            filter_str = (
+                f"user_id == '{safe_user}' AND workspace_id == '{safe_ws}'")
+            total = int(dataset.count_rows(filter=filter_str))
+            if total == 0:
+                return {"documents": [], "total": 0}
+            effective_limit = total if limit is None else min(
+                int(limit), total)
+            order_by = []
+            if "created_at" in names:
+                order_by.append(ColumnOrdering("created_at", False, False))
+            order_by.append(ColumnOrdering("id", False, False))
+            page = dataset.to_table(
+                columns=columns,
+                filter=filter_str,
+                limit=effective_limit,
+                offset=int(offset),
+                order_by=order_by,
+            )
+            if not isinstance(page, pa.Table):
+                raise DocumentListingUnavailable(
+                    "native owner-filtered scan did not return an Arrow table")
+        except DocumentListingUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001 — caller must refuse, not guess
+            raise DocumentListingUnavailable(
+                f"owner-filtered document scan failed: {exc}") from exc
+
+        documents: list[dict[str, Any]] = []
+        for row in page.to_pylist():
+            metadata = row.get("metadata", {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            elif metadata is None:
+                metadata = {}
+            document = {
+                "id": row.get("id"),
+                "metadata": metadata,
+                "created_at": row.get("created_at", ""),
+                "text": row.get("text", ""),
+            }
+            for extra in ("user_id", "workspace_id", "freshness_status"):
+                if extra in row:
+                    document[extra] = row.get(extra)
+            documents.append(document)
+        return {"documents": documents, "total": total}
+
+    def existing_document_ids(
+        self, table_name: str, ids: list[str]
+    ) -> set[str]:
+        """Which of ``ids`` already exist in this store (id-projected only).
+
+        Bounded keyed lookup used to dedupe a compatibility lane against the
+        resolved canonical store: callers pass a small batch and learn which
+        records are already canonical without loading any body or scanning
+        the table. A missing table is an honest empty set; an unreadable store
+        raises :class:`DocumentListingUnavailable` so the caller refuses
+        instead of guessing that a duplicate is absent.
+        """
+        wanted = [str(item) for item in (ids or []) if str(item)]
+        if not wanted:
+            return set()
+        self._ensure_db()
+        if self.db is None:
+            raise DocumentListingUnavailable(
+                "LanceDB connection is unavailable")
+        try:
+            table = self.get_table(table_name)
+        except Exception as exc:  # noqa: BLE001 — unreadable is not absence
+            raise DocumentListingUnavailable(
+                f"LanceDB table lookup failed for {table_name!r}") from exc
+        if table is None:
+            return set()
+        if pa is None:
+            raise DocumentListingUnavailable("pyarrow is unavailable")
+        to_lance = getattr(table, "to_lance", None)
+        if not callable(to_lance):
+            raise DocumentListingUnavailable(
+                "table does not expose the Lance dataset primitive")
+        try:
+            dataset = to_lance()
+            if "id" not in set(dataset.schema.names):
+                return set()
+            safe_ids = ",".join(
+                "'" + item.replace("'", "''") + "'" for item in wanted)
+            page = dataset.to_table(
+                columns=["id"], filter=f"id IN ({safe_ids})")
+            if not isinstance(page, pa.Table):
+                raise DocumentListingUnavailable(
+                    "native id lookup did not return an Arrow table")
+            return {
+                str(value) for value in page.column("id").to_pylist()
+                if value is not None
+            }
+        except DocumentListingUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001 — caller must refuse, not guess
+            raise DocumentListingUnavailable(
+                f"native id lookup failed: {exc}") from exc
+
+    def search_documents_for_owner(
+        self, table_name: str, query: str, *, user_id: str,
+        workspace_id: str, limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Nearest neighbours for this exact owner inside one named store.
+
+        Guarded compatibility read for pre-repair uploads that live in the
+        legacy ``default_shared`` namespace. Both stamps are required and are
+        applied by the store BEFORE materialization, so another account's rows
+        are never vector-matched or loaded. Callers must still re-check the
+        durable SQL ownership, scope, freshness and revision of every hit.
+
+        A missing table is an honest empty result (nothing was ever written
+        there). A connection, embedding or scan failure raises
+        :class:`DocumentSearchUnavailable` so the caller records an unavailable
+        store instead of claiming the legacy corpus does not contain the query.
+        """
+        owner = str(user_id or "").strip()
+        namespace = str(workspace_id or "").strip()
+        if not owner or not namespace:
+            raise DocumentSearchUnavailable(
+                "owner-filtered search requires a user and workspace stamp")
+        self._ensure_db()
+        if self.db is None:
+            raise DocumentSearchUnavailable(
+                "LanceDB connection is unavailable")
+        try:
+            table = self.get_table(table_name)
+        except Exception as exc:  # noqa: BLE001 — unreadable is not absence
+            raise DocumentSearchUnavailable(
+                f"LanceDB table lookup failed for {table_name!r}") from exc
+        if table is None:
+            return []
+
+        safe_ws = namespace.replace("'", "''")
+        return self.search(
+            table_name,
+            query,
+            user_id=owner,
+            limit=limit,
+            filter_str=f"workspace_id == '{safe_ws}'",
+            raise_on_error=True,
+        )
+
     def get_document_by_id(self, table_name: str, doc_id: str) -> Union[dict[str, Any], None]:
         """Retrieve a single document by ID"""
         self._ensure_db()
@@ -1910,7 +2145,19 @@ class LanceDBHandler:
             # applied here (it would make a quoted doc_id unmatchable).
             import pyarrow.compute as _pc
 
-            arrow = table.to_arrow().select(["id", "text", "source", "metadata", "created_at"])
+            arrow = table.to_arrow()
+            available = set(arrow.column_names)
+            projection = [
+                name for name in (
+                    "id", "text", "source", "metadata", "created_at",
+                    # Ownership/freshness evidence used by the guarded
+                    # legacy-store compatibility read. Additive: tables
+                    # written before these columns existed simply omit them.
+                    "user_id", "workspace_id", "freshness_status",
+                )
+                if name in available
+            ]
+            arrow = arrow.select(projection)
             rows = arrow.filter(_pc.equal(arrow.column("id"), str(doc_id))).to_pylist()
 
             if not rows:
@@ -1925,7 +2172,7 @@ class LanceDBHandler:
             elif metadata is None:
                 metadata = {}
 
-            return {
+            document = {
                 "id": row["id"],
                 "text": row["text"],
                 "source": row.get("source", ""),
@@ -1933,6 +2180,10 @@ class LanceDBHandler:
                 "created_at": row.get("created_at", ""),
                 "vector": [],
             }
+            for extra in ("user_id", "workspace_id", "freshness_status"):
+                if extra in row:
+                    document[extra] = row.get(extra)
+            return document
         except Exception as e:
             logger.error(f"Failed to get document {doc_id}: {e}")
             return None
