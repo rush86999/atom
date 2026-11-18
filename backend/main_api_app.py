@@ -2937,9 +2937,23 @@ try:
     # New Analytics Engine (Upstream Sync)
     try:
         from analytics.routes import router as analytics_engine_router
+        from analytics.routes import workflow_logs_router
 
         app.include_router(
             analytics_engine_router, prefix="/api/v1/analytics", tags=["Analytics Engine"]
+        )
+        # Canonical reviewer log readback (single WORKFLOW_VIEW gate).
+        app.include_router(
+            workflow_logs_router,
+            prefix="/api/v1/analytics",
+            tags=["Workflow Logs"],
+        )
+        # Old double-prefix alias kept working for already-deployed clients.
+        app.include_router(
+            workflow_logs_router,
+            prefix="/api/v1/analytics/analytics",
+            tags=["Workflow Logs (Legacy Alias)"],
+            include_in_schema=False,
         )
         logger.info("✓ Analytics Engine Routes Loaded")
     except (ImportError, TypeError) as e:
