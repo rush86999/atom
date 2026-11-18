@@ -442,6 +442,17 @@ with the expected order and zero lexical hits. The repair also passed 62
 focused tests and 864 pagination cases. Goal 3 remains bounded. Live
 connectors and generated Chat answers require separate evidence.
 
+[PR #999](https://github.com/rush86999/atom/pull/999) merged at
+`c14cbb9182fa2fafb2af8cfa36bd3208eb7758fa` with the tree that passed all
+17 hosted checks. In the synthetic mixed-store replay, Chat's memory
+assembler included both the historical and new uploads with source
+observations. A separate mixed-source regression verified document and
+conversation workspace attribution. The patch passed 113 focused tests.
+In a signed-in local-model replay, a concise question returned the expected
+document excerpt in Chat context, followed by a generation failure. A
+longer question with source and output instructions missed the document.
+These results leave generated answers and longer-prompt retrieval open.
+
 <a id="goal-4"></a>
 ### Goal 4 — Spreadsheet and calculation
 
