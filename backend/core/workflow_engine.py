@@ -87,6 +87,21 @@ def strip_execution_scope(input_data: Optional[Dict[str, Any]]) -> Dict[str, Any
     return cleaned
 
 
+def _as_aware_utc(value: Optional[datetime]) -> Optional[datetime]:
+    """Return ``value`` as an aware UTC datetime.
+
+    SQLite round-trips ``DateTime`` columns without timezone information, so a
+    value written as aware UTC is read back naive. Treat such a stored value as
+    UTC instead of failing arithmetic against a fresh aware timestamp; values
+    that already carry a timezone remain valid and are normalized to UTC.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class WorkflowEngine:
     def __init__(self, max_concurrent_steps: int = 5):
         self.state_manager = get_state_manager()
@@ -1439,9 +1454,16 @@ class WorkflowEngine:
                             ).first()
                             if step_exec:
                                 end_time = datetime.now(timezone.utc)
+                                # SQLite returns the stored start as naive UTC;
+                                # normalize it before subtracting the aware end.
+                                start_time = _as_aware_utc(step_exec.start_time)
                                 step_exec.status = "completed"
                                 step_exec.end_time = end_time
-                                step_exec.duration_ms = int((end_time - step_exec.start_time).total_seconds() * 1000)
+                                if start_time is not None:
+                                    step_exec.duration_ms = max(
+                                        0,
+                                        int((end_time - start_time).total_seconds() * 1000),
+                                    )
                                 step_exec.results = output
                                 db.commit()
                     except Exception as e:
