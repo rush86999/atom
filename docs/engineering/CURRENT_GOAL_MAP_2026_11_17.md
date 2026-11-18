@@ -14,7 +14,23 @@ had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
 
-## Release facts at this cut — merged #994 (2026-11-18)
+## Release facts at this cut — merged #995
+
+| Fact | Actual source |
+|---|---|
+| Observed main | `160621dfa898ff1d17e749606d41ec3721629b3a` — Use verified indexed text for legacy assignment uploads (PR [#995](https://github.com/rush86999/atom/pull/995)); tree `999135d242a36e7221764a580503b2f7553f3dc6`, sole parent `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994) |
+| #995 exact PR head | `5d9ced7e865d32ef889a263e1d4103f5e5d4ef91` — all **17** exact-head checks successful, including GitGuardian; the merge tree equals the exact PR-head tree |
+| #995 qualified scope | The exact legacy `POST /api/document-ingestion/upload` lane is checked by the unchanged synthetic campaign at **18/18**: DOCX with the correct **USD 370.00** total, workbook source and matching SHA-256, restart/reconciliation without a second send, cancellation and resend protection. **162** focused/adjacent tests passed on the byte-identical patch. Only the producer's persisted index-only locator (`upload:<name>`) is classified, and only after the existing workspace/tenant, principal, row-freshness and indexed-revision checks; materialized uploads keep local-file/hash checks; connector and org-bundle locators are not classified. **Synthetic campaign and offline test evidence only; no cloud, model or browser effect is assumed** |
+| #995 retained negative | The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** legacy campaign remains a failure record on its earlier baseline. The 18/18 result applies to the producer's own index-only locator and does not adjudicate connector or org-bundle locators, ordinary UI, or every TASK-WAIT branch |
+| #995 post-merge main | [CI 44239946831](https://github.com/rush86999/atom/actions/runs/44239946831) and [Docker 44239946783](https://github.com/rush86999/atom/actions/runs/44239946783) were **pending** at the observed cut; no completed, failed or performance result is claimed |
+| Predecessor #994 post-merge main | [CI 44233465790](https://github.com/rush86999/atom/actions/runs/44233465790) and [Docker 44233465698](https://github.com/rush86999/atom/actions/runs/44233465698) have since passed, after their **pending** record at the #994 cut |
+
+The #995 qualification is **scoped legacy-ingestion source-representation
+evidence**. It is not ordinary UI/browser acceptance, a live-model result, a
+connector/org-bundle adjudication, or a whole-Goal 10/whole-app completion
+claim.
+
+## Release facts at the #994 cut (2026-11-18, retained)
 
 | Fact | Actual source |
 |---|---|
@@ -270,7 +286,7 @@ acceptance. The earlier pending-at-cut record above remains historical.
 | 7 | Assessment and unfamiliar work | accepted-bounded | [Audit ASK/ORACLE-06](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [historical product ledger](../acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md); deterministic 18/18 V1 and 19/19 V3 | deterministic proof; **model-quality failure** | New held-out/served-domain qualification and any general adaptive judgment claim. The deterministic path does not interpret arbitrary prose; `Q-012`/`Q-021` remain preserved failures. |
 | 8 | Durable employee objectives | accepted-bounded | [Atomic Activity checkpoint decisions](ACTIVITY_CHECKPOINT_ATOMIC_DECISIONS_2026_11_16.md) @ `1f70c1708`, merged #976 (234 backend + 68 frontend controls; browser approve/reject/restart); [real 48-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0`; [goal-run WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968 | API/browser proof; merged; **model-quality gap** | Current-main ordinary-model objectives; event-order breadth; multi-worker/soak; full TASK-WAIT-01 integration. The Activity fixture goals were already achieved, so model competence is not proven. |
 | 9 | Runtime configured-budget enforcement | accepted-bounded | [PR #932](https://github.com/rush86999/atom/pull/932) merged `ab14eb391` (Whisper duration/billing and settlement controls; joint 360-test qualification); historical #722 `5b9610b56` | merged implementation; controlled proof; **live/operator gap** | One priced `TokenUsage` row, matching tenant spend delta, idempotent duplicate settle, and a second dispatch refused before transport when short. Whisper live/remote settlement and PostgreSQL remain unproven. No live spend is authorized. |
-| 10 | TASK-WAIT-01 long tasks pause/resume | open | [Real 48.0203-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0` (same job/execution, one effect, duplicate/late-answer refusal); [WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968; multi-source run @ `ad6ecbd5d`; current-main revocation contract **1 passed** (`test_task_wait_source_revocation.py`, exit 0, 1 test/0 failures/0 errors/0 skips, 3.240 s, direct grant-row revocation not an ordinary route); #993 merged `a33e8d8ab` (normal-upload workbook read/restart lane); legacy-ingestion campaign **5 PASS / 7 FAIL / 6 NOT EVALUATED** (source-representation failure; checks 13–18 never run after a correct 409 guard) | process/API proof; **current-main/model/operator gap** | Ordinary UI; current-main real-model work; partial and independent progress; revocation/cancellation during the wait through an ordinary route; source-representation diagnosis and the ordinary-route replay (both pending and **not adjudicated**); all supported surfaces; multi-worker/soak. The campaign's partial result is a negative, not a pass. #993 addresses the normal upload route only and does not establish that the legacy text-only route is repaired or that every TASK-WAIT branch is supported. Arrival alone is not completion. Never rearm the terminal elapsed-wait case. |
+| 10 | TASK-WAIT-01 long tasks pause/resume | open | [Real 48.0203-hour wait](REAL48H_WAIT_ACCEPTANCE_2026_11_16.md) @ `2f2b376a0` (same job/execution, one effect, duplicate/late-answer refusal); [WAIT validation](GOAL_RUN_WAIT_VALIDATION_2026_11_16.md) merged #968; multi-source run @ `ad6ecbd5d`; current-main revocation contract **1 passed** (`test_task_wait_source_revocation.py`, exit 0, 1 test/0 failures/0 errors/0 skips, 3.240 s, direct grant-row revocation not an ordinary route); #993 merged `a33e8d8ab` (normal-upload workbook read/restart lane); #995 merged `160621dfa` (exact legacy `/api/document-ingestion/upload` lane **18/18** on the unchanged synthetic campaign: USD 370.00 DOCX with source/SHA-256, restart/no-resend/cancellation controls; 162 focused/adjacent tests); legacy-ingestion campaign **5 PASS / 7 FAIL / 6 NOT EVALUATED** (earlier-baseline source-representation failure; checks 13–18 never run after a correct 409 guard) | process/API proof; **current-main/model/operator gap** | Ordinary UI/browser; current-main real-model work; partial and independent progress; revocation/cancellation during the wait through an ordinary route; connector and org-bundle locators (deliberately not classified); all supported surfaces; multi-worker/soak. The earlier campaign's partial result remains a negative on its own baseline, not a pass. #993 covers the normal `/api/documents/upload` route; #995 covers only the producer's persisted index-only locator after the existing scope and index-freshness checks, with no cloud/model/browser effect assumed. Neither establishes every TASK-WAIT branch. Arrival alone is not completion. Never rearm the terminal elapsed-wait case. |
 | 11 | Documents, presentations and email drafts | accepted-bounded | [DOCX/PPTX browser + restart](OFFICE_DOCX_PPTX_BROWSER_RESTART_2026_11_16.md) @ `3316b0fe7`; [inline DOCX](DOCX_INLINE_IMAGE_PRESERVATION_2026_11_16.md) @ `8d98b0689`; #919 merged `9de6ef33` (loopback path only) | browser proof for documents; **provider/email unknown** | Ordinary presentation and email-draft journey; provider draft readback; real recipient inbox delivery; authorized live invoice replay. The one-use live send authority is exhausted. |
 | 12 | Repeatable workflows and schedules | accepted-bounded | Public workflow scope `49d45c7f3`; scheduler `78d2e0ca8`; recovery `e2ba4b01c`; ORCH-01 `0fae2d46c`; [readiness §12](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-12) | merged + controlled proof; **served-model/operator gap** | One real served workflow request through the production route/deadline path; a full scheduled real-workflow result and receipt; PostgreSQL/multi-worker/soak. ORCH-01 still uses a controlled LLM double. |
 | 13 | Fleet, goals and background work | accepted-bounded | [Real fleet delegation, incomplete answer](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#fleet-real-delegation-incomplete-deliverable) @ `a868435fd` (#943, final answer not accepted); one capped synthesis sample (#951); [fleet diagnostics](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md#fleet-diagnostics-remain-separate-from-application-acceptance) (capped live test failed; 11 offline fault controls, including 17 attempted / 16 synthetic send starts) | merged implementation; scripted/API proof; **live workflow failed**; broader model quality **unknown** | Current-main live TASK with a real model, one in-scope chain, complete attributed final answer, restart/durable state, no shadow success or out-of-scope specialist. Case 6 remains **FAILED**. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) also failed fleet acceptance: 14 actual upstream requests, 13 structured HTTP 400 and one correct direct Flash reply; verifier error-contract limits prevent a definitive upstream-cause claim. Its allowance is consumed; no automatic rerun. [Case 8](FLEET_LIVE_DELEGATION_2026_11_17.md) recovered the optional-logprob rejection and completed structured calls on merged main `02c9b1674`, but chose direct conversation: zero specialist chains/links. Six starts stayed within the cap; its one-shot allowance is consumed. [Explicit collaboration authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) merged later at #984 `7f7952c65` carries an accepted specialist requirement into the existing fleet lane with 85 offline checks; case 8's source predates it, so it is not a live delegation pass and needs a fresh allowance. The old 43-case scripted pass remains source-bound, not a current live pass. |
@@ -291,10 +307,11 @@ pre-existing broken links, including two long-standing entries in
 the absent `.planning/phases/236-cross-platform-and-stress-testing/`); both are
 recorded here, not silently repaired. Neither result closes DOCS-REF-01.
 
-## What the #975–#994 deliveries do and do not establish
+## What the #975–#995 deliveries do and do not establish
 
 | Delivery | Source-bound scope | Does not establish |
 |---|---|---|
+| **#995 legacy ingestion uses verified indexed text** | `assignment_resources.is_indexed_only_document_locator` classifies only the legacy producer's persisted `upload:<name>` locator, and only after the existing workspace/tenant, principal, row-freshness and `current_extraction_revision(indexed, authoritative, accepted)` checks. The pre-consumption recheck no longer parks that row as `source_unavailable`. A caller-asserted `upload:` path cannot exempt a row whose persisted locator is blank; materialized uploads keep `os.path.isfile` and binary-hash checks; connector and org-bundle locators are not classified; there is no missing-extraction fallback. Merged at `160621dfa`, tree `999135d` (equal to exact head `5d9ced7e8`), sole parent `d701872`; all 17 exact-head checks passed, including GitGuardian. The unchanged synthetic legacy campaign scored **18/18** on `/api/document-ingestion/upload` (USD 370.00 DOCX, workbook source and matching SHA-256, restart/reconciliation without a second send, cancellation and resend protection); **162** focused/adjacent tests passed on the byte-identical patch. | Ordinary UI/browser, a live model or cloud call, PostgreSQL/multi-worker, connector or org-bundle locators, every TASK-WAIT branch, whole Goal 10 or whole-app completion. The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** campaign stays a failure record at its own baseline. Post-merge CI `44239946831` and Docker `44239946783` were pending at the cut, so no main green is claimed. |
 | **#994 audit evidence and Learning corrections traceable** | Audit Trail is reachable from the core workspace; timeline reads are scoped to the actor or an authorized workspace supervisor. The timeline, correction form and evidence export stay attached to the selected run/event, a refusal states its reason, and an unsigned export declares its read scope and integrity limits. The Learning source excerpt and revision history are shown; a revision clears approval and requires reviewer confirmation and promotion. Merged at `d701872`, tree `fa66625` (equal to exact head `b57be40f5`), sole parent `a33e8d8ab`; all 17 exact-head checks passed. Reported scope: **520 browser assertions** and **34 acceptance cases** across both phases, including evidence download, truthful correction receipt, refusal, revision history, reapproval, restart readback and role boundaries; **49** selected audit/agent-access/header tests and **692** CI-contract checks; the offline recheck measured a **1,501 ms** browser request hold from the recorded timestamps and matched all **42** original evidence files by hash. | Broader audit integrity, a compliance certification, live-model behavior, PostgreSQL/multi-worker, every route or approval family, and whole Goal 6/14/15 or whole-app completion. The original verifier failure — the obsolete `delayed switch report has no recorded latency` assertion — is retained; its immutable run summary still says `failed`. The 1,501 ms figure is a captured request-stage hold (1,338 ms + 163 ms), not end-user UX latency. Post-merge CI `44233465790` and Docker `44233465698` were pending at the cut. |
 | **#993 ordinary uploaded-workbook reads** | Binary/container uploads (`.xlsx`/`.xls`/`.xlsm`/`.ppt*`/`.pdf`) now fall through to the authoritative version-matched indexed extraction instead of decoding raw container bytes as text; text-native files keep their real-path reads, and a missing, stale or out-of-scope extraction refuses with `NeedsContext`. Merged at `a33e8d8ab`, tree `a69fc37d3` (exact head `3ae4a03c4`), all 17 exact-head checks passed. The same isolated ordinary-upload campaign improved **14/18 → 18/18**, producing a DOCX with the correct **USD 370.00** total, workbook source and matching SHA-256, then restart/reconciliation without a second send, plus cancellation and resend protection; **692** CI-contract checks. | The legacy text-only ingestion/assignment route, which remains a separate unadjudicated boundary with the prior **5 PASS / 7 FAIL / 6 NOT EVALUATED** negative preserved; live connectors; model-driven extraction; every workbook format; PostgreSQL; whole Goal 4. The 18/18 used the normal `/api/documents/upload` route, so it does not show that opaque ingestion uploads are assignable, released or repaired, or that every TASK-WAIT branch is supported. Post-merge CI `44217198387` passed on attempt 2 after the Python 3.11 package download failed on attempt 1; Docker `44217198440` passed. |
 | **#990 reviewed approval parameters through dispatch and decision history** | Merged at `a7eccddb`, tree `d2424e36` (equal to exact head `a84de131`), sole parent `31e2aebf`. An approved action's reviewed parameters are preserved into dispatch and decision history. The alias approve/reject surface answers a decision repeated on an already-terminal row with its established plain 400, after every existing authority gate; the shared intervention writer keeps strict 409 `DECISION_CONFLICT`, and a repeat performs no write, status change, scheduler call or resume. All 17 exact-head checks passed; qualification is **3 independent integrated targeted tests** and **692 CI-contract checks**, plus the local repair's 26/139/167/73/94 controls and a 264-node sweep at 257 pass / 7 identical pre-existing failures. The older `85fbd6357` hosted guided-duplicate failure remains preserved as dated evidence. | A broad replay at the integrated or merged tree; PostgreSQL, browser, restart, live provider/model or whole-app acceptance. The post-merge main CI `44201417963` and Docker `44201418036` were pending as of the merge, so no main green is claimed. Changing the alias surface back to plain 400 for a terminal repeat does not make a duplicate a success/idempotent 200, and it does not alter service/governance callers, the legacy idempotent-200 agent route or genuine claim races. |
@@ -388,6 +405,17 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
   acceptance. The original verifier failure is retained as an obsolete
   latency assertion; the immutable run summary still says `failed`, and the
   1,501 ms captured request hold is not UX latency.
+- #995 is **merged** at `160621dfa` (tree `999135d`, sole parent `d701872`,
+  exact head `5d9ced7e8`, 17/17 checks including GitGuardian). Its unchanged
+  **18/18** synthetic legacy campaign and **162** focused/adjacent tests are
+  **not** ordinary UI/browser, live-model, cloud, PostgreSQL/multi-worker,
+  connector/org-bundle or whole-goal acceptance. Only the producer's own
+  persisted `upload:` locator is classified, after the existing scope and
+  index-freshness checks; a caller-asserted `upload:` path cannot exempt a
+  blank row, and materialized uploads keep local-file/hash checks. The earlier
+  **5 PASS / 7 FAIL / 6 NOT EVALUATED** record stays a failure at its own
+  baseline. Post-merge CI `44239946831` and Docker `44239946783` were pending
+  at the cut.
 - #993 is **merged** at `a33e8d8ab` (tree `a69fc37d3`, exact head
   `3ae4a03c4`, 17/17 checks). Its **18/18** ordinary-upload campaign is the
   **normal `/api/documents/upload` route only**; it is **not** evidence that
@@ -414,9 +442,11 @@ recorded here, not silently repaired. Neither result closes DOCS-REF-01.
 - The TASK-WAIT-01 revocation contract pass (1 test) and the campaign's 5 PASS
   / 7 FAIL / 6 NOT EVALUATED result are **not** ordinary-UI, ordinary-route
   revocation, independent-progress, current-model or whole-goal acceptance.
-  The campaign's failures stay failures; its unrun checks stay unmeasured, and
-  the source-representation diagnosis plus ordinary-route replay remain
-  pending.
+  The campaign's failures stay failures; its unrun checks stay unmeasured.
+  #995 later resolves the producer's own persisted index-only locator, but the
+  separately prepared ordinary `/api/documents/upload` replay remains
+  unexecuted, and connector/org-bundle locators, ordinary UI and live models
+  remain unadjudicated.
 
 Account deletion is a separately inferred possible improvement, not an original
 143-claim requirement or an added completion gate for Goal 1.
@@ -441,19 +471,22 @@ Account deletion is a separately inferred possible improvement, not an original
   published.
 - #989 did not edit, merge, split or deselect a test step and did not change
   branch protection; its contract suite proves preservation, not runtime speed.
-- #987, #988, #990, #991, #993 and #994 are recorded as merged deliveries with
-  their own bounded limits; their addition revises no original claim, goal
-  state, audit byte or the historical **111/123** result. #987's 1,424/59
-  broader-gate failure is preserved as a real failed run; its later tests-only
-  fixture repair and the 1,483-pass replay do not erase it. #990's older
+- #987, #988, #990, #991, #993, #994 and #995 are recorded as merged
+  deliveries with their own bounded limits; their addition revises no original
+  claim, goal state, audit byte or the historical **111/123** result.
+  #987's 1,424/59 broader-gate failure is preserved as a real failed run; its
+  later tests-only fixture repair and the 1,483-pass replay do not erase it.
+  #990's older
   `85fbd6357` hosted guided-duplicate failure and the local repair's 7 identical
   wider-sweep failures stay preserved; merging the repaired head does not erase
   either. #994's original verifier failure stays recorded as the obsolete
   latency assertion, its immutable run summary is not rewritten, and all 42
   original evidence files remain hash-identical. #993's 18/18 is the normal
-  ordinary-upload route; the legacy-ingestion campaign's 5 PASS / 7 FAIL / 6
-  NOT EVALUATED stays a negative and its replay is not adjudicated here. The
-  audit/learning browser attempts, replay2's sign-in pass, the
+  ordinary-upload route; the earlier legacy-ingestion campaign's 5 PASS / 7
+  FAIL / 6 NOT EVALUATED stays a negative on its own baseline, while #995's
+  18/18 applies to the same unchanged campaign after the persisted
+  index-only-locator repair. Neither is ordinary UI or whole-goal acceptance.
+  The audit/learning browser attempts, replay2's sign-in pass, the
   integrated-but-unmerged `76a3bbc15` mapping and the partial `audit-core2`
   mount contribute no goal state and no score.
 - The TASK-WAIT-01 campaign's 7 failed and 6 unmeasured checks stay recorded as
@@ -712,3 +745,50 @@ Account deletion is a separately inferred possible improvement, not an original
   not browser-interaction, true-deployment, PostgreSQL, cloud/model or
   portable-drive-removal evidence. Goal 16 remains **open**, and #995 status
   and CI are unchanged and not claimed here.
+
+## Navigation refresh at merged #995 (this pass)
+
+- PR #995 merged into main at `160621dfa898ff1d17e749606d41ec3721629b3a`, tree
+  `999135d242a36e7221764a580503b2f7553f3dc6`, sole parent
+  `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994), exact PR head
+  `5d9ced7e865d32ef889a263e1d4103f5e5d4ef91` with all **17** exact-head
+  checks successful, including GitGuardian. The merge tree equals the exact
+  PR-head tree.
+- #995 classifies only the legacy ingestion producer's own persisted
+  index-only locator (`upload:<name>`) and only after the existing
+  workspace/tenant, principal, row-freshness and
+  `current_extraction_revision(indexed, authoritative, accepted)` checks.
+  A caller-asserted `upload:` path cannot exempt a row whose persisted
+  locator is blank; materialized uploads keep `os.path.isfile` and binary-hash
+  checks; connector and org-bundle locators remain unclassified; there is no
+  missing-extraction fallback.
+- Evidence at that source: the unchanged synthetic campaign scored **18/18**
+  on the exact legacy `/api/document-ingestion/upload` lane, with the correct
+  **USD 370.00** DOCX, workbook source and matching SHA-256, restart and
+  reconciliation without a second send, and cancellation/resend protection;
+  **162** focused/adjacent tests passed on the byte-identical patch. This is
+  **synthetic campaign and offline test evidence only**; no cloud, model or
+  browser effect is assumed.
+- The earlier **5 PASS / 7 FAIL / 6 NOT EVALUATED** campaign remains the
+  failure record on its earlier baseline. #995 adjudicates neither ordinary
+  UI/browser behavior, live models, connector/org-bundle locators, nor every
+  TASK-WAIT branch.
+- Post-merge main CI `44239946831` and Docker `44239946783` were **pending**
+  at the observed cut, so no green or failure is claimed. Predecessor #994's
+  main CI `44233465790` and Docker `44233465698`, pending at its own cut, have
+  since passed.
+- This local follow-up also contains a **test-only Disconnect regression** in
+  `backend/tests/test_task_wait_source_revocation.py`: it mounts the shipped
+  OAuth router and exercises `DELETE /api/v1/auth/oauth/tokens/microsoft`
+  while a quote task waits, asserting persisted revocation and the
+  `source_permission_revoked` 403 before any read/quote, with no provider call.
+  That test change is **not merged** at the observed cut and earns no
+  shipped-route or goal credit; the historical merged-main revocation record
+  stays a direct `IntegrationToken.status` row mutation.
+- Scope of this pass: **documentation only** — no app, server, browser, test
+  run, provider/model call, PostgreSQL cluster, credential, live data,
+  install, deployment, network query or push. No product, CI, test, schema or
+  configuration byte changed by this pass. The original audit JSON is
+  byte-identical; the 143 claim identities, 18 goal rows, status/counts,
+  historical **111/123 (90.2%)**, earlier negatives and `app_complete: false`
+  are unchanged.
