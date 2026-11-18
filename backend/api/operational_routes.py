@@ -1,6 +1,6 @@
 import logging
-from typing import Any, Dict, List
-from fastapi import Body, Depends
+from typing import Any, Dict, List, Tuple
+from fastapi import Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.active_intervention_service import active_intervention_service
@@ -10,6 +10,13 @@ from core.business_health_service import business_health_service
 from core.cross_system_reasoning import CrossSystemReasoningEngine
 from core.database import get_db
 from core.models import User, UserRole
+from core.personal_scope import (
+    DocumentScopeResolutionError,
+    DocumentScopeUnavailable,
+    is_bootstrap_identity,
+    resolve_document_workspace_id,
+    resolve_tenant_id,
+)
 from core.security.rbac import user_meets_role
 
 # Round 37: these endpoints expose business/financial forensics and can execute
@@ -31,7 +38,52 @@ def _require_supervisor(db: Session, current_user: User) -> None:
             status_code=403,
             detail="Insufficient permissions. Required role: team_lead or higher",
         )
+
+
+def _resolve_intervention_scope(user: User) -> Tuple[str, str]:
+    """Resolve persisted tenant/workspace bindings for intervention reads.
+
+    The reasoning engine calls risk services that read tenant-keyed
+    subscriptions and workspace-keyed invoices. A missing or unreadable
+    binding fails closed; only the server-owned bootstrap identity keeps the
+    Personal Edition fallback.
+    """
+    try:
+        workspace_id = resolve_document_workspace_id(user)
+    except (DocumentScopeUnavailable, DocumentScopeResolutionError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No workspace scope is bound to this account",
+        ) from exc
+
+    if not workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No workspace scope is bound to this account",
+        )
+
+    if getattr(user, "tenant_id", None):
+        tenant_id = resolve_tenant_id(user)
+    else:
+        try:
+            bootstrap = is_bootstrap_identity(user)
+        except Exception as exc:  # noqa: BLE001 — unprovable identity fails closed
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tenant scope is bound to this account",
+            ) from exc
+        if not bootstrap:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tenant scope is bound to this account",
+            )
+        tenant_id = resolve_tenant_id(user)
+
+    return str(workspace_id), tenant_id
+
+
 logger = logging.getLogger(__name__)
+
 
 @router.get("/priorities")
 async def get_daily_priorities(
@@ -142,9 +194,10 @@ async def generate_interventions(
     """
     Triggers the Cross-System Reasoning Engine to find active interventions.
     """
+    workspace_id, tenant_id = _resolve_intervention_scope(current_user)
     engine = CrossSystemReasoningEngine(db)
     interventions = await engine.generate_interventions(
-        current_user.workspace_id or "default")
+        workspace_id, tenant_id)
     return router.success_response(
         data=interventions,
         message="Interventions generated successfully"

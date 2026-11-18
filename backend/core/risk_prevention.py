@@ -11,40 +11,57 @@ class CustomerProtectionService:
     def __init__(self, db: Session = None):
         self.db = db
 
-    async def predict_churn_risk(self, workspace_id: str) -> List[Dict[str, Any]]:
+    async def predict_churn_risk(self, tenant_id: str = "") -> List[Dict[str, Any]]:
         """
         Analyzes customer usage and sentiment to predict churn.
 
         Returns recorded signals only. The previous hardcoded Acme/Beta story
         was presented as a live prediction on every workspace; with no
         customer-usage feed connected the truthful result is empty.
+
+        Subscriptions are tenant-scoped rows, so callers must supply the
+        authenticated principal's tenant binding. An empty binding fails
+        closed rather than querying across tenants.
         """
         try:
             from core.models import Subscription
         except Exception:
             return []
 
-        if self.db is None:
+        if self.db is None or not tenant_id:
             return []
         # A canceled subscription with a future billing date is a recorded
         # churn signal; without usage/sentiment feeds nothing stronger can be
         # claimed.
         rows = (
             self.db.query(Subscription)
-            .filter(Subscription.status.in_(["canceled", "cancelled"]))
+            .filter(
+                Subscription.tenant_id == tenant_id,
+                Subscription.status.in_(["canceled", "cancelled"]),
+            )
             .limit(20)
             .all()
         )
         risks: List[Dict[str, Any]] = []
         for row in rows:
             customer = getattr(row, "customer", None)
+            # The subscription's tenant scope does not prove the linked
+            # customer row belongs to the same tenant. Do not surface its
+            # display fields unless the persisted customer binding agrees.
+            customer_visible = (
+                customer is not None
+                and str(getattr(customer, "tenant_id", "") or "") == str(tenant_id)
+            )
             risks.append({
                 "customer_id": getattr(row, "customer_id", ""),
                 "customer_name": (
-                    getattr(customer, "name", None)
-                    or getattr(customer, "email", None)
-                    or "Recorded customer"
-                ),
+                    (
+                        getattr(customer, "name", None)
+                        or getattr(customer, "email", None)
+                    )
+                    if customer_visible
+                    else None
+                ) or "Recorded customer",
                 "churn_probability": 1.0,
                 "risk_factors": ["Subscription recorded as canceled"],
                 "mrr_at_risk": float(getattr(row, "mrr", 0) or 0),
@@ -56,9 +73,13 @@ class EarlyWarningService:
     def __init__(self, db: Session = None):
         self.db = db
 
-    async def detect_ar_delays(self, workspace_id: str) -> List[Dict[str, Any]]:
+    async def detect_ar_delays(self, workspace_id: str = "") -> List[Dict[str, Any]]:
         """
         Predicts late payments from recorded invoices.
+
+        Invoices are workspace-scoped rows, so callers must supply the
+        authenticated principal's workspace binding. An empty binding fails
+        closed rather than querying across workspaces.
 
         Without a connected accounting source this returns [] rather than the
         former Globeх demo alert.
@@ -67,11 +88,14 @@ class EarlyWarningService:
             from accounting.models import Invoice, InvoiceStatus
         except Exception:
             return []
-        if self.db is None:
+        if self.db is None or not workspace_id:
             return []
         invoices = (
             self.db.query(Invoice)
-            .filter(Invoice.status.notin_([InvoiceStatus.PAID, InvoiceStatus.VOID]))
+            .filter(
+                Invoice.workspace_id == workspace_id,
+                Invoice.status.notin_([InvoiceStatus.PAID, InvoiceStatus.VOID]),
+            )
             .limit(50)
             .all()
         )
@@ -117,9 +141,13 @@ class FraudDetectionService:
     def __init__(self, db: Session = None):
         self.db = db
 
-    async def detect_anomalies(self, workspace_id: str) -> List[Dict[str, Any]]:
+    async def detect_anomalies(self, tenant_id: str = "") -> List[Dict[str, Any]]:
         """
         Flags large refunds or suspicious transactions.
+
+        Ecommerce orders are tenant-scoped rows, so callers must supply the
+        authenticated principal's tenant binding. An empty binding fails
+        closed rather than querying across tenants.
 
         Returns only recorded transaction rows. The former hardcoded refund
         alert appeared on every workspace regardless of activity.
@@ -128,11 +156,14 @@ class FraudDetectionService:
             from ecommerce.models import EcommerceOrder
         except Exception:
             return []
-        if self.db is None:
+        if self.db is None or not tenant_id:
             return []
         orders = (
             self.db.query(EcommerceOrder)
-            .filter(EcommerceOrder.status.in_(["refunded", "chargeback"]))
+            .filter(
+                EcommerceOrder.tenant_id == tenant_id,
+                EcommerceOrder.status.in_(["refunded", "chargeback"]),
+            )
             .limit(20)
             .all()
         )

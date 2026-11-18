@@ -37,17 +37,26 @@ class CrossSystemReasoningEngine:
     def db(self):
         return self._db or get_db_session()
 
-    async def generate_interventions(self, workspace_id: str) -> List[Intervention]:
+    async def generate_interventions(
+        self, workspace_id: str, tenant_id: str) -> List[Intervention]:
         """
         Analyzes cross-domain signals to propose interventions.
+
+        Risk reads span both scope keys: subscriptions resolved by the risk
+        service are tenant-scoped, while invoices are workspace-scoped. The
+        caller must pass both bindings rather than using one as a stand-in
+        for the other.
         """
+        if not workspace_id or not tenant_id:
+            return []
+
         db = self.db
         interventions = []
         
         try:
             # 1. Gather Signals
             # Risk Signals
-            churn_risk = await CustomerProtectionService(db).predict_churn_risk(workspace_id)
+            churn_risk = await CustomerProtectionService(db).predict_churn_risk(tenant_id)
             ar_alerts = await EarlyWarningService(db).detect_ar_delays(workspace_id)
             
             # Financial Signals
