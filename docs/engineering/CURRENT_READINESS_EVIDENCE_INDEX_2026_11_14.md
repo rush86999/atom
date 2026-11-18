@@ -929,8 +929,13 @@ On merged main `4c4ceb91efcb75f62c7905761586cbe2c2bf1146` ([PR #1000](https://gi
 |---|---:|---:|---:|---:|
 | Serial after the first request | 40 | 16.3 ms | 19.3 ms | 20.7 ms |
 | Four concurrent clients after one warmup | 40 | 41.6 ms | 85.5 ms | 86.2 ms |
+| Four concurrent clients, search plus citation readback | 40 | 69.7 ms | 121.9 ms | 136.3 ms |
 
-The first request of the serial run took 494.5 ms. Both runs kept raw per-request measurements. This records one local fixture, one query and one backend. Goal 17 remains unverified for production scale, comparative promises and generated Chat answers.
+The first request of the serial run took 494.5 ms. The citation run measured
+both authenticated RPC calls together and verified the expected original text
+in all 40 readbacks. The runs kept raw per-request measurements. This records
+one local fixture, one query and one backend. Goal 17 remains unverified for
+production scale, comparative promises and generated Chat answers.
 
 <a id="goal-18"></a>
 ### Goal 18 — Profile breadth
