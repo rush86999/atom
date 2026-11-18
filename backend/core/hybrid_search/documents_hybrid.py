@@ -218,6 +218,7 @@ class DocumentsHybridSearch:
         source: Optional[str] = None,
         author: Optional[str] = None,
         owner_user_id: Optional[str] = None,
+        documents_allowed: bool = True,
     ) -> Dict[str, Any]:
         query = (query or "").strip()
         if len(query) < 3:
@@ -229,35 +230,48 @@ class DocumentsHybridSearch:
 
         legs: Dict[str, Dict[str, Any]] = {}
 
-        lexical, _ = await self._run_leg(
-            "lexical",
-            lambda: asyncio.to_thread(
-                self._lexical_leg, query, limit, since, source, author
-            ),
-            legs,
-            required=True,
-        )
-        vector, _ = await self._run_leg(
-            "vector",
-            lambda: self._vector_leg(query, limit, source),
-            legs,
-            required=False,
-        )
-        if legs["vector"]["status"] != LEG_SKIPPED:
-            legs["vector"]["required"] = _vector_leg_enabled()
-
-        # LEGACY NAMESPACE: only for a proven bootstrap principal, only through
-        # the same vector settings (flag, source filter, score floor, limit).
-        # A separate recorded leg keeps an unreadable legacy store visible as
-        # coverage loss instead of an innocent zero-match.
-        legacy_vector: List[Dict[str, Any]] = []
-        if self._legacy_lane_applies(source):
-            legacy_vector, _ = await self._run_leg(
-                "vector_legacy",
-                lambda: self._legacy_vector_leg(query, limit, source),
+        if documents_allowed:
+            lexical, _ = await self._run_leg(
+                "lexical",
+                lambda: asyncio.to_thread(
+                    self._lexical_leg, query, limit, since, source, author
+                ),
+                legs,
+                required=True,
+            )
+            vector, _ = await self._run_leg(
+                "vector",
+                lambda: self._vector_leg(query, limit, source),
                 legs,
                 required=False,
             )
+            if legs["vector"]["status"] != LEG_SKIPPED:
+                legs["vector"]["required"] = _vector_leg_enabled()
+
+            # LEGACY NAMESPACE: only for a proven bootstrap principal, only
+            # through the same vector settings (flag, source filter, score
+            # floor, limit). A separate recorded leg keeps an unreadable
+            # legacy store visible as coverage loss instead of an innocent
+            # zero-match.
+            legacy_vector: List[Dict[str, Any]] = []
+            if self._legacy_lane_applies(source):
+                legacy_vector, _ = await self._run_leg(
+                    "vector_legacy",
+                    lambda: self._legacy_vector_leg(query, limit, source),
+                    legs,
+                    required=False,
+                )
+        else:
+            # FAIL CLOSED (document scope): the caller has no proven document
+            # workspace. Do not read any document store, but keep the
+            # owner-scoped conversations leg available — it is authorized by
+            # the owner id, not by document scope.
+            lexical: List[Dict[str, Any]] = []
+            vector: List[Dict[str, Any]] = []
+            legacy_vector: List[Dict[str, Any]] = []
+            for name in ("lexical", "vector", "vector_legacy"):
+                legs[name] = _skipped_leg(
+                    reason="document_scope_unavailable")
 
         stats: Dict[str, Any] = {
             "lexical_hits": len(lexical),
