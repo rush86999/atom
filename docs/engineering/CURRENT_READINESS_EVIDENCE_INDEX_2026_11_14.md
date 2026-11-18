@@ -843,6 +843,15 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   governance cache benchmark at `dd2610502` is source-bound cache-only
   correctness and DB isolation (37 independent tests), not full governance/
   HTTP performance or universal throughput.
+- **Cache measurement on main `d701872`:** running the shipped
+  `scripts/benchmark_governance.py` on Darwin 25.5.0 x86_64 with CPython
+  3.14.7 recorded a median 1.92 million warm hits per second and 750 ns P99.
+  Empty-cache misses measured 3.17 million per second at the median and
+  375 ns P99. The benchmark used five batches of 200,000 lookups for each
+  case, 5,000 warmup calls and 2,000 latency samples per case. Both counter
+  checks passed. Elapsed-time tests outside the cache, including full
+  permission decisions and HTTP latency, remain open. Local result
+  `/private/tmp/atom-perf02-main994.jl2Qkt/result.json`.
 - **Exact sources:** audit `PERF-01..03`, `MKT-01..05`;
   [`APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json`](APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json)
   → `performance_reconciliation`.
