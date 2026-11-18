@@ -1341,6 +1341,17 @@ def build_candidate(
 ) -> LearningCandidate:
     if authority_message_id and evidence is None:
         raise ValueError("authority_evidence_required")
+    # The ordinary native-chat form names neither the authority message nor an
+    # excerpt. Capture that intent before the server infers the message id, so
+    # a caller-supplied id or excerpt (including an explicit blank alongside a
+    # named message) is never rewritten. The derived citation only replaces an
+    # omission; it is never a substitute for the caller's own quote.
+    automatic_excerpt = bool(
+        evidence is not None
+        and evidence.source_kind == SOURCE_KIND_NATIVE_CHAT
+        and not authority_message_id
+        and not authority_excerpt
+    )
     if evidence is not None and not authority_message_id:
         # The authority is the most recent authored segment, never a quoted
         # tail. A thread with only quoted content has no authority.
@@ -1348,10 +1359,17 @@ def build_candidate(
             (message.message_id for message in reversed(evidence.messages)
              if message.authored_text), "")
     if evidence is not None and authority_message_id:
-        validate_authority(
+        authority_message = validate_authority(
             evidence, message_id=authority_message_id,
             excerpt=authority_excerpt,
             proposed_lesson=proposed_lesson)
+        # Validate the caller's original excerpt/lesson first. Only after that
+        # succeeds may the server quote the message it selected, so a derived
+        # excerpt can never satisfy the permission-expansion guard. The
+        # authored segment already excludes quoted text and is bounded by the
+        # same length policy as a caller-supplied excerpt.
+        if automatic_excerpt:
+            authority_excerpt = _bounded(authority_message.authored_text, 500)
     method_model = (
         method if isinstance(method, MethodSpec)
         else MethodSpec.model_validate(method or {}))
