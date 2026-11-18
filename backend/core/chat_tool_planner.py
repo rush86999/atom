@@ -9634,6 +9634,40 @@ async def _documents_ingested_hybrid_lookup(
     }
 
 
+def _scoped_document_query(plan: Any, message: Any) -> Optional[str]:
+    """Return the authoritative scoped turn for a documents search/find.
+
+    The planner may replace "Using my uploaded documentation only, ..."
+    with an invented VFS path such as
+    ``knowledge/conversations/<id>/content.lines``. That qualification is
+    the USER's source scope, so search/find plans for the turn must be
+    judged and dispatched against the original server-supplied text. The
+    Chat gate and the defensive VFS executor share this helper.
+
+    Explicit grep/cat/read intents, non-documents services, ordinary
+    unqualified searches, and a bare qualification (no remainder) return
+    ``None`` and keep their existing route.
+    """
+    service = str(getattr(plan, "service", "") or "").strip().lower()
+    if service != "documents":
+        return None
+    intent = str(getattr(plan, "intent", "") or "grep").strip().lower()
+    if intent not in _DOCUMENTS_SEARCH_SHAPED_INTENTS:
+        return None
+    text = str(message or "").strip()
+    if not text:
+        return None
+    try:
+        from core.memory_context_assembler import (
+            _supported_source_restriction,
+        )
+
+        source_filter, _ = _supported_source_restriction(text)
+    except Exception:  # noqa: BLE001 — additive lane
+        return None
+    return text if source_filter == "ingested" else None
+
+
 async def _documents_vfs_block(
     plan: Any, user_id: Optional[str], context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
@@ -9653,17 +9687,10 @@ async def _documents_vfs_block(
     # searches keep their VFS semantics.
     _turn_message = str((context or {}).get("message") or "").strip()
     _restriction_text = _turn_message or query
-    _restricted_source = None
-    if intent in _DOCUMENTS_SEARCH_SHAPED_INTENTS:
-        try:
-            from core.memory_context_assembler import (
-                _supported_source_restriction,
-            )
-
-            _restricted_source, _ = _supported_source_restriction(
-                _restriction_text)
-        except Exception:  # noqa: BLE001 — additive lane
-            _restricted_source = None
+    _restricted_query = _scoped_document_query(plan, _restriction_text)
+    _restricted_source = "ingested" if _restricted_query else None
+    if _restricted_query:
+        _restriction_text = _restricted_query
     # A search-shaped plan whose query IS a VFS path is an open request the
     # planner model phrased poorly (live 2026-09-13: "open that full
     # message" → intent=search with the cited path as the query). Reroute
