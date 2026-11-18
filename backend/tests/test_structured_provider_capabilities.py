@@ -24,6 +24,12 @@ behavior:
   invented for it, even when the caller disables reasoning; no other
   Go/DeepSeek model, and no other gateway OR endpoint under the same label,
   inherits it;
+* the exact local ``ollama``/``llama3.1:8b`` route is JSON-only because the
+  same Chat turn interpretation call produced no tool call under Instructor
+  TOOLS (and exhausted retries) but returned a valid Pydantic interpretation
+  under Instructor JSON. Only the two documented-equivalent loopback ``/v1``
+  spellings are attested; a cloud host, another model/port/path, or the
+  native ``/api`` surface inherits nothing;
 * an unknown, future or legacy route gets the historical payload and the
   existing typed-error recovery (one changed retry, then a pair memo — never
   an identical repeat).
@@ -65,12 +71,15 @@ class _WireProbe(BaseModel):
     value: str
 
 
-#: Server-owned official base URLs used by the real SDK clients below. Tests
-#: never add a localhost/test URL to the attested catalogue: overrides and
-#: look-alikes must go through the same legacy path as production.
+#: Server-owned official base URLs used by the real SDK clients below. The
+#: only local URLs in the attested catalogue are Ollama's exact loopback /v1
+#: spellings; every other override or look-alike must go through the same
+#: legacy path as production.
 _NATIVE_ENDPOINT = "https://api.deepseek.com/v1"
 _NATIVE_ENDPOINT_ALIAS = "https://api.deepseek.com"
 _GO_ENDPOINT = "https://opencode.ai/inference/go/openai/v1"
+_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/v1"
+_OLLAMA_ENDPOINT_ALIAS = "http://localhost:11434/v1"
 
 
 def _completion_body(body: dict, content: dict, model: str) -> dict:
@@ -183,13 +192,14 @@ def test_contract_resolution_is_exact_and_sourced():
         resolve_structured_wire_contract,
     )
 
-    # The catalogue itself is pinned: three exact routes, no family expansion.
+    # The catalogue itself is pinned: four exact routes, no family expansion.
     declared = {
         (d.provider_id, d.model_id): d for d in declared_routes()}
     assert set(declared) == {
         ("deepseek", "deepseek-flash"),
         ("deepseek", "deepseek-v4-pro"),
         ("opencode-go", "deepseek-v4-pro"),
+        ("ollama", "llama3.1:8b"),
     }
     # Attestation is bound to the official endpoint, not only to the label.
     for model in ("deepseek-flash", "deepseek-v4-pro"):
@@ -199,6 +209,8 @@ def test_contract_resolution_is_exact_and_sourced():
             ("deepseek", model)].attested_endpoints
     assert declared[("opencode-go", "deepseek-v4-pro")].attested_endpoints == (
         _GO_ENDPOINT,)
+    assert declared[("ollama", "llama3.1:8b")].attested_endpoints == (
+        _OLLAMA_ENDPOINT, _OLLAMA_ENDPOINT_ALIAS)
 
     # The exact Go route with served evidence (2026-10-18), on the Go endpoint.
     gateway = resolve_structured_wire_contract(
@@ -211,6 +223,21 @@ def test_contract_resolution_is_exact_and_sourced():
     # captured, so the declaration carries no switch at all.
     assert gateway.thinking_disable_extra is None
     assert gateway.thinking_disable_key is None
+
+    # The exact local Ollama route with runtime evidence (2026-11-18) is
+    # JSON-only on its two loopback /v1 spellings.
+    local = resolve_structured_wire_contract(
+        "ollama", "llama3.1:8b", configured_endpoint=_OLLAMA_ENDPOINT)
+    assert local is not None
+    assert local.protocol == "json"
+    assert local.observed_on == "2026-11-18"
+    assert local.requires_thinking_disabled is False
+    assert local.thinking_disable_extra is None
+    assert local.thinking_disable_key is None
+    assert local.supports_logprobs is False
+    assert resolve_structured_wire_contract(
+        "ollama", "llama3.1:8b",
+        configured_endpoint=_OLLAMA_ENDPOINT_ALIAS) is not None
 
     # The two native identifiers the first-party endpoint reported as served.
     for model in ("deepseek-flash", "deepseek-v4-pro"):
@@ -265,6 +292,63 @@ def test_contract_resolution_is_exact_and_sourced():
         configured_endpoint="https://example.test/v1") is None
     assert resolve_structured_wire_contract(
         "deepseek", "", configured_endpoint=_NATIVE_ENDPOINT) is None
+
+
+def test_ollama_declaration_is_exact_local_json_only():
+    """Ollama evidence is scoped to one model and two loopback /v1 routes."""
+    from core.llm.wire_capabilities import resolve_structured_wire_contract
+
+    def _resolve(provider, model, endpoint):
+        return resolve_structured_wire_contract(
+            provider, model, configured_endpoint=endpoint)
+
+    # Both documented-equivalent spellings, with a trailing slash and the
+    # case/whitespace-only identifier normalization the registry uses.
+    for endpoint in (
+            _OLLAMA_ENDPOINT,
+            _OLLAMA_ENDPOINT + "/",
+            _OLLAMA_ENDPOINT_ALIAS,
+            _OLLAMA_ENDPOINT_ALIAS + "/",
+    ):
+        contract = _resolve("ollama", "llama3.1:8b", endpoint)
+        assert contract is not None, endpoint
+        assert contract.protocol == "json", endpoint
+        assert contract.observed_on == "2026-11-18", endpoint
+        assert contract.requires_thinking_disabled is False, endpoint
+        assert contract.thinking_disable_extra is None, endpoint
+        assert contract.thinking_disable_key is None, endpoint
+        assert contract.supports_logprobs is False, endpoint
+    assert _resolve(
+        " Ollama ", " Llama3.1:8B ", _OLLAMA_ENDPOINT) is not None
+
+    # No model-family, tag-tail, or provider-label expansion.
+    for provider, model in (
+            ("ollama", "llama3.1"),
+            ("ollama", "llama3.1:70b"),
+            ("ollama", "llama3.1:8b-instruct-q4_0"),
+            ("ollama", "qwen2.5:7b"),
+            ("openai", "llama3.1:8b"),
+            ("ollama-cloud", "llama3.1:8b"),
+    ):
+        assert _resolve(provider, model, _OLLAMA_ENDPOINT) is None, (
+            provider, model)
+
+    # Nor does the declaration expand to a cloud/custom host, another
+    # port/path/scheme, a look-alike, userinfo, a query or a fragment.
+    for endpoint in (
+            "http://127.0.0.1:11435/v1",
+            "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434/api",
+            "https://127.0.0.1:11434/v1",
+            "http://localhost:8080/v1",
+            "https://ollama.com/v1",
+            "https://ollama.com/api",
+            "https://ollama.com.evil.test/v1",
+            "http://127.0.0.1:11434/v1?x=1",
+            "http://localhost:11434/v1#fragment",
+            "http://user:pass@127.0.0.1:11434/v1",
+    ):
+        assert _resolve("ollama", "llama3.1:8b", endpoint) is None, endpoint
 
 
 def test_contract_requires_the_actual_configured_wire_endpoint():
@@ -535,6 +619,50 @@ def test_opencode_go_deepseek_twin_is_json_only_without_any_reasoning_extension(
     for expected in (
             "first user turn", "prior assistant answer", "second user turn"):
         assert expected in contents, contents
+
+
+@pytest.mark.parametrize("endpoint", [
+    _OLLAMA_ENDPOINT,
+    _OLLAMA_ENDPOINT_ALIAS,
+])
+def test_ollama_local_route_uses_json_for_chat_turn_interpretation(
+        monkeypatch, endpoint):
+    """The exact local route serves the same call under JSON, not TOOLS."""
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    provider, model = "ollama", "llama3.1:8b"
+    _clear_pair_memos(provider, model)
+    messages = [
+        {"role": "system", "content": "You interpret one Chat turn."},
+        {"role": "user", "content": "Archive this conversation."},
+    ]
+    seen: list[dict] = []
+
+    def _responder(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        assert "tools" not in body, body
+        assert body.get("response_format") == {"type": "json_object"}, body
+        # No DeepSeek switch, vendor thinking object, OpenRouter extension, or
+        # optional logprobs field is invented for this local route.
+        for invented in ("reasoning_effort", "thinking", "reasoning"):
+            assert invented not in body, body
+        assert "logprobs" not in body, body
+        return httpx.Response(200, json=_completion_body(
+            body, {"value": "ollama-json-ok"}, model))
+
+    handler = _handler_for(provider, model, _responder, base_url=endpoint)
+    result = _call(handler, disable_reasoning=True, messages=messages)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "ollama-json-ok"
+    assert len(seen) == 1, seen
+    wire_messages = seen[0].get("messages") or []
+    roles = [m.get("role") for m in wire_messages if isinstance(m, dict)]
+    assert roles == ["system", "user"], roles
+    contents = "\n".join(
+        str(m.get("content") or "") for m in wire_messages
+        if isinstance(m, dict))
+    assert "Archive this conversation." in contents, contents
+    _clear_pair_memos(provider, model)
 
 
 # ---------------------------------------------------------------------------
@@ -887,6 +1015,43 @@ class _LegacyEndpointTwin:
             return httpx.Response(200, json=_completion_body(
                 body, {"value": "legacy-endpoint-ok"}, self.model))
         return _error(400, "unexpected request shape")
+
+
+@pytest.mark.parametrize("provider, model, endpoint", [
+    ("ollama", "llama3.1:8b", "https://custom-gateway.example/v1"),
+    ("ollama", "llama3.1:8b", "https://ollama.com/v1"),
+    ("ollama", "llama3.1:70b", _OLLAMA_ENDPOINT),
+    ("ollama-cloud", "llama3.1:8b", _OLLAMA_ENDPOINT),
+])
+def test_ollama_declaration_does_not_leak_to_unsupported_route(
+        monkeypatch, provider, model, endpoint):
+    """A custom/cloud endpoint or another label/model stays on legacy wire."""
+    monkeypatch.setenv("ATOM_SC_SOFT", "true")
+    _clear_pair_memos(provider, model)
+    twin = _LegacyEndpointTwin(model)
+    handler = _handler_for(provider, model, twin, base_url=endpoint)
+
+    result = _call(handler, disable_reasoning=True)
+    assert isinstance(result, _WireProbe), result
+    assert result.value == "legacy-endpoint-ok"
+    # Historical payload first: tools + the legacy reasoning object, NOT the
+    # declared Ollama JSON contract from the start.
+    assert len(twin.bodies) == 3, twin.bodies
+    assert twin.bodies[0].get("tools"), twin.bodies[0]
+    assert twin.bodies[0].get("reasoning") == {
+        "enabled": False, "exclude": True}, twin.bodies[0]
+    assert "response_format" not in twin.bodies[0], twin.bodies[0]
+    assert "reasoning_effort" not in twin.bodies[0], twin.bodies[0]
+    assert twin.bodies[0].get("logprobs") is True, twin.bodies[0]
+    # Then the two pre-existing reactive corrections, each a different body.
+    assert "tools" not in twin.bodies[-1], twin.bodies[-1]
+    assert twin.bodies[-1].get("response_format") == {
+        "type": "json_object"}, twin.bodies[-1]
+    from core.llm import byok_handler as bh
+    assert f"{provider}/{model}" in bh._REASONING_MANDATORY
+    assert f"{provider}/{model}" in bh._TOOLCHOICE_UNSUPPORTED
+    assert f"{provider}/{model}" not in bh._THINKING_SWITCH_UNSUPPORTED
+    _clear_pair_memos(provider, model)
 
 
 @pytest.mark.parametrize("overridden", [
