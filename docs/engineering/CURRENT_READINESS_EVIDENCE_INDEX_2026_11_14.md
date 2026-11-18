@@ -717,19 +717,32 @@ These results leave generated answers and longer-prompt retrieval open.
 ### Goal 12 — Repeatable workflows and schedules
 
 - **Audit state:** accepted-bounded.
-- **Current state:** bounded. Workflow create/execute/replay/schedule and
-  HITL mechanisms are historically verified. ORCH-01 has controlled
-  blueprint evidence plus a local-Ollama route test, but no production served
-  route/deadline attribution. Full scheduled result/receipt on current main is
-  still open.
+- **Current state:** bounded. At merged main `4c4ceb91e`, the signed-in
+  production workflow generation route returned a structured draft from local
+  `ollama/llama3.1:8b` under an explicit local policy, a declared 16,384-token
+  context, and a 180-second configured deadline. The draft retained its
+  definition digest and both approval gates after a backend restart. It was
+  ineligible for execution because capability bindings were missing.
 - **Exact sources:** `ORCH-01` `0fae2d46c`; public scope `49d45c7f3`;
-  scheduler `78d2e0ca8`; restart `b9ed05c6f`; recovery `e2ba4b01c`; `#899`
-  `4e2caffc8` (test-only local Ollama route qualification); audit `WF-*`.
-- **Remaining user-boundary acceptance:** one real served workflow request
-  through the production route/deadline path; a full scheduled real-workflow
-  result and receipt; PostgreSQL/multi-worker/soak.
-- **Preserved negatives:** the audit's ORCH-01 gap remains: the accepted route
-  uses a controlled LLM double; served model/provider quality is unobserved.
+  scheduler `78d2e0ca8`; restart `b9ed05c6f`; recovery `e2ba4b01c`;
+  `#899` `4e2caffc8`; exact-main local draft and scheduler replay
+  `4c4ceb91e`; audit `WF-*`.
+- **Scheduled replay:** on the same main revision, an isolated SQLite test
+  fired a persisted date job in a new scheduler process, approved it through
+  the mounted ASGI approval routes, and reached one completed execution. A
+  subsequent process did not fire the job again. The step audit update failed
+  when SQLite returned a timestamp without timezone information. The
+  saved step still reported `running` with zero duration and no result.
+- **Reviewer readback:** the main application's API schema registered
+  the workflow log endpoint under a repeated analytics prefix, while the
+  Workflow Builder proxy expects a single prefix. The sidebar's component
+  tests passed with mocked responses. They also accept the empty-state
+  message on request failure and exercise an uppercase success status,
+  while the workflow engine writes lowercase `completed`.
+- **Remaining user-boundary acceptance:** verify a complete scheduled
+  result and step receipt through the production interface, then qualify
+  PostgreSQL, multi-worker operation, and soak. The served model evidence
+  covers one prompt and one local provider.
 - **Claim rows:** 11.
 
 <a id="goal-13"></a>
@@ -1126,7 +1139,7 @@ close the claim rows.
 
 | Claim | Requirement (short) | Historical | Overlay | Sufficiency | Current source note |
 |---|---|---|---|---|---|
-| `ORCH-01` | Queen Agent structured workflows | unverified | accepted-bounded | bounded | `#899` `4e2caffc8` test-only local Ollama route; still controlled, no served production route. |
+| `ORCH-01` | Queen Agent structured workflows | unverified | accepted-bounded | bounded | `4c4ceb91e` served a signed-in draft using local Ollama and retained it across restart; capability bindings were missing. |
 | `ORCH-03` | Conductor 5 strategies | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `ORCH-04` | Validated state machine | verified | baseline-verified | sufficient-at-historical-source | audit |
 | `ORCH-05` | Rollback | verified | baseline-verified | sufficient-at-historical-source | audit |

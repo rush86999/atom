@@ -32,6 +32,10 @@ a new scheduler, classifier or policy registry: the basket list is empty by
 default, and a matching task asks a human for one specific execution while the
 existing topic/maturity/trust controls continue to run independently.
 
+## Recheck on merged main
+
+At `4c4ceb91efcb75f62c7905761586cbe2c2bf1146` ([PR #1000](https://github.com/rush86999/atom/pull/1000)), the configured six-file never-autonomous CI step passed **95 tests** with separate scratch SQLite databases. The run covered rule matching, task scope, rule-write fences, review authority, entry identity and profile isolation. An adjacent owner-scoped audit correction, agent access and HTTP error-header run passed **49 tests** on the same source. These are backend checks. Browser evidence remains bound to its original revision.
+
 ## Where users reach it
 
 - **Canvas page:** `/canvas/[id]` → right-side **Autonomy** tab
