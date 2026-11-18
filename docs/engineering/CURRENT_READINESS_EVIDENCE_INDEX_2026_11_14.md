@@ -780,7 +780,20 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   Menu bar native login/session/logout/2FA is merged in `#943` (`a868435fd`;
   native evidence at draft head `5d1f11de4`), with public-API live Go chat verified and native UI chat pending. Linux
   3.11–3.13 CI is bounded; KVM/Firecracker, PostgreSQL/multi-worker and native
-  mobile/menubar live use remain open.
+  mobile/menubar live use remain open. A separate integrated run now passed at
+  detached, clean, exact `d701872287b16f1e74b512aa7b81fb40b92fe69a` (#994,
+  tree `fa66625df9423938e190d17c3425ed59d4e4ffb6`): the shipped provisioner created the isolated store, and a separate command
+  built the production Next frontend with webpack. The documented
+  `launch_integrated_local_candidate.sh` started the backend on loopback
+  `8071` and the frontend on `3130` with the guard and scratch SQLite store.
+  HTTP sign-in and synthetic task creation used frontend-facing routes.
+  Both processes stopped and released their ports before the launcher restarted
+  them. After signing in again, an authenticated task read returned the **same
+  task ID and title**. Backend source stayed clean at `d701872287b1`, the instance/child PID changed, the
+  secret hash and marker creation stayed stable, and the canonical store was
+  untouched. **SQLite and loopback with existing dependencies only** — no
+  browser interaction, true deployment, PostgreSQL, cloud/model or
+  portable-drive removal. Build and replay exits were **0**.
 - **Exact sources:** `#936` `d1e3ddac8`; `#941` `935a890e7` (hosted mobile job
   133 suites / 4,327 tests / 2 skipped at `3a0efed9c`);
   `#943` `a868435fd` plus the native packet/report above (evidence bound to
@@ -790,17 +803,26 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   `/private/tmp/atom-quickstart-verify-evidence-20261114/restore-child-evidence/run-report.json`,
   `/private/tmp/atom-rollback-rehearsal.EA2Kfg/run/rollback_receipt.json`);
   COMPAT-01 Linux CI packet
-  `docs/acceptance/evidence/compat01_quickstart_main_ci_20261112/`.
-- **Remaining user-boundary acceptance:** supported clean install on macOS/
-  Linux/ARM with the documented interpreter; PostgreSQL runtime/concurrency/
-  soak; mobile native simulator/device journey; menu bar native live chat;
-  KVM/Firecracker; full rollback/public login/restore/restart child flow.
+  `docs/acceptance/evidence/compat01_quickstart_main_ci_20261112/`; `#994`
+  `d701872` isolated fresh-store launch and same-world restart, receipt
+  `/private/tmp/atom-fresh-store-qa.KShIJm/launch-verification.json`.
+- **Remaining user-boundary acceptance:** the isolated provisioner/documented
+  launcher fresh launch and same-world restart are now covered at SQLite and
+  loopback with existing dependencies. Supported clean install on macOS/Linux/
+  ARM with the documented interpreter; PostgreSQL runtime/concurrency/soak;
+  mobile native simulator/device journey; menu bar native live chat;
+  KVM/Firecracker; browser interaction; true deployment; cloud models;
+  portable-drive-removal runtime behavior; and full rollback/public
+  login/restore/restart child flow remain open.
 - **Preserved negatives:** mobile TypeScript parser diagnostics (4 → 652 → 544
   / 429 / 297 across intermediate candidates) and failed Expo export before
   dependency repair; menu bar scratch HTTP health 404 and earlier native
   WebSocket/2FA gaps; the published `v1.0.0` tag is old and not evidence of a
   current package. `#943` is merged, but native live provider chat remains
-  unverified.
+  unverified. The Goal 16 first attempt is retained too: a separate child
+  world did launch, sign in and create a task, but its restart was correctly
+  refused because the verifier waited only for closed ports while the isolated
+  backend PID was still exiting; the passing run waits for process exit first.
 - **Claim rows:** 8.
 
 <a id="goal-17"></a>
@@ -1142,7 +1164,7 @@ reassignment; other workers own the lanes noted.
 | 9 | **Goal 1 full account lifecycle** | [Ordinary browser signup/session/recovery passed](ACCOUNT_BROWSER_LIFECYCLE_2026_11_16.md) at source 97e43, with real local SMTP and consumed-link/old-password controls. [TOTP browser/replay verification](ACCOUNT_TOTP_LOGIN_REPLAY_2026_11_16.md) passed at `268efd405`; all records remain source-bound. | SSO, account deletion (inferred, not an original completion gate), rate-limit breadth, actual one-hour expiry, other deployment audiences and external mail delivery remain separate acceptance. |
 | 10 | **Goal 14 whole-app ORACLE** | Scoped families merged; static inventory 836/371/311; the four historical delete/undelete scope failures are retained at their `27a1830a2` baseline and repaired by `#763` `c97dada13`; 54 bounded current controls pass ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). | One genuinely unqualified high-risk family with authority/material/readback/replay/uncertainty and negative twins; refreshed inventory. |
 | 11 | **Goal 15 exposed app primary actions** | Settings and Canvas have current bounded proofs; many WA-ledger surfaces were not re-run. | Primary action + durable readback on Tasks/Boards, marketplace install, search, finance/voice/BPE/settings/skill editor/team chat, blocked-route error state. |
-| 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; [normal named-volume container restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`, with identical 372-table snapshots and same-canvas login/readback. | Existing upgrades, async transport, abrupt outage recovery, cluster roles/PITR, multiworker/soak, native device/KVM and broader workloads remain open. |
+| 12 | **Goal 16 operations breadth** | macOS quickstart/restore/rollback bounded; PostgreSQL public auth/canvas API restart and [single-DB logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) passed at `c1ab1af1d`; [normal named-volume container restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) passed at `3316b0fe7`, with identical 372-table snapshots and same-canvas login/readback; exact-main `d701872` isolated provisioner/documented-launcher fresh launch and same-world restart passed (SQLite/loopback, same task ID/title after restart). | Existing upgrades, async transport, abrupt outage recovery, cluster roles/PITR, multiworker/soak, native device/KVM, browser interaction, true deployment, cloud models, portable-drive removal and broader workloads remain open. |
 | 13 | **Goal 2 measured model selection** | Routing mechanisms verified; #942 preserved query complexity; no measured served comparison. | Two or more real served models with requested/served identity and scored quality/cost, including cheap Flash as first-class. No new spend authority. |
 | 14 | **Goal 17 performance/comparative** | Unverified; cache-only benchmark only. | Declared environment/workload/sample, reproducible command, dated source for comparative claims. |
 | 15 | **Goal 18 profile breadth** | `CORE-07` switch baseline; owner-deferred. | Explicit owner decision and qualified journeys for restored surfaces; no force-enable. |
