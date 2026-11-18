@@ -10,6 +10,8 @@
  * apiClient calls hang in Jest (same reason as AgentHistoryTable).
  */
 
+import { extractApiErrorMessage } from "@/lib/api-error";
+
 export interface ModelIdentity {
     recorded_label: string | null;
     label_kind: "router_tier_or_alias" | "unknown" | string;
@@ -195,25 +197,66 @@ function classifyStatus(status: number): AuditErrorKind {
 }
 
 async function readErrorDetail(resp: Response): Promise<{ code: string; message: string }> {
+    const fallback = resp.statusText || `HTTP ${resp.status}`;
+
+    let body: unknown;
     try {
-        const body = await resp.json();
-        const detail = body?.detail;
-        if (typeof detail === "string") {
-            return { code: `http_${resp.status}`, message: detail };
-        }
-        if (detail && typeof detail === "object") {
-            return {
-                code: String(detail.code || `http_${resp.status}`),
-                message: String(detail.message || detail.detail || `HTTP ${resp.status}`),
-            };
-        }
+        body = await resp.json();
     } catch {
         // non-JSON error body — fall through to the status text
+        return { code: `http_${resp.status}`, message: fallback };
     }
-    return {
-        code: `http_${resp.status}`,
-        message: resp.statusText || `HTTP ${resp.status}`,
-    };
+
+    const record =
+        body && typeof body === "object" && !Array.isArray(body)
+            ? (body as Record<string, unknown>)
+            : null;
+    if (!record) {
+        return { code: `http_${resp.status}`, message: fallback };
+    }
+
+    const detail = record.detail;
+    const nested =
+        detail && typeof detail === "object" && !Array.isArray(detail)
+            ? (detail as Record<string, unknown>)
+            : null;
+
+    // This backend flattens a dict HTTPException detail onto the top level
+    // (core/base_routes.atom_exception_handler), so typed refusals arrive as
+    // { code, message } with no `detail` envelope at all. A nested detail
+    // keeps priority when both shapes are present.
+    const codeSource = nested ?? record;
+    const code =
+        typeof codeSource.code === "string" && codeSource.code.trim()
+            ? codeSource.code
+            : `http_${resp.status}`;
+
+    let message: string | null = null;
+    if (typeof detail === "string" || Array.isArray(detail)) {
+        // The shared helper safely reduces FastAPI validation arrays to their
+        // messages (never the submitted input) and ignores blank strings.
+        message = extractApiErrorMessage({ detail }, "") || null;
+    } else if (nested) {
+        // Preserve the typed nested-detail contract; the shared helper would
+        // JSON-stringify this object instead of reading its message.
+        for (const candidate of [nested.message, nested.detail]) {
+            if (typeof candidate === "string" && candidate.trim()) {
+                message = candidate;
+                break;
+            }
+        }
+    }
+    if (!message) {
+        // Flat typed envelopes: { code, message } as observed for audit
+        // refusals, plus the generic { error: { message } } handler shape.
+        message =
+            extractApiErrorMessage(
+                { message: record.message, error: record.error },
+                "",
+            ) || null;
+    }
+
+    return { code, message: message || fallback };
 }
 
 function authHeaders(): Record<string, string> {

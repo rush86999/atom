@@ -418,6 +418,26 @@ test("a caller-asserted channel target is not presented as a proven link", async
   expect(result.textContent || "").not.toMatch(/verified:\s*yes/i);
 });
 
+test("a subject-mismatch refusal shows the server's explanatory message inline", async () => {
+  // The real client preserves the flat typed 422 envelope; the UI must render
+  // that safe server explanation, not the raw status text.
+  mockedCorrection.mockRejectedValue(
+    new AuditApiError("The agent id does not match the execution.", {
+      kind: "invalid",
+      status: 422,
+      code: "CORRECTION_SUBJECT_MISMATCH",
+    }),
+  );
+  await openTimeline();
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[1]);
+  fireEvent.click(await screen.findByTestId("audit-correction-submit"));
+
+  const error = await screen.findByTestId("audit-correction-error");
+  expect(error).toHaveTextContent("Invalid audit request");
+  expect(error).toHaveTextContent("agent id does not match the execution");
+  expect(error.textContent || "").not.toContain("Unprocessable Entity");
+});
+
 test("a denied correction request is reported as not recorded", async () => {
   mockedCorrection.mockRejectedValue(
     new AuditApiError("denied", { kind: "forbidden", status: 403 }),

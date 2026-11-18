@@ -53,10 +53,79 @@ test("404 detail and timeline path use the exact execution id", async () => {
     kind: "not_found",
     status: 404,
     code: "AUDIT_EVENT_NOT_FOUND",
+    message: "not found",
   });
   expect(String(spy.mock.calls[0][0])).toContain(
     "/api/audit/executions/exec%2F..%2Fother",
   );
+});
+
+test("a flat typed 422 refusal keeps its code and explanatory message", async () => {
+  // The backend flattens a dict HTTPException detail, so this refusal arrives
+  // as {code, message} with no `detail` wrapper (browser-pre.report.json).
+  mockFetchOnce(() =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          code: "CORRECTION_SUBJECT_MISMATCH",
+          message: "The agent id does not match the execution.",
+        }),
+        { status: 422, headers: { "Content-Type": "application/json" } },
+      ),
+    ),
+  );
+
+  await expect(
+    auditAPI.correctionRequest({
+      agentId: "agent-foreign-synthetic",
+      executionId: "exec-member-primary-synthetic",
+      auditId: "event-1",
+      reason: "Wrong action taken",
+    }),
+  ).rejects.toMatchObject({
+    name: "AuditApiError",
+    kind: "invalid",
+    status: 422,
+    code: "CORRECTION_SUBJECT_MISMATCH",
+    message: "The agent id does not match the execution.",
+  });
+});
+
+test("non-JSON error bodies fall back to the HTTP status text", async () => {
+  mockFetchOnce(() =>
+    Promise.resolve(
+      new Response("upstream unavailable", {
+        status: 503,
+        statusText: "Service Unavailable",
+      }),
+    ),
+  );
+
+  await expect(auditAPI.summary(7)).rejects.toMatchObject({
+    kind: "server",
+    status: 503,
+    code: "http_503",
+    message: "Service Unavailable",
+  });
+});
+
+test("an unrecognized JSON error body falls back without stringifying it", async () => {
+  mockFetchOnce(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: false }), {
+        status: 400,
+        statusText: "Bad Request",
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
+  );
+
+  await expect(auditAPI.summary(7)).rejects.toMatchObject({
+    kind: "invalid",
+    status: 400,
+    code: "http_400",
+    message: "Bad Request",
+  });
 });
 
 test("correction request posts the audit subject and never sends a user id", async () => {
