@@ -10654,6 +10654,18 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
     return result
 
 
+#: Suffixes ``_document_read`` decodes as real TEXT at ``path``. The raw-path
+#: shortcut in ``_document_text_read`` is valid only for these. Container or
+#: binary uploads (``.xlsx``/``.xls``/``.xlsm``/``.ppt*``/``.pdf``/...) must
+#: use the indexed extraction below: reading their bytes as text yields a ZIP
+#: stream with NUL/control characters, and it also skips the authoritative
+#: version, freshness and scope checks that protect the indexed branch.
+_RAW_TEXT_DOCUMENT_SUFFIXES = frozenset({
+    ".txt", ".text", ".log", ".md", ".markdown", ".json", ".csv", ".tsv",
+    ".eml", ".html", ".htm", ".xml", ".yaml", ".yml", ".docx",
+})
+
+
 @register_assignment_adapter(
     "document.text", description="Read an uploaded document's extracted text",
     metadata={"effect": "read_only", "required_actions": ["retrieve"],
@@ -10667,7 +10679,8 @@ async def _document_text_read(
         binding.get("document_id") or binding.get("resource_id")
         or inputs.get("document_id") or "").strip()
     path = str(inputs.get("path") or binding.get("path") or "").strip()
-    if path and os.path.isfile(path):
+    if (path and os.path.isfile(path)
+            and Path(path).suffix.lower() in _RAW_TEXT_DOCUMENT_SUFFIXES):
         result = await _document_read(inputs, context)
         text = str(result.get("text") or "")
         if text.strip().startswith("{"):
