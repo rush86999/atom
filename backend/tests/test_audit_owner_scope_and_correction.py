@@ -143,6 +143,24 @@ def audit_app(monkeypatch):
             class_name="ForeignBookkeeper",
             workspace_id="ws-2", tenant_id="t-2",
         ),
+        # Existing shared/legacy registry forms a real-workspace member can
+        # still act on. ``default`` is the Personal-Edition shared alias.
+        AgentRegistry(
+            id="agent-default", name="Default Shared Bookkeeper",
+            category="Finance",
+            module_path="agents.default_shared_bookkeeper",
+            class_name="DefaultSharedBookkeeper",
+            workspace_id="default", tenant_id="default",
+        ),
+        # Own workspace but a FOREIGN tenant: the workspace matches, the
+        # account key does not, so the shared reader must still refuse it.
+        AgentRegistry(
+            id="agent-ws1-t2", name="Wrong Tenant Bookkeeper",
+            category="Finance",
+            module_path="agents.wrong_tenant_bookkeeper",
+            class_name="WrongTenantBookkeeper",
+            workspace_id="ws-1", tenant_id="t-2",
+        ),
     ])
     session.add_all([
         _event(row_id="ev-member-start", user_id="member", workspace_id="ws-1",
@@ -570,6 +588,273 @@ def test_real_workspace_correction_links_feedback_and_denies_cross_workspace(
         assert denied.status_code == 404, (override, denied.text)
     assert session.query(AgentFeedback).count() == before_feedback + 1
     assert _correction_receipt_count(session) == before_receipts + 1
+
+
+def _add_member_agent_run(
+    session,
+    *,
+    execution_id: str,
+    row_id: str,
+    agent_id: str,
+    workspace_id: str = "ws-1",
+    tenant_id: str = "t-1",
+) -> None:
+    """A member-owned run whose audit event and execution name ``agent_id``.
+
+    The execution is stamped with the ACTOR's workspace so subject visibility
+    passes independently of the registry row; the registry row is what the
+    writer lookup must scope.
+    """
+    session.add(_event(
+        row_id=row_id,
+        user_id="member",
+        workspace_id=workspace_id,
+        execution_id=execution_id,
+        agent_id=agent_id,
+        metadata={"task_input": f"run {execution_id}"},
+    ))
+    session.add(AgentExecution(
+        id=execution_id,
+        agent_id=agent_id,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        status="completed",
+        metadata_json={},
+    ))
+    session.commit()
+
+
+def test_real_workspace_actor_correction_on_shared_null_agent(audit_app):
+    """2026-11-17 shared-compat regression.
+
+    A real-workspace member's already-authorized subject may reference a
+    shared/legacy registry row (``workspace_id=None``). That correction used
+    to succeed through the historical default scope; the writer must keep
+    admitting it while still refusing foreign workspaces/tenants.
+    """
+    session = audit_app.session
+    _add_member_agent_run(
+        session, execution_id="exec-member-shared",
+        row_id="ev-member-shared", agent_id="agent-1",
+    )
+    # No duplicate registry row may shadow the shared id.
+    assert (
+        session.query(AgentRegistry)
+        .filter(AgentRegistry.id == "agent-1")
+        .count()
+    ) == 1
+
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+    headers = _headers(session, "member")
+    payload = _correction_payload(
+        agent_id="agent-1",
+        subject_audit_id="ev-member-shared",
+        execution_id="exec-member-shared",
+        run_id="exec-member-shared",
+        subject_step_number=None,
+        comment="shared agent correction",
+    )
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback", json=payload, headers=headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["correction_status"] == "recorded"
+    assert data["applied"] is False
+    assert data["verified"] is False
+    assert data["correction_audit_id"]
+
+    feedback = (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.id == data["feedback_id"])
+        .one()
+    )
+    assert feedback.agent_id == "agent-1"
+    assert feedback.user_id == "member"
+    assert feedback.agent_execution_id == "exec-member-shared"
+    # The actor's durable ACCOUNT key still wins over the shared row's NULL.
+    assert feedback.tenant_id == "t-1"
+
+    receipt = (
+        session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    assert receipt.action == "correction_requested"
+    assert receipt.user_id == "member"
+    assert receipt.workspace_id == "ws-1"
+    meta = json.loads(receipt.metadata_json)
+    assert meta["feedback_id"] == feedback.id
+    assert meta["agent_id"] == "agent-1"
+    assert meta["subject_audit_id"] == "ev-member-shared"
+    assert meta["subject_execution_id"] == "exec-member-shared"
+    assert meta["applied"] is False
+    assert meta["verified"] is False
+    assert meta["status"] == "requested"
+
+    # Replay is still idempotent and claims nothing was applied.
+    replay = audit_app.client.post(
+        "/api/reasoning/feedback", json=payload, headers=headers)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["data"]["correction_status"] == "already_recorded"
+    assert replay.json()["data"]["applied"] is False
+    assert session.query(AgentFeedback).count() == before_feedback + 1
+    assert _correction_receipt_count(session) == before_receipts + 1
+
+
+def test_real_workspace_actor_correction_on_shared_default_agent(audit_app):
+    """The other existing shared form — literal ``default`` workspace/tenant —
+    stays usable by a real-workspace actor, exactly as ``GET /api/agents``
+    lists it."""
+    session = audit_app.session
+    _add_member_agent_run(
+        session, execution_id="exec-member-default-agent",
+        row_id="ev-member-default-agent", agent_id="agent-default",
+    )
+    before_feedback = session.query(AgentFeedback).count()
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        json=_correction_payload(
+            agent_id="agent-default",
+            subject_audit_id="ev-member-default-agent",
+            execution_id="exec-member-default-agent",
+            run_id="exec-member-default-agent",
+            subject_step_number=None,
+            comment="default shared agent correction",
+        ),
+        headers=_headers(session, "member"),
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["correction_status"] == "recorded"
+    feedback = (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.id == data["feedback_id"])
+        .one()
+    )
+    assert feedback.agent_id == "agent-default"
+    assert feedback.tenant_id == "t-1"
+    assert session.query(AgentFeedback).count() == before_feedback + 1
+
+    receipt = (
+        session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    assert receipt.workspace_id == "ws-1"
+    assert json.loads(receipt.metadata_json)["agent_id"] == "agent-default"
+
+
+def test_duplicate_shared_and_workspace_rows_resolve_by_exact_agent_id(
+    audit_app,
+):
+    """A real workspace may legitimately hold a shared row and a scoped row
+    for the same role. The writer must follow the subject's exact agent id
+    (never a workspace fallback), so each receipt names its own row."""
+    session = audit_app.session
+    session.add_all([
+        AgentRegistry(
+            id="agent-dupe-shared", name="Shared Duplicate", category="Finance",
+            module_path="agents.dupe_shared", class_name="DupeShared",
+            workspace_id=None, tenant_id=None,
+        ),
+        AgentRegistry(
+            id="agent-dupe-ws1", name="Workspace Duplicate", category="Finance",
+            module_path="agents.dupe_ws1", class_name="DupeWs1",
+            workspace_id="ws-1", tenant_id="t-1",
+        ),
+    ])
+    session.commit()
+    _add_member_agent_run(
+        session, execution_id="exec-dupe-shared",
+        row_id="ev-dupe-shared", agent_id="agent-dupe-shared",
+    )
+    _add_member_agent_run(
+        session, execution_id="exec-dupe-ws1",
+        row_id="ev-dupe-ws1", agent_id="agent-dupe-ws1",
+    )
+
+    headers = _headers(session, "member")
+    for suffix, agent_id in (
+        ("shared", "agent-dupe-shared"),
+        ("ws1", "agent-dupe-ws1"),
+    ):
+        resp = audit_app.client.post(
+            "/api/reasoning/feedback",
+            json=_correction_payload(
+                agent_id=agent_id,
+                subject_audit_id=f"ev-dupe-{suffix}",
+                execution_id=f"exec-dupe-{suffix}",
+                run_id=f"exec-dupe-{suffix}",
+                subject_step_number=None,
+                comment=f"duplicate check {suffix}",
+            ),
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()["data"]
+        feedback = (
+            session.query(AgentFeedback)
+            .filter(AgentFeedback.id == data["feedback_id"])
+            .one()
+        )
+        assert feedback.agent_id == agent_id
+        receipt = (
+            session.query(AuditLog)
+            .filter(AuditLog.id == data["correction_audit_id"])
+            .one()
+        )
+        assert json.loads(receipt.metadata_json)["agent_id"] == agent_id
+
+
+@pytest.mark.parametrize(
+    "agent_id,row_id,execution_id",
+    [
+        # Registry row lives in another workspace.
+        ("agent-ws2", "ev-member-foreign-agent", "exec-member-foreign-agent"),
+        # Registry row shares the workspace but belongs to another tenant.
+        ("agent-ws1-t2", "ev-member-foreign-tenant", "exec-member-foreign-tenant"),
+    ],
+)
+def test_correction_refuses_registry_row_outside_actor_scope(
+    audit_app, agent_id, row_id, execution_id,
+):
+    """An owned subject cannot smuggle a foreign registry row into the writer.
+
+    The audit subject is genuinely the member's (its event/execution are
+    workspace-visible), but the agent it names is not in the actor's registry
+    read scope. The request must refuse before any feedback or receipt row is
+    written.
+    """
+    session = audit_app.session
+    _add_member_agent_run(
+        session, execution_id=execution_id, row_id=row_id, agent_id=agent_id,
+    )
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        json=_correction_payload(
+            agent_id=agent_id,
+            subject_audit_id=row_id,
+            execution_id=execution_id,
+            run_id=execution_id,
+            subject_step_number=None,
+        ),
+        headers=_headers(session, "member"),
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"]["code"] == "CORRECTION_AGENT_NOT_FOUND"
+    assert session.query(AgentFeedback).count() == before_feedback
+    assert _correction_receipt_count(session) == before_receipts
+    assert (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.agent_id == agent_id)
+        .count()
+    ) == 0
 
 
 def test_correction_request_is_idempotent_on_replay(audit_app):

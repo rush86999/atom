@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.agent_access import scoped_agent_for_scope
 from core.agent_action_audit import log_correction_request
 from core.agent_governance_service import AgentGovernanceService
 from core.audit_access import (
@@ -28,6 +29,7 @@ from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentExecution, AgentReasoningStep, User
+from core.personal_scope import PERSONAL_WORKSPACE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -626,15 +628,38 @@ async def submit_step_feedback(
         )
 
     # A correction was already authorized against the durable actor's audit
-    # scope (actor -> workspace -> subject). Bind the governance writer to
-    # THAT scope: AgentRegistry is keyed by workspace_id (tenant_id is the
-    # separate account key), and the service's Personal-Edition default
-    # ("default") cannot see an agent registered in a real workspace. Ordinary
-    # thumbs feedback keeps the historical default construction.
-    if correction_scope is not None:
+    # scope (actor -> workspace -> subject). Resolve the reviewed agent under
+    # the SAME shared/legacy-reader predicate GET /api/agents uses, and only
+    # AFTER the linked subject is proven: a request body alone must never
+    # choose a writer target. Shared rows (NULL/""/"default") and the actor's
+    # exact workspace are legitimate; a foreign workspace/tenant is refused
+    # before anything is written. Ordinary thumbs feedback keeps the
+    # historical default construction.
+    if correction_subject is not None:
+        correction_agent = scoped_agent_for_scope(
+            db, correction_scope, feedback.agent_id)
+        if correction_agent is None:
+            raise _correction_refusal(
+                404,
+                "CORRECTION_AGENT_NOT_FOUND",
+                (
+                    "The reviewed agent is not available in your authorized "
+                    "scope; no correction was recorded."
+                ),
+            )
+        # Bind the governance writer to the EXACT resolved registry row's
+        # workspace so its own lookup, adjudication and confidence queries
+        # all see that same row. A legacy NULL row keeps the historical
+        # ``default`` shared bucket (same value the base writer used); an
+        # empty-string legacy row is matched exactly. The tenant stays the
+        # actor's separate durable ACCOUNT key, never the workspace id, so
+        # persistent feedback/learning land in the right account.
+        agent_workspace = correction_agent.workspace_id
+        if agent_workspace is None:
+            agent_workspace = PERSONAL_WORKSPACE_ID
         governance_service = AgentGovernanceService(
             db,
-            workspace_id=correction_scope["workspace_id"],
+            workspace_id=agent_workspace,
             tenant_id=correction_scope["tenant_id"],
         )
     else:
