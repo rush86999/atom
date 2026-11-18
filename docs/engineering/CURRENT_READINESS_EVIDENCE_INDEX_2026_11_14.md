@@ -2171,11 +2171,12 @@ Reported evidence: **520 browser assertions** and **34 acceptance cases**
 across both phases, including evidence download, truthful correction receipt,
 refusal, revision history, reapproval, restart readback and role boundaries;
 **49** selected audit, agent-access and HTTP-header tests; and **692**
-CI-contract checks. The distinct local offline recheck held one intercepted
-loopback request for **1,501 ms** (1,338 ms to the pending UI snapshot plus
-163 ms to release), with one unchanged forward and no duplicate or extra read,
-and matched all **42** original evidence files by hash; its output was written
-only to a separate local directory, not over the original run.
+CI-contract checks. The browser held one loopback request, then forwarded it
+unchanged once, with zero duplicate or extra reads. The offline verifier
+measured the **1,501 ms** hold from the original timestamps (1,338 ms to the
+pending UI snapshot and 163 ms from snapshot to release). It matched all
+**42** original evidence files by hash and wrote its results to a separate
+local directory.
 
 **Retained failure.** The original verifier rejected the run on the obsolete
 `delayed switch report has no recorded latency` assertion. That failure stays
