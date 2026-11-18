@@ -115,6 +115,89 @@ def _mailbox_tool_hint(user_id: Optional[str]) -> str:
     )
 
 
+def _document_scope_for_user(
+    user_id: Optional[str], requested_workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Trusted document scope + legacy proof for one Chat turn.
+
+    Production Chat passes the authenticated principal id. The authoritative
+    scope comes from that persisted ``User`` row through the same resolvers the
+    document routes and ``documents.search`` use:
+
+      * ``resolve_document_workspace_id`` — FK first, then the legacy
+        relationship; only the server-owned bootstrap identity may fall back to
+        the documented Personal workspace.
+      * ``legacy_document_authority`` — the narrowly proved bootstrap authority
+        for pre-repair uploads in the legacy shared namespace.
+
+    A caller-supplied workspace is never used as proof: it is only compared
+    with the resolved value for the log. When the persisted principal is
+    missing or has no eligible document workspace, ``fail_closed`` is True so
+    the knowledge leg cannot fall back to an unscoped/default store.
+
+    ``user_id=None`` is a deliberate background/warmup shape; it keeps the
+    historical unscoped behavior and never opens the legacy lane.
+    """
+    result: Dict[str, Any] = {
+        "workspace_id": None,
+        "legacy_authority": None,
+        "fail_closed": False,
+    }
+    if not user_id:
+        return result
+    try:
+        from core.database import SessionLocal
+        from core.legacy_document_scope import legacy_document_authority
+        from core.models import User
+        from core.personal_scope import (
+            DocumentScopeResolutionError,
+            DocumentScopeUnavailable,
+            resolve_document_workspace_id,
+        )
+
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == str(user_id)).first()
+            if user is None:
+                # No persisted principal → nothing proves a document store.
+                result["fail_closed"] = True
+                return result
+            authority = legacy_document_authority(user)
+            if authority is not None:
+                result["legacy_authority"] = authority
+                result["workspace_id"] = (
+                    str(authority.get("workspace_id") or "") or None)
+            else:
+                result["workspace_id"] = str(
+                    resolve_document_workspace_id(user))
+            if not result["workspace_id"]:
+                # A proof that names no store is not a usable document scope.
+                result["fail_closed"] = True
+                return result
+            if (requested_workspace_id
+                    and str(requested_workspace_id)
+                    != str(result["workspace_id"] or "")):
+                logger.info(
+                    "memory assembler: trusted document scope %s used instead "
+                    "of requested %s", result["workspace_id"],
+                    requested_workspace_id)
+            return result
+        finally:
+            db.close()
+    except (DocumentScopeUnavailable, DocumentScopeResolutionError) as e:
+        logger.info(
+            "memory assembler: document scope refused (%s); document lookup "
+            "closed", type(e).__name__)
+        result["fail_closed"] = True
+        return result
+    except Exception as e:  # noqa: BLE001 — unprovable scope is not a grant
+        logger.info(
+            "memory assembler: document scope resolution failed (%s); "
+            "document lookup closed", type(e).__name__)
+        result["fail_closed"] = True
+        return result
+
+
 # --------------------------------------------------------------------------- #
 # Legs
 # --------------------------------------------------------------------------- #
@@ -148,6 +231,9 @@ async def _graph_leg(message: str, workspace_id: str, tenant_id: str) -> str:
 async def _knowledge_leg(
     message: str, workspace_id: str, owner_user_id: Optional[str] = None,
     source_observations_out: Optional[List[Dict[str, Any]]] = None,
+    document_workspace_id: Optional[str] = None,
+    legacy_authority: Optional[Dict[str, Any]] = None,
+    documents_fail_closed: bool = False,
 ) -> List[str]:
     """Unified hybrid knowledge leg (P1.3) — documents + conversations fused
     by RRF via DocumentsHybridSearch (BM25 FTS5/tsvector + LanceDB vector,
@@ -156,13 +242,36 @@ async def _knowledge_leg(
     standalone comms-only leg: the hybrid path covers the comms store itself.
     owner_user_id scopes comms recall to the requesting account's own mail
     (ownerless legacy records stay visible); None means unfiltered.
+
+    document_workspace_id / legacy_authority come from the authenticated
+    caller's resolved document scope (``_document_scope_for_user``). They are
+    optional so warmup and direct background callers keep their historical
+    unscoped construction. ``documents_fail_closed`` is the defensive case:
+    the principal has no proven document workspace, so the document lanes must
+    not read any store — but the conversations leg is owner-scoped and stays
+    available.
+
     Runs async I/O directly; per-leg timeout applies at the call site."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
-        result = await DocumentsHybridSearch().search(
-            query=message[:500], limit=6, owner_user_id=owner_user_id
-        )
+        if documents_fail_closed:
+            # FAIL CLOSED (document scope): no proven document workspace, so
+            # do not open an unscoped/default document store. Conversations
+            # are authorized by the owner id, not by document scope.
+            result = await DocumentsHybridSearch().search(
+                query=message[:500], limit=6, owner_user_id=owner_user_id,
+                documents_allowed=False,
+            )
+        else:
+            search_kwargs: Dict[str, Any] = {}
+            if document_workspace_id:
+                search_kwargs["workspace_id"] = document_workspace_id
+            if legacy_authority:
+                search_kwargs["legacy_authority"] = dict(legacy_authority)
+            result = await DocumentsHybridSearch(**search_kwargs).search(
+                query=message[:500], limit=6, owner_user_id=owner_user_id
+            )
     except Exception as e:
         logger.debug(f"memory assembler: knowledge leg failed: {e}")
         return []
@@ -247,6 +356,13 @@ async def _knowledge_leg(
         if source_observations_out is not None:
             _associations = field_associations_for_excerpt(
                 preview, _requested_fields, _subjects)
+            # Conversation hits (bridged comms records) carry only the
+            # conversations leg; they live in the requesting workspace, not in
+            # the resolved document scope. Document hits keep that scope.
+            _observation_workspace_id = (
+                workspace_id
+                if list(hit.get("legs") or []) == ["conversations"]
+                else (document_workspace_id or workspace_id))
             source_observations_out.append({
                 "source": str(hit.get("source") or "")[:100],
                 "title": str(hit.get("title") or "")[:200],
@@ -254,8 +370,8 @@ async def _knowledge_leg(
                                  or hit.get("title")
                                  or hit.get("source") or "")[:200],
                 "content_hash": str(hit.get("content_hash") or "")[:100],
-                "workspace_id": (str(workspace_id)[:100]
-                                 if workspace_id else None),
+                "workspace_id": (str(_observation_workspace_id)[:100]
+                                 if _observation_workspace_id else None),
                 "excerpt": preview[:KNOWLEDGE_PREVIEW_CHAR_CAP + 1],
                 "requested_fields": list(_requested_fields),
                 "subjects": list(_subjects),
@@ -1298,7 +1414,11 @@ async def assemble_memory_context(
 
     user_id (when the caller has a request-scoped identity) scopes comms
     recall to that account's own ingested mail — the ownership boundary for
-    the shared communications corpus. Internal/background callers pass None.
+    the shared communications corpus — and resolves that persisted
+    principal's trusted document workspace / legacy proof for the knowledge
+    leg. An account with no proven document workspace fails closed on
+    documents while keeping owner-scoped conversations. Internal/background
+    callers pass None.
 
     canvas_type (when the turn is canvas-scoped) feeds playbook retrieval —
     keyword-less playbooks trigger on canvas type alone.
@@ -1320,13 +1440,28 @@ async def assemble_memory_context(
         ) or None
     try:
         started = time.monotonic()
+        # Trusted document scope for the knowledge leg. Production Chat
+        # supplies the authenticated user id; resolve the persisted principal
+        # once and hand the proof to the leg. Background/warmup callers pass
+        # no user id and keep the historical unscoped construction.
+        document_scope_kwargs: Dict[str, Any] = {}
+        if user_id:
+            document_scope = await asyncio.to_thread(
+                _document_scope_for_user, user_id, workspace_id)
+            document_scope_kwargs = {
+                "document_workspace_id": document_scope["workspace_id"],
+                "legacy_authority": document_scope["legacy_authority"],
+                "documents_fail_closed": document_scope["fail_closed"],
+            }
         # Round 80 role loop (recall half): the operating AI employee's role
         # scopes integration-record recall to the work/responsibilities the
         # data was synced for. Same tag the sync route stamps at ingest.
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
         graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block, exchange_lines, playbook_block = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
-            _safe(_knowledge_leg(message, workspace_id, owner_user_id=user_id, source_observations_out=source_observations_out), "knowledge"),
+            _safe(_knowledge_leg(message, workspace_id, owner_user_id=user_id,
+                                 source_observations_out=source_observations_out,
+                                 **document_scope_kwargs), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
