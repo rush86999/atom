@@ -29,7 +29,14 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         content = exc.detail
     else:
         content = {"detail": str(exc.detail)}
-    return JSONResponse(status_code=exc.status_code, content=content)
+    # Preserve protocol headers carried by the exception (e.g. the
+    # "WWW-Authenticate: Bearer" challenge on 401s). Rebuilding the response
+    # here must not drop what the raiser put on the wire.
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        headers=exc.headers,
+    )
 
 
 async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:

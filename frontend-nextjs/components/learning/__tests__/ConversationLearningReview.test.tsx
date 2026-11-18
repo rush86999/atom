@@ -7,10 +7,13 @@ jest.mock("@/lib/conversation-learning-api", () => ({
   listLearningCandidates: jest.fn(),
   listLearningEmployees: jest.fn(),
   getLearningCandidate: jest.fn(),
+  getLearningCandidateHistory: jest.fn(),
   createLearningCandidate: jest.fn(),
+  reviseLearningCandidate: jest.fn(),
   resolveLearningDependency: jest.fn(),
   confirmLearningCandidate: jest.fn(),
   promoteLearningCandidate: jest.fn(),
+  applyLearningCandidate: jest.fn(),
   rejectLearningCandidate: jest.fn(),
 }));
 

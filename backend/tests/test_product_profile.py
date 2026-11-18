@@ -2,9 +2,10 @@
 """The one product-surface configuration.
 
 The core release is a company-data + trained-agent workspace. These tests
-lock the parts that must never drift: only the six core surfaces are exposed,
-deferred routes are denied on direct access, supervisors keep the approval
-safeguard, the full profile restores everything, and worker defaults are off.
+lock the parts that must never drift: only the agreed core surfaces are
+exposed, deferred routes are denied on direct access, supervisors keep the
+approval safeguard, the full profile restores everything, and worker defaults
+are off.
 """
 import importlib
 
@@ -26,8 +27,8 @@ def test_core_profile_exposes_only_the_agreed_surfaces():
     doc = pp.profile_document()
     assert doc["profile"] == "core"
     assert set(doc["enabled_capabilities"]) == {
-        "chat", "documents", "canvas", "agents", "activity", "settings",
-        "approvals",
+        "chat", "documents", "canvas", "agents", "learning", "activity",
+        "settings", "approvals",
     }
     for deferred in (
         "tasks", "boards", "automations", "marketplace", "command_centers",
@@ -40,6 +41,7 @@ def test_core_profile_exposes_only_the_agreed_surfaces():
 @pytest.mark.parametrize("path", [
     "/chat", "/documents", "/canvas", "/canvas/abc", "/agents",
     "/goal-runs", "/goal-runs/run-1", "/execution-history",
+    "/audit-trail", "/audit-trail/run-1",
     "/settings", "/settings/ai", "/settings/local-models",
 ])
 def test_core_routes_are_enabled(path):
@@ -50,12 +52,29 @@ def test_core_routes_are_enabled(path):
     "/tasks", "/boards", "/automations", "/workflows/builder",
     "/workflows/schedule", "/scheduling", "/marketplace", "/sales",
     "/marketing", "/finance", "/analytics", "/dashboards/projects",
-    "/calendar", "/health", "/voice", "/admin/users", "/audit-trail",
+    "/calendar", "/health", "/voice", "/admin/users",
     "/dev-studio", "/integrations", "/team-chat", "/system-status",
     "/settings/harness-evolution", "/search", "/some-new-page",
 ])
 def test_deferred_or_unknown_routes_are_not_exposed(path):
     assert pp.route_enabled(path) is False
+
+
+def test_audit_trail_is_member_activity_while_governance_stays_deferred():
+    """Owner-scoped audit evidence is reachable from the core Activity
+    workflow; admin/forensics/self-healing siblings remain deferred."""
+    doc = pp.profile_document()
+    assert doc["routes"]["/audit-trail"] == "activity"
+    assert pp.route_capability("/audit-trail") == "activity"
+    assert pp.route_enabled("/audit-trail") is True
+    assert pp.for_role("activity", role_level=3) is True
+    assert doc["capabilities"]["governance"]["enabled"] is False
+    for path in (
+        "/admin/users", "/dashboard/owner", "/dashboard/forensics",
+        "/settings/harness-evolution", "/system-status", "/dev-studio",
+    ):
+        assert pp.route_capability(path) == "governance"
+        assert pp.route_enabled(path) is False
 
 
 def test_approvals_stay_available_as_a_safeguard_but_not_in_nav():

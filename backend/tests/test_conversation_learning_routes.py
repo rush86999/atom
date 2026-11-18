@@ -955,3 +955,152 @@ def test_route_scope_hides_foreign_candidate(route_env):
         params={"thread_id": "thread-1"},
     )
     assert response.status_code == 404, response.text
+
+
+def _history_url(candidate_id: str) -> str:
+    return f"/api/conversation-learning/candidates/{candidate_id}/history"
+
+
+def test_route_correction_reason_and_history_survive_confirm_promote(
+        route_env):
+    import json
+
+    created = _create_candidate(route_env, lesson="Use the first workbook.")
+    candidate_id = created["candidate"]["candidate_id"]
+
+    revised = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={
+            "thread_id": "thread-1",
+            "expected_revision": 1,
+            "proposed_lesson": "Use the corrected workbook.",
+            "reason": "First workbook was superseded.",
+        },
+    )
+    assert revised.status_code == 200, revised.text
+    assert revised.json()["candidate"]["revision"] == 2
+
+    history = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-1"})
+    assert history.status_code == 200, history.text
+    body = history.json()
+    assert body["read_only"] is True
+    assert body["signatures"]["present"] is False
+    newest = body["events"][0]
+    assert newest["kind"] == "learning_candidate_revised"
+    # The actor is the authenticated caller, not the body's changed_by field.
+    assert newest["actor"] == "member@example.com"
+    assert newest["reason"] == "First workbook was superseded."
+    assert newest["before"]["proposed_lesson"] == "Use the first workbook."
+    assert newest["after"]["proposed_lesson"] == "Use the corrected workbook."
+    assert newest["recorded_at"]
+    # The raw source message body is never dumped through history.
+    serialized = json.dumps(body)
+    assert "Use the attached workbook to price this order." not in serialized
+
+    bounded = route_env["client"].get(
+        _history_url(candidate_id),
+        params={"thread_id": "thread-1", "limit": 1})
+    assert bounded.status_code == 200, bounded.text
+    assert bounded.json()["coverage"]["returned"] == 1
+    assert bounded.json()["coverage"]["has_more"] is True
+    assert bounded.json()["coverage"]["history_complete"] is False
+
+    # Reading history did not mutate the candidate: the normal review path
+    # still confirms and promotes the same revision.
+    current = route_env["client"].get(
+        f"/api/conversation-learning/candidates/{candidate_id}",
+        params={"thread_id": "thread-1"})
+    assert current.status_code == 200, current.text
+    assert current.json()["candidate"]["revision"] == 2
+
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 2},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 2,
+              "expected_digest": confirmed.json()["review"]["digest"]},
+    )
+    assert promoted.status_code == 200, promoted.text
+    assert promoted.json()["candidate"]["status"] == "promoted"
+
+    after = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-1"})
+    assert after.status_code == 200, after.text
+    after_body = after.json()
+    assert [event["kind"] for event in after_body["events"]] == [
+        "learning_candidate_promoted",
+        "learning_candidate_confirmed",
+        "learning_candidate_revised",
+        "learning_candidate_created",
+    ]
+    # Earlier rows are untouched by later decisions (append-only).
+    revised_row = next(
+        event for event in after_body["events"]
+        if event["kind"] == "learning_candidate_revised")
+    assert revised_row["event_id"] == newest["event_id"]
+    assert revised_row["reason"] == newest["reason"]
+    assert revised_row["status"] == "review_ready"
+
+
+def test_route_history_negatives_use_current_scope_and_authority(route_env):
+    created = _create_candidate(route_env, lesson="Scoped history lesson.")
+    candidate_id = created["candidate"]["candidate_id"]
+    route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Scoped corrected lesson.",
+              "reason": "scope run"},
+    )
+
+    missing_thread = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-missing"})
+    assert missing_thread.status_code == 404, missing_thread.text
+
+    missing_candidate = route_env["client"].get(
+        _history_url("lc-missing"), params={"thread_id": "thread-1"})
+    assert missing_candidate.status_code == 404, missing_candidate.text
+
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["empty_user"])
+    foreign_workspace = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-1"})
+    assert foreign_workspace.status_code == 404, foreign_workspace.text
+
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["viewer"])
+    denied_role = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-1"})
+    assert denied_role.status_code == 403, denied_role.text
+
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["user"])
+    route_env["user"].is_active = False
+    route_env["db"].commit()
+    try:
+        deactivated = route_env["client"].get(
+            _history_url(candidate_id), params={"thread_id": "thread-1"})
+        assert deactivated.status_code == 403, deactivated.text
+    finally:
+        route_env["user"].is_active = True
+        route_env["db"].commit()
+
+    restored = route_env["client"].get(
+        _history_url(candidate_id), params={"thread_id": "thread-1"})
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["coverage"]["total_events"] == 2
+
+    # No credentials at all: the route's normal dependency refuses (401).
+    route_env["client"].app.dependency_overrides.pop(get_current_user)
+    try:
+        unauthenticated = route_env["client"].get(
+            _history_url(candidate_id), params={"thread_id": "thread-1"})
+        assert unauthenticated.status_code == 401, unauthenticated.text
+    finally:
+        route_env["client"].app.dependency_overrides[get_current_user] = (
+            lambda: route_env["user"])

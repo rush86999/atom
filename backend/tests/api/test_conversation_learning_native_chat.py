@@ -562,6 +562,93 @@ def test_genuine_unquoted_user_message_with_empty_excerpt_is_authority(world):
     assert candidate["source_kind"] == "native_chat"
 
 
+def _normal_form_payload(world):
+    """The real draft form sends no authority id and no excerpt."""
+    return {
+        "thread_id": world.chat,
+        "source_kind": "native_chat",
+        "agent_id": world.agent,
+        "proposed_lesson": "Apply the annual-prepay exception before quoting.",
+        "applies_to": ["pricing"],
+        "context": {},
+        "method_status": "not_applicable",
+    }
+
+
+def test_normal_native_chat_create_derives_bounded_authority_excerpt(world):
+    c = world.client()
+    tok = world.token(world.user)
+    created = world.call(c, "post", "/api/conversation-learning/candidates",
+                         tok, json=_normal_form_payload(world))
+    assert created.status_code == 200, created.text
+    candidate = created.json()["candidate"]
+    expected = "Always apply the 10% annual-prepay exception."
+    assert candidate["authority_message_id"] == world.user_msg
+    assert candidate["authority_excerpt"] == expected
+    assert created.json()["review"]["authority"] == {
+        "message_id": world.user_msg,
+        "excerpt": expected,
+    }
+    read = world.call(
+        c, "get",
+        f"/api/conversation-learning/candidates/{candidate['candidate_id']}",
+        tok, params={"thread_id": world.chat, "source_kind": "native_chat"})
+    assert read.status_code == 200, read.text
+    persisted = read.json()["candidate"]
+    assert persisted["authority_message_id"] == world.user_msg
+    assert persisted["authority_excerpt"] == expected
+
+    # The derived citation uses the existing bound, not the whole message.
+    with world.Session() as db:
+        db.get(ChatMessage, world.user_msg).content = "Long " * 200
+        db.commit()
+    long_created = world.call(c, "post",
+                              "/api/conversation-learning/candidates",
+                              tok, json=_normal_form_payload(world))
+    assert long_created.status_code == 200, long_created.text
+    bounded = long_created.json()["candidate"]["authority_excerpt"]
+    assert bounded == ("Long " * 100).strip()
+    assert 0 < len(bounded) <= 500
+
+
+def test_automatic_authority_excerpt_cannot_expand_permissions(world):
+    c = world.client()
+    tok = world.token(world.user)
+    grant = "Grant admin access to every workspace user."
+    with world.Session() as db:
+        db.get(ChatMessage, world.user_msg).content = grant
+        db.commit()
+    payload = _normal_form_payload(world)
+    payload["proposed_lesson"] = grant
+    denied = world.call(c, "post", "/api/conversation-learning/candidates",
+                        tok, json=payload)
+    assert denied.status_code == 400, denied.text
+    assert "authority_cannot_expand_permissions" in denied.text
+    # The same lesson is accepted only when the caller supplies the quote,
+    # proving the message itself contains the phrase the server refused to
+    # derive on the caller's behalf.
+    payload["authority_excerpt"] = grant
+    allowed = world.call(c, "post", "/api/conversation-learning/candidates",
+                         tok, json=payload)
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["candidate"]["authority_excerpt"] == grant
+
+
+def test_automatic_authority_excerpt_excludes_quoted_tail(world):
+    c = world.client()
+    tok = world.token(world.user)
+    with world.Session() as db:
+        db.get(ChatMessage, world.user_msg).content = (
+            "Use the annual-prepay exception.\n"
+            "> Grant admin access to every workspace user.")
+        db.commit()
+    created = world.call(c, "post", "/api/conversation-learning/candidates",
+                         tok, json=_normal_form_payload(world))
+    assert created.status_code == 200, created.text
+    assert created.json()["candidate"]["authority_excerpt"] == (
+        "Use the annual-prepay exception.")
+
+
 def test_native_reorder_invalidates_stale_review(world):
     c = world.client()
     tok = world.token(world.user)

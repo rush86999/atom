@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import JSON as SAJSON, and_, exists, or_, select, update
 from sqlalchemy.orm import Session
 
+from core.agent_access import agent_reader_condition as _agent_reader_condition
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_decision_write_service import (
     admit_agent_run as _admit_agent_run,
@@ -314,38 +315,6 @@ def _legacy_or_exact(column, value: str):
         column == PERSONAL_TENANT_ID,
         column == value,
     )
-
-
-def _agent_reader_condition(scope: Dict[str, Any]):
-    """Scope AgentRegistry reads to the current workspace and shared agents.
-
-    Personal/null and ``default`` registry entries are the existing shared
-    surface. Current-workspace agents are included; peer workspace and foreign
-    tenant rows are not. No administrator-wide bypass is invented here.
-    """
-    workspace = scope["workspace_id"]
-    if scope["personal"]:
-        workspace_condition = or_(
-            AgentRegistry.workspace_id.is_(None),
-            AgentRegistry.workspace_id == "",
-            AgentRegistry.workspace_id == workspace,
-        )
-    else:
-        workspace_condition = or_(
-            AgentRegistry.workspace_id.is_(None),
-            AgentRegistry.workspace_id == "",
-            AgentRegistry.workspace_id == PERSONAL_WORKSPACE_ID,
-            AgentRegistry.workspace_id == workspace,
-        )
-    # Personal/default is an existing shared-registry alias, not a foreign
-    # tenant. A contradictory real tenant still does not match.
-    tenant_condition = or_(
-        AgentRegistry.tenant_id.is_(None),
-        AgentRegistry.tenant_id == "",
-        AgentRegistry.tenant_id == PERSONAL_TENANT_ID,
-        AgentRegistry.tenant_id == scope["tenant_id"],
-    )
-    return and_(workspace_condition, tenant_condition)
 
 
 def _execution_reader_condition(scope: Dict[str, Any]):

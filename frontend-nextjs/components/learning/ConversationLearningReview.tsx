@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Link2, XCircle } from "lucide-react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AlertTriangle, CheckCircle2, History, Link2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +15,8 @@ import {
   confirmLearningCandidate,
   createLearningCandidate,
   getLearningCandidate,
+  getLearningCandidateHistory,
+  LearningCandidateHistory,
   LearningCandidatePayload,
   LearningEmployee,
   LearningReview,
@@ -53,6 +61,65 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: "bg-rose-100 text-rose-800",
   invalidated: "bg-rose-100 text-rose-800",
 };
+
+/** Bounded proposal list: never hide a proposal silently behind rows[0]. */
+const MAX_CANDIDATE_OPTIONS = 25;
+const HISTORY_PAGE_SIZE = 10;
+
+const HISTORY_KIND_LABELS: Record<string, string> = {
+  learning_candidate_created: "Proposal created",
+  learning_candidate_revised: "Revision saved",
+  learning_candidate_dependency_resolved: "Question resolved",
+  learning_candidate_confirmed: "Review confirmed",
+  learning_candidate_promoted: "Lesson promoted",
+  learning_candidate_rejected: "Proposal rejected",
+  learning_candidate_invalidated: "Review invalidated",
+};
+
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+  proposed_lesson: "lesson",
+  method_status: "method status",
+  applies_to: "applies to",
+  context: "context",
+  format_spec: "format",
+  conditions: "conditions",
+  decision_options: "decision options",
+  method: "method",
+  status: "status",
+};
+
+function historyKindLabel(kind: string): string {
+  return HISTORY_KIND_LABELS[kind] || kind.replace(/_/g, " ");
+}
+
+function changedFieldLabel(field: string): string {
+  return HISTORY_FIELD_LABELS[field] || field.replace(/_/g, " ");
+}
+
+/** Plain wording for the stored invalidation tokens; no new policy claim. */
+function invalidationText(reason: string): string {
+  const raw = String(reason || "");
+  if (raw === "source_changed") return "the source conversation changed";
+  if (raw === "source_missing") {
+    return "the source conversation is no longer available";
+  }
+  if (raw.startsWith("reference_stale:")) {
+    return `a referenced resource changed (${raw.split(":").slice(1).join(":")})`;
+  }
+  if (raw.startsWith("reference_missing:")) {
+    return `a referenced resource is no longer available (${raw.split(":").slice(1).join(":")})`;
+  }
+  if (raw.startsWith("reference_")) {
+    return `a referenced resource is unusable (${raw})`;
+  }
+  return raw || "the recorded evidence changed";
+}
+
+function isStaleReference(status: string): boolean {
+  const value = String(status || "").toLowerCase();
+  if (!value) return false;
+  return !["resolved", "not_applicable", "active", "current"].includes(value);
+}
 
 function statusBadge(status: string) {
   return (
@@ -288,6 +355,7 @@ export function ConversationLearningReview({
   className?: string;
 }) {
   const [payload, setPayload] = useState<LearningCandidatePayload | null>(null);
+  const [candidates, setCandidates] = useState<LearningCandidatePayload[]>([]);
   const [employees, setEmployees] = useState<LearningEmployee[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -303,6 +371,32 @@ export function ConversationLearningReview({
   const [editing, setEditing] = useState(false);
   const [editInitial, setEditInitial] = useState<LearningEditDraft | null>(null);
   const [editDraft, setEditDraft] = useState<LearningEditDraft | null>(null);
+  const [editReason, setEditReason] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<LearningCandidateHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // History pages are fetched asynchronously and can land after the reviewer
+  // has already moved on. Each request remembers the exact scope it was made
+  // for and a monotonically increasing generation; a response is applied only
+  // while it is still the current one for that same thread/source/candidate/
+  // revision. Any invalidation (selection, adopted revision, thread change,
+  // unmount) bumps the generation so a late page can never repopulate a
+  // drawer it no longer describes.
+  const historyRequestRef = useRef(0);
+  const historyScopeRef = useRef("");
+  const historyMountedRef = useRef(true);
+  const historyScope = [
+    threadId,
+    sourceKind,
+    payload?.review.candidate_id ?? "",
+    String(payload?.review.revision ?? ""),
+  ].join("\u0000");
+  // Written during render on purpose: the scope must be current before any
+  // already-queued promise callback can run after this commit.
+  historyScopeRef.current = historyScope;
+
   const [draft, setDraft] = useState({
     agentId: "",
     lesson: "",
@@ -324,19 +418,49 @@ export function ConversationLearningReview({
     decisionOptions: "",
   });
 
+  /** Drop the cached page and invalidate any in-flight request for it. */
+  const resetHistory = useCallback(() => {
+    historyRequestRef.current += 1;
+    setHistory(null);
+    setHistoryError(null);
+    setHistoryLoading(false);
+  }, []);
+
   const load = useCallback(async () => {
     setError(null);
     try {
       if (candidateId) {
-        setPayload(await getLearningCandidate(threadId, candidateId, sourceKind));
+        const single = await getLearningCandidate(
+          threadId, candidateId, sourceKind);
+        setCandidates([]);
+        setPayload(single);
         return;
       }
       const rows = await listLearningCandidates(threadId, sourceKind);
+      // Every proposal for the conversation stays selectable; nothing is
+      // hidden behind the first row.
+      setCandidates(rows);
       setPayload(rows[0] || null);
     } catch (err: any) {
       setError(errorText(err, "Could not load the learning review"));
     }
   }, [threadId, sourceKind, candidateId]);
+
+  const selectCandidate = (nextId: string) => {
+    const next = candidates.find(
+      (row) => row.review.candidate_id === nextId);
+    if (!next) return;
+    setPayload(next);
+    setEditing(false);
+    setEditInitial(null);
+    setEditDraft(null);
+    setEditReason("");
+    setApplyResult(null);
+    resetHistory();
+    setHistoryOpen(false);
+    setNotice(null);
+    setError(null);
+  };
 
   useEffect(() => {
     void load();
@@ -357,6 +481,15 @@ export function ConversationLearningReview({
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Unmount invalidates any in-flight history page.
+    historyMountedRef.current = true;
+    return () => {
+      historyMountedRef.current = false;
+      historyRequestRef.current += 1;
     };
   }, []);
 
@@ -381,6 +514,102 @@ export function ConversationLearningReview({
     }
     return out;
   }, [review]);
+
+  const candidateOptions = useMemo(() => {
+    const selectedId = payload?.review.candidate_id || "";
+    const rows = candidates.slice(0, MAX_CANDIDATE_OPTIONS);
+    if (selectedId
+        && !rows.some((row) => row.review.candidate_id === selectedId)) {
+      const selected = candidates.find(
+        (row) => row.review.candidate_id === selectedId);
+      if (selected) rows.push(selected);
+    }
+    return rows;
+  }, [candidates, payload?.review.candidate_id]);
+
+  const staleReferences = useMemo(
+    () => (review?.referenced_data_and_versions || []).filter(
+      (ref) => isStaleReference(ref.status)),
+    [review],
+  );
+
+  const adoptCandidate = useCallback((next: LearningCandidatePayload) => {
+    setPayload(next);
+    setCandidates((rows) => {
+      const index = rows.findIndex(
+        (row) => row.review.candidate_id === next.review.candidate_id);
+      if (index === -1) return [next, ...rows];
+      const copy = [...rows];
+      copy[index] = next;
+      return copy;
+    });
+    // The stored ledger changed; drop the cached page so an open drawer
+    // reloads once instead of showing a stale revision list.
+    resetHistory();
+  }, [resetHistory]);
+
+  const loadHistory = useCallback(async (offset: number) => {
+    const candidateKey = payload?.review.candidate_id;
+    const revision = payload?.review.revision;
+    if (!candidateKey || revision == null) return;
+    const requestScope = [
+      threadId,
+      sourceKind,
+      candidateKey,
+      String(revision),
+    ].join("\u0000");
+    const requestId = historyRequestRef.current + 1;
+    historyRequestRef.current = requestId;
+    // A response may only touch state while this exact request is still the
+    // newest one for the still-selected thread/source/candidate/revision and
+    // the component is still mounted. Late A pages, late A errors, late
+    // pagination after a switch, and pages for a superseded revision are all
+    // dropped here instead of leaking into the visible drawer.
+    const isCurrent = () => historyMountedRef.current
+      && historyRequestRef.current === requestId
+      && historyScopeRef.current === requestScope;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const page = await getLearningCandidateHistory(
+        threadId,
+        candidateKey,
+        { limit: HISTORY_PAGE_SIZE, offset },
+        sourceKind,
+      );
+      if (!isCurrent()) return;
+      setHistory((current) => {
+        if (!offset || !current) return page;
+        const seen = new Set(current.events.map((event) => event.event_id));
+        const appended = page.events.filter(
+          (event) => !seen.has(event.event_id));
+        const merged = [...current.events, ...appended];
+        return {
+          ...page,
+          events: merged,
+          coverage: {
+            ...page.coverage,
+            // Coverage describes the rows actually shown, not just this page.
+            offset: current.coverage.offset,
+            returned: merged.length,
+          },
+        };
+      });
+    } catch (err: any) {
+      if (!isCurrent()) return;
+      setHistoryError(errorText(err, "Could not load the revision history"));
+    } finally {
+      if (isCurrent()) setHistoryLoading(false);
+    }
+  }, [payload?.review.candidate_id, payload?.review.revision, threadId, sourceKind]);
+
+  useEffect(() => {
+    // Explicit opening only: the review itself issues no history request.
+    if (historyOpen && payload?.review && !history
+        && !historyLoading && !historyError) {
+      void loadHistory(0);
+    }
+  }, [historyOpen, payload, history, historyLoading, historyError, loadHistory]);
 
   const create = async () => {
     setBusy(true);
@@ -448,6 +677,7 @@ export function ConversationLearningReview({
             }),
       });
       setPayload(created);
+      setCandidates((rows) => [created, ...rows]);
       setNotice("Candidate drafted. Resolve the remaining questions before confirmation.");
     } catch (err: any) {
       setError(errorText(err, "Could not draft the candidate"));
@@ -477,6 +707,10 @@ export function ConversationLearningReview({
         sourceKind,
       );
       setPayload(resolved);
+      setCandidates((rows) => rows.map((row) =>
+        row.review.candidate_id === resolved.review.candidate_id
+          ? resolved : row));
+      resetHistory();
       setNotice("Answer recorded. The candidate needs review again.");
     } catch (err: any) {
       setError(errorText(err, "Could not resolve the question"));
@@ -493,7 +727,7 @@ export function ConversationLearningReview({
       const confirmed = await confirmLearningCandidate(
         threadId, review.candidate_id, reviewer, review.revision, sourceKind,
         review.status);
-      setPayload(confirmed);
+      adoptCandidate(confirmed);
       setNotice("Review confirmed. Promotion will bind this exact revision and digest.");
     } catch (err: any) {
       setError(errorText(err, "Could not confirm the review"));
@@ -512,6 +746,7 @@ export function ConversationLearningReview({
         review.revision, review.digest, sourceKind, review.status);
       setNotice(`Lesson promoted (${promoted.lesson_id}).`);
       await load();
+      resetHistory();
     } catch (err: any) {
       setError(errorText(err, "Could not promote the lesson"));
     } finally {
@@ -557,7 +792,7 @@ export function ConversationLearningReview({
       const rejected = await rejectLearningCandidate(
         threadId, review.candidate_id, reviewer, "Rejected in review",
         sourceKind, review.revision, review.status);
-      setPayload(rejected);
+      adoptCandidate(rejected);
       setNotice("Proposal rejected. No lesson was written.");
     } catch (err: any) {
       setError(errorText(err, "Could not reject the proposal"));
@@ -571,6 +806,7 @@ export function ConversationLearningReview({
     const initial = editDraftFromReview(review);
     setEditInitial(initial);
     setEditDraft({ ...initial });
+    setEditReason("");
     setEditing(true);
     setError(null);
     setNotice(null);
@@ -580,6 +816,7 @@ export function ConversationLearningReview({
     setEditing(false);
     setEditInitial(null);
     setEditDraft(null);
+    setEditReason("");
     setError(null);
     setNotice("Edit cancelled. Nothing was saved.");
   };
@@ -591,8 +828,12 @@ export function ConversationLearningReview({
     setNotice(null);
     try {
       const body = revisionPayload(review, editInitial, editDraft);
+      const reason = editReason.trim();
       if (!body) {
-        setNotice("No changes to save.");
+        setNotice(reason
+          ? "The reason is optional and did not change the lesson. Change "
+            + "the lesson or leave the reason blank; nothing was saved."
+          : "No changes to save.");
         return;
       }
       const wasApproved = review.status === "confirmed"
@@ -602,17 +843,21 @@ export function ConversationLearningReview({
         review.candidate_id,
         {
           ...body,
+          // Optional: an empty reason is omitted, never defaulted.
+          ...(reason ? { reason } : {}),
           expected_revision: review.revision,
           expected_status: review.status,
         },
         sourceKind,
       );
-      setPayload(revised);
+      adoptCandidate(revised);
       setEditing(false);
       setEditInitial(null);
       setEditDraft(null);
+      setEditReason("");
       setNotice(
         `Revision ${revised.review.revision} saved (${revised.review.status.replace(/_/g, " ")}).`
+        + (reason ? " The reason was recorded with this revision." : "")
         + (wasApproved
           ? " The previous confirmation was cleared; confirm this revision again before promotion."
           : ""),
@@ -628,7 +873,10 @@ export function ConversationLearningReview({
     setEditing(false);
     setEditInitial(null);
     setEditDraft(null);
-  }, [threadId, sourceKind, candidateId]);
+    setEditReason("");
+    resetHistory();
+    setHistoryOpen(false);
+  }, [threadId, sourceKind, candidateId, resetHistory]);
 
   return (
     <section className={`space-y-3 text-xs ${className}`} data-testid="conversation-learning-review">
@@ -641,6 +889,39 @@ export function ConversationLearningReview({
         <p className="rounded border border-emerald-200 bg-emerald-50 p-2 text-emerald-700" data-testid="learning-notice">
           {notice}
         </p>
+      ) : null}
+
+      {candidates.length > 1 ? (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded border bg-white p-2"
+          data-testid="learning-candidates"
+        >
+          <label className="flex items-center gap-2">
+            Proposal
+            <select
+              className="rounded border p-1"
+              data-testid="learning-candidate-select"
+              value={payload?.review.candidate_id || ""}
+              onChange={(event) => selectCandidate(event.target.value)}
+            >
+              {candidateOptions.map((row) => (
+                <option
+                  key={row.review.candidate_id}
+                  value={row.review.candidate_id}
+                >
+                  {`${row.review.status.replace(/_/g, " ")} · revision `
+                    + `${row.review.revision} · `
+                    + `${row.review.proposed_lesson.slice(0, 60)}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="text-slate-500">
+            {candidates.length > MAX_CANDIDATE_OPTIONS
+              ? `Showing ${candidateOptions.length} of ${candidates.length} proposals; the selected one is always included.`
+              : `${candidates.length} proposals for this conversation.`}
+          </span>
+        </div>
       ) : null}
 
       {!review ? (
@@ -752,6 +1033,47 @@ export function ConversationLearningReview({
             <span className="text-slate-500">revision {review.revision}</span>
           </div>
 
+          {review.confirmed_by ? (
+            <p className="text-slate-600" data-testid="learning-recorded-reviewer">
+              Recorded reviewer: {review.confirmed_by}
+              {review.confirmed_revision != null
+                ? ` (approved revision ${review.confirmed_revision})` : ""}
+            </p>
+          ) : null}
+          {review.rejected_by || review.rejected_reason ? (
+            <p
+              className="rounded border border-rose-200 bg-rose-50 p-2 text-rose-700"
+              data-testid="learning-rejected-reason"
+            >
+              Rejected{review.rejected_by ? ` by ${review.rejected_by}` : ""}
+              {review.rejected_reason ? `: ${review.rejected_reason}` : ""}
+            </p>
+          ) : null}
+          {review.invalidated_reason ? (
+            <p
+              className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800"
+              data-testid="learning-invalidated-reason"
+            >
+              Review invalidated because {invalidationText(review.invalidated_reason)}.
+              This proposal is terminal; review the current source before a
+              fresh proposal.
+            </p>
+          ) : null}
+          {staleReferences.length ? (
+            <p
+              className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800"
+              data-testid="learning-evidence-stale"
+            >
+              Outdated or unresolved evidence:{" "}
+              {staleReferences.map((ref, index) => (
+                <span key={`${ref.reference}-${index}`}>
+                  {index ? "; " : ""}
+                  {ref.reference} ({ref.status})
+                </span>
+              ))}
+            </p>
+          ) : null}
+
           {editing && editDraft && editInitial ? (
             <div
               className="space-y-2 rounded border border-sky-200 bg-sky-50 p-3"
@@ -774,6 +1096,20 @@ export function ConversationLearningReview({
                   })}
                   rows={2}
                 />
+              </label>
+              <label className="block">
+                Reason (optional)
+                <input
+                  className="mt-1 w-full rounded border p-1"
+                  data-testid="learning-edit-reason"
+                  value={editReason}
+                  onChange={(event) => setEditReason(event.target.value)}
+                  placeholder="Why is this correction needed?"
+                />
+                <span className="mt-1 block text-slate-500">
+                  Optional. Left blank, no reason is recorded — nothing is
+                  assumed or filled in.
+                </span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -950,6 +1286,118 @@ export function ConversationLearningReview({
             ) : (
               <p className="text-slate-500">No resource references.</p>
             )}
+          </div>
+
+          <div className="rounded border p-2" data-testid="learning-history">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 text-left font-semibold"
+              data-testid="learning-history-toggle"
+              aria-expanded={historyOpen}
+              onClick={() => setHistoryOpen((open) => !open)}
+            >
+              <span>Previous revisions and recorded decisions (optional)</span>
+              <History className="h-3 w-3" />
+            </button>
+            {historyOpen ? (
+              <div className="mt-2 space-y-2" data-testid="learning-history-panel">
+                {historyError ? (
+                  <p className="text-rose-700" data-testid="learning-history-error">
+                    {historyError}{" "}
+                    <Button
+                      variant="outline"
+                      data-testid="learning-history-retry"
+                      disabled={historyLoading}
+                      onClick={() => {
+                        setHistoryError(null);
+                        void loadHistory(0);
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </p>
+                ) : null}
+                {historyLoading && !history ? (
+                  <p className="text-slate-500">Loading recorded revisions…</p>
+                ) : null}
+                {history ? (
+                  <>
+                    <p className="text-slate-500" data-testid="learning-history-coverage">
+                      Showing {history.coverage.returned} of{" "}
+                      {history.coverage.total_events} recorded entries.
+                      {history.coverage.scan_truncated
+                        ? " History may be incomplete: the stored-ledger scan limit was reached."
+                        : ""}
+                      {history.coverage.out_of_scope_events_excluded
+                        ? ` ${history.coverage.out_of_scope_events_excluded} entries outside this workspace were excluded.`
+                        : ""}
+                    </p>
+                    <ol className="space-y-2">
+                      {history.events.map((event) => (
+                        <li
+                          key={event.event_id}
+                          className="rounded border bg-slate-50 p-2"
+                          data-testid="learning-history-event"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold">
+                              {historyKindLabel(event.kind)}
+                            </span>
+                            {statusBadge(event.status)}
+                            <span className="text-slate-500">
+                              revision {event.revision}
+                            </span>
+                            {event.recorded_at ? (
+                              <span className="text-slate-500">
+                                {event.recorded_at}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p>
+                            {event.actor
+                              ? `${event.actor_role === "reviewer" ? "Reviewer" : "Author"}: ${event.actor}`
+                              : "Actor not recorded"}
+                          </p>
+                          <p>
+                            {event.reason_recorded && event.reason
+                              ? `Reason: ${event.reason}`
+                              : "Reason: not recorded"}
+                          </p>
+                          {event.changed_fields.length ? (
+                            <p className="text-slate-500">
+                              Changed:{" "}
+                              {event.changed_fields.map(changedFieldLabel).join(", ")}
+                            </p>
+                          ) : null}
+                          {event.before && event.after ? (
+                            <div className="mt-1" data-testid="learning-history-diff">
+                              <p>Before: {event.before.proposed_lesson || "(empty)"}</p>
+                              <p>After: {event.after.proposed_lesson || "(empty)"}</p>
+                            </div>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                    <p className="text-slate-500">
+                      {history.signatures.present
+                        ? "Entries carry the ledger's recorded signature."
+                        : "These are the stored ledger rows; they are not signed."}
+                    </p>
+                    {history.coverage.has_more ? (
+                      <Button
+                        variant="outline"
+                        data-testid="learning-history-more"
+                        disabled={historyLoading}
+                        onClick={() => void loadHistory(
+                          history.coverage.offset + history.coverage.returned)}
+                      >
+                        {historyLoading ? "Loading…" : "Load older entries"}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded border p-2" data-testid="learning-exceptions">

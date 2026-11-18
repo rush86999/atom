@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Brain, ListTodo, Globe, AlertTriangle, Trash2, Maximize2, Minimize2,
     ThumbsUp, ThumbsDown, ChevronDown, ChevronRight, Eye, EyeOff, Loader2,
-    MessageSquare, CircleCheck, CircleX, PanelRightClose,
+    CircleCheck, CircleX, PanelRightClose, Flag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -29,7 +29,9 @@ interface AgentStep {
     step_type?: string;
     confidence?: number;
     verified?: string;
+    verification_evidence?: string;
     duration_ms?: number;
+    requested_model?: string;
     resolved_model?: string;
     timestamp?: string;
     execution_id?: string | null;
@@ -117,7 +119,9 @@ function runFromHistory(run: TraceRun): AgentRun {
             step_type: s.step_type ?? undefined,
             confidence: s.confidence ?? undefined,
             verified: s.verified ?? undefined,
+            verification_evidence: s.verification_evidence ?? undefined,
             duration_ms: s.duration_ms ?? undefined,
+            requested_model: s.requested_model ?? undefined,
             resolved_model: s.resolved_model ?? undefined,
             timestamp: s.timestamp ?? undefined,
         })),
@@ -127,6 +131,211 @@ function runFromHistory(run: TraceRun): AgentRun {
         stepFeedback,
         runFeedback: null,
     };
+}
+
+function displayAction(action: unknown): string | undefined {
+    if (!action) return undefined;
+    if (typeof action === "string") return action;
+    if (typeof action === "object") {
+        const tool = (action as Record<string, unknown>).tool;
+        return typeof tool === "string" ? tool : JSON.stringify(action).slice(0, 60);
+    }
+    return String(action);
+}
+
+type ReportState =
+    | "idle"
+    | "submitting"
+    | "recorded"
+    | "link_unavailable"
+    | "unsupported"
+    | "denied"
+    | "network";
+
+/**
+ * Small inline "Report a problem" form for one persisted reasoning step.
+ *
+ * The step context is already on screen, so the user is not asked to re-enter
+ * the task. Submitting reuses the existing /api/reasoning/feedback write and
+ * asks the backend to link it to this exact execution/step. The receipt is
+ * shown truthfully: recorded/requested, never applied/verified, and a denied
+ * or unsupported subject says so instead of pretending a correction happened.
+ */
+function StepReportForm({
+    run,
+    step,
+    onCancel,
+}: {
+    run: AgentRun;
+    step: AgentStep;
+    onCancel: () => void;
+}) {
+    const [reason, setReason] = useState("Wrong action taken");
+    const [detail, setDetail] = useState("");
+    const [state, setState] = useState<ReportState>("idle");
+    const [message, setMessage] = useState("");
+
+    const submit = async () => {
+        if (run.executionId === "live") {
+            setState("unsupported");
+            setMessage(
+                "This live step is not stored in a durable run yet, so a linked " +
+                "correction request cannot be recorded.",
+            );
+            return;
+        }
+        setState("submitting");
+        setMessage("");
+        try {
+            const receipt = await submitStepFeedback({
+                agentId: run.agentId || "atom_main",
+                runId: run.executionId,
+                stepIndex: run.steps.findIndex((item) => item.step === step.step),
+                stepContent: {
+                    source: "agent_workspace",
+                    step: step.step,
+                    thought: step.thought,
+                    action: step.action,
+                    observation: step.observation,
+                },
+                feedbackType: "thumbs_down",
+                comment: detail.trim() ? `${reason}: ${detail.trim()}` : reason,
+                executionId: run.executionId,
+                stepNumber: step.step,
+                correctionRequested: true,
+                subjectStepNumber: step.step,
+                correctionReason: reason,
+            });
+            if (receipt?.correction_status === "feedback_recorded_audit_unavailable") {
+                setState("link_unavailable");
+                setMessage(
+                    "Feedback was saved, but the audit link could not be recorded. " +
+                    "Nothing was applied or verified.",
+                );
+            } else {
+                setState("recorded");
+                setMessage(
+                    receipt?.correction_status === "already_recorded"
+                        ? "This correction request was already recorded. Nothing was applied or verified."
+                        : "Correction request recorded and linked to this step. Nothing was applied or verified.",
+                );
+            }
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 401 || status === 403) {
+                setState("denied");
+                setMessage("You do not have authority to record a correction for this step.");
+            } else if (status === 404) {
+                setState("unsupported");
+                setMessage(
+                    "This step's run is not in your authorized audit scope, so no " +
+                    "request was recorded.",
+                );
+            } else if (status === 422) {
+                setState("unsupported");
+                setMessage(
+                    err?.response?.data?.detail?.error?.message ||
+                        err?.response?.data?.detail?.message ||
+                        "This step has no supported correction subject.",
+                );
+            } else {
+                setState("network");
+                setMessage("Could not reach the audit service; nothing was recorded.");
+            }
+        }
+    };
+
+    const subject = [
+        `Step ${step.step}`,
+        displayAction(step.action),
+    ].filter(Boolean).join(" · ");
+
+    return (
+        <div
+            className="mt-2 rounded-md border border-slate-700 bg-slate-900/60 p-2 space-y-2"
+            data-testid="step-report-form"
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-200">Report a problem</p>
+                    <p
+                        className="truncate text-[10px] text-slate-500"
+                        title={step.observation || subject}
+                        data-testid="step-report-subject"
+                    >
+                        {subject}
+                        {step.observation ? ` — ${step.observation.slice(0, 80)}` : ""}
+                    </p>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] text-slate-400"
+                    onClick={onCancel}
+                    data-testid="step-report-cancel"
+                >
+                    Cancel
+                </Button>
+            </div>
+
+            {state === "idle" || state === "submitting" ? (
+                <>
+                    <select
+                        aria-label="Reason for reporting this step"
+                        className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-200"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        data-testid="step-report-reason"
+                    >
+                        <option>Wrong result</option>
+                        <option>Wrong action taken</option>
+                        <option>Missing or wrong evidence</option>
+                        <option>Other</option>
+                    </select>
+                    <input
+                        aria-label="Correction detail (optional)"
+                        className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-200"
+                        placeholder="Optional detail — no need to re-enter the task"
+                        value={detail}
+                        onChange={(e) => setDetail(e.target.value)}
+                        data-testid="step-report-detail"
+                    />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-200"
+                            onClick={submit}
+                            disabled={state === "submitting"}
+                            data-testid="step-report-submit"
+                        >
+                            {state === "submitting" && (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            )}
+                            Record request
+                        </Button>
+                        <span className="text-[10px] text-slate-500">
+                            Request only — nothing is applied or verified.
+                        </span>
+                    </div>
+                </>
+            ) : (
+                <div data-testid="step-report-result">
+                    <p
+                        className={`text-xs ${
+                            state === "recorded"
+                                ? "text-green-400"
+                                : state === "link_unavailable"
+                                    ? "text-amber-400"
+                                    : "text-red-400"
+                        }`}
+                    >
+                        {message}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
 }
 
 const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
@@ -168,8 +377,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     }
     const unreadCount = unreadState.collapsed ? unreadState.count : 0;
     const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
-    const [commentTarget, setCommentTarget] = useState<{ runId: string; stepNumber: number } | null>(null);
-    const [commentText, setCommentText] = useState("");
+    const [reportTarget, setReportTarget] = useState<{ runId: string; stepNumber: number } | null>(
+        null,
+    );
     const [traceLoading, setTraceLoading] = useState(false);
     // Whether a canvas is showing in the Artifacts tab — when none is, the
     // artifact list reclaims the host's space instead of floating under a
@@ -496,23 +706,6 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
         if (next) sendFeedback(run, { type: next });
     };
 
-    const handleCommentSubmit = (run: AgentRun, step: AgentStep) => {
-        const text = commentText.trim();
-        setCommentTarget(null);
-        setCommentText("");
-        if (!text) return;
-        // Comments arrive as corrective feedback (thumbs_down + note),
-        // matching the message-level comment convention.
-        setRuns((all) =>
-            all.map((r) =>
-                r.executionId === run.executionId
-                    ? { ...r, stepFeedback: { ...r.stepFeedback, [step.step]: "thumbs_down" as FeedbackType } }
-                    : r
-            )
-        );
-        sendFeedback(run, { step, type: "thumbs_down", comment: text });
-    };
-
     const toggleHistory = (executionId: string) => {
         setExpandedHistory((prev) => {
             const next = new Set(prev);
@@ -568,7 +761,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     // ── Step cards + run headers ─────────────────────────────────────────
     const renderStepFeedback = (run: AgentRun, step: AgentStep) => {
         const selected = run.stepFeedback[step.step];
-        const hasComment = commentTarget?.runId === run.executionId && commentTarget?.stepNumber === step.step;
+        const reportOpen =
+            reportTarget?.runId === run.executionId &&
+            reportTarget?.stepNumber === step.step;
         return (
             <div className="flex items-center gap-1 mt-2 flex-wrap">
                 <Button
@@ -594,39 +789,21 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 <Button
                     variant="ghost"
                     size="sm"
-                    aria-label="Add note"
-                    title="Add a correction note"
-                    className="h-6 w-6 p-0 text-slate-500 hover:text-slate-300"
+                    aria-label="Report a problem"
+                    title="Report a problem with this step"
+                    aria-expanded={reportOpen}
+                    className={`h-6 px-2 text-[10px] ${reportOpen ? "text-amber-400" : "text-slate-500 hover:text-slate-300"}`}
                     onClick={() => {
                         onUserInteraction?.();
-                        setCommentText("");
-                        setCommentTarget({ runId: run.executionId, stepNumber: step.step });
+                        setReportTarget((prev) =>
+                            prev?.runId === run.executionId && prev?.stepNumber === step.step
+                                ? null
+                                : { runId: run.executionId, stepNumber: step.step },
+                        );
                     }}
                 >
-                    <MessageSquare className="h-3 w-3" />
+                    <Flag className="h-3 w-3" />
                 </Button>
-                {hasComment && (
-                    <span className="flex items-center gap-1 flex-1 min-w-[140px]">
-                        <input
-                            aria-label="Feedback note"
-                            className="flex-1 h-6 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-200 focus:outline-none"
-                            placeholder="What was wrong?"
-                            value={commentText}
-                            onChange={(e) => setCommentText(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") handleCommentSubmit(run, step);
-                            }}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-slate-300"
-                            onClick={() => handleCommentSubmit(run, step)}
-                        >
-                            Send
-                        </Button>
-                    </span>
-                )}
             </div>
         );
     };
@@ -654,7 +831,11 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
         }
     };
 
-    const renderStepCard = (run: AgentRun, step: AgentStep) => (
+    const renderStepCard = (run: AgentRun, step: AgentStep) => {
+        const reportOpen =
+            reportTarget?.runId === run.executionId &&
+            reportTarget?.stepNumber === step.step;
+        return (
         <div key={`${run.executionId}-${step.step}`} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge variant="outline" className="text-indigo-400 border-indigo-400">Step {step.step}</Badge>
@@ -663,10 +844,43 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                     <Badge variant="outline" className="text-slate-400 border-slate-600 text-[10px]">{step.step_type}</Badge>
                 )}
                 {step.verified === "verified" && (
-                    <Badge variant="outline" className="text-green-400 border-green-400 text-[10px]">verified</Badge>
+                    <Badge
+                        variant="outline"
+                        className="text-green-400 border-green-400 text-[10px]"
+                        title="Step-level oracle verification with recorded evidence"
+                        data-testid="step-verified"
+                    >
+                        verified (oracle)
+                    </Badge>
                 )}
                 {step.verified === "failed_verification" && (
-                    <Badge variant="outline" className="text-red-400 border-red-400 text-[10px]">failed verification</Badge>
+                    <Badge
+                        variant="outline"
+                        className="text-red-400 border-red-400 text-[10px]"
+                        data-testid="step-failed-verification"
+                    >
+                        failed verification
+                    </Badge>
+                )}
+                {step.verified === "unverified" && (
+                    <Badge
+                        variant="outline"
+                        className="text-amber-400 border-amber-500/60 text-[10px]"
+                        title="The tool self-reported success without independent evidence"
+                        data-testid="step-unverified"
+                    >
+                        unverified
+                    </Badge>
+                )}
+                {!step.verified && (
+                    <Badge
+                        variant="outline"
+                        className="text-slate-500 border-slate-600 text-[10px]"
+                        title="No verification state was recorded for this step"
+                        data-testid="step-verification-unknown"
+                    >
+                        verification unknown
+                    </Badge>
                 )}
                 {typeof step.confidence === "number" && (
                     <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-500">
@@ -692,6 +906,14 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             {step.observation && (
                 <p className="text-sm text-slate-400"><strong>Result:</strong> {step.observation}</p>
             )}
+            {step.verification_evidence && (
+                <details className="mt-1 text-[10px] text-slate-500" data-testid="step-verification-evidence">
+                    <summary className="cursor-pointer select-none">Evidence</summary>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-slate-400">
+                        {step.verification_evidence}
+                    </p>
+                </details>
+            )}
             <div className="flex items-center justify-between flex-wrap gap-1">
                 <div className="flex items-center gap-2 text-[10px] text-slate-600">
                     {typeof step.duration_ms === "number" && step.duration_ms > 0 && (
@@ -701,8 +923,16 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 </div>
                 {renderStepFeedback(run, step)}
             </div>
+            {reportOpen && (
+                <StepReportForm
+                    run={run}
+                    step={step}
+                    onCancel={() => setReportTarget(null)}
+                />
+            )}
         </div>
-    );
+        );
+    };
 
     const renderRunMeta = (run: AgentRun) => (
         <div className="flex items-center gap-2 flex-wrap">

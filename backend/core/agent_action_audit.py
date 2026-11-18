@@ -194,8 +194,19 @@ def log_agent_action(
     success: bool = True,
     error_message: Optional[str] = None,
     description: Optional[str] = None,
+    *,
+    agent_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> Optional[str]:
-    """Audit one agent action (tool call, HITL decision, execution event)."""
+    """Audit one agent action (tool call, HITL decision, execution event).
+
+    Explicit identity arguments let out-of-run writers (e.g. a correction
+    request made after the run finished) stamp the actor and subject
+    execution instead of inheriting whatever context the caller happens to
+    be in. Omitted values keep the existing ContextVar behaviour.
+    """
     return _write_audit_log(
         event_type=AUDIT_EVENT_AGENT_ACTION,
         action=action,
@@ -203,6 +214,80 @@ def log_agent_action(
         metadata=metadata or {},
         success=success,
         error_message=error_message,
+        agent_id=agent_id,
+        execution_id=execution_id,
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )
+
+
+def log_correction_request(
+    *,
+    feedback_id: str,
+    user_id: str,
+    workspace_id: str,
+    agent_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    subject_audit_id: Optional[str] = None,
+    subject_step_number: Optional[int] = None,
+    channel: Optional[str] = None,
+    target_id: Optional[str] = None,
+    channel_target_basis: Optional[str] = None,
+    repair_link_proven: bool = False,
+    reason: Optional[str] = None,
+) -> Optional[str]:
+    """Record a correction REQUEST (never an applied/verified repair).
+
+    This is an audit event, not a correction engine: it links the existing
+    ``AgentFeedback`` row to the subject execution/step/audit row and states
+    truthfully that nothing was applied or independently verified. The
+    governed Activity/Learning/assignment/Auto-Dev surface still owns any
+    actual change.
+
+    ``channel_target_basis`` records HOW the named target was established:
+    ``recorded_subject_target`` only when the caller matched metadata the
+    server recorded for the subject; otherwise the target stays
+    caller-asserted and ``repair_link_proven`` remains false.
+    """
+    from datetime import datetime, timezone
+
+    metadata: Dict[str, Any] = {
+        "correction_request": True,
+        "status": "requested",
+        "applied": False,
+        "verified": False,
+        "feedback_id": str(feedback_id),
+        "requested_by": str(user_id),
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if subject_audit_id:
+        metadata["subject_audit_id"] = str(subject_audit_id)
+    if execution_id:
+        metadata["subject_execution_id"] = str(execution_id)
+    if subject_step_number is not None:
+        metadata["subject_step_number"] = int(subject_step_number)
+    if channel:
+        metadata["channel"] = str(channel)
+        metadata["channel_status"] = "requested"
+    if target_id:
+        metadata["channel_target_id"] = str(target_id)
+    if channel_target_basis:
+        metadata["channel_target_basis"] = str(channel_target_basis)
+    metadata["repair_link_proven"] = bool(repair_link_proven)
+    if reason:
+        metadata["reason"] = str(reason)
+
+    return log_agent_action(
+        action="correction_requested",
+        description=(
+            "Correction requested — recorded only; not applied or verified."
+        ),
+        metadata=metadata,
+        success=True,
+        agent_id=agent_id,
+        execution_id=execution_id,
+        user_id=user_id,
+        workspace_id=workspace_id,
     )
 
 

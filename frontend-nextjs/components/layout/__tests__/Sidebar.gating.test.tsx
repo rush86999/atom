@@ -175,4 +175,27 @@ describe("Sidebar role gating", () => {
         expect(screen.queryByText("Search")).not.toBeInTheDocument();
         expect(screen.queryByText("Marketplace")).not.toBeInTheDocument();
     });
+
+    it("member core navigation offers Audit Trail and agrees with the direct-route gate", () => {
+        const enabled = new Set(["chat", "documents", "canvas", "agents", "learning", "activity", "settings", "approvals"]);
+        mockCapabilityEnabled.mockImplementation((capability: string) => enabled.has(capability));
+        mockUseUserRole.mockReturnValue({
+            role: "member", level: 3, isSupervisor: false, isAdmin: false, loading: false,
+        });
+        const {
+            FALLBACK_PROFILE,
+            isRouteEnabled,
+        } = jest.requireActual("../../../lib/product-profile");
+
+        render(<Sidebar />);
+
+        const link = screen.getByText("Audit Trail").closest("a");
+        expect(link).toHaveAttribute("href", "/audit-trail");
+        // The nav entry and the release gate are the same decision.
+        expect(isRouteEnabled("/audit-trail", FALLBACK_PROFILE)).toBe(true);
+        // Deferred governance siblings stay out of the member nav.
+        expect(screen.queryByText("Forensics")).not.toBeInTheDocument();
+        expect(screen.queryByText("Self-Healing Harness")).not.toBeInTheDocument();
+        expect(screen.queryByText("User Management")).not.toBeInTheDocument();
+    });
 });
