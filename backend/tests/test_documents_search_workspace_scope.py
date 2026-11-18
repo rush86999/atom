@@ -470,6 +470,123 @@ async def test_uploaded_only_search_skips_vfs_and_grounds_the_upload(
 
 
 @pytest.mark.asyncio
+async def test_original_turn_source_restriction_beats_planner_vfs_path(
+        monkeypatch):
+    """The source restriction lives in the user's turn, not the plan query.
+
+    Live gap: a search-shaped plan replaced the request with an invented VFS
+    path, losing the leading uploaded-only qualification even though the
+    returned memory context held the correct upload. The restriction must be
+    evaluated on the server-supplied context["message"] BEFORE the planner
+    path is normalized: the VFS stays untouched and the authenticated
+    ingested lookup grounds the upload.
+    """
+    from types import SimpleNamespace
+
+    from core import chat_tool_planner as ctp
+    from core.action_registry import action_registry as ar
+
+    message = (
+        "Using my uploaded documentation only, what is the reference code "
+        "for car crash coverage?"
+    )
+    plan = SimpleNamespace(
+        service="documents", intent="search", use_tool=True,
+        query="knowledge/conversations/8f2c1a9e/content.lines")
+
+    vfs_calls = []
+    hybrid_init = []
+    hybrid_search = []
+
+    async def forbidden_execute(name, args, context):
+        vfs_calls.append((name, args, context))
+        raise AssertionError(f"VFS dispatch is forbidden here: {name}")
+
+    class _SourceAwareHybrid:
+        def __init__(self, **kwargs):
+            hybrid_init.append(kwargs)
+
+        async def search(self, **kwargs):
+            hybrid_search.append(kwargs)
+            if kwargs.get("source") == "ingested":
+                return {
+                    "success": True,
+                    "status": "success",
+                    "results": [{
+                        "source": "ingested", "id": "doc-upload",
+                        "title": "fleet_coverage_2026.pdf",
+                        "content": (
+                            "Car crash coverage reference code: MV-2271."),
+                    }],
+                    "legs": {
+                        "lexical": {"status": "ok", "required": True},
+                        "vector": {"status": "ok", "required": True},
+                    },
+                    "coverage": {"unavailable": []},
+                }
+            # Without the restriction the invented path's matching
+            # CONVERSATION would be the result the planner grounds on.
+            return {
+                "success": True,
+                "status": "success",
+                "results": [{
+                    "source": "communication", "id": "conv-1",
+                    "title": "email — 2026-05-01",
+                    "content": (
+                        "Car crash coverage reference code: "
+                        "CONVERSATION-9."),
+                }],
+                "legs": {
+                    "lexical": {"status": "ok", "required": True},
+                    "conversations": {"status": "ok", "required": False},
+                },
+                "coverage": {"unavailable": []},
+            }
+
+    def fake_scope(user_id, requested_workspace_id=None):
+        assert user_id == "user-1"
+        assert requested_workspace_id == "ws-requested"
+        return {
+            "workspace_id": "doc-ws",
+            "legacy_authority": {
+                "workspace_id": "doc-ws", "user_id": "user-1"},
+            "fail_closed": False,
+        }
+
+    monkeypatch.setattr(
+        "core.knowledge_vfs_config.knowledge_vfs_enabled", lambda: True)
+    monkeypatch.setattr(ctp, "_document_scope_for_user", fake_scope)
+    monkeypatch.setattr(ar, "execute_action", forbidden_execute)
+    monkeypatch.setattr(
+        "core.hybrid_search.documents_hybrid.DocumentsHybridSearch",
+        _SourceAwareHybrid)
+
+    block = await ctp._documents_vfs_block(
+        plan, "user-1",
+        {"workspace_id": "ws-requested", "message": message})
+
+    # The path-shaped plan query was not rerouted to cat/ls: the explicit
+    # source restriction owns the route.
+    assert vfs_calls == []
+    assert block and "MV-2271" in block
+    assert "CONVERSATION-9" not in block
+    # ONE authenticated lookup, using the ORIGINAL turn text as the query.
+    assert hybrid_init == [{
+        "workspace_id": "doc-ws",
+        "legacy_authority": {
+            "workspace_id": "doc-ws", "user_id": "user-1"},
+    }]
+    assert len(hybrid_search) == 1
+    assert hybrid_search[0]["source"] == "ingested"
+    assert hybrid_search[0]["query"] == message
+    assert hybrid_search[0]["owner_user_id"] == "user-1"
+    receipt = (getattr(plan, "_result_meta", {}) or {}).get(
+        "documents_read") or {}
+    assert receipt.get("executed") is True
+    assert receipt.get("match_count") == 1
+
+
+@pytest.mark.asyncio
 async def test_zero_match_grep_scoped_absence(monkeypatch):
     """A completed zero-result scoped search plus a zero VFS grep may state a
     scoped absence, never a global one."""

@@ -9643,11 +9643,35 @@ async def _documents_vfs_block(
     query = (plan.query or "").strip()
     intent = (plan.intent or "grep").lower()
     action = _DOCUMENTS_VFS_INTENT_ACTIONS.get(intent, "grep")
+    # EXPLICIT SOURCE RESTRICTION FIRST (2026-11-18): the supported leading
+    # "Using my uploaded documentation only," qualification is a source scope
+    # the USER stated, so evaluate it on the ORIGINAL server-supplied turn —
+    # before the plan query/path is normalized or rerouted. A live search-
+    # shaped plan replaced the request with an invented VFS path, losing the
+    # qualification even though the returned memory context held the correct
+    # upload. Explicit grep/cat/read intents and ordinary unqualified
+    # searches keep their VFS semantics.
+    _turn_message = str((context or {}).get("message") or "").strip()
+    _restriction_text = _turn_message or query
+    _restricted_source = None
+    if intent in _DOCUMENTS_SEARCH_SHAPED_INTENTS:
+        try:
+            from core.memory_context_assembler import (
+                _supported_source_restriction,
+            )
+
+            _restricted_source, _ = _supported_source_restriction(
+                _restriction_text)
+        except Exception:  # noqa: BLE001 — additive lane
+            _restricted_source = None
     # A search-shaped plan whose query IS a VFS path is an open request the
     # planner model phrased poorly (live 2026-09-13: "open that full
     # message" → intent=search with the cited path as the query). Reroute
     # to cat deterministically instead of grepping for the path string.
-    if action == "grep" and _normalize_vfs_path(query):
+    # An explicit source restriction owns the route instead: a planner-
+    # invented path must not outrank the source scope the user stated.
+    if (not _restricted_source and action == "grep"
+            and _normalize_vfs_path(query)):
         _path = _normalize_vfs_path(query)
         if len(_path) >= 0.6 * max(len(query), 1):
             action = "cat"
@@ -9667,29 +9691,14 @@ async def _documents_vfs_block(
             )
         args: Dict[str, Any] = {}
         if action == "grep":
-            # EXPLICIT SOURCE RESTRICTION FIRST (2026-11-18): the supported
-            # leading "Using my uploaded documentation only," qualification is
-            # a source scope the USER stated, so a search-shaped request goes
-            # straight to the authenticated ingested-documents hybrid lookup
-            # with source="ingested". Grepping the VFS first let a matching
-            # CONVERSATION win before the source filter was applied — the
-            # filter used to run only after zero grep hits. Explicit
-            # grep/cat/read intents and ordinary unqualified searches keep
-            # their VFS semantics; this only reorders the existing two legs.
-            _restricted_source = None
-            if intent in _DOCUMENTS_SEARCH_SHAPED_INTENTS:
-                try:
-                    from core.memory_context_assembler import (
-                        _supported_source_restriction,
-                    )
-
-                    _restricted_source, _ = _supported_source_restriction(
-                        query)
-                except Exception:  # noqa: BLE001 — additive lane
-                    _restricted_source = None
+            # The restriction was evaluated on the original turn above. When
+            # present, drive the authenticated ingested-documents hybrid
+            # lookup with that original text (same scoped retry); grepping
+            # the VFS first would let a matching CONVERSATION win before the
+            # source filter is applied.
             if _restricted_source:
                 _lookup = await _documents_ingested_hybrid_lookup(
-                    plan, query, user_id, context)
+                    plan, _restriction_text, user_id, context)
                 if _lookup.get("block"):
                     return _lookup["block"]
                 _restricted_query = str(_lookup.get("query") or query)
