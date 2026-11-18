@@ -731,8 +731,14 @@ These results leave generated answers and longer-prompt retrieval open.
   fired a persisted date job in a new scheduler process, approved it through
   the mounted ASGI approval routes, and reached one completed execution. A
   subsequent process did not fire the job again. The step audit update failed
-  when SQLite returned a timestamp without timezone information, so the
-  completed receipt is still open.
+  when SQLite returned a timestamp without timezone information. The
+  saved step still reported `running` with zero duration and no result.
+- **Reviewer readback:** the main application's API schema registered
+  the workflow log endpoint under a repeated analytics prefix, while the
+  Workflow Builder proxy expects a single prefix. The sidebar's component
+  tests passed with mocked responses. They also accept the empty-state
+  message on request failure and exercise an uppercase success status,
+  while the workflow engine writes lowercase `completed`.
 - **Remaining user-boundary acceptance:** verify a complete scheduled
   result and step receipt through the production interface, then qualify
   PostgreSQL, multi-worker operation, and soak. The served model evidence
