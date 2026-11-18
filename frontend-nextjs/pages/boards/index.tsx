@@ -6,7 +6,7 @@ import { Plus, KanbanSquare } from 'lucide-react';
 import { useBoards, useCreateBoard } from '../../hooks/useBoard';
 
 export default function BoardsListPage() {
-  const { data: boards, isLoading } = useBoards();
+  const { data: boards, isLoading, isError, error, refetch, isFetching } = useBoards();
   const createBoard = useCreateBoard();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -65,6 +65,28 @@ export default function BoardsListPage() {
         </div>
       )}
 
+      {isError && (
+        <div
+          role="alert"
+          className="mt-8 rounded border border-red-300 bg-red-50 p-4 text-sm text-red-800"
+        >
+          <p className="font-medium">Couldn't load boards.</p>
+          <p className="mt-1 break-words text-red-700">
+            {error instanceof Error ? error.message : 'Something went wrong while loading boards.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="mt-3 rounded border border-red-300 bg-white px-3 py-1 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {/* A failed fetch must never be reported as an empty board list. Cached
+          boards stay visible under the alert until a retry succeeds. */}
       {isLoading ? (
         <p className="mt-8 text-gray-500">Loading…</p>
       ) : boards && boards.length > 0 ? (
@@ -86,7 +108,7 @@ export default function BoardsListPage() {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : isError ? null : (
         <p className="mt-8 text-gray-500">
           No boards yet. Click “New Board” to create your first.
         </p>
