@@ -625,7 +625,20 @@ async def submit_step_feedback(
             message="Feedback already recorded — no duplicate training data created",
         )
 
-    governance_service = AgentGovernanceService(db)
+    # A correction was already authorized against the durable actor's audit
+    # scope (actor -> workspace -> subject). Bind the governance writer to
+    # THAT scope: AgentRegistry is keyed by workspace_id (tenant_id is the
+    # separate account key), and the service's Personal-Edition default
+    # ("default") cannot see an agent registered in a real workspace. Ordinary
+    # thumbs feedback keeps the historical default construction.
+    if correction_scope is not None:
+        governance_service = AgentGovernanceService(
+            db,
+            workspace_id=correction_scope["workspace_id"],
+            tenant_id=correction_scope["tenant_id"],
+        )
+    else:
+        governance_service = AgentGovernanceService(db)
 
     # original_output is the thought being judged
     original_output = json.dumps(feedback.step_content.get('thought', ''))
@@ -644,7 +657,14 @@ async def submit_step_feedback(
             user_id=(correction_actor.id if correction_actor is not None else current_user.id),
             original_output=original_output,
             user_correction=user_correction,
-            input_context=input_context
+            input_context=input_context,
+            # Only the correction path has a freshly resolved actor scope;
+            # the ordinary thumbs path keeps the service's historical
+            # workspace/default learning key.
+            feedback_tenant_id=(
+                correction_scope["tenant_id"]
+                if correction_scope is not None else None
+            ),
         )
         if correction_subject is None:
             _stamp_canvas_chat_feedback(

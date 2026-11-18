@@ -43,7 +43,7 @@ def _event(
     workspace_id: str | None,
     execution_id: str | None,
     action: str = "tool:read",
-    agent_id: str | None = "agent-1",
+    agent_id: str | None = "agent-ws1",
     event_type: str = "agent_action",
     success: bool = True,
     metadata: dict | None = None,
@@ -128,6 +128,21 @@ def audit_app(monkeypatch):
             module_path="agents.bookkeeper", class_name="Bookkeeper",
             workspace_id=None, tenant_id=None,
         ),
+        # Reviewed employees in a REAL workspace: the registry is keyed by
+        # workspace_id, and the tenant is a separate account key. The ids
+        # deliberately differ so a tenant/workspace swap cannot pass.
+        AgentRegistry(
+            id="agent-ws1", name="Workspace Bookkeeper", category="Finance",
+            module_path="agents.workspace_bookkeeper",
+            class_name="WorkspaceBookkeeper",
+            workspace_id="ws-1", tenant_id="t-1",
+        ),
+        AgentRegistry(
+            id="agent-ws2", name="Foreign Bookkeeper", category="Finance",
+            module_path="agents.foreign_bookkeeper",
+            class_name="ForeignBookkeeper",
+            workspace_id="ws-2", tenant_id="t-2",
+        ),
     ])
     session.add_all([
         _event(row_id="ev-member-start", user_id="member", workspace_id="ws-1",
@@ -140,13 +155,13 @@ def audit_app(monkeypatch):
                execution_id="exec-other",
                metadata={"prompt_excerpt": "OTHER-USER-PROMPT"}),
         _event(row_id="ev-foreign", user_id="foreign", workspace_id="ws-2",
-               execution_id="exec-foreign",
+               execution_id="exec-foreign", agent_id="agent-ws2",
                metadata={"prompt_excerpt": "FOREIGN-WORKSPACE-PROMPT"}),
         _event(row_id="ev-unbound", user_id=None, workspace_id="default",
                execution_id="exec-unbound",
                metadata={"prompt_excerpt": "UNBOUND-HISTORICAL-ROW"}),
         _event(row_id="ev-personal", user_id="personal", workspace_id="default",
-               execution_id="exec-personal",
+               execution_id="exec-personal", agent_id="agent-1",
                metadata={"task_input": "personal task"}),
         _event(row_id="ev-member-llm", user_id="member", workspace_id="ws-1",
                execution_id="exec-member", event_type="llm_call",
@@ -154,14 +169,14 @@ def audit_app(monkeypatch):
                metadata={"model": "tier:auto", "provider": "route"}),
     ])
     session.add_all([
-        AgentExecution(id="exec-member", agent_id="agent-1",
+        AgentExecution(id="exec-member", agent_id="agent-ws1",
                        workspace_id="ws-1", tenant_id="t-1", status="completed",
                        metadata_json={}),
-        AgentExecution(id="exec-other", agent_id="agent-1",
+        AgentExecution(id="exec-other", agent_id="agent-ws1",
                        workspace_id="ws-1", tenant_id="t-1", status="completed"),
-        AgentExecution(id="exec-foreign", agent_id="agent-1",
+        AgentExecution(id="exec-foreign", agent_id="agent-ws2",
                        workspace_id="ws-2", tenant_id="t-2", status="completed"),
-        AgentExecution(id="legacy-ws1", agent_id="agent-1",
+        AgentExecution(id="legacy-ws1", agent_id="agent-ws1",
                        workspace_id="ws-1", tenant_id="t-1", status="completed",
                        input_summary="legacy run"),
     ])
@@ -404,7 +419,7 @@ def test_personal_default_semantics_and_no_global_default_bypass(audit_app):
 # --------------------------------------------------------------------------- #
 def _correction_payload(**overrides) -> dict:
     payload = {
-        "agent_id": "agent-1",
+        "agent_id": "agent-ws1",
         "run_id": "exec-member",
         "step_index": 1,
         "step_content": {"step": 1, "thought": "wrong tool args"},
@@ -464,6 +479,97 @@ def test_correction_request_links_feedback_to_actual_audit_subject(audit_app):
     assert receipt_event["correction"]["applied"] is False
     assert receipt_event["correction"]["verified"] is False
     assert receipt_event["correction"]["feedback_id"] == data["feedback_id"]
+
+
+def test_real_workspace_correction_links_feedback_and_denies_cross_workspace(
+    audit_app,
+):
+    """2026-11-17 correction-writer scope regression.
+
+    The audited run, the actor and the reviewed employee all live in a REAL
+    workspace (``ws-1``), never the Personal-Edition ``default`` bucket.
+    ``AgentRegistry`` is keyed by ``workspace_id``; ``tenant_id`` is a
+    separate account key, so the two values differ here. The correction
+    writer must use the already-revalidated actor workspace rather than the
+    service's default scope (which cannot see this agent at all).
+    """
+    session = audit_app.session
+    member = session.query(User).filter(User.id == "member").one()
+    agent = (
+        session.query(AgentRegistry)
+        .filter(AgentRegistry.id == "agent-ws1")
+        .one()
+    )
+    assert member.workspace_id == agent.workspace_id == "ws-1"
+    assert member.tenant_id == agent.tenant_id == "t-1"
+    assert member.workspace_id != member.tenant_id
+    assert "default" not in (member.workspace_id, member.tenant_id)
+
+    before_feedback = session.query(AgentFeedback).count()
+    before_receipts = _correction_receipt_count(session)
+
+    resp = audit_app.client.post(
+        "/api/reasoning/feedback",
+        json=_correction_payload(),
+        headers=_headers(session, "member"),
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["correction_status"] == "recorded"
+    assert data["applied"] is False
+    assert data["verified"] is False
+
+    feedback = (
+        session.query(AgentFeedback)
+        .filter(AgentFeedback.id == data["feedback_id"])
+        .one()
+    )
+    assert feedback.agent_id == agent.id
+    assert feedback.user_id == "member"
+    assert feedback.agent_execution_id == "exec-member"
+    # The durable ACCOUNT key is the tenant, not the workspace id: putting
+    # the workspace here would point the row (and its learning key) at a
+    # non-existent tenant in a real deployment.
+    assert feedback.tenant_id == member.tenant_id == "t-1"
+
+    receipt = (
+        session.query(AuditLog)
+        .filter(AuditLog.id == data["correction_audit_id"])
+        .one()
+    )
+    assert receipt.action == "correction_requested"
+    assert receipt.user_id == "member"
+    assert receipt.workspace_id == "ws-1"
+    meta = json.loads(receipt.metadata_json)
+    assert meta["feedback_id"] == feedback.id
+    assert meta["agent_id"] == agent.id
+    assert meta["subject_audit_id"] == "ev-member-tool"
+    assert meta["subject_execution_id"] == "exec-member"
+    assert meta["applied"] is False
+    assert meta["verified"] is False
+    assert meta["status"] == "requested"
+    assert session.query(AgentFeedback).count() == before_feedback + 1
+    assert _correction_receipt_count(session) == before_receipts + 1
+
+    # A user from another workspace cannot reach that subject at all — no
+    # feedback row and no receipt may be created, even with the right ids.
+    foreign_headers = _headers(session, "foreign")
+    for override in (
+        {"subject_audit_id": "ev-member-tool",
+         "execution_id": "exec-member",
+         "run_id": "exec-member"},
+        {"subject_audit_id": None,
+         "execution_id": "exec-member",
+         "run_id": "exec-member"},
+    ):
+        denied = audit_app.client.post(
+            "/api/reasoning/feedback",
+            json=_correction_payload(**override),
+            headers=foreign_headers,
+        )
+        assert denied.status_code == 404, (override, denied.text)
+    assert session.query(AgentFeedback).count() == before_feedback + 1
+    assert _correction_receipt_count(session) == before_receipts + 1
 
 
 def test_correction_request_is_idempotent_on_replay(audit_app):
@@ -933,6 +1039,7 @@ def test_personal_scope_event_correction_keeps_default_compatibility(audit_app):
         "/api/reasoning/feedback",
         headers=_headers(audit_app.session, "personal"),
         json=_correction_payload(
+            agent_id="agent-1",
             subject_audit_id="ev-personal",
             execution_id=None,
             run_id="",
