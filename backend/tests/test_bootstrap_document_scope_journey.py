@@ -45,6 +45,12 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setenv("ATOM_BOOTSTRAP_PASSWORD_FILE", str(tmp_path / "pw"))
     monkeypatch.setenv("EMBEDDING_PROVIDER", "fastembed")
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    # This journey covers documents, not communications. The hybrid
+    # conversations leg opens the shared comms store and initializes its own
+    # SentenceTransformer, which on a cold CI agent downloads the model and
+    # outlived the lane's 300s budget. The leg has its own tests
+    # (tests/test_conversations_leg_and_vfs.py); keep this fixture hermetic.
+    monkeypatch.setenv("MEMORY_CONVERSATIONS_LEG", "false")
     monkeypatch.setattr(storage, "_workspace_handlers", {})
 
     from core.embedding_service import EmbeddingService
