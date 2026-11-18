@@ -1014,6 +1014,14 @@ export default function AuditTrailExplorer() {
                                 )}
                                 {correctionSubject && (
                                     <CorrectionRequestForm
+                                        // One form instance per exact subject. React
+                                        // reuses a child when only its props change, so
+                                        // without this key the previous event's chosen
+                                        // inputs, error and receipt would survive a
+                                        // switch to another event in the same run — and
+                                        // an in-flight response for the old event could
+                                        // paint its receipt under the new subject.
+                                        key={`${correctionSubject.executionId}:${correctionSubject.event.id}`}
                                         event={correctionSubject.event}
                                         executionId={correctionSubject.executionId}
                                         targets={correctionTargets}

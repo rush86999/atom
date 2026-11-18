@@ -337,6 +337,57 @@ test("report problem is prefilled and records a REQUEST with a safe channel link
   );
 });
 
+test("switching the report subject inside one run starts a fresh form, not the earlier receipt", async () => {
+  await openTimeline();
+
+  // Record a request against the tool event first...
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[1]);
+  fireEvent.change(screen.getByTestId("audit-correction-reason"), {
+    target: { value: "Wrong action taken" },
+  });
+  fireEvent.change(screen.getByTestId("audit-correction-detail"), {
+    target: { value: "first subject detail" },
+  });
+  fireEvent.click(screen.getByTestId("audit-correction-submit"));
+  expect(await screen.findByTestId("audit-correction-result")).toHaveTextContent(
+    "recorded and linked",
+  );
+
+  const timelineReads = mockedTimeline.mock.calls.length;
+  const correctionPosts = mockedCorrection.mock.calls.length;
+
+  // ...then report a DIFFERENT event in the SAME run without cancelling. The
+  // rendered form must belong to the newly chosen event: no carried-over
+  // reason/detail/channel, no carried-over receipt, no carried-over error.
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[2]);
+
+  const form = await screen.findByTestId("audit-correction-form");
+  expect(form).toHaveTextContent("llm_call:tier:auto");
+  expect(screen.getByTestId("audit-correction-subject")).toHaveTextContent("LLM call");
+  expect(screen.queryByTestId("audit-correction-result")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("audit-correction-error")).not.toBeInTheDocument();
+  expect(screen.getByTestId("audit-correction-reason")).toHaveValue("Wrong result");
+  expect(screen.getByTestId("audit-correction-detail")).toHaveValue("");
+  expect(screen.getByTestId("audit-correction-channel")).toHaveValue("");
+
+  // Switching subjects is a pure local choice: no extra audit read and no
+  // request was submitted behind the reader's back.
+  expect(mockedTimeline).toHaveBeenCalledTimes(timelineReads);
+  expect(mockedCorrection).toHaveBeenCalledTimes(correctionPosts);
+
+  // The fresh form submits against the newly chosen subject.
+  fireEvent.click(screen.getByTestId("audit-correction-submit"));
+  await waitFor(() =>
+    expect(mockedCorrection).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        auditId: "e-llm",
+        executionId: "exec-1",
+        agentId: "agent-bookkeeper",
+      }),
+    ),
+  );
+});
+
 test("a caller-asserted channel target is not presented as a proven link", async () => {
   mockedCorrection.mockResolvedValue({
     id: "fb-3",

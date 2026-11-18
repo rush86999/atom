@@ -100,6 +100,17 @@ function timelineFor(executionId: string, action: string) {
   };
 }
 
+function timelineWithTwoEvents(executionId: string) {
+  const timeline = timelineFor(executionId, `${executionId}-first-action`);
+  timeline.events.push({
+    ...timeline.events[0],
+    id: `evt-${executionId}-second`,
+    action: `${executionId}-second-action`,
+    description: `second recorded event for ${executionId}`,
+  });
+  return timeline;
+}
+
 type PendingTimeline = { id: string; deferred: Deferred<any> };
 let pendingTimelines: PendingTimeline[] = [];
 
@@ -337,6 +348,67 @@ test("export and correction cannot target an in-flight or mismatched run", async
       }),
     ),
   );
+});
+
+test("an in-flight correction for event A never renders its receipt under event B in the same run", async () => {
+  const correctionA = deferred<any>();
+  const receiptA = {
+    id: "fb-a",
+    feedback_id: "fb-a",
+    correction_status: "recorded",
+    correction_audit_id: "aud-a",
+    applied: false,
+    verified: false,
+    status_note: "recorded",
+  };
+  mockedCorrection.mockReturnValueOnce(correctionA.promise);
+  mockedTimeline.mockResolvedValue(timelineWithTwoEvents("exec-a"));
+
+  render(<AuditTrailExplorer />);
+  await waitFor(() => expect(screen.getAllByTestId("audit-run-row")).toHaveLength(2));
+  await selectRun(0);
+  await waitFor(() => expect(screen.getAllByTestId("audit-report-problem")).toHaveLength(2));
+
+  // Report event A and submit while the response is still in flight.
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[0]);
+  fireEvent.change(screen.getByTestId("audit-correction-reason"), {
+    target: { value: "Wrong action taken" },
+  });
+  fireEvent.change(screen.getByTestId("audit-correction-detail"), {
+    target: { value: "belongs to event A only" },
+  });
+  fireEvent.click(screen.getByTestId("audit-correction-submit"));
+  await waitFor(() =>
+    expect(mockedCorrection).toHaveBeenCalledWith(
+      expect.objectContaining({ auditId: "evt-exec-a", executionId: "exec-a" }),
+    ),
+  );
+
+  // Choose B's event in the SAME run before A settles. B's form must start
+  // from scratch rather than inherit A's in-progress/receipt state.
+  fireEvent.click(screen.getAllByTestId("audit-report-problem")[1]);
+  expect(await screen.findByTestId("audit-correction-subject")).toHaveTextContent(
+    "exec-a-second-action",
+  );
+  expect(screen.queryByTestId("audit-correction-result")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("audit-correction-error")).not.toBeInTheDocument();
+  expect(screen.getByTestId("audit-correction-reason")).toHaveValue("Wrong result");
+  expect(screen.getByTestId("audit-correction-detail")).toHaveValue("");
+
+  // A's late receipt is discarded: it may not paint under B.
+  await act(async () => {
+    correctionA.resolve(receiptA);
+    await correctionA.promise;
+  });
+  expect(screen.queryByTestId("audit-correction-result")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("audit-correction-error")).not.toBeInTheDocument();
+  expect(screen.getByTestId("audit-correction-subject")).toHaveTextContent(
+    "exec-a-second-action",
+  );
+
+  // The switch is local: no extra timeline read and no extra submission.
+  expect(mockedTimeline).toHaveBeenCalledTimes(1);
+  expect(mockedCorrection).toHaveBeenCalledTimes(1);
 });
 
 test("re-selecting the same run keeps its rows and does not refetch", async () => {
