@@ -24185,6 +24185,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     except Exception:  # noqa: BLE001 — force is additive
                         pass
                     if _plan and _plan.use_tool:
+                        # SCOPED DOCUMENT RELEVANCE (2026-11-18): the
+                        # planner can replace "Using my uploaded
+                        # documentation only, ..." with an invented VFS
+                        # path (knowledge/conversations/<id>/content.lines).
+                        # The qualification is the USER's source scope, so
+                        # normalize a documents search/find plan to the
+                        # authoritative original turn BEFORE the trace/gate
+                        # judges it. Explicit grep/cat/read, unqualified
+                        # plans, other services, and Canvas keep their route.
+                        from core.chat_tool_planner import (
+                            _scoped_document_query,
+                        )
+
+                        _scoped_query = _scoped_document_query(
+                            _plan, _gate_msg)
+                        if _scoped_query:
+                            _plan.query = _scoped_query
+                            logger.info(
+                                "[plan-relevance] documents search "
+                                "normalized to the scoped original request")
                         _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                         await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
                                      f"Planned live lookup: {_planned}")

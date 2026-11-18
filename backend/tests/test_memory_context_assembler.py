@@ -10,6 +10,7 @@ import os
 os.environ.setdefault("TESTING", "1")
 
 import asyncio
+import logging
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -285,6 +286,317 @@ async def test_knowledge_leg_fault_isolated(monkeypatch):
 
     with patch.object(documents_hybrid.DocumentsHybridSearch, "search", empty):
         assert await mca._knowledge_leg("anything", "default") == []
+
+
+# --------------------------------------------------------------------------- #
+# Knowledge zero-result retry — exact standalone question, ONE bounded extra
+# lookup through the same authorized retriever (no rewriting, no new call)
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_knowledge_leg_zero_result_retries_exact_standalone_question(
+        caplog):
+    """A mixed context+question turn whose first (authorized) hybrid search
+    legitimately finds nothing gets ONE retry with the question verbatim.
+
+    Pins: original query first and unchanged; same instance/scope/limit/floor
+    (same retriever, same permissions); retry string is an exact substring —
+    including an intra-question abbreviation ("Dr.") that must not be cut;
+    hits still render and still publish citation observations.
+    """
+    from core.hybrid_search import documents_hybrid
+
+    message = (
+        "We spoke with Dr. Smith yesterday. "
+        "What did Dr. Smith say about the termination notice?"
+    )
+    question = "What did Dr. Smith say about the termination notice?"
+    calls = []
+
+    class FakeHybrid:
+        constructor_kwargs: dict = {}
+
+        def __init__(self, **kwargs):
+            FakeHybrid.constructor_kwargs = dict(kwargs)
+
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append({
+                "query": query, "limit": limit,
+                "owner_user_id": owner_user_id, "kwargs": dict(kw),
+                "instance": id(self),
+            })
+            if len(calls) == 1:
+                return {"status": "success", "success": True,
+                        "query": query, "results": []}
+            return {
+                "status": "success", "success": True, "query": query,
+                "results": [{
+                    "source": "ingested",
+                    "title": "Halden renewal.pdf",
+                    "preview": "Termination notice is 60 days.",
+                }],
+            }
+
+    observations = []
+    with caplog.at_level(logging.INFO), \
+            patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        lines = await mca._knowledge_leg(
+            message, "ws-1", owner_user_id="user-1",
+            document_workspace_id="doc-ws",
+            legacy_authority={"workspace_id": "doc-ws"},
+            source_observations_out=observations)
+
+    assert calls[0]["query"] == message[:500], "first query must be unchanged"
+    assert len(calls) == 2, "at most one additional lookup"
+    assert calls[1]["query"] == question
+    assert question in message, "retry must be an exact user substring"
+    assert mca._standalone_question_for_retry(message) == question
+    assert calls[0]["limit"] == calls[1]["limit"] == 6
+    assert calls[0]["owner_user_id"] == calls[1]["owner_user_id"] == "user-1"
+    assert calls[0]["kwargs"] == calls[1]["kwargs"] == {}
+    assert calls[0]["instance"] == calls[1]["instance"], "same retriever"
+    assert FakeHybrid.constructor_kwargs == {
+        "workspace_id": "doc-ws",
+        "legacy_authority": {"workspace_id": "doc-ws"},
+    }
+    assert any("Termination notice" in line for line in lines)
+    assert observations[0]["title"] == "Halden renewal.pdf"
+    assert observations[0]["excerpt"].startswith("Termination notice")
+    assert "standalone-question retry hit" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("first_result", [
+    {"status": "failed", "success": False, "results": []},
+    {"status": "partial", "success": True, "results": []},
+    {"status": "success", "success": True,
+     "results": [{"title": "T", "preview": "already found"}]},
+])
+async def test_knowledge_leg_does_not_retry_unless_successful_complete_zero(
+        first_result):
+    """Failed/partial coverage and non-zero successes are not retry cases:
+    a broken leg must never be laundered into an apparent zero, and a hit
+    needs no rescue lookup."""
+    from core.hybrid_search import documents_hybrid
+
+    message = "Preamble. What is the renewal date?"
+    calls = []
+
+    class FakeHybrid:
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append(query)
+            return dict(first_result)
+
+    with patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        await mca._knowledge_leg(message, "ws-1")
+
+    assert calls == [message[:500]]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("message", [
+    # two question-marked asks: which one is "the" question is ambiguous
+    "What is the renewal date? What is the notice period?",
+    # one question mark, but two coordinated questions
+    "What is the renewal date and when does it expire?",
+    # scope qualifier outside the question would be lost by the retry
+    "Only search email. What is the renewal date?",
+    # explicit path would be lost by the retry
+    "Read /tmp/contracts. What is the renewal date?",
+    # identifier outside the question would be lost by the retry
+    "For ACME-2024. What is the renewal date?",
+    # trailing negation is a qualifier the question cannot preserve
+    "Check the contract. What is the renewal date? Not the draft.",
+])
+async def test_knowledge_leg_zero_result_skips_unpreservable_question(message):
+    """When the exact question cannot stand alone without dropping a path,
+    identifier, source, negation, or the identity of the other question, the
+    original zero result stands — no guessed/rewritten retry."""
+    from core.hybrid_search import documents_hybrid
+
+    calls = []
+
+    class FakeHybrid:
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append(query)
+            if len(calls) == 1:
+                return {"status": "success", "success": True,
+                        "query": query, "results": []}
+            return {"status": "success", "success": True, "query": query,
+                    "results": [{"title": "T", "preview": "should not be used"}]}
+
+    with patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        lines = await mca._knowledge_leg(message, "ws-1")
+
+    assert calls == [message[:500]]
+    assert lines == []
+
+
+# --------------------------------------------------------------------------- #
+# Supported leading source restriction — ONLY the explicit uploaded-documents
+# qualification maps to source="ingested" for the original + bounded retry
+# --------------------------------------------------------------------------- #
+
+UPLOADED_DOCS_ONLY_PROMPT = (
+    "Using my uploaded documentation only, what is the reference code for "
+    "car crash coverage? Give the code and name the source document. If you "
+    "cannot locate it, say so."
+)
+UPLOADED_DOCS_ONLY_QUESTION = "what is the reference code for car crash coverage?"
+
+
+@pytest.mark.asyncio
+async def test_knowledge_leg_uploaded_documents_only_filters_both_calls(caplog):
+    """The exact previously missed prompt: the leading uploaded-documents-only
+    qualification is the ONE supported source restriction.
+
+    Pins: the original query stays verbatim; the bounded retry uses the exact
+    question through its single question mark — the trailing
+    response-presentation instructions are omitted, not carried into the
+    lookup; BOTH calls use the same proven workspace/legacy authority, owner,
+    limit, retriever instance, and ``source="ingested"`` filter (which also
+    keeps the conversations leg out).
+    """
+    from core.hybrid_search import documents_hybrid
+
+    calls = []
+
+    class FakeHybrid:
+        constructor_kwargs: dict = {}
+
+        def __init__(self, **kwargs):
+            FakeHybrid.constructor_kwargs = dict(kwargs)
+
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append({
+                "query": query, "limit": limit,
+                "owner_user_id": owner_user_id, "kwargs": dict(kw),
+                "instance": id(self),
+            })
+            if len(calls) == 1:
+                return {"status": "success", "success": True,
+                        "query": query, "results": []}
+            return {
+                "status": "success", "success": True, "query": query,
+                "results": [{
+                    "source": "ingested",
+                    "title": "fleet_coverage_2026.pdf",
+                    "preview": "Car crash coverage reference code: MV-2271.",
+                }],
+            }
+
+    with caplog.at_level(logging.INFO), \
+            patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        lines = await mca._knowledge_leg(
+            UPLOADED_DOCS_ONLY_PROMPT, "ws-chat", owner_user_id="user-1",
+            document_workspace_id="doc-ws",
+            legacy_authority={"workspace_id": "doc-ws", "user_id": "user-1"})
+
+    assert mca._standalone_question_for_retry(
+        UPLOADED_DOCS_ONLY_PROMPT) == UPLOADED_DOCS_ONLY_QUESTION
+    assert UPLOADED_DOCS_ONLY_QUESTION in UPLOADED_DOCS_ONLY_PROMPT
+    assert len(calls) == 2, "one bounded retry, never a conversations lookup"
+    assert calls[0]["query"] == UPLOADED_DOCS_ONLY_PROMPT[:500]
+    assert calls[1]["query"] == UPLOADED_DOCS_ONLY_QUESTION
+    for call in calls:
+        assert call["owner_user_id"] == "user-1"
+        assert call["limit"] == 6
+        assert call["kwargs"] == {"source": "ingested"}
+        assert call["instance"] == calls[0]["instance"]
+    assert FakeHybrid.constructor_kwargs == {
+        "workspace_id": "doc-ws",
+        "legacy_authority": {"workspace_id": "doc-ws", "user_id": "user-1"},
+    }
+    assert any("MV-2271" in line for line in lines)
+    assert "standalone-question retry hit" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("message", [
+    # A trailing constraint governs what counts as a match — the question
+    # alone would drop it, so the original zero result stands.
+    "Using my uploaded documentation only, what is the reference code for "
+    "car crash coverage? Exclude draft reports.",
+    # Unrecognized trailing instruction is ambiguous, not presentation-only.
+    "Using my uploaded documentation only, what is the reference code for "
+    "car crash coverage? Check the 2026 policy.",
+    # A presentation verb with an arbitrary tail carries a source qualifier
+    # ("from the 2026 renewal letter", "dated November 3") that the retry
+    # would drop: only fully matched generic asks are presentation-only.
+    "Using my uploaded documentation only, what is the reference code for "
+    "car crash coverage? Give the code from the 2026 renewal letter.",
+    "Using my uploaded documentation only, what is the reference code for "
+    "car crash coverage? Cite the final signed policy dated November 3.",
+])
+async def test_knowledge_leg_uploaded_documents_only_refuses_unsafe_suffix(
+        message):
+    """Only an empty or presentation-only suffix is dropped. The single
+    authorized lookup still carries the ingested source filter and owner."""
+    from core.hybrid_search import documents_hybrid
+
+    calls = []
+
+    class FakeHybrid:
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append({
+                "query": query, "owner_user_id": owner_user_id,
+                "kwargs": dict(kw),
+            })
+            if len(calls) == 1:
+                return {"status": "success", "success": True,
+                        "query": query, "results": []}
+            return {"status": "success", "success": True, "query": query,
+                    "results": [{"source": "ingested", "title": "T",
+                                 "preview": "should not be used"}]}
+
+    with patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        lines = await mca._knowledge_leg(
+            message, "ws-chat", owner_user_id="user-1")
+
+    assert mca._standalone_question_for_retry(message) is None
+    assert calls == [{
+        "query": message[:500],
+        "owner_user_id": "user-1",
+        "kwargs": {"source": "ingested"},
+    }]
+    assert lines == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("message", [
+    # A different leading source restriction is NOT supported: no source
+    # filter, no retry, original zero result stands.
+    "Using my email only, what is the reference code for car crash coverage?",
+    "Using Slack only, what is the reference code for car crash coverage?",
+    # An instruction-shaped restriction elsewhere is also still refused by
+    # the existing unpreservable-qualifier guard.
+    "Only search my inbox. What is the reference code for car crash coverage?",
+])
+async def test_knowledge_leg_unsupported_source_restriction_still_refused(
+        message):
+    """Only the explicit leading uploaded-documents-only qualification is
+    interpreted. Every other restriction keeps the existing refusal: no
+    source filter is invented and no guessed retry runs."""
+    from core.hybrid_search import documents_hybrid
+
+    calls = []
+
+    class FakeHybrid:
+        async def search(self, query, limit=10, owner_user_id=None, **kw):
+            calls.append({"query": query, "kwargs": dict(kw)})
+            if len(calls) == 1:
+                return {"status": "success", "success": True,
+                        "query": query, "results": []}
+            return {"status": "success", "success": True, "query": query,
+                    "results": [{"source": "ingested", "title": "T",
+                                 "preview": "should not be used"}]}
+
+    with patch.object(documents_hybrid, "DocumentsHybridSearch", FakeHybrid):
+        lines = await mca._knowledge_leg(message, "ws-chat")
+
+    assert mca._standalone_question_for_retry(message) is None
+    assert calls == [{"query": message[:500], "kwargs": {}}]
+    assert lines == []
 
 
 # --------------------------------------------------------------------------- #

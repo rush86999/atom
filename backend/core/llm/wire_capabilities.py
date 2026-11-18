@@ -22,6 +22,22 @@ The exact OpenCode Go ``deepseek-v4-pro`` route has the same rejection in-repo
 protocol is attested for the gateway; its acceptance of a thinking-disable
 extension was never captured, so no switch is declared or sent there.
 
+Ollama local route
+------------------
+The exact local route ``ollama``/``llama3.1:8b`` on loopback
+``http://127.0.0.1:11434/v1`` (and the documented-equivalent
+``http://localhost:11434/v1`` spelling, Atom's existing local default) is
+declared JSON-only from local runtime evidence on 2026-11-18: the same Chat
+turn interpretation call produced no tool call under Instructor's forced
+``tools`` protocol and exhausted its retries, while the same call with
+Instructor JSON returned a valid Pydantic interpretation (one action, no
+error) in 12.08s. Ollama documents local structured outputs/JSON
+(<https://docs.ollama.com/capabilities/structured-outputs>) and the local
+OpenAI-compatible ``/v1`` surface
+(<https://docs.ollama.com/api/openai-compatibility>); cloud endpoints lack
+structured outputs and are not attested here. No other Ollama model, cloud
+host, port, path, or thinking/logprobs extension inherits this declaration.
+
 Scope rule: EXACT ROUTES AND ENDPOINTS ONLY
 ==========================================
 
@@ -48,6 +64,9 @@ the attested route. Therefore:
 * a declared label sent to an OVERRIDDEN, missing, or look-alike endpoint is
   NOT declared — the endpoint identity is part of the route, so the caller
   keeps the historical payload and reactive recovery;
+* ``ollama``/``llama3.1:8b`` is declared JSON-only for the two exact loopback
+  ``/v1`` endpoints; an Ollama cloud host, another model/port/path, or the
+  native ``/api`` surface inherits nothing;
 * ``opencode``, ``zen``, ``openrouter`` and every other gateway are NOT
   declared for DeepSeek models — no source establishes their translation, so
   Go evidence is never transplanted to them.
@@ -206,12 +225,23 @@ _GO_OPENCODE_ENDPOINTS = (
     "https://opencode.ai/inference/go/openai/v1",
 )
 
+#: The two loopback spellings of Ollama's local OpenAI-compatible base path.
+#: ``localhost`` and ``127.0.0.1`` are the same documented local service, and
+#: ``localhost:11434/v1`` is Atom's existing local default. The native ``/api``
+#: path, another port/scheme/host, and every cloud endpoint are NOT attested.
+_OLLAMA_LOCAL_ENDPOINTS = (
+    "http://127.0.0.1:11434/v1",
+    "http://localhost:11434/v1",
+)
+
 #: The verifier-facing capability catalogue. EXACT route keys only.
 #:
 #: Native identifiers are limited to the two the first-party endpoint itself
 #: reported as supported (2026-09-16). Go is limited to the single route with
-#: served evidence (2026-10-18). Everything else resolves to ``None`` and
-#: keeps the historical payload plus reactive recovery.
+#: served evidence (2026-10-18). Ollama is limited to the one local route with
+#: runtime evidence (2026-11-18) and its two loopback ``/v1`` spellings.
+#: Everything else resolves to ``None`` and keeps the historical payload plus
+#: reactive recovery.
 _DECLARATIONS: Tuple[RouteWireDeclaration, ...] = (
     RouteWireDeclaration(
         provider_id="deepseek",
@@ -291,6 +321,38 @@ _DECLARATIONS: Tuple[RouteWireDeclaration, ...] = (
             "return_logprob yet'. Those are code comments, not preserved "
             "response bodies. Native DeepSeek's current docs DO document "
             "logprobs and keep it."),
+    ),
+    RouteWireDeclaration(
+        provider_id="ollama",
+        model_id="llama3.1:8b",
+        protocol=STRUCTURED_PROTOCOL_JSON,
+        observed_on="2026-11-18",
+        evidence=(
+            "local runtime evidence 2026-11-18: exact "
+            "ollama/llama3.1:8b at http://127.0.0.1:11434/v1 returned no "
+            "tool call using Instructor TOOLS for Chat turn interpretation, "
+            "and retries exceeded the deadline; the SAME interpretation call "
+            "on that exact route with Instructor JSON returned a valid "
+            "Pydantic interpretation (one action, no error) in 12.08s. "
+            "http://localhost:11434/v1 is the documented-equivalent loopback "
+            "spelling and Atom's existing local default. Ollama documents "
+            "local structured outputs/JSON (cloud lacks structured outputs) "
+            "at https://docs.ollama.com/capabilities/structured-outputs and "
+            "the local OpenAI-compatible /v1 surface at "
+            "https://docs.ollama.com/api/openai-compatibility (retrieved "
+            "2026-11-18). No cloud endpoint, other model, other port/path, "
+            "or thinking switch is attested"),
+        attested_endpoints=_OLLAMA_LOCAL_ENDPOINTS,
+        # JSON mode needs no vendor thinking switch, and none was captured on
+        # this local route.
+        requires_thinking_disabled=False,
+        supports_logprobs=False,
+        logprobs_note=(
+            "CONSERVATIVE REQUEST POLICY, not a model-family claim: neither "
+            "the local JSON runtime evidence nor the cited Ollama "
+            "OpenAI-compatibility/structured-output documentation attests "
+            "logprobs on this exact route, so the optional soft-SC weighting "
+            "is skipped"),
     ),
 )
 
