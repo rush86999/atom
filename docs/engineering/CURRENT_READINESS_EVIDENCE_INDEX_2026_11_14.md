@@ -753,6 +753,15 @@ Every row remains short of whole-goal acceptance unless explicitly stated.
   export, covered by the shared 520-assertion synthetic browser campaign with
   restart readback. That is one scoped surface, not broader audit integrity or
   every exposed surface.
+- **Core Search fallback:** a signed-in browser on clean main `d701872287b1`
+  opened `/search` and saw the release-scope refusal. **Data** opened the
+  Knowledge Base, which explained that cross-surface Search was deferred.
+  **Ask in Chat** opened Chat, **Open Agents** was visible, and the Search
+  button was absent. The browser made zero search or external requests.
+  After the welcome dialog intercepted the initial click, the passing replay
+  dismissed it using Escape. No question was submitted. Document grounding
+  and broader blocked-route coverage remain open. Local receipt
+  `/private/tmp/atom-fresh-store-qa.KShIJm/documents-search-browser.log`.
 - **Exact sources:** `#797` `3541e8115`; `#926` `1c00a72fc`; `#939`/WA-075;
   `#994` `d701872` (exact head `b57be40f5`, tree `fa66625`);
   [`WHOLE_APP_READINESS_LEDGER_2026-10-27.md`](../acceptance/WHOLE_APP_READINESS_LEDGER_2026-10-27.md)
