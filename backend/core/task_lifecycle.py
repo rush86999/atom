@@ -225,6 +225,12 @@ _PRESENTATION_STYLES = ("default", "compact", "table")
 
 _LIFECYCLE_KEY = "task_lifecycle"
 
+# Private sentinel for ``attach_operation_field``'s conditional-write
+# precondition. It is distinct from ``None``: an omitted expected_value
+# means "the field must be ABSENT", while an explicit None means "the
+# field must be PRESENT and None".
+_ABSENT = object()
+
 
 class TaskLifecycleError(ValueError):
     """Raised on unknown transitions or illegal operation status changes."""
@@ -1824,6 +1830,9 @@ class TaskLifecycle:
         operation_id: str,
         key: str,
         value: Any,
+        *,
+        expected_execution_id: Optional[str] = None,
+        expected_value: Any = _ABSENT,
     ) -> Dict[str, Any]:
         """Add caller-known provenance to an existing operation record.
 
@@ -1831,6 +1840,17 @@ class TaskLifecycle:
         correction's invalidated evidence ids). Core identity and status
         fields can never be set through it — same rule as
         ``create_operation``'s ``extra``.
+
+        ``expected_execution_id`` turns the attach into a conditional
+        checkpoint write: the operation must still be the running claim
+        held by THIS worker under the SAME execution id, the task
+        authorization must still be non-terminal, and the task revision
+        must still be the one the claim was taken under. The expected
+        current value is checked in the same CAS computation, so a
+        competing writer either wins the field before us (and our
+        precondition fails on the retry) or sees our write. An absent
+        expectation never authorizes replacement; a present value is a
+        refusal, not an overwrite.
         """
         reserved = ("operation_id", "objective_id", "operation_type",
                     "status", "authorization", "idempotency_key",
@@ -1839,24 +1859,74 @@ class TaskLifecycle:
         if key in reserved:
             raise TaskLifecycleError(
                 f"'{key}' is a core operation field and cannot be attached")
+        if expected_execution_id is None and expected_value is not _ABSENT:
+            raise TaskLifecycleError(
+                "expected_value requires expected_execution_id")
+        conditional = expected_execution_id is not None
 
         def compute(record):
             ops = list(record["operations"])
             for index, op in enumerate(ops):
-                if op.get("operation_id") == operation_id:
-                    ops[index] = {**copy.deepcopy(op), key: copy.deepcopy(value)}
-                    lifecycle = {
-                        "task_revision": record["task_revision"],
-                        "operations": ops,
-                        "conversation_id": record.get("conversation_id"),
-                    }
-                    decision = {
-                        "kind": "operation",
-                        "rationale": f"attached {key}",
-                        "operation_id": operation_id,
-                        "operation_type": op.get("operation_type"),
-                    }
-                    return ops[index], lifecycle, decision
+                if op.get("operation_id") != operation_id:
+                    continue
+                if conditional:
+                    if op.get("status") != "running":
+                        raise TaskLifecycleError(
+                            f"operation {operation_id} is not running; a "
+                            f"conditional checkpoint requires a running "
+                            f"claim")
+                    if op.get("claimed_by") != _current_worker_fingerprint():
+                        raise TaskLifecycleError(
+                            f"operation {operation_id} is claimed by another "
+                            f"worker; conditional checkpoint refused")
+                    if op.get("execution_id") != expected_execution_id:
+                        raise TaskLifecycleError(
+                            f"operation {operation_id} is bound to execution "
+                            f"{op.get('execution_id')!r}, not "
+                            f"{expected_execution_id!r}")
+                    authorization = (record.get("task_revision") or {}).get(
+                        "authorization")
+                    if authorization in _TERMINAL_AUTHORIZATION:
+                        raise TaskLifecycleError(
+                            f"task authorization is {authorization!r}; "
+                            f"conditional checkpoint refused")
+                    current_revision = (record.get("task_revision")
+                                        or {}).get("revision")
+                    if (op.get("claimed_task_revision")
+                            != current_revision):
+                        raise TaskLifecycleError(
+                            f"operation {operation_id} was claimed under task "
+                            f"revision {op.get('claimed_task_revision')!r}, "
+                            f"but the current revision is "
+                            f"{current_revision!r}")
+                    if expected_value is _ABSENT:
+                        if key in op:
+                            raise TaskLifecycleError(
+                                f"field {key!r} is already present; absent "
+                                f"precondition failed")
+                    elif expected_value is None:
+                        if key not in op or op.get(key) is not None:
+                            raise TaskLifecycleError(
+                                f"field {key!r} is not present and None; "
+                                f"explicit-None precondition failed")
+                    else:
+                        if key not in op or op.get(key) != expected_value:
+                            raise TaskLifecycleError(
+                                f"field {key!r} does not equal the expected "
+                                f"value")
+                ops[index] = {**copy.deepcopy(op), key: copy.deepcopy(value)}
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "operation",
+                    "rationale": f"attached {key}",
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                }
+                return ops[index], lifecycle, decision
             raise TaskLifecycleError(f"operation {operation_id} not found")
 
         with self._lock:

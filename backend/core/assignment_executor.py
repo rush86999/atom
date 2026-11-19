@@ -32,7 +32,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import (
+    Any, Awaitable, Callable, Dict, List, Mapping, Optional, Sequence, Tuple,
+)
 
 from core.action_effects import (
     MUTATING_EFFECTS,
@@ -294,6 +296,110 @@ def _authorization_revision(assignment: Dict[str, Any]) -> str:
         "standing_authority": assignment.get("standing_authority") or {},
         "workspace_id": assignment.get("workspace_id"),
     })[:32]
+
+
+#: Staged invoice senders whose provider phase can be verified from Outlook
+#: Sent Items. These adapters reserve the send marker before the provider call,
+#: so ``not_applied`` is never safe until the exact durable message id has been
+#: observed as sent.
+_STAGED_INVOICE_SEND_ADAPTERS = frozenset({
+    "invoice.send_reminder",
+    "invoice.send_reminder_outlook",
+    "invoice.dispatch_reminder",
+})
+
+#: A local invoice commitment review is a durable person-owned wait, not an
+#: approval or a provider poll.  It may wake early only from a newer
+#: conclusive append-only decision revision bound to the exact workflow wait
+#: source, and otherwise only at its single business-expiry timer.
+_INVOICE_COMMITMENT_WAIT_ADAPTER = "invoice.await_commitment"
+_INVOICE_COMMITMENT_WAIT_EVENT = "invoice_commitment_review"
+_INVOICE_COMMITMENT_WAIT_EXPIRED_EVENT = "invoice_commitment_review_expired"
+_INVOICE_COMMITMENT_FIELD = "invoice_commitments"
+_INVOICE_COMMITMENT_SCHEMA = "atom-invoice-commitment-1"
+_INVOICE_COMMITMENT_VERDICTS = frozenset(
+    {"confirmed", "no_commitment", "unclear"})
+_INVOICE_COMMITMENT_CONCLUSIVE = frozenset({"confirmed", "no_commitment"})
+_INVOICE_COMMITMENT_SOURCE_FIELDS = (
+    "operation_id", "reply_operation_id", "reply_message_id",
+)
+
+
+def _outlook_verification_available(
+    operation: Dict[str, Any],
+    step: Optional[Mapping[str, Any]] = None,
+    plan_revision: Optional[Any] = None,
+) -> bool:
+    """Whether Sent Items verification can be offered for this operation.
+
+    Only the exact current uncertain outbound staged-invoice step is flagged:
+    the operation id, plan revision and adapter must match that step. The
+    durable mailbox binding must name both keys (the token row and the
+    Microsoft Graph /me id), the pre-dispatch send marker must exist, and the
+    exact committed draft id must be present. Guessed aliases and copies
+    nested inside other operation containers are not evidence.
+
+    Only the boolean crosses the public status projection. The durable
+    mailbox binding, send marker and draft id stay internal: callers cannot
+    reconstruct or forge provider evidence from them.
+    """
+    if str(operation.get("status") or "").strip().casefold() != "uncertain":
+        return False
+    if str(operation.get("operation_type") or "").strip().casefold() != (
+            "outbound"):
+        return False
+    operation_id = str(operation.get("operation_id") or "").strip()
+    if not operation_id:
+        return False
+    adapter = str(operation.get("adapter") or "").strip().casefold()
+    if adapter not in _STAGED_INVOICE_SEND_ADAPTERS:
+        return False
+
+    if not isinstance(step, Mapping):
+        return False
+    if str(step.get("step_id") or "") != str(
+            operation.get("step_id") or ""):
+        return False
+    if str(step.get("operation_id") or "").strip() != operation_id:
+        return False
+    if str(step.get("adapter") or "").strip().casefold() != adapter:
+        return False
+    if str(step.get("status") or "").strip().casefold() != "uncertain":
+        return False
+    if plan_revision is None:
+        plan_revision = step.get("plan_revision")
+    if plan_revision is None:
+        return False
+    step_revision = step.get("plan_revision")
+    if (step_revision is not None and step_revision != plan_revision):
+        return False
+    if operation.get("plan_revision") != plan_revision:
+        return False
+
+    from core.outlook_draft_dispatch import (
+        DRAFT_ID_FIELD,
+        SEND_STARTED_FIELD,
+        mailbox_binding,
+    )
+
+    _, mailbox = mailbox_binding(operation)
+    if not isinstance(mailbox, Mapping):
+        return False
+    if not str(mailbox.get("token_row_id") or "").strip():
+        return False
+    if not str(mailbox.get("graph_user_id") or "").strip():
+        return False
+    send_started = operation.get(SEND_STARTED_FIELD)
+    if send_started is None:
+        return False
+    draft_id = str(operation.get(DRAFT_ID_FIELD) or "").strip()
+    if not draft_id:
+        return False
+    if isinstance(send_started, Mapping):
+        marked_draft = str(send_started.get("draft_id") or "").strip()
+        if marked_draft and marked_draft != draft_id:
+            return False
+    return True
 
 
 def _operation_id_for_step(
@@ -2699,6 +2805,9 @@ class AssignmentExecutor:
             budget_view["wall_seconds"] = round(wall, 3)
         projected["budget"] = budget_view
         steps = assignment.get("steps") or []
+        steps_by_id = {
+            step.get("step_id"): step for step in steps}
+        plan_revision = assignment.get("plan_revision")
         required = [step for step in steps if step.get("required", True)]
         projected["progress"] = {
             "total_steps": len(steps),
@@ -2727,6 +2836,11 @@ class AssignmentExecutor:
                     "status": operation.get("status"),
                     "needs_reconciliation": bool(
                         operation.get("needs_reconciliation")),
+                    "outlook_verification_available":
+                        _outlook_verification_available(
+                            operation,
+                            steps_by_id.get(operation.get("step_id")),
+                            plan_revision),
                     "approval": copy.deepcopy(
                         operation.get("approval_request") or {}),
                     "uncertainty_reason": operation.get(
@@ -6075,6 +6189,7 @@ class AssignmentExecutor:
         evidence: str,
         evidence_ref: Optional[str] = None,
         provider_ref: Optional[str] = None,
+        provider_verified: bool = False,
     ) -> Dict[str, Any]:
         record = self.lifecycle.get_task(run_id)
         if record is None:
@@ -6085,6 +6200,22 @@ class AssignmentExecutor:
         operation_id = _operation_id_for_step(record, step)
         if not operation_id:
             raise AssignmentError("step has no operation to reconcile")
+        adapter = str(step.get("adapter") or "").strip().casefold()
+        if (verdict == "not_applied"
+                and adapter in _STAGED_INVOICE_SEND_ADAPTERS):
+            from core.outlook_draft_dispatch import SEND_STARTED_FIELD
+            operation = _operation_by_id(record, operation_id) or {}
+            if operation.get(SEND_STARTED_FIELD) is not None:
+                # The send phase was durably reserved before the provider call,
+                # so this reminder may already have been accepted (HTTP 202).
+                # Treating it as not_applied would clear the operation and let
+                # the same reminder be approved and dispatched again. Refuse
+                # before any CAS/mutation and leave the operation, evidence and
+                # uncertain state exactly as recorded.
+                raise AssignmentError(
+                    f"refusing not_applied for {adapter}: this reminder may "
+                    "already have been sent and must be verified in Outlook "
+                    "before any further action.")
         result = self.lifecycle.reconcile_uncertain_operation(
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)
@@ -6101,11 +6232,20 @@ class AssignmentExecutor:
                     "provider_state": "accepted",
                     "provider_ref": str(provider_ref),
                     "remote_id": str(provider_ref),
-                    "verification": {
-                        "status": "verified",
-                        "provider_ref": str(provider_ref),
-                    },
                 }
+                # A manual ``applied`` for a staged invoice sender must not
+                # manufacture provider verification from a caller-supplied
+                # reference. Only the Sent Items evidence path, which resolves
+                # the exact durable id itself, may record the verified claim.
+                if (provider_verified
+                        or adapter not in _STAGED_INVOICE_SEND_ADAPTERS):
+                    execution = {
+                        **execution,
+                        "verification": {
+                            "status": "verified",
+                            "provider_ref": str(provider_ref),
+                        },
+                    }
             assignment = self._mark_step(
                 (self.lifecycle.get_assignment(run_id) or {}),
                 step_id,
@@ -6140,6 +6280,189 @@ class AssignmentExecutor:
             "operation": result,
             "assignment": self.lifecycle.get_assignment(run_id) or {},
         }
+
+    async def reconcile_outlook_step(
+        self,
+        run_id: str,
+        step_id: str,
+        *,
+        actor_id: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Verify one uncertain staged invoice send against Outlook Sent Items.
+
+        This is a read-only provider probe followed by the existing
+        reconciliation commit. The authenticated actor must be the actor bound
+        to the durable operation, the step must be a staged invoice sender,
+        and the operation must be that step's exact uncertain outbound
+        operation. Callers cannot supply evidence, a provider reference, a
+        send, or a retry. Only ``sent_verified`` evidence for the operation's
+        own durable draft id may mark the step applied.
+        """
+        actor = str(actor_id or "").strip()
+        if not actor:
+            raise AssignmentError(
+                "Outlook verification requires the authenticated actor")
+        record = self.lifecycle.get_task(run_id)
+        if record is None:
+            raise AssignmentError(f"no task record on run {run_id}")
+        assignment = record.get("assignment") or {}
+        authorization = str(
+            (record.get("task_revision") or {}).get("authorization") or ""
+        ).strip().casefold()
+        if authorization in ("cancelled", "revoked") or str(
+                assignment.get("status") or "").strip().casefold() == (
+                    "cancelled"):
+            raise AssignmentError(
+                "the assignment is cancelled; Outlook verification cannot "
+                "revive it")
+        step = step_by_id(assignment, step_id)
+        if step is None:
+            raise AssignmentError(f"unknown step {step_id!r}")
+        adapter = str(step.get("adapter") or "").strip().casefold()
+        if adapter not in _STAGED_INVOICE_SEND_ADAPTERS:
+            raise AssignmentError(
+                "Outlook Sent Items verification is only available for "
+                "staged invoice senders")
+
+        operation_id = _operation_id_for_step(record, step)
+        if not operation_id:
+            # An uncertain step normally still carries the exact operation id.
+            # If a durable replay lost that pointer, only an unambiguous
+            # uncertain operation for this step and plan revision is eligible.
+            plan_revision = assignment.get("plan_revision")
+            candidates = [
+                operation for operation in record.get("operations") or []
+                if (isinstance(operation, dict)
+                    and operation.get("step_id") == step_id
+                    and operation.get("plan_revision") == plan_revision
+                    and str(operation.get("status") or "").strip().casefold()
+                    == "uncertain")
+            ]
+            if len(candidates) == 1:
+                operation_id = str(candidates[0].get("operation_id") or "")
+        if not operation_id:
+            raise AssignmentError("step has no operation to verify")
+        operation = _operation_by_id(record, operation_id)
+        if not operation:
+            raise AssignmentError(
+                f"operation {operation_id!r} was not found on this task")
+        if operation.get("step_id") not in (None, step_id):
+            raise AssignmentError(
+                "the uncertain operation does not belong to this step")
+        if operation.get("assignment_id") not in (
+                None, assignment.get("assignment_id")):
+            raise AssignmentError(
+                "the uncertain operation does not belong to this assignment")
+        if operation.get("plan_revision") not in (
+                None, assignment.get("plan_revision")):
+            raise AssignmentError(
+                "the uncertain operation belongs to another plan revision")
+        if str(operation.get("operation_type") or "").strip().casefold() != (
+                "outbound"):
+            raise AssignmentError(
+                "only an outbound operation can be verified in Sent Items")
+        if str(operation.get("status") or "").strip().casefold() != (
+                "uncertain"):
+            raise AssignmentError(
+                "only an uncertain operation may be verified")
+        operation_adapter = str(
+            operation.get("adapter") or "").strip().casefold()
+        if operation_adapter and operation_adapter != adapter:
+            raise AssignmentError(
+                "the operation adapter does not match the step adapter")
+
+        binding = operation.get("operation_binding")
+        binding = dict(binding) if isinstance(binding, dict) else {}
+        binding_action = str(
+            binding.get("action_name") or "").strip().casefold()
+        if binding_action and binding_action != adapter:
+            raise AssignmentError(
+                "the operation binding describes a different action")
+        bound_actor = str(binding.get("account_id") or "").strip()
+        assignment_actor = str(assignment.get("employee_id") or "").strip()
+        if (bound_actor and assignment_actor
+                and bound_actor != assignment_actor):
+            raise AssignmentError(
+                "the operation actor does not match the assignment actor")
+        if (bound_actor or assignment_actor) != actor:
+            raise AssignmentError(
+                "the authenticated user is not the actor bound to this "
+                "mailbox operation")
+
+        bound_workspace = str(binding.get("workspace_id") or "").strip()
+        durable_workspace = str(
+            assignment.get("workspace_id") or "").strip()
+        requested_workspace = (
+            durable_workspace or str(workspace_id or "").strip())
+        if (bound_workspace and requested_workspace
+                and bound_workspace != requested_workspace):
+            raise AssignmentError(
+                "the operation workspace does not match this assignment")
+        bound_tenant = str(binding.get("tenant_id") or "").strip()
+        durable_tenant = str(assignment.get("tenant_id") or "").strip()
+        requested_tenant = (
+            durable_tenant or str(tenant_id or "").strip())
+        if (bound_tenant and requested_tenant
+                and bound_tenant != requested_tenant):
+            raise AssignmentError(
+                "the operation tenant does not match this assignment")
+
+        from core.outlook_draft_dispatch import (
+            DRAFT_ID_FIELD,
+            read_outlook_dispatch_evidence,
+        )
+
+        typed = await read_outlook_dispatch_evidence(
+            self.lifecycle,
+            run_id,
+            operation_id,
+            actor_id=actor,
+            tenant_id=requested_tenant or bound_tenant or "default",
+            workspace_id=(
+                requested_workspace or bound_workspace or "default"),
+            reply=False,
+        )
+        typed = typed if isinstance(typed, dict) else {}
+        durable_id = str(operation.get(DRAFT_ID_FIELD) or "").strip()
+        evidence_draft_id = str(typed.get("draft_id") or "").strip()
+        exact_durable_id = bool(
+            durable_id and evidence_draft_id == durable_id)
+        verified = (
+            str(typed.get("status") or "").strip() == "sent_verified"
+            and typed.get("verified") is not False
+            and typed.get("sent_items_verified") is not False
+            and exact_durable_id)
+        if not verified:
+            # The read-only probe proved neither sent nor not-sent. Leave the
+            # operation and its original uncertainty evidence untouched.
+            return {
+                "status": "uncertain",
+                "verdict": "insufficient",
+                "operation_id": operation_id,
+                "operation": operation,
+                "reason": str(
+                    typed.get("reason") or "sent_items_unverified"),
+                "outlook_evidence": _json_safe(typed),
+                "assignment": assignment,
+            }
+
+        reason = str(typed.get("reason") or "").strip()
+        evidence_text = (
+            f"Outlook Sent Items verified the exact sent message {durable_id}"
+            + (f" ({reason})" if reason else ""))
+        result = self.reconcile_step(
+            run_id,
+            step_id,
+            "applied",
+            evidence=evidence_text,
+            evidence_ref=f"outlook-sent-items:{durable_id}",
+            provider_ref=durable_id,
+            provider_verified=True,
+        )
+        result["outlook_evidence"] = _json_safe(typed)
+        return result
 
     # ------------------------------------------------------------- cancel
 
@@ -6635,8 +6958,11 @@ class AssignmentExecutor:
     def _parse_clock(value: Any) -> Optional[float]:
         if value in (None, ""):
             return None
+        text = str(value)
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
         try:
-            return datetime.fromisoformat(str(value)).timestamp()
+            return datetime.fromisoformat(text).timestamp()
         except (TypeError, ValueError):
             return None
 
@@ -7352,10 +7678,161 @@ class AssignmentExecutor:
             "previous_results": prior,
         }
 
+    @staticmethod
+    def _commitment_waiting(
+        operation: Optional[Mapping[str, Any]],
+        step: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        waiting = (
+            (operation or {}).get("waiting")
+            or step.get("waiting") or {})
+        return dict(waiting) if isinstance(waiting, Mapping) else {}
+
+    @classmethod
+    def _is_invoice_commitment_wait(
+        cls,
+        step: Mapping[str, Any],
+        operation: Optional[Mapping[str, Any]],
+    ) -> bool:
+        """Whether this is the local reviewer wait, not an ordinary wait."""
+        if str(step.get("adapter") or "").strip() != (
+                _INVOICE_COMMITMENT_WAIT_ADAPTER):
+            return False
+        waiting = cls._commitment_waiting(operation, step)
+        return str(waiting.get("event") or "").strip() == (
+            _INVOICE_COMMITMENT_WAIT_EVENT)
+
+    @staticmethod
+    def _commitment_wait_source(waiting: Mapping[str, Any]) -> Dict[str, str]:
+        """Read the exact workflow source the wait was parked on."""
+        recorded = waiting.get("wait_source")
+        recorded = recorded if isinstance(recorded, Mapping) else {}
+        source: Dict[str, str] = {}
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            value = recorded.get(field)
+            if value in (None, ""):
+                value = waiting.get(field)
+            source[field] = str(value or "").strip()
+        return source
+
+    @staticmethod
+    def _commitment_revision_matches_source(
+        source: Mapping[str, str],
+        revision: Mapping[str, Any],
+    ) -> bool:
+        """A revision may wake the wait only when it names the same source."""
+        recorded = revision.get("source")
+        if not isinstance(recorded, Mapping):
+            return False
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            expected = str(source.get(field) or "")
+            if str(recorded.get(field) or "").strip() != expected:
+                return False
+            if field in revision \
+                    and str(revision.get(field) or "").strip() != expected:
+                return False
+        return True
+
+    def _commitment_wait_wake(
+        self,
+        record: Mapping[str, Any],
+        waiting: Mapping[str, Any],
+    ) -> bool:
+        """True only for a newer conclusive revision of this exact wait.
+
+        The fresh durable assignment is the authority.  The wait records the
+        workflow source (dispatch operation, reply operation and reply
+        message) plus the revision the adapter last observed.  A wake needs
+        the latest revision carrying that exact source to be newer than the
+        observed revision and conclusive.  ``unclear`` or a missing/ambiguous
+        source keeps the wait.
+        """
+        assignment = record.get("assignment")
+        if not isinstance(assignment, Mapping):
+            return False
+        store = assignment.get(_INVOICE_COMMITMENT_FIELD)
+        if not isinstance(store, Mapping):
+            return False
+        if str(store.get("schema") or "") != _INVOICE_COMMITMENT_SCHEMA:
+            return False
+        revisions = store.get("revisions")
+        if not isinstance(revisions, list):
+            return False
+
+        source = self._commitment_wait_source(waiting)
+        # The source must be exact enough to identify one published reply.
+        if not source.get("operation_id") \
+                or not source.get("reply_operation_id") \
+                or not source.get("reply_message_id"):
+            return False
+
+        selected: List[Dict[str, Any]] = []
+        for raw in revisions:
+            if not isinstance(raw, Mapping):
+                return False
+            if not self._commitment_revision_matches_source(source, raw):
+                continue
+            selected.append(dict(raw))
+        if not selected:
+            return False
+        for item in selected:
+            if type(item.get("revision")) is not int \
+                    or item.get("revision") < 1:
+                return False
+            if str(item.get("verdict") or "") not in (
+                    _INVOICE_COMMITMENT_VERDICTS):
+                return False
+
+        latest = selected[-1]
+        try:
+            observed_revision = int(waiting.get("revision") or 0)
+        except (TypeError, ValueError):
+            observed_revision = 0
+        if int(latest.get("revision") or 0) <= observed_revision:
+            return False
+        return str(latest.get("verdict") or "") in (
+            _INVOICE_COMMITMENT_CONCLUSIVE)
+
+    def _commitment_expiry_reached(
+        self, waiting: Mapping[str, Any],
+    ) -> bool:
+        """The one real business timer for a reviewer wait.
+
+        ``expires_at`` is the stable business expiry.  A legacy wait without
+        it keeps its persisted ``deadline`` as the single timer; a short
+        adapter recheck deadline must never re-enter the wait.
+        """
+        expires = self._parse_clock(waiting.get("expires_at"))
+        if expires is None:
+            expires = self._parse_clock(waiting.get("deadline"))
+        if expires is None:
+            return False
+        return float(self.clock()) >= expires
+
     def _resolve_waiting(self, record: Dict[str, Any], step: Dict[str, Any]) -> bool:
         """True when a waiting step is eligible to run again."""
         operation_id = _operation_id_for_step(record, step)
         operation = _operation_by_id(record, operation_id) if operation_id else None
+        if self._is_invoice_commitment_wait(step, operation):
+            # This local reviewer wait is durable assignment state, never an
+            # approval or a provider poll.  Approval state is deliberately not
+            # consulted: only a newer conclusive source-bound revision wakes
+            # it, otherwise its single business-expiry timer applies.
+            waiting = self._commitment_waiting(operation, step)
+            if self._commitment_wait_wake(record, waiting):
+                return True
+            return self._commitment_expiry_reached(waiting)
+        if str(step.get("adapter") or "").strip() == (
+                _INVOICE_COMMITMENT_WAIT_ADAPTER):
+            # The reviewer timer has already produced an owner decision wait.
+            # Its stale expires_at is not a timer: never auto-wake it through
+            # the generic wait/approval fallback.
+            waiting = self._commitment_waiting(operation, step)
+            if str(waiting.get("event") or "").strip() == (
+                    _INVOICE_COMMITMENT_WAIT_EXPIRED_EVENT) \
+                    or str(waiting.get("resume_on") or "").strip() == (
+                        "owner_decision"):
+                return False
         if operation is None:
             return True
         status = operation.get("status")
@@ -7384,20 +7861,23 @@ class AssignmentExecutor:
         if step.get("status") == "awaiting_approval":
             operation_id = _operation_id_for_step(record, step)
             operation = _operation_by_id(record, operation_id) if operation_id else None
-            if not operation or operation.get("status") != "approved":
-                return False
-            assignment = self._close_idle(
-                assignment, reason="approval arrived")
-            # Approved: the executor re-prepares and verifies the payload
-            # before running, so changed content cannot ride an old approval.
-            updated = self._mark_step(assignment, step["step_id"], {
-                "status": "running", "updated_at": _utc_now_iso()})
-            self._persist_assignment(
-                run_id, updated, f"step {step['step_id']} approved")
-            record = self.lifecycle.get_task(run_id) or record
-            step = step_by_id(updated, step["step_id"]) or step
-            await self._run_step(run_id, record, updated, step)
-            return True
+            if not self._is_invoice_commitment_wait(step, operation):
+                if not operation or operation.get("status") != "approved":
+                    return False
+                assignment = self._close_idle(
+                    assignment, reason="approval arrived")
+                # Approved: the executor re-prepares and verifies the payload
+                # before running, so changed content cannot ride an old approval.
+                updated = self._mark_step(assignment, step["step_id"], {
+                    "status": "running", "updated_at": _utc_now_iso()})
+                self._persist_assignment(
+                    run_id, updated, f"step {step['step_id']} approved")
+                record = self.lifecycle.get_task(run_id) or record
+                step = step_by_id(updated, step["step_id"]) or step
+                await self._run_step(run_id, record, updated, step)
+                return True
+            # A local reviewer wait is never an approval. Fall through to the
+            # durable source-bound revision/expiry predicate below.
         if not self._resolve_waiting(record, step):
             return False
         assignment = self._close_idle(

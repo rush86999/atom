@@ -298,6 +298,67 @@ test("uncertain effect reconciliation sends evidence and verdict", async () => {
   );
 });
 
+test("provider-verifiable uncertain invoice offers only Outlook verification", async () => {
+  const uncertain = JSON.parse(JSON.stringify(detail));
+  uncertain.assignment.steps[1].status = "uncertain";
+  uncertain.assignment.steps[1].adapter = "invoice.send_reminder_outlook";
+  uncertain.assignment.steps[1].operation_id = "op-send";
+  uncertain.operations = [{
+    operation_id: "op-send",
+    step_id: "send",
+    type: "outbound",
+    status: "uncertain",
+    outlook_verification_available: true,
+  }];
+  (getAssignment as jest.Mock).mockResolvedValue(uncertain);
+  (reconcileAssignmentStep as jest.Mock).mockResolvedValue({
+    status: "reconciled",
+    verdict: "applied",
+  });
+
+  render(<AssignmentPanel />);
+  const verify = await screen.findByRole("button", {
+    name: /Verify in Outlook/i,
+  });
+  expect(screen.queryByTestId("assignment-reconcile-evidence"))
+    .not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Mark applied/i }))
+    .not.toBeInTheDocument();
+  fireEvent.click(verify);
+  await waitFor(() =>
+    expect(reconcileAssignmentStep).toHaveBeenCalledWith(
+      "run-1",
+      "send",
+      "verify_outlook",
+      ""
+    )
+  );
+  expect((await screen.findByTestId("assignment-notice")).textContent)
+    .toContain("applied");
+});
+
+test("uncertain non-provider step keeps manual reconciliation", async () => {
+  const uncertain = JSON.parse(JSON.stringify(detail));
+  uncertain.assignment.steps[1].status = "uncertain";
+  uncertain.assignment.steps[1].operation_id = "op-send";
+  uncertain.operations = [{
+    operation_id: "op-send",
+    step_id: "send",
+    type: "outbound",
+    status: "uncertain",
+    outlook_verification_available: false,
+  }];
+  (getAssignment as jest.Mock).mockResolvedValue(uncertain);
+
+  render(<AssignmentPanel />);
+  expect(await screen.findByTestId("assignment-reconcile-evidence"))
+    .toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Verify in Outlook/i }))
+    .not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Mark applied/i }))
+    .toBeInTheDocument();
+});
+
 
 test("employee-decides starts objective-only work without a supplied DAG", async () => {
   (createEmployeeAssignment as jest.Mock).mockResolvedValue({

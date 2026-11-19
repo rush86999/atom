@@ -86,7 +86,10 @@ class AssignmentApproval(BaseModel):
 
 class AssignmentReconciliation(BaseModel):
     verdict: str
-    evidence: str
+    # ``verify_outlook`` derives its evidence from the provider and therefore
+    # does not accept caller evidence. Human verdicts still require it in the
+    # executor, so the empty default never weakens the generic route.
+    evidence: str = ""
     evidence_ref: Optional[str] = None
     provider_ref: Optional[str] = None
 
@@ -136,6 +139,28 @@ class AssignmentExternalResponse(BaseModel):
     # case-folded or otherwise normalized; ``None`` means the legacy omitted-ID
     # path. It is identity, never authentication or authority.
     reply_id: Optional[str] = None
+
+
+class InvoiceCommitmentWrite(BaseModel):
+    """One reviewed commitment judgment for a verified invoice reply.
+
+    Fields are intentionally accepted as ``Any`` and then checked exactly in
+    the route: a revision, verdict or identity is never obtained by coercing
+    a string/int/bool from the request.
+    """
+
+    #: Required. ``0`` creates the first revision; a correction must name the
+    #: exact current revision or the write is refused as stale.
+    expected_revision: Any
+    #: ``confirmed`` | ``no_commitment`` | ``unclear``.
+    verdict: Any
+    #: Required (strict ``YYYY-MM-DD``) only for ``confirmed``.
+    commitment_date: Any = None
+    #: Required for a correction (any write after the first revision).
+    reason: Any = None
+    #: Optional stale check against the published reply identity. It is never
+    #: used to find or select the reply.
+    expected_reply_id: Any = None
 
 
 class EmployeeObjectiveStart(BaseModel):
@@ -3385,7 +3410,10 @@ async def reconcile_assignment_step(
 
     ``applied`` records completion and advances; ``not_applied`` permits a
     NEW operation on the next resume; ``insufficient`` leaves the uncertain
-    state intact and never resends. Evidence is required for every verdict.
+    state intact and never resends. Human verdicts require evidence.
+    ``verify_outlook`` is the scoped exception: it reads Sent Items evidence
+    for the exact durable staged-invoice operation and accepts no caller
+    evidence, provider reference, send or retry.
     """
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
@@ -3400,6 +3428,51 @@ async def reconcile_assignment_step(
         raise HTTPException(
             status_code=403,
             detail="Insufficient reconciliation authority for this assignment")
+    if body.verdict == "verify_outlook":
+        assignment = record.get("assignment") or {}
+        step = next((
+            item for item in assignment.get("steps") or []
+            if item.get("step_id") == step_id), None)
+        operation = None
+        if step is not None and step.get("operation_id"):
+            operation = next((
+                item for item in record.get("operations") or []
+                if item.get("operation_id") == step.get("operation_id")), None)
+        binding = operation.get("operation_binding") if isinstance(
+            operation, Mapping) else None
+        bound_actor = (
+            str((binding or {}).get("account_id") or "").strip()
+            if isinstance(binding, Mapping) else "")
+        bound_actor = (
+            bound_actor
+            or str(assignment.get("employee_id") or "").strip())
+        if not bound_actor or bound_actor != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Only the employee bound to this mailbox operation may "
+                    "verify its Outlook Sent Items evidence"))
+        try:
+            # Evidence, provider identity, and provider references are never
+            # read from the request for this verdict: the executor probes the
+            # exact durable operation with the authenticated scope.
+            result = await executor.reconcile_outlook_step(
+                run_id, step_id,
+                actor_id=str(current_user.id),
+                tenant_id=str(
+                    run.get("tenant_id")
+                    or assignment.get("tenant_id") or "default"),
+                workspace_id=str(
+                    run.get("workspace_id")
+                    or assignment.get("workspace_id") or "default"),
+            )
+        except Exception as exc:  # noqa: BLE001 — the uncertain state stays
+            raise HTTPException(status_code=409, detail=str(exc))
+        if result.get("verdict") != "applied":
+            return result
+        result["assignment"] = await executor.resume(run_id)
+        return result
+
     try:
         result = executor.reconcile_step(
             run_id, step_id, body.verdict,
@@ -3413,3 +3486,635 @@ async def reconcile_assignment_step(
         return result
     result["assignment"] = await executor.resume(run_id)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Invoice commitment review
+#
+# The only source is the published result packet of one exact, applied
+# ``invoice.wait_for_reply`` step. These routes never read or write a mail
+# provider, never send/pay/settle, and never accept a reply body, operation id
+# or reply id as a source lookup. A reviewer records a verdict against the
+# published operation + reply identity; corrections append revisions.
+# ---------------------------------------------------------------------------
+
+_INVOICE_REPLY_OPERATION = "invoice.wait_for_reply"
+_INVOICE_COMMITMENT_FIELD = "invoice_commitments"
+_INVOICE_COMMITMENT_SCHEMA = "atom-invoice-commitment-1"
+_INVOICE_COMMITMENT_VERDICTS = frozenset(
+    {"confirmed", "no_commitment", "unclear"})
+
+
+class _InvoiceCommitmentConflict(Exception):
+    """A scoped source/revision conflict, mapped to its HTTP status."""
+
+    def __init__(self, detail: Any, *, status_code: int = 409):
+        super().__init__(str(detail))
+        self.detail = detail
+        self.status_code = status_code
+
+
+def _invoice_commitment_fail(
+    detail: Any, *, status_code: int = 409,
+) -> None:
+    raise _InvoiceCommitmentConflict(detail, status_code=status_code)
+
+
+def _invoice_reply_text(
+    value: Any, field: str, *, required: bool = False,
+) -> Optional[str]:
+    """Read one identity exactly; never coerce or fall back to another id."""
+    if value is None:
+        if required:
+            _invoice_commitment_fail(
+                f"invoice reply evidence is missing {field}")
+        return None
+    if type(value) is not str:
+        _invoice_commitment_fail(
+            f"invoice reply evidence {field} must be an exact string")
+    if not value:
+        if required:
+            _invoice_commitment_fail(
+                f"invoice reply evidence is missing {field}")
+        return None
+    return value
+
+
+def _invoice_reply_require_false(
+    packet: Mapping[str, Any], field: str,
+) -> None:
+    if packet.get(field) is not False:
+        _invoice_commitment_fail(
+            f"invoice reply evidence must record {field}=false")
+
+
+def _invoice_commitment_packet(
+    record: Mapping[str, Any], step_id: str,
+) -> Dict[str, Any]:
+    """Derive the published source packet for one verified invoice reply.
+
+    The step must be the exact applied ``invoice.wait_for_reply`` retrieve step
+    and its ``evidence_refs`` must carry one unique, complete, verified typed
+    item bound to the applied ``invoice.send_reminder`` predecessor that the
+    step depends on. Every value is read from the fresh durable lifecycle
+    record; the caller supplies no source identity.
+    """
+    assignment = record.get("assignment")
+    if not isinstance(assignment, Mapping):
+        _invoice_commitment_fail("Assignment plan not found", status_code=404)
+    steps = assignment.get("steps")
+    if not isinstance(steps, list):
+        _invoice_commitment_fail("Assignment step not found", status_code=404)
+    matches = [
+        item for item in steps
+        if isinstance(item, Mapping) and item.get("step_id") == step_id
+    ]
+    if not matches:
+        _invoice_commitment_fail("Assignment step not found", status_code=404)
+    if len(matches) != 1:
+        _invoice_commitment_fail("Assignment step identity is ambiguous")
+    step = matches[0]
+    if step.get("adapter") != _INVOICE_REPLY_OPERATION:
+        _invoice_commitment_fail(
+            "Step is not an invoice.wait_for_reply operation")
+    if step.get("operation_type") != "retrieve":
+        _invoice_commitment_fail(
+            "Step is not an invoice.wait_for_reply retrieve operation")
+    if step.get("status") != "applied":
+        _invoice_commitment_fail(
+            "invoice.wait_for_reply step is not applied")
+
+    reply_operation_id = _invoice_reply_text(
+        step.get("operation_id"), "step operation_id", required=True)
+    operations = record.get("operations")
+    if not isinstance(operations, list):
+        _invoice_commitment_fail(
+            "Source operation not found", status_code=404)
+    operation_matches = [
+        item for item in operations
+        if isinstance(item, Mapping)
+        and item.get("operation_id") == reply_operation_id
+    ]
+    if not operation_matches:
+        _invoice_commitment_fail(
+            "Source operation not found", status_code=404)
+    if len(operation_matches) != 1:
+        _invoice_commitment_fail("Source operation identity is ambiguous")
+    operation = operation_matches[0]
+    if operation.get("adapter") != _INVOICE_REPLY_OPERATION:
+        _invoice_commitment_fail(
+            "Source operation is not an invoice.wait_for_reply operation")
+    if operation.get("operation_type") != "retrieve":
+        _invoice_commitment_fail(
+            "Source operation is not a retrieve operation")
+    if operation.get("status") != "applied":
+        _invoice_commitment_fail("Source operation is not applied")
+
+    result = step.get("result")
+    if not isinstance(result, Mapping):
+        _invoice_commitment_fail(
+            "invoice.wait_for_reply result is missing")
+
+    evidence = step.get("evidence_refs")
+    if not isinstance(evidence, list) or len(evidence) != 1:
+        _invoice_commitment_fail(
+            "invoice reply evidence is not unique")
+    typed = evidence[0]
+    if not isinstance(typed, Mapping):
+        _invoice_commitment_fail(
+            "invoice reply evidence is not typed")
+    if typed.get("kind") != "invoice_reply":
+        _invoice_commitment_fail(
+            "invoice reply evidence has the wrong type")
+    if typed.get("verified") is not True:
+        _invoice_commitment_fail(
+            "invoice reply evidence is not verified")
+    if typed.get("reply_seen") is not True:
+        _invoice_commitment_fail(
+            "invoice reply evidence did not record a seen reply")
+    for field in ("commitment", "payment", "settled", "send_performed"):
+        _invoice_reply_require_false(typed, field)
+
+    dispatch_operation_id = _invoice_reply_text(
+        typed.get("operation_id"), "evidence operation_id", required=True)
+    if dispatch_operation_id == reply_operation_id:
+        _invoice_commitment_fail(
+            "invoice reply evidence does not name a distinct dispatch "
+            "operation")
+    correlation_id = _invoice_reply_text(
+        typed.get("correlation_id"), "evidence correlation_id",
+        required=True)
+    if correlation_id != f"invoice-reply:{dispatch_operation_id}":
+        _invoice_commitment_fail(
+            "invoice reply evidence correlation is not bound to the "
+            "dispatch operation")
+    message_id = _invoice_reply_text(
+        typed.get("message_id"), "evidence message_id", required=True)
+    reply_message_id = _invoice_reply_text(
+        typed.get("reply_message_id"), "evidence reply_message_id",
+        required=True)
+    if message_id == reply_message_id:
+        _invoice_commitment_fail(
+            "invoice reply evidence does not name distinct sent and reply "
+            "messages")
+    invoice_id = _invoice_reply_text(
+        typed.get("invoice_id"), "evidence invoice_id", required=True)
+    if not invoice_id.strip():
+        _invoice_commitment_fail(
+            "invoice reply evidence is missing invoice_id")
+    conversation_id = _invoice_reply_text(
+        typed.get("conversation_id"), "evidence conversation_id",
+        required=True)
+    if not conversation_id.strip():
+        _invoice_commitment_fail(
+            "invoice reply evidence is missing conversation_id")
+    reply_sender = _invoice_reply_text(
+        typed.get("reply_sender"), "evidence reply_sender", required=True)
+    if not reply_sender.strip():
+        _invoice_commitment_fail(
+            "invoice reply evidence is missing reply_sender")
+
+    depends_on = step.get("depends_on")
+    if not isinstance(depends_on, list):
+        _invoice_commitment_fail(
+            "invoice.wait_for_reply step has no predecessor")
+    predecessor_matches = [
+        item for item in steps
+        if isinstance(item, Mapping)
+        and item.get("operation_id") == dispatch_operation_id
+    ]
+    if not predecessor_matches:
+        _invoice_commitment_fail(
+            "Invoice reply dispatch step not found", status_code=404)
+    if len(predecessor_matches) != 1:
+        _invoice_commitment_fail(
+            "Invoice reply dispatch step identity is ambiguous")
+    predecessor = predecessor_matches[0]
+    if predecessor.get("adapter") != "invoice.send_reminder":
+        _invoice_commitment_fail(
+            "Invoice reply evidence does not point to an "
+            "invoice.send_reminder step")
+    if predecessor.get("operation_type") != "outbound":
+        _invoice_commitment_fail(
+            "Invoice reply evidence does not point to an outbound step")
+    if predecessor.get("status") != "applied":
+        _invoice_commitment_fail(
+            "Invoice reply dispatch step is not applied")
+    if predecessor.get("step_id") not in depends_on:
+        _invoice_commitment_fail(
+            "invoice.wait_for_reply step does not depend on the reply "
+            "dispatch step")
+
+    dispatch_matches = [
+        item for item in operations
+        if isinstance(item, Mapping)
+        and item.get("operation_id") == dispatch_operation_id
+    ]
+    if not dispatch_matches:
+        _invoice_commitment_fail(
+            "Invoice reply dispatch operation not found", status_code=404)
+    if len(dispatch_matches) != 1:
+        _invoice_commitment_fail(
+            "Invoice reply dispatch operation identity is ambiguous")
+    dispatch_operation = dispatch_matches[0]
+    if dispatch_operation.get("adapter") != "invoice.send_reminder":
+        _invoice_commitment_fail(
+            "Invoice reply dispatch operation is not an "
+            "invoice.send_reminder operation")
+    if dispatch_operation.get("operation_type") != "outbound":
+        _invoice_commitment_fail(
+            "Invoice reply dispatch operation is not outbound")
+    if dispatch_operation.get("status") != "applied":
+        _invoice_commitment_fail(
+            "Invoice reply dispatch operation is not applied")
+
+    verification = result.get("verification")
+    if not isinstance(verification, Mapping) \
+            or verification.get("status") != "verified":
+        _invoice_commitment_fail(
+            "invoice reply verification is not verified")
+    coverage = verification.get("coverage")
+    if not isinstance(coverage, Mapping) \
+            or coverage.get("complete") is not True \
+            or coverage.get("truncated") is not False:
+        _invoice_commitment_fail(
+            "invoice reply verification is not complete")
+
+    source = {
+        "operation_id": dispatch_operation_id,
+        "reply_operation_id": reply_operation_id,
+        "correlation_id": correlation_id,
+        "reply_message_id": reply_message_id,
+        "message_id": message_id,
+        "draft_id": _invoice_reply_text(
+            typed.get("draft_id"), "evidence draft_id"),
+        "reply_sender": reply_sender,
+        "invoice_id": invoice_id,
+        "invoice_number": _invoice_reply_text(
+            typed.get("invoice_number"), "evidence invoice_number"),
+        "conversation_id": conversation_id,
+        "evidence_kind": "invoice_reply",
+    }
+    return {"step": step, "operation": operation, "source": source}
+
+
+def _invoice_commitment_revisions(
+    assignment: Mapping[str, Any], step_id: str,
+) -> List[Dict[str, Any]]:
+    """Read one step's append-only revisions and verify their integrity."""
+    store = assignment.get(_INVOICE_COMMITMENT_FIELD)
+    if store is None:
+        return []
+    if not isinstance(store, Mapping) \
+            or store.get("schema") != _INVOICE_COMMITMENT_SCHEMA:
+        _invoice_commitment_fail(
+            "Invoice commitment history is malformed")
+    revisions = store.get("revisions")
+    if not isinstance(revisions, list):
+        _invoice_commitment_fail(
+            "Invoice commitment history is malformed")
+    selected: List[Dict[str, Any]] = []
+    for raw in revisions:
+        if not isinstance(raw, Mapping):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        raw_step_id = raw.get("step_id")
+        revision = raw.get("revision")
+        if type(raw_step_id) is not str or not raw_step_id:
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if type(revision) is not int or revision < 1:
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if raw.get("verdict") not in _INVOICE_COMMITMENT_VERDICTS:
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if type(raw.get("reviewed_by")) is not str \
+                or not raw.get("reviewed_by"):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if type(raw.get("reviewed_at")) is not str \
+                or not raw.get("reviewed_at"):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if not isinstance(raw.get("source"), Mapping):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        if raw_step_id == step_id:
+            selected.append(dict(raw))
+    for index, item in enumerate(selected, start=1):
+        if item.get("revision") != index:
+            _invoice_commitment_fail(
+                "Invoice commitment revisions are not contiguous")
+    return selected
+
+
+def _invoice_commitment_require_not_cancelled(
+    record: Mapping[str, Any],
+    run: Optional[Mapping[str, Any]] = None,
+) -> None:
+    authorization = (record.get("task_revision") or {}).get("authorization")
+    if isinstance(authorization, str) \
+            and authorization.lower() == "cancelled":
+        _invoice_commitment_fail(
+            "The assignment is cancelled; an invoice commitment cannot "
+            "change")
+    assignment = record.get("assignment")
+    if isinstance(assignment, Mapping) \
+            and str(assignment.get("status") or "").lower() == "cancelled":
+        _invoice_commitment_fail(
+            "The assignment is cancelled; an invoice commitment cannot "
+            "change")
+    if isinstance(run, Mapping) \
+            and str(run.get("status") or "").lower() == "cancelled":
+        _invoice_commitment_fail(
+            "The assignment is cancelled; an invoice commitment cannot "
+            "change")
+
+
+def _invoice_commitment_reviewer(
+    run: Mapping[str, Any], current_user: User, db: Session,
+) -> User:
+    """Re-read the active, workspace-scoped reviewer and require authority."""
+    workspace_id = str(
+        run.get("workspace_id") or current_user.workspace_id or "default")
+    tenant_id = str(
+        run.get("tenant_id") or current_user.tenant_id or "default")
+    if (current_user.workspace_id or "default") != workspace_id \
+            or (current_user.tenant_id or "default") != tenant_id:
+        raise HTTPException(
+            status_code=403,
+            detail="The assignment belongs to a different workspace")
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if user is None:
+        raise HTTPException(status_code=403, detail="Reviewer not found")
+    if getattr(user, "is_active", True) is False:
+        raise HTTPException(status_code=403, detail="Reviewer is not active")
+    if (user.workspace_id or "default") != workspace_id \
+            or (user.tenant_id or "default") != tenant_id:
+        raise HTTPException(
+            status_code=403,
+            detail="The reviewer is outside the assignment workspace")
+    if not user_meets_role(user, UserRole.TEAM_LEAD):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient invoice commitment authority for this "
+                   "assignment")
+    return user
+
+
+def _invoice_commitment_validate_body(
+    body: "InvoiceCommitmentWrite",
+) -> tuple:
+    """Strictly validate the request without coercing any value."""
+    expected_revision = body.expected_revision
+    if type(expected_revision) is not int or expected_revision < 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "expected_revision must be an exact non-negative integer"))
+    verdict = body.verdict
+    if type(verdict) is not str \
+            or verdict not in _INVOICE_COMMITMENT_VERDICTS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "verdict must be one of: confirmed, no_commitment, unclear"))
+
+    if body.reason is None:
+        reason = None
+    elif type(body.reason) is not str:
+        raise HTTPException(
+            status_code=422, detail="reason must be an exact string")
+    else:
+        reason = body.reason.strip() or None
+
+    commitment_date = body.commitment_date
+    if commitment_date is not None and type(commitment_date) is not str:
+        raise HTTPException(
+            status_code=422,
+            detail="commitment_date must be an exact date string")
+    if verdict == "confirmed":
+        if not commitment_date or not commitment_date.strip():
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "commitment_date is required for a confirmed "
+                    "commitment"))
+        try:
+            normalized_date = datetime.strptime(
+                commitment_date.strip(), "%Y-%m-%d").date().isoformat()
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="commitment_date must be YYYY-MM-DD")
+    else:
+        if commitment_date not in (None, ""):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "commitment_date is only valid for a confirmed "
+                    "commitment"))
+        normalized_date = None
+
+    expected_reply_id = body.expected_reply_id
+    if expected_reply_id is not None:
+        if type(expected_reply_id) is not str \
+                or not expected_reply_id.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="expected_reply_id must be an exact non-empty string")
+    return (
+        expected_revision, verdict, normalized_date, reason,
+        expected_reply_id,
+    )
+
+
+def _invoice_commitment_assert_recorded_source(
+    packet: Mapping[str, Any], history: List[Dict[str, Any]],
+) -> None:
+    """Keep every revision bound to the one published operation/reply pair."""
+    source = packet["source"]
+    for item in history:
+        recorded = item.get("source")
+        if recorded.get("operation_id") != source["operation_id"] \
+                or recorded.get("reply_operation_id") \
+                != source["reply_operation_id"] \
+                or recorded.get("reply_message_id") \
+                != source["reply_message_id"]:
+            _invoice_commitment_fail(
+                "The published invoice reply no longer matches the recorded "
+                "commitment source")
+
+
+def _invoice_commitment_write_check(
+    record: Mapping[str, Any],
+    assignment: Mapping[str, Any],
+    step_id: str,
+    *,
+    expected_revision: int,
+    reason: Optional[str],
+    expected_reply_id: Optional[str],
+) -> tuple:
+    """Validate the fresh source and revision contract inside the CAS."""
+    packet = _invoice_commitment_packet(record, step_id)
+    history = _invoice_commitment_revisions(assignment, step_id)
+    _invoice_commitment_assert_recorded_source(packet, history)
+    current_revision = history[-1]["revision"] if history else 0
+    if expected_revision != current_revision:
+        _invoice_commitment_fail(
+            f"stale invoice commitment revision: expected "
+            f"{expected_revision}, current {current_revision}")
+    if current_revision and not reason:
+        _invoice_commitment_fail(
+            "A reason is required to correct an invoice commitment")
+    if expected_reply_id is not None \
+            and expected_reply_id != packet["source"]["reply_message_id"]:
+        _invoice_commitment_fail(
+            "The published invoice reply no longer matches the expected "
+            "reply identity")
+    return packet, history
+
+
+@router.get("/{run_id}/invoice-commitment/{step_id}")
+async def read_invoice_commitment(
+    run_id: str,
+    step_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Read the current review and append-only history for one step.
+
+    The run is resolved through the authenticated workspace/tenant scope, the
+    reviewer is re-read and authorized, and the source is revalidated against
+    the fresh durable lifecycle before any revision is returned.
+    """
+    run = _scoped_run(run_id, current_user)
+    _invoice_commitment_reviewer(run, current_user, db)
+    executor = _executor(run)
+    record = executor.lifecycle.get_task(run_id) or {}
+    try:
+        _invoice_commitment_require_not_cancelled(record, run)
+        packet = _invoice_commitment_packet(record, step_id)
+        history = _invoice_commitment_revisions(
+            record.get("assignment") or {}, step_id)
+        _invoice_commitment_assert_recorded_source(packet, history)
+    except _InvoiceCommitmentConflict as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail)
+    current = history[-1] if history else None
+    return {
+        "run_id": run_id,
+        "step_id": step_id,
+        "revision": current.get("revision") if current else 0,
+        "current": current,
+        "history": history,
+    }
+
+
+@router.put("/{run_id}/invoice-commitment/{step_id}")
+async def write_invoice_commitment(
+    run_id: str,
+    step_id: str,
+    body: InvoiceCommitmentWrite,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Append one reviewed commitment verdict to a verified invoice reply.
+
+    ``expected_revision`` is required (``0`` only for the first revision and
+    the exact current revision for a correction). Corrections also require a
+    reason. ``confirmed`` requires an explicit ``YYYY-MM-DD`` date. The
+    published operation/reply identity is captured with the reviewer and UTC
+    timestamp in an append-only revision; no provider is read or written.
+    """
+    run = _scoped_run(run_id, current_user)
+    reviewer = _invoice_commitment_reviewer(run, current_user, db)
+    executor = _executor(run)
+    record = executor.lifecycle.get_task(run_id) or {}
+    try:
+        _invoice_commitment_require_not_cancelled(record, run)
+    except _InvoiceCommitmentConflict as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail)
+
+    (
+        expected_revision, verdict, commitment_date, reason,
+        expected_reply_id,
+    ) = _invoice_commitment_validate_body(body)
+
+    # A clean pre-check gives the caller the right 404/409 without entering
+    # the CAS; the same check runs again against the fresh record inside it.
+    try:
+        _invoice_commitment_write_check(
+            record, record.get("assignment") or {}, step_id,
+            expected_revision=expected_revision,
+            reason=reason,
+            expected_reply_id=expected_reply_id)
+    except _InvoiceCommitmentConflict as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail)
+
+    reviewer_id = str(reviewer.id)
+
+    def compute(record, assignment):
+        packet, history = _invoice_commitment_write_check(
+            record, assignment, step_id,
+            expected_revision=expected_revision,
+            reason=reason,
+            expected_reply_id=expected_reply_id)
+        entry = {
+            "kind": "invoice_commitment",
+            "revision": history[-1]["revision"] + 1 if history else 1,
+            "step_id": step_id,
+            "verdict": verdict,
+            "commitment_date": commitment_date,
+            "reason": reason,
+            "reviewed_by": reviewer_id,
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "operation_id": packet["source"]["operation_id"],
+            "reply_operation_id": packet["source"]["reply_operation_id"],
+            "reply_message_id": packet["source"]["reply_message_id"],
+            "source": copy.deepcopy(packet["source"]),
+        }
+        new_assignment = copy.deepcopy(assignment)
+        store = new_assignment.get(_INVOICE_COMMITMENT_FIELD)
+        if store is None:
+            store = {
+                "schema": _INVOICE_COMMITMENT_SCHEMA,
+                "revisions": [],
+            }
+        elif not isinstance(store, Mapping):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        else:
+            store = copy.deepcopy(dict(store))
+        revisions = store.get("revisions")
+        if not isinstance(revisions, list):
+            _invoice_commitment_fail(
+                "Invoice commitment history is malformed")
+        revisions.append(entry)
+        store["revisions"] = revisions
+        new_assignment[_INVOICE_COMMITMENT_FIELD] = store
+        return new_assignment, {
+            "revision": entry["revision"],
+            "current": entry,
+            "history": history + [entry],
+        }
+
+    try:
+        result = executor.lifecycle.mutate_assignment_and_task(
+            run_id, compute,
+            rationale="invoice commitment reviewed")
+    except _InvoiceCommitmentConflict as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail)
+    except Exception as exc:  # noqa: BLE001 — durable state remains
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        "run_id": run_id,
+        "step_id": step_id,
+        "revision": result["revision"],
+        "current": result["current"],
+        "history": result["history"],
+    }

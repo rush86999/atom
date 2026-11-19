@@ -405,7 +405,7 @@ export async function approveAssignmentStep(
 export async function reconcileAssignmentStep(
   runId: string,
   stepId: string,
-  verdict: "applied" | "not_applied" | "insufficient",
+  verdict: "applied" | "not_applied" | "insufficient" | "verify_outlook",
   evidence: string,
   evidenceRef?: string,
   providerRef?: string

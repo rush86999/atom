@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  InvoiceCommitmentReview,
+  invoiceCommitmentReplyId,
+  isAppliedInvoiceReplyStep,
+} from "@/components/assignments/InvoiceCommitmentReview";
 import { useProductProfile } from "@/lib/product-profile";
 import {
   approveAssignmentStep,
@@ -478,6 +483,19 @@ export function AssignmentPanel({
   const uncertain = detail?.assignment.steps.find(
     (s) => s.status === "uncertain"
   );
+  const uncertainOperation = uncertain
+    ? (detail?.operations || []).find(
+        (operation) =>
+          uncertain.operation_id &&
+          String(operation.operation_id) === String(uncertain.operation_id)
+      )
+    : undefined;
+  const outlookVerificationAvailable = Boolean(
+    uncertainOperation?.outlook_verification_available
+  );
+  const invoiceCommitmentSteps = detail
+    ? detail.assignment.steps.filter(isAppliedInvoiceReplyStep)
+    : [];
 
   return (
     <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
@@ -1267,6 +1285,25 @@ export function AssignmentPanel({
             </div>
           ) : null}
 
+          {invoiceCommitmentSteps.map((invoiceStep) => {
+            const operation = (detail.operations || []).find(
+              (item) =>
+                invoiceStep.operation_id &&
+                String(item.operation_id) === String(invoiceStep.operation_id)
+            );
+            return (
+              <InvoiceCommitmentReview
+                key={`${detail.run_id}:${invoiceStep.step_id}`}
+                runId={detail.run_id}
+                stepId={invoiceStep.step_id}
+                expectedReplyId={invoiceCommitmentReplyId(
+                  invoiceStep,
+                  operation
+                )}
+              />
+            );
+          })}
+
           <div>
             <p className="mb-1 font-medium">Completed work</p>
             <ul className="space-y-0.5">
@@ -1711,6 +1748,36 @@ export function AssignmentPanel({
                 {String(uncertain.failure?.message || "The provider may have accepted the effect.")}
                 {" "}It will not be resent automatically. Reconcile before retrying.
               </p>
+              {outlookVerificationAvailable ? (
+                <div className="mt-1">
+                  <Button
+                    size="sm"
+                    data-testid="assignment-verify-outlook"
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        const result = await reconcileAssignmentStep(
+                          detail.run_id,
+                          String(uncertain.step_id),
+                          "verify_outlook",
+                          ""
+                        );
+                        const applied =
+                          result?.verdict === "applied" ||
+                          result?.status === "reconciled";
+                        setNotice(
+                          applied
+                            ? "Outlook verified the send; the step was applied."
+                            : "Outlook could not verify the send; the evidence is insufficient and the step remains uncertain."
+                        );
+                      }, detail.run_id)
+                    }
+                  >
+                    <RefreshCw className="h-3 w-3" /> Verify in Outlook
+                  </Button>
+                </div>
+              ) : (
+                <>
               <input
                 value={reconcileEvidence}
                 onChange={(e) => setReconcileEvidence(e.target.value)}
@@ -1784,6 +1851,8 @@ export function AssignmentPanel({
                   Evidence insufficient
                 </Button>
               </div>
+                </>
+              )}
             </div>
           ) : null}
 
