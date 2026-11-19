@@ -483,6 +483,10 @@ def _persist_imported_workflow(
         template_id=template.template_id,
         workflow_name=workflow_name,
         template_parameters=template_parameters or {},
+        # Import creates a draft; the editor collects required run values
+        # later. Only explicit values/defaults are applied here, while
+        # instantiate/execute keep the strict default.
+        require_all_inputs=False,
     )
     workflow_def = result.get("workflow_definition") or {}
 
