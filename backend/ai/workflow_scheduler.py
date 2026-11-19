@@ -16,6 +16,7 @@ from core.scheduler_store import (
 
 logger = logging.getLogger(__name__)
 
+
 class WorkflowScheduler:
     """
     Manages scheduled workflow executions using APScheduler.
@@ -253,11 +254,49 @@ class WorkflowScheduler:
 
             workflows = load_workflows()
             workflow_def = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
+            template_confirmed_absent = False
             if workflow_def is None:
                 # DB templates (WorkflowTemplate) live outside workflows.json but
-                # are schedulable — resolve them so the scheduled job actually fires.
-                from core.workflow_endpoints import _load_template_definition
-                workflow_def = _load_template_definition(workflow_id)
+                # are schedulable — resolve them so the scheduled job actually
+                # fires. A complete frozen scope is revalidated against the
+                # current user (active state, exact tenant/workspace and view
+                # permission) through the shared read-actor check. Incomplete
+                # legacy identity stays anonymous, so only public/catalog
+                # definitions remain resolvable with actor=None.
+                from core.database import get_db_session
+                from core.workflow_endpoints import (
+                    _current_read_actor, _load_template_definition,
+                )
+
+                with get_db_session() as db:
+                    actor = None
+                    if all(
+                            str(frozen_scope.get(key) or "").strip()
+                            for key in ("tenant_id", "workspace_id",
+                                        "user_id")):
+                        actor = _current_read_actor(db, frozen_scope)
+                    workflow_def = _load_template_definition(
+                        workflow_id, user=actor, db=db)
+                    if workflow_def is None:
+                        # A resolver miss does not prove the definition is gone:
+                        # it also covers a private template the frozen actor may
+                        # not read. Only a successful DB check that positively
+                        # finds no WorkflowTemplate row permits cleanup below.
+                        try:
+                            from core.models import WorkflowTemplate
+
+                            template_confirmed_absent = (
+                                db.query(WorkflowTemplate)
+                                .filter(
+                                    WorkflowTemplate.id == workflow_id)
+                                .first() is None)
+                        except Exception as existence_err:
+                            logger.warning(
+                                "Could not verify whether template %s still "
+                                "exists; leaving existing schedules intact: %s",
+                                workflow_id, existence_err,
+                            )
+                            template_confirmed_absent = False
 
             if workflow_def:
                 deployment = workflow_def.get("deployment")
@@ -286,6 +325,20 @@ class WorkflowScheduler:
                     scope=frozen_scope or None)
                 logger.info(f"Scheduled execution {execution_id} started")
             else:
+                # A resolver miss is not proof that the template is gone: it
+                # also covers a private template the frozen actor may not read,
+                # and a DB failure has the same shape. Deleting jobs in those
+                # cases would remove other owners' schedules (or every schedule
+                # during an outage), so only a confirmed-absent definition is
+                # eligible for the original dead-schedule cleanup.
+                if not template_confirmed_absent:
+                    logger.warning(
+                        "Scheduled workflow %s was not found or is not "
+                        "authorized for its frozen actor; leaving existing "
+                        "schedules intact",
+                        workflow_id,
+                    )
+                    return
                 # Self-heal (2026-09-05): the definition is gone (deleted
                 # workflow/template) — remove every scheduled job still
                 # pointing at it. Without this, a dead ID kept erroring on

@@ -28,6 +28,7 @@ from core.models import HITLAction
 
 logger = logging.getLogger(__name__)
 
+
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
 _ASSIGNMENT_ACTIONS = {"assignment_approval"}
 _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
@@ -602,13 +603,17 @@ async def _resume_advanced_workflow(
 
 
 async def _resume_workflow(action: Dict[str, Any], approved: bool,
-                            guidance: Optional[str]) -> Dict[str, Any]:
+                            guidance: Optional[str],
+                            *, db: Any = None) -> Dict[str, Any]:
     params = action.get("params") or {}
     execution_id = params.get("execution_id") or params.get("workflow_id")
     if not execution_id:
         return {"handled": False, "reason": "workflow action has no execution_id"}
 
-    from core.execution_state_manager import get_state_manager
+    from core.execution_state_manager import (
+        frozen_execution_identity,
+        get_state_manager,
+    )
 
     state_manager = get_state_manager()
     state = await state_manager.get_execution_state(execution_id)
@@ -624,8 +629,13 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
         return {"handled": True, "resumed": False, "kind": "workflow",
                 "status": "FAILED"}
 
-    workflow_id = params.get("workflow_id") or state.get("workflow_id")
-    from core.workflow_endpoints import _load_template_definition, load_workflows
+    # The saved execution is authoritative for which definition is resumed.
+    # Approval params are review material, not a definition selector: a
+    # changed workflow_id there must not redirect the resume at another one.
+    workflow_id = str(state.get("workflow_id") or "")
+    from core.workflow_endpoints import (
+        _current_read_actor, _load_template_definition, load_workflows,
+    )
 
     workflow = next(
         (w for w in load_workflows()
@@ -633,7 +643,21 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
         None,
     )
     if workflow is None and workflow_id:
-        workflow = _load_template_definition(workflow_id)
+        from contextlib import nullcontext
+
+        from core.database import get_db_session
+
+        frozen_identity = (
+            frozen_execution_identity(state.get("input_data")) or {})
+        actor = None
+        session_cm = nullcontext(db) if db is not None else get_db_session()
+        with session_cm as session:
+            if all(
+                    str(frozen_identity.get(key) or "").strip()
+                    for key in ("tenant_id", "workspace_id", "user_id")):
+                actor = _current_read_actor(session, frozen_identity)
+            workflow = _load_template_definition(
+                workflow_id, user=actor, db=session)
     if not workflow:
         return {"handled": True, "resumed": False,
                 "reason": f"workflow {workflow_id!r} not found"}
@@ -862,7 +886,8 @@ async def resume_after_hitl_decision(
                     reviewer_id=reviewer_id,
                 )
         elif (action.get("params") or {}).get("execution_id"):
-            result = await _resume_workflow(action, approved, guidance)
+            result = await _resume_workflow(
+                action, approved, guidance, db=db)
         else:
             return {"handled": False, "reason": "no durable waiter for this action"}
     except Exception as exc:  # noqa: BLE001 — never undo a human decision
