@@ -314,6 +314,7 @@ _STAGED_INVOICE_SEND_ADAPTERS = frozenset({
 #: source, and otherwise only at its single business-expiry timer.
 _INVOICE_COMMITMENT_WAIT_ADAPTER = "invoice.await_commitment"
 _INVOICE_COMMITMENT_WAIT_EVENT = "invoice_commitment_review"
+_INVOICE_COMMITMENT_WAIT_EXPIRED_EVENT = "invoice_commitment_review_expired"
 _INVOICE_COMMITMENT_FIELD = "invoice_commitments"
 _INVOICE_COMMITMENT_SCHEMA = "atom-invoice-commitment-1"
 _INVOICE_COMMITMENT_VERDICTS = frozenset(
@@ -7694,9 +7695,9 @@ class AssignmentExecutor:
         operation: Optional[Mapping[str, Any]],
     ) -> bool:
         """Whether this is the local reviewer wait, not an ordinary wait."""
-        if str(step.get("adapter") or "").strip() == (
+        if str(step.get("adapter") or "").strip() != (
                 _INVOICE_COMMITMENT_WAIT_ADAPTER):
-            return True
+            return False
         waiting = cls._commitment_waiting(operation, step)
         return str(waiting.get("event") or "").strip() == (
             _INVOICE_COMMITMENT_WAIT_EVENT)
@@ -7821,6 +7822,17 @@ class AssignmentExecutor:
             if self._commitment_wait_wake(record, waiting):
                 return True
             return self._commitment_expiry_reached(waiting)
+        if str(step.get("adapter") or "").strip() == (
+                _INVOICE_COMMITMENT_WAIT_ADAPTER):
+            # The reviewer timer has already produced an owner decision wait.
+            # Its stale expires_at is not a timer: never auto-wake it through
+            # the generic wait/approval fallback.
+            waiting = self._commitment_waiting(operation, step)
+            if str(waiting.get("event") or "").strip() == (
+                    _INVOICE_COMMITMENT_WAIT_EXPIRED_EVENT) \
+                    or str(waiting.get("resume_on") or "").strip() == (
+                        "owner_decision"):
+                return False
         if operation is None:
             return True
         status = operation.get("status")
