@@ -445,6 +445,42 @@ def _local_only_blocks_provider(provider_id: Any,
     return _provider_is_cloud(provider_id, local_routes)
 
 
+def _audio_route_evidence(
+    routes: Any,
+    pair_routes: Any,
+    admitted_route: Any,
+    *,
+    provider_id: Any,
+    model: Any,
+) -> Dict[Any, Any]:
+    """Exact route records that prove the ADMITTED audio provider is local.
+
+    Local-only mode must recognize a registered audio-only provider even
+    though that provider deliberately has no CHAT route (and therefore may
+    be absent from ``_local_routes``). The evidence here is the admitted
+    full-pair audio route plus any entry naming the SAME durable provider id
+    and the SAME model. A lookalike route for another registration or model
+    is not evidence, so the guard cannot inherit locality from a collision.
+    """
+    pid = str(provider_id or "").strip()
+    model_id = str(model or "").strip()
+    evidence: Dict[Any, Any] = {(pid, model_id): admitted_route}
+    for source in (routes, pair_routes):
+        if not isinstance(source, dict):
+            continue
+        for key, candidate in source.items():
+            if not isinstance(candidate, dict):
+                continue
+            if str(candidate.get("provider_id") or "").strip() != pid:
+                continue
+            key_model = (
+                key[1] if isinstance(key, tuple) and len(key) == 2 else key)
+            if str(key_model) != model_id:
+                continue
+            evidence[key] = candidate
+    return evidence
+
+
 def _interactive_structured_max_seconds() -> float:
     raw = os.getenv("ATOM_INTERACTIVE_STRUCTURED_MAX_SECONDS")
     if raw is not None and str(raw).strip() != "":
@@ -2836,6 +2872,15 @@ class BYOKHandler:
                 "[local-only] BLOCKED %s/%s operation=%s",
                 attempt_provider_id, model, operation)
             return False
+        # AUDIO-ONLY remains a hard CHAT boundary: the route was explicitly
+        # declared transcription-only, so no chat/structured/streaming
+        # operation may reach it — not even through an explicit override.
+        if self._local_route_is_audio_only(attempt_provider_id, model):
+            logger.warning(
+                "[audio-only] BLOCKED %s/%s operation=%s (declared for "
+                "transcription only)",
+                attempt_provider_id, model, operation)
+            return False
         # PROVIDER POLICY GATE (2026-10-24): the hard boundary. This runs
         # before the explicit-override/catalog branches so no pin, default,
         # retry, streaming fallback or capability fail-open can widen the
@@ -2867,18 +2912,94 @@ class BYOKHandler:
             return True
         return self._provider_serves_model(attempt_provider_id, model)
 
+    def _local_route_is_audio_only(self, provider_id: Any, model: str) -> bool:
+        """True when the EXACT registered local route is declared audio-only.
+
+        The evidence is the route's own ``supports_chat`` declaration — either
+        the chat-map entry for this model/provider or the full-pair audio index
+        entry. A missing declaration is chat-capable, which preserves every
+        legacy row, legacy submission and synthetic route that predates the
+        field. Model identifiers are never inspected: modality is declared
+        data, not a name pattern.
+        """
+        pid = str(provider_id or "").strip()
+        model_id = str(model or "").strip()
+        if not pid or not model_id:
+            return False
+        route = (getattr(self, "_local_routes", None) or {}).get(model_id)
+        if (
+            isinstance(route, dict)
+            and route.get("supports_chat") is False
+            and (
+                str(route.get("provider_key") or "").strip() == pid
+                or str(route.get("provider_id") or "").strip() == pid
+            )
+        ):
+            return True
+        pair_routes = getattr(self, "_local_audio_routes", None) or {}
+        if not isinstance(pair_routes, dict):
+            return False
+        for (route_provider_id, route_model), pair in pair_routes.items():
+            if str(route_model) != model_id or not isinstance(pair, dict):
+                continue
+            pair_provider = str(
+                pair.get("provider_id") or route_provider_id).strip()
+            pair_key = str(pair.get("provider_key") or "").strip()
+            if pid not in (pair_provider, pair_key):
+                continue
+            if pair.get("supports_chat") is False:
+                return True
+        return False
+
+    def _provider_has_audio_only_route(self, provider_id: Any) -> bool:
+        """Whether this exact provider has a declared audio-only route.
+
+        Used to distinguish "registered provider with NO chat-capable models"
+        from "provider whose chat catalogue is unknown": the former is a
+        closed served set (``[]``), never a licence to try arbitrary chat
+        identifiers against the endpoint.
+        """
+        pid = str(provider_id or "").strip()
+        if not pid:
+            return False
+        for routes in (
+            getattr(self, "_local_routes", None) or {},
+            getattr(self, "_local_audio_routes", None) or {},
+        ):
+            if not isinstance(routes, dict):
+                continue
+            for route in routes.values():
+                if not isinstance(route, dict):
+                    continue
+                if route.get("supports_chat") is not False:
+                    continue
+                if str(route.get("provider_key") or "").strip() == pid:
+                    return True
+        return False
+
     def _local_served_models(self, provider_id: str) -> Optional[List[str]]:
         """The served set for a REGISTERED-LOCAL provider (J2): the
         models this workspace registered under that provider key. The
         registration is the product record of what the endpoint
         accepts — the same set the ranking, reconcile and dispatch
         gates must agree on. ``None`` for non-local providers (their
-        catalogue is discovered, not declared)."""
+        catalogue is discovered, not declared).
+
+        AUDIO-ONLY rows are not chat models: they are excluded from this
+        served set. A provider whose registrations are ALL audio-only returns
+        an EMPTY list (a known-closed chat catalogue), not ``None``.
+        """
         if not provider_id or not provider_id.startswith("local_"):
             return None
-        return sorted(
+        models = sorted(
             m for m, r in (self._local_routes or {}).items()
-            if r["provider_key"] == provider_id) or None
+            if r["provider_key"] == provider_id
+            and r.get("supports_chat", True) is not False)
+        if models:
+            return models
+        if self._provider_has_audio_only_route(provider_id):
+            return []
+        return None
 
     def _served_local_models_for(self, provider_id: str) -> Optional[List[str]]:
         """Served set for a LOCAL provider, ready for ``evaluate_route``.
@@ -4895,6 +5016,11 @@ class BYOKHandler:
         ``_local_routes``, never through a foreign cache entry.
         """
         for model_id, route in (self._local_routes or {}).items():
+            # AUDIO-ONLY routes are never chat catalog entries. The loader
+            # keeps them out of the chat map, so this is a defensive guard for
+            # synthetic/hand-built routes as well.
+            if route.get("supports_chat") is False:
+                continue
             fetcher.pricing_cache[model_id] = {
                 "model_id": model_id,
                 "litellm_provider": route.get("provider_type") or "",
@@ -5025,6 +5151,7 @@ class BYOKHandler:
                 "supports_structured": True,
                 "supports_vision": False,
                 "supports_reasoning": False,
+                "supports_chat": True,
                 "quality_score": quality,
                 "context_window": max(1, context_window),
                 "runtime_declared": True,
@@ -5124,18 +5251,43 @@ class BYOKHandler:
                                     cap.supports_transcription),
                                 "audio_input_cost_per_second_usd": (
                                     cap.audio_input_cost_per_second_usd),
+                                # CHAT DECLARATION: true by default, so
+                                # legacy rows and legacy submissions keep
+                                # their historical chat eligibility. False
+                                # means this exact model is AUDIO-ONLY: it
+                                # must never enter the chat route map or
+                                # chat pricing catalog.
+                                "supports_chat": (
+                                    True if getattr(
+                                        cap, "supports_chat", True) is None
+                                    else bool(getattr(
+                                        cap, "supports_chat", True))),
                                 "quality_score": cap.quality_score,
                                 "context_window": cap.context_window or 8192,
                             }
                             # Chat routing keeps its historical model-keyed
-                            # map (last registration wins on a name clash).
-                            self._local_routes[cap.model_id] = route
+                            # map (last registration wins on a name clash),
+                            # but an audio-only registration never occupies
+                            # a chat slot. If THIS registration previously
+                            # declared chat, its stale entry is removed.
+                            if route["supports_chat"]:
+                                self._local_routes[cap.model_id] = route
+                            else:
+                                stale = (self._local_routes or {}).get(
+                                    cap.model_id)
+                                if (
+                                    isinstance(stale, dict)
+                                    and str(stale.get("provider_id") or "")
+                                    == str(provider.id or "")
+                                ):
+                                    del self._local_routes[cap.model_id]
                             # AUDIO ROUTES ARE PAIR-KEYED: the same model
                             # name on two registrations must stay two
                             # independently selectable routes. The entry
                             # carries THE registration's own client objects,
                             # never a lookup through a display key that two
-                            # truncated provider ids can share.
+                            # truncated provider ids can share. Audio-only
+                            # routes exist ONLY in this index.
                             audio_route = dict(route)
                             audio_route.update({
                                 "client": local_client,
@@ -5150,20 +5302,35 @@ class BYOKHandler:
                             # display only. It deliberately carries no audio
                             # declaration: a registered local route's own
                             # record remains the only authority for local
-                            # transcription capability and rate.
-                            fetcher.pricing_cache[cap.model_id] = {
-                                "model_id": cap.model_id,
-                                "litellm_provider": provider.provider_type,
-                                "input_cost": 0.0,
-                                "output_cost": 0.0,
-                                "max_input_tokens": cap.context_window or 8192,
-                                "supports_tools": cap.supports_tools,
-                                "supports_vision": cap.supports_vision,
-                                "supports_reasoning": cap.supports_reasoning,
-                                "quality_score": cap.quality_score,
-                                "provider_key": provider_key,
-                                "workspace_id": ws_id,
-                            }
+                            # transcription capability and rate. Audio-only
+                            # models are NOT published here at all; if this
+                            # registration previously published chat
+                            # metadata, remove exactly its own entry.
+                            if route["supports_chat"]:
+                                fetcher.pricing_cache[cap.model_id] = {
+                                    "model_id": cap.model_id,
+                                    "litellm_provider": provider.provider_type,
+                                    "input_cost": 0.0,
+                                    "output_cost": 0.0,
+                                    "max_input_tokens": cap.context_window or 8192,
+                                    "supports_tools": cap.supports_tools,
+                                    "supports_vision": cap.supports_vision,
+                                    "supports_reasoning": cap.supports_reasoning,
+                                    "quality_score": cap.quality_score,
+                                    "provider_key": provider_key,
+                                    "workspace_id": ws_id,
+                                }
+                            else:
+                                stale_entry = fetcher.pricing_cache.get(
+                                    cap.model_id)
+                                if (
+                                    isinstance(stale_entry, dict)
+                                    and str(stale_entry.get("provider_key") or "")
+                                    == provider_key
+                                    and str(stale_entry.get("workspace_id") or "")
+                                    == str(ws_id)
+                                ):
+                                    del fetcher.pricing_cache[cap.model_id]
                     else:
                         # No capabilities configured — register a generic entry
                         # so the model at least appears in BPC with defaults.
@@ -5947,7 +6114,9 @@ class BYOKHandler:
                 _tier_default = next(
                     (m for m in sorted(self._local_routes or {})
                      if (self._local_routes or {})[m]["provider_key"]
-                     == _fb_provider),
+                     == _fb_provider
+                     and (self._local_routes or {})[m].get(
+                         "supports_chat", True) is not False),
                     None)
             if not _tier_default:
                 continue
@@ -6067,6 +6236,17 @@ class BYOKHandler:
         unverified and the caller sees a warning, so the uncertainty is visible
         instead of implied.
         """
+        if not options:
+            return []
+        # AUDIO-ONLY ROUTES ARE NOT CHAT ROUTES. Ranking normally never sees
+        # them (they are absent from the chat route map, the pricing catalog
+        # and the served set), but a pin, sweep or caller-supplied option can
+        # still name one. Drop those pairs here, before reconciliation, so no
+        # path can dispatch chat to a transcription-only model.
+        options = [
+            (provider_id, model_id) for provider_id, model_id in options
+            if not self._local_route_is_audio_only(provider_id, model_id)
+        ]
         if not options:
             return []
         try:
@@ -6442,6 +6622,10 @@ class BYOKHandler:
                 # keep the local association authoritative either way.
                 _own_route = (self._local_routes or {}).get(model_id)
                 if _own_route is not None:
+                    # Defensive: an audio-only declaration is never a chat
+                    # candidate, even if a synthetic route put it here.
+                    if _own_route.get("supports_chat") is False:
+                        continue
                     active_provider = _own_route["provider_key"]
                     if active_provider not in self.clients:
                         continue
@@ -12476,7 +12660,11 @@ class BYOKHandler:
             raise ValueError(
                 f"Local transcription route '{model}' has no valid "
                 "per-second audio rate; audio was not sent.")
-        if _local_only_blocks_provider(provider_id, routes):
+        if _local_only_blocks_provider(
+                provider_id,
+                _audio_route_evidence(
+                    routes, pair_routes, route,
+                    provider_id=requested_id, model=model)):
             raise ValueError(
                 f"Local-only mode blocks local transcription provider "
                 f"'{provider_id}'; audio was not sent.")

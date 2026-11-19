@@ -80,17 +80,30 @@ class SetCapabilitiesRequest(BaseModel):
     """Capability upsert payload.
 
     The existing capability fields keep their original request defaults and
-    replacement behavior. The two audio fields are the exception: they are
+    replacement behavior. The chat and audio fields are the exception: they are
     optional and omission-preserving so an edit from a client that predates
-    them cannot accidentally disable transcription or clear its rate. Explicit
-    ``false``/``null`` still disables the capability or clears the rate,
-    because Pydantic distinguishes those from an omitted field.
+    them cannot accidentally disable chat, disable transcription or clear its
+    rate. Explicit ``false``/``null`` still changes the setting, because
+    Pydantic distinguishes those from an omitted field. A new row defaults to
+    chat-capable, which is also the historical behavior.
+
+    ``supports_chat=false`` marks an AUDIO-ONLY model: transcription must be
+    enabled as well, and the model is then excluded from every chat discovery,
+    ranking and pricing path.
     """
 
     model_id: str = Field(..., description="Model name as served by the provider, e.g. 'llama3:8b'")
     supports_tools: bool = False
     supports_vision: bool = False
     supports_reasoning: bool = False
+    supports_chat: Optional[bool] = Field(
+        None,
+        description=(
+            "Offer this model for chat. Defaults to true for new models and "
+            "keeps its stored value when omitted. False marks an audio-only "
+            "model, which requires transcription to be enabled."
+        ),
+    )
     supports_transcription: Optional[bool] = Field(
         None,
         description="Enable audio transcription for this model. Requires audio_input_cost_per_second_usd.",
@@ -131,6 +144,7 @@ class CapabilitiesResponse(BaseModel):
     quality_score: float
     speed_score: float
     context_window: int
+    supports_chat: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -258,12 +272,34 @@ async def discover_models(
             data = resp.json()
 
         models = []
+        # Audio-only models stay discoverable so they can be configured for
+        # transcription, but they must not (re)enter the shared chat pricing
+        # catalog during discovery.
+        try:
+            configured = {
+                c.model_id: c
+                for c in db.query(LocalModelCapabilities).filter(
+                    LocalModelCapabilities.provider_id == provider.id,
+                    LocalModelCapabilities.workspace_id == ws_id,
+                ).all()
+            }
+        except Exception:  # noqa: BLE001 — discovery is best-effort
+            configured = {}
         for m in data.get("data", []):
             model_id = m.get("id") or m.get("name", "")
             if model_id:
                 models.append(model_id)
+                capability = configured.get(model_id)
+                chat_enabled = (
+                    True if capability is None
+                    else getattr(capability, "supports_chat", True) is not False
+                )
                 # Register into the pricing cache so capability detection works.
-                _register_in_pricing_cache(model_id, provider)
+                # Audio-only rows are explicitly excluded from that catalog.
+                _register_in_pricing_cache(
+                    model_id, provider,
+                    None if chat_enabled else {"supports_chat": False},
+                )
 
         return {"models": models, "count": len(models)}
     except Exception as e:
@@ -294,6 +330,10 @@ async def get_capabilities(
             "supports_tools": c.supports_tools,
             "supports_vision": c.supports_vision,
             "supports_reasoning": c.supports_reasoning,
+            "supports_chat": (
+                True if getattr(c, "supports_chat", True) is None
+                else bool(getattr(c, "supports_chat"))
+            ),
             "supports_transcription": bool(c.supports_transcription),
             "audio_input_cost_per_second_usd": c.audio_input_cost_per_second_usd,
             "quality_score": c.quality_score,
@@ -318,9 +358,10 @@ async def set_capabilities(
     filtering, cognitive tier assignment, and the learning router registry.
 
     The original non-audio fields keep their replacement semantics: an omitted
-    field takes its request default. Only the two audio settings are preserved
+    field takes its request default. The chat and audio settings are preserved
     when omitted, so edits from clients that predate them cannot accidentally
-    disable transcription or clear its rate.
+    disable chat or transcription (or clear the rate). A NEW row defaults to
+    chat-capable.
     """
     ws_id = current_user.workspace_id or "default"
     provider = _get_owned_provider(provider_id, ws_id, db)
@@ -334,21 +375,27 @@ async def set_capabilities(
 
     provided = request.model_fields_set
 
-    def _resolve_audio(field: str, default: Any) -> Any:
+    def _resolve_optional(field: str, default: Any) -> Any:
+        """Omitted optional setting keeps its stored value on update."""
         if field in provided:
             return getattr(request, field)
         if existing is not None:
-            return getattr(existing, field)
+            stored = getattr(existing, field, None)
+            return default if stored is None else stored
         return default
 
+    resolved_chat = _resolve_optional("supports_chat", True)
     values: Dict[str, Any] = {
         "supports_tools": request.supports_tools,
         "supports_vision": request.supports_vision,
         "supports_reasoning": request.supports_reasoning,
+        # NULL is not an explicit audio-only declaration: only ``false``
+        # disables chat. Omitted values keep the stored value (default true).
+        "supports_chat": True if resolved_chat is None else bool(resolved_chat),
         "supports_transcription": bool(
-            _resolve_audio("supports_transcription", False)
+            _resolve_optional("supports_transcription", False)
         ),
-        "audio_input_cost_per_second_usd": _resolve_audio(
+        "audio_input_cost_per_second_usd": _resolve_optional(
             "audio_input_cost_per_second_usd", None
         ),
         "quality_score": request.quality_score,
@@ -361,6 +408,14 @@ async def set_capabilities(
         raise HTTPException(
             status_code=400,
             detail="audio_input_cost_per_second_usd must be a finite, non-negative number",
+        )
+    if not values["supports_chat"] and not values["supports_transcription"]:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Audio-only models require transcription to be enabled "
+                "(supports_transcription=true)."
+            ),
         )
     if values["supports_transcription"] and audio_rate is None:
         raise HTTPException(
@@ -375,6 +430,7 @@ async def set_capabilities(
         existing.supports_tools = values["supports_tools"]
         existing.supports_vision = values["supports_vision"]
         existing.supports_reasoning = values["supports_reasoning"]
+        existing.supports_chat = values["supports_chat"]
         existing.supports_transcription = values["supports_transcription"]
         existing.audio_input_cost_per_second_usd = audio_rate
         existing.quality_score = values["quality_score"]
@@ -393,12 +449,14 @@ async def set_capabilities(
 
     # Register into the pricing cache so BPC capability detection works.
     # Only the pre-existing routing metadata is passed; audio pricing stays a
-    # settings concern and does not alter provider billing.
+    # settings concern and does not alter provider billing. An audio-only
+    # model is REMOVED from chat catalog/pricing metadata instead.
     _register_in_pricing_cache(request.model_id, provider, values)
 
     return {
         "model_id": request.model_id,
         "set": True,
+        "supports_chat": values["supports_chat"],
         "supports_transcription": values["supports_transcription"],
         "audio_input_cost_per_second_usd": audio_rate,
     }
@@ -791,10 +849,28 @@ def _register_in_pricing_cache(
     the endpoint. Two workspaces registering the same model name keep
     separate routes — the shared entry only carries public pricing
     metadata; endpoint selection and registration-specific capabilities
-    are read from the handler's own scoped records."""
+    are read from the handler's own scoped records.
+
+    An AUDIO-ONLY model (``supports_chat`` false) is never published here:
+    the shared cache feeds chat discovery/ranking/pricing, so this helper
+    removes this registration's own entry (and only that entry) instead of
+    advertising a model that must not be offered for chat.
+    """
     try:
         from core.dynamic_pricing_fetcher import get_pricing_fetcher
         fetcher = get_pricing_fetcher()
+        provider_key = f"local_{provider.id[:8]}"
+        if capabilities is not None and capabilities.get(
+                "supports_chat", True) is False:
+            existing_entry = fetcher.pricing_cache.get(model_id)
+            if (
+                isinstance(existing_entry, dict)
+                and str(existing_entry.get("provider_key") or "") == provider_key
+                and str(existing_entry.get("workspace_id") or "")
+                == str(provider.workspace_id)
+            ):
+                fetcher.pricing_cache.pop(model_id, None)
+            return
         entry = {
             "model_id": model_id,
             "litellm_provider": provider.provider_type,
@@ -805,7 +881,7 @@ def _register_in_pricing_cache(
             "supports_vision": (capabilities or {}).get("supports_vision", False),
             "supports_reasoning": (capabilities or {}).get("supports_reasoning", False),
             "quality_score": (capabilities or {}).get("quality_score", 0.5),
-            "provider_key": f"local_{provider.id[:8]}",
+            "provider_key": provider_key,
             "workspace_id": provider.workspace_id,
         }
         fetcher.pricing_cache[model_id] = entry

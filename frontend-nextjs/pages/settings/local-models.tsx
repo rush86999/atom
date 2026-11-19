@@ -24,6 +24,7 @@ interface ModelCapabilities {
     supports_tools: boolean;
     supports_vision: boolean;
     supports_reasoning: boolean;
+    supports_chat: boolean;
     supports_transcription: boolean;
     audio_input_cost_per_second_usd: number | null;
     quality_score: number;
@@ -191,6 +192,7 @@ const LocalModelsPage: React.FC = () => {
                                                                     {cap.supports_tools && <Badge variant="secondary">tools</Badge>}
                                                                     {cap.supports_vision && <Badge variant="secondary">vision</Badge>}
                                                                     {cap.supports_reasoning && <Badge variant="secondary">reasoning</Badge>}
+                                                                    {cap.supports_chat === false && <Badge variant="outline">audio-only</Badge>}
                                                                     {cap.supports_transcription && <Badge variant="secondary">transcription</Badge>}
                                                                     <Badge variant="outline">Q: {(cap.quality_score * 100).toFixed(0)}%</Badge>
                                                                 </div>
@@ -233,6 +235,8 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
         supports_tools: existing?.supports_tools ?? false,
         supports_vision: existing?.supports_vision ?? false,
         supports_reasoning: existing?.supports_reasoning ?? false,
+        // True by default: legacy rows and legacy submissions stay chat-capable.
+        supports_chat: existing?.supports_chat ?? true,
         supports_transcription: existing?.supports_transcription ?? false,
         quality_score: existing?.quality_score ?? 0.5,
         speed_score: existing?.speed_score ?? 0.5,
@@ -259,6 +263,10 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
         }
         if (caps.supports_transcription && parsedRate === null) {
             setError('Enter an audio input price in USD per second to enable transcription.');
+            return;
+        }
+        if (!caps.supports_chat && !caps.supports_transcription) {
+            setError('Audio-only models require transcription to be enabled.');
             return;
         }
 
@@ -290,7 +298,21 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
                         onCheckedChange={(v: any) => setCaps({ ...caps, supports_transcription: !!v })}
                     /> Transcription
                 </div>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        aria-label="Chat (text)"
+                        checked={caps.supports_chat}
+                        onCheckedChange={(v: any) => setCaps({ ...caps, supports_chat: !!v })}
+                    /> Chat (text)
+                </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+                Uncheck <span className="font-medium">Chat (text)</span> for an
+                audio-only model (for example a transcription-only endpoint).
+                Audio-only models must keep transcription enabled and are never
+                offered for chat or chat pricing. Leave it checked for mixed
+                chat+audio vendors.
+            </p>
             <div>
                 <p className="text-xs text-muted-foreground">Audio input cost (USD per second)</p>
                 <Input

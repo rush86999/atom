@@ -12422,6 +12422,13 @@ class LocalModelCapabilities(Base):
     supports_tools = Column(Boolean, default=False)
     supports_vision = Column(Boolean, default=False)
     supports_reasoning = Column(Boolean, default=False)
+    # Explicit, per-model chat opt-in. TRUE by default so existing rows,
+    # legacy submissions (which never sent the field) and mixed
+    # chat+transcription vendors keep their historical chat eligibility.
+    # FALSE marks an AUDIO-ONLY model: it is routed exclusively through the
+    # provider-keyed transcription path and is never advertised, ranked or
+    # priced for chat. Audio-only requires transcription to be enabled.
+    supports_chat = Column(Boolean, nullable=False, default=True, server_default="1")
     # Explicit, per-model audio transcription opt-in. Existing rows and rows
     # created by older clients default to disabled. Enabling requires an
     # explicit audio_input_cost_per_second_usd (zero is valid).

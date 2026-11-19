@@ -143,19 +143,21 @@ export const TranscriptionRecorder: React.FC = () => {
         setProviders(providerList);
 
         const entries = await Promise.all(
-          providerList.map(async (provider) => {
-            try {
-              const capabilityPayload = await localModelsAPI.getCapabilities(
-                provider.id,
-              );
-              return [
-                provider.id,
-                Array.isArray(capabilityPayload) ? capabilityPayload : [],
-              ] as const;
-            } catch {
-              return [provider.id, []] as const;
-            }
-          }),
+          providerList.map(
+            async (provider): Promise<[string, LocalModelCapability[]]> => {
+              try {
+                const capabilityPayload = await localModelsAPI.getCapabilities(
+                  provider.id,
+                );
+                return [
+                  provider.id,
+                  Array.isArray(capabilityPayload) ? capabilityPayload : [],
+                ];
+              } catch {
+                return [provider.id, []];
+              }
+            },
+          ),
         );
         if (cancelled) return;
         const nextCapabilities: Record<string, LocalModelCapability[]> = {};
@@ -586,7 +588,7 @@ export const TranscriptionRecorder: React.FC = () => {
           className="mt-5 rounded border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950"
         >
           <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-            Confirmed transcript
+            Transcript
           </h3>
           <p
             data-testid="confirmed-transcript"

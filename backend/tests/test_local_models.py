@@ -41,6 +41,15 @@ class TestLocalModelModels:
         assert audio_rate.nullable is True
         assert audio_rate.default is None
 
+    def test_supports_chat_column_defaults_true(self):
+        """Legacy rows/submissions stay chat-capable; audio-only is opt-in."""
+        from core.models import LocalModelCapabilities
+        column = LocalModelCapabilities.__table__.columns["supports_chat"]
+
+        assert column.nullable is False
+        assert column.default.arg is True
+        assert column.server_default is not None
+
 
 class TestLocalModelRoutes:
     """API routes exist and have the right paths."""
@@ -102,6 +111,18 @@ class TestAudioCapabilityValidation:
         )
         assert "audio_input_cost_per_second_usd" in cleared.model_fields_set
         assert cleared.audio_input_cost_per_second_usd is None
+
+    def test_supports_chat_is_omission_preserving(self):
+        """An omitted chat setting keeps its stored value; new rows default true."""
+        from api.routes.local_model_routes import SetCapabilitiesRequest
+
+        omitted = SetCapabilitiesRequest(model_id="m")
+        assert omitted.supports_chat is None
+        assert "supports_chat" not in omitted.model_fields_set
+
+        audio_only = SetCapabilitiesRequest(model_id="m", supports_chat=False)
+        assert "supports_chat" in audio_only.model_fields_set
+        assert audio_only.supports_chat is False
 
 
 class TestCognitiveTierLocalModels:
@@ -216,6 +237,7 @@ class TestMigration:
         content = open(path).read()
         assert 'revision: str = "20261118_local_model_audio_capability"' in content
         assert 'down_revision: Union[str, Sequence[str], None] = "20261102_goal_run_material_revision"' in content
+        assert "supports_chat" in content
         assert "supports_transcription" in content
         assert "audio_input_cost_per_second_usd" in content
         assert "create_table" not in content

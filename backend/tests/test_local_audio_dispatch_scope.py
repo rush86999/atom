@@ -89,7 +89,8 @@ def _handler(*, routes=None, clients=None, async_clients=None,
 
 
 def _route(*, workspace_id="ws-a", supports_transcription=True,
-           rate=RATE, provider_id=PROVIDER_ID, provider_key=None):
+           rate=RATE, provider_id=PROVIDER_ID, provider_key=None,
+           supports_chat=True):
     return {
         "provider_key": (provider_key
                          if provider_key is not None
@@ -100,6 +101,7 @@ def _route(*, workspace_id="ws-a", supports_transcription=True,
         "supports_tools": True,
         "supports_vision": False,
         "supports_reasoning": False,
+        "supports_chat": supports_chat,
         "supports_transcription": supports_transcription,
         "audio_input_cost_per_second_usd": rate,
         "quality_score": 0.8,
@@ -553,6 +555,7 @@ def test_local_route_loader_copies_audio_declarations(monkeypatch):
         supports_reasoning=False,
         supports_transcription=True,
         audio_input_cost_per_second_usd=0.0,
+        supports_chat=True,
         quality_score=0.75,
         context_window=8192,
     )
@@ -627,6 +630,7 @@ def test_local_route_loader_copies_audio_declarations(monkeypatch):
     assert route["provider_key"] == f"local_{provider.id[:8]}"
     assert route["supports_transcription"] is True
     assert route["audio_input_cost_per_second_usd"] == 0.0
+    assert route["supports_chat"] is True
     # Global pricing metadata is never the local audio rate authority.
     assert "audio_input_cost_per_second_usd" not in fetcher.pricing_cache[
         MODEL]
@@ -780,11 +784,13 @@ def test_loader_indexes_same_name_routes_by_pair_with_own_clients(monkeypatch):
     capability_a = SimpleNamespace(
         provider_id=provider_a.id, model_id=MODEL,
         supports_tools=True, supports_vision=False, supports_reasoning=False,
+        supports_chat=True,
         supports_transcription=True, audio_input_cost_per_second_usd=0.01,
         quality_score=0.6, context_window=8192)
     capability_b = SimpleNamespace(
         provider_id=provider_b.id, model_id=MODEL,
         supports_tools=True, supports_vision=False, supports_reasoning=False,
+        supports_chat=True,
         supports_transcription=True, audio_input_cost_per_second_usd=0.5,
         quality_score=0.9, context_window=8192)
     capabilities = {
@@ -860,11 +866,302 @@ def test_loader_indexes_same_name_routes_by_pair_with_own_clients(monkeypatch):
     assert handler.clients[key] is audio_b["client"]
 
 
-def test_loader_source_carries_audio_declarations():
-    """Guard against the route record dropping either new column."""
-    source = inspect.getsource(bh.BYOKHandler._load_local_providers)
-    assert '"supports_transcription": bool(' in source
-    assert '"audio_input_cost_per_second_usd": (' in source
+def test_loader_keeps_audio_only_model_out_of_chat_paths(monkeypatch):
+    """An audio-only row is transcription-only: no chat route, no chat price.
+
+    The same registration still gets its full-pair audio route (with its own
+    client and rate), so the model remains usable for transcription while
+    being absent from every chat discovery source.
+    """
+    import core.database as db_module
+    import core.models as models
+
+    provider = SimpleNamespace(
+        id="feedface-1111-2222-3333-444455556666",
+        name="Whisper box", provider_type="openai-compatible",
+        api_key=None, base_url="http://127.0.0.1:9200/v1",
+        workspace_id="ws-a", tenant_id="tenant-a", is_active=True)
+    capability = SimpleNamespace(
+        provider_id=provider.id, model_id=MODEL,
+        supports_tools=False, supports_vision=False, supports_reasoning=False,
+        supports_chat=False, supports_transcription=True,
+        audio_input_cost_per_second_usd=0.0,
+        quality_score=0.5, context_window=8192)
+
+    class _Query:
+        def __init__(self, entity):
+            self.entity = entity
+
+        def filter(self, *args, **kwargs):
+            assert not kwargs
+            return self
+
+        def all(self):
+            if self.entity is _ProviderModel:
+                return [provider]
+            assert self.entity is _CapabilityModel
+            return [capability]
+
+    class _Session:
+        def query(self, entity):
+            return _Query(entity)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(models, "LocalModelProvider", _ProviderModel)
+    monkeypatch.setattr(models, "LocalModelCapabilities", _CapabilityModel)
+    monkeypatch.setattr(db_module, "get_db_session", lambda: _Session())
+
+    class _Fetcher:
+        pricing_cache = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    fetcher = _Fetcher()
+    monkeypatch.setattr(bh, "get_pricing_fetcher", lambda: fetcher)
+    monkeypatch.setattr(bh, "OpenAI", _Client)
+    monkeypatch.setattr(bh, "AsyncOpenAI", _Client)
+
+    handler = _handler()
+    handler._load_local_providers()
+
+    # Chat discovery sources are all closed for the audio-only model.
+    assert MODEL not in handler._local_routes
+    assert MODEL not in fetcher.pricing_cache
+    assert handler._local_served_models(f"local_{provider.id[:8]}") == []
+    assert handler._reconcile_ranked_routes(
+        [(f"local_{provider.id[:8]}", MODEL)]) == []
+    assert handler._dispatch_catalog_admits(
+        f"local_{provider.id[:8]}", MODEL, "openai") is False
+
+    # Transcription remains available through the exact pair route.
+    audio_route = handler._local_audio_routes[(provider.id, MODEL)]
+    assert audio_route["supports_chat"] is False
+    assert audio_route["supports_transcription"] is True
+    assert audio_route["audio_input_cost_per_second_usd"] == 0.0
+    assert audio_route["client"].kwargs["base_url"] == provider.base_url
+
+
+def test_local_only_recognizes_exact_audio_only_route(monkeypatch, ledger):
+    """Local-only evidence includes the admitted audio-only pair, exactly.
+
+    An audio-only provider deliberately has no chat route, so the guard must
+    be given the exact full-pair audio record instead of inferring locality
+    from a model name or an unrelated chat entry.
+    """
+    attempts, settlements = ledger
+    _forbid_global_pricing(monkeypatch)
+    calls = []
+    route = _route(supports_chat=False)
+    local = _AudioClient(SimpleNamespace(text="audio only"), calls)
+    route.update({"client": local, "async_client": local,
+                  "tenant_id": "tenant-a"})
+
+    handler = _handler(routes={}, clients={"openai": _ExplodingCloudClient()})
+    handler._local_audio_routes = {(PROVIDER_ID, MODEL): route}
+    handler._local_audio_routes_loaded = True
+
+    seen = {}
+
+    def _guard(provider, evidence=None):
+        seen["provider"] = provider
+        seen["evidence"] = evidence
+        return False
+
+    monkeypatch.setattr(bh, "_local_only_blocks_provider", _guard)
+
+    result = asyncio.run(handler.generate_transcription(
+        file=io.BytesIO(_wav_bytes(1.0)), model=MODEL,
+        local_provider_id=PROVIDER_ID))
+
+    assert result["text"] == "audio only"
+    assert seen["provider"] == PROVIDER_KEY
+    evidence = seen["evidence"]
+    assert evidence[(PROVIDER_ID, MODEL)] is route
+    assert evidence[(PROVIDER_ID, MODEL)]["provider_id"] == PROVIDER_ID
+    assert len(calls) == 1
+    assert attempts and settlements
+
+
+def test_audio_only_route_is_never_admitted_for_chat():
+    """Explicit chat selection cannot override an audio-only declaration."""
+    route = _route(supports_chat=False)
+    handler = _handler(
+        routes={MODEL: route},
+        policy=SimpleNamespace(allows=lambda provider, model: True))
+    handler._local_audio_routes = {(PROVIDER_ID, MODEL): route}
+    handler._local_audio_routes_loaded = True
+
+    assert handler._dispatch_catalog_admits(
+        PROVIDER_KEY, MODEL, PROVIDER_KEY) is False
+    assert handler._reconcile_ranked_routes([(PROVIDER_KEY, MODEL)]) == []
+
+
+def _install_loader_doubles(monkeypatch, providers, caps_by_provider):
+    """A realistic LocalModelProvider/Capabilities read for the loader.
+
+    The capability query is answered per ``provider_id`` criterion, exactly
+    like the real loader's per-provider filter, so multi-registration cases
+    cannot accidentally see another provider's rows.
+    """
+    import core.database as db_module
+    import core.models as models
+
+    class _Query:
+        def __init__(self, entity, rows):
+            self.entity = entity
+            self._rows = rows
+            self.criteria = []
+
+        def filter(self, *args, **kwargs):
+            assert not kwargs
+            self.criteria.extend(args)
+            return self
+
+        def all(self):
+            for criterion in self.criteria:
+                if criterion[:2] == ("eq", "provider_id"):
+                    return list(caps_by_provider.get(criterion[2], []))
+            return list(self._rows)
+
+    class _Session:
+        def query(self, entity):
+            if entity is _ProviderModel:
+                return _Query(entity, providers)
+            assert entity is _CapabilityModel
+            return _Query(entity, [])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class _Fetcher:
+        pricing_cache = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(models, "LocalModelProvider", _ProviderModel)
+    monkeypatch.setattr(models, "LocalModelCapabilities", _CapabilityModel)
+    monkeypatch.setattr(db_module, "get_db_session", lambda: _Session())
+    monkeypatch.setattr(bh, "get_pricing_fetcher", lambda: _Fetcher())
+    monkeypatch.setattr(bh, "OpenAI", _Client)
+    monkeypatch.setattr(bh, "AsyncOpenAI", _Client)
+
+
+def test_loader_built_audio_only_pair_rejects_normal_chat_override(monkeypatch):
+    """The pair index blocks the CHAT alias, not just the durable UUID.
+
+    An audio-only row is omitted from the Chat map, so the pair index is the
+    ONLY evidence the chat gate has. The caller names the normal scoped alias
+    (``local_<id[:8]>``) with an explicit override; that override must still
+    be rejected.
+    """
+    provider = SimpleNamespace(
+        id="feedface-1111-2222-3333-444455556666",
+        name="Audio only", provider_type="openai-compatible",
+        api_key=None, base_url="http://127.0.0.1:9200/v1",
+        workspace_id="ws-a", tenant_id="tenant-a", is_active=True)
+    capability = SimpleNamespace(
+        provider_id=provider.id, model_id=MODEL,
+        supports_tools=False, supports_vision=False, supports_reasoning=False,
+        supports_chat=False, supports_transcription=True,
+        audio_input_cost_per_second_usd=0.0,
+        quality_score=0.5, context_window=8192)
+    _install_loader_doubles(
+        monkeypatch, [provider], {provider.id: [capability]})
+
+    handler = _handler(
+        policy=SimpleNamespace(allows=lambda provider, model: True))
+    handler._load_local_providers()
+
+    alias = f"local_{provider.id[:8]}"
+    # The row was omitted from every Chat source; only the pair remains.
+    assert MODEL not in handler._local_routes
+    assert (provider.id, MODEL) in handler._local_audio_routes
+    # The ordinary Chat alias resolves to that audio-only pair.
+    assert handler._local_route_is_audio_only(alias, MODEL) is True
+    assert handler._dispatch_catalog_admits(
+        alias, MODEL, alias, explicit_route=True) is False
+    assert handler._reconcile_ranked_routes([(alias, MODEL)]) == []
+
+
+def test_colliding_chat_alias_fails_closed_while_pair_audio_survives(
+        monkeypatch):
+    """A display-key collision closes chat for that alias, never audio.
+
+    Two registrations serve the same model under the same truncated key: one
+    declares chat, the other is audio-only. The shared Chat alias must fail
+    closed, while transcription still resolves each durable pair's own route.
+    """
+    provider_a = SimpleNamespace(
+        id="abcdef12-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        name="Chat local", provider_type="openai-compatible",
+        api_key=None, base_url="http://127.0.0.1:9101/v1",
+        workspace_id="ws-a", tenant_id="tenant-a", is_active=True)
+    provider_b = SimpleNamespace(
+        id="abcdef12-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        name="Audio local", provider_type="openai-compatible",
+        api_key=None, base_url="http://127.0.0.1:9102/v1",
+        workspace_id="ws-a", tenant_id="tenant-a", is_active=True)
+    chat_cap = SimpleNamespace(
+        provider_id=provider_a.id, model_id=MODEL,
+        supports_tools=True, supports_vision=False, supports_reasoning=False,
+        supports_chat=True, supports_transcription=False,
+        audio_input_cost_per_second_usd=None,
+        quality_score=0.8, context_window=8192)
+    audio_cap = SimpleNamespace(
+        provider_id=provider_b.id, model_id=MODEL,
+        supports_tools=False, supports_vision=False, supports_reasoning=False,
+        supports_chat=False, supports_transcription=True,
+        audio_input_cost_per_second_usd=0.5,
+        quality_score=0.6, context_window=8192)
+    _install_loader_doubles(
+        monkeypatch, [provider_a, provider_b],
+        {provider_a.id: [chat_cap], provider_b.id: [audio_cap]})
+
+    handler = _handler(
+        policy=SimpleNamespace(allows=lambda provider, model: True))
+    handler._load_local_providers()
+
+    alias = f"local_{provider_a.id[:8]}"
+    assert alias == f"local_{provider_b.id[:8]}"
+    # Chat keeps the chat-capable registration ...
+    assert handler._local_routes[MODEL]["provider_id"] == provider_a.id
+    # ... but the colliding alias is closed for chat under this model.
+    assert handler._local_route_is_audio_only(alias, MODEL) is True
+    assert handler._dispatch_catalog_admits(
+        alias, MODEL, alias, explicit_route=True) is False
+    # Pair-keyed audio dispatch still selects the audio registration itself.
+    dispatched, client, rate = handler._local_transcription_dispatch(
+        model=MODEL, local_provider_id=provider_b.id)
+    assert dispatched == alias
+    assert client is handler._local_audio_routes[
+        (provider_b.id, MODEL)]["async_client"]
+    assert rate == 0.5
+
+
+def test_missing_supports_chat_key_keeps_legacy_chat_eligibility():
+    """Routes/rows predating the field remain chat-capable (default true)."""
+    legacy = _route()
+    legacy.pop("supports_chat")
+    handler = _handler(
+        routes={MODEL: legacy},
+        policy=SimpleNamespace(allows=lambda provider, model: True))
+    handler._local_audio_routes = {(PROVIDER_ID, MODEL): legacy}
+    handler._local_audio_routes_loaded = True
+
+    assert handler._local_route_is_audio_only(PROVIDER_KEY, MODEL) is False
+    assert handler._local_served_models(PROVIDER_KEY) == [MODEL]
 
 
 def test_transcription_entry_points_expose_local_provider_id():

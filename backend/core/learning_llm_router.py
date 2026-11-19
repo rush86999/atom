@@ -2820,8 +2820,18 @@ class LearningBasedRouter:
                         LocalModelCapabilities.provider_id == provider.id
                     ).all()
 
-                    if caps:
-                        for cap in caps:
+                    # CHAT-ONLY REGISTRY: an explicit ``supports_chat = false``
+                    # row declares the model AUDIO-ONLY, so it must never enter
+                    # the chat re-ranking registry. Missing/None keeps the
+                    # historical default (chat-capable) for legacy rows that
+                    # predate the column.
+                    chat_caps = [
+                        cap for cap in caps
+                        if getattr(cap, "supports_chat", True) is not False
+                    ]
+
+                    if chat_caps:
+                        for cap in chat_caps:
                             cap_list = []
                             if cap.supports_tools:
                                 cap_list.append("tool_use")
@@ -2840,9 +2850,12 @@ class LearningBasedRouter:
                                 "context_window": cap.context_window or 8192,
                                 "tier": "budget",
                             })
-                    else:
+                    elif not caps:
                         # Provider has no configured capabilities — register
                         # with defaults so it at least appears in the registry.
+                        # A provider whose rows are ALL audio-only deliberately
+                        # gets nothing: a generic placeholder would re-open the
+                        # chat path for a transcription-only provider.
                         model_defs.append({
                             "model_id": f"{provider.provider_type}_default",
                             "provider": provider.provider_type,

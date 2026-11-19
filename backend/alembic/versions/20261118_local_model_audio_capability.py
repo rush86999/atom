@@ -1,6 +1,10 @@
 """local model audio transcription capability + per-second audio rate
 
 Adds the settings prerequisite for signed-in local transcription:
+- ``supports_chat``: explicit per-model chat opt-in, NOT NULL, default true.
+  Existing rows, legacy submissions and mixed chat+audio vendors keep their
+  historical chat eligibility. False marks an audio-only model that is used
+  only through the transcription route and never for chat.
 - ``supports_transcription``: explicit per-model opt-in, NOT NULL, default
   false. Existing rows are backfilled to disabled.
 - ``audio_input_cost_per_second_usd``: nullable USD-per-second audio input
@@ -56,6 +60,18 @@ def upgrade() -> None:
     _require_table(_TABLE)
 
     with op.batch_alter_table(_TABLE) as batch:
+        if not _column_exists(_TABLE, "supports_chat"):
+            # TRUE for every existing row: the audio-only distinction did not
+            # exist before this revision, so no stored model was audio-only.
+            batch.add_column(sa.Column(
+                "supports_chat",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.true(),
+            ))
+        else:
+            print("    [skip] supports_chat already exists")
+
         if not _column_exists(_TABLE, "supports_transcription"):
             batch.add_column(sa.Column(
                 "supports_transcription",
@@ -84,3 +100,5 @@ def downgrade() -> None:
             batch.drop_column("audio_input_cost_per_second_usd")
         if _column_exists(_TABLE, "supports_transcription"):
             batch.drop_column("supports_transcription")
+        if _column_exists(_TABLE, "supports_chat"):
+            batch.drop_column("supports_chat")

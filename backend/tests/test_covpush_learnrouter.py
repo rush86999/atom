@@ -597,6 +597,60 @@ class TestFeatureExtraction:
         assert ex2.estimated_tokens == 0
 
 
+class _LocalModelsQuery:
+    """Entity-aware query double for load_local_models_into_registry."""
+
+    def __init__(self, rows):
+        self._rows = list(rows)
+        self.criteria = []
+
+    def filter(self, *args, **kwargs):
+        assert not kwargs
+        self.criteria.extend(args)
+        return self
+
+    def all(self):
+        return list(self._rows)
+
+
+class _LocalCapabilityQuery(_LocalModelsQuery):
+    """Answer the capability read for the provider named by the filter."""
+
+    def __init__(self, caps_by_provider):
+        super().__init__([])
+        self._caps_by_provider = caps_by_provider
+
+    def all(self):
+        provider_id = None
+        for criterion in self.criteria:
+            provider_id = getattr(
+                getattr(criterion, "right", None), "value", None)
+            if provider_id is not None:
+                break
+        return list(self._caps_by_provider.get(provider_id, []))
+
+
+class _LocalModelsSession:
+    """Realistic session: providers once, then that provider's own rows."""
+
+    def __init__(self, providers, caps_by_provider):
+        self._providers = providers
+        self._caps_by_provider = caps_by_provider
+
+    def query(self, entity):
+        from core.models import LocalModelProvider
+
+        if entity is LocalModelProvider:
+            return _LocalModelsQuery(self._providers)
+        return _LocalCapabilityQuery(self._caps_by_provider)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 class TestStatisticsAndExport:
     """Statistics, export, registry updates."""
 
@@ -673,6 +727,66 @@ class TestStatisticsAndExport:
         cm.__enter__.side_effect = RuntimeError("secret")
         with patch("core.database.get_db_session", return_value=cm):
             assert router.load_local_models_into_registry() == 0
+
+    def test_load_local_models_skips_audio_only_rows_keeps_legacy(self, router):
+        """Explicit ``supports_chat=False`` rows never enter the chat registry.
+
+        A row that predates the column (attribute absent) keeps its historical
+        chat eligibility, so only the audio-only declaration is skipped.
+        """
+        provider = SimpleNamespace(
+            id="p-voice", provider_type="ollama", name="Local",
+            workspace_id="default", is_active=True)
+        legacy_chat = SimpleNamespace(
+            model_id="legacy-chat", supports_tools=True,
+            supports_vision=False, supports_reasoning=True,
+            quality_score=0.6, speed_score=0.7, context_window=8192)
+        audio_only = SimpleNamespace(
+            model_id="voice-only", supports_tools=False,
+            supports_vision=False, supports_reasoning=False,
+            supports_chat=False, quality_score=0.7, speed_score=0.8,
+            context_window=4096)
+        session = _LocalModelsSession(
+            [provider], {provider.id: [legacy_chat, audio_only]})
+
+        with patch("core.database.get_db_session", return_value=session):
+            added = router.load_local_models_into_registry()
+
+        assert added == 1
+        assert "legacy-chat" in router._model_registry
+        assert "voice-only" not in router._model_registry
+
+    def test_load_local_models_audio_only_provider_gets_no_generic_entry(
+            self, router):
+        """A provider with only audio rows is not re-opened by a placeholder."""
+        provider = SimpleNamespace(
+            id="p-audio", provider_type="whisperbox", name="Audio box",
+            workspace_id="default", is_active=True)
+        audio_only = SimpleNamespace(
+            model_id="voice-only", supports_tools=False,
+            supports_vision=False, supports_reasoning=False,
+            supports_chat=False, quality_score=0.7, speed_score=0.8,
+            context_window=4096)
+        session = _LocalModelsSession(
+            [provider], {provider.id: [audio_only]})
+
+        with patch("core.database.get_db_session", return_value=session):
+            assert router.load_local_models_into_registry() == 0
+
+        assert "whisperbox_default" not in router._model_registry
+        assert "voice-only" not in router._model_registry
+
+    def test_load_local_models_provider_without_rows_keeps_default(self, router):
+        """Legacy providers with no capability rows still get their default."""
+        provider = SimpleNamespace(
+            id="p-empty", provider_type="localai", name="Empty box",
+            workspace_id="default", is_active=True)
+        session = _LocalModelsSession([provider], {})
+
+        with patch("core.database.get_db_session", return_value=session):
+            assert router.load_local_models_into_registry() == 1
+
+        assert "localai_default" in router._model_registry
 
     def test_get_learning_router_factory(self):
         router = get_learning_router(Mock())
