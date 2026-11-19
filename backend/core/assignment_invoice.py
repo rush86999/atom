@@ -1430,11 +1430,36 @@ def _native_canvas_mismatches(
     return mismatches
 
 
+def _invoice_identity_gap(reason: str, checked: str) -> None:
+    raise NeedsContext({
+        "concept": "invoice_identity",
+        "reason": reason,
+        "question": "Which invoice should the payment reminder reference?",
+        "next_retrieval": "resume the persisted invoice lookup",
+        "checked_evidence": [checked],
+        "kind": "missing_evidence",
+    })
+
+
 async def _invoice_prepare_reminder(
     inputs: Dict[str, Any], context: Dict[str, Any],
 ) -> Dict[str, Any]:
-    invoice_number = _text(inputs.get("invoice_number"))
-    if not invoice_number:
+    # A stock plan may bind the invoice id resolved from its durable lookup.
+    # The id is only a constraint; the scoped ledger lookup below remains the
+    # authority.  Callers without the constraint keep historical behaviour.
+    expected_invoice = "expected_invoice_id" in inputs
+    expected_invoice_id = inputs.get("expected_invoice_id")
+    if expected_invoice and (
+            type(expected_invoice_id) is not str
+            or not expected_invoice_id.strip()):
+        _invoice_identity_gap(
+            "the expected invoice id is not a nonblank exact string",
+            "expected_invoice_id=invalid")
+
+    invoice_number = (
+        _raw_text(inputs.get("invoice_number")) if expected_invoice
+        else _text(inputs.get("invoice_number")))
+    if not invoice_number.strip():
         raise NeedsContext({
             "concept": "invoice_identity",
             "reason": "the reminder step has no invoice number",
@@ -1490,6 +1515,15 @@ async def _invoice_prepare_reminder(
             invoice_number=invoice_number,
         )
 
+    if expected_invoice:
+        evidence = reminder.get("evidence")
+        evidence = evidence if isinstance(evidence, Mapping) else {}
+        if evidence.get("invoice_id") != expected_invoice_id:
+            _invoice_identity_gap(
+                "the resolved invoice id does not match the expected "
+                "invoice id",
+                "expected_invoice_id=mismatch")
+
     # Compose through the executor's canonical local draft assembly so the
     # revision, teaching protocol, and draft-only flags match email.draft.
     from core.assignment_executor import _email_draft
@@ -1509,7 +1543,10 @@ async def _invoice_prepare_reminder(
     invoice_ref = {
         "kind": "invoice",
         "resource_id": _text(invoice.get("invoice_id")) or invoice_number,
-        "invoice_number": _text(invoice.get("invoice_number")) or invoice_number,
+        "invoice_number": (
+            _raw_text(invoice.get("invoice_number")) if expected_invoice
+            else _text(invoice.get("invoice_number"))
+        ) or invoice_number,
         "source": _text(invoice.get("source")),
         "source_table": _text(invoice.get("source_table")),
         "workspace_id": _text(invoice.get("workspace_id")) or workspace_id,
