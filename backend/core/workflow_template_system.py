@@ -300,15 +300,27 @@ class WorkflowTemplateManager:
                                     template_id: str,
                                     workflow_name: str,
                                     template_parameters: Dict[str, Any],
-                                    customizations: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Create a new workflow from a template with parameters"""
+                                    customizations: Optional[Dict[str, Any]] = None,
+                                    require_all_inputs: bool = True) -> Dict[str, Any]:
+        """Create a new workflow from a template with parameters.
+
+        ``require_all_inputs=False`` is for draft/import paths: supplied values
+        are still validated, but required inputs without a supplied value or
+        default are left unresolved so an editable copy can be persisted
+        before the editor collects run values. Runtime instantiation keeps the
+        default strict behaviour.
+        """
         template = self.get_template(template_id)
         if not template:
             raise ValueError(f"Template {template_id} not found")
 
         try:
             # Validate template parameters
-            validated_params = self._validate_template_parameters(template, template_parameters)
+            validated_params = self._validate_template_parameters(
+                template,
+                template_parameters,
+                require_all=require_all_inputs,
+            )
 
             # Generate workflow definition (one stable id for the instance
             # and its registered definition).
@@ -428,8 +440,16 @@ class WorkflowTemplateManager:
             "highest_rated_templates": sorted([t for t in self.templates.values() if t.review_count > 0], key=lambda t: t.rating, reverse=True)[:5]
         }
 
-    def _validate_template_parameters(self, template: WorkflowTemplate, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate parameters against template requirements"""
+    def _validate_template_parameters(self,
+                                      template: WorkflowTemplate,
+                                      parameters: Dict[str, Any],
+                                      require_all: bool = True) -> Dict[str, Any]:
+        """Validate parameters against template requirements.
+
+        With ``require_all=False`` (draft import), a required parameter without
+        a supplied value or default is left as ``None`` instead of raising;
+        supplied values still go through type validation.
+        """
         validated = {}
 
         for param in template.inputs:
@@ -440,7 +460,7 @@ class WorkflowTemplateManager:
             if param.required and param_value is None:
                 if param.default_value is not None:
                     param_value = param.default_value
-                else:
+                elif require_all:
                     raise ValueError(f"Required parameter '{param_name}' is missing")
 
             # Use default value if not provided
