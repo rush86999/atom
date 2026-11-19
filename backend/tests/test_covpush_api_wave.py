@@ -1307,9 +1307,10 @@ class TestWorkflowEndpointsCoverage:
                               "version": "1", "steps": [{"action": "terminal_command"}]}])
         assert c.post("/api/v1/workflows/workflows/wf-crit/execute").status_code == 403
 
-    def test_template_definition_lookup(self, monkeypatch):
+    def test_template_definition_lookup(self, db_session):
         from core import workflow_endpoints as we
-        assert we._load_template_definition("missing") is None
+        assert we._load_template_definition(
+            "missing", SimpleNamespace(id="u1"), db_session) is None
 
     def test_resume_workflow(self, app, wf_file):
         from core import workflow_endpoints as we
@@ -2140,7 +2141,7 @@ class TestWorkflowEndpointsLastGaps:
         monkeypatch.setattr(we, "WORKFLOWS_FILE", "/dev/null")
         assert we.load_workflows() == []
 
-    def test_template_error_and_edit_reasoning(self, app, wf_file):
+    def test_template_error_and_edit_reasoning(self, app, wf_file, db_session):
         from core import workflow_endpoints as we
         app._role_holder["role"] = "team_lead"
         c = TestClient(app, raise_server_exceptions=False)
@@ -2168,7 +2169,8 @@ class TestWorkflowEndpointsLastGaps:
             resp = c.post("/api/v1/workflows/workflows/wf-1/edit", json={"command": "add a slack step"})
         assert "AI reasoning: because reasons" in resp.json()["message"]
         # template lookup error path
-        assert we._load_template_definition("t1") is None
+        assert we._load_template_definition(
+            "t1", SimpleNamespace(id="u1"), db_session) is None
 
     def test_engine_error_and_db_error_paths(self, app, wf_file, monkeypatch):
         from core import workflow_endpoints as we
@@ -2315,23 +2317,24 @@ class TestWorkflowEndpointsLastGaps2:
         monkeypatch.setattr(builtins, "open", Mock(side_effect=PermissionError("denied")))
         assert we.load_workflows() == []
 
-    def test_template_definition_rows(self, monkeypatch, db_session):
+    def test_template_definition_rows(self, db_session):
         from core import workflow_endpoints as we
         _seed_tenant_user(db_session)
+        user = SimpleNamespace(id="user-1")
 
-        def _gen():
-            yield db_session
-
-        monkeypatch.setattr(we, "get_db", _gen)
-        assert we._load_template_definition("missing") is None
+        assert we._load_template_definition(
+            "missing", user, db_session) is None
         from core.models import WorkflowTemplate
         db_session.add(WorkflowTemplate(
             id="tpl-1", name="T", description="D", steps=[{"id": "s1"}],
             author_id="user-1", category="ops", icon="rocket",
         ))
         db_session.commit()
-        found = we._load_template_definition("tpl-1")
+        found = we._load_template_definition("tpl-1", user, db_session)
         assert found["name"] == "T" and found["steps"] == [{"id": "s1"}]
+        # Another user's private row is not visible.
+        assert we._load_template_definition(
+            "tpl-1", SimpleNamespace(id="other-user"), db_session) is None
 
     def test_edit_no_reasoning_message(self, app, wf_file):
         from core import workflow_endpoints as we

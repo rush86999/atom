@@ -398,7 +398,11 @@ def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     return workflow
 
 
-def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
+def _load_template_definition(
+    workflow_id: str,
+    user: Optional[User] = None,
+    db: Optional[Session] = None,
+) -> Optional[Dict[str, Any]]:
     """Resolve a DB template (``WorkflowTemplate``) into an executable definition.
 
     The UI lists templates from template stores and executes them via
@@ -407,18 +411,26 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
     resolvers run in order:
 
     * the DB ``WorkflowTemplate`` table (editor/imported templates keyed
-      on the UUID ``id`` column);
+      on the UUID ``id`` column), scoped to the same visibility policy as
+      ``GET /api/user/templates``: the author's own rows plus public rows.
+      A private row belonging to another user is treated as absent (404);
     * the file-backed template system — the rows ``GET
       /api/workflow-templates`` serves, with ids like
       ``template_personal_candidate_pipeline``. This is the store the
       Workflows page's "Use Template → Execute" flow posts, which 404'd
       here (issue #618).
-    """
-    try:
-        from core.models import WorkflowTemplate
 
-        db = next(get_db())
+    DB resolution uses the request ``db`` supplied by the execute/schedule
+    callers; it never opens its own session. ``user`` is optional: without
+    an actor (legacy jobs with no frozen user) only public rows resolve,
+    while private rows stay absent (404) exactly as for an unrelated user.
+    If ``db`` is absent the DB lookup is skipped (fail-closed), while the
+    file-backed catalog remains available as before.
+    """
+    if db is not None:
         try:
+            from core.models import WorkflowTemplate
+
             # The ORM WorkflowTemplate keys on `id` (a UUID PK) —
             # `template_id` lives on the file-backed template system, not
             # this model.
@@ -428,6 +440,17 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
                 .first()
             )
             if template is not None:
+                # Same policy as the user-template listing: public rows plus
+                # the author's own rows. A hidden row must stop here rather
+                # than falling through to a same-id file-backed template.
+                current_user_id = getattr(user, "id", None)
+                visible = bool(getattr(template, "is_public", False))
+                if current_user_id and (
+                        getattr(template, "author_id", None)
+                        == current_user_id):
+                    visible = True
+                if not visible:
+                    return None
                 return {
                     "id": template.id,
                     "name": template.name,
@@ -437,10 +460,9 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
                     # to catalog templates, not to ordinary stored workflows.
                     "_template_catalog": True,
                 }
-        finally:
-            db.close()
-    except Exception as e:
-        logger.error(f"Failed to resolve template definition '{workflow_id}': {e}")
+        except Exception as e:
+            logger.error(
+                f"Failed to resolve template definition '{workflow_id}': {e}")
 
     # File-backed template system. Steps carry the engine's execution
     # contract natively (service/action/parameters — see
@@ -2367,7 +2389,9 @@ async def execute_workflow(
     if not workflow:
         # UI templates (DB WorkflowTemplate) execute through this endpoint;
         # resolve them on the fly so "Use Template → Execute" works end to end.
-        workflow = _load_template_definition(workflow_id)
+        # Pass the request principal and session so the resolver applies the
+        # same own-or-public visibility policy as the template listing.
+        workflow = _load_template_definition(workflow_id, user, db)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
@@ -3086,7 +3110,9 @@ async def schedule_workflow(
     if not workflow:
         # DB templates (WorkflowTemplate) live outside workflows.json — the
         # same fallback execute_workflow uses, so templates are schedulable.
-        workflow = _load_template_definition(workflow_id)
+        # Pass the request principal and session so private rows from another
+        # user cannot be scheduled (and are reported as not found).
+        workflow = _load_template_definition(workflow_id, user, db)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     deployment = workflow.get("deployment")
