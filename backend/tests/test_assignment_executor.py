@@ -4700,3 +4700,233 @@ def test_approval_clears_the_matching_human_input_wait(env, monkeypatch):
     completed = _run(executor.execute(run_id))
     assert completed["assignment"]["status"] == "completed", completed
     assert len(outbox.read_text().strip().splitlines()) == 1
+
+
+# ---------------------------------------------------------------------------
+# Stock invoice owner handoff trigger reconciliation
+# ---------------------------------------------------------------------------
+
+
+def _local_stock_trigger_plan(invoice_number="INV-STOCK-TRIGGER"):
+    from core.invoice_reminder_plan import build_invoice_reminder_plan
+
+    plan = build_invoice_reminder_plan(
+        invoice_number=invoice_number,
+        user_id="user-1",
+        workspace_id="ws_assign",
+        tenant_id="tenant_assign",
+    )
+    plan["assignment_id"] = plan.get("assignment_id") or "assignment-stock"
+    return plan
+
+
+def _local_stock_trigger_record(plan):
+    assignment = copy.deepcopy(plan)
+    assignment_id = assignment["assignment_id"]
+    steps = {step["step_id"]: step for step in assignment["steps"]}
+    send_operation_id = "stock-send-operation"
+    reply_operation_id = "stock-reply-operation"
+    reply_message_id = "stock-reply-message"
+    steps["lookup"].update({
+        "status": "applied",
+        "result": {"data": {"invoice_number": "INV-STOCK-TRIGGER"}},
+    })
+    steps["prepare"].update({"status": "applied"})
+    steps["send"].update({
+        "status": "applied",
+        "operation_id": send_operation_id,
+    })
+    steps["reply"].update({
+        "status": "applied",
+        "operation_id": reply_operation_id,
+        "result": {
+            "data": {
+                "operation_id": send_operation_id,
+                "reply_operation_id": reply_operation_id,
+                "reply_message_id": reply_message_id,
+                "invoice_number": "INV-STOCK-TRIGGER",
+            },
+        },
+        "evidence_refs": [{
+            "kind": "invoice_reply",
+            "verified": True,
+            "reply_seen": True,
+            "operation_id": send_operation_id,
+            "reply_operation_id": reply_operation_id,
+            "reply_message_id": reply_message_id,
+            "invoice_number": "INV-STOCK-TRIGGER",
+        }],
+    })
+    steps["commitment"].update({
+        "status": "applied",
+        "result": {"data": {
+            "resolution": "owner_attention",
+            "verdict": "no_commitment",
+            "revision": 2,
+            "current_revision": 2,
+            "requires_owner_attention": True,
+            "source": {
+                "operation_id": send_operation_id,
+                "reply_operation_id": reply_operation_id,
+                "reply_message_id": reply_message_id,
+                "invoice_number": "INV-STOCK-TRIGGER",
+            },
+        }},
+    })
+    operations = [{
+        "operation_id": send_operation_id,
+        "assignment_id": assignment_id,
+        "step_id": "send",
+        "adapter": "invoice.send_reminder",
+        "operation_type": "outbound",
+        "status": "applied",
+    }, {
+        "operation_id": reply_operation_id,
+        "assignment_id": assignment_id,
+        "step_id": "reply",
+        "adapter": "invoice.wait_for_reply",
+        "operation_type": "retrieve",
+        "status": "applied",
+    }]
+    record = {
+        "task_revision": {"authorization": "execute"},
+        "operations": operations,
+    }
+    return record, assignment
+
+
+def test_stock_invoice_handoff_trigger_reply_expired():
+    from core.assignment_executor import _stock_invoice_owner_handoff_trigger
+
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    steps = {step["step_id"]: step for step in assignment["steps"]}
+    steps["reply"].update({
+        "status": "waiting",
+        "waiting": {
+            "event": "invoice_reply_expired",
+            "resume_on": "owner_decision",
+            "operation_id": "stock-send-operation",
+            "invoice_number": "INV-STOCK-TRIGGER",
+            "correlation_id": "invoice-reply:stock-send-operation",
+        },
+    })
+
+    info = _stock_invoice_owner_handoff_trigger(record, assignment)
+    assert info["trigger"]["event"] == "invoice_reply_expired"
+    assert info["trigger"]["source_operation_id"] == (
+        "stock-send-operation")
+    assert info["invoice_number"] == "INV-STOCK-TRIGGER"
+
+
+def test_stock_invoice_handoff_trigger_commitment_review_expired():
+    from core.assignment_executor import _stock_invoice_owner_handoff_trigger
+
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    steps = {step["step_id"]: step for step in assignment["steps"]}
+    steps["commitment"].update({
+        "status": "waiting",
+        "waiting": {
+            "event": "invoice_commitment_review_expired",
+            "resume_on": "owner_decision",
+            "wait_source": {
+                "operation_id": "stock-send-operation",
+                "reply_operation_id": "stock-reply-operation",
+                "reply_message_id": "stock-reply-message",
+            },
+            "invoice_number": "INV-STOCK-TRIGGER",
+        },
+    })
+
+    info = _stock_invoice_owner_handoff_trigger(record, assignment)
+    assert info["trigger"]["event"] == (
+        "invoice_commitment_review_expired")
+    assert info["trigger"]["reply_operation_id"] == (
+        "stock-reply-operation")
+    assert info["trigger"]["reply_message_id"] == "stock-reply-message"
+
+
+def test_stock_invoice_handoff_trigger_applied_no_commitment():
+    from core.assignment_executor import _stock_invoice_owner_handoff_trigger
+
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+
+    info = _stock_invoice_owner_handoff_trigger(record, assignment)
+    assert info["trigger"]["event"] == (
+        "invoice_commitment_no_commitment")
+    assert info["trigger"]["revision"] == 2
+    assert info["trigger"]["reply_message_id"] == "stock-reply-message"
+
+
+def test_stock_invoice_handoff_trigger_negative_controls():
+    from core.assignment_executor import _stock_invoice_owner_handoff_trigger
+
+    # Confirmed or unclear commitments never notify.
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    steps = {step["step_id"]: step for step in assignment["steps"]}
+    steps["commitment"]["result"]["data"].update({
+        "resolution": "commitment_confirmed",
+        "verdict": "confirmed",
+        "requires_owner_attention": False,
+    })
+    assert _stock_invoice_owner_handoff_trigger(record, assignment) is None
+
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    steps = {step["step_id"]: step for step in assignment["steps"]}
+    steps["commitment"].update({
+        "status": "waiting",
+        "waiting": {
+            "event": "invoice_commitment_review",
+            "resume_on": "reviewer_decision",
+        },
+    })
+    assert _stock_invoice_owner_handoff_trigger(record, assignment) is None
+
+    # Cancelled authority never notifies.
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    record["task_revision"]["authorization"] = "cancelled"
+    assert _stock_invoice_owner_handoff_trigger(record, assignment) is None
+
+    # A different plan shape or mismatched adapter is not the stock plan.
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    assignment["steps"][-1]["adapter"] = "invoice.other"
+    assert _stock_invoice_owner_handoff_trigger(record, assignment) is None
+
+    # Wrong source operation identity must not fall back to first-match.
+    record, assignment = _local_stock_trigger_record(_local_stock_trigger_plan())
+    record["operations"][0]["step_id"] = "reply"
+    assert _stock_invoice_owner_handoff_trigger(record, assignment) is None
+
+
+def test_stock_invoice_handoff_unrelated_skips_task_reread(env):
+    from core.assignment_executor import _STOCK_INVOICE_WORKFLOW_ID
+
+    calls = []
+
+    class _Lifecycle:
+        def get_task(self, run_id):
+            calls.append(run_id)
+            raise AssertionError("ineligible handoff must not reread task")
+
+    executor = env["executor"]
+    executor.lifecycle = _Lifecycle()
+    record = {
+        "run_id": "run-unrelated",
+        "task_revision": {"provenance": {
+            "workflow_id": "other_workflow",
+            "execution_id": "exec-unrelated",
+        }},
+    }
+    state = {}
+    _run(executor._reconcile_stock_invoice_owner_handoff(
+        "run-unrelated", record, {}, state))
+    assert calls == []
+    assert state == {}
+
+    # Matching workflow without a stock execution ID is also ineligible.
+    record["task_revision"]["provenance"] = {
+        "workflow_id": _STOCK_INVOICE_WORKFLOW_ID,
+    }
+    _run(executor._reconcile_stock_invoice_owner_handoff(
+        "run-unrelated", record, {}, state))
+    assert calls == []
+    assert state == {}

@@ -15,6 +15,7 @@ import json
 import sqlite3
 import uuid
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
@@ -28,10 +29,17 @@ from core.task_lifecycle import new_task_revision
 
 _WORKFLOW_ID = "htn_invoice_followup"
 _ACCOUNT_OWNER_CONTEXT_KEY = "_atom_account_owner_user_id"
+# One durable receipt lives beside the link.  It is written under a single
+# namespaced key so an execution context that carries unrelated state is never
+# replaced by the handoff path.
+_OWNER_HANDOFF_CONTEXT_KEY = "_atom_invoice_owner_handoff"
+_OWNER_HANDOFF_RECEIPT_KEY = _OWNER_HANDOFF_CONTEXT_KEY
+_OWNER_HANDOFF_CAS_ATTEMPTS = 5
 
 _OWNER_HANDOFF_TITLE = "Invoice owner handoff"
 _OWNER_HANDOFF_MESSAGE = (
     "Invoice {invoice_number} has been handed off to you for review.")
+_ACTOR_SCOPE_UNAVAILABLE = "actor_scope_unavailable"
 
 # A stable namespace keeps the goal and run ids reproducible from the
 # execution id alone.
@@ -691,11 +699,11 @@ def _read_owner_handoff_binding(
     run_id: str,
     invoice_number: str,
     identity: Dict[str, str],
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """Re-read and prove every durable fact needed to deliver the handoff.
 
-    This helper returns only copied strings.  Its transaction is closed before
-    the caller opens the notification transaction.
+    The returned facts and receipt are copies.  The read transaction is closed
+    before the caller opens the notification transaction.
     """
     with get_db_session() as session:
         row = session.query(WorkflowExecution).filter(
@@ -725,6 +733,11 @@ def _read_owner_handoff_binding(
         context = _json_object(
             row.context, "workflow execution context")
         owner_user_id = _bound_account_owner(context)
+        receipt = context.get(_OWNER_HANDOFF_CONTEXT_KEY)
+        if receipt is not None and not isinstance(receipt, Mapping):
+            # A malformed receipt is not delivery proof.  Treat it as absent;
+            # the CAS writer below keeps every other context key intact.
+            receipt = None
 
         return {
             "execution_id": execution_key,
@@ -733,6 +746,9 @@ def _read_owner_handoff_binding(
             "owner_user_id": owner_user_id,
             "tenant_id": identity["tenant_id"],
             "workspace_id": identity["workspace_id"],
+            "execution_status": getattr(row.status, "value", row.status),
+            "run_status": _field(run, "status"),
+            "receipt": copy.deepcopy(dict(receipt)) if receipt else None,
         }
 
 
@@ -789,10 +805,13 @@ async def deliver_stock_invoice_owner_handoff(
 
     The read transaction is released before a *separate* notification
     transaction calls the existing scoped ``NotificationService`` boundary.
-    That service rechecks current recipient usability.  The notification
-    material and operation id contain no trigger reason, mutable dates or other
-    changing state, so reply expiry, review expiry and reviewed-without-
-    commitment all converge on one deduplicated delivery.
+    That service rechecks current recipient usability.  Immediately before the
+    notification, the originating actor's current scope is also rechecked in
+    the same delivery transaction, so a deactivated actor cannot deliver a
+    handoff left pending by an earlier attempt.  The notification material and
+    operation id contain no trigger reason, mutable dates or other changing
+    state, so reply expiry, review expiry and reviewed-without-commitment all
+    converge on one deduplicated delivery.
 
     A delivered receipt requires the service's explicit ``success is True``,
     ``notification_id`` exactly equal to the operation id (the service uses it
@@ -821,6 +840,15 @@ async def deliver_stock_invoice_owner_handoff(
 
     try:
         with get_db_session() as send_session:
+            actor_scope_error = notification_service._workflow_scope_error(
+                send_session,
+                user_id=identity_values["user_id"],
+                workspace_id=identity_values["workspace_id"],
+                tenant_id=identity_values["tenant_id"],
+            )
+            if actor_scope_error:
+                return _owner_handoff_failure(
+                    operation_id, _ACTOR_SCOPE_UNAVAILABLE)
             service = notification_service.NotificationService(send_session)
             outcome = await service.send_workflow_notification(
                 user_id=facts["owner_user_id"],
@@ -860,3 +888,283 @@ async def deliver_stock_invoice_owner_handoff(
         operation_id=operation_id,
         created=created,
     )
+
+
+# ---------------------------------------------------------------------------
+# Durable pending/delivered receipt
+# ---------------------------------------------------------------------------
+
+
+def _utc_now_text() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _receipt_status(receipt: Any) -> str:
+    if not isinstance(receipt, Mapping):
+        return ""
+    return _text(receipt.get("status")).lower()
+
+
+def _receipt_trigger(receipt: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(receipt, Mapping):
+        return None
+    trigger = receipt.get("trigger")
+    if not isinstance(trigger, Mapping):
+        return None
+    return copy.deepcopy(dict(trigger))
+
+
+def _is_cancelled_status(value: Any) -> bool:
+    return _text(getattr(value, "value", value)).lower() == "cancelled"
+
+
+def _cas_owner_handoff_receipt(
+    execution_key: str,
+    mutate: Any,
+) -> Optional[Dict[str, Any]]:
+    """Lock/CAS-update only the handoff key on one execution context.
+
+    The fresh context is re-read inside the write transaction and every other
+    key is copied through unchanged.  A compare-and-swap on the exact prior
+    context keeps a concurrent unrelated context writer from being clobbered;
+    a conflict simply re-reads and re-applies the receipt mutation.
+    """
+    from sqlalchemy import update
+
+    for _attempt in range(_OWNER_HANDOFF_CAS_ATTEMPTS):
+        with get_db_session() as session:
+            query = session.query(WorkflowExecution).filter(
+                WorkflowExecution.execution_id == execution_key)
+            query = query.populate_existing()
+            try:
+                query = query.with_for_update()
+            except Exception:  # noqa: BLE001 - dialect without row locks
+                pass
+            row = query.first()
+            if row is None:
+                raise LookupError("workflow execution not found")
+
+            raw_context = row.context
+            context = _json_object(
+                raw_context, "workflow execution context")
+            current = context.get(_OWNER_HANDOFF_CONTEXT_KEY)
+            if current is not None and not isinstance(current, Mapping):
+                current = None
+
+            updated = mutate(
+                copy.deepcopy(dict(current)) if current is not None else None)
+            if updated is None:
+                session.rollback()
+                return (
+                    copy.deepcopy(dict(current))
+                    if current is not None else None)
+
+            context[_OWNER_HANDOFF_CONTEXT_KEY] = copy.deepcopy(updated)
+            new_context = json.dumps(
+                context, sort_keys=True, separators=(",", ":"))
+
+            if raw_context is not None and not isinstance(
+                    raw_context, (str, bytes, bytearray)):
+                # A JSON-typed column returns a decoded object.  The row is
+                # locked above, so write it back through the ORM.
+                row.context = context
+                session.commit()
+                return copy.deepcopy(updated)
+
+            condition = (
+                WorkflowExecution.context.is_(None)
+                if raw_context is None
+                else WorkflowExecution.context == raw_context)
+            result = session.execute(
+                update(WorkflowExecution)
+                .where(
+                    WorkflowExecution.execution_id == execution_key,
+                    condition,
+                )
+                .values(context=new_context))
+            if result.rowcount == 1:
+                session.commit()
+                return copy.deepcopy(updated)
+            session.rollback()
+
+    raise RuntimeError("owner handoff receipt update conflict")
+
+
+def _handoff_error_text(error: Any) -> str:
+    text = _text(error)
+    return text[:500] if text else "notification_failed"
+
+
+async def reconcile_stock_invoice_owner_handoff(
+    *,
+    execution_id: str,
+    run_id: str,
+    invoice_number: str,
+    identity: Any,
+    trigger: Optional[Mapping[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Record and deliver one stock-invoice owner handoff safely.
+
+    ``trigger`` is built only from the executor's persisted lifecycle facts.
+    The durable execution link, invoice intent and bound account owner are
+    re-read here through the same helpers used by direct delivery.  A pending
+    receipt is written before the notification effect; the effect runs outside
+    every transaction.  A delivered receipt is terminal, while an error leaves
+    a truthful retryable ``pending`` receipt for the next authorized advance.
+
+    Returning ``None`` means there was no trigger and no pending receipt to
+    recover (or the run is cancelled).  A returned receipt is the persisted
+    state after this attempt.
+    """
+    execution_key = _execution_key(execution_id)
+    expected_run_id = _run_id(execution_key)
+    run_key = _text(run_id)
+    if not run_key:
+        raise ValueError("goal run id is required")
+    if run_key != expected_run_id:
+        raise LookupError(
+            "goal run is not the deterministic stock invoice assignment run")
+    if not isinstance(invoice_number, str) or not invoice_number.strip():
+        raise ValueError("invoice_number is required")
+
+    identity_values = _identity_values(identity)
+    facts = _read_owner_handoff_binding(
+        execution_key, run_key, invoice_number, identity_values)
+
+    if _is_cancelled_status(facts.get("execution_status")) or \
+            _is_cancelled_status(facts.get("run_status")):
+        return copy.deepcopy(facts.get("receipt"))
+
+    operation_id = _owner_handoff_operation_id(
+        facts["execution_id"], facts["run_id"])
+    existing = facts.get("receipt")
+    if _receipt_status(existing) == "delivered":
+        return copy.deepcopy(existing)
+
+    first_trigger = _receipt_trigger(existing)
+    if first_trigger is None and isinstance(trigger, Mapping):
+        first_trigger = copy.deepcopy(dict(trigger))
+    if existing is None and first_trigger is None:
+        return None
+    if first_trigger is None:
+        # A pending receipt without its first source event is still retryable
+        # proof that the effect may have landed.  Keep the operation stable.
+        first_trigger = {}
+
+    now = _utc_now_text()
+
+    def mark_pending(current: Optional[Dict[str, Any]]):
+        receipt = dict(current or {})
+        if _receipt_status(receipt) == "delivered":
+            return None
+        receipt.setdefault("trigger", copy.deepcopy(first_trigger))
+        receipt.setdefault("first_source_event", copy.deepcopy(first_trigger))
+        receipt.setdefault(
+            "source_event", _text(first_trigger.get("event")))
+        receipt["operation_id"] = operation_id
+        receipt["status"] = "pending"
+        receipt["delivery_status"] = "pending"
+        receipt["pending"] = True
+        receipt["delivered"] = False
+        receipt["success"] = False
+        receipt["attempts"] = int(receipt.get("attempts") or 0) + 1
+        receipt["pending_at"] = receipt.get("pending_at") or now
+        receipt["last_attempt_at"] = now
+        receipt["last_error"] = None
+        receipt.pop("error", None)
+        return receipt
+
+    pending = _cas_owner_handoff_receipt(
+        execution_key, mark_pending)
+    if pending is None:
+        return None
+    if _receipt_status(pending) == "delivered":
+        return pending
+
+    try:
+        outcome = await deliver_stock_invoice_owner_handoff(
+            execution_id=execution_key,
+            run_id=run_key,
+            invoice_number=invoice_number,
+            identity=identity_values,
+        )
+    except Exception as exc:  # noqa: BLE001 - durable retry state
+        error_text = _handoff_error_text(exc)
+
+        def mark_error(current: Optional[Dict[str, Any]]):
+            receipt = dict(current or {})
+            if _receipt_status(receipt) == "delivered":
+                return None
+            receipt.setdefault("trigger", copy.deepcopy(first_trigger))
+            receipt.setdefault(
+                "first_source_event", copy.deepcopy(first_trigger))
+            receipt.setdefault(
+                "source_event", _text(first_trigger.get("event")))
+            receipt["operation_id"] = operation_id
+            receipt["status"] = "pending"
+            receipt["delivery_status"] = "pending"
+            receipt["pending"] = True
+            receipt["delivered"] = False
+            receipt["success"] = False
+            receipt["error"] = error_text
+            receipt["last_error"] = error_text
+            receipt["failed_at"] = _utc_now_text()
+            return receipt
+
+        return _cas_owner_handoff_receipt(execution_key, mark_error)
+
+    if not isinstance(outcome, Mapping) or outcome.get("delivered") is not True:
+        error_text = _handoff_error_text(
+            (outcome or {}).get("error")
+            if isinstance(outcome, Mapping) else None)
+
+        def mark_failure(current: Optional[Dict[str, Any]]):
+            receipt = dict(current or {})
+            if _receipt_status(receipt) == "delivered":
+                return None
+            receipt.setdefault("trigger", copy.deepcopy(first_trigger))
+            receipt.setdefault(
+                "first_source_event", copy.deepcopy(first_trigger))
+            receipt.setdefault(
+                "source_event", _text(first_trigger.get("event")))
+            receipt["operation_id"] = operation_id
+            receipt["status"] = "pending"
+            receipt["delivery_status"] = "pending"
+            receipt["pending"] = True
+            receipt["delivered"] = False
+            receipt["success"] = False
+            receipt["error"] = error_text
+            receipt["last_error"] = error_text
+            receipt["failed_at"] = _utc_now_text()
+            return receipt
+
+        return _cas_owner_handoff_receipt(execution_key, mark_failure)
+
+    notification_id = _text(outcome.get("notification_id"))
+    delivered_at = _utc_now_text()
+
+    def mark_delivered(current: Optional[Dict[str, Any]]):
+        receipt = dict(current or {})
+        if _receipt_status(receipt) == "delivered":
+            return None
+        receipt.setdefault("trigger", copy.deepcopy(first_trigger))
+        receipt.setdefault(
+            "first_source_event", copy.deepcopy(first_trigger))
+        receipt.setdefault(
+            "source_event", _text(first_trigger.get("event")))
+        receipt["operation_id"] = operation_id
+        receipt["notification_id"] = notification_id
+        receipt["status"] = "delivered"
+        receipt["delivery_status"] = "delivered"
+        receipt["pending"] = False
+        receipt["delivered"] = True
+        receipt["success"] = True
+        receipt["created"] = outcome.get("created") is True
+        receipt["duplicate"] = outcome.get("created") is not True
+        receipt["delivered_at"] = delivered_at
+        receipt["last_error"] = None
+        receipt.pop("error", None)
+        return receipt
+
+    return _cas_owner_handoff_receipt(
+        execution_key, mark_delivered)

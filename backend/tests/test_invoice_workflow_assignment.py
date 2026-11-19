@@ -922,3 +922,279 @@ def test_owner_handoff_unavailable_service_raises(scratch, monkeypatch):
             attached["run_id"],
             invoice_number,
         )
+
+
+# ---------------------------------------------------------------------------
+# Durable pending/delivered receipt and recovery
+# ---------------------------------------------------------------------------
+
+
+def _reconcile_stock_handoff_receipt(
+        execution_id, run_id, invoice_number, trigger):
+    return _run(iwa.reconcile_stock_invoice_owner_handoff(
+        execution_id=execution_id,
+        run_id=run_id,
+        invoice_number=invoice_number,
+        identity={
+            "tenant_id": TENANT_ID,
+            "workspace_id": WORKSPACE_ID,
+            "user_id": USER_ID,
+            "employee_id": USER_ID,
+        },
+        trigger=trigger,
+    ))
+
+
+def _read_stock_handoff_context(scratch, execution_id):
+    with scratch() as db:
+        context = _as_json(db.get(WorkflowExecution, execution_id).context)
+        return dict(context)
+
+
+def test_owner_handoff_receipt_is_pending_before_effect_and_keeps_context(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-RECEIPT"
+    execution_id = "exec-handoff-receipt"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        context = _as_json(row.context)
+        context["unrelated"] = {"keep": True}
+        row.context = json.dumps(context)
+        db.commit()
+
+    observed = []
+    calls = []
+
+    class ReceiptInspectingService:
+        def __init__(self, db_session=None):
+            self.db = db_session
+
+        async def send_workflow_notification(self, **kwargs):
+            calls.append(dict(kwargs))
+            observed.append(_read_stock_handoff_context(scratch, execution_id)[
+                iwa._OWNER_HANDOFF_CONTEXT_KEY])
+            return {
+                "success": True,
+                "notification_id": kwargs["operation_id"],
+                "created": True,
+                "emailed": False,
+                "error": None,
+            }
+
+    monkeypatch.setattr(
+        iwa.notification_service,
+        "NotificationService",
+        ReceiptInspectingService,
+    )
+
+    receipt = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {
+            "event": "invoice_reply_expired",
+            "step_id": "reply",
+            "source_operation_id": "send-op",
+        },
+    )
+
+    assert observed[0]["status"] == "pending"
+    assert observed[0]["trigger"]["event"] == "invoice_reply_expired"
+    assert receipt["status"] == "delivered"
+    assert receipt["notification_id"] == calls[0]["operation_id"]
+    stored = _read_stock_handoff_context(scratch, execution_id)
+    assert stored["unrelated"] == {"keep": True}
+    assert stored["run_id"] == attached["run_id"]
+    assert stored[iwa._OWNER_HANDOFF_CONTEXT_KEY]["status"] == "delivered"
+
+
+def test_owner_handoff_failure_recovers_and_preserves_first_event(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-RECOVER"
+    execution_id = "exec-handoff-recover"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: {
+            "success": attempt > 1,
+            "notification_id": (
+                kwargs["operation_id"] if attempt > 1 else None),
+            "created": attempt > 1,
+            "emailed": False,
+            "error": None if attempt > 1 else "temporarily_unavailable",
+        },
+    )
+
+    first = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"},
+    )
+    assert first["status"] == "pending"
+    assert first["delivered"] is False
+    assert first["error"] == "temporarily_unavailable"
+    assert first["attempts"] == 1
+
+    second = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_commitment_review_expired",
+         "step_id": "commitment"},
+    )
+    assert second["status"] == "delivered"
+    assert second["delivered"] is True
+    assert second["attempts"] == 2
+    assert len(calls) == 2
+    assert calls[0]["operation_id"] == calls[1]["operation_id"]
+    stored = _read_stock_handoff_context(scratch, execution_id)
+    assert stored[iwa._OWNER_HANDOFF_CONTEXT_KEY]["trigger"]["event"] == (
+        "invoice_reply_expired")
+    assert stored[iwa._OWNER_HANDOFF_CONTEXT_KEY][
+        "first_source_event"]["event"] == "invoice_reply_expired"
+
+    third = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_commitment_no_commitment"})
+    assert third["status"] == "delivered"
+    assert len(calls) == 2
+
+
+def test_owner_handoff_cancelled_or_unbound_run_has_no_effect(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-CANCELLED"
+    execution_id = "exec-handoff-cancelled"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(monkeypatch)
+
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        row.status = "CANCELLED"
+        db.commit()
+
+    assert _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired"},
+    ) is None
+    assert calls == []
+
+    invoice_number = "INV-HANDOFF-UNBOUND"
+    unbound_execution = "exec-handoff-unbound"
+    _add_execution(scratch, unbound_execution, invoice_number)
+    unbound = _attach(unbound_execution, invoice_number)
+    with pytest.raises(LookupError):
+        _reconcile_stock_handoff_receipt(
+            unbound_execution, unbound["run_id"], invoice_number,
+            {"event": "invoice_reply_expired"},
+        )
+    assert calls == []
+
+
+def test_owner_handoff_origin_actor_scope_loss_stays_pending(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-ACTOR-REVOKED"
+    execution_id = "exec-handoff-actor-revoked"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+
+    # The real fixture actor is an active row in the exact execution scope.
+    with scratch() as db:
+        assert iwa.notification_service._workflow_scope_error(
+            db,
+            user_id=USER_ID,
+            workspace_id=WORKSPACE_ID,
+            tenant_id=TENANT_ID,
+        ) is None
+
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: {
+            "success": False,
+            "notification_id": None,
+            "created": False,
+            "emailed": False,
+            "error": "temporarily_unavailable",
+        },
+    )
+
+    first = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"},
+    )
+    assert first["status"] == "pending"
+    assert first["delivered"] is False
+    assert first["attempts"] == 1
+    assert len(calls) == 1
+
+    # Only the originating actor loses scope; the bound recipient stays active.
+    with scratch() as db:
+        actor = db.get(User, USER_ID)
+        actor.is_active = False
+        db.commit()
+
+    with scratch() as db:
+        recipient = db.get(User, OWNER_ID)
+        assert getattr(
+            recipient.status, "value", recipient.status) == "active"
+        assert recipient.is_active is True
+        assert iwa.notification_service._workflow_scope_error(
+            db,
+            user_id=OWNER_ID,
+            workspace_id=WORKSPACE_ID,
+            tenant_id=TENANT_ID,
+        ) is None
+        assert iwa.notification_service._workflow_scope_error(
+            db,
+            user_id=USER_ID,
+            workspace_id=WORKSPACE_ID,
+            tenant_id=TENANT_ID,
+        ) is not None
+        context = _as_json(db.get(WorkflowExecution, execution_id).context)
+        assert context[iwa._ACCOUNT_OWNER_CONTEXT_KEY] == OWNER_ID
+        assert context[iwa._OWNER_HANDOFF_CONTEXT_KEY]["status"] == "pending"
+
+    # A fresh executor resume must not deliver the pending notification.
+    second = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_commitment_review_expired",
+         "step_id": "commitment"},
+    )
+
+    assert second["status"] == "pending"
+    assert second["delivered"] is False
+    assert second["success"] is False
+    assert second["error"] == "actor_scope_unavailable"
+    assert second["last_error"] == "actor_scope_unavailable"
+    assert second["attempts"] == 2
+    assert len(calls) == 1
+
+    stored = _read_stock_handoff_context(scratch, execution_id)
+    pending = stored[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert pending["status"] == "pending"
+    assert pending["delivery_status"] == "pending"
+    assert pending["delivered"] is False
+    assert pending["error"] == "actor_scope_unavailable"
+    assert pending["trigger"]["event"] == "invoice_reply_expired"
+    assert pending["first_source_event"]["event"] == "invoice_reply_expired"
+    assert stored[iwa._ACCOUNT_OWNER_CONTEXT_KEY] == OWNER_ID
+    assert stored["run_id"] == attached["run_id"]
+
+    direct = _deliver(execution_id, attached["run_id"], invoice_number)
+    assert direct["status"] == "failed"
+    assert direct["delivered"] is False
+    assert direct["success"] is False
+    assert direct["notification_id"] is None
+    assert direct["error"] == "actor_scope_unavailable"
+    assert len(calls) == 1
