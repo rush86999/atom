@@ -56,19 +56,100 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Reserved execution-input key carrying the authenticated caller's frozen
-# scope. It lives in the persisted execution input_data so a resumed worker
-# (including one in a new process) resolves the same tenant/workspace as the
-# request that started the run. Never read as a workflow parameter. The
-# constant is owned by the durable writer (core.execution_state_manager);
-# creation persists it only from an explicit trusted identity, never from a
-# caller-supplied copy.
-
 # Internal marker the dispatcher attaches to every step (regardless of the
 # primary service, so an ``ai`` fallback is covered too). It carries ONLY the
 # caller scope frozen into the persisted execution inputs; it is never read
 # from the workflow definition or params.
 AI_EXECUTION_SCOPE_KEY = "_atom_ai_execution_scope"
+
+# The single authoritative step identity/context attached by every dispatcher
+# path (linear and graph). It carries the real execution id, the real step id
+# and the caller identity frozen into the persisted execution inputs
+# (tenant/workspace/user). Definition-supplied copies and step parameters are
+# never consulted; the runner overwrites this marker on a run-local step.
+# Durable writers (e.g. the goal write and notification services) bind the
+# exact principal, scope and operation to this context only.
+EXECUTION_IDENTITY_KEY = "_atom_execution_identity"
+
+def _normalize_step_identity_context(value: Any) -> Dict[str, str]:
+    """Normalize the internal step context, including execution/step ids.
+
+    Only the dedicated marker is ever passed here. The identity portion is
+    limited to the same provable tenant/workspace/user tokens used by the
+    durable writer, and the execution/step ids are normalized as opaque
+    strings. Missing values are dropped rather than invented.
+    """
+    context = normalize_execution_identity(
+        value if isinstance(value, dict) else None)
+    if isinstance(value, dict):
+        for key in ("execution_id", "step_id"):
+            token = normalize_scope_token(value.get(key))
+            if token:
+                context[key] = token
+    return context
+
+
+def _step_identity_context(
+    execution_id: Any,
+    step_id: Any,
+    identity: Optional[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Build the authoritative context from server-owned run material.
+
+    ``identity`` is the trusted identity frozen into the persisted execution
+    inputs. ``execution_id``/``step_id`` are the real ids supplied by the
+    dispatcher, not values read from the definition or step parameters.
+    """
+    context = normalize_execution_identity(identity)
+    execution_token = normalize_scope_token(execution_id)
+    step_token = normalize_scope_token(step_id)
+    if execution_token:
+        context["execution_id"] = execution_token
+    if step_token:
+        context["step_id"] = step_token
+    return context
+
+
+def _attach_step_identity_context(
+    step: Dict[str, Any],
+    *,
+    execution_id: Any,
+    step_id: Any,
+    identity: Optional[Dict[str, Any]],
+    ai_scope: Optional[Dict[str, str]],
+    workspace_id: Optional[str],
+    tenant_id: Optional[str],
+) -> None:
+    """Install the one authoritative runtime context on a dispatched step.
+
+    Every definition/input claim of execution id or scope is overwritten (or
+    removed), so a workflow author cannot bind a durable write to another run
+    or principal. Top-level execution/workspace/tenant keys are kept for the
+    existing ``mcp`` contract; ``ai`` keeps its dedicated frozen-only marker.
+    """
+    context = _step_identity_context(execution_id, step_id, identity)
+    step["execution_id"] = context.get("execution_id")
+    step["workspace_id"] = workspace_id
+    step["tenant_id"] = tenant_id
+    step["user_id"] = context.get("user_id")
+    step[EXECUTION_IDENTITY_KEY] = context
+    step[AI_EXECUTION_SCOPE_KEY] = ai_scope
+    # The legacy candidate used the persisted-input key as a step fallback.
+    # It is removed so only the authoritative context can name the run.
+    step.pop(EXECUTION_SCOPE_KEY, None)
+
+
+def _stable_operation_id(prefix: str, execution_id: str, step_id: str) -> str:
+    """Return a stable, persistence-safe operation id for one step effect."""
+    operation_id = f"{prefix}:{execution_id}:{step_id}"
+    if not re.fullmatch(r"[A-Za-z0-9:_-]{1,180}", operation_id):
+        import hashlib
+
+        operation_id = (
+            f"{prefix}:"
+            + hashlib.sha256(operation_id.encode("utf-8")).hexdigest()
+        )
+    return operation_id
 
 
 def _ai_failure(
@@ -185,6 +266,7 @@ class WorkflowEngine:
         "workflow": "_execute_workflow_action",
         "email_automation": "_execute_email_automation_action",
         "goal_management": "_execute_goal_management_action",
+        "workflow_notification": "_execute_workflow_notification_action",
     }
 
     @classmethod
@@ -472,11 +554,7 @@ class WorkflowEngine:
         is not proof of the caller's identity and must never reach the provider.
         """
         inputs = state.get("input_data") if isinstance(state, dict) else None
-        frozen = (
-            inputs.get(EXECUTION_SCOPE_KEY)
-            if isinstance(inputs, dict) else None)
-        if not isinstance(frozen, dict):
-            return None
+        frozen = frozen_execution_identity(inputs)
         workspace_id = str(frozen.get("workspace_id") or "").strip()
         tenant_id = str(frozen.get("tenant_id") or "").strip()
         if not workspace_id or not tenant_id:
@@ -674,6 +752,8 @@ class WorkflowEngine:
         # just service == "ai") so a fallback to ``ai`` cannot bypass it, and
         # overwrite any marker a workflow definition may have supplied.
         ai_scope = self._ai_execution_scope(state)
+        execution_identity = frozen_execution_identity(
+            state.get("input_data") if isinstance(state, dict) else None)
         nodes = graph["nodes"]
         adjacency = graph["adjacency"]
         reverse_adjacency = graph["reverse_adjacency"]
@@ -751,12 +831,17 @@ class WorkflowEngine:
                         "input_schema": config.get("input_schema", {}),
                         "output_schema": config.get("output_schema", {}),
                         "workflow_id": workflow.get("id", "unknown"),
-                        "execution_id": execution_id,
                         "connection_id": config.get("connectionId"),
-                        "workspace_id": workspace_id,
-                        "tenant_id": tenant_id,
-                        AI_EXECUTION_SCOPE_KEY: ai_scope,
                     }
+                    _attach_step_identity_context(
+                        step,
+                        execution_id=execution_id,
+                        step_id=step_id,
+                        identity=execution_identity,
+                        ai_scope=ai_scope,
+                        workspace_id=workspace_id,
+                        tenant_id=tenant_id,
+                    )
 
                     async with self.semaphore:
                         # Update step status to RUNNING
@@ -1302,6 +1387,11 @@ class WorkflowEngine:
             # It sees only the exact pair frozen into the persisted execution
             # inputs, attached to every step so fallback ai is covered too.
             ai_scope = self._ai_execution_scope(state)
+            # Complete trusted identity for executors that perform durable
+            # writes on the run's behalf (e.g. goal creation). Only the
+            # server-frozen execution inputs are authoritative.
+            execution_identity = frozen_execution_identity(
+                state.get("input_data") if isinstance(state, dict) else None)
 
             # A cancellation may have been accepted between creation and this
             # worker starting, or while resuming. Stop before admission or the
@@ -1354,12 +1444,19 @@ class WorkflowEngine:
                 if step_state.get("status") == "COMPLETED":
                     continue
                 
-                # Attach context for execution
-                step["workspace_id"] = workspace_id
-                step["tenant_id"] = tenant_id
-                # Always overwrite, even for non-ai services: the step may fall
-                # back to ``ai`` after the primary executor fails.
-                step[AI_EXECUTION_SCOPE_KEY] = ai_scope
+                # Install the same authoritative context used by the graph
+                # dispatcher. This overwrites definition/input claims and
+                # always carries the real execution id (not one taken from the
+                # workflow definition or step parameters).
+                _attach_step_identity_context(
+                    step,
+                    execution_id=execution_id,
+                    step_id=step_id,
+                    identity=execution_identity,
+                    ai_scope=ai_scope,
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                )
                 
                 # Check dependencies
                 if not self._check_dependencies(step, state):
@@ -2131,7 +2228,9 @@ class WorkflowEngine:
                 # trusted scope from the step, never from params.
                 step_kwargs = (
                     {"step": step}
-                    if service in ("mcp", "main_agent", "ai")
+                    if service in (
+                        "mcp", "main_agent", "ai", "goal_management",
+                        "workflow_notification")
                     else {})
 
                 if timeout is not None and timeout > 0:
@@ -2179,7 +2278,9 @@ class WorkflowEngine:
                 fallback_executor = service_registry[fallback_service]
                 fallback_step_kwargs = (
                     {"step": step}
-                    if fallback_service in ("mcp", "main_agent", "ai")
+                    if fallback_service in (
+                        "mcp", "main_agent", "ai", "goal_management",
+                        "workflow_notification")
                     else {})
                 if timeout is not None and timeout > 0:
                     try:
@@ -3793,23 +3894,117 @@ Return your response in a clear, structured format."""
             response.raise_for_status()
             return response.json()
 
-    async def _execute_goal_management_action(self, action: str, params: Dict[str, Any], connection_id: Optional[str] = None) -> Dict[str, Any]:
-        """Execute goal management actions"""
+    async def _execute_goal_management_action(
+        self,
+        action: str,
+        params: Dict[str, Any],
+        connection_id: Optional[str] = None,
+        step: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute goal management actions.
+
+        Goal creation is a durable write: it goes through the verified goal
+        write service under the exact actor/scope frozen into the execution
+        inputs, with one stable operation id per execution step so a retry
+        replays the receipt instead of creating another goal. The created
+        goal's own domain status (e.g. ``ACTIVE``) is nested under ``goal``
+        and must not be mistaken for the executor envelope status.
+        """
         from core.goal_engine import goal_engine
-        
+
         if action == "create_goal":
             title = params.get("title")
             target_date_str = params.get("target_date")
-            owner_id = params.get("owner_id", "default")
-            
+
             if not title or not target_date_str:
                 raise ValueError("Missing title or target_date for create_goal")
-                
+
             from datetime import datetime
-            target_date = datetime.fromisoformat(target_date_str.replace('Z', '+00:00'))
-            goal = await goal_engine.create_goal_from_text(title, target_date, owner_id)
-            return goal.dict()
-            
+            target_date = datetime.fromisoformat(
+                str(target_date_str).replace('Z', '+00:00'))
+
+            # Only the single authoritative step context is trusted. Never use
+            # params, template metadata, definition scope, or a legacy step
+            # alias: the dispatcher overwrites this marker with the real
+            # execution/step ids and the caller identity frozen at start.
+            step_data = step if isinstance(step, dict) else {}
+            identity = _normalize_step_identity_context(
+                step_data.get(EXECUTION_IDENTITY_KEY))
+            workspace_id = identity.get("workspace_id")
+            tenant_id = identity.get("tenant_id")
+            user_id = identity.get("user_id")
+            execution_id = identity.get("execution_id")
+            step_id = identity.get("step_id")
+            if not all((workspace_id, tenant_id, user_id,
+                        execution_id, step_id)):
+                raise ValueError(
+                    "Missing caller-frozen execution identity for "
+                    "create_goal (tenant/workspace/user/execution/step)")
+
+            # Generate and validate the subtask plan BEFORE any write. An
+            # invalid plan is surfaced to the caller and no goal is created.
+            description = str(params.get("description") or "")
+            goal_text = " ".join(
+                part for part in (str(title), description) if part)
+            from core.goals.htn_planner import HTNPlanner
+            plan = HTNPlanner().decompose(goal_text)
+            if not isinstance(plan, dict) or not plan.get("subtasks"):
+                raise ValueError("Goal subtask plan is empty")
+            if plan.get("cycles"):
+                raise ValueError(
+                    "Goal subtask plan is invalid: dependency cycle "
+                    f"{plan['cycles']}")
+
+            # Stable per-execution-step operation id. The write service owns
+            # the receipt/replay semantics; a retry of this exact step must
+            # never create a second goal.
+            operation_id = _stable_operation_id(
+                "goal:create", execution_id, step_id)
+
+            from core.goals import goal_write_service as writes
+            from types import SimpleNamespace
+
+            # The service re-reads and claims the authoritative User row from
+            # this id, so the actor is exactly the run's frozen caller.
+            actor = SimpleNamespace(id=user_id)
+            with get_db_session() as db:
+                result = writes.create_goal(
+                    db,
+                    actor=actor,
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                    title=str(title),
+                    description=description,
+                    target_date=target_date,
+                    source="workflow",
+                    operation_id=operation_id,
+                )
+
+            writer_status = str(result.get("status") or "")
+            if writer_status not in ("verified", "already_applied"):
+                detail = (
+                    result.get("error")
+                    or result.get("message")
+                    or "Goal creation failed")
+                raise ValueError(
+                    f"Goal creation {writer_status or 'failed'}: {detail}")
+
+            goal = result.get("data") or {}
+            subtasks = plan.get("subtasks") or []
+            return {
+                "status": "success",
+                "goal": goal,
+                "plan": plan,
+                "subtasks": subtasks,
+                "sub_tasks": subtasks,
+                "execution_groups": plan.get("execution_groups") or [],
+                "method": plan.get("method"),
+                # Planned work only. Nothing in this step executed the
+                # subtasks, so do not report them as executed tasks.
+                "executed_tasks": [],
+                "tasks_executed": False,
+            }
+
         elif action == "check_escalations":
             escalations = await goal_engine.check_for_escalations()
             return {"escalations": escalations}
@@ -3833,6 +4028,121 @@ Return your response in a clear, structured format."""
             
         else:
             raise ValueError(f"Unknown goal_management action: {action}")
+
+    async def _execute_workflow_notification_action(
+        self,
+        action: str,
+        params: Dict[str, Any],
+        connection_id: Optional[str] = None,
+        step: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Persist the workflow's in-app notification for its frozen caller.
+
+        ``notify_caller`` writes through the read-only
+        ``NotificationService.send_workflow_notification`` boundary. The
+        recipient and scope come only from the dispatcher-installed step
+        context; ``params`` supplies only the definition's title/message and
+        can never choose a recipient. No email or other outbound delivery is
+        performed, and the persisted notification id is returned only after
+        the service verifies the committed row.
+        """
+        if action != "notify_caller":
+            raise ValueError(
+                f"Unknown workflow_notification action: {action}")
+
+        step_data = step if isinstance(step, dict) else {}
+        identity = _normalize_step_identity_context(
+            step_data.get(EXECUTION_IDENTITY_KEY))
+        workspace_id = identity.get("workspace_id")
+        tenant_id = identity.get("tenant_id")
+        user_id = identity.get("user_id")
+        execution_id = identity.get("execution_id")
+        step_id = identity.get("step_id")
+        missing = not all((workspace_id, tenant_id, user_id,
+                           execution_id, step_id))
+        if missing:
+            return {
+                "action": action,
+                "status": "error",
+                "notification_id": None,
+                "error": (
+                    "Missing caller-frozen execution identity for "
+                    "notify_caller (tenant/workspace/user/execution/step)"),
+            }
+
+        definition = params if isinstance(params, dict) else {}
+        title = definition.get("title")
+        message = definition.get("message")
+        if not isinstance(title, str) or not title.strip():
+            return {
+                "action": action,
+                "status": "error",
+                "notification_id": None,
+                "error": "notify_caller requires a nonblank 'title' parameter",
+            }
+        if not isinstance(message, str) or not message.strip():
+            return {
+                "action": action,
+                "status": "error",
+                "notification_id": None,
+                "error": "notify_caller requires a nonblank 'message' parameter",
+            }
+
+        # Stable per-execution-step operation id: a retry/lost ack replays the
+        # same persisted row instead of delivering a second notification.
+        operation_id = _stable_operation_id(
+            "workflow_notification:notify_caller", execution_id, step_id)
+
+        from core.notification_service import NotificationService
+
+        try:
+            result = await NotificationService().send_workflow_notification(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+                operation_id=operation_id,
+                title=title,
+                message=message,
+            )
+        except Exception as exc:  # noqa: BLE001 — report, never fake success
+            logger.error(
+                "Workflow notification step failed (execution=%s step=%s): %s",
+                execution_id, step_id, exc)
+            return {
+                "action": action,
+                "status": "error",
+                "notification_id": None,
+                "error": "Workflow notification failed",
+            }
+
+        if (
+            not isinstance(result, dict)
+            or result.get("success") is not True
+            or not result.get("notification_id")
+        ):
+            detail = (
+                result.get("error")
+                if isinstance(result, dict) else None) or "notification_failed"
+            logger.error(
+                "Workflow notification step was not persisted "
+                "(execution=%s step=%s): %s",
+                execution_id, step_id, detail)
+            return {
+                "action": action,
+                "status": "error",
+                "notification_id": None,
+                "error": f"Workflow notification failed: {detail}",
+            }
+
+        return {
+            "action": action,
+            "status": "success",
+            "notification_id": result["notification_id"],
+            "created": bool(result.get("created", False)),
+            # This boundary is in-app only; keep the service's explicit
+            # "nothing was emailed" contract visible to the workflow.
+            "emailed": False,
+        }
 
     async def run_workflow_with_arbor_refinement(
         self,

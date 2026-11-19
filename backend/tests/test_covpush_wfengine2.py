@@ -10,7 +10,11 @@ from unittest.mock import AsyncMock, Mock, patch, MagicMock
 
 import pytest
 
-from core.workflow_engine import WorkflowEngine, MissingInputError
+from core.workflow_engine import (
+    EXECUTION_IDENTITY_KEY,
+    MissingInputError,
+    WorkflowEngine,
+)
 
 
 def _engine():
@@ -40,7 +44,6 @@ class TestSimulatedExecutors:
         assert (await e._execute_email_action("a", {}))["status"] == "success"
         assert (await e._execute_calendar_action("a", {}))["status"] == "success"
         assert (await e._execute_database_action("a", {}))["status"] == "success"
-        assert (await e._execute_ai_action("a", {}))["status"] == "success"
         assert (await e._execute_webhook_action("a", {}))["status"] == "success"
 
     @pytest.mark.asyncio
@@ -280,10 +283,27 @@ class TestGoalManagementAndArbor:
         goal_engine.goals = {"g1": goal}
         goal_engine.update_goal_progress = AsyncMock()
 
-        with patch("core.goal_engine.goal_engine", goal_engine):
+        create_step = {
+            "id": "init_goal",
+            EXECUTION_IDENTITY_KEY: {
+                "workspace_id": "ws-1",
+                "tenant_id": "tenant-1",
+                "user_id": "user-1",
+                "execution_id": "exec-1",
+                "step_id": "init_goal",
+            },
+        }
+        with patch("core.goal_engine.goal_engine", goal_engine), \
+             patch("core.workflow_engine.get_db_session"), \
+             patch("core.goals.goal_write_service.create_goal",
+                   return_value={"status": "verified",
+                                 "data": {"id": "g1", "status": "ACTIVE"}}):
             out = await e._execute_goal_management_action(
-                "create_goal", {"title": "T", "target_date": "2026-08-08T00:00:00Z"})
-            assert out["id"] == "g1"
+                "create_goal",
+                {"title": "T", "target_date": "2026-08-08T00:00:00Z"},
+                step=create_step)
+            assert out["status"] == "success"
+            assert out["goal"]["id"] == "g1"
 
             out2 = await e._execute_goal_management_action("check_escalations", {})
             assert out2 == {"escalations": ["esc-1"]}

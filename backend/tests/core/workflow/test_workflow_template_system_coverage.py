@@ -969,3 +969,46 @@ class TestEdgeCasesAndErrors:
         manager.marketplace.templates.clear()
         results = manager.list_templates()
         assert len(results) == 0
+
+
+class TestGoalDrivenAutomationStockDefinition:
+    """Narrow contract test for the stock Goal-Driven Automation template."""
+
+    def test_goal_template_binds_callers_in_app_notification(self, tmp_path):
+        manager = WorkflowTemplateManager(
+            template_dir=str(tmp_path / "goal_templates"))
+        definition = manager._create_goal_driven_automation_template()
+        template = WorkflowTemplate(**definition)
+
+        assert template.template_id == str(
+            uuid.uuid5(uuid.NAMESPACE_DNS, "goal_driven_automation"))
+        assert [item.name for item in template.inputs] == [
+            "goal_text", "target_date"]
+        assert set(template.output_schema) == {"goal_id", "sub_tasks"}
+        assert "no subtasks are executed" in (
+            template.output_schema["sub_tasks"]["description"].lower())
+
+        init_goal = next(
+            step for step in template.steps if step.step_id == "init_goal")
+        assert init_goal.service == "goal_management"
+        assert init_goal.action == "create_goal"
+        assert {param.name: param.default_value
+                for param in init_goal.parameters} == {
+            "title": "${input.goal_text}",
+            "target_date": "${input.target_date}",
+        }
+
+        notify = next(
+            step for step in template.steps if step.step_id == "notify_user")
+        assert notify.service == "workflow_notification"
+        assert notify.action == "notify_caller"
+        assert notify.depends_on == ["init_goal"]
+        assert [param.name for param in notify.parameters] == [
+            "title", "message"]
+        assert "subtask plan" in notify.parameters[1].default_value.lower()
+        assert "no subtasks have been executed" in (
+            notify.parameters[1].default_value.lower())
+
+        serialized = json.dumps(definition)
+        assert "main_agent" not in serialized
+        assert "send_notification" not in serialized
