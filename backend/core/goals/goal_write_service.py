@@ -24,7 +24,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from sqlalchemy import JSON as SAJSON
@@ -77,6 +77,24 @@ def _fingerprint(*parts: Any) -> str:
 def _canonical(value: Any) -> str:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _persisted_target_deadline(
+    value: Optional[datetime],
+) -> Optional[datetime]:
+    """Return the deadline material to hand to the database.
+
+    An aware datetime names one absolute instant, so persist it as the
+    equivalent UTC instant. SQLite's DATETIME binding would otherwise drop the
+    offset without converting (``19:00-05:00`` would become ``19:00`` instead
+    of ``00:00Z``). Naive input stays naive: it names no offset, and existing
+    callers/receipts already treat its wall-clock value as the deadline.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc)
 
 
 def _operation_id(action: str, supplied: Optional[str]) -> str:
@@ -778,6 +796,9 @@ def create_goal(
 
     criteria = list(criteria or [])
     key_results = list(key_results or [])
+    # Keep the request digest on the caller's exact target_date representation
+    # so receipts accepted before deadline normalization still replay. Only
+    # the persisted value is normalized below.
     material = {
         "title": title,
         "description": str(description or ""),
@@ -787,6 +808,7 @@ def create_goal(
         "utility_target": normalized_target,
         "source": str(source or "api"),
     }
+    persisted_target_date = _persisted_target_deadline(target_date)
     request_digest = _request_digest(
         _ACTION_CREATE, authority["workspace_id"], material)
     expected_base = {
@@ -831,12 +853,18 @@ def create_goal(
         key_results=key_results,
         metadata_json=metadata,
         owner_id=authority["id"],
-        target_date=target_date,
+        target_date=persisted_target_date,
         source=material["source"],
     )
     try:
         db.add(goal)
         db.flush()
+        # The database owns the stored datetime representation (SQLite
+        # returns a naive UTC value while PostgreSQL returns an aware one,
+        # and both may round precision). Read the row back before building
+        # the effect digest so verification compares against the material
+        # that was actually persisted, not the pre-bind Python value.
+        db.refresh(goal)
     except IntegrityError:
         db.rollback()
         replay = _replay(

@@ -17,6 +17,7 @@ fresh SQLite sessions.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -338,6 +339,13 @@ def _goal_titled(env, title):
         db.close()
 
 
+def _utc_instant(value):
+    """Compare an ORM datetime across SQLite (naive UTC) and aware stores."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 # ------------------------------------------------------------ positive twins
 
 def test_create_member_plain_goal_verified_and_audited(env):
@@ -395,6 +403,93 @@ def test_create_supervisor_enrichment_and_role_contract(env):
         "/api/goals", json={"title": "Viewer cannot create"})
     assert viewer.status_code == 403, viewer.text
     assert _goal_titled(env, "Viewer cannot create") == []
+
+
+def test_create_utc_target_date_verified_and_persisted(env):
+    response = env.client(env.actors["lead-1"]).post(
+        "/api/goals?operation_id=target-date-utc",
+        json={
+            "title": "UTC deadline goal",
+            "target_date": "2027-01-04T00:00:00+00:00",
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["effect"] == "committed"
+    rows = _goal_titled(env, "UTC deadline goal")
+    assert len(rows) == 1
+    assert _utc_instant(rows[0].target_date) == datetime(
+        2027, 1, 4, tzinfo=timezone.utc)
+    assert len(_audits(env, f"goal:{rows[0].id}")) == 1
+
+
+def test_create_nonzero_offset_target_date_stores_utc_instant(env):
+    # 19:00-05:00 is the same instant as 2027-01-04T00:00:00Z. SQLite drops
+    # offsets on bind without converting, so this must be normalized before
+    # persistence or the row would wrongly store 19:00.
+    response = env.client(env.actors["lead-1"]).post(
+        "/api/goals?operation_id=target-date-offset",
+        json={
+            "title": "Offset deadline goal",
+            "target_date": "2027-01-03T19:00:00-05:00",
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["effect"] == "committed"
+    rows = _goal_titled(env, "Offset deadline goal")
+    assert len(rows) == 1
+    assert _utc_instant(rows[0].target_date) == datetime(
+        2027, 1, 4, tzinfo=timezone.utc)
+    assert len(_audits(env, f"goal:{rows[0].id}")) == 1
+
+
+def test_create_naive_target_date_semantics_unchanged(env):
+    client = env.client(env.actors["lead-1"])
+    payload = {
+        "title": "Naive deadline goal",
+        "target_date": "2027-01-04T00:00:00",
+    }
+    response = client.post(
+        "/api/goals?operation_id=target-date-naive", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verification"]["status"] == "verified"
+    rows = _goal_titled(env, "Naive deadline goal")
+    assert len(rows) == 1
+    # Naive input names no offset; its wall-clock value is preserved exactly.
+    assert rows[0].target_date.tzinfo is None
+    assert rows[0].target_date == datetime(2027, 1, 4)
+
+    # The receipt written for that already-successful naive deadline replays.
+    replay = client.post(
+        "/api/goals?operation_id=target-date-naive", json=payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["verification"]["status"] == "already_applied"
+    assert len(_goal_titled(env, "Naive deadline goal")) == 1
+    assert len(_audits(env)) == 1
+
+
+def test_create_aware_target_date_replay_is_stable(env):
+    client = env.client(env.actors["lead-1"])
+    payload = {
+        "title": "Replay offset deadline goal",
+        "target_date": "2027-01-03T19:00:00-05:00",
+    }
+    first = client.post(
+        "/api/goals?operation_id=target-date-offset-replay", json=payload)
+    assert first.status_code == 200, first.text
+    assert first.json()["verification"]["status"] == "verified"
+    goal_id = first.json()["goal"]["id"]
+
+    replay = client.post(
+        "/api/goals?operation_id=target-date-offset-replay", json=payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["verification"]["status"] == "already_applied"
+    assert replay.json()["verification"]["replay"] == "do_not_repeat"
+    assert replay.json()["goal"]["id"] == goal_id
+    assert len(_goal_titled(env, "Replay offset deadline goal")) == 1
+    assert len(_audits(env)) == 1
 
 
 def test_utility_roles_and_same_workspace_twins(env):

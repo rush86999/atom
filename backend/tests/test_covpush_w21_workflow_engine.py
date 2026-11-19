@@ -18,9 +18,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from core.execution_state_manager import EXECUTION_SCOPE_KEY
 from core.workflow_engine import (
     AI_EXECUTION_SCOPE_KEY,
-    EXECUTION_SCOPE_KEY,
+    EXECUTION_IDENTITY_KEY,
     MissingInputError,
     SchemaValidationError,
     StepTimeoutError,
@@ -426,6 +427,25 @@ class TestExecuteStep:
         with patch.object(engine, "_execute_mcp_action", new=mcp_executor):
             await engine._execute_step(step_dict(service="mcp", execution_id="ex-1"), {})
         assert captured["kwargs"] == {"step": step_dict(service="mcp", execution_id="ex-1")}
+
+    async def test_workflow_notification_step_kwarg_passed(self):
+        engine = make_engine()
+        captured = {}
+        step = step_dict(service="workflow_notification",
+                         action="notify_caller")
+
+        async def notify_executor(action, params, connection_id=None, **kwargs):
+            captured["kwargs"] = kwargs
+            return {"status": "success", "notification_id": "n-1"}
+
+        with patch.object(
+                engine, "_execute_workflow_notification_action",
+                new=notify_executor):
+            await engine._execute_step(step, {})
+        assert captured["kwargs"] == {"step": step}
+
+    def test_workflow_notification_is_supported(self):
+        assert "workflow_notification" in WorkflowEngine.supported_services()
 
 
 # ---------------------------------------------------------------------------
@@ -1515,12 +1535,73 @@ class TestGoalManagement:
 
     async def test_create_goal_success(self):
         engine = make_engine()
-        goal = MagicMock()
-        goal.dict.return_value = {"id": "g1"}
-        with patch("core.goal_engine.goal_engine.create_goal_from_text", new=AsyncMock(return_value=goal)):
+        step = {
+            "id": "init_goal",
+            # Definition claims are ignored; the internal context is the only
+            # authoritative identity.
+            "execution_id": "definition-exec",
+            EXECUTION_IDENTITY_KEY: {
+                "workspace_id": "ws-1",
+                "tenant_id": "tenant-1",
+                "user_id": "user-1",
+                "execution_id": "exec-1",
+                "step_id": "init_goal",
+            },
+        }
+        goal = {"id": "g1", "status": "ACTIVE"}
+        with patch("core.workflow_engine.get_db_session"), \
+             patch("core.goals.goal_write_service.create_goal",
+                   return_value={"status": "verified", "data": goal}) as create:
             result = await engine._execute_goal_management_action(
-                "create_goal", {"title": "T", "target_date": "2026-08-01T00:00:00Z", "owner_id": "o"}, None)
-        assert result == {"id": "g1"}
+                "create_goal",
+                {"title": "T", "target_date": "2026-08-01T00:00:00Z",
+                 "owner_id": "ignored"},
+                None, step=step)
+        assert result["status"] == "success"
+        assert result["goal"] == goal
+        assert result["goal"]["status"] == "ACTIVE"
+        assert result["executed_tasks"] == []
+        assert result["subtasks"]
+        assert create.call_args.kwargs["operation_id"] == (
+            "goal:create:exec-1:init_goal")
+        assert create.call_args.kwargs["workspace_id"] == "ws-1"
+        assert create.call_args.kwargs["tenant_id"] == "tenant-1"
+        assert create.call_args.kwargs["actor"].id == "user-1"
+
+    async def test_create_goal_replays_same_step_receipt(self):
+        engine = make_engine()
+        step = {
+            "id": "init_goal",
+            EXECUTION_IDENTITY_KEY: {
+                "workspace_id": "ws-1",
+                "tenant_id": "tenant-1",
+                "user_id": "user-1",
+                "execution_id": "exec-1",
+                "step_id": "init_goal",
+            },
+        }
+        goal = {"id": "g1", "status": "ACTIVE"}
+        with patch("core.workflow_engine.get_db_session"), \
+             patch("core.goals.goal_write_service.create_goal",
+                   return_value={"status": "already_applied",
+                                 "data": goal}):
+            result = await engine._execute_goal_management_action(
+                "create_goal",
+                {"title": "T", "target_date": "2026-08-01T00:00:00Z"},
+                None, step=step)
+        assert result["status"] == "success"
+        assert result["goal"]["id"] == "g1"
+
+    async def test_create_goal_requires_frozen_identity(self):
+        engine = make_engine()
+        with patch("core.goals.goal_write_service.create_goal") as create:
+            with pytest.raises(ValueError, match="execution identity"):
+                await engine._execute_goal_management_action(
+                    "create_goal",
+                    {"title": "T", "target_date": "2026-08-01T00:00:00Z"},
+                    None,
+                    step={"id": "init_goal", "execution_id": "exec-1"})
+        create.assert_not_called()
 
     async def test_check_escalations(self):
         engine = make_engine()
@@ -1549,6 +1630,160 @@ class TestGoalManagement:
         engine = make_engine()
         with pytest.raises(ValueError, match="Unknown goal_management action"):
             await engine._execute_goal_management_action("nope", {}, None)
+
+    async def test_legacy_scope_step_alias_is_not_identity(self):
+        engine = make_engine()
+        step = {
+            "id": "init_goal",
+            "execution_id": "definition-exec",
+            EXECUTION_SCOPE_KEY: {
+                "workspace_id": "ws-1",
+                "tenant_id": "tenant-1",
+                "user_id": "user-1",
+                "execution_id": "exec-1",
+                "step_id": "init_goal",
+            },
+        }
+        with patch("core.goals.goal_write_service.create_goal") as create:
+            with pytest.raises(ValueError, match="execution identity"):
+                await engine._execute_goal_management_action(
+                    "create_goal",
+                    {"title": "T", "target_date": "2026-08-01T00:00:00Z"},
+                    None, step=step)
+        create.assert_not_called()
+
+
+class TestWorkflowNotification:
+    @staticmethod
+    def _step(**overrides):
+        context = {
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+            "user_id": "user-1",
+            "execution_id": "exec-1",
+            "step_id": "notify",
+        }
+        context.update(overrides)
+        return {
+            "id": "notify",
+            EXECUTION_IDENTITY_KEY: context,
+        }
+
+    async def test_notify_caller_uses_frozen_scope_and_stable_operation(self):
+        engine = make_engine()
+        send = AsyncMock(return_value={
+            "success": True,
+            "notification_id": "workflow_notification:notify_caller:exec-1:notify",
+            "created": True,
+            "emailed": False,
+        })
+        with patch(
+                "core.notification_service.NotificationService."
+                "send_workflow_notification", new=send):
+            result = await engine._execute_workflow_notification_action(
+                "notify_caller",
+                {
+                    "title": "Build finished",
+                    "message": "The workflow completed.",
+                    # A definition cannot choose a recipient.
+                    "user_id": "attacker",
+                    "workspace_id": "attacker-ws",
+                    "tenant_id": "attacker-tenant",
+                },
+                None,
+                step=self._step(),
+            )
+        assert result["status"] == "success"
+        assert result["notification_id"] == (
+            "workflow_notification:notify_caller:exec-1:notify")
+        assert result["emailed"] is False
+        kwargs = send.call_args.kwargs
+        assert kwargs["user_id"] == "user-1"
+        assert kwargs["workspace_id"] == "ws-1"
+        assert kwargs["tenant_id"] == "tenant-1"
+        assert kwargs["title"] == "Build finished"
+        assert kwargs["message"] == "The workflow completed."
+        assert kwargs["operation_id"] == (
+            "workflow_notification:notify_caller:exec-1:notify")
+
+    async def test_notify_caller_replay_returns_persisted_id(self):
+        engine = make_engine()
+        send = AsyncMock(return_value={
+            "success": True,
+            "notification_id": "workflow_notification:notify_caller:exec-1:notify",
+            "created": False,
+            "emailed": False,
+        })
+        with patch(
+                "core.notification_service.NotificationService."
+                "send_workflow_notification", new=send):
+            first = await engine._execute_workflow_notification_action(
+                "notify_caller",
+                {"title": "T", "message": "M"},
+                None,
+                step=self._step(),
+            )
+            second = await engine._execute_workflow_notification_action(
+                "notify_caller",
+                {"title": "T", "message": "M"},
+                None,
+                step=self._step(),
+            )
+        assert first["notification_id"] == second["notification_id"]
+        assert second["created"] is False
+        operation_ids = [
+            call.kwargs["operation_id"]
+            for call in send.call_args_list
+        ]
+        assert operation_ids == [
+            "workflow_notification:notify_caller:exec-1:notify",
+            "workflow_notification:notify_caller:exec-1:notify",
+        ]
+
+    async def test_notify_caller_failure_is_not_success(self):
+        engine = make_engine()
+        send = AsyncMock(return_value={
+            "success": False,
+            "notification_id": None,
+            "created": False,
+            "emailed": False,
+            "error": "recipient_inactive",
+        })
+        with patch(
+                "core.notification_service.NotificationService."
+                "send_workflow_notification", new=send):
+            result = await engine._execute_workflow_notification_action(
+                "notify_caller",
+                {"title": "T", "message": "M"},
+                None,
+                step=self._step(),
+            )
+        assert result["status"] == "error"
+        assert "notification_id" not in result
+        assert "recipient_inactive" in result["error"]
+
+    async def test_notify_caller_requires_authoritative_context(self):
+        engine = make_engine()
+        send = AsyncMock()
+        with patch(
+                "core.notification_service.NotificationService."
+                "send_workflow_notification", new=send):
+            result = await engine._execute_workflow_notification_action(
+                "notify_caller",
+                {"title": "T", "message": "M"},
+                None,
+                step={"id": "notify", "execution_id": "definition-exec"},
+            )
+        assert result["status"] == "error"
+        assert "execution identity" in result["error"]
+        send.assert_not_called()
+
+    async def test_unknown_notification_action_raises(self):
+        engine = make_engine()
+        with pytest.raises(
+                ValueError, match="Unknown workflow_notification action"):
+            await engine._execute_workflow_notification_action(
+                "send_email", {}, None, step=self._step())
 
 
 class TestGenericExecutor:
@@ -1986,6 +2221,7 @@ class TestRunExecution:
         # attached (and any definition-supplied candidate overwritten) too.
         step = step_dict(
             service="email", action="send", fallback_service="ai",
+            execution_id="definition-exec",
             workspace_id="definition-ws", tenant_id="definition-tenant",
             **{AI_EXECUTION_SCOPE_KEY: {
                 "workspace_id": "attacker-ws",
@@ -2012,6 +2248,16 @@ class TestRunExecution:
 
         assert captured["step"][AI_EXECUTION_SCOPE_KEY] == {
             "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}
+        # The single internal context carries the real execution/step ids and
+        # the frozen identity; definition claims cannot replace them.
+        assert captured["step"][EXECUTION_IDENTITY_KEY] == {
+            "workspace_id": "frozen-ws",
+            "tenant_id": "frozen-tenant",
+            "execution_id": "ex-1",
+            "step_id": "s1",
+        }
+        assert captured["step"]["execution_id"] == "ex-1"
+        assert EXECUTION_SCOPE_KEY not in captured["step"]
         # Runtime scope is attached to a run-local copy; the shared
         # definition step remains untouched for other/simultaneous runs.
         assert step == original_step
@@ -2086,6 +2332,16 @@ class TestRunExecution:
 
         assert captured["step"][AI_EXECUTION_SCOPE_KEY] == {
             "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}
+        # Graph dispatch shares the same authoritative step context and
+        # supplies the real execution id, not a definition claim.
+        assert captured["step"][EXECUTION_IDENTITY_KEY] == {
+            "workspace_id": "frozen-ws",
+            "tenant_id": "frozen-tenant",
+            "execution_id": "ex-g",
+            "step_id": "a",
+        }
+        assert captured["step"]["execution_id"] == "ex-g"
+        assert EXECUTION_SCOPE_KEY not in captured["step"]
 
     async def test_graph_cancellation(self):
         engine = make_engine()

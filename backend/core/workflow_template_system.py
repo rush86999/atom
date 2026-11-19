@@ -1155,7 +1155,7 @@ class WorkflowTemplateManager:
         return {
             "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "goal_driven_automation")),
             "name": "Goal-Driven Automation",
-            "description": "High-level goal decomposition and progress monitoring",
+            "description": "High-level goal decomposition with an in-app summary of the generated subtask plan",
             "category": "business",
             "complexity": "advanced",
             "tags": ["goal", "planning", "automation", "tracking"],
@@ -1179,25 +1179,23 @@ class WorkflowTemplateManager:
                     "example_value": "2023-12-31T23:59:59Z"
                 }
             ],
-            "outputs": [
-                {
-                    "name": "goal_id",
+            "output_schema": {
+                "goal_id": {
                     "label": "Goal ID",
                     "description": "Identifier for the newly created goal",
                     "type": "string"
                 },
-                {
-                    "name": "sub_tasks",
-                    "label": "Generated Sub-tasks",
-                    "description": "List of tasks generated to achieve the goal",
+                "sub_tasks": {
+                    "label": "Generated Subtask Plan",
+                    "description": "Generated subtask plan for the goal; no subtasks are executed by this template",
                     "type": "array"
                 }
-            ],
+            },
             "steps": [
                 {
                     "step_id": "init_goal",
-                    "name": "Initialize and Decompose Goal",
-                    "description": "Create goal and break it down into tasks",
+                    "name": "Initialize Goal and Generate Subtask Plan",
+                    "description": "Create the goal and generate its subtask plan for review; this step does not execute the subtasks",
                     "step_type": "goal_initialization",
                     "service": "goal_management",
                     "action": "create_goal",
@@ -1208,15 +1206,16 @@ class WorkflowTemplateManager:
                 },
                 {
                     "step_id": "notify_user",
-                    "name": "Notify Goal Creation",
-                    "description": "Send success notification",
+                    "name": "Notify Caller (In-App)",
+                    "description": "Send an in-app notification to the authenticated caller",
                     "step_type": "notification",
-                    "service": "main_agent",
-                    "action": "send_notification",
+                    "service": "workflow_notification",
+                    "action": "notify_caller",
                     "parameters": [
-                        {"name": "message", "default_value": "Goal '${input.goal_text}' has been initialized."},
-                        {"name": "type", "default_value": "success"}
-                    ]
+                        {"name": "title", "default_value": "Goal initialized"},
+                        {"name": "message", "default_value": "Goal '${input.goal_text}' was initialized. A subtask plan was generated for review; no subtasks have been executed."}
+                    ],
+                    "depends_on": ["init_goal"]
                 }
             ],
             "is_public": True,
