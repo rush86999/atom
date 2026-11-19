@@ -80,15 +80,19 @@ else
 fi
 echo
 
-echo "[2] LanceDB memory store (backend/data/atom_memory symlink)"
+echo "[2] LanceDB memory store (backend/data/atom_memory)"
 if [ -L "$MEM_LINK" ] && [ -e "$MEM_LINK" ]; then
     ok "symlink resolves -> $(readlink "$MEM_LINK")"
 elif [ -L "$MEM_LINK" ]; then
     bad "symlink is DANGLING (drive missing or renamed)"
     echo "        -> Remount the drive; the app recovers on its next use,"
     echo "           no restart needed. Data is on the drive, not lost."
+elif [ -d "$MEM_LINK" ]; then
+    ok "present (local dir, not drive-hosted)"
+elif [ -e "$MEM_LINK" ]; then
+    bad "$MEM_LINK exists but is not a directory (layout changed?)"
 else
-    bad "$MEM_LINK is not a symlink (layout changed?)"
+    bad "$MEM_LINK is missing (layout changed?)"
 fi
 echo
 
