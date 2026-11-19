@@ -5,6 +5,7 @@ Backend service for email canvas with threaded conversations,
 compose interface, and attachment management.
 """
 import hashlib
+import json
 import re
 import time as _time
 from datetime import datetime, timezone
@@ -28,6 +29,13 @@ _CORRESPONDENT_CACHE: Dict[str, tuple] = {}
 # integration's default signature) and shouldn't be rescanned per composer
 # mount.
 _SIGNATURE_CACHE: Dict[str, tuple] = {}
+
+# Send states that are one real provider send and therefore consume the
+# autonomous rate cap (email_policy._sends_in_last_hour counts only
+# action_type="email_send"). "accepted_unverified" is a 202 acceptance whose
+# Sent Items confirmation is still pending: it must remain one counted send
+# event, but never be reported as a verified success.
+_COUNTED_SEND_STATUSES = frozenset({"sent", "accepted_unverified"})
 
 
 def _audit_now():
@@ -149,101 +157,383 @@ class EmailCanvasService:
                 "Caller scope does not match the current acting user")
         return (authoritative_tenant, authoritative_workspace, actor)
 
-    def create_email_canvas(
+    # ------------------------------------------------------------------
+    # Operation-bound local email draft creation
+    # ------------------------------------------------------------------
+
+    _EMAIL_DRAFT_OPERATION_DOMAIN = "atom:canvas:email_draft"
+
+    @staticmethod
+    def email_draft_operation_ids(
+        actor_id: str, operation_id: str
+    ) -> Dict[str, str]:
+        """Deterministic Canvas/audit/draft ids for one actor operation."""
+
+        def _uuid(kind: str) -> str:
+            name = json.dumps(
+                [
+                    EmailCanvasService._EMAIL_DRAFT_OPERATION_DOMAIN,
+                    str(kind),
+                    str(actor_id),
+                    str(operation_id),
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            return str(uuid.uuid5(uuid.NAMESPACE_URL, name))
+
+        return {
+            "canvas_id": _uuid("canvas"),
+            "audit_id": _uuid("audit"),
+            "draft_id": _uuid("draft"),
+            "thread_id": _uuid("thread"),
+        }
+
+    @staticmethod
+    def _email_recipient_list(value: Any) -> List[str]:
+        """Split recipients without inventing mailbox state."""
+        if isinstance(value, (list, tuple)):
+            return [str(item) for item in value if str(item)]
+        return [
+            item.strip()
+            for item in str(value or "").split(",")
+            if item.strip()
+        ]
+
+    @classmethod
+    def canonical_email_draft_material(
+        cls, draft: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Normalize only the draft fields this operation actually binds.
+
+        Both the native Canvas shape (``to``/``cc``) and the route shape
+        (``to_emails``/``cc_emails``) are accepted. Unknown keys, including
+        attachments, are not part of the operation material.
+        """
+        source = draft if isinstance(draft, dict) else {}
+        nested = (
+            source.get("draft")
+            if isinstance(source.get("draft"), dict) else {}
+        )
+
+        def pick(*keys: str) -> Any:
+            for mapping in (source, nested):
+                for key in keys:
+                    if key in mapping:
+                        return mapping[key]
+            return None
+
+        return {
+            "to_emails": cls._email_recipient_list(pick("to_emails", "to")),
+            "cc_emails": cls._email_recipient_list(pick("cc_emails", "cc")),
+            "subject": str(pick("subject") or ""),
+            "body": str(pick("body") or ""),
+            "thread_id": str(pick("thread_id") or ""),
+            "draft_id": str(pick("draft_id") or ""),
+        }
+
+    @staticmethod
+    def email_draft_material_sha256(material: Dict[str, Any]) -> str:
+        """Stable digest of the exact canonical draft material."""
+        encoded = json.dumps(
+            material,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _audit_details(audit: Any) -> Dict[str, Any]:
+        details = getattr(audit, "details_json", None) or {}
+        if isinstance(details, str):
+            try:
+                details = json.loads(details)
+            except (TypeError, ValueError):
+                details = {}
+        return details if isinstance(details, dict) else {}
+
+    @staticmethod
+    def _email_canvas_content(
+        subject: Any,
+        recipients: Any,
+        cc_emails: Any,
+        body: Any,
+    ) -> Dict[str, str]:
+        """The existing native email Canvas content shape."""
+        return {
+            "to": ", ".join(recipients or []),
+            "cc": ", ".join(cc_emails or []),
+            "subject": subject or "",
+            "body": body or "",
+        }
+
+    def _email_draft_replay_conflict(
         self,
+        canvas: Optional[Canvas],
+        audit: Optional[CanvasAudit],
+        *,
+        actor_id: str,
+        tenant_id: Any,
+        workspace_id: Any,
+        operation_id: str,
+        material_digest: str,
+        agent_id: Optional[str],
+    ) -> Optional[str]:
+        """Return why an existing operation surface is not this replay."""
+        if canvas is None and audit is None:
+            return None
+        if canvas is None or audit is None:
+            return (
+                "operation identity collides with an existing canvas; "
+                "refusing to overwrite it"
+                if audit is None else
+                "email draft operation identity is incomplete"
+            )
+        details = self._audit_details(audit)
+        if (str(audit.action_type or "") != "create"
+                or str(canvas.canvas_type or "").lower() != "email"
+                or str(audit.canvas_type or "").lower() != "email"):
+            return "operation already names a different canvas action"
+        if str(audit.canvas_id or "") != str(canvas.id):
+            return "audit is bound to a different canvas"
+        if (str(audit.user_id or "") != str(actor_id)
+                or str(canvas.created_by or "") != str(actor_id)):
+            return "operation already belongs to a different actor"
+        if (canvas.tenant_id != tenant_id
+                or audit.tenant_id != tenant_id
+                or canvas.workspace_id != workspace_id):
+            return "operation already belongs to a different scope"
+        if str(details.get("operation_id") or "") != str(operation_id):
+            return "audit carries a different operation identity"
+        if str(details.get("material_sha256") or "") != str(material_digest):
+            return "operation already names different material"
+        stored_material = details.get("material")
+        if (isinstance(stored_material, dict)
+                and self.email_draft_material_sha256(stored_material)
+                != str(material_digest)):
+            return "operation already names different material"
+        if str(audit.agent_id or "") != str(agent_id or ""):
+            return "operation already names a different agent"
+        return None
+
+    @staticmethod
+    def _email_draft_refusal(
+        error: str,
+        *,
+        status: str = "refused",
+        canvas_id: Optional[str] = None,
+        audit_id: Optional[str] = None,
+        operation_id: Optional[str] = None,
+        effect: str = "none",
+        replay: str = "safe_to_retry",
+    ) -> Dict[str, Any]:
+        return {
+            "success": False,
+            "status": status,
+            "conflict": status == "conflict",
+            "error": error,
+            "canvas_id": canvas_id,
+            "audit_id": audit_id,
+            "operation_id": operation_id,
+            "verification": {
+                "status": (
+                    "refused" if status == "conflict" else "not_attempted"),
+                "effect": effect,
+                "replay": replay,
+            },
+        }
+
+    def _email_draft_readback(
+        self, canvas_id: str, audit_id: str
+    ) -> tuple:
+        """Read the exact persisted Canvas + audit, bypassing identity-map echo."""
+        canvas = (
+            self.db.query(Canvas)
+            .filter(Canvas.id == canvas_id)
+            .populate_existing()
+            .first()
+        )
+        audit = (
+            self.db.query(CanvasAudit)
+            .filter(CanvasAudit.id == audit_id)
+            .populate_existing()
+            .first()
+        )
+        return canvas, audit
+
+    def _email_draft_operation_result(
+        self,
+        canvas: Canvas,
+        audit: CanvasAudit,
+        *,
+        material: Dict[str, Any],
+        material_digest: str,
+        operation_id: str,
+        already_applied: bool,
+    ) -> Dict[str, Any]:
+        """Return the historical create receipt and the current draft apart."""
+        details = self._audit_details(audit)
+        receipt_draft = details.get("draft")
+        if not isinstance(receipt_draft, dict):
+            receipt_draft = {
+                "draft_id": material.get("draft_id"),
+                "to_emails": material.get("to_emails") or [],
+                "cc_emails": material.get("cc_emails") or [],
+                "subject": material.get("subject") or "",
+                "body": material.get("body") or "",
+                "attachments": [],
+            }
+        current_content = (
+            dict(canvas.content) if isinstance(canvas.content, dict) else {})
+        created_content = self._email_canvas_content(
+            receipt_draft.get("subject"),
+            receipt_draft.get("to_emails"),
+            receipt_draft.get("cc_emails"),
+            receipt_draft.get("body"),
+        )
+        edited = bool(already_applied and current_content != created_content)
+        return {
+            "success": True,
+            "status": "replayed" if already_applied else "created",
+            "already_applied": bool(already_applied),
+            "replayed": bool(already_applied),
+            "canvas_id": str(canvas.id),
+            "audit_id": str(audit.id),
+            "operation_id": str(operation_id),
+            "material_sha256": str(material_digest),
+            "subject": str(receipt_draft.get("subject") or ""),
+            "thread_id": str(details.get("thread_id") or ""),
+            "draft_id": str(receipt_draft.get("draft_id") or ""),
+            # Historical create receipt: never replaced by later edits.
+            "receipt": {
+                "operation_id": str(operation_id),
+                "material_sha256": str(material_digest),
+                "thread_id": str(details.get("thread_id") or ""),
+                "draft": receipt_draft,
+            },
+            # Current Canvas state, deliberately separate from the receipt.
+            "current_content": current_content,
+            "draft": receipt_draft,
+            "content": current_content,
+            "manual_edits_preserved": edited,
+            "verification": {
+                "status": "verified",
+                "effect": "none" if already_applied else "committed",
+                "replay": (
+                    "already_applied" if already_applied else "new_effect"),
+            },
+        }
+
+    def _email_draft_existing_result(
+        self,
+        ids: Dict[str, str],
+        *,
+        actor_id: str,
+        tenant_id: Any,
+        workspace_id: Any,
+        operation_id: str,
+        material: Dict[str, Any],
+        material_digest: str,
+        agent_id: Optional[str],
+        already_applied: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Read an existing operation surface, or None when it is absent."""
+        canvas, audit = self._email_draft_readback(
+            ids["canvas_id"], ids["audit_id"])
+        if canvas is None and audit is None:
+            return None
+        conflict = self._email_draft_replay_conflict(
+            canvas, audit,
+            actor_id=actor_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            material_digest=material_digest,
+            agent_id=agent_id,
+        )
+        if conflict is not None:
+            return self._email_draft_refusal(
+                conflict,
+                status="conflict",
+                canvas_id=ids["canvas_id"],
+                audit_id=ids["audit_id"],
+                operation_id=operation_id,
+                replay="do_not_repeat",
+            )
+        return self._email_draft_operation_result(
+            canvas, audit,
+            material=material,
+            material_digest=material_digest,
+            operation_id=operation_id,
+            already_applied=already_applied,
+        )
+
+    def _persist_email_canvas(
+        self,
+        *,
         user_id: str,
+        tenant_id: str,
+        workspace_id: str,
         subject: str,
         recipients: List[str],
-        canvas_id: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        layout: str = "conversation",
-        template: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        workspace_id: Optional[str] = None,
+        cc_emails: Optional[List[str]],
+        body: str,
+        layout: str,
+        template: Optional[str],
+        agent_id: Optional[str],
+        canvas_id: str,
+        audit_id: Optional[str],
+        thread_id: str,
+        draft: EmailDraft,
+        adopt_by_subject: bool,
+        audit_extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        """The one canonical Canvas+CanvasAudit email create transaction.
+
+        Both the ordinary composer path and the operation-bound assignment
+        path enter here. Subject-based adoption is an explicit opt-in reserved
+        for the ordinary composer.
         """
-        Create a new email canvas.
+        audit_id = audit_id or str(uuid.uuid4())
+        canvas_content = self._email_canvas_content(
+            subject, recipients, cc_emails, body)
 
-        Args:
-            user_id: User ID
-            subject: Email subject
-            recipients: List of recipient emails
-            canvas_id: Optional canvas ID
-            agent_id: Optional agent ID
-            layout: Layout (inbox, conversation, compose)
-            template: Optional template ID
+        details = {
+            "canvas_type": "email",
+            "component_type": "compose_form",
+            "subject": subject,
+            "layout": layout,
+            "thread_id": thread_id,
+            "draft": self._draft_to_dict(draft),
+            "messages": [],
+            "attachments": draft.attachments,
+            "template": template,
+        }
+        if audit_extra:
+            details.update(audit_extra)
+        audit = CanvasAudit(
+            id=audit_id,
+            created_at=_audit_now(),
+            tenant_id=tenant_id,
+            agent_id=agent_id,
+            user_id=user_id,
+            canvas_id=canvas_id,
+            action_type="create",
+            canvas_type="email",
+            details_json=details,
+        )
 
-        Returns:
-            Dict with canvas details
-        """
-        try:
-            tenant_id, workspace_id, actor = self._resolve_actor_scope(
-                user_id, tenant_id, workspace_id)
-            from tools.canvas_crud_tool import claim_canvas_actor
-
-            if not claim_canvas_actor(self.db, actor):
-                raise PermissionError(
-                    "Acting user changed before the canvas could be created")
-            canvas_id = canvas_id or str(uuid.uuid4())
-            thread_id = str(uuid.uuid4())
-
-            # Create initial draft
-            draft = EmailDraft(
-                draft_id=str(uuid.uuid4()),
-                to_emails=recipients,
-                subject=subject,
-                body=""
-            )
-
-            audit = CanvasAudit(
-                id=str(uuid.uuid4()),
-                created_at=_audit_now(),
-                tenant_id=tenant_id,
-                agent_id=agent_id,
-                user_id=user_id,
-                canvas_id=canvas_id,
-                action_type="create",
-                canvas_type="email",
-                details_json={
-                    "canvas_type": "email",
-                    "component_type": "compose_form",
-                    "subject": subject,
-                    "layout": layout,
-                    "thread_id": thread_id,
-                    "draft": self._draft_to_dict(draft),
-                    "messages": [],
-                    "attachments": [],
-                    "template": template
-                }
-            )
-
-            # CREATION INVARIANT (2026-09-27, directive step 5). This path wrote
-            # ONLY the audit row and returned a canvas_id, so the canvas it
-            # handed back never existed in `canvases` -- unreadable and
-            # uneditable, while its audit trail claimed a 'create'. The blank
-            # canvas path in api/canvas_routes.py already requires content in
-            # BOTH the Canvas row and the audit trail ("readers treat the audit
-            # trail as the source of truth"); this path has to match it. The
-            # draft body is mirrored into Canvas.content so the same content is
-            # readable from either side.
-            canvas_content = {
-                "to": ", ".join(recipients or []),
-                "cc": "",
-                "subject": subject,
-                "body": draft.body or "",
-            }
-
-            # SAME-ARTIFACT ADOPTION (2026-10-02, the duplicate quote
-            # canvases): the chat draft path (chat_to_canvas) had already
-            # created an ACTIVE email canvas with this subject, and
-            # creating a compose sibling here forked the artifact — two
-            # "Quote – …" canvases with one title, edits landing on
-            # whichever the panel had open (live 0e4defa5 vs b6156b79).
-            # Adopt the chat canvas instead: the compose thread's audit
-            # rows land on the SAME canvas id (the audit trail is the
-            # source of truth), and a fresh empty draft never overwrites
-            # a populated artifact.
-            _adopted = None
+        # SAME-ARTIFACT ADOPTION (2026-10-02, the duplicate quote
+        # canvases): the chat draft path (chat_to_canvas) had already
+        # created an ACTIVE email canvas with this subject, and
+        # creating a compose sibling here forked the artifact. Adopt the
+        # chat canvas instead so compose audits land on the SAME canvas
+        # id, and a fresh empty draft never overwrites a populated
+        # artifact. Operation-bound creation never adopts.
+        _adopted = None
+        if adopt_by_subject:
             try:
                 _norm_subject = " ".join(
                     str(subject or "").split()).casefold()
@@ -284,48 +574,312 @@ class EmailCanvasService:
                 logger.debug(
                     f"email canvas adoption check skipped: {_adopt_err}")
                 _adopted = None
-            if _adopted is not None:
-                canvas_id = _adopted.id
-                audit.canvas_id = canvas_id
-                _existing_content = (
-                    _adopted.content
-                    if isinstance(_adopted.content, dict) else {})
-                if not str(_existing_content.get("body") or "").strip():
-                    _adopted.content = canvas_content
-                    _adopted.last_edited_by = str(user_id)
-                    _adopted.last_edited_at = datetime.now(timezone.utc)
-                logger.info(
-                    f"Adopted existing canvas {canvas_id} for email "
-                    f"compose: {subject}")
 
-            canvas_row = Canvas(
-                id=canvas_id,
+        if _adopted is not None:
+            canvas_id = _adopted.id
+            audit.canvas_id = canvas_id
+            _existing_content = (
+                _adopted.content
+                if isinstance(_adopted.content, dict) else {})
+            if not str(_existing_content.get("body") or "").strip():
+                _adopted.content = canvas_content
+                _adopted.last_edited_by = str(user_id)
+                _adopted.last_edited_at = datetime.now(timezone.utc)
+            logger.info(
+                f"Adopted existing canvas {canvas_id} for email "
+                f"compose: {subject}")
+
+        canvas_row = Canvas(
+            id=canvas_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            created_by=str(user_id),
+            name=subject or "Untitled email",
+            description=f"Email canvas: {subject}" if subject else None,
+            canvas_type="email",
+            content=canvas_content,
+            status="active",
+            last_edited_by=str(user_id),
+            last_edited_at=datetime.now(timezone.utc),
+        )
+
+        if _adopted is None:
+            self.db.add(canvas_row)
+        self.db.add(audit)
+        self.db.commit()
+        self.db.refresh(audit)
+
+        logger.info(f"Created email canvas {canvas_id}: {subject}")
+        return {
+            "canvas_id": canvas_id,
+            "audit_id": audit.id,
+            "thread_id": thread_id,
+            "draft": draft,
+            "content": canvas_content,
+            "adopted": _adopted is not None,
+        }
+
+    def create_email_draft(
+        self,
+        user_id: str,
+        draft: Dict[str, Any],
+        operation_id: str,
+        *,
+        agent_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create or exactly replay one operation-bound local email draft.
+
+        The actor + operation id fixes the Canvas/audit/draft identities. The
+        first call commits one Canvas row and one ``create`` audit through the
+        same transaction used by the ordinary composer. Retries read that
+        evidence back without writing; changed material, a foreign scope, or
+        a colliding canvas is refused without touching the existing draft.
+        No provider is contacted and no email is sent.
+        """
+        resolved_operation_id = str(operation_id or "")
+        ids: Dict[str, str] = {}
+        commit_attempted = False
+        try:
+            if not resolved_operation_id.strip():
+                return self._email_draft_refusal(
+                    "operation_id is required for a local email draft")
+
+            tenant_id, workspace_id, actor = self._resolve_actor_scope(
+                user_id, tenant_id, workspace_id)
+            actor_id = str(actor.get("id") or user_id)
+            ids = self.email_draft_operation_ids(
+                actor_id, resolved_operation_id)
+
+            material = self.canonical_email_draft_material(draft)
+            if not material["draft_id"]:
+                material["draft_id"] = ids["draft_id"]
+            if not material["thread_id"]:
+                material["thread_id"] = ids["thread_id"]
+            material_digest = self.email_draft_material_sha256(material)
+
+            existing = self._email_draft_existing_result(
+                ids,
+                actor_id=actor_id,
                 tenant_id=tenant_id,
                 workspace_id=workspace_id,
-                created_by=str(user_id),
-                name=subject or "Untitled email",
-                description=f"Email canvas: {subject}" if subject else None,
-                canvas_type="email",
-                content=canvas_content,
-                status="active",
-                last_edited_by=str(user_id),
-                last_edited_at=datetime.now(timezone.utc),
+                operation_id=resolved_operation_id,
+                material=material,
+                material_digest=material_digest,
+                agent_id=agent_id,
+            )
+            if existing is not None:
+                return existing
+
+            from tools.canvas_crud_tool import claim_canvas_actor
+
+            # The actor claim is the transaction's linearization point, as in
+            # the ordinary create path. A move/deactivation refuses the draft.
+            if not claim_canvas_actor(self.db, actor):
+                self.db.rollback()
+                return self._email_draft_refusal(
+                    "Acting user changed before the email draft was created",
+                    canvas_id=ids["canvas_id"],
+                    audit_id=ids["audit_id"],
+                    operation_id=resolved_operation_id,
+                )
+
+            # Re-read after the claim: a concurrent retry may have committed
+            # between the first lookup and the actor line.
+            existing = self._email_draft_existing_result(
+                ids,
+                actor_id=actor_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                operation_id=resolved_operation_id,
+                material=material,
+                material_digest=material_digest,
+                agent_id=agent_id,
+            )
+            if existing is not None:
+                self.db.rollback()
+                return existing
+
+            draft_obj = EmailDraft(
+                draft_id=material["draft_id"],
+                to_emails=material["to_emails"],
+                cc_emails=material["cc_emails"],
+                subject=material["subject"],
+                body=material["body"],
             )
 
-            if _adopted is None:
-                self.db.add(canvas_row)
-            self.db.add(audit)
-            self.db.commit()
-            self.db.refresh(audit)
+            commit_attempted = True
+            try:
+                self._persist_email_canvas(
+                    user_id=actor_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                    subject=material["subject"],
+                    recipients=material["to_emails"],
+                    cc_emails=material["cc_emails"],
+                    body=material["body"],
+                    layout="compose",
+                    template=None,
+                    agent_id=agent_id,
+                    canvas_id=ids["canvas_id"],
+                    audit_id=ids["audit_id"],
+                    thread_id=material["thread_id"],
+                    draft=draft_obj,
+                    adopt_by_subject=False,
+                    audit_extra={
+                        "operation_id": resolved_operation_id,
+                        "material": material,
+                        "material_sha256": material_digest,
+                        "actor_id": actor_id,
+                        "tenant_id": tenant_id,
+                        "workspace_id": workspace_id,
+                        "source": "operation_email_draft",
+                    },
+                )
+            except Exception:
+                # A racing writer may have won the deterministic key. Read the
+                # durable winner back instead of inventing a second effect.
+                self.db.rollback()
+                existing = self._email_draft_existing_result(
+                    ids,
+                    actor_id=actor_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                    operation_id=resolved_operation_id,
+                    material=material,
+                    material_digest=material_digest,
+                    agent_id=agent_id,
+                )
+                if existing is not None:
+                    return existing
+                raise
 
-            logger.info(f"Created email canvas {canvas_id}: {subject}")
+            # Independent exact readback: success is returned only for the
+            # persisted Canvas + create audit this operation names.
+            created = self._email_draft_existing_result(
+                ids,
+                actor_id=actor_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                operation_id=resolved_operation_id,
+                material=material,
+                material_digest=material_digest,
+                agent_id=agent_id,
+                already_applied=False,
+            )
+            expected_content = self._email_canvas_content(
+                material["subject"],
+                material["to_emails"],
+                material["cc_emails"],
+                material["body"],
+            )
+            if (created is not None
+                    and created.get("success")
+                    and created.get("content") == expected_content):
+                return created
+            return {
+                "success": False,
+                "status": "committed_unverified",
+                "conflict": bool((created or {}).get("conflict")),
+                "error": (
+                    (created or {}).get("error")
+                    or "email draft operation could not be verified"),
+                "canvas_id": ids["canvas_id"],
+                "audit_id": ids["audit_id"],
+                "operation_id": resolved_operation_id,
+                "verification": {
+                    "status": "refuted",
+                    "effect": "committed",
+                    "replay": "do_not_repeat",
+                },
+            }
+        except Exception as e:
+            logger.error(f"Failed to create operation email draft: {e}")
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            return self._email_draft_refusal(
+                str(e) or "Email draft operation could not be confirmed",
+                status="effect_unknown" if commit_attempted else "refused",
+                canvas_id=ids.get("canvas_id"),
+                audit_id=ids.get("audit_id"),
+                operation_id=resolved_operation_id or None,
+                effect="unknown" if commit_attempted else "none",
+                replay="do_not_repeat" if commit_attempted else "safe_to_retry",
+            )
+
+    def create_email_canvas(
+        self,
+        user_id: str,
+        subject: str,
+        recipients: List[str],
+        canvas_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        layout: str = "conversation",
+        template: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create a new email canvas.
+
+        Args:
+            user_id: User ID
+            subject: Email subject
+            recipients: List of recipient emails
+            canvas_id: Optional canvas ID
+            agent_id: Optional agent ID
+            layout: Layout (inbox, conversation, compose)
+            template: Optional template ID
+
+        Returns:
+            Dict with canvas details
+        """
+        try:
+            tenant_id, workspace_id, actor = self._resolve_actor_scope(
+                user_id, tenant_id, workspace_id)
+            from tools.canvas_crud_tool import claim_canvas_actor
+
+            if not claim_canvas_actor(self.db, actor):
+                raise PermissionError(
+                    "Acting user changed before the canvas could be created")
+            canvas_id = canvas_id or str(uuid.uuid4())
+            thread_id = str(uuid.uuid4())
+
+            # Create initial draft. The Canvas+audit commit itself lives in the
+            # shared `_persist_email_canvas` transaction used by both callers.
+            draft = EmailDraft(
+                draft_id=str(uuid.uuid4()),
+                to_emails=recipients,
+                subject=subject,
+                body="",
+            )
+            result = self._persist_email_canvas(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                subject=subject,
+                recipients=recipients or [],
+                cc_emails=[],
+                body="",
+                layout=layout,
+                template=template,
+                agent_id=agent_id,
+                canvas_id=canvas_id,
+                audit_id=None,
+                thread_id=thread_id,
+                draft=draft,
+                adopt_by_subject=True,
+            )
 
             return {
                 "success": True,
-                "canvas_id": canvas_id,
+                "canvas_id": result["canvas_id"],
                 "subject": subject,
-                "thread_id": thread_id,
-                "draft_id": draft.draft_id
+                "thread_id": result["thread_id"],
+                "draft_id": draft.draft_id,
             }
 
         except Exception as e:
@@ -1091,6 +1645,548 @@ class EmailCanvasService:
                 canvas_id, user_id, agent_id, metadata, "sent"
             )
 
+    def _apply_agent_signature(
+        self,
+        user_id: str,
+        body: str,
+        agent_id: Optional[str],
+    ) -> tuple:
+        """Apply the user's current styled signature exactly as a send would.
+
+        This is deliberately side-effect free apart from the preference read
+        and is shared by the approval preparation and the send preflight, so
+        the approved body and the dispatched body cannot diverge silently.
+        """
+        applied_signature = ""
+        if not agent_id:
+            return body, applied_signature
+        try:
+            from core.user_preference_service import UserPreferenceService
+
+            _prefs = UserPreferenceService(self.db)
+            # Prefer the STYLED signature (raw HTML mined from the user's
+            # sent mail): sends declare contentType HTML and _body_to_html
+            # passes tag-bearing lines through verbatim, so the user's
+            # exact default signature — fonts, layout tables, links —
+            # ships with agent sends (observed Sept 6: the text-only
+            # signature lost the entire style).
+            applied_signature = str(
+                _prefs.get_preference(
+                    user_id, "default", self.SIGNATURE_HTML_KEY) or ""
+            ).strip() or str(
+                _prefs.get_preference(
+                    user_id, "default", self.SIGNATURE_KEY) or ""
+            ).strip()
+            if applied_signature and applied_signature not in (body or ""):
+                # Multi-line HTML must re-join at tag boundaries before
+                # the line-aware conversion (same rule _body_to_html
+                # applies to the body).
+                applied_signature = re.sub(
+                    r">\s*\n\s*<", "><", applied_signature)
+                signoff = self._extract_signoff(body)
+                if signoff and signoff in body:
+                    # swap the agent's plain sign-off for the user's
+                    # styled signature — one signature per email
+                    body = body.replace(signoff, applied_signature)
+                else:
+                    body = f"{(body or '').rstrip()}\n\n{applied_signature}"
+        except Exception as e:
+            logger.debug(f"signature apply skipped: {e}")
+        return body, applied_signature
+
+    def canonical_outbound_content(
+        self,
+        *,
+        user_id: str,
+        agent_id: Optional[str],
+        to_emails: Any,
+        cc_emails: Any,
+        subject: Any,
+        body: Any,
+    ) -> Dict[str, Any]:
+        """Return the exact visible content the existing send path delivers.
+
+        Approval preparation calls this before recording a hash; a later
+        dispatch calls it again and refuses if the canonical body, subject or
+        recipients would differ from what was approved. It never evaluates
+        policy or touches a provider.
+        """
+        canonical_body, applied_signature = self._apply_agent_signature(
+            user_id, str(body or ""), agent_id)
+        return {
+            "to": self._email_recipient_list(to_emails),
+            "cc": self._email_recipient_list(cc_emails),
+            "subject": str(subject or ""),
+            "body": canonical_body,
+            "applied_signature": applied_signature,
+        }
+
+    async def _send_approved_outlook_dispatch(
+        self,
+        *,
+        canvas_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        tenant_id: str,
+        workspace_id: Optional[str],
+        to_emails: List[str],
+        cc_emails: List[str],
+        subject: str,
+        body: str,
+        decision: Dict[str, Any],
+        grounding: Dict[str, Any],
+        staging: Dict[str, Any],
+        send_attachments: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Run the dedicated staged Outlook effect after Canvas preflight.
+
+        Authority, grounding, policy and rate checks have already run in
+        ``send_email``. This method only verifies that the approved material
+        is still exactly the canonical visible material, then delegates the
+        one-create/one-send provider staging to
+        ``outlook_draft_dispatch``. It never falls back to the direct send
+        path and never resends an already-started phase.
+        """
+        # Preserve the assignment live-send mode gate. Invoice dispatch enters
+        # here directly instead of the generic ``_outlook_send`` adapter, so
+        # this check must run before any provider call or phase reservation.
+        import os
+
+        if os.getenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") != "1":
+            return {
+                "success": False,
+                "status": "not_sent",
+                "reason": "live_send_disabled",
+                "error": (
+                    "production email sending is not authorized in this "
+                    "release; the assignment must remain draft-and-approval "
+                    "only"),
+                "blocked_by": "email_send_disabled",
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        # The staged branch alone opts into the DB-bound Outlook connection.
+        # It must address an existing workspace; defaulting a missing scope
+        # would let the dispatch reach whatever account the host happened to
+        # hold. Tenant is part of the exact connection identity too.
+        workspace_id = str(workspace_id or "").strip()
+        tenant_id = str(tenant_id or "").strip()
+        if not workspace_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "workspace_binding_missing",
+                "error": (
+                    "the approved invoice dispatch has no workspace binding"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        if not tenant_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "tenant_binding_missing",
+                "error": (
+                    "the approved invoice dispatch has no tenant binding"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        from core import outlook_draft_dispatch
+
+        approved = dict(staging.get("payload") or {})
+        approved_to = list(
+            approved.get("to_recipients") or approved.get("to") or [])
+        approved_cc = list(
+            approved.get("cc_recipients") or approved.get("cc") or [])
+        mismatches = []
+        if str(body or "") != str(approved.get("body") or ""):
+            mismatches.append("body")
+        if str(subject or "") != str(approved.get("subject") or ""):
+            mismatches.append("subject")
+        if list(to_emails or []) != approved_to:
+            mismatches.append("to")
+        if list(cc_emails or []) != approved_cc:
+            mismatches.append("cc")
+        if staging.get("thread_id") or approved.get("thread_id"):
+            mismatches.append("thread_id")
+        if send_attachments:
+            mismatches.append("attachments")
+
+        audit_payload = {
+            "to": list(to_emails or []),
+            "cc": list(cc_emails or []),
+            "subject": subject,
+            "provider_draft_id": None,
+            "provider_status": None,
+            "accepted": None,
+            "verified": False,
+            "unresolved": False,
+            "staged": True,
+        }
+        if mismatches:
+            reason = (
+                "the canonical Canvas email formatting would change the "
+                "approved invoice reminder before sending")
+            refusal = {
+                "decision": "block",
+                "policy": "approved_material_canonicalisation",
+                "reason": reason,
+                "mismatches": mismatches,
+            }
+            audit_payload["unresolved"] = True
+            self.record_send(
+                canvas_id, user_id, agent_id, audit_payload, "blocked",
+                refusal, tenant_id)
+            return {
+                "success": False,
+                "status": "blocked",
+                "blocked_by": "approved_material_canonicalisation",
+                "needs_review": True,
+                "reason": "canonical_content_would_change_approved_material",
+                "error": reason,
+                "mismatches": mismatches,
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        run_id = str(staging.get("run_id") or "")
+        operation_id = str(staging.get("operation_id") or "")
+        lifecycle = staging.get("lifecycle")
+        operation: Dict[str, Any] = {}
+        record: Dict[str, Any] = {}
+        if lifecycle is None:
+            if not run_id or not operation_id:
+                return {
+                    "success": False,
+                    "status": "refused",
+                    "reason": "staged_operation_identity_missing",
+                    "error": (
+                        "the approved invoice dispatch has no durable "
+                        "operation identity"),
+                    "provider_state": "not_sent",
+                    "send_performed": False,
+                }
+            from core.goals.goal_run_service import GoalRunService
+            from core.task_lifecycle import TaskLifecycle
+
+            lifecycle = TaskLifecycle(GoalRunService(
+                workspace_id=workspace_id,
+                tenant_id=tenant_id))
+        try:
+            record = lifecycle.get_task(run_id) or {}
+            for candidate in record.get("operations") or []:
+                if (isinstance(candidate, dict)
+                        and candidate.get("operation_id") == operation_id):
+                    operation = candidate
+                    break
+        except Exception as exc:  # noqa: BLE001 — no provider call happened
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "staged_operation_unavailable",
+                # Exception text can contain DB connection credentials; the
+                # receipt only needs the failure class.
+                "error": type(exc).__name__,
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        if not operation:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "staged_operation_not_found",
+                "error": "the approved invoice operation no longer exists",
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        # A lifecycle task that does carry a workspace/tenant must agree with
+        # the caller's existing binding. Missing workspace evidence is checked
+        # on the operation binding below, which is the durable task binding.
+        task_workspace = record.get("workspace_id")
+        if isinstance(task_workspace, dict):
+            task_workspace = task_workspace.get("id")
+        task_workspace = str(task_workspace or "").strip()
+        if task_workspace and task_workspace != workspace_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_workspace_binding_mismatch",
+                "error": (
+                    "the task belongs to a different workspace than this "
+                    "approved dispatch"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        task_tenant = str(record.get("tenant_id") or "").strip()
+        if task_tenant and task_tenant != tenant_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_tenant_binding_mismatch",
+                "error": (
+                    "the task belongs to a different tenant than this "
+                    "approved dispatch"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        execution_id = str(
+            staging.get("execution_id")
+            or operation.get("execution_id") or "")
+        if not execution_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "staged_execution_claim_missing",
+                "error": (
+                    "the approved invoice operation has no running execution "
+                    "claim"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        binding = operation.get("operation_binding")
+        if not isinstance(binding, dict) or not binding:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_binding_missing",
+                "error": (
+                    "the approved invoice operation has no task binding"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        binding_workspace = str(binding.get("workspace_id") or "").strip()
+        if not binding_workspace:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_workspace_binding_missing",
+                "error": (
+                    "the approved invoice task binding has no workspace"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        if binding_workspace != workspace_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_workspace_binding_mismatch",
+                "error": (
+                    "the task binding belongs to a different workspace than "
+                    "this approved dispatch"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        binding_tenant = str(binding.get("tenant_id") or "").strip()
+        if binding_tenant and binding_tenant != tenant_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "task_tenant_binding_mismatch",
+                "error": (
+                    "the task binding belongs to a different tenant than "
+                    "this approved dispatch"),
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        scope = {
+            key: str(binding.get(key) or "")
+            for key in ("action_name", "workspace_id", "account_id")
+        }
+        if binding.get("authorization_ref") is not None:
+            scope["authorization_ref"] = str(
+                binding.get("authorization_ref") or "")
+
+        def _first_text(*values: Any) -> str:
+            for value in values:
+                text = str(value or "").strip()
+                if text:
+                    return text
+            return ""
+
+        # ``operation_binding.account_id`` is the Atom actor, NOT an
+        # integration_tokens.id. On a resume the durable mailbox marker is
+        # authoritative; on a new operation the exact user/tenant/workspace
+        # scope resolves the one canonical Outlook row. Neither path ever
+        # treats the actor as a token id.
+        persisted_mailbox = None
+        mailbox_reader = getattr(
+            outlook_draft_dispatch, "mailbox_binding", None)
+        if callable(mailbox_reader):
+            try:
+                _, persisted_mailbox = mailbox_reader(operation)
+            except Exception:
+                persisted_mailbox = None
+        connection_id = _first_text(
+            (persisted_mailbox or {}).get("token_row_id"),
+            staging.get("connection_id"),
+            staging.get("token_row_id"),
+            operation.get("connection_id"),
+            operation.get("token_row_id"),
+        )
+        try:
+            from integrations.outlook_service import OutlookService
+
+            if not connection_id:
+                connection_id = _first_text(
+                    OutlookService.resolve_connection_id(
+                        user_id=user_id,
+                        tenant_id=tenant_id,
+                        workspace_id=workspace_id,
+                    )
+                )
+                if not connection_id:
+                    return {
+                        "success": False,
+                        "status": "refused",
+                        "reason": "outlook_connection_unavailable",
+                        "error": (
+                            "no single active canonical Outlook connection "
+                            "matches this user, tenant and workspace"),
+                        "provider_state": "not_sent",
+                        "send_performed": False,
+                    }
+
+            # Opt-in DB-bound service: every scope/access/refresh lookup
+            # revalidates this exact row (still the same user/tenant/workspace,
+            # still the canonical active "outlook" row).
+            outlook_service = OutlookService(
+                tenant_id=tenant_id,
+                token_row_id=connection_id,
+                user_id=user_id,
+                workspace_id=workspace_id,
+                db_bound=True,
+            )
+        except Exception as exc:  # noqa: BLE001 — no provider call happened
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": "outlook_connection_unavailable",
+                # Never echo exception text here: a DB driver error can carry
+                # connection credentials into a receipt/log.
+                "error": type(exc).__name__,
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+
+        audit_payload["connection_id"] = connection_id
+        try:
+            staged = await outlook_draft_dispatch.dispatch_approved_outlook_draft(
+                lifecycle=lifecycle,
+                run_id=run_id,
+                operation_id=operation_id,
+                execution_id=execution_id,
+                outlook_service=outlook_service,
+                payload=approved,
+                scope=scope,
+            )
+        except outlook_draft_dispatch.OutlookDispatchRefused as exc:
+            reason = str(getattr(exc, "reason", "") or "dispatch_refused")
+            audit_payload["provider_status"] = "refused"
+            audit_payload["unresolved"] = True
+            self.record_send(
+                canvas_id, user_id, agent_id, audit_payload, "failed",
+                {"decision": "block", "policy": "outlook_dispatch",
+                 "reason": reason}, tenant_id)
+            return {
+                "success": False,
+                "status": "refused",
+                "reason": reason,
+                "error": f"the approved invoice dispatch was refused: {reason}",
+                "provider_state": "not_sent",
+                "send_performed": False,
+            }
+        except Exception as exc:  # noqa: BLE001 — effect may be unknown
+            reason = (
+                "the staged invoice dispatch raised after its operation was "
+                "claimed; the provider outcome is unresolved")
+            audit_payload["provider_status"] = "exception"
+            audit_payload["unresolved"] = True
+            self.record_send(
+                canvas_id, user_id, agent_id, audit_payload, "unknown",
+                {"decision": "review", "policy": "outlook_dispatch",
+                 "reason": type(exc).__name__}, tenant_id)
+            return {
+                "success": False,
+                "status": "unknown",
+                "reason": "staged_dispatch_unresolved",
+                "error": reason,
+                "evidence": type(exc).__name__,
+                "provider_state": "unknown",
+                "send_performed": False,
+                "outcome_uncertain": True,
+            }
+
+        staged = dict(staged or {})
+        staged.setdefault("connection_id", connection_id)
+        status = str(staged.get("status") or "unknown")
+        verified = bool(staged.get("verified"))
+        draft_id = staged.get("draft_id")
+        accepted = staged.get("accepted")
+        if status == "sent_verified":
+            provider_state = "sent"
+            audit_status = "sent"
+        elif status == "send_accepted":
+            # A 202 only proves the provider accepted the request; it does not
+            # prove the message reached Sent Items. Keep that state distinct
+            # from a verified send in the Canvas audit/broadcast while still
+            # recording exactly one counted email_send event below.
+            provider_state = "accepted"
+            audit_status = "accepted_unverified"
+        elif status in ("not_sent", "not_created"):
+            provider_state = "not_sent"
+            audit_status = "failed"
+        else:
+            provider_state = "unknown"
+            audit_status = "unknown"
+
+        unresolved = status in ("unknown", "draft_created")
+        sent_items_unresolved = status == "send_accepted" and not verified
+        audit_payload.update({
+            "provider_draft_id": draft_id,
+            "provider_status": staged.get("provider_status") or status,
+            "accepted": accepted,
+            "verified": verified,
+            "unresolved": bool(unresolved or sent_items_unresolved),
+        })
+        self.record_send(
+            canvas_id, user_id, agent_id, audit_payload, audit_status,
+            {
+                "decision": decision.get("decision"),
+                "policy": decision.get("policy"),
+                "reason": staged.get("reason") or status,
+                "provider_status": staged.get("provider_status") or status,
+                "accepted": accepted,
+                "verified": verified,
+                "unresolved": bool(unresolved or sent_items_unresolved),
+            },
+            tenant_id)
+        return {
+            **staged,
+            # Acceptance is not success: only a verified Sent Items result is
+            # reported as successful. The provider payload above still carries
+            # the acceptance evidence for callers that need it.
+            "success": status == "sent_verified",
+            "status": status,
+            "provider_state": provider_state,
+            "provider_status": staged.get("provider_status") or status,
+            "provider_ref": draft_id,
+            "connection_id": connection_id,
+            "draft_id": draft_id,
+            "accepted": accepted,
+            "verified": verified,
+            "sent_items_verified": verified,
+            "sent_items_unresolved": sent_items_unresolved,
+            "unresolved": bool(unresolved or sent_items_unresolved),
+            "send_performed": status in ("sent_verified", "send_accepted"),
+            "decision": decision.get("decision"),
+            "policy": decision.get("policy"),
+            "grounding": grounding,
+        }
+
     async def send_email(
         self,
         canvas_id: str,
@@ -1112,6 +2208,9 @@ class EmailCanvasService:
         run_id: Optional[str] = None,
         operation_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
+        # Dedicated approved staged path. Generic callers omit this and keep
+        # the existing direct Outlook dispatch untouched.
+        approved_outlook_dispatch: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
@@ -1130,10 +2229,12 @@ class EmailCanvasService:
         Agent-initiated sends go through the MCP path instead, where the
         same policy forces HITL approval (see mcp_service._check_hitl_policy).
 
-        Every attempt is stamped into CanvasAudit — successful sends as
+        Every attempt is stamped into CanvasAudit — counted sends as
         ``email_send`` (the rate-cap ledger), blocked/failed as
         ``email_send_attempt`` — and broadcast as a ``canvas:update`` so
-        agents/users co-editing the canvas see it live.
+        agents/users co-editing the canvas see it live. A staged 202
+        acceptance is still one counted ``email_send`` event, but its Canvas
+        ``send_status`` is ``accepted_unverified`` until Sent Items resolves.
         """
         if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
             return {"success": False, "error": "Not the canvas owner"}
@@ -1187,37 +2288,8 @@ class EmailCanvasService:
         # drafts match the user's fonts/closing style (per-user; observed
         # request 2026-09-01). Human-clicked sends already carry the
         # signature (the composer appends it client-side).
-        applied_signature = ""
-        if agent_id:
-            try:
-                from core.user_preference_service import UserPreferenceService
-
-                _prefs = UserPreferenceService(self.db)
-                # Prefer the STYLED signature (raw HTML mined from the user's
-                # sent mail): sends declare contentType HTML and _body_to_html
-                # passes tag-bearing lines through verbatim, so the user's
-                # exact default signature — fonts, layout tables, links —
-                # ships with agent sends (observed Sept 6: the text-only
-                # signature lost the entire style).
-                applied_signature = str(
-                    _prefs.get_preference(user_id, "default", self.SIGNATURE_HTML_KEY) or ""
-                ).strip() or str(
-                    _prefs.get_preference(user_id, "default", self.SIGNATURE_KEY) or ""
-                ).strip()
-                if applied_signature and applied_signature not in (body or ""):
-                    # Multi-line HTML must re-join at tag boundaries before
-                    # the line-aware conversion (same rule _body_to_html
-                    # applies to the body).
-                    applied_signature = re.sub(r">\s*\n\s*<", "><", applied_signature)
-                    signoff = self._extract_signoff(body)
-                    if signoff and signoff in body:
-                        # swap the agent's plain sign-off for the user's
-                        # styled signature — one signature per email
-                        body = body.replace(signoff, applied_signature)
-                    else:
-                        body = f"{(body or '').rstrip()}\n\n{applied_signature}"
-            except Exception as e:
-                logger.debug(f"signature apply skipped: {e}")
+        body, applied_signature = self._apply_agent_signature(
+            user_id, body, agent_id)
 
         decision = evaluate_email_action(
             {"to": to_emails, "cc": cc_emails, "subject": subject, "body": body},
@@ -1276,6 +2348,29 @@ class EmailCanvasService:
                 "blocked_by": "email_policy",
                 "status": "blocked",
             }
+
+        # Dedicated approved invoice path: reuse every authority/grounding/
+        # policy/rate gate above, then stage exactly one provider draft and
+        # one send through the durable operation markers. Generic caller
+        # sends keep the existing direct dispatch below unchanged.
+        if approved_outlook_dispatch is not None:
+            staging = dict(approved_outlook_dispatch)
+            staging.setdefault("thread_id", thread_id)
+            return await self._send_approved_outlook_dispatch(
+                canvas_id=canvas_id,
+                user_id=user_id,
+                agent_id=agent_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                to_emails=list(to_emails or []),
+                cc_emails=list(cc_emails or []),
+                subject=subject or "",
+                body=body or "",
+                decision=decision,
+                grounding=grounding,
+                staging=staging,
+                send_attachments=send_attachments,
+            )
 
         # Threaded reply: the whole point of a taught "always reply on the
         # existing thread" direction — the composer's fields still apply,
@@ -2103,10 +3198,12 @@ class EmailCanvasService:
     ) -> None:
         """Stamp a CanvasAudit row for a send attempt + broadcast canvas:update.
 
-        Only successful sends get action_type="email_send" — the rate-cap
-        ledger (email_policy._sends_in_last_hour); blocked/failed attempts
-        are recorded as "email_send_attempt" so they stay auditable without
-        consuming quota.
+        Counted sends get action_type="email_send" — the rate-cap ledger
+        (email_policy._sends_in_last_hour). That includes a provider-accepted
+        but not-yet-verified send (send_status="accepted_unverified"): it is
+        still exactly one rate-cap event. Blocked/failed attempts are recorded
+        as "email_send_attempt" so they stay auditable without consuming
+        quota. Legacy callers passing "sent" keep the original behavior.
 
         canvas_audit.canvas_id is a NOT NULL FK to canvases.id: when no such
         Canvas row exists (e.g. canvas_id was absent), a minimal email Canvas
@@ -2132,7 +3229,10 @@ class EmailCanvasService:
             agent_id=agent_id,
             user_id=user_id,
             canvas_id=canvas_id,
-            action_type="email_send" if status == "sent" else "email_send_attempt",
+            action_type=(
+                "email_send" if status in _COUNTED_SEND_STATUSES
+                else "email_send_attempt"
+            ),
             canvas_type="email",
             details_json={
                 "canvas_type": "email",

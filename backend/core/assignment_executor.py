@@ -6085,6 +6085,25 @@ class AssignmentExecutor:
         operation_id = _operation_id_for_step(record, step)
         if not operation_id:
             raise AssignmentError("step has no operation to reconcile")
+        adapter = str(step.get("adapter") or "").strip().casefold()
+        if (verdict == "not_applied"
+                and adapter in {
+                    "invoice.send_reminder",
+                    "invoice.send_reminder_outlook",
+                    "invoice.dispatch_reminder",
+                }):
+            operation = _operation_by_id(record, operation_id) or {}
+            if operation.get("outlook_dispatch_send_started") is not None:
+                # The send phase was durably reserved before the provider call,
+                # so this reminder may already have been accepted (HTTP 202).
+                # Treating it as not_applied would clear the operation and let
+                # the same reminder be approved and dispatched again. Refuse
+                # before any CAS/mutation and leave the operation, evidence and
+                # uncertain state exactly as recorded.
+                raise AssignmentError(
+                    f"refusing not_applied for {adapter}: this reminder may "
+                    "already have been sent and must be verified in Outlook "
+                    "before any further action.")
         result = self.lifecycle.reconcile_uncertain_operation(
             run_id, operation_id, verdict,
             evidence=evidence, evidence_ref=evidence_ref)

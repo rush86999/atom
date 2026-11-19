@@ -243,16 +243,100 @@ class OutlookAttachment:
 class OutlookService(IntegrationService):
     """Comprehensive Outlook service for Microsoft Graph API integration"""
 
-    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+    def __init__(
+        self,
+        tenant_id: str = "default",
+        config: Dict[str, Any] = None,
+        token_row_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        *,
+        connection_id: Optional[str] = None,
+        db_bound: Optional[bool] = None,
+        db_tenant_id: Optional[str] = None,
+        db_workspace_id: Optional[str] = None,
+        token_id: Optional[str] = None,
+        integration_token_id: Optional[str] = None,
+        bound_token_row_id: Optional[str] = None,
+        exact_token_row_id: Optional[str] = None,
+    ):
         """
         Initialize Outlook service for a specific tenant.
 
         Args:
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with credentials
+            token_row_id: Opt-in exact ``integration_tokens.id`` to bind this
+                connector to. When supplied, token lookup, scope checks and
+                refresh all operate on that one active canonical ``outlook``
+                row only.
+            user_id: Exact current user for the opt-in bound connection.
+            workspace_id: Exact current workspace for the opt-in bound
+                connection.
+            connection_id: Alias for ``token_row_id`` (the opaque connection
+                id persisted by callers).
+            db_bound: Explicitly enable the opt-in DB-bound connection. It is
+                also enabled automatically when an exact row/connection id is
+                given.
         """
         if config is None:
             config = {}
+        config = dict(config)
+
+        def _clean(value: Any) -> Optional[str]:
+            text = str(value or "").strip()
+            return text or None
+
+        def _first(*values: Any) -> Optional[str]:
+            for value in values:
+                cleaned = _clean(value)
+                if cleaned:
+                    return cleaned
+            return None
+
+        # Accept the aliases from both explicit arguments and tenant config so
+        # a factory/configuration caller can opt in without changing existing
+        # generic call sites.
+        resolved_token_row_id = _first(
+            token_row_id,
+            bound_token_row_id,
+            exact_token_row_id,
+            connection_id,
+            token_id,
+            integration_token_id,
+            config.get("token_row_id"),
+            config.get("connection_id"),
+            config.get("token_id"),
+            config.get("integration_token_id"),
+        )
+        resolved_user_id = _first(
+            user_id,
+            config.get("user_id"),
+            config.get("current_user_id"),
+        )
+        resolved_workspace_id = _first(
+            workspace_id,
+            db_workspace_id,
+            config.get("workspace_id"),
+            config.get("db_workspace_id"),
+        )
+        resolved_db_tenant_id = _first(
+            db_tenant_id,
+            config.get("db_tenant_id"),
+            config.get("database_tenant_id"),
+        )
+        if db_bound is None:
+            db_bound = config.get("db_bound")
+        if db_bound is None:
+            db_bound = config.get("bound_connection")
+        # An explicit row id is inherently an opt-in binding. Requiring both a
+        # user and workspace is also treated as opt-in so the resolved identity
+        # can be validated against the row; without either signal the historical
+        # generic connector path is unchanged.
+        bound_requested = bool(db_bound) or bool(resolved_token_row_id) or bool(
+            resolved_user_id and resolved_workspace_id
+        )
+
         super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = GRAPH_API_BASE
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID") or os.getenv("OUTLOOK_CLIENT_ID")
@@ -277,10 +361,239 @@ class OutlookService(IntegrationService):
         # Typed failure from the last attachment read.  A missing grant or a
         # Graph error must not look like an email with zero attachments.
         self.last_error: Optional[Dict[str, Any]] = None
+        # Opt-in DB-bound connection context. The default connector path
+        # (OutlookService()/OutlookService(tenant, config)) leaves this off and
+        # keeps its historical lookup/refresh behavior.
+        self.db_bound: bool = bool(bound_requested)
+        self._db_bound: bool = self.db_bound
+        self.token_row_id: Optional[str] = resolved_token_row_id
+        self.connection_id: Optional[str] = resolved_token_row_id
+        self._token_row_id: Optional[str] = resolved_token_row_id
+        self._bound_token_row_id: Optional[str] = resolved_token_row_id
+        self.bound_user_id: Optional[str] = resolved_user_id
+        self.bound_workspace_id: Optional[str] = resolved_workspace_id
+        self.workspace_id: Optional[str] = resolved_workspace_id
+        # ``self.tenant_id`` is the tenant half of the exact DB identity. A
+        # separate db_tenant_id remains available for callers whose service
+        # tenant and database tenant are intentionally named differently.
+        self.db_tenant_id: Optional[str] = (
+            resolved_db_tenant_id or _clean(tenant_id)
+        )
+        # Read-only diagnostics: never contains token material.
+        self.last_token_error: Optional[str] = None
+        # Invocation-scoped credential pin for the opt-in staged path. It is
+        # deliberately memory-only: the validated token is reused by every
+        # provider call in this invocation so a concurrent refresh of the
+        # same row cannot rotate the credential between draft/create/send.
+        # Generic/direct callers never set this and keep their historical
+        # per-call lookup behavior.
+        self._pinned_access_token: Optional[str] = None
+
+    # ------------------------------------------------------------------
+    # Opt-in DB-bound connection selection
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _binding_text(value: Any) -> str:
+        return str(value or "").strip()
+
+    def _bound_identity(
+        self, user_id: Optional[str] = None
+    ) -> Optional[Dict[str, str]]:
+        """The exact user/tenant/workspace this bound instance must address.
+
+        Returns ``None`` (and records ``last_token_error``) when the identity
+        is not fully specified or the caller-supplied user disagrees with the
+        identity fixed at construction time.
+        """
+        self.last_token_error = None
+        caller_user = self._binding_text(user_id)
+        fixed_user = self._binding_text(self.bound_user_id)
+        if fixed_user and caller_user and fixed_user != caller_user:
+            self.last_token_error = "bound_user_mismatch"
+            return None
+        current_user = fixed_user or caller_user
+        placeholders = {
+            "current", "default_user", "default", "anonymous", "guest", "",
+        }
+        tenant_id = self._binding_text(self.db_tenant_id)
+        workspace_id = self._binding_text(self.bound_workspace_id)
+        if not current_user or current_user in placeholders:
+            self.last_token_error = "bound_user_missing"
+            return None
+        if not tenant_id:
+            self.last_token_error = "bound_tenant_missing"
+            return None
+        if not workspace_id:
+            self.last_token_error = "bound_workspace_missing"
+            return None
+        return {
+            "user_id": current_user,
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+        }
+
+    def _load_bound_token_row(
+        self, db: Any, user_id: Optional[str] = None
+    ) -> Optional[Any]:
+        """Load the one active canonical Outlook row this instance is bound to.
+
+        The callback fans a grant out to a canonical ``outlook`` row plus a
+        mirror ``microsoft`` row. This lookup deliberately addresses ONLY the
+        canonical row — it never falls back to the mirror. With an exact row id
+        the row is re-read by id and then every identity field (user, tenant,
+        workspace, provider, active status) is revalidated. Without an id the
+        exact identity must resolve to exactly one active canonical row; zero
+        rows and ambiguous rows both refuse.
+        """
+        from core.models import IntegrationToken
+
+        identity = self._bound_identity(user_id)
+        if identity is None:
+            return None
+
+        try:
+            query = db.query(IntegrationToken)
+            if self.token_row_id:
+                rows = query.filter(
+                    IntegrationToken.id == self.token_row_id
+                ).all()
+            else:
+                rows = query.filter(
+                    IntegrationToken.user_id == identity["user_id"],
+                    IntegrationToken.tenant_id == identity["tenant_id"],
+                    IntegrationToken.workspace_id == identity["workspace_id"],
+                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.status == "active",
+                ).all()
+
+            if not rows:
+                self.last_token_error = "bound_token_missing"
+                return None
+            if len(rows) != 1:
+                # PK lookup cannot be ambiguous; an identity lookup with
+                # multiple active canonical rows must refuse rather than pick.
+                self.last_token_error = "bound_token_ambiguous"
+                return None
+
+            record = rows[0]
+            checks = (
+                (self._binding_text(getattr(record, "user_id", None)),
+                 identity["user_id"], "bound_token_user_mismatch"),
+                (self._binding_text(getattr(record, "tenant_id", None)),
+                 identity["tenant_id"], "bound_token_tenant_mismatch"),
+                (self._binding_text(getattr(record, "workspace_id", None)),
+                 identity["workspace_id"], "bound_token_workspace_mismatch"),
+                (self._binding_text(getattr(record, "provider", None)).lower(),
+                 "outlook", "bound_token_provider_mismatch"),
+                (self._binding_text(getattr(record, "status", None)).lower(),
+                 "active", "bound_token_inactive"),
+            )
+            for actual, expected, reason in checks:
+                if actual != expected:
+                    self.last_token_error = reason
+                    return None
+            if self.token_row_id and self._binding_text(
+                getattr(record, "id", None)
+            ) != self.token_row_id:
+                self.last_token_error = "bound_token_row_mismatch"
+                return None
+            return record
+        except Exception as e:
+            logger.debug(f"Could not read bound Outlook token row: {e}")
+            self.last_token_error = "bound_token_read_failed"
+            return None
+
+    @classmethod
+    def resolve_connection_id(
+        cls,
+        *,
+        user_id: str,
+        tenant_id: str,
+        workspace_id: str,
+    ) -> Optional[str]:
+        """Return the id of the single active canonical outlook token row.
+
+        This is a read-only identity lookup for callers (the staged Canvas
+        branch) that need the opaque connection id to persist. It never
+        returns a ``microsoft`` mirror row and returns ``None`` for a missing
+        or ambiguous identity instead of choosing one.
+        """
+        identity = {
+            "user_id": cls._binding_text(user_id),
+            "tenant_id": cls._binding_text(tenant_id),
+            "workspace_id": cls._binding_text(workspace_id),
+        }
+        if not all(identity.values()):
+            return None
+        try:
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+
+            with get_db_session() as db:
+                rows = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == identity["user_id"],
+                    IntegrationToken.tenant_id == identity["tenant_id"],
+                    IntegrationToken.workspace_id == identity["workspace_id"],
+                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.status == "active",
+                ).all()
+                if len(rows) != 1:
+                    return None
+                return cls._binding_text(getattr(rows[0], "id", None)) or None
+        except Exception as e:
+            logger.debug(f"Could not resolve bound Outlook connection: {e}")
+            return None
+
+    @classmethod
+    def for_connection(
+        cls,
+        connection_id: Optional[str] = None,
+        *,
+        token_row_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        tenant_id: str = "default",
+        workspace_id: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> "OutlookService":
+        """Factory for the opt-in DB-bound connection.
+
+        ``connection_id`` is the opaque ``integration_tokens.id`` persisted by
+        the caller; the service revalidates that exact row on every use.
+        """
+        return cls(
+            tenant_id=tenant_id,
+            config=config,
+            token_row_id=token_row_id or connection_id,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            db_bound=True,
+            **kwargs,
+        )
+
+    from_token_row = for_connection
+    from_connection = for_connection
+    with_token_row = for_connection
+    for_bound_token = for_connection
+    bind_to_token = for_connection
 
     async def _get_connection_scope(self, user_id: str) -> Optional[str]:
         """The consent grant's scope string for this user's active Outlook
         token, or None when unknown (no row / no scope recorded)."""
+        if self.db_bound:
+            try:
+                from core.database import get_db_session
+
+                with get_db_session() as db:
+                    record = self._load_bound_token_row(db, user_id)
+                    if record is None:
+                        return None
+                    return (record.scope or "").strip() if record else None
+            except Exception as e:
+                logger.debug(
+                    f"Could not read bound connection scope for {user_id}: {e}")
+                return None
         try:
             from core.database import get_db_session
             from core.models import IntegrationToken
@@ -308,7 +621,45 @@ class OutlookService(IntegrationService):
         return False
 
     async def _get_access_token(self, user_id: str) -> Optional[str]:
-        """Get access token for user from database"""
+        """Get access token for user from database.
+
+        The historical generic path is unchanged. In the opt-in DB-bound mode
+        this reads ONLY the exact canonical ``outlook`` row selected/revalidated
+        by ``_load_bound_token_row`` and never falls back to the mirror
+        ``microsoft`` row or another user's token.
+        """
+        if self.db_bound:
+            try:
+                from core.database import get_db_session
+                from core.privsec.token_encryption import decrypt_token
+
+                with get_db_session() as db:
+                    token_record = self._load_bound_token_row(db, user_id)
+                    if token_record is None or not token_record.access_token:
+                        return None
+                    _expires = token_record.expires_at
+                    if _expires and _expires.tzinfo is None:
+                        _expires = _expires.replace(tzinfo=timezone.utc)
+                    tokens = {
+                        "access_token": decrypt_token(
+                            token_record.access_token, allow_plaintext=True),
+                        "refresh_token": (
+                            decrypt_token(
+                                token_record.refresh_token,
+                                allow_plaintext=True)
+                            if token_record.refresh_token else None),
+                        "expires_at": (
+                            _expires.timestamp() if _expires else None),
+                    }
+                    if self._is_token_expired(tokens):
+                        return await self._refresh_access_token(
+                            token_record.user_id or user_id, tokens)
+                    return tokens["access_token"]
+            except Exception as e:
+                logger.error(
+                    f"Error getting bound access token for user {user_id}: {e}")
+                return None
+
         try:
             from core.database import get_db_session
             from core.models import IntegrationToken
@@ -372,7 +723,14 @@ class OutlookService(IntegrationService):
     async def _refresh_access_token(
         self, user_id: str, tokens: Dict[str, Any]
     ) -> Optional[str]:
-        """Refresh access token using refresh token"""
+        """Refresh access token using refresh token.
+
+        The generic path keeps fanning the refreshed grant to the canonical
+        ``outlook`` row and its ``microsoft`` mirror. The opt-in DB-bound path
+        refreshes one exact row only.
+        """
+        if self.db_bound:
+            return await self._refresh_bound_access_token(user_id, tokens)
         try:
             refresh_token = tokens.get("refresh_token")
             if not refresh_token:
@@ -442,6 +800,151 @@ class OutlookService(IntegrationService):
             logger.error(f"Error refreshing token for user {user_id}: {e}")
             return None
 
+    async def _refresh_bound_access_token(
+        self, user_id: str, tokens: Dict[str, Any]
+    ) -> Optional[str]:
+        """Refresh only the exact active canonical row this instance is bound to.
+
+        The row is read and revalidated before the provider call, and its
+        exact credential version is preserved as a snapshot. After the
+        provider call a single conditional UPDATE writes the new grant only
+        if that same row is still active, still belongs to the bound
+        user/tenant/workspace, and still carries the observed encrypted
+        access token, refresh token and expiration. A concurrent OAuth
+        reconnect therefore wins: the refresh returns ``None`` instead of
+        overwriting the newer grant or handing back a token it did not store.
+        No sibling ``microsoft`` row and no other user row is touched, and the
+        caller-supplied ``tokens`` are never substituted for a refresh token
+        that the exact row no longer has.
+        """
+        try:
+            from core.database import get_db_session
+            from core.privsec.token_encryption import decrypt_token
+
+            with get_db_session() as db:
+                record = self._load_bound_token_row(db, user_id)
+                if record is None:
+                    return None
+                if not record.refresh_token:
+                    self.last_token_error = "bound_refresh_token_missing"
+                    return None
+                refresh_token = decrypt_token(
+                    record.refresh_token, allow_plaintext=True)
+                if not refresh_token:
+                    self.last_token_error = "bound_refresh_token_missing"
+                    return None
+
+                # Preserve the exact row/identity/credential version observed
+                # before the provider call. Values are plain snapshots (the
+                # encrypted fields are never decrypted for logging or reused
+                # as a fallback).
+                observed_id = getattr(record, "id", None)
+                observed_user_id = self._binding_text(
+                    getattr(record, "user_id", None))
+                observed_tenant_id = self._binding_text(
+                    getattr(record, "tenant_id", None))
+                observed_workspace_id = self._binding_text(
+                    getattr(record, "workspace_id", None))
+                observed_access_token = record.access_token
+                observed_refresh_token = record.refresh_token
+                observed_expires_at = record.expires_at
+                if observed_id is None:
+                    self.last_token_error = "bound_token_missing"
+                    return None
+
+            if not self.client_id or not self.client_secret or not self.tenant_id_config:
+                logger.error(
+                    f"Cannot refresh bound token for user {user_id}: "
+                    "client credentials not configured"
+                )
+                return None
+
+            tenant = (
+                self.tenant_id_config
+                if self.tenant_id_config
+                and self.tenant_id_config not in ("default", "none", "")
+                else (os.getenv("MICROSOFT_TENANT_ID") or "common")
+            )
+            authority = os.getenv(
+                "MICROSOFT_AUTHORITY_BASE", "https://login.microsoftonline.com"
+            ).rstrip("/")
+            url = f"{authority}/{tenant}/oauth2/v2.0/token"
+            data = {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=data) as response:
+                    if response.status != 200:
+                        logger.error(
+                            "Bound token refresh failed with status "
+                            f"{response.status}")
+                        return None
+                    token_data = await response.json()
+
+            new_access_token = token_data.get("access_token")
+            if not new_access_token:
+                logger.error("Bound token refresh response missing access_token")
+                return None
+            new_refresh_token = token_data.get("refresh_token") or refresh_token
+            expires_in = token_data.get("expires_in")
+
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import encrypt_token
+
+            values = {
+                "access_token": encrypt_token(new_access_token),
+                "refresh_token": encrypt_token(new_refresh_token),
+            }
+            if expires_in:
+                values["expires_at"] = datetime.now(timezone.utc) + timedelta(
+                    seconds=int(expires_in)
+                )
+
+            def _unchanged(column: Any, observed: Any) -> Any:
+                # NULL is a real observed value here: a credential column that
+                # was empty before the call must compare as IS NULL, not as
+                # ``= NULL`` (which never matches).
+                return column.is_(None) if observed is None else column == observed
+
+            with get_db_session() as db:
+                # One conditional UPDATE is the compare-and-swap: the WHERE
+                # clause carries the exact row id, canonical identity and the
+                # encrypted credential version observed before the HTTP call.
+                # If an OAuth reconnect changed any of them while the refresh
+                # was in flight, zero rows match and the newer grant survives.
+                updated = db.query(IntegrationToken).filter(
+                    IntegrationToken.id == observed_id,
+                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.status == "active",
+                    IntegrationToken.user_id == observed_user_id,
+                    IntegrationToken.tenant_id == observed_tenant_id,
+                    IntegrationToken.workspace_id == observed_workspace_id,
+                    _unchanged(
+                        IntegrationToken.access_token, observed_access_token),
+                    _unchanged(
+                        IntegrationToken.refresh_token, observed_refresh_token),
+                    _unchanged(
+                        IntegrationToken.expires_at, observed_expires_at),
+                ).update(values, synchronize_session=False)
+                if not updated:
+                    self.last_token_error = "bound_token_refresh_conflict"
+                    logger.info(
+                        "Bound token refresh conflict for user %s; "
+                        "credentials changed while refreshing", user_id)
+                    return None
+                db.commit()
+
+            self.last_token_error = None
+            logger.info(f"Refreshed bound access token for user {user_id}")
+            return new_access_token
+        except Exception as e:
+            logger.error(f"Error refreshing bound token for user {user_id}: {e}")
+            return None
+
     async def _make_graph_request(
         self,
         user_id: str,
@@ -450,6 +953,7 @@ class OutlookService(IntegrationService):
         data: Optional[Dict[str, Any]] = None,
         access_token: Optional[str] = None,
         full_url: bool = False,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated request to Microsoft Graph API
 
@@ -458,6 +962,10 @@ class OutlookService(IntegrationService):
         this same base_url; callers must validate the prefix, see
         ``_validated_next_link``).
 
+        ``extra_headers`` adds per-request headers (e.g. ``Prefer``) without
+        changing any existing call site. Authorization is never overridable
+        through it, and the value is merged only for this one request.
+
         Every request carries an explicit ``aiohttp.ClientTimeout``: a bare
         ``ClientSession()`` rides aiohttp's 300s default, so one hung Graph
         call could hold a search ladder (and every budgeted lane above it)
@@ -465,6 +973,11 @@ class OutlookService(IntegrationService):
         empty search into a caller timeout long before its own budget).
         """
         token = access_token
+        if not token:
+            # Staged callers pin the token validated against Graph /me for
+            # this invocation. Honor it before any per-call DB lookup so a
+            # same-row rotation cannot swap credentials mid-effect.
+            token = self._pinned_access_token
         if not token:
             token = await self._get_access_token(user_id)
 
@@ -476,6 +989,14 @@ class OutlookService(IntegrationService):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
+        if extra_headers:
+            headers.update(
+                {
+                    str(key): str(value)
+                    for key, value in extra_headers.items()
+                    if str(key).lower() != "authorization"
+                }
+            )
 
         url = endpoint if full_url else f"{self.base_url}{endpoint}"
         self.last_graph_status = None
@@ -933,6 +1454,706 @@ class OutlookService(IntegrationService):
             }
         return sent
 
+    # Fields required to correlate a sent message without reading its body.
+    _SENT_EVIDENCE_SELECT = (
+        "id,isDraft,conversationId,internetMessageId,sentDateTime,"
+        "receivedDateTime,parentFolderId"
+    )
+    # Ask Graph to treat the path ID as the immutable ID returned at draft
+    # creation. Scoped to this request only.
+    _IMMUTABLE_ID_PREFER = 'IdType="ImmutableId"'
+
+    async def get_sent_message_evidence(
+        self,
+        user_id: str,
+        immutable_message_id: str,
+        access_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read back one already-known message as sent-message evidence.
+
+        The input is the opaque immutable message ID the provider returned
+        when the draft was created. This performs exactly ONE authenticated
+        ``GET /me/mailFolders/sentitems/messages/{id}`` — the documented
+        folder-scoped read — with ``Prefer: IdType="ImmutableId"`` and a
+        ``$select`` limited to the correlation fields. The folder scope is
+        required for evidence: mailbox-wide ``/me/messages/{id}`` also
+        returns Inbox messages, so an Inbox non-draft was indistinguishable
+        from a sent one (synthetic verification 2026-11-19). The ID is
+        percent-encoded as a single path segment and compared
+        case-sensitively with the provider's returned ``id`` — immutable IDs
+        are opaque, so no normalization is allowed. The request uses the
+        existing authenticated user lookup unless the staged caller pins an
+        invocation-scoped token (``access_token``).
+
+        A result is ``resolved`` only when the message exists as a dict, its
+        ``id`` matches the requested ID exactly, ``isDraft`` is explicitly
+        ``false``, and non-empty provider ``conversationId`` and
+        ``internetMessageId`` values are present. Anything else (404/transport
+        failure, malformed non-dict body, mismatched ID, draft, missing
+        correlation fields) is ``unresolved``.
+
+        Graph can lag when persisting a message into Sent Items, so an
+        ``unresolved`` read is inconclusive, not proof that no send occurred.
+        This method deliberately does not send, search by subject, or retry;
+        a caller that wants a later readback issues a new call.
+        """
+        unresolved: Dict[str, Any] = {
+            "status": "unresolved",
+            "resolved": False,
+            "message_id": (
+                immutable_message_id
+                if isinstance(immutable_message_id, str)
+                else None
+            ),
+            "sent_items_may_be_delayed": True,
+        }
+        if not isinstance(immutable_message_id, str) or not immutable_message_id:
+            unresolved["reason"] = "invalid_message_id"
+            return unresolved
+
+        # quote(safe="") keeps '/', '?', '#', '=' etc. inside one segment, so
+        # the opaque ID cannot change the request path or query. The
+        # sentitems folder scope is what makes a non-draft Inbox message
+        # unresolvable: mailbox-wide /me/messages would return it.
+        encoded_id = urllib.parse.quote(immutable_message_id, safe="")
+        endpoint = (
+            f"/me/mailFolders/sentitems/messages/{encoded_id}"
+            f"?$select={self._SENT_EVIDENCE_SELECT}"
+        )
+        message = await self._make_graph_request(
+            user_id,
+            endpoint,
+            extra_headers={"Prefer": self._IMMUTABLE_ID_PREFER},
+            access_token=access_token,
+        )
+
+        if message is None:
+            unresolved["reason"] = (
+                "message_not_found"
+                if self.last_graph_status == 404
+                else "readback_failed"
+            )
+            unresolved["http_status"] = self.last_graph_status
+            return unresolved
+
+        # _handle_response returns the parsed JSON verbatim; a 200 carrying a
+        # list/string is not a message. Refuse it rather than crashing on
+        # .get() or treating it as evidence.
+        if not isinstance(message, dict):
+            unresolved["reason"] = "malformed_response"
+            return unresolved
+
+        if message.get("id") != immutable_message_id:
+            unresolved["reason"] = "message_id_mismatch"
+            return unresolved
+
+        if message.get("isDraft") is not False:
+            unresolved["reason"] = "message_is_draft"
+            return unresolved
+
+        conversation_id = message.get("conversationId")
+        if not isinstance(conversation_id, str) or not conversation_id:
+            unresolved["reason"] = "missing_conversation_id"
+            return unresolved
+
+        internet_message_id = message.get("internetMessageId")
+        if not isinstance(internet_message_id, str) or not internet_message_id:
+            unresolved["reason"] = "missing_internet_message_id"
+            return unresolved
+
+        return {
+            "status": "resolved",
+            "resolved": True,
+            "message_id": message["id"],
+            "conversation_id": conversation_id,
+            "internet_message_id": internet_message_id,
+            "sent_date_time": message.get("sentDateTime"),
+            "received_date_time": message.get("receivedDateTime"),
+            "is_draft": False,
+            "parent_folder_id": message.get("parentFolderId"),
+            "sent_items_may_be_delayed": False,
+        }
+
+    # Opt-in exact-reply evidence reads are body-free by construction: the
+    # select asks only for correlation fields plus internetMessageHeaders,
+    # where RFC 5322 In-Reply-To actually lives (Graph does not surface that
+    # header as a first-class message property). The conversation filter is
+    # inbox-scoped, so the candidate set is bounded to one thread.
+    _EXACT_REPLY_EVIDENCE_SELECT = (
+        "id,conversationId,isDraft,internetMessageId,internetMessageHeaders,"
+        "from,receivedDateTime,sentDateTime,parentFolderId"
+    )
+    _EXACT_REPLY_PAGE_SIZE = 50
+    # Enough to cover ordinary reminder threads; a remaining nextLink after
+    # this many Graph pages is reported as incomplete, never as "no reply".
+    _EXACT_REPLY_MAX_PAGES = 5
+
+    # RFC 5322 msg-id: angle brackets around a local-part and domain. The
+    # whole token is compared byte-for-byte with the sent message's
+    # internetMessageId — no bracket stripping, case folding or substring
+    # matching (a "fuzzy" reference must not count as direct proof).
+    _MESSAGE_ID_TOKEN_RE = re.compile(r"<[^<>\s]+>")
+    _MESSAGE_ID_RE = re.compile(r"^<[^<>\s]+@[^<>\s]+>$")
+    _AUTOREPLY_HEADER_NAMES = frozenset({
+        "x-autoreply",
+        "x-autorespond",
+        "x-autoresponder",
+        "x-autoresponse",
+        "x-auto-reply",
+        "x-autogenerated",
+        "x-ms-exchange-organization-autoreply",
+    })
+    _AUTOREPLY_PRECEDENCE = frozenset({
+        "auto_reply",
+        "auto-reply",
+        "autoreply",
+        "bulk",
+        "junk",
+    })
+
+    @staticmethod
+    def _normalize_recipient_address(value: Any) -> Optional[str]:
+        """Normalize an expected recipient for comparison, or None.
+
+        The address is only compared with a candidate's ``from`` address; it
+        is never interpolated into a Graph query. Angle brackets, display
+        names, whitespace and separators are rejected so a caller cannot
+        smuggle an ambiguous "recipient" into the match."""
+        if not isinstance(value, str):
+            return None
+        address = value.strip()
+        if not address or len(address) > 320:
+            return None
+        if any(ch.isspace() or ch in "<>,;" for ch in address):
+            return None
+        local_part, separator, domain = address.rpartition("@")
+        if not separator or not local_part or not domain or "@" in local_part:
+            return None
+        return address.casefold()
+
+    @staticmethod
+    def _index_internet_headers(value: Any) -> Optional[Dict[str, List[str]]]:
+        """Case-insensitive header index from Graph's internetMessageHeaders.
+
+        Returns None when the collection (or any entry in it) is unreadable,
+        which callers treat as missing evidence rather than an absent header.
+        An empty collection is also missing data: every real Internet message
+        carries headers, so Graph dropping the requested collection must not
+        read as "no In-Reply-To"."""
+        if not isinstance(value, list) or not value:
+            return None
+        index: Dict[str, List[str]] = {}
+        for entry in value:
+            if not isinstance(entry, dict):
+                return None
+            name = entry.get("name")
+            header_value = entry.get("value")
+            if not isinstance(name, str) or not isinstance(header_value, str):
+                return None
+            key = name.strip().lower()
+            if not key:
+                return None
+            index.setdefault(key, []).append(header_value)
+        return index
+
+    @classmethod
+    def _headers_mark_automatic_response(
+        cls, headers: Dict[str, List[str]]
+    ) -> bool:
+        """True when RFC 3834/autoreply markers say this is machine mail."""
+        for value in headers.get("auto-submitted", []):
+            # RFC 3834: "no" is the explicit non-automatic value; every
+            # other registered token (auto-replied, auto-generated, ...)
+            # marks an automatic response.
+            if value.strip().lower() not in ("", "no"):
+                return True
+        for name in cls._AUTOREPLY_HEADER_NAMES:
+            for value in headers.get(name, []):
+                if value.strip().lower() not in ("", "no", "false", "0"):
+                    return True
+        for value in headers.get("precedence", []):
+            if value.strip().lower() in cls._AUTOREPLY_PRECEDENCE:
+                return True
+        # Calendar/meeting traffic is machine-generated; a meeting response
+        # must never stand in for a human reply from the approved recipient.
+        for value in headers.get("content-class", []):
+            if value.strip().lower().startswith("meeting"):
+                return True
+        return False
+
+    @classmethod
+    def _parse_in_reply_to(cls, values: List[str]) -> Optional[List[str]]:
+        """Parse the full RFC 5322 msg-id tokens from In-Reply-To.
+
+        Returns None for anything that cannot be read as an unambiguous
+        header: multiple In-Reply-To fields (RFC 5322 permits at most one),
+        no complete angle-bracketed id, an id without a domain, stray text
+        outside CFWS/comments, or unbalanced brackets. Callers fail closed on
+        None instead of guessing at a malformed reference."""
+        if len(values) != 1:
+            return None
+        raw = values[0]
+        tokens = cls._MESSAGE_ID_TOKEN_RE.findall(raw)
+        if not tokens:
+            return None
+        if not all(cls._MESSAGE_ID_RE.match(token) for token in tokens):
+            return None
+
+        # Strip legal comments (including nested ones) and then require that
+        # only whitespace/commas remain between msg-ids. This keeps
+        # "In-Reply-To: see <id>" from being treated as an exact reference.
+        remainder = cls._MESSAGE_ID_TOKEN_RE.sub("", raw)
+        cleaned: List[str] = []
+        depth = 0
+        for char in remainder:
+            if char == "(":
+                depth += 1
+                continue
+            if char == ")":
+                if depth == 0:
+                    return None
+                depth -= 1
+                continue
+            if depth:
+                continue
+            if char in "<>":
+                return None
+            cleaned.append(char)
+        if depth:
+            return None
+        if any(char not in " \t\r\n," for char in cleaned):
+            return None
+        return tokens
+
+    @classmethod
+    def _classify_exact_reply_candidate(
+        cls,
+        candidate: Any,
+        conversation_id: str,
+        anchor_internet_message_id: str,
+        expected_recipient: str,
+    ) -> tuple:
+        """Classify one inbox message for exact-reply evidence.
+
+        Returns ``(outcome, reason, matched)`` where outcome is ``ignore``
+        (not an answer), ``match`` (direct reply) or ``incomplete`` (the
+        message could be an answer but cannot be read safely). Drafts,
+        automatic responses, messages from other senders and non- replies
+        are ignored only after their identity/conversation fields are known
+        good; anything unreadable is conservative."""
+        if not isinstance(candidate, dict):
+            return "incomplete", "malformed_candidate", None
+
+        candidate_id = candidate.get("id")
+        if not isinstance(candidate_id, str) or not candidate_id:
+            return "incomplete", "malformed_candidate", None
+
+        candidate_conversation = candidate.get("conversationId")
+        if (
+            not isinstance(candidate_conversation, str)
+            or not candidate_conversation
+        ):
+            return "incomplete", "malformed_candidate", None
+        if candidate_conversation != conversation_id:
+            # The inbox query is conversation-scoped; a different value means
+            # the page cannot be trusted as the candidate set.
+            return "incomplete", "conversation_mismatch", None
+
+        is_draft = candidate.get("isDraft")
+        if not isinstance(is_draft, bool):
+            return "incomplete", "malformed_candidate", None
+        if is_draft:
+            return "ignore", None, None
+
+        sender = cls._address_of(candidate.get("from"))
+        if not sender:
+            return "incomplete", "malformed_candidate", None
+        if sender.casefold() != expected_recipient:
+            return "ignore", None, None
+
+        headers = cls._index_internet_headers(
+            candidate.get("internetMessageHeaders")
+        )
+        if headers is None:
+            return "incomplete", "missing_internet_message_headers", None
+        if cls._headers_mark_automatic_response(headers):
+            return "ignore", None, None
+
+        in_reply_to = headers.get("in-reply-to")
+        if not in_reply_to:
+            return "ignore", None, None
+        references = cls._parse_in_reply_to(in_reply_to)
+        if references is None:
+            return "incomplete", "malformed_in_reply_to", None
+        if anchor_internet_message_id not in references:
+            return "ignore", None, None
+
+        return "match", None, {
+            "reply_message_id": candidate_id,
+            "reply_sender": sender,
+            "reply_conversation_id": candidate_conversation,
+            "reply_received_date_time": candidate.get("receivedDateTime"),
+            "reply_sent_date_time": candidate.get("sentDateTime"),
+        }
+
+    @staticmethod
+    def _exact_reply_evidence_result(
+        status: str,
+        *,
+        message_id: Optional[str],
+        conversation_id: Optional[str],
+        reason: Optional[str] = None,
+        http_status: Optional[int] = None,
+        anchor_reason: Optional[str] = None,
+        reply: Optional[Dict[str, Any]] = None,
+        pages_fetched: int = 0,
+        candidates_examined: int = 0,
+        match_count: int = 0,
+        sent_items_may_be_delayed: bool = False,
+    ) -> Dict[str, Any]:
+        resolved = status == "resolved" and reply is not None
+        result: Dict[str, Any] = {
+            "status": "resolved" if resolved else "unresolved",
+            "resolved": resolved,
+            "message_id": message_id,
+            "conversation_id": conversation_id,
+            "reply_message_id": (reply or {}).get("reply_message_id"),
+            "reply_sender": (reply or {}).get("reply_sender"),
+            "reply_received_date_time": (
+                reply or {}
+            ).get("reply_received_date_time"),
+            "reply_sent_date_time": (reply or {}).get("reply_sent_date_time"),
+            "in_reply_to_matched": resolved,
+            "pages_fetched": pages_fetched,
+            "candidates_examined": candidates_examined,
+            "match_count": match_count,
+        }
+        if reason is not None:
+            result["reason"] = reason
+        if http_status is not None:
+            result["http_status"] = http_status
+        if anchor_reason is not None:
+            result["anchor_reason"] = anchor_reason
+        if sent_items_may_be_delayed:
+            result["sent_items_may_be_delayed"] = True
+        return result
+
+    def _validated_exact_reply_next_link(
+        self, raw: Optional[str]
+    ) -> Optional[str]:
+        """Trust a continuation URL only when it points at Graph.
+
+        The shared validator pins the public Graph hosts; a service
+        configured with ``MICROSOFT_GRAPH_BASE_URL`` (journey/e2e) is still
+        Graph, so its own configured base is allowed too. Anything else is
+        rejected rather than followed."""
+        validated = self._validated_next_link(raw)
+        if validated:
+            return validated
+        candidate = str(raw or "")
+        base = str(self.base_url or "").rstrip("/")
+        if (
+            base
+            and base != GRAPH_API_BASE
+            and candidate.startswith(base + "/")
+            and "\\.." not in candidate
+            and "/.." not in candidate
+        ):
+            return candidate
+        return None
+
+    async def get_exact_reply_evidence(
+        self,
+        user_id: str,
+        immutable_message_id: str,
+        expected_recipient: str,
+    ) -> Dict[str, Any]:
+        """Opt-in proof that the approved recipient replied to one SENT item.
+
+        This is a read-only evidence probe for a verified sent reminder. It
+        takes the current authenticated user, the exact immutable ID of the
+        message already proven sent, and the approved recipient the reminder
+        went to. It performs no send, draft, delete, corpus write, or token
+        override.
+
+        The anchor is proven first through the existing Sent Items helper
+        (``get_sent_message_evidence``), which yields the anchor's
+        conversationId and full Internet Message-ID. Only then is the inbox
+        read, one conversation at a time, with ``Prefer:
+        IdType="ImmutableId"`` and ``internetMessageHeaders`` in ``$select``.
+        A candidate is evidence only when all of the following hold:
+
+        * its conversationId exactly equals the anchor's;
+        * it is explicitly not a draft;
+        * its ``from`` address case-insensitively equals the approved
+          recipient;
+        * it is not an automatic response (RFC 3834 ``Auto-Submitted`` and
+          the usual autoreply/precedence markers are rejected);
+        * its single RFC 5322 ``In-Reply-To`` field parses to full
+          angle-bracketed Internet Message-IDs and one token is EXACTLY the
+          anchor's ``internetMessageId``.
+
+        Subject and body are never selected, read or compared; malformed
+        headers, missing header data, or extra text in In-Reply-To never fall
+        back to fuzzy matching. Pages are bounded and every ``@odata.nextLink``
+        must pass the existing Graph-only nextLink validation. A remaining
+        page, an unreadable page/candidate, or more than one distinct match is
+        reported as unresolved (``reason`` says why), never guessed around.
+        Raw headers and message bodies are not returned.
+
+        ``resolved`` therefore means exactly one human, non-automatic inbox
+        message from the approved recipient is a direct reply to the proven
+        sent item. As with the anchor helper, a Sent Items read may lag
+        provider persistence; callers retry by calling this again.
+        """
+        self.last_graph_status = None
+        self.last_transport_error = None
+
+        if not isinstance(immutable_message_id, str) or not immutable_message_id:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=(
+                    immutable_message_id
+                    if isinstance(immutable_message_id, str)
+                    else None
+                ),
+                conversation_id=None,
+                reason="invalid_message_id",
+            )
+
+        normalized_recipient = self._normalize_recipient_address(
+            expected_recipient
+        )
+        if normalized_recipient is None:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=None,
+                reason="invalid_expected_recipient",
+            )
+
+        try:
+            anchor = await self.get_sent_message_evidence(
+                user_id, immutable_message_id
+            )
+        except Exception as e:
+            logger.error(
+                "Exact-reply anchor read failed for %s: %s", user_id, e
+            )
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=None,
+                reason="anchor_read_failed",
+                sent_items_may_be_delayed=True,
+            )
+        if (
+            not isinstance(anchor, dict)
+            or anchor.get("status") != "resolved"
+            or anchor.get("resolved") is not True
+        ):
+            anchor_reason = (
+                anchor.get("reason") if isinstance(anchor, dict) else None
+            )
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=None,
+                reason="anchor_unresolved",
+                http_status=(
+                    anchor.get("http_status")
+                    if isinstance(anchor, dict)
+                    else None
+                ),
+                anchor_reason=anchor_reason,
+                sent_items_may_be_delayed=True,
+            )
+
+        conversation_id = anchor.get("conversation_id")
+        anchor_internet_message_id = anchor.get("internet_message_id")
+        if not isinstance(conversation_id, str) or not conversation_id:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=None,
+                reason="malformed_anchor",
+                sent_items_may_be_delayed=True,
+            )
+        if anchor.get("is_draft") is not False:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=conversation_id,
+                reason="anchor_is_draft",
+            )
+        if (
+            not isinstance(anchor_internet_message_id, str)
+            or not self._MESSAGE_ID_RE.match(anchor_internet_message_id)
+        ):
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=conversation_id,
+                reason="malformed_anchor_message_id",
+            )
+
+        # The anchor read has done its job; clear its transport state so an
+        # inbox failure below reports only the inbox attempt.
+        self.last_graph_status = None
+        self.last_transport_error = None
+
+        # One quote-doubled OData literal; conversationId is provider data,
+        # never caller prose, and the inbox folder scope is what keeps the
+        # candidate set from spanning the mailbox.
+        escaped_conversation = conversation_id.replace("'", "''")
+        params = {
+            "$filter": f"conversationId eq '{escaped_conversation}'",
+            "$select": self._EXACT_REPLY_EVIDENCE_SELECT,
+            "$top": self._EXACT_REPLY_PAGE_SIZE,
+        }
+        endpoint = (
+            "/me/mailFolders/inbox/messages?"
+            + urllib.parse.urlencode(params)
+        )
+
+        matches: List[Dict[str, Any]] = []
+        match_ids = set()
+        incomplete_reason: Optional[str] = None
+        pages_fetched = 0
+        candidates_examined = 0
+        current = endpoint
+        first_page = True
+
+        while current:
+            page = await self._make_graph_request(
+                user_id,
+                current,
+                full_url=not first_page,
+                extra_headers={"Prefer": self._IMMUTABLE_ID_PREFER},
+            )
+            first_page = False
+            pages_fetched += 1
+
+            if page is None:
+                return self._exact_reply_evidence_result(
+                    "unresolved",
+                    message_id=immutable_message_id,
+                    conversation_id=conversation_id,
+                    reason="inbox_read_failed",
+                    http_status=self.last_graph_status,
+                    pages_fetched=pages_fetched,
+                    candidates_examined=candidates_examined,
+                )
+            if not isinstance(page, dict):
+                return self._exact_reply_evidence_result(
+                    "unresolved",
+                    message_id=immutable_message_id,
+                    conversation_id=conversation_id,
+                    reason="malformed_inbox_page",
+                    pages_fetched=pages_fetched,
+                    candidates_examined=candidates_examined,
+                )
+            value = page.get("value")
+            if not isinstance(value, list):
+                return self._exact_reply_evidence_result(
+                    "unresolved",
+                    message_id=immutable_message_id,
+                    conversation_id=conversation_id,
+                    reason="malformed_inbox_page",
+                    pages_fetched=pages_fetched,
+                    candidates_examined=candidates_examined,
+                )
+
+            for candidate in value:
+                candidates_examined += 1
+                outcome, candidate_reason, matched = (
+                    self._classify_exact_reply_candidate(
+                        candidate,
+                        conversation_id,
+                        anchor_internet_message_id,
+                        normalized_recipient,
+                    )
+                )
+                if outcome == "incomplete":
+                    if incomplete_reason is None:
+                        incomplete_reason = (
+                            candidate_reason or "incomplete_candidate"
+                        )
+                elif outcome == "match" and matched is not None:
+                    # Graph pagination can repeat a message; a repeat is the
+                    # same answer, not a second reply.
+                    if matched["reply_message_id"] not in match_ids:
+                        match_ids.add(matched["reply_message_id"])
+                        matches.append(matched)
+
+            next_link = page.get("@odata.nextLink")
+            if not next_link:
+                break
+            validated_next = self._validated_exact_reply_next_link(next_link)
+            if not validated_next:
+                return self._exact_reply_evidence_result(
+                    "unresolved",
+                    message_id=immutable_message_id,
+                    conversation_id=conversation_id,
+                    reason="untrusted_next_link",
+                    pages_fetched=pages_fetched,
+                    candidates_examined=candidates_examined,
+                )
+            if pages_fetched >= self._EXACT_REPLY_MAX_PAGES:
+                return self._exact_reply_evidence_result(
+                    "unresolved",
+                    message_id=immutable_message_id,
+                    conversation_id=conversation_id,
+                    reason="page_limit_reached",
+                    pages_fetched=pages_fetched,
+                    candidates_examined=candidates_examined,
+                    match_count=len(matches),
+                )
+            current = validated_next
+
+        if len(matches) > 1:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=conversation_id,
+                reason="ambiguous_reply",
+                pages_fetched=pages_fetched,
+                candidates_examined=candidates_examined,
+                match_count=len(matches),
+            )
+        if incomplete_reason is not None:
+            # A relevant candidate existed but could not be read safely, so
+            # "exactly one reply" cannot be asserted even if one match was
+            # found (it might not be the only one).
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=conversation_id,
+                reason=incomplete_reason,
+                pages_fetched=pages_fetched,
+                candidates_examined=candidates_examined,
+                match_count=len(matches),
+            )
+        if not matches:
+            return self._exact_reply_evidence_result(
+                "unresolved",
+                message_id=immutable_message_id,
+                conversation_id=conversation_id,
+                reason="no_matching_reply",
+                pages_fetched=pages_fetched,
+                candidates_examined=candidates_examined,
+            )
+
+        return self._exact_reply_evidence_result(
+            "resolved",
+            message_id=immutable_message_id,
+            conversation_id=conversation_id,
+            reply=matches[0],
+            pages_fetched=pages_fetched,
+            candidates_examined=candidates_examined,
+            match_count=1,
+        )
+
     async def get_latest_conversation_message_id(
         self,
         user_id: str,
@@ -1312,6 +2533,33 @@ class OutlookService(IntegrationService):
                 legs["internal"].append(body)
         return legs
 
+    @staticmethod
+    def _build_draft_payload(
+        to_recipients: List[str],
+        subject: str,
+        body: str,
+        cc_recipients: Optional[List[str]] = None,
+        bcc_recipients: Optional[List[str]] = None,
+        conversation_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Message body shared by the draft-creating primitives."""
+        payload: Dict[str, Any] = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body},
+            "toRecipients": [
+                {"emailAddress": {"address": email}} for email in to_recipients
+            ],
+            "ccRecipients": [
+                {"emailAddress": {"address": email}} for email in (cc_recipients or [])
+            ],
+            "bccRecipients": [
+                {"emailAddress": {"address": email}} for email in (bcc_recipients or [])
+            ],
+        }
+        if conversation_id:
+            payload["conversationId"] = conversation_id
+        return payload
+
     async def create_draft_email(
         self,
         user_id: str,
@@ -1325,27 +2573,14 @@ class OutlookService(IntegrationService):
     ) -> Optional[Dict[str, Any]]:
         """Create draft email"""
         try:
-            # Prepare recipients
-            to_recipients_data = [
-                {"emailAddress": {"address": email}} for email in to_recipients
-            ]
-            cc_recipients_data = [
-                {"emailAddress": {"address": email}} for email in (cc_recipients or [])
-            ]
-            bcc_recipients_data = [
-                {"emailAddress": {"address": email}} for email in (bcc_recipients or [])
-            ]
-
-            email_data = {
-                "subject": subject,
-                "body": {"contentType": "HTML", "content": body},
-                "toRecipients": to_recipients_data,
-                "ccRecipients": cc_recipients_data,
-                "bccRecipients": bcc_recipients_data,
-            }
-            if conversation_id:
-                email_data["conversationId"] = conversation_id
-
+            email_data = self._build_draft_payload(
+                to_recipients=to_recipients,
+                subject=subject,
+                body=body,
+                cc_recipients=cc_recipients,
+                bcc_recipients=bcc_recipients,
+                conversation_id=conversation_id,
+            )
             result = await self._make_graph_request(
                 user_id, "/me/messages", "POST", email_data, access_token=token
             )
@@ -1353,6 +2588,353 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error creating draft email: {e}")
             return None
+
+    @staticmethod
+    def _draft_creation_result(
+        status: str,
+        *,
+        draft_id: Optional[str] = None,
+        reason: Optional[str] = None,
+        http_status: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        created = status == "created"
+        unknown = status == "unknown"
+        result: Dict[str, Any] = {
+            "status": status,
+            "outcome": "unknown_effect" if unknown else status,
+            "created": True if created else (None if unknown else False),
+            "draft_id": draft_id,
+            "is_draft": True if created else None,
+            "effect_uncertain": unknown,
+        }
+        if reason is not None:
+            result["reason"] = reason
+        if http_status is not None:
+            result["http_status"] = http_status
+        return result
+
+    async def create_draft_with_immutable_id(
+        self,
+        user_id: str,
+        to_recipients: List[str],
+        subject: str,
+        body: str,
+        cc_recipients: Optional[List[str]] = None,
+        bcc_recipients: Optional[List[str]] = None,
+        conversation_id: Optional[str] = None,
+        access_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create exactly one Outlook draft and return its immutable ID.
+
+        This is the connector primitive for approved, replay-aware callers
+        that persist the immutable ID and later act on that same draft. It
+        performs ONE authenticated ``POST /me/messages`` through the existing
+        per-user credential lookup, with ``Prefer: IdType="ImmutableId"`` on
+        that request only, so the returned ``id`` is the immutable provider ID
+        (Microsoft Learn: outlook-immutable-id and user-post-messages). The
+        staged caller supplies the invocation-scoped ``access_token`` it has
+        already validated against Graph /me; every provider call in that
+        invocation therefore uses one pinned credential. It never calls
+        ``/send``, never retries, and never falls back to another endpoint or
+        cleans up a draft.
+
+        A ``created`` result requires all of: a dict provider response, a
+        non-empty string ``id``, ``isDraft`` explicitly ``True``, and an HTTP
+        create status (200/201). Anything else after a successful HTTP status
+        — malformed JSON, a partial body, a missing/odd ID, or a body that
+        does not confirm a draft — is ``unknown``: the provider accepted the
+        request, so the draft MAY exist and the caller must not treat it as
+        not-created. A transport failure or timeout is likewise ``unknown``.
+        All 5xx responses and HTTP 408 are also ``unknown``: the request may
+        have reached the mailbox even though no usable response came back.
+        Only an explicit provider denial (a conclusive 4xx rejection) or an
+        unavailable credential whose transport never began is ``not_created``.
+
+        Draft content and IDs are never logged here.
+        """
+        email_data = self._build_draft_payload(
+            to_recipients=to_recipients,
+            subject=subject,
+            body=body,
+            cc_recipients=cc_recipients,
+            bcc_recipients=bcc_recipients,
+            conversation_id=conversation_id,
+        )
+        # The generic transport resets these only after it resolves a token;
+        # a missing credential returns first and would leave the previous
+        # call's state visible here. Reset before this call so its outcome is
+        # judged solely on this attempt.
+        self.last_graph_status = None
+        self.last_transport_error = None
+
+        result = await self._make_graph_request(
+            user_id,
+            "/me/messages",
+            "POST",
+            email_data,
+            extra_headers={"Prefer": self._IMMUTABLE_ID_PREFER},
+            access_token=access_token,
+        )
+        http_status = self.last_graph_status
+
+        if result is None:
+            if self.last_transport_error:
+                return self._draft_creation_result(
+                    "unknown",
+                    reason="transport_error",
+                    http_status=http_status,
+                )
+            if http_status is None:
+                # No credential: the transport never began, so no draft
+                # request could have reached the provider.
+                return self._draft_creation_result(
+                    "not_created",
+                    reason="not_authenticated",
+                )
+            if isinstance(http_status, int) and 200 <= http_status < 300:
+                # The response arrived but its success body was unreadable;
+                # the provider may still have created the draft.
+                return self._draft_creation_result(
+                    "unknown",
+                    reason="incomplete_response",
+                    http_status=http_status,
+                )
+            # An explicit denial proves the provider refused the create. 5xx,
+            # 408, redirects and unrecognized statuses are not proof either
+            # way: the provider may have accepted work before failing.
+            conclusive_denial_statuses = {
+                400, 401, 403, 404, 405, 406, 409, 410, 411, 412, 413,
+                414, 415, 416, 417, 418, 421, 422, 423, 424, 425, 426,
+                428, 429, 431, 451,
+            }
+            if http_status in conclusive_denial_statuses:
+                return self._draft_creation_result(
+                    "not_created",
+                    reason="provider_rejected",
+                    http_status=http_status,
+                )
+            return self._draft_creation_result(
+                "unknown",
+                reason="inconclusive_status",
+                http_status=http_status,
+            )
+
+        if not isinstance(result, dict):
+            return self._draft_creation_result(
+                "unknown",
+                reason="malformed_response",
+                http_status=http_status,
+            )
+
+        draft_id = result.get("id")
+        if not isinstance(draft_id, str) or not draft_id:
+            return self._draft_creation_result(
+                "unknown",
+                reason="missing_draft_id",
+                http_status=http_status,
+            )
+        if result.get("isDraft") is not True:
+            return self._draft_creation_result(
+                "unknown",
+                reason="missing_is_draft",
+                http_status=http_status,
+            )
+        if http_status not in (200, 201):
+            # Accepted/reset without the documented create status is not
+            # conclusive enough to claim a draft was created.
+            return self._draft_creation_result(
+                "unknown",
+                reason="inconclusive_status",
+                http_status=http_status,
+            )
+        return self._draft_creation_result(
+            "created",
+            draft_id=draft_id,
+            http_status=http_status,
+        )
+
+    @staticmethod
+    def _draft_send_result(
+        status: str,
+        *,
+        message_id: Optional[str] = None,
+        reason: Optional[str] = None,
+        http_status: Optional[int] = None,
+        provider_accepted: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        unknown = status == "unknown"
+        result: Dict[str, Any] = {
+            "status": status,
+            "outcome": "unknown_effect" if unknown else status,
+            "provider_accepted": provider_accepted,
+            "sent_items_verified": False,
+            "effect_uncertain": unknown,
+            "message_id": message_id,
+        }
+        if reason is not None:
+            result["reason"] = reason
+        if http_status is not None:
+            result["http_status"] = http_status
+        return result
+
+    async def send_existing_immutable_draft(
+        self,
+        user_id: str,
+        immutable_message_id: str,
+        access_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Send one already-persisted draft by its exact immutable ID.
+
+        This is an internal connector primitive for a caller that has already
+        persisted the provider draft identity and independently verified human
+        approval. It performs exactly ONE authenticated
+        ``POST /me/messages/{id}/send`` through the existing per-user
+        credential lookup, with ``Prefer: IdType="ImmutableId"`` on that
+        request only. The staged caller supplies the invocation-scoped
+        ``access_token`` it has already validated against Graph /me, so the
+        create and send legs cannot observe different credentials from the
+        same row. The opaque ID is percent-encoded as one path segment and
+        otherwise used verbatim. There is deliberately no way to choose a
+        different mailbox: the caller-supplied token must already be the one
+        validated for this operation's persisted mailbox binding.
+
+        It never creates a draft, searches, retries, deletes/cleans up,
+        changes message content, or falls back to another endpoint.
+
+        HTTP 202 means only that the provider ACCEPTED the send request; this
+        method does not read Sent Items, so its result is never proof of a
+        verified send. An explicit conclusive 4xx denial (other than 404/408)
+        is ``not_sent``. A timeout/transport failure, HTTP 5xx, HTTP 408,
+        HTTP 404, or any other inconclusive response is ``unknown`` with
+        ``effect_uncertain`` true: the provider may already have sent the
+        draft, and a 404 in particular can follow an earlier send. Draft
+        content and IDs are never logged here.
+        """
+        # Reset before validating the ID: a refusal or a missing credential
+        # must not expose the previous call's Graph status/transport state.
+        self.last_graph_status = None
+        self.last_transport_error = None
+        self.last_send_error = None
+
+        if (
+            not isinstance(immutable_message_id, str)
+            or not immutable_message_id.strip()
+        ):
+            return self._draft_send_result(
+                "not_sent",
+                reason="invalid_message_id",
+                provider_accepted=False,
+            )
+
+        message_id = immutable_message_id
+        encoded_id = urllib.parse.quote(message_id, safe="")
+        try:
+            result = await self._make_graph_request(
+                user_id,
+                f"/me/messages/{encoded_id}/send",
+                "POST",
+                {},
+                extra_headers={"Prefer": self._IMMUTABLE_ID_PREFER},
+                access_token=access_token,
+            )
+        except Exception as e:
+            # The existing transport normally converts this to None plus
+            # last_transport_error; keep the primitive safe if it does not.
+            self.last_transport_error = str(e)[:300]
+            return self._draft_send_result(
+                "unknown",
+                message_id=message_id,
+                reason="transport_error",
+                http_status=self.last_graph_status,
+            )
+
+        http_status = self.last_graph_status
+        if http_status == 202:
+            return self._draft_send_result(
+                "provider_accepted",
+                message_id=message_id,
+                http_status=http_status,
+                provider_accepted=True,
+            )
+
+        # 404 can mean the draft was already sent successfully, so it is not
+        # a safe "not sent" signal. 408 and every 5xx are equally ambiguous.
+        if http_status == 404:
+            return self._draft_send_result(
+                "unknown",
+                message_id=message_id,
+                reason="draft_not_found_or_already_sent",
+                http_status=http_status,
+            )
+        if http_status == 408:
+            return self._draft_send_result(
+                "unknown",
+                message_id=message_id,
+                reason="timeout",
+                http_status=http_status,
+            )
+        if isinstance(http_status, int) and 500 <= http_status < 600:
+            return self._draft_send_result(
+                "unknown",
+                message_id=message_id,
+                reason="provider_error",
+                http_status=http_status,
+            )
+
+        if result is None:
+            if self.last_transport_error:
+                return self._draft_send_result(
+                    "unknown",
+                    message_id=message_id,
+                    reason="transport_error",
+                    http_status=http_status,
+                )
+            if http_status is None:
+                # No credential: the transport never began, so no send
+                # request could have reached the provider.
+                return self._draft_send_result(
+                    "not_sent",
+                    message_id=message_id,
+                    reason="not_authenticated",
+                    provider_accepted=False,
+                )
+            if isinstance(http_status, int) and 200 <= http_status < 300:
+                # A response arrived but no usable body did; the provider may
+                # still have accepted the send.
+                return self._draft_send_result(
+                    "unknown",
+                    message_id=message_id,
+                    reason="incomplete_response",
+                    http_status=http_status,
+                )
+            conclusive_denial_statuses = {
+                400, 401, 403, 405, 406, 409, 410, 411, 412, 413, 414, 415,
+                416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 429, 431,
+                451,
+            }
+            if http_status in conclusive_denial_statuses:
+                return self._draft_send_result(
+                    "not_sent",
+                    message_id=message_id,
+                    reason="provider_rejected",
+                    http_status=http_status,
+                    provider_accepted=False,
+                )
+            return self._draft_send_result(
+                "unknown",
+                message_id=message_id,
+                reason="inconclusive_status",
+                http_status=http_status,
+            )
+
+        # A non-202 success body is not the documented send response, so it
+        # proves neither acceptance nor a verified Sent Items entry.
+        return self._draft_send_result(
+            "unknown",
+            message_id=message_id,
+            reason="inconclusive_status",
+            http_status=http_status,
+        )
 
     async def get_email_by_id(
         self, user_id: str, email_id: str, token: Optional[str] = None
