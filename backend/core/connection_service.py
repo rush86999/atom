@@ -214,6 +214,158 @@ class ConnectionService:
                 logger.error(f"Error retrieving connection credentials: {e}")
                 return None
 
+    @staticmethod
+    def _has_nonempty_identifier(value: Any) -> bool:
+        """Return True only for a usable, non-blank string identifier."""
+        return isinstance(value, str) and bool(value.strip())
+
+    def get_scoped_connection_credentials(
+        self,
+        user_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        connection_id: str,
+        integration_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Read exactly one active, fully scoped connection's credentials.
+
+        This is an opt-in, server-side verification read. It deliberately does
+        no provider I/O, token refresh, last_used update, database writes, or
+        fallback lookup. It remains unpublished until its workflow is wired.
+        """
+        identifiers = (
+            user_id,
+            tenant_id,
+            workspace_id,
+            connection_id,
+            integration_id,
+        )
+        if not all(self._has_nonempty_identifier(value) for value in identifiers):
+            return None
+
+        with get_db_session() as db:
+            try:
+                conn = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id,
+                    UserConnection.user_id == user_id,
+                    UserConnection.tenant_id == tenant_id,
+                    UserConnection.workspace_id == workspace_id,
+                    UserConnection.integration_id == integration_id,
+                    UserConnection.status == "active",
+                ).first()
+
+                if not conn:
+                    return None
+
+                # Reuse the existing timezone normalization for naive DB values.
+                expires_at = self._ensure_aware_datetime(
+                    getattr(conn, "expires_at", None)
+                )
+                if expires_at is not None and datetime.now(timezone.utc) >= expires_at:
+                    return None
+
+                encrypted = getattr(conn, "credentials", None)
+                if not isinstance(encrypted, str) or not encrypted.strip():
+                    return None
+                if encrypted.lstrip().startswith("{"):
+                    # Never accept _decrypt's legacy plain-text fallback here.
+                    return None
+
+                creds = self._decrypt(encrypted)
+                if not isinstance(creds, dict) or not creds:
+                    return None
+                return creds
+            except Exception as e:
+                logger.error(f"Error retrieving scoped connection credentials: {e}")
+                return None
+
+    def create_scoped_connection(
+        self,
+        user_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        integration_id: str,
+        name: str,
+        credentials: Dict[str, Any],
+        connection_id: str,
+    ) -> bool:
+        """Create exactly one fully scoped connection with a caller-chosen ID.
+
+        This is the paired write for ``get_scoped_connection_credentials``. The
+        caller is responsible for resolving the user/tenant/workspace scope
+        from authenticated state; none of these values are inferred here.
+
+        The supplied ``connection_id`` is used for one insert attempt only. This
+        method never updates an existing row, never widens another row's scope,
+        and never adopts or re-encrypts legacy credentials. It returns ``True``
+        only when a new row was committed, and ``False`` for invalid input,
+        an already-existing ID, or a concurrent primary-key collision.
+        Credential material is never logged.
+        """
+        identifiers = (
+            user_id,
+            tenant_id,
+            workspace_id,
+            integration_id,
+            name,
+            connection_id,
+        )
+        if not all(self._has_nonempty_identifier(value) for value in identifiers):
+            return False
+        if not isinstance(credentials, dict) or not credentials:
+            return False
+
+        with get_db_session() as db:
+            try:
+                existing = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id
+                ).first()
+                if existing is not None:
+                    return False
+
+                # Match save_connection's expiry semantics exactly.
+                expires_at = None
+                expires_in = credentials.get("expires_in")
+                if expires_in:
+                    try:
+                        expires_at = datetime.now(timezone.utc) + timedelta(
+                            seconds=int(expires_in)
+                        )
+                    except (ValueError, TypeError):
+                        logger.warning(
+                            "Failed to parse expires_in for scoped connection %s",
+                            connection_id,
+                        )
+
+                new_conn = UserConnection(
+                    id=connection_id,
+                    user_id=user_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                    integration_id=integration_id,
+                    connection_name=name,
+                    credentials=self._encrypt(credentials),
+                    expires_at=expires_at,
+                    status="active",
+                )
+                db.add(new_conn)
+                db.commit()
+                return True
+            except Exception as exc:
+                # A concurrent insert may win after the existence check. Roll
+                # back so the failed primary key is not left pending, and do
+                # not retry with a different ID or fall back to an update.
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                logger.warning(
+                    "Scoped connection creation failed for %s: %s",
+                    connection_id,
+                    type(exc).__name__,
+                )
+                return False
+
     # H2 fix: per-connection locks prevent concurrent refresh races where
     # two requests for the same expired credential each fire a refresh,
     # and for providers that rotate refresh tokens (Google, Microsoft), the
