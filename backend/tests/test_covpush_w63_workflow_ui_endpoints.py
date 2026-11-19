@@ -9,6 +9,7 @@ mapping (808/810), email/delay bridge step types (836/838), execute
 background failure path (889-898), found-mock step-count fallback (908),
 cancel dict-context/setter-failure/orchestrator-error (959/963-967).
 """
+import json
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -101,7 +102,8 @@ class TestExecuteByIdBranches:
         await task()
         orchestrator.execute_workflow.assert_awaited_once_with(
             "wf-1", {"x": 1, "_ui_workflow_id": "wf-1"},
-            execution_id=result["execution_id"])
+            execution_id=result["execution_id"],
+            execution_context={"user_id": "u1", "tenant_id": None})
 
     async def test_schedule_failure_tolerated(self):
         orchestrator = MagicMock()
@@ -122,15 +124,18 @@ class TestMergeDedup:
         row = SimpleNamespace(
             execution_id="ex-1", workflow_id="wf-1", status="COMPLETED",
             input_data=None, outputs=None, steps=None, error=None,
-            created_at=datetime.now(), completed_at=None)
-        db.query.return_value.order_by.return_value.limit.return_value.all.return_value = [row]
+            created_at=datetime.now(), completed_at=None,
+            owner_id="u1", user_id="u1", tenant_id=None)
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [row]
         with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])):
             existing = [WorkflowExecution(
                 execution_id="ex-1", workflow_id="wf-1", status="completed",
                 start_time=datetime.now().isoformat(), current_step=0,
                 total_steps=0)]
-            result = _merge_persisted_executions(existing)
+            result = _merge_persisted_executions(
+                existing, SimpleNamespace(id="u1", tenant_id=None))
         assert len(result) == 1  # deduped, no append
+        db.query.return_value.filter.assert_called()  # actor scope applied
 
 
 class TestExecutionsDictContexts:
@@ -145,6 +150,8 @@ class TestExecutionsDictContexts:
                 "completed_at": "2026-08-01T11:00:00",
                 "results": {"a": 1},
                 "error_message": None,
+                "user_id": "u1",
+                "tenant_id": None,
             },
             "c2": {"status": "done",
                    "started_at": datetime.now(),
@@ -152,7 +159,9 @@ class TestExecutionsDictContexts:
                    "results": None,
                    "error_message": "boom",
                    "workflow_id": "wf-d2",
-                   "input_data": {}},
+                   "input_data": {},
+                   "user_id": "u1",
+                   "tenant_id": None},
         }
         db = make_db()
         db.query.return_value.order_by.return_value.limit.return_value.all.return_value = []
@@ -174,6 +183,8 @@ class TestExecutionsDictContexts:
         }
         # make processing raise: results is a non-dict without len()
         orchestrator.active_contexts["bad"].input_data = None
+        orchestrator.active_contexts["bad"].user_id = "u1"
+        orchestrator.active_contexts["bad"].tenant_id = None
         db = make_db()
         db.query.return_value.order_by.return_value.limit.return_value.all.return_value = []
         with patch("advanced_workflow_orchestrator.get_orchestrator",
@@ -363,30 +374,124 @@ class TestExecuteMappingBranches:
 
 
 class TestCancelBranches:
-    async def test_cancel_dict_context(self):
+    async def test_cancel_legacy_dict_context_is_not_mutated(self):
         db = make_db()
         db.query.return_value.filter.return_value.first.return_value = None
-        orchestrator = MagicMock()
-        orchestrator.active_contexts = {"ex-dict": {"status": "running"}}
+        cancel_workflow = AsyncMock(return_value=True)
+        orchestrator = SimpleNamespace(
+            active_contexts={
+                "ex-dict": {
+                    "status": "running", "user_id": "u1", "tenant_id": None,
+                },
+            },
+            cancel_workflow=cancel_workflow,
+        )
         with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
              patch("advanced_workflow_orchestrator.get_orchestrator",
                    return_value=orchestrator):
-            result = await cancel_execution(
-                "ex-dict", current_user=SimpleNamespace(id="u1"))
-        assert result["success"] is True
-        assert orchestrator.active_contexts["ex-dict"]["status"] == "cancelled"
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-dict", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 503
+        assert orchestrator.active_contexts["ex-dict"]["status"] == "running"
+        cancel_workflow.assert_not_called()
 
-    async def test_cancel_context_setter_failure(self):
-        db = make_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        orchestrator = MagicMock()
-        orchestrator.active_contexts = {"ex-frozen": _FrozenCtx()}
-        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+    async def test_cancel_live_typed_context_uses_cooperative_method(self):
+        context = SimpleNamespace(
+            workflow_id="ex-live", status="running",
+            user_id="u1", tenant_id=None,
+        )
+        cancel_workflow = AsyncMock(return_value=True)
+        orchestrator = SimpleNamespace(
+            active_contexts={"ex-live": context},
+            cancel_workflow=cancel_workflow,
+        )
+        fake_db = make_db()
+        with patch("core.workflow_ui_endpoints.get_db",
+                   return_value=iter([fake_db])), \
              patch("advanced_workflow_orchestrator.get_orchestrator",
                    return_value=orchestrator):
             result = await cancel_execution(
-                "ex-frozen", current_user=SimpleNamespace(id="u1"))
-        assert result["success"] is True  # setattr failure swallowed
+                "ex-live", current_user=SimpleNamespace(id="u1"))
+        assert result == {"success": True}
+        cancel_workflow.assert_awaited_once_with(context)
+        fake_db.query.assert_not_called()  # live context wins over SQL
+
+    async def test_cancel_local_cancelled_retry_uses_cooperative_method(self):
+        # The engine marks the typed context CANCELLED before persisting, so a
+        # retry after a failed save must call the cooperative method again and
+        # refuse when it cannot confirm the durable receipt.
+        context = SimpleNamespace(
+            workflow_id="ex-cancel-retry", status="CANCELLED",
+            user_id="u1", tenant_id=None,
+        )
+        cancel_workflow = AsyncMock(return_value=False)
+        orchestrator = SimpleNamespace(
+            active_contexts={"ex-cancel-retry": context},
+            cancel_workflow=cancel_workflow,
+        )
+        fake_db = make_db()
+        with patch("core.workflow_ui_endpoints.get_db",
+                   return_value=iter([fake_db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-cancel-retry", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 409
+        cancel_workflow.assert_awaited_once_with(context)
+        fake_db.query.assert_not_called()
+
+    async def test_cancel_live_context_declined_is_409(self):
+        context = SimpleNamespace(
+            workflow_id="ex-declined", status="running",
+            user_id="u1", tenant_id=None,
+        )
+        orchestrator = SimpleNamespace(
+            active_contexts={"ex-declined": context},
+            cancel_workflow=AsyncMock(return_value=False),
+        )
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-declined", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 409
+        assert context.status == "running"
+
+    async def test_cancel_live_context_failure_is_503(self):
+        context = SimpleNamespace(
+            workflow_id="ex-frozen", status="running",
+            user_id="u1", tenant_id=None,
+        )
+        orchestrator = SimpleNamespace(
+            active_contexts={"ex-frozen": context},
+            cancel_workflow=AsyncMock(side_effect=RuntimeError("frozen")),
+        )
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-frozen", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 503
+        assert context.status == "running"
+
+    async def test_cancel_live_context_without_method_is_503(self):
+        context = SimpleNamespace(
+            workflow_id="ex-nocancel", status="running",
+            user_id="u1", tenant_id=None,
+        )
+        orchestrator = SimpleNamespace(
+            active_contexts={"ex-nocancel": context},
+            cancel_workflow=None,
+        )
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-nocancel", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 503
+        assert context.status == "running"
 
     async def test_cancel_orchestrator_error_404(self):
         db = make_db()
@@ -404,6 +509,208 @@ class TestCancelBranches:
         assert result["history"] == []
 
 
-class _FrozenCtx:
-    def __setattr__(self, name, value):
-        raise AttributeError("frozen")
+class TestExecutionAuthorization:
+    async def test_get_executions_only_returns_actor_same_tenant(self):
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {
+            "owned": {
+                "workflow_id": "wf-owned", "input_data": {},
+                "status": "running", "user_id": "u1", "tenant_id": "t1",
+            },
+            "other-user": {
+                "workflow_id": "wf-other-user", "input_data": {},
+                "status": "running", "user_id": "u2", "tenant_id": "t1",
+            },
+            "other-tenant": {
+                "workflow_id": "wf-other-tenant", "input_data": {},
+                "status": "running", "user_id": "u1", "tenant_id": "t2",
+            },
+            "ownerless": {
+                "workflow_id": "wf-legacy", "input_data": {},
+                "status": "running",
+            },
+        }
+        db = make_db()
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator), \
+             patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])):
+            result = await get_executions(
+                current_user=SimpleNamespace(id="u1", tenant_id="t1"))
+        assert [e["execution_id"] for e in result["executions"]] == ["wf-owned"]
+
+    async def test_get_executions_ignores_nested_identity(self):
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {
+            "nested": {
+                "workflow_id": "wf-nested", "input_data": {},
+                "status": "running",
+                "execution_context": {"user_id": "u1", "tenant_id": "t1"},
+                "variables": {"user_id": "u1", "tenant_id": "t1"},
+            },
+            "top-level": {
+                "workflow_id": "wf-top", "input_data": {},
+                "status": "running", "user_id": "u1", "tenant_id": "t1",
+            },
+        }
+        db = make_db()
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator), \
+             patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])):
+            result = await get_executions(
+                current_user=SimpleNamespace(id="u1", tenant_id="t1"))
+        assert [e["execution_id"] for e in result["executions"]] == ["wf-top"]
+
+    async def test_cancel_owned_active_row_and_reject_terminal(self):
+        orchestrator = SimpleNamespace(
+            active_contexts={}, cancel_workflow=AsyncMock())
+        active = SimpleNamespace(
+            status="RUNNING", owner_id="u1", user_id=None, tenant_id=None,
+            context=None)
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = active
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            result = await cancel_execution(
+                "exec-active", current_user=SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        db.commit.assert_called_once()
+        db.query.return_value.filter.return_value.update.assert_called_once()
+        orchestrator.cancel_workflow.assert_not_called()
+
+        terminal = SimpleNamespace(
+            status="COMPLETED", owner_id="u1", user_id=None, tenant_id=None,
+            context=None)
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = terminal
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "exec-done", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 409
+        assert terminal.status == "COMPLETED"
+        db.commit.assert_not_called()
+
+    async def test_cancel_already_cancelled_is_idempotent(self):
+        orchestrator = SimpleNamespace(
+            active_contexts={}, cancel_workflow=AsyncMock())
+        cancelled = SimpleNamespace(
+            status="CANCELLED", owner_id="u1", user_id=None, tenant_id=None,
+            context=None)
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = cancelled
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            result = await cancel_execution(
+                "exec-cancelled", current_user=SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        db.commit.assert_not_called()
+
+    async def test_partial_is_terminal(self):
+        from core.workflow_ui_endpoints import _is_terminal_status
+
+        orchestrator = SimpleNamespace(
+            active_contexts={}, cancel_workflow=AsyncMock())
+        assert _is_terminal_status("PARTIAL") is True
+        partial = SimpleNamespace(
+            status="PARTIAL", owner_id="u1", user_id=None, tenant_id=None,
+            context=None)
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = partial
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "exec-partial", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 409
+        db.commit.assert_not_called()
+
+    async def test_cancel_orchestrator_owned_row_without_live_context_is_503(self):
+        row = SimpleNamespace(
+            status="RUNNING", owner_id="u1", user_id=None, tenant_id=None,
+            context=json.dumps({
+                "variables": {},
+                "execution_history": [],
+                "results": {},
+            }),
+        )
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = row
+        orchestrator = SimpleNamespace(
+            active_contexts={}, cancel_workflow=AsyncMock())
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "exec-orch", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 503
+        assert row.status == "RUNNING"
+        db.commit.assert_not_called()
+        db.query.return_value.filter.return_value.update.assert_not_called()
+
+    async def test_cancel_live_typed_context_precedes_checkpoint_row(self):
+        context = SimpleNamespace(
+            workflow_id="exec-checkpoint", status="running",
+            user_id="u1", tenant_id=None,
+        )
+        cancel_workflow = AsyncMock(return_value=True)
+        orchestrator = SimpleNamespace(
+            active_contexts={"exec-checkpoint": context},
+            cancel_workflow=cancel_workflow,
+        )
+        row = SimpleNamespace(
+            status="RUNNING", owner_id="u1", user_id=None, tenant_id=None,
+            context=json.dumps({
+                "variables": {},
+                "execution_history": [],
+                "results": {},
+            }),
+        )
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = row
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            result = await cancel_execution(
+                "exec-checkpoint", current_user=SimpleNamespace(id="u1"))
+        assert result == {"success": True}
+        cancel_workflow.assert_awaited_once_with(context)
+        assert row.status == "RUNNING"
+        db.query.assert_not_called()  # live context wins over checkpoint row
+        db.commit.assert_not_called()
+
+    async def test_cancel_rejects_unowned_row_even_if_query_returns_it(self):
+        foreign = SimpleNamespace(
+            status="RUNNING", owner_id="u2", user_id="u2", tenant_id=None)
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = foreign
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {}
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "exec-foreign", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 404
+        assert foreign.status == "RUNNING"
+        db.commit.assert_not_called()
+
+    async def test_cancel_skips_ownerless_context(self):
+        db = make_db()
+        db.query.return_value.filter.return_value.first.return_value = None
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {"ex-legacy": {"status": "running"}}
+        with patch("core.workflow_ui_endpoints.get_db", return_value=iter([db])), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(Exception) as exc:
+                await cancel_execution(
+                    "ex-legacy", current_user=SimpleNamespace(id="u1"))
+        assert exc.value.status_code == 404
+        assert orchestrator.active_contexts["ex-legacy"]["status"] == "running"

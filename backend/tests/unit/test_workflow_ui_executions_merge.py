@@ -7,10 +7,11 @@ appeared. _merge_persisted_executions must surface them.
 
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, "/Users/rushiparikh/projects/atom/backend")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
 from fastapi import FastAPI
@@ -26,7 +27,7 @@ def app():
     app.include_router(workflow_ui_endpoints.router, prefix="/api/v1/workflow-ui")
 
     def _fake_get_current_user():
-        return SimpleNamespace(id="u1", role="member")
+        return SimpleNamespace(id="u1", role="member", tenant_id=None)
 
     app.dependency_overrides[core.auth.get_current_user] = _fake_get_current_user
     return app
@@ -45,9 +46,15 @@ def test_get_executions_includes_persisted_engine_executions(app):
         created_at=datetime.now(timezone.utc),
         completed_at=None,
         error=None,
+        owner_id="u1",
+        user_id="u1",
+        tenant_id=None,
     )
     fake_db = MagicMock()
-    query_chain = fake_db.query.return_value.order_by.return_value.limit.return_value
+    query_chain = (
+        fake_db.query.return_value.filter.return_value
+        .order_by.return_value.limit.return_value
+    )
     query_chain.all.return_value = [row]
     fake_db.close = MagicMock()
 
@@ -65,6 +72,11 @@ def test_get_executions_includes_persisted_engine_executions(app):
     assert "exec_durable_1" in ids, (
         "durable-engine execution missing from Executions tab"
     )
+
+
+def test_merge_persisted_executions_requires_current_user():
+    with pytest.raises(TypeError):
+        workflow_ui_endpoints._merge_persisted_executions([])
 
 
 def test_get_executions_dedupes_orchestrator_and_persisted(app):

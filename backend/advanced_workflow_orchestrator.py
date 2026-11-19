@@ -168,6 +168,11 @@ class WorkflowContext:
     current_step: Optional[str] = None
     error_message: Optional[str] = None
     user_id: str = "default_user"
+    tenant_id: Optional[str] = None
+    # Cooperative cancellation marker. It stays set even if an in-flight step
+    # later reports its own result, so a late status assignment cannot revive
+    # a cancelled run or release its successors.
+    cancel_requested: bool = False
 
 @dataclass
 class WorkflowDefinition:
@@ -330,6 +335,7 @@ class AdvancedWorkflowOrchestrator:
                         context = WorkflowContext(
                             workflow_id=exec_record.workflow_id,
                             user_id=exec_record.user_id or "default_user", # Handle legacy nulls
+                            tenant_id=getattr(exec_record, "tenant_id", None),
                             input_data=json.loads(exec_record.input_data) if exec_record.input_data else {}
                         )
                         
@@ -341,6 +347,8 @@ class AdvancedWorkflowOrchestrator:
                             # Fallback if unknown status
                             logger.warning(f"Unknown status '{exec_record.status}' for workflow {exec_record.workflow_id}, defaulting to PENDING")
                             context.status = WorkflowStatus.PENDING
+                        if context.status == WorkflowStatus.CANCELLED:
+                            context.cancel_requested = True
                             
                         context.variables = context_data.get("variables", {})
                         context.results = context_data.get("results", {})
@@ -535,22 +543,38 @@ class AdvancedWorkflowOrchestrator:
     async def _run_forked_execution(self, workflow: WorkflowDefinition, start_step_id: str, context: WorkflowContext):
         """Lifecycle manager for forked executions"""
         try:
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                return
             context.status = WorkflowStatus.RUNNING
             # context.started_at = datetime.datetime.now() # Keep original start time? Or reset? Let's keep original for history.
             
             await self._execute_workflow_step(workflow, start_step_id, context)
             
-            # Only mark completed if not already failed
-            if context.status != WorkflowStatus.FAILED:
+            # Cancellation is authoritative over any unrelated terminal result
+            # produced by a late in-flight step. Only a still-running context
+            # may be finalized as completed or failed here.
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+            elif context.status == WorkflowStatus.RUNNING:
                 context.status = WorkflowStatus.COMPLETED
                 context.completed_at = datetime.datetime.now()
                 logger.info(f"✅ Forked execution {context.workflow_id} completed successfully.")
+            elif context.status == WorkflowStatus.FAILED:
+                if context.completed_at is None:
+                    context.completed_at = datetime.datetime.now()
                 
         except Exception as e:
-            context.status = WorkflowStatus.FAILED
-            context.error_message = str(e)
-            context.completed_at = datetime.datetime.now()
-            logger.error(f"❌ Forked execution {context.workflow_id} failed: {e}")
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                logger.info(
+                    "Forked execution %s stayed cancelled after a late error: %s",
+                    context.workflow_id, e)
+            else:
+                context.status = WorkflowStatus.FAILED
+                context.error_message = str(e)
+                context.completed_at = datetime.datetime.now()
+                logger.error(f"❌ Forked execution {context.workflow_id} failed: {e}")
 
 
 
@@ -1272,10 +1296,85 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         return standard_workflow
 
 
+    @staticmethod
+    def _is_cancelled(context: WorkflowContext) -> bool:
+        """Return whether cooperative cancellation was requested for a run."""
+        return bool(getattr(context, "cancel_requested", False)) or (
+            context.status == WorkflowStatus.CANCELLED)
+
+    @classmethod
+    def _ensure_cancelled_state(cls, context: WorkflowContext) -> None:
+        """Restore the terminal cancelled state after a late in-flight result."""
+        context.cancel_requested = True
+        context.status = WorkflowStatus.CANCELLED
+        if context.completed_at is None:
+            context.completed_at = datetime.datetime.now()
+
+    async def cancel_workflow(self, context: WorkflowContext) -> bool:
+        """Cooperatively cancel one live, already-authorized local execution.
+
+        The caller (the UI adapter) owns authorization and the truthful HTTP
+        response. This operation only touches the real in-memory context for
+        the execution and persists the terminal CANCELLED state through the
+        existing saver. It returns ``True`` only when that persistence was
+        confirmed; a local cancellation whose save failed is still honoured by
+        the worker but must not be acknowledged as durable.
+
+        Work already dispatched is not reversed. The worker observes the
+        cancellation before dispatch, after an in-flight result returns, and
+        before any successor or fallback is attempted.
+        """
+        if context is None:
+            return False
+
+        # The adapter already resolved and owner-checked this exact object.
+        # Identity is the only authority here: a missing, stale or replaced
+        # context must not be narrowed through its mutable workflow_id and
+        # must never cause a different live execution to be cancelled.
+        if not any(live is context for live in self.active_contexts.values()):
+            logger.info(
+                "Refusing to cancel workflow %s: the supplied context is not "
+                "the live execution context",
+                getattr(context, "workflow_id", "<unknown>"))
+            return False
+
+        if context.status == WorkflowStatus.CANCELLED or context.cancel_requested:
+            # Idempotent retry: preserve the original completion time, but
+            # still require a durable confirmation before acknowledging.
+            self._ensure_cancelled_state(context)
+            return bool(self._save_execution_state(context))
+
+        if context.status in (WorkflowStatus.COMPLETED, WorkflowStatus.FAILED):
+            logger.info(
+                "Refusing to cancel workflow %s in terminal state %s",
+                context.workflow_id, context.status.value)
+            return False
+
+        self._ensure_cancelled_state(context)
+        persisted = bool(self._save_execution_state(context))
+        if not persisted:
+            logger.warning(
+                "Workflow %s is cancelled locally but persistence could not be "
+                "confirmed; the caller must not report success.",
+                context.workflow_id)
+        return persisted
+
     async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any],
                              execution_context: Optional[Dict[str, Any]] = None,
                              execution_id: str = None) -> WorkflowContext:
         """Execute a complex workflow"""
+
+        # The generic UI registers a PENDING context before starting the
+        # background call. If that exact execution was cancelled in between,
+        # keep the cancelled object: do not replace it, dispatch any step, or
+        # overwrite its durable cancelled receipt with a later terminal result.
+        existing = (
+            self.active_contexts.get(execution_id) if execution_id else None)
+        if existing is not None and self._is_cancelled(existing):
+            logger.info(
+                "Workflow execution %s was cancelled before dispatch; keeping "
+                "the existing cancelled context", execution_id)
+            return existing
 
         if workflow_id not in self.workflows:
              # Lazy Load from Template Manager
@@ -1312,6 +1411,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         context = WorkflowContext(
             workflow_id=execution_id or str(uuid.uuid4()),
             user_id=execution_context.get("user_id", "default_user") if execution_context else "default_user",
+            tenant_id=execution_context.get("tenant_id") if execution_context else None,
             input_data=input_data,
             status=WorkflowStatus.RUNNING,
             started_at=datetime.datetime.now()
@@ -1338,18 +1438,27 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             # Completion requires successful required work. A failed/blocked
             # branch sets FAILED, and a checkpoint sets WAITING_APPROVAL; only
             # a still-running context may be finalized as completed.
-            if context.status == WorkflowStatus.RUNNING:
+            if self._is_cancelled(context):
+                # Cancellation is terminal and its completion time is already
+                # recorded by the cancel operation.
+                self._ensure_cancelled_state(context)
+            elif context.status == WorkflowStatus.RUNNING:
                 context.status = WorkflowStatus.COMPLETED
                 context.completed_at = datetime.datetime.now()
-            elif context.status in (
-                    WorkflowStatus.FAILED, WorkflowStatus.CANCELLED):
+            elif context.status == WorkflowStatus.FAILED:
                 context.completed_at = datetime.datetime.now()
 
         except Exception as e:
-            logger.error(f"Workflow execution failed: {e}")
-            context.status = WorkflowStatus.FAILED
-            context.error_message = str(e)
-            context.completed_at = datetime.datetime.now()
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                logger.info(
+                    "Workflow %s stayed cancelled after a late execution error: %s",
+                    context.workflow_id, e)
+            else:
+                logger.error(f"Workflow execution failed: {e}")
+                context.status = WorkflowStatus.FAILED
+                context.error_message = str(e)
+                context.completed_at = datetime.datetime.now()
 
         finally:
             # Persistent state update
@@ -1361,18 +1470,45 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         return context
 
-    def _save_execution_state(self, context: WorkflowContext):
-        """Persist workflow execution state to database (Phase 11)"""
+    def _save_execution_state(self, context: WorkflowContext) -> bool:
+        """Persist workflow execution state to database (Phase 11).
+
+        Returns ``True`` only after the commit succeeds so a caller such as
+        cancellation can require a durable receipt before acknowledging. A
+        cancellation marker is authoritative here: a late result or status
+        assignment may not downgrade an already-cancelled run.
+        """
         if not MODELS_AVAILABLE:
-            return
+            return False
 
         try:
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+
             with get_db_session() as db:
                 # Find or create execution record
                 execution = db.query(WorkflowExecution).filter(
                     WorkflowExecution.execution_id == context.workflow_id
                 ).first()
-                
+
+                durable_status = (
+                    getattr(execution.status, "value", execution.status)
+                    if execution is not None else None)
+                if (
+                    execution is not None
+                    and not self._is_cancelled(context)
+                    and str(durable_status or "").lower()
+                    == WorkflowStatus.CANCELLED.value
+                ):
+                    # Cancellation is already durable and terminal. A stale or
+                    # replaced context must not overwrite it with an unrelated
+                    # completed/failed result.
+                    logger.warning(
+                        "Refusing to overwrite durable cancelled state for "
+                        "workflow %s with %s",
+                        context.workflow_id, context.status.value)
+                    return False
+
                 definition_id = str(
                     context.variables.get("_workflow_definition_id") or "")
                 if not execution:
@@ -1381,7 +1517,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                         # The definition identity is authoritative; the
                         # execution id is only the run key.
                         workflow_id=definition_id or context.workflow_id,
-                        user_id=context.user_id if context.user_id != "default_user" else None
+                        user_id=context.user_id if context.user_id != "default_user" else None,
+                        tenant_id=getattr(context, "tenant_id", None),
                     )
                     db.add(execution)
                 elif definition_id:
@@ -1406,8 +1543,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 
                 db.commit()
                 logger.info(f"Persisted state for workflow {context.workflow_id} (Status: {context.status.value})")
+                return True
         except Exception as e:
             logger.error(f"Failed to persist workflow state: {e}")
+            return False
 
     def _load_definition_from_blueprint(
         self, definition_id: str, context: WorkflowContext,
@@ -1490,6 +1629,11 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         else:
             raise ValueError(f"Workflow execution {execution_id} not found")
 
+        if self._is_cancelled(context):
+            logger.info(
+                "Workflow %s is cancelled; refusing to resume", execution_id)
+            return context
+
         definition_id = str(
             context.variables.get("_workflow_definition_id") or "")
         workflow_def = (
@@ -1529,6 +1673,11 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             # that nevertheless carries a HITL id.
             check = await self._execute_approval_required_step(
                 step, context, require_durable=True)
+            if self._is_cancelled(context):
+                # Cancellation can land while the checkpoint consumer awaits.
+                # It keeps the cancellation and never releases the branch.
+                self._ensure_cancelled_state(context)
+                return context
             check = check if isinstance(check, dict) else {}
             check_status = str(check.get("status") or "").lower()
             if check_status != "completed":
@@ -1581,6 +1730,9 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         logger.info(
             f"Resuming workflow {execution_id} from step {step_id} after "
             "authoritative approval")
+        if self._is_cancelled(context):
+            self._ensure_cancelled_state(context)
+            return context
         context.status = WorkflowStatus.RUNNING
         target_next_steps = step_result.get("next_steps", step.next_steps)
         await self._continue_workflow(workflow_def, target_next_steps, context)
@@ -1610,6 +1762,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 context = WorkflowContext(
                     workflow_id=execution.execution_id,
                     user_id=execution.user_id or "default_user",
+                    tenant_id=getattr(execution, "tenant_id", None),
                     input_data=json.loads(execution.input_data) if execution.input_data else {},
                     status=status,
                     started_at=execution.created_at
@@ -1617,6 +1770,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 context.variables = state.get("variables", {})
                 context.execution_history = state.get("execution_history", [])
                 context.results = state.get("results", {})
+                if context.status == WorkflowStatus.CANCELLED:
+                    context.cancel_requested = True
                 # Legacy rows may predate the explicit definition identity;
                 # the persisted workflow_id is the only available execution
                 # binding. Resolution still fails closed if it is unknown.
@@ -1631,7 +1786,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         """Helper to continue workflow execution from a list of steps"""
         try:
             for next_step_id in next_steps:
+                if self._is_cancelled(context):
+                    self._ensure_cancelled_state(context)
+                    return
                 await self._execute_workflow_step(workflow, next_step_id, context)
+                if self._is_cancelled(context):
+                    self._ensure_cancelled_state(context)
+                    return
+
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                return
             
             # Completion requires successful required work. A blocked,
             # rejected, failed or waiting branch must keep its outcome; only a
@@ -1659,10 +1824,16 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 context.status = WorkflowStatus.COMPLETED
                 context.completed_at = datetime.datetime.now()
         except Exception as e:
-            logger.error(f"Error continuing workflow: {e}")
-            context.status = WorkflowStatus.FAILED
-            context.error_message = str(e)
-            context.completed_at = datetime.datetime.now()
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                logger.info(
+                    "Workflow %s stayed cancelled after a late continuation "
+                    "error: %s", context.workflow_id, e)
+            else:
+                logger.error(f"Error continuing workflow: {e}")
+                context.status = WorkflowStatus.FAILED
+                context.error_message = str(e)
+                context.completed_at = datetime.datetime.now()
 
     async def _generate_fallback_instructions(self, step: WorkflowStep, error_msg: str) -> str:
         """
@@ -1694,6 +1865,15 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             return
 
         step = next(s for s in workflow.steps if s.step_id == step_id)
+
+        if self._is_cancelled(context):
+            # Cooperative cancellation is checked immediately before dispatch.
+            # Do not touch results/history: this work never started.
+            logger.info(
+                "Workflow %s is cancelled; not dispatching step %s",
+                context.workflow_id, step_id)
+            return
+
         context.current_step = step_id
 
         # A DAG step is executed once per context. This prevents a resumed
@@ -1722,12 +1902,25 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         retry_policy = step.retry_policy
         
         for attempt in range(retry_policy.max_retries + 1):
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                logger.info(
+                    "Workflow %s is cancelled; stopping step %s before "
+                    "dispatch/retry", context.workflow_id, step_id)
+                return
             try:
                 step_result = await self._execute_step_by_type(workflow, step, context)
                 break  # Success, exit retry loop
                 
             except Exception as e:
                 last_error = e
+                if self._is_cancelled(context):
+                    # Do not retry or hand a cancelled run to a fallback agent.
+                    self._ensure_cancelled_state(context)
+                    logger.info(
+                        "Workflow %s is cancelled; not retrying or falling "
+                        "back for step %s", context.workflow_id, step_id)
+                    return
                 error_str = str(e)
                 
                 # Check if we should retry
@@ -1777,6 +1970,13 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     if agent:
                         logger.info(f"Fallback Agent {type(agent).__name__} engaged for step {step_id}")
                         instructions = await self._generate_fallback_instructions(step, str(e))
+                        if self._is_cancelled(context):
+                            self._ensure_cancelled_state(context)
+                            logger.info(
+                                "Workflow %s is cancelled; not starting the "
+                                "fallback agent for step %s",
+                                context.workflow_id, step_id)
+                            return
                         target_url = self._get_fallback_url(service)
                         
                         try:
@@ -1802,6 +2002,28 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 else:
                     raise e
         
+        if self._is_cancelled(context):
+            # An in-flight result returned after cancellation. Record what was
+            # actually observed for honest history, but never change the
+            # terminal outcome or release a successor. Work already dispatched
+            # is not claimed to have been reversed.
+            self._ensure_cancelled_state(context)
+            if isinstance(step_result, dict):
+                context.results[step_id] = step_result
+                context.execution_history.append({
+                    "step_id": step_id,
+                    "step_type": step.step_type.value,
+                    "status": step_result.get("status", "completed"),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "result": step_result,
+                    "execution_time_ms": step_result.get("execution_time_ms", 0),
+                })
+            logger.info(
+                "Workflow %s was cancelled while step %s was in flight; "
+                "preserving cancellation and not dispatching successors",
+                context.workflow_id, step_id)
+            return
+
         # If we exhausted retries without success
         if step_result is None and last_error:
             logger.error(f"Step {step_id} failed after {retry_policy.max_retries} retries: {last_error}")
@@ -1860,6 +2082,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         # Prioritize dynamic next steps from step result (useful for conditional logic)
         target_next_steps = step_result.get("next_steps", step.next_steps)
 
+        if self._is_cancelled(context):
+            self._ensure_cancelled_state(context)
+            return
+
         if step.parallel_steps:
             # Execute parallel steps concurrently
             parallel_tasks = [
@@ -1867,6 +2093,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 for next_step in step.parallel_steps
             ]
             await asyncio.gather(*parallel_tasks, return_exceptions=True)
+
+            if self._is_cancelled(context):
+                self._ensure_cancelled_state(context)
+                return
 
             # After parallel execution, continue to sequential next steps
             for next_step in target_next_steps:

@@ -685,9 +685,15 @@ async def execute_workflow_by_id(
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
     input_data = payload or {}
     input_data["_ui_workflow_id"] = workflow_id
+    execution_context = _caller_execution_context(current_user)
     
     async def _run_orchestration():
-        await orchestrator.execute_workflow(workflow_id, input_data, execution_id=execution_id)
+        await orchestrator.execute_workflow(
+            workflow_id,
+            input_data,
+            execution_id=execution_id,
+            execution_context=execution_context,
+        )
     
     try:
         background_tasks.add_task(_run_orchestration)
@@ -720,14 +726,177 @@ async def create_workflow_definition(payload: Dict[str, Any]):
     MOCK_WORKFLOWS.insert(0, new_workflow)
     return {"success": True, "workflow": new_workflow.dict()}
 
-def _merge_persisted_executions(executions: List[Any]) -> List[Any]:
+_TERMINAL_EXECUTION_STATUSES = {
+    "cancelled",
+    "canceled",
+    "completed",
+    "error",
+    "failed",
+    "partial",
+    "success",
+    "succeeded",
+    "terminated",
+}
+
+_CANCELLATION_CONFLICT_DETAIL = "Execution is already finalized"
+_CANCELLATION_NOT_CONFIRMED_DETAIL = "Cancellation could not be confirmed"
+
+
+def _caller_scope(current_user: Any):
+    """Return the authenticated actor's id and tenant as strings/None."""
+    user_id = getattr(current_user, "id", None)
+    tenant_id = getattr(current_user, "tenant_id", None)
+    return (
+        str(user_id) if user_id is not None else None,
+        str(tenant_id) if tenant_id is not None else None,
+    )
+
+
+def _caller_execution_context(current_user: Any) -> Dict[str, Any]:
+    """Execution identity passed to the orchestrator separately from payload."""
+    user_id, tenant_id = _caller_scope(current_user)
+    return {"user_id": user_id, "tenant_id": tenant_id}
+
+
+def _durable_execution_scope(current_user: Any):
+    """Ownership + tenant predicate for durable WorkflowExecution rows."""
+    from sqlalchemy import and_, false, or_
+
+    from core.models import WorkflowExecution as DBWorkflowExecution
+
+    user_id, tenant_id = _caller_scope(current_user)
+    if user_id is None:
+        return false()
+    owned = or_(
+        DBWorkflowExecution.owner_id == user_id,
+        DBWorkflowExecution.user_id == user_id,
+    )
+    if tenant_id is None:
+        tenant_match = DBWorkflowExecution.tenant_id.is_(None)
+    else:
+        tenant_match = DBWorkflowExecution.tenant_id == tenant_id
+    return and_(owned, tenant_match)
+
+
+def _durable_row_visible_to_user(row: Any, current_user: Any) -> bool:
+    """Defense-in-depth re-check for a durable row after the scoped query."""
+    actor_id, actor_tenant = _caller_scope(current_user)
+    if actor_id is None:
+        return False
+    owner_id = getattr(row, "owner_id", None)
+    user_id = getattr(row, "user_id", None)
+    if str(owner_id) != actor_id and str(user_id) != actor_id:
+        return False
+    row_tenant = getattr(row, "tenant_id", None)
+    normalized_tenant = str(row_tenant) if row_tenant is not None else None
+    return normalized_tenant == actor_tenant
+
+
+def _context_value(context: Any, key: str) -> Any:
+    """Read a top-level execution-context field only."""
+    if isinstance(context, dict):
+        return context.get(key)
+    return getattr(context, key, None)
+
+
+def _context_visible_to_user(context: Any, current_user: Any) -> bool:
+    """Apply the same actor + tenant rule to in-memory orchestrator contexts.
+
+    Identity comes only from the trusted top-level ``user_id``/``tenant_id``
+    runtime fields. Variables, parameters and nested execution contexts are
+    caller-controlled data and are never used for authorization.
+    """
+    actor_id, actor_tenant = _caller_scope(current_user)
+    if actor_id is None:
+        return False
+    context_id = _context_value(context, "user_id")
+    if context_id is None or str(context_id) != actor_id:
+        return False
+    context_tenant = _context_value(context, "tenant_id")
+    normalized_tenant = (
+        str(context_tenant) if context_tenant is not None else None
+    )
+    return normalized_tenant == actor_tenant
+
+
+def _is_terminal_status(status: Any) -> bool:
+    if hasattr(status, "value"):
+        status = status.value
+    return str(status or "").strip().lower() in _TERMINAL_EXECUTION_STATUSES
+
+
+def _cancellation_already_settled(status: Any) -> bool:
+    """Return True for idempotent already-cancelled state; 409 otherwise."""
+    normalized = str(getattr(status, "value", status) or "").strip().lower()
+    if normalized in ("cancelled", "canceled"):
+        return True
+    if _is_terminal_status(status):
+        raise HTTPException(
+            status_code=409, detail=_CANCELLATION_CONFLICT_DETAIL)
+    return False
+
+
+def _row_has_orchestrator_context(row: Any) -> bool:
+    """Identify durable rows persisted by the orchestrator's own state saver.
+
+    The orchestrator writes a JSON ``context`` blob with ``variables``,
+    ``execution_history`` and ``results``. A row with that shape is owned by
+    an in-process execution and cannot be cancelled safely by SQL alone; the
+    live typed context (or the orchestrator's cooperative cancel method) must
+    confirm the cancellation. Durable-engine rows do not use this shape, so
+    their scoped CAS path is preserved.
+    """
+    raw = getattr(row, "context", None)
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return False
+    if not isinstance(raw, dict):
+        return False
+    variables = raw.get("variables")
+    if isinstance(variables, dict) and "_workflow_definition_id" in variables:
+        return True
+    return all(
+        key in raw for key in ("variables", "execution_history", "results"))
+
+
+async def _cancel_live_context(orchestrator: Any, context: Any) -> Dict[str, Any]:
+    """Ask the orchestrator to cancel a typed live context cooperatively.
+
+    Only the orchestrator may mutate its typed context. A missing/declining
+    cooperative method is reported as an unconfirmed cancellation rather than
+    being papered over with local state changes or a SQL-only update.
+    """
+    cancel_workflow = getattr(orchestrator, "cancel_workflow", None)
+    if not callable(cancel_workflow):
+        raise HTTPException(
+            status_code=503, detail=_CANCELLATION_NOT_CONFIRMED_DETAIL)
+    try:
+        confirmed = await cancel_workflow(context)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 - fixed public error only
+        logger.error(f"Orchestrator cancellation failed: {e}")
+        raise HTTPException(
+            status_code=503, detail=_CANCELLATION_NOT_CONFIRMED_DETAIL)
+    if confirmed is not True:
+        raise HTTPException(
+            status_code=409, detail=_CANCELLATION_NOT_CONFIRMED_DETAIL)
+    return {"success": True}
+
+
+def _merge_persisted_executions(
+    executions: List[Any], current_user: Any
+) -> List[Any]:
     """Merge durable-engine executions (DB ``WorkflowExecution``) into the list.
 
     Executions started via ``POST /workflows/{id}/execute`` run through
     ``WorkflowEngine`` → ``ExecutionStateManager`` → the ``WorkflowExecution``
     table, which the Executions tab never read — so a "Run" on a workflow
     never appeared there. Append any rows we don't already have (dedup by
-    execution_id), mapping them to the UI model.
+    execution_id), mapping them to the UI model. Durable rows are scoped to
+    the authenticated actor and tenant *before* the result limit is applied.
     """
     from core.models import WorkflowExecution as DBWorkflowExecution
 
@@ -736,6 +905,7 @@ def _merge_persisted_executions(executions: List[Any]) -> List[Any]:
     try:
         rows = (
             db.query(DBWorkflowExecution)
+            .filter(_durable_execution_scope(current_user))
             .order_by(DBWorkflowExecution.created_at.desc())
             .limit(100)
             .all()
@@ -780,7 +950,10 @@ def _merge_persisted_executions(executions: List[Any]) -> List[Any]:
     return executions
 
 
-@router.get("/executions")
+@router.get(
+    "/executions",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_executions(current_user: User = Depends(get_current_user)):
     executions: List[Any] = []
 
@@ -792,6 +965,12 @@ async def get_executions(current_user: User = Depends(get_current_user)):
         # Use list() to avoid RuntimeError if dict changes size during iteration
         for context in list(orchestrator.active_contexts.values()):
             try:
+                # Only surface contexts owned by the caller in the same tenant.
+                # Legacy/mock contexts without an identity are intentionally
+                # skipped rather than treated as public.
+                if not _context_visible_to_user(context, current_user):
+                    continue
+
                 # Handle potential dict vs object (migration safety)
                 c_id = getattr(context, 'workflow_id', None)
                 if not c_id and isinstance(context, dict):
@@ -860,8 +1039,8 @@ async def get_executions(current_user: User = Depends(get_current_user)):
                 logger.error(f"Error parsing execution context: {e}")
                 continue
     except ImportError:
-        # Fallback if orchestrator not available/path issue
-        executions = list(MOCK_EXECUTIONS)
+        # Mock executions are ownerless legacy state; do not expose them.
+        executions = []
     except Exception as e:
         logger.error(f"Failed to load orchestrator executions: {e}")
         executions = []
@@ -871,7 +1050,7 @@ async def get_executions(current_user: User = Depends(get_current_user)):
     # orchestrator. Without this merge, "Run" on a workflow never appears in
     # the Executions tab.
     try:
-        executions = _merge_persisted_executions(executions)
+        executions = _merge_persisted_executions(executions, current_user)
     except Exception as e:
         logger.error(f"Failed to merge persisted executions: {e}")
 
@@ -972,11 +1151,14 @@ async def execute_workflow(
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
     
     # [FIX] Pre-register the context so it appears in lists immediately
-    # and provides valid data for the UI response
+    # and provides valid data for the UI response. Bind the real caller (not
+    # the legacy ui_user placeholder) so history/cancel can scope to them.
+    execution_context = _caller_execution_context(current_user)
     context = WorkflowContext(
-        workflow_id=execution_id, 
-        user_id="ui_user",
-        input_data=input_data
+        workflow_id=execution_id,
+        user_id=execution_context["user_id"],
+        tenant_id=execution_context["tenant_id"],
+        input_data=input_data,
     )
     context.execution_id = execution_id # Ensure this field exists if defined by chance
     context.started_at = datetime.now()
@@ -988,7 +1170,12 @@ async def execute_workflow(
     async def _run_orchestration():
         try:
             # Pass the ALREADY CREATED contex ID
-            await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
+            await orchestrator.execute_workflow(
+                orchestrator_id,
+                input_data,
+                execution_id=execution_id,
+                execution_context=execution_context,
+            )
         except Exception as e:
             logger.error(f"Background execution failed: {e}")
             import traceback
@@ -1020,53 +1207,128 @@ async def execute_workflow(
         "message": "Workflow started via Real Orchestrator"
     }
 
-@router.post("/executions/{execution_id}/cancel")
+@router.post(
+    "/executions/{execution_id}/cancel",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def cancel_execution(
     execution_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    # 1) Legacy mock executions
+    # 1) Legacy mock executions — only when they carry the caller's identity
+    # (ownerless mock rows are not cancelable by anyone).
     for exc in MOCK_EXECUTIONS:
-        if exc.execution_id == execution_id:
-            exc.status = "cancelled"
+        if (
+            exc.execution_id == execution_id
+            and _context_visible_to_user(exc, current_user)
+        ):
+            if not _cancellation_already_settled(exc.status):
+                exc.status = "cancelled"
             return {"success": True}
 
-    # 2) Durable-engine executions (DB workflow_executions). The Executions
+    # 2) Live orchestrator contexts, checked before the durable-row write.
+    # A checkpoint row can exist while the in-process run is still live; a
+    # direct SQL update would report success without stopping that run or
+    # persisting its terminal receipt. Only the orchestrator may mutate its
+    # typed context, and it must confirm the cancellation cooperatively.
+    try:
+        from advanced_workflow_orchestrator import get_orchestrator
+        orchestrator = get_orchestrator()
+        context = getattr(orchestrator, "active_contexts", {}).get(execution_id)
+        if context is not None and _context_visible_to_user(context, current_user):
+            settled = _cancellation_already_settled(
+                _context_value(context, "status"))
+            if isinstance(context, dict):
+                # Legacy dict contexts have no cooperative cancel contract.
+                # Never mutate them locally and never claim success by SQL.
+                if settled:
+                    return {"success": True}
+                raise HTTPException(
+                    status_code=503,
+                    detail=_CANCELLATION_NOT_CONFIRMED_DETAIL)
+            # Typed live contexts are only settled once the orchestrator has
+            # confirmed cancellation. The engine sets local CANCELLED before
+            # persisting, so a prior failed save must still retry the
+            # cooperative cancel rather than short-circuit on local state.
+            return await _cancel_live_context(orchestrator, context)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to inspect orchestrator execution {execution_id}: {e}")
+
+    # 3) Durable-engine executions (DB workflow_executions). The Executions
     # tab surfaces these rows; the old route only scanned MOCK_EXECUTIONS, so
-    # canceling a real execution always 404'd.
+    # canceling a real execution always 404'd. Scope ownership/tenant in the
+    # query so another user's row is indistinguishable from a missing one.
     from core.models import WorkflowExecution as DBWorkflowExecution
     db = next(get_db())
     try:
         row = (
             db.query(DBWorkflowExecution)
-            .filter(DBWorkflowExecution.execution_id == execution_id)
+            .filter(
+                DBWorkflowExecution.execution_id == execution_id,
+                _durable_execution_scope(current_user),
+            )
             .first()
         )
-        if row is not None:
-            row.status = "CANCELLED"
+        if row is not None and _durable_row_visible_to_user(row, current_user):
+            if _cancellation_already_settled(row.status):
+                return {"success": True}
+
+            # An active row carrying the orchestrator's persisted context is
+            # still owned by a live (or restorable) in-process run. Without a
+            # cooperative context there is no way to stop it, so refuse to
+            # claim cancellation with a SQL-only status flip.
+            if _row_has_orchestrator_context(row):
+                raise HTTPException(
+                    status_code=503,
+                    detail=_CANCELLATION_NOT_CONFIRMED_DETAIL)
+
+            # Active durable-engine row: write through a conditional UPDATE so
+            # a concurrent finalization cannot be overwritten by this
+            # cancellation.
+            from sqlalchemy import func
+
+            non_terminal = ~func.lower(DBWorkflowExecution.status).in_(
+                tuple(_TERMINAL_EXECUTION_STATUSES))
+            updated = (
+                db.query(DBWorkflowExecution)
+                .filter(
+                    DBWorkflowExecution.execution_id == execution_id,
+                    _durable_execution_scope(current_user),
+                    non_terminal,
+                )
+                .update(
+                    {DBWorkflowExecution.status: "CANCELLED"},
+                    synchronize_session=False,
+                )
+            )
             db.commit()
+            if updated == 0:
+                current = (
+                    db.query(DBWorkflowExecution)
+                    .filter(
+                        DBWorkflowExecution.execution_id == execution_id,
+                        _durable_execution_scope(current_user),
+                    )
+                    .first()
+                )
+                if current is None:
+                    raise HTTPException(
+                        status_code=404, detail="Execution not found")
+                if _cancellation_already_settled(
+                        getattr(current, "status", None)):
+                    return {"success": True}
+                raise HTTPException(
+                    status_code=409, detail=_CANCELLATION_CONFLICT_DETAIL)
             return {"success": True}
     finally:
         db.close()
 
-    # 3) Best-effort: orchestrator in-memory contexts (no dedicated cancel API).
-    try:
-        from advanced_workflow_orchestrator import get_orchestrator
-        orchestrator = get_orchestrator()
-        context = orchestrator.active_contexts.get(execution_id)
-        if context is not None:
-            if isinstance(context, dict):
-                context["status"] = "cancelled"
-            else:
-                try:
-                    context.status = "cancelled"
-                except Exception:
-                    pass
-            return {"success": True}
-    except Exception as e:
-        logger.error(f"Failed to cancel orchestrator execution {execution_id}: {e}")
-
     raise HTTPException(status_code=404, detail="Execution not found")
+
+
 @router.get("/debug/state")
 async def get_orchestrator_state(current_user: User = Depends(get_current_user)):
     """Debug endpoint to inspect orchestrator memory"""

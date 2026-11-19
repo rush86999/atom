@@ -82,6 +82,58 @@ def _workflow(workflow_id: str, agent_id: str, record: str = "harmless") -> dict
     }
 
 
+def _synthetic_two_step_workflow(world: dict, shape: str) -> dict:
+    """Two no-effect steps; the test mocks ``_execute_step``, not the engine.
+
+    ``linear`` uses the ordinary steps list. ``dag`` takes the graph execution
+    path because it has a conditional connection, with s1 -> s2 so the second
+    step only becomes ready after the first settles.
+    """
+    workflow = {
+        "id": world["workflow_id"],
+        "name": "Durable cancellation regression",
+        "description": "",
+        "version": "1",
+        "agent_id": "system_agent",
+        "created_by": world["user"].id,
+        "triggers": [],
+        "enabled": True,
+    }
+    config = {
+        "service": "noop",
+        "action": "noop",
+        "parameters": {"no_effect": True},
+    }
+    if shape == "linear":
+        workflow["steps"] = [
+            {
+                "id": "s1", "name": "Held no-effect", "sequence_order": 1,
+                "continue_on_error": False, "timeout": None,
+                "input_schema": {}, "output_schema": {}, **config,
+            },
+            {
+                "id": "s2", "name": "Must not dispatch", "sequence_order": 2,
+                "continue_on_error": False, "timeout": None,
+                "input_schema": {}, "output_schema": {}, **config,
+            },
+        ]
+    else:
+        workflow["nodes"] = [
+            {
+                "id": "s1", "title": "Held no-effect", "type": "action",
+                "config": dict(config),
+            },
+            {
+                "id": "s2", "title": "Must not dispatch", "type": "action",
+                "config": dict(config),
+            },
+        ]
+        workflow["connections"] = [{
+            "source": "s1", "target": "s2", "condition": "1 == 1",
+        }]
+    return workflow
+
+
 def _create_world(*, scope: str = "local") -> dict:
     suffix = _suffix()
     tenant_id = f"tenant-{scope}-{suffix}"
@@ -282,6 +334,170 @@ async def test_public_workflow_approval_is_visible_decidable_and_resumes_once(
             again = await state_manager.get_execution_state(execution_id)
             assert again["steps"]["s1"]["status"] == "COMPLETED"
             assert set(again["outputs"]) == {"s1"}
+
+
+@pytest.mark.parametrize("shape", ["linear", "dag"])
+async def test_durable_cancellation_stops_next_dispatch_across_engines(
+        public_world, shape):
+    """Accepted cancellation stops future dispatch and stays authoritative.
+
+    The first no-effect step is held in flight. A *different* engine instance
+    commits CANCELLED (what the actor-scoped cancellation surface does), then
+    the held step is allowed to settle. The second step must never dispatch,
+    and late RUNNING/COMPLETED writes from another instance must not replace
+    the durable CANCELLED row. Already-dispatched work is not rolled back.
+    """
+    engine = WorkflowEngine()
+    release = asyncio.Event()
+    first_started = asyncio.Event()
+    dispatched = []
+
+    async def _held_noop(self, step, params):
+        dispatched.append(step["id"])
+        if step["id"] == "s1":
+            first_started.set()
+            await release.wait()
+        return {"status": "success", "result": {"no_effect": True}}
+
+    async def _allow_admission(*args, **kwargs):
+        return None
+
+    workflow = _synthetic_two_step_workflow(public_world, shape)
+    worker_tasks = []
+    execution_id = None
+    try:
+        with patch.object(WorkflowEngine, "_execute_step", new=_held_noop), \
+                patch.object(
+                    WorkflowEngine, "_admit_never_autonomous_task",
+                    new=_allow_admission), \
+                patch.object(
+                    WorkflowEngine, "_notify_workflow_paused",
+                    new=lambda *a, **k: None):
+            execution_id = await engine.start_workflow(
+                workflow, {},
+                scope={
+                    "workspace_id": public_world["workspace_id"],
+                    "tenant_id": public_world["tenant_id"],
+                    "user_id": public_world["user"].id,
+                },
+            )
+            worker_tasks = list(engine._background_tasks)
+            await asyncio.wait_for(first_started.wait(), timeout=10)
+
+            # Simulate the accepting surface running on another engine
+            # instance: only the durable row connects it to this worker.
+            cancelling_engine = WorkflowEngine()
+            assert await cancelling_engine.cancel_execution(execution_id) is True
+            committed = await ExecutionStateManager().get_execution_state(
+                execution_id)
+            assert committed["status"] == "CANCELLED"
+
+            # Let the already-dispatched step settle. It is not reversed.
+            release.set()
+            await asyncio.wait_for(
+                asyncio.gather(*worker_tasks, return_exceptions=True),
+                timeout=10)
+    finally:
+        release.set()
+        if worker_tasks:
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+
+    assert execution_id is not None
+    assert dispatched == ["s1"], dispatched
+
+    state_manager = ExecutionStateManager()
+    durable = await state_manager.get_execution_state(execution_id)
+    assert durable["status"] == "CANCELLED"
+
+    # Late status writes from yet another engine instance — the start/resume
+    # RUNNING write and the completion write — cannot overwrite cancellation.
+    late_engine = WorkflowEngine()
+    await late_engine.state_manager.update_execution_status(
+        execution_id, "RUNNING")
+    await late_engine.state_manager.update_execution_status(
+        execution_id, "COMPLETED")
+    still = await state_manager.get_execution_state(execution_id)
+    assert still["status"] == "CANCELLED"
+
+
+@pytest.mark.parametrize("shape", ["linear", "dag"])
+async def test_rejected_terminal_update_suppresses_success_notification(
+        public_world, shape):
+    """Cancellation committing at the terminal UPDATE must stay silent.
+
+    The final boundary read still sees RUNNING. The cancellation then commits
+    just before the conditional COMPLETED UPDATE, which reports ``False``. The
+    engine must not announce COMPLETED or publish success for the cancelled
+    run, in either the linear or graph execution path.
+    """
+    engine = WorkflowEngine()
+    workflow = _synthetic_two_step_workflow(public_world, shape)
+    statuses = []
+    events = []
+    real_update = engine.state_manager.update_execution_status
+
+    class _RecordingWs:
+        async def notify_workflow_status(
+                self, user_id, execution_id, status, data=None):
+            statuses.append(status)
+
+    async def _cancel_before_terminal(execution_id, status, error=None):
+        if str(status or "").strip().upper() in ("COMPLETED", "PARTIAL"):
+            # Commit the authoritative cancellation after the final boundary
+            # read but before the terminal conditional UPDATE is attempted.
+            await real_update(execution_id, "CANCELLED")
+        return await real_update(execution_id, status, error)
+
+    async def _noop_step(self, step, params):
+        return {"status": "success", "result": {"no_effect": True}}
+
+    async def _allow_admission(*args, **kwargs):
+        return None
+
+    def _record_event(self, event_type_name, workflow_id, execution_id,
+                      step_id="", data=None):
+        events.append(event_type_name)
+
+    worker_tasks = []
+    execution_id = None
+    try:
+        with patch.object(WorkflowEngine, "_execute_step", new=_noop_step), \
+                patch.object(
+                    WorkflowEngine, "_admit_never_autonomous_task",
+                    new=_allow_admission), \
+                patch.object(
+                    WorkflowEngine, "_notify_workflow_paused",
+                    new=lambda *a, **k: None), \
+                patch.object(
+                    WorkflowEngine, "_publish_orchestration_event",
+                    new=_record_event), \
+                patch("core.workflow_engine.get_connection_manager",
+                      return_value=_RecordingWs()), \
+                patch.object(
+                    engine.state_manager, "update_execution_status",
+                    new=_cancel_before_terminal):
+            execution_id = await engine.start_workflow(
+                workflow, {},
+                scope={
+                    "workspace_id": public_world["workspace_id"],
+                    "tenant_id": public_world["tenant_id"],
+                    "user_id": public_world["user"].id,
+                },
+            )
+            worker_tasks = list(engine._background_tasks)
+            await asyncio.wait_for(
+                asyncio.gather(*worker_tasks, return_exceptions=True),
+                timeout=10)
+    finally:
+        if worker_tasks:
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+
+    assert execution_id is not None
+    assert statuses and "COMPLETED" not in statuses, statuses
+    assert "PARTIAL" not in statuses, statuses
+    assert "WORKFLOW_COMPLETED" not in events, events
+    durable = await ExecutionStateManager().get_execution_state(execution_id)
+    assert durable["status"] == "CANCELLED"
 
 
 async def test_scheduled_real_workflow_approval_join(public_world, tmp_path):

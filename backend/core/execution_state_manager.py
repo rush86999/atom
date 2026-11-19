@@ -12,7 +12,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 import uuid
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db_session
@@ -195,13 +195,35 @@ class ExecutionStateManager:
             )
             await db.commit()
 
-    async def update_execution_status(self, execution_id: str, status: str, error: Optional[str] = None):
-        """Update the overall execution status"""
+    async def update_execution_status(self, execution_id: str, status: str, error: Optional[str] = None) -> bool:
+        """Update the overall execution status and report whether it matched.
+
+        A durable ``CANCELLED`` is authoritative over later runner writes.
+        Cancellation may be accepted by a different engine instance (or by an
+        API/UI surface) than the one still executing the workflow, so a late
+        ``RUNNING``, ``PAUSED``, ``COMPLETED``, ``PARTIAL`` or ``FAILED`` write
+        must not replace it. Repeating the cancellation itself stays allowed.
+        The check is part of the SQL update so two workers cannot race between
+        reading the status and writing it.
+
+        Returns ``True`` when the conditional UPDATE matched a row. ``False``
+        means the write was rejected (for example the row is already
+        ``CANCELLED``): callers must not publish or announce the status change
+        they attempted. Older/fake managers that return ``None`` remain
+        compatible; only an explicit ``False`` is a rejection.
+        """
         async with get_async_db_session() as db:
-            await db.execute(
-                update(WorkflowExecution)
-                .where(WorkflowExecution.execution_id == execution_id)
-                .values(
+            statement = update(WorkflowExecution).where(
+                WorkflowExecution.execution_id == execution_id
+            )
+            if str(status or "").strip().upper() != "CANCELLED":
+                statement = statement.where(
+                    func.coalesce(
+                        func.upper(WorkflowExecution.status), ""
+                    ) != "CANCELLED"
+                )
+            result = await db.execute(
+                statement.values(
                     status=status,
                     error=error,
                     version=WorkflowExecution.version + 1,
@@ -209,6 +231,8 @@ class ExecutionStateManager:
                 )
             )
             await db.commit()
+            rowcount = getattr(result, "rowcount", 0)
+            return bool(rowcount and rowcount > 0)
 
     async def update_execution_inputs(self, execution_id: str, new_inputs: Dict[str, Any]):
         """Update execution inputs (e.g. for resume)"""

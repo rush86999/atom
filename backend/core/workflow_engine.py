@@ -192,6 +192,58 @@ class WorkflowEngine:
         except Exception as e:
             logger.debug(f"Orchestration event publish skipped (non-fatal): {e}")
 
+    async def _durable_cancellation_observed(self, execution_id: str) -> bool:
+        """Read the durable status shared by every engine instance.
+
+        The in-process ``cancellation_requests`` set only covers the engine
+        that accepted a request. A cancellation committed by another engine
+        instance (or by the API/UI surface) is visible through the execution
+        row's status, which every dispatch boundary re-reads.
+        """
+        try:
+            state = await self.state_manager.get_execution_state(execution_id)
+        except Exception as exc:  # noqa: BLE001 — status guard still applies
+            logger.warning(
+                "workflow %s: execution state lookup failed: %s",
+                execution_id, exc)
+            return False
+        return bool(
+            state
+            and str(state.get("status") or "").strip().upper() == "CANCELLED")
+
+    async def _stop_at_cancellation_boundary(
+        self,
+        execution_id: str,
+        ws_manager: Any,
+        user_id: str,
+    ) -> bool:
+        """Stop before more work when cancellation is observed.
+
+        Called only at safe boundaries: before dispatching the next step, not
+        while an effect is in flight. Already-dispatched work is left alone;
+        neither this loop nor the durable writer pretends to undo it.
+        """
+        requested = execution_id in self.cancellation_requests
+        durable = await self._durable_cancellation_observed(execution_id)
+        if not requested and not durable:
+            return False
+
+        self.cancellation_requests.discard(execution_id)
+        if durable:
+            # The accepting surface already committed the authoritative row.
+            # Do not rewrite it (or its reason) from this late worker.
+            logger.info(
+                "Workflow %s stopped at durable cancellation boundary",
+                execution_id)
+            return True
+
+        logger.info("Workflow %s cancelled by user request", execution_id)
+        await self.state_manager.update_execution_status(
+            execution_id, "CANCELLED")
+        await ws_manager.notify_workflow_status(
+            user_id, execution_id, "CANCELLED", {"reason": "user_request"})
+        return True
+
     def _notify_workflow_paused(self, workflow: Dict[str, Any], execution_id: str,
                                 step_id: str, user_id: str, reason: str,
                                 missing_var: Optional[str] = None,
@@ -626,14 +678,11 @@ class WorkflowEngine:
         # Main execution loop
         try:
             while True:
-                # Check for cancellation BEFORE processing more steps (Bug #3).
-                # Previously only the linear path checked cancellation_requests.
-                if execution_id in self.cancellation_requests:
-                    logger.info(f"Workflow {execution_id} cancelled by user request")
-                    self.cancellation_requests.discard(execution_id)
-                    async with state_lock:
-                        await self.state_manager.update_execution_status(execution_id, "CANCELLED")
-                        await ws_manager.notify_workflow_status(user_id, execution_id, "CANCELLED", {"reason": "user_request"})
+                # Durable CANCELLED is authoritative across engine instances.
+                # Check before selecting/dispatching any further ready steps;
+                # work already in flight is allowed to settle.
+                if await self._stop_at_cancellation_boundary(
+                        execution_id, ws_manager, user_id):
                     return
 
                 ready_steps = get_ready_steps()
@@ -805,11 +854,26 @@ class WorkflowEngine:
 
                 # Continue to next iteration (new steps may have become ready)
 
-            # All steps processed
+            # All steps processed. Re-check at this final safe boundary so a
+            # cancellation committed while the last step was settling cannot
+            # be replaced by a late COMPLETED/PARTIAL write or notification.
+            if await self._stop_at_cancellation_boundary(
+                    execution_id, ws_manager, user_id):
+                return
+
             completed = all(status == "COMPLETED" for status in step_status.values())
             if completed:
                 async with state_lock:
-                    await self.state_manager.update_execution_status(execution_id, "COMPLETED")
+                    status_updated = await self.state_manager.update_execution_status(
+                        execution_id, "COMPLETED")
+                    if status_updated is False:
+                        # A cancellation committed between the final boundary
+                        # read and this UPDATE. The row stays CANCELLED; do not
+                        # publish a misleading COMPLETED status or success.
+                        logger.info(
+                            "Workflow %s COMPLETED write rejected by durable "
+                            "cancellation", execution_id)
+                        return
                     await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
 
                 # Send completion notification
@@ -843,7 +907,15 @@ class WorkflowEngine:
                 # Some steps stuck (maybe due to unmet conditions)
                 logger.warning(f"Workflow execution {execution_id} ended with pending steps")
                 async with state_lock:
-                    await self.state_manager.update_execution_status(execution_id, "PARTIAL")
+                    status_updated = await self.state_manager.update_execution_status(
+                        execution_id, "PARTIAL")
+                    if status_updated is False:
+                        # Cancellation won the race with this terminal write.
+                        # Keep the durable CANCELLED row and stay silent.
+                        logger.info(
+                            "Workflow %s PARTIAL write rejected by durable "
+                            "cancellation", execution_id)
+                        return
                     await ws_manager.notify_workflow_status(user_id, execution_id, "PARTIAL")
 
                 # Track partial completion
@@ -889,7 +961,15 @@ class WorkflowEngine:
 
         # Update state with new inputs
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
-        await self.state_manager.update_execution_status(execution_id, "RUNNING")
+        status_updated = await self.state_manager.update_execution_status(
+            execution_id, "RUNNING")
+        if status_updated is False:
+            # Cancellation won the resume race. The durable row stays
+            # CANCELLED, so do not announce a resume or dispatch the run.
+            logger.info(
+                "Workflow %s resume rejected by durable cancellation",
+                execution_id)
+            return False
 
         # Phase 5: publish WORKFLOW_RESUMED for EventBus observability
         # (e.g. clearing HITL alert state, downstream triggers).
@@ -1158,7 +1238,15 @@ class WorkflowEngine:
         start_time = datetime.now(timezone.utc)
         
         try:
-            await self.state_manager.update_execution_status(execution_id, "RUNNING")
+            status_updated = await self.state_manager.update_execution_status(
+                execution_id, "RUNNING")
+            if status_updated is False:
+                # Cancellation was committed before this worker could claim
+                # the run. Do not announce RUNNING or resume any work.
+                logger.info(
+                    "Workflow %s RUNNING write rejected by durable "
+                    "cancellation", execution_id)
+                return
             await ws_manager.notify_workflow_status(user_id, execution_id, "RUNNING")
             
             state = await self.state_manager.get_execution_state(execution_id)
@@ -1169,6 +1257,13 @@ class WorkflowEngine:
             # It sees only the exact pair frozen into the persisted execution
             # inputs, attached to every step so fallback ai is covered too.
             ai_scope = self._ai_execution_scope(state)
+
+            # A cancellation may have been accepted between creation and this
+            # worker starting, or while resuming. Stop before admission or the
+            # first dispatch; the guarded status write above kept it CANCELLED.
+            if await self._stop_at_cancellation_boundary(
+                    execution_id, ws_manager, user_id):
+                return
 
             # TASK-LEVEL never-autonomous admission BEFORE the first step,
             # model call or output. Reuses a durable approved task HITL on
@@ -1201,12 +1296,12 @@ class WorkflowEngine:
             for step in steps:
                 step_id = step["id"]
 
-                # Check for cancellation
-                if execution_id in self.cancellation_requests:
-                    logger.info(f"Execution {execution_id} cancelled")
-                    await self.state_manager.update_execution_status(execution_id, "CANCELLED")
-                    await ws_manager.notify_workflow_status(user_id, execution_id, "CANCELLED")
-                    self.cancellation_requests.discard(execution_id)
+                # Durable CANCELLED is authoritative across engine instances.
+                # This is the linear dispatch boundary: stop before the next
+                # step is marked RUNNING/logged/executed. A step already in
+                # flight is allowed to settle and is never rolled back here.
+                if await self._stop_at_cancellation_boundary(
+                        execution_id, ws_manager, user_id):
                     return
 
                 # Check if step already completed (for resume scenarios)
@@ -1637,11 +1732,32 @@ class WorkflowEngine:
                         )
                     return
 
+            # A cancellation accepted while the last step was settling must
+            # not turn into a late COMPLETED/PARTIAL write or notification.
+            if await self._stop_at_cancellation_boundary(
+                    execution_id, ws_manager, user_id):
+                return
+
             if had_step_failures:
-                await self.state_manager.update_execution_status(execution_id, "PARTIAL")
+                status_updated = await self.state_manager.update_execution_status(
+                    execution_id, "PARTIAL")
+                if status_updated is False:
+                    # A cancellation committed after the final boundary read.
+                    # The guarded UPDATE kept CANCELLED; publish no terminal
+                    # status or success event for this run.
+                    logger.info(
+                        "Workflow %s PARTIAL write rejected by durable "
+                        "cancellation", execution_id)
+                    return
                 await ws_manager.notify_workflow_status(user_id, execution_id, "PARTIAL")
             else:
-                await self.state_manager.update_execution_status(execution_id, "COMPLETED")
+                status_updated = await self.state_manager.update_execution_status(
+                    execution_id, "COMPLETED")
+                if status_updated is False:
+                    logger.info(
+                        "Workflow %s COMPLETED write rejected by durable "
+                        "cancellation", execution_id)
+                    return
                 await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
 
             # Phase 5: publish WORKFLOW_COMPLETED for EventBus observability.
