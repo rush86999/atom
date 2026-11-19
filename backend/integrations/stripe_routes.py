@@ -135,6 +135,15 @@ class _InvoiceLinkSnapshot:
     restricted_key: str = field(repr=False)
 
 
+@dataclass(frozen=True)
+class _PaymentEvidenceSnapshot:
+    """Binding-scoped snapshot used to prove no authority or credential drift."""
+
+    link: _InvoiceLinkSnapshot
+    binding_id: str
+    binding_revision: int
+
+
 def _nonempty_str(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
@@ -734,6 +743,207 @@ async def _fetch_invoice_identity_preview(
     return _safe_preview_facts(preview, snapshot)
 
 
+def _resolve_payment_evidence_snapshot(
+    db: Session,
+    actor_id: str,
+    invoice_id: str,
+) -> _PaymentEvidenceSnapshot:
+    """Resolve the persisted Stripe binding; provider identity never comes from input."""
+    scope = _resolve_active_workspace_admin_scope(db, actor_id)
+
+    if Invoice is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Invoice storage is unavailable",
+        )
+
+    invoice = db.query(Invoice).filter(
+        Invoice.id == invoice_id,
+        Invoice.workspace_id == scope.workspace_id,
+    ).first()
+    if invoice is None:
+        # A foreign or unknown invoice id is indistinguishable from missing.
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    binding = db.query(InvoiceProviderBinding).filter(
+        InvoiceProviderBinding.workspace_id == scope.workspace_id,
+        InvoiceProviderBinding.invoice_id == invoice.id,
+        InvoiceProviderBinding.provider == "stripe",
+    ).first()
+    if binding is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Stripe invoice binding not found",
+        )
+
+    connection_id = getattr(binding, "connection_id", None)
+    external_invoice_id = getattr(binding, "external_invoice_id", None)
+    binding_account_id = getattr(binding, "provider_account_id", None)
+    binding_mode = getattr(binding, "provider_mode", None)
+    binding_revision = getattr(binding, "revision", None)
+    if (
+        not _nonempty_str(connection_id)
+        or not _nonempty_str(external_invoice_id)
+        or not _nonempty_str(binding_account_id)
+        or binding_mode not in ("test", "live")
+        or isinstance(binding_revision, bool)
+        or not isinstance(binding_revision, int)
+        or binding_revision < 1
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice binding is not usable",
+        )
+
+    connection_id = connection_id.strip()
+    external_invoice_id = external_invoice_id.strip()
+    binding_account_id = binding_account_id.strip()
+
+    # Reuse the durable snapshot resolver, but feed it only persisted binding
+    # identifiers. The caller cannot supply an account, invoice, or connection.
+    link_snapshot = _resolve_invoice_link_snapshot(
+        db,
+        actor_id,
+        _InvoiceLinkInput(
+            local_invoice_id=invoice.id,
+            connection_id=connection_id,
+            external_invoice_id=external_invoice_id,
+        ),
+    )
+
+    if (
+        link_snapshot.account_id != binding_account_id
+        or link_snapshot.mode != binding_mode
+        or link_snapshot.connection_id != connection_id
+        or link_snapshot.external_invoice_id != external_invoice_id
+        or link_snapshot.workspace_id != scope.workspace_id
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice binding is stale",
+        )
+
+    return _PaymentEvidenceSnapshot(
+        link=link_snapshot,
+        binding_id=binding.id,
+        binding_revision=binding_revision,
+    )
+
+
+async def _fetch_payment_allocation_evidence(
+    db: Session,
+    snapshot: _PaymentEvidenceSnapshot,
+) -> Dict[str, Any]:
+    """Call the existing read-only adapter with the persisted binding facts."""
+    adapter = _invoice_preview_adapter(db, snapshot.link)
+
+    try:
+        evidence = await adapter.get_invoice_payment_allocation_evidence(
+            expected_account_id=snapshot.link.account_id,
+            invoice_id=snapshot.link.external_invoice_id,
+            currency=snapshot.link.currency,
+            expected_amount_minor_units=snapshot.link.total_minor_units,
+            expected_livemode=snapshot.link.livemode,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "Stripe invoice payment allocation rejected (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice payment allocation is not verified",
+        )
+    except Exception as exc:
+        logger.warning(
+            "Stripe invoice payment allocation failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Stripe invoice payment evidence failed",
+        )
+
+    return evidence
+
+
+def _safe_payment_allocation_evidence(
+    evidence: Any,
+    snapshot: _PaymentEvidenceSnapshot,
+) -> Dict[str, Any]:
+    """Return only verified allocation facts; never raw provider output."""
+    link = snapshot.link
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("evidence_type") != "stripe_invoice_payment_allocation"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice payment allocation is not verified",
+        )
+
+    payment_ids = evidence.get("invoice_payment_ids")
+    if (
+        not isinstance(payment_ids, list)
+        or not payment_ids
+        or any(not _nonempty_str(payment_id) for payment_id in payment_ids)
+        or len(set(payment_ids)) != len(payment_ids)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice payment allocation is not verified",
+        )
+
+    payment_count = evidence.get("invoice_payment_count")
+    amount_minor_units = evidence.get("amount_minor_units")
+    paid_subtotal = evidence.get("paid_allocation_subtotal_minor_units")
+    evidence_livemode = evidence.get("livemode")
+    api_version = evidence.get("stripe_api_version")
+    if (
+        not isinstance(payment_count, int)
+        or isinstance(payment_count, bool)
+        or payment_count != len(payment_ids)
+        or not isinstance(amount_minor_units, int)
+        or isinstance(amount_minor_units, bool)
+        or amount_minor_units != link.total_minor_units
+        or not isinstance(paid_subtotal, int)
+        or isinstance(paid_subtotal, bool)
+        or paid_subtotal != link.total_minor_units
+        or not isinstance(evidence_livemode, bool)
+        or evidence_livemode != link.livemode
+        or evidence.get("account_id") != link.account_id
+        or evidence.get("invoice_id") != link.external_invoice_id
+        or evidence.get("currency") != link.currency
+        or not _nonempty_str(api_version)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice payment allocation is not verified",
+        )
+
+    return {
+        "invoice_id": link.local_invoice_id,
+        "provider": "stripe",
+        "connection_id": link.connection_id,
+        "account_id": link.account_id,
+        "provider_account_id": link.account_id,
+        "provider_mode": link.mode,
+        "external_invoice_id": link.external_invoice_id,
+        "provider_invoice_id": link.external_invoice_id,
+        "currency": link.currency,
+        "amount_minor_units": link.total_minor_units,
+        "livemode": link.livemode,
+        "binding_revision": snapshot.binding_revision,
+        "evidence_type": "stripe_invoice_payment_allocation",
+        "evidence_scope": "payment_allocation_only",
+        "allocation_only": True,
+        "invoice_payment_ids": list(payment_ids),
+        "invoice_payment_count": len(payment_ids),
+        "paid_allocation_subtotal_minor_units": link.total_minor_units,
+        "stripe_api_version": api_version.strip(),
+    }
+
+
 def _binding_conflict_details(exc: Exception) -> Dict[str, Any]:
     details: Dict[str, Any] = {"error": "Invoice provider binding conflict"}
     expected_revision = getattr(exc, "expected_revision", None)
@@ -1074,4 +1284,50 @@ async def get_invoice_link(
     detail["has_more"] = has_more
     detail["next_offset"] = offset + limit if has_more else None
     return detail
+
+
+@router.get("/invoice-links/{invoice_id}/payment-evidence")
+async def get_invoice_payment_evidence(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Return verified Stripe payment-allocation evidence for one bound invoice.
+
+    Provider identity is resolved only from the persisted binding and scoped
+    connection. The response is allocation evidence only; it makes no payout
+    claim and changes no invoice, ledger, or receipt state.
+    """
+    actor_id = _current_user_id(current_user)
+    if not _nonempty_str(invoice_id):
+        raise HTTPException(status_code=400, detail="Invalid request")
+    invoice_id = invoice_id.strip()
+
+    initial_snapshot = _resolve_payment_evidence_snapshot(db, actor_id, invoice_id)
+    evidence = await _fetch_payment_allocation_evidence(db, initial_snapshot)
+
+    # Re-read after the awaited provider call. Expiring first prevents the
+    # identity map from hiding a role, invoice, binding, or credential change.
+    try:
+        db.expire_all()
+    except Exception as exc:
+        logger.warning(
+            "Stripe payment evidence revalidation freshness check failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to verify invoice payment evidence authorization",
+        )
+
+    rechecked_snapshot = _resolve_payment_evidence_snapshot(db, actor_id, invoice_id)
+    if rechecked_snapshot != initial_snapshot:
+        raise HTTPException(
+            status_code=409,
+            detail="Invoice or Stripe binding changed during payment verification",
+        )
+
+    # The proof escapes only after authority, binding revision, invoice facts,
+    # and credential identity have all been re-proved above.
+    return _safe_payment_allocation_evidence(evidence, rechecked_snapshot)
 
