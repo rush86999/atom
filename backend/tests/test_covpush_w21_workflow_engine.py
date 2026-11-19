@@ -835,29 +835,59 @@ class TestMcpExecutor:
 
 
 class TestMainAgentExecutor:
-    async def test_with_mcp_servers(self):
+    @staticmethod
+    def _step():
+        return {"id": "s1", "workspace_id": "ws-1", "tenant_id": "tenant-1"}
+
+    async def test_with_mcp_servers_is_refused(self):
         engine = make_engine()
-        with patch("integrations.mcp_service.mcp_service.get_active_connections", new=AsyncMock(return_value=[
+        get_connections = AsyncMock(return_value=[
             {"server_id": "srv", "connected_at": "now"}
-        ])), patch("integrations.mcp_service.mcp_service.get_server_tools", new=AsyncMock(return_value=[
+        ])
+        get_tools = AsyncMock(return_value=[
             {"name": "t1", "description": "d", "input_schema": {}}
-        ])), patch.object(engine, "_execute_agent_with_mcp", new=AsyncMock(return_value={"success": True})):
-            result = await engine._execute_main_agent_action("do_thing", {"mcp_servers": ["srv"], "input_data": {"x": 1}}, None)
-        assert result["status"] == "success"
-        assert result["mcp_servers_used"] == ["srv"]
+        ])
+        executor = AsyncMock(return_value={"success": True})
+        with patch("integrations.mcp_service.mcp_service.get_active_connections", new=get_connections), \
+             patch("integrations.mcp_service.mcp_service.get_server_tools", new=get_tools), \
+             patch.object(engine, "_execute_agent_with_mcp", new=executor):
+            result = await engine._execute_main_agent_action(
+                "do_thing",
+                {"agent_id": "ag-1", "mcp_servers": ["srv"], "input_data": {"x": 1}},
+                None,
+                step=self._step(),
+            )
+        # main_agent is text-only: an explicit MCP request is refused before
+        # any discovery or LLM dispatch.
+        assert result["status"] == "error"
+        assert "mcp_servers" in result["error"]
+        assert "not available" in result["error"]
+        get_connections.assert_not_awaited()
+        get_tools.assert_not_awaited()
+        executor.assert_not_awaited()
 
     async def test_without_mcp_servers(self):
         engine = make_engine()
         with patch.object(engine, "_execute_agent_with_mcp", new=AsyncMock(return_value={"success": True})):
-            result = await engine._execute_main_agent_action("do_thing", {}, None)
+            result = await engine._execute_main_agent_action(
+                "do_thing", {"agent_id": "ag-1"}, None, step=self._step())
         assert result["status"] == "success"
         assert result["mcp_servers_used"] == []
 
     async def test_exception_returns_error_envelope(self):
         engine = make_engine()
         with patch.object(engine, "_execute_agent_with_mcp", new=AsyncMock(side_effect=RuntimeError("nope"))):
-            result = await engine._execute_main_agent_action("do_thing", {}, None)
+            result = await engine._execute_main_agent_action(
+                "do_thing", {"agent_id": "ag-1"}, None, step=self._step())
         assert result["status"] == "error"
+        assert "nope" not in result["error"]
+
+    async def test_unresolved_scope_is_refused_not_defaulted(self):
+        engine = make_engine()
+        result = await engine._execute_main_agent_action(
+            "do_thing", {"agent_id": "ag-1"}, None, step=None)
+        assert result["status"] == "error"
+        assert "scope" in result["error"]
 
 
 class TestAgentWithMcp:
@@ -865,57 +895,127 @@ class TestAgentWithMcp:
         engine = make_engine()
         fake_db = MagicMock()
         fake_db.query.return_value.filter.return_value.first.return_value = None
-        with patch("core.database.get_db_session") as mock_session:
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service") as get_llm:
             mock_session.return_value.__enter__.return_value = fake_db
-            result = await engine._execute_agent_with_mcp({"agent_id": "missing", "action": "a"})
+            result = await engine._execute_agent_with_mcp({
+                "agent_id": "missing", "action": "a",
+                "workspace_id": "ws-1", "tenant_id": "tenant-1"})
         assert result["success"] is False
-        assert "not found" in result["error"]
+        assert "not available" in result["error"]
+        get_llm.assert_not_called()
+
+    async def test_foreign_agent_is_refused(self):
+        engine = make_engine()
+        fake_db = MagicMock()
+        # The exact (id, workspace, tenant) predicate cannot be exercised by a
+        # MagicMock DB; a foreign row is no match for the scoped query.
+        fake_db.query.return_value.filter.return_value.first.return_value = None
+        llm_service = MagicMock()
+        generate = AsyncMock(
+            return_value={"success": True, "content": "leak"})
+        llm_service.generate_completion = generate
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service) as get_llm:
+            mock_session.return_value.__enter__.return_value = fake_db
+            result = await engine._execute_agent_with_mcp({
+                "agent_id": "ag-1", "action": "analyze",
+                "workspace_id": "ws-1", "tenant_id": "tenant-1"})
+        assert result["success"] is False
+        assert result["failure_reason"] == "agent_not_found"
+        get_llm.assert_not_called()
+        generate.assert_not_awaited()
 
     async def test_success_with_llm(self):
         engine = make_engine()
         agent = SimpleNamespace(
-            id="ag-1", llm_provider="openai", llm_model="gpt-4o",
-            llm_api_key="k", llm_base_url=None, workspace_id="default", tenant_id="default",
+            id="ag-1", workspace_id="ws-1", tenant_id="tenant-1",
+            enabled=True, configuration={},
         )
-        handler = MagicMock()
-        handler.chat_completion = AsyncMock(return_value={"content": "done", "tool_calls": []})
+        llm_service = MagicMock()
+        generate = AsyncMock(return_value={
+            "success": True, "content": "done",
+            "provider": "openai", "model": "gpt-4o"})
+        llm_service.generate_completion = generate
         fake_db = MagicMock()
         fake_db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.database.get_db_session") as mock_session, \
-             patch("core.llm_service.get_llm_service", return_value=MagicMock(handler=handler)):
+             patch("core.llm_service.get_llm_service", return_value=llm_service) as get_llm:
             mock_session.return_value.__enter__.return_value = fake_db
             result = await engine._execute_agent_with_mcp({
                 "agent_id": "ag-1", "action": "analyze", "input_data": {"q": 1},
+                "workspace_id": "ws-1", "tenant_id": "tenant-1",
                 "available_tools": [{"name": "t1", "description": "d", "input_schema": {"type": "object"}}],
                 "mcp_connections": {"srv": {}},
             })
         assert result["success"] is True
+        assert result["content"] == "done"
+        assert result["agent_response"] == "done"
         assert result["execution_method"] == "main_agent_with_mcp"
-        assert result["tools_available"] == 1
+        # Text-only: caller-supplied tool definitions are not advertised.
+        assert result["tool_definitions"] == []
+        assert result["tools_available"] == 0
+        assert result["tool_calls"] == []
+        assert result["mcp_connections"] == 1
+        assert result["mcp_connection_metadata"] == {"srv": {}}
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+        assert generate.call_args.kwargs["workspace_id"] == "ws-1"
+        assert generate.call_args.kwargs["tenant_id"] == "tenant-1"
+        assert generate.call_args.kwargs["agent_id"] == "ag-1"
+        get_llm.assert_called_with(
+            workspace_id="ws-1", tenant_id="tenant-1", db=mock_session.return_value.__enter__.return_value)
 
-    async def test_llm_failure_fallback(self):
+    async def test_llm_failure_is_not_success(self):
         engine = make_engine()
         agent = SimpleNamespace(
-            id="ag-1", llm_provider="openai", llm_model="gpt-4o",
-            llm_api_key="k", llm_base_url=None, workspace_id="default", tenant_id="default",
+            id="ag-1", workspace_id="ws-1", tenant_id="tenant-1",
+            enabled=True, configuration={},
         )
-        handler = MagicMock()
-        handler.chat_completion = AsyncMock(side_effect=RuntimeError("no api"))
+        llm_service = MagicMock()
+        llm_service.generate_completion = AsyncMock(
+            side_effect=RuntimeError("no api"))
         fake_db = MagicMock()
         fake_db.query.return_value.filter.return_value.first.return_value = agent
         with patch("core.database.get_db_session") as mock_session, \
-             patch("core.llm_service.get_llm_service", return_value=MagicMock(handler=handler)):
+             patch("core.llm_service.get_llm_service", return_value=llm_service):
             mock_session.return_value.__enter__.return_value = fake_db
-            result = await engine._execute_agent_with_mcp({"agent_id": "ag-1", "action": "analyze"})
-        assert result["success"] is True
-        assert result["execution_method"] == "fallback"
-        assert "no api" in result["error"]
+            result = await engine._execute_agent_with_mcp({
+                "agent_id": "ag-1", "action": "analyze",
+                "workspace_id": "ws-1", "tenant_id": "tenant-1"})
+        assert result["success"] is False
+        assert result["failure_reason"] == "provider_error"
+        assert result["execution_method"] == "main_agent_with_mcp"
+        assert "no api" not in result["error"]
+
+    async def test_empty_response_is_not_success(self):
+        engine = make_engine()
+        agent = SimpleNamespace(
+            id="ag-1", workspace_id="ws-1", tenant_id="tenant-1",
+            enabled=True, configuration={},
+        )
+        llm_service = MagicMock()
+        llm_service.generate_completion = AsyncMock(return_value={
+            "success": False, "content": "",
+            "failure": {"reason": "empty_generation"}})
+        fake_db = MagicMock()
+        fake_db.query.return_value.filter.return_value.first.return_value = agent
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service):
+            mock_session.return_value.__enter__.return_value = fake_db
+            result = await engine._execute_agent_with_mcp({
+                "agent_id": "ag-1", "action": "analyze",
+                "workspace_id": "ws-1", "tenant_id": "tenant-1"})
+        assert result["success"] is False
+        assert result["failure_reason"] == "empty_response"
 
     async def test_outer_exception_raises_agent_error(self):
         engine = make_engine()
         with patch("core.database.get_db_session", side_effect=RuntimeError("db down")):
             with pytest.raises(Exception, match="db down"):
-                await engine._execute_agent_with_mcp({"agent_id": "ag-1"})
+                await engine._execute_agent_with_mcp({
+                    "agent_id": "ag-1", "workspace_id": "ws-1",
+                    "tenant_id": "tenant-1"})
 
 
 class TestEmailAutomation:

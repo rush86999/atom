@@ -996,7 +996,7 @@ class TestMCPAndMainAgent:
         assert r["status"] == "error"
 
     @pytest.mark.asyncio
-    async def test_main_agent_with_mcp_servers(self, wf_env, monkeypatch):
+    async def test_main_agent_with_mcp_servers_is_refused(self, wf_env, monkeypatch):
         svc = MagicMock()
         svc.get_active_connections = AsyncMock(return_value=[
             {"server_id": "s1", "connected_at": "now"},
@@ -1004,18 +1004,31 @@ class TestMCPAndMainAgent:
         svc.get_server_tools = AsyncMock(return_value=[{"name": "tool_a", "description": "d"}])
         monkeypatch.setattr("integrations.mcp_service.mcp_service", svc)
         engine = wf_env["engine"]
-        engine._execute_agent_with_mcp = AsyncMock(return_value={"done": True})
+        engine._execute_agent_with_mcp = AsyncMock(return_value={"success": True})
         r = await engine._execute_main_agent_action(
-            "act", {"agent_action": "aa", "mcp_servers": ["s1"], "input_data": {}})
-        assert r["status"] == "success"
-        assert r["mcp_servers_used"] == ["s1"]
+            "act",
+            {"agent_id": "ag-1", "agent_action": "aa",
+             "mcp_servers": ["s1"], "input_data": {}},
+            step={"id": "s1", "workspace_id": "ws-1", "tenant_id": "tenant-1"},
+        )
+        # main_agent is text-only: MCP servers are refused before any
+        # discovery or LLM dispatch.
+        assert r["status"] == "error"
+        assert "mcp_servers" in r["error"]
+        assert "not available" in r["error"]
+        svc.get_active_connections.assert_not_awaited()
+        svc.get_server_tools.assert_not_awaited()
+        engine._execute_agent_with_mcp.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_main_agent_exception_returns_error(self, wf_env):
         engine = wf_env["engine"]
         engine._execute_agent_with_mcp = AsyncMock(side_effect=RuntimeError("boom"))
-        r = await engine._execute_main_agent_action("act", {})
+        r = await engine._execute_main_agent_action(
+            "act", {"agent_id": "ag-1"},
+            step={"id": "s1", "workspace_id": "ws-1", "tenant_id": "tenant-1"})
         assert r["status"] == "error"
+        assert "boom" not in r["error"]
 
 
 class TestExecuteAgentWithMCP:
@@ -1036,14 +1049,19 @@ class TestExecuteAgentWithMCP:
 
         monkeypatch.setattr("core.database.get_db_session", _session)
         result = await wf_env["engine"]._execute_agent_with_mcp(
-            {"action": "x", "agent_id": "ghost"})
+            {"action": "x", "agent_id": "ghost",
+             "workspace_id": "ws-1", "tenant_id": "tenant-1"})
         assert result["success"] is False
+        assert result["failure_reason"] == "agent_not_found"
 
     @pytest.mark.asyncio
     async def test_llm_success_path(self, wf_env, monkeypatch):
         fake_agent = MagicMock()
-        fake_agent.llm_provider = "openai"
-        fake_agent.llm_model = "gpt-4o"
+        fake_agent.id = "a1"
+        fake_agent.workspace_id = "ws-1"
+        fake_agent.tenant_id = "tenant-1"
+        fake_agent.enabled = True
+        fake_agent.configuration = {}
 
         def _session():
             db = MagicMock()
@@ -1059,24 +1077,44 @@ class TestExecuteAgentWithMCP:
             return _Ctx()
 
         monkeypatch.setattr("core.database.get_db_session", _session)
-        handler = MagicMock()
-        handler.chat_completion = AsyncMock(
-            return_value={"content": "done", "tool_calls": []})
         llm_svc = MagicMock()
-        llm_svc.handler = handler
-        monkeypatch.setattr("core.llm_service.get_llm_service", lambda db=None: llm_svc)
+        llm_svc.generate_completion = AsyncMock(return_value={
+            "success": True, "content": "done",
+            "provider": "openai", "model": "gpt-4o"})
+        captured = {}
+
+        def _factory(**kwargs):
+            captured.update(kwargs)
+            return llm_svc
+
+        monkeypatch.setattr("core.llm_service.get_llm_service", _factory)
         result = await wf_env["engine"]._execute_agent_with_mcp({
             "action": "x", "agent_id": "a1", "input_data": {},
+            "workspace_id": "ws-1", "tenant_id": "tenant-1",
             "available_tools": [{"name": "t", "description": "d", "input_schema": {}}],
         })
         assert result["success"] is True
+        assert result["content"] == "done"
         assert result["execution_method"] == "main_agent_with_mcp"
+        # Text-only: caller-supplied tool definitions are not advertised.
+        assert result["tool_definitions"] == []
+        assert result["tools_available"] == 0
+        assert result["tool_calls"] == []
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o"
+        assert captured["workspace_id"] == "ws-1"
+        assert captured["tenant_id"] == "tenant-1"
+        assert llm_svc.generate_completion.call_args.kwargs["workspace_id"] == "ws-1"
+        assert llm_svc.generate_completion.call_args.kwargs["tenant_id"] == "tenant-1"
+        assert llm_svc.generate_completion.call_args.kwargs["agent_id"] == "a1"
 
     @pytest.mark.asyncio
-    async def test_llm_failure_falls_back(self, wf_env, monkeypatch):
+    async def test_llm_failure_is_not_success(self, wf_env, monkeypatch):
         fake_agent = MagicMock()
-        fake_agent.llm_provider = "openai"
-        fake_agent.llm_model = "gpt-4o"
+        fake_agent.workspace_id = "ws-1"
+        fake_agent.tenant_id = "tenant-1"
+        fake_agent.enabled = True
+        fake_agent.configuration = {}
 
         def _session():
             db = MagicMock()
@@ -1092,15 +1130,19 @@ class TestExecuteAgentWithMCP:
             return _Ctx()
 
         monkeypatch.setattr("core.database.get_db_session", _session)
-        handler = MagicMock()
-        handler.chat_completion = AsyncMock(side_effect=RuntimeError("llm down"))
         llm_svc = MagicMock()
-        llm_svc.handler = handler
-        monkeypatch.setattr("core.llm_service.get_llm_service", lambda db=None: llm_svc)
+        llm_svc.generate_completion = AsyncMock(
+            side_effect=RuntimeError("llm down"))
+        monkeypatch.setattr(
+            "core.llm_service.get_llm_service",
+            lambda **kwargs: llm_svc)
         result = await wf_env["engine"]._execute_agent_with_mcp(
-            {"action": "x", "agent_id": "a1"})
-        assert result["success"] is True
-        assert result["execution_method"] == "fallback"
+            {"action": "x", "agent_id": "a1",
+             "workspace_id": "ws-1", "tenant_id": "tenant-1"})
+        assert result["success"] is False
+        assert result["failure_reason"] == "provider_error"
+        assert result["execution_method"] == "main_agent_with_mcp"
+        assert "llm down" not in result["error"]
 
     @pytest.mark.asyncio
     async def test_outer_exception_wraps(self, wf_env, monkeypatch):
@@ -1109,7 +1151,9 @@ class TestExecuteAgentWithMCP:
 
         monkeypatch.setattr("core.database.get_db_session", _session)
         with pytest.raises(AgentExecutionError):
-            await wf_env["engine"]._execute_agent_with_mcp({"agent_id": "a1"})
+            await wf_env["engine"]._execute_agent_with_mcp({
+                "agent_id": "a1", "workspace_id": "ws-1",
+                "tenant_id": "tenant-1"})
 
 
 class TestEmailAutomation:

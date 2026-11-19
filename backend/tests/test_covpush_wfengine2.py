@@ -370,10 +370,16 @@ class TestMainAgentBranches:
             q.filter.return_value.first.return_value = None
             db.query.return_value = q
             gds.return_value.__enter__.return_value = db
-            out = await e._execute_main_agent_action("act", {"mcp_servers": []})
-        # wrapper reports the inner agent-not-found result
-        assert out["status"] == "success"
+            out = await e._execute_main_agent_action(
+                "act",
+                {"agent_id": "ghost", "mcp_servers": []},
+                step={"id": "s1", "workspace_id": "ws-1",
+                      "tenant_id": "tenant-1"},
+            )
+        # A missing agent is a failed action, not a success wrapper.
+        assert out["status"] == "error"
         assert out["result"]["success"] is False
+        assert "not available" in out["error"]
 
     @pytest.mark.asyncio
     async def test_execute_agent_with_mcp_agent_not_found(self):
@@ -384,50 +390,76 @@ class TestMainAgentBranches:
             q.filter.return_value.first.return_value = None
             db.query.return_value = q
             gds.return_value.__enter__.return_value = db
-            out = await e._execute_agent_with_mcp({"agent_id": "ghost"})
+            out = await e._execute_agent_with_mcp({
+                "agent_id": "ghost", "workspace_id": "ws-1",
+                "tenant_id": "tenant-1"})
         assert out["success"] is False
+        assert out["failure_reason"] == "agent_not_found"
 
     @pytest.mark.asyncio
-    async def test_execute_agent_with_mcp_llm_failure_fallback(self):
+    async def test_execute_agent_with_mcp_llm_failure_is_not_success(self):
         e = _engine()
-        agent = SimpleNamespace(id="a1", llm_provider="openai", llm_model="gpt-4o")
+        agent = SimpleNamespace(
+            id="a1", workspace_id="ws-1", tenant_id="tenant-1",
+            enabled=True, configuration={})
         with patch("core.database.get_db_session") as gds, \
-             patch("core.llm_service.LLMService") as _LLM:
+             patch("core.llm_service.get_llm_service") as get_llm:
             db = Mock()
             q = Mock()
             q.filter.return_value.first.return_value = agent
             db.query.return_value = q
             gds.return_value.__enter__.return_value = db
-            handler = Mock()
-            handler.chat_completion = AsyncMock(side_effect=RuntimeError("llm down"))
-            _LLM.return_value.handler = handler
+            llm_service = MagicMock()
+            llm_service.generate_completion = AsyncMock(
+                side_effect=RuntimeError("llm down"))
+            get_llm.return_value = llm_service
             out = await e._execute_agent_with_mcp(
                 {"agent_id": "a1", "action": "act", "input_data": {},
+                 "workspace_id": "ws-1", "tenant_id": "tenant-1",
                  "mcp_connections": {}, "available_tools": []})
-        assert out["success"] is True
-        assert "fallback" in out["execution_method"]
+        # Provider failure must not be reported as a fabricated success.
+        assert out["success"] is False
+        assert out["failure_reason"] == "provider_error"
+        assert out["execution_method"] == "main_agent_with_mcp"
+        assert "llm down" not in out["error"]
 
     @pytest.mark.asyncio
     async def test_execute_agent_with_mcp_success(self):
         e = _engine()
-        agent = SimpleNamespace(id="a1", llm_provider="openai", llm_model="gpt-4o")
+        agent = SimpleNamespace(
+            id="a1", workspace_id="ws-1", tenant_id="tenant-1",
+            enabled=True, configuration={})
         with patch("core.database.get_db_session") as gds, \
-             patch("core.llm_service.LLMService") as _LLM:
+             patch("core.llm_service.get_llm_service") as get_llm:
             db = Mock()
             q = Mock()
             q.filter.return_value.first.return_value = agent
             db.query.return_value = q
             gds.return_value.__enter__.return_value = db
-            handler = Mock()
-            handler.chat_completion = AsyncMock(return_value={"content": "resp", "tool_calls": []})
-            _LLM.return_value.handler = handler
+            llm_service = MagicMock()
+            generate = AsyncMock(
+                return_value={"success": True, "content": "resp",
+                              "provider": "openai", "model": "gpt-4o"})
+            llm_service.generate_completion = generate
+            get_llm.return_value = llm_service
             tools = [{"name": "t1", "description": "d", "input_schema": {}}]
             out = await e._execute_agent_with_mcp(
                 {"agent_id": "a1", "action": "act", "input_data": "x",
+                 "workspace_id": "ws-1", "tenant_id": "tenant-1",
                  "mcp_connections": {"s1": {}}, "available_tools": tools})
         assert out["success"] is True
+        assert out["content"] == "resp"
         assert out["agent_response"] == "resp"
-        assert out["tools_available"] == 1
+        # Text-only: caller-supplied tool definitions are not advertised.
+        assert out["tool_definitions"] == []
+        assert out["tools_available"] == 0
+        assert out["tool_calls"] == []
+        assert out["mcp_connections"] == 1
+        assert out["provider"] == "openai"
+        assert out["model"] == "gpt-4o"
+        assert generate.call_args.kwargs["workspace_id"] == "ws-1"
+        assert generate.call_args.kwargs["tenant_id"] == "tenant-1"
+        assert generate.call_args.kwargs["agent_id"] == "a1"
 
 
 # ============================================================================
