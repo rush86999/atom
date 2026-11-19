@@ -1,5 +1,6 @@
 import React from "react";
 import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
+import StripeInvoiceConnection from "@/components/integrations/StripeInvoiceConnection";
 import StripeIntegration from "../../components/StripeIntegration";
 
 const StripeIntegrationPage: React.FC = () => {
@@ -18,6 +19,8 @@ const StripeIntegrationPage: React.FC = () => {
         </div>
 
         <StripeIntegration />
+
+        <StripeInvoiceConnection />
       </div>
     </div>
   );

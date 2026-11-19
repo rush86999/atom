@@ -986,3 +986,88 @@ class StripeAdapter:
             "paid_amount_minor_units": paid_subtotal,
             "stripe_api_version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
         }
+
+    async def get_invoice_identity_preview(
+        self,
+        *,
+        expected_account_id: str,
+        invoice_id: str,
+        currency: str,
+        expected_total_minor_units: int,
+        expected_livemode: bool,
+    ) -> Dict[str, Any]:
+        """
+        Read exact Stripe invoice identity facts for an audited link preview.
+
+        This is an opt-in, read-only helper. It probes the connected account and
+        retrieves the one requested invoice directly; it never lists invoices,
+        reads payment allocations, mutates Stripe, or writes local state.
+
+        The caller must explicitly supply the expected connected account,
+        invoice, currency, invoice total (integer minor units), and livemode.
+        The ``total`` field is the invoice's documented total, independent of
+        payments or settlement. Raises ``ValueError`` on malformed input or a
+        response that does not exactly match all expected identity facts. On
+        success it returns only the identity facts suitable for authorized
+        human confirmation.
+        """
+        if not self._access_token:
+            raise ValueError("Stripe access token not available")
+
+        account_id = self._require_stripe_identifier(
+            expected_account_id, "expected_account_id"
+        )
+        provider_invoice_id = self._require_stripe_identifier(
+            invoice_id, "invoice_id"
+        )
+        currency_code = self._require_iso_currency(currency, "currency")
+        total_minor_units = self._require_minor_units(
+            expected_total_minor_units, "expected_total_minor_units"
+        )
+        livemode = self._require_bool(expected_livemode, "expected_livemode")
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Stripe-Version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+        }
+
+        async with httpx.AsyncClient() as client:
+            account = await self._stripe_evidence_get(client, "/account", headers)
+            if account.get("id") != account_id:
+                raise ValueError(
+                    "Stripe account id does not match the expected account id"
+                )
+            if "object" in account and account.get("object") != "account":
+                raise ValueError("Stripe response is not an account object")
+
+            invoice_path = f"/invoices/{quote(provider_invoice_id, safe='')}"
+            invoice = await self._stripe_evidence_get(client, invoice_path, headers)
+
+        if invoice.get("id") != provider_invoice_id:
+            raise ValueError("Stripe invoice id does not match the expected invoice")
+        if invoice.get("object") != "invoice":
+            raise ValueError("Stripe response is not an invoice object")
+
+        self._require_matching_currency(invoice, currency_code)
+        self._require_matching_livemode(invoice, livemode)
+
+        actual_total = self._require_minor_units(invoice.get("total"), "invoice.total")
+        if actual_total != total_minor_units:
+            raise ValueError(
+                "Stripe invoice total does not match the expected total"
+            )
+
+        invoice_number = invoice.get("number")
+        if invoice_number is not None and (
+            not isinstance(invoice_number, str) or not invoice_number
+        ):
+            raise ValueError("Stripe invoice number is malformed")
+
+        return {
+            "account_id": account_id,
+            "invoice_id": provider_invoice_id,
+            "currency": currency_code,
+            "total_minor_units": total_minor_units,
+            "livemode": livemode,
+            "invoice_number": invoice_number,
+        }

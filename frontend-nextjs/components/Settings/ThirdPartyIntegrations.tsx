@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { apiClient } from '@/lib/api-client';
 
 const ThirdPartyIntegrations = () => {
     const { data: session } = useSession();
@@ -20,14 +19,6 @@ const ThirdPartyIntegrations = () => {
     const [jiraServerUrl, setJiraServerUrl] = useState('');
     const [stripeApiKey, setStripeApiKey] = useState('');
     const [notionApiKey, setNotionApiKey] = useState('');
-    const [stripeRestrictedKey, setStripeRestrictedKey] = useState('');
-    const [stripeAccountId, setStripeAccountId] = useState('');
-    const [stripeInvoiceConnection, setStripeInvoiceConnection] = useState<{
-        connectionId?: string;
-        account: string;
-        mode: string;
-    } | null>(null);
-    const [isVerifyingStripeInvoice, setIsVerifyingStripeInvoice] = useState(false);
 
     useEffect(() => {
         const loadCredentials = async () => {
@@ -93,66 +84,6 @@ const ThirdPartyIntegrations = () => {
         if (s1 && s2) {
             setTrelloApiKey('********');
             setTrelloToken('********');
-        }
-    };
-
-    const handleVerifyStripeInvoiceConnection = async () => {
-        const restrictedKey = stripeRestrictedKey.trim();
-        const accountId = stripeAccountId.trim();
-        if (!restrictedKey || !accountId) {
-            toast({
-                title: 'Stripe restricted key and account ID are required.',
-                variant: 'error',
-            });
-            return;
-        }
-
-        setIsVerifyingStripeInvoice(true);
-        try {
-            const payload = {
-                restricted_key: restrictedKey,
-                account_id: accountId,
-            };
-            const response = await apiClient.post(
-                '/api/integrations/stripe/invoice-connection',
-                payload,
-                { retry: false }
-            );
-
-            const data = response?.data ?? {};
-            const connectionId = typeof data.connection_id === 'string'
-                ? data.connection_id.trim()
-                : '';
-            const account = typeof data.account === 'string' ? data.account.trim() : '';
-            const mode = typeof data.mode === 'string' ? data.mode.trim().toLowerCase() : '';
-
-            if (
-                !connectionId ||
-                account !== accountId ||
-                (mode !== 'test' && mode !== 'live')
-            ) {
-                throw new Error('Invalid invoice connection response');
-            }
-
-            setStripeInvoiceConnection({
-                connectionId,
-                account,
-                mode,
-            });
-            setStripeRestrictedKey('');
-            toast({
-                title: 'Stripe invoice connection verified.',
-                description: `Registered account ${account} (${mode}).`,
-                variant: 'success',
-            });
-        } catch (err) {
-            toast({
-                title: 'Failed to verify Stripe invoice connection.',
-                description: 'Check the restricted key and account ID, then try again.',
-                variant: 'error',
-            });
-        } finally {
-            setIsVerifyingStripeInvoice(false);
         }
     };
 
@@ -226,26 +157,6 @@ const ThirdPartyIntegrations = () => {
                             <Label htmlFor="stripeApiKey">Stripe API Key</Label>
                             <Input id="stripeApiKey" type="password" value={stripeApiKey} onChange={(e) => setStripeApiKey(e.target.value)} placeholder="Enter Stripe API Key" />
                             <Button variant="outline" onClick={() => handleSaveCredential('stripe_api_key', stripeApiKey, 'Stripe API Key').then(s => s && setStripeApiKey('********'))}>Save Stripe</Button>
-
-                            <Separator className="my-2" />
-
-                            <h4 className="text-sm font-medium">Stripe Invoice Verification</h4>
-                            <div className="grid gap-2">
-                                <Label htmlFor="stripeRestrictedKey">Stripe Restricted Key</Label>
-                                <Input id="stripeRestrictedKey" type="password" value={stripeRestrictedKey} onChange={(e) => setStripeRestrictedKey(e.target.value)} placeholder="Enter Stripe Restricted Key" autoComplete="off" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="stripeAccountId">Stripe Account ID</Label>
-                                <Input id="stripeAccountId" value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} placeholder="acct_..." autoComplete="off" />
-                            </div>
-                            <Button variant="outline" onClick={handleVerifyStripeInvoiceConnection} disabled={isVerifyingStripeInvoice}>
-                                {isVerifyingStripeInvoice ? 'Verifying Stripe Invoice Connection...' : 'Verify Stripe Invoice Connection'}
-                            </Button>
-                            {stripeInvoiceConnection && (
-                                <div role="status" className="text-sm text-muted-foreground">
-                                    Registered account: <span>{stripeInvoiceConnection.account}</span> (mode: <span>{stripeInvoiceConnection.mode}</span>)
-                                </div>
-                            )}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="notionApiKey">Notion API Key</Label>

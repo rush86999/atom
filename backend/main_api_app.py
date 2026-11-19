@@ -3337,6 +3337,19 @@ try:
         except (ImportError, TypeError) as e:
             logger.warning(f"Razorpay routes not found, skipping: {e}")
 
+        # Stripe is absent from the lazy integration registry (it is listed
+        # there as a service-only adapter), so the generic eager/on-demand
+        # loaders never mount it. The router declares its own
+        # /api/integrations/stripe prefix (including the authenticated
+        # POST /invoice-connection), so include it BARE.
+        try:
+            from integrations.stripe_routes import router as stripe_router
+
+            app.include_router(stripe_router, tags=["Stripe"])
+            logger.info("✓ Stripe integration routes mounted at /api/integrations/stripe")
+        except (ImportError, TypeError) as e:
+            logger.warning(f"Stripe integration routes not found, skipping: {e}")
+
         from integrations.onedrive_routes import onedrive_router
 
         app.include_router(onedrive_router, prefix="/api/v1/integrations/onedrive")
