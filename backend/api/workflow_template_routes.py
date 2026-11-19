@@ -986,6 +986,26 @@ async def execute_template(
             current_user, workflow_data.get("workflow_definition") or {}
         )
 
+        # Truthful admission: inspect the catalog template's own bindings
+        # before registering anything with the orchestrator. Unsupported
+        # business steps used to be mapped to API_CALL and reported as
+        # completed simulations. Drafts/imports stay editable; only execution
+        # is refused.
+        from core.workflow_template_preflight import (
+            blockers_detail,
+            normalize_orchestrator_step_type,
+            preflight_template_steps,
+        )
+
+        template = manager.get_template(template_id)
+        blockers = preflight_template_steps(
+            getattr(template, "steps", []) or [],
+            target="orchestrator",
+        )
+        if blockers:
+            raise HTTPException(
+                status_code=422, detail=blockers_detail(blockers))
+
         # 2. Register the instantiated definition with the orchestrator, then
         # execute it. create_workflow_from_template returns a definition, but
         # the orchestrator's registry is a separate in-memory store; without
@@ -1004,14 +1024,10 @@ async def execute_template(
         raw_steps = [dict(step) for step in (definition.get("steps") or [])]
         reg_steps = []
         for index, step in enumerate(raw_steps):
-            raw_type = str(step.get("step_type") or "api_call").lower()
-            try:
-                step_type = WorkflowStepType(raw_type)
-            except ValueError:
-                # Templates use business step names ("action", "ai_task",
-                # "condition"); the orchestrator's generic API step is the
-                # safe deterministic executor for those shapes.
-                step_type = WorkflowStepType.API_CALL
+            # Share the preflight's normalization so admission and dispatch
+            # agree on which steps lower to the API_CALL simulator.
+            step_type = WorkflowStepType(
+                normalize_orchestrator_step_type(step.get("step_type")))
             raw_params = step.get("parameters")
             if raw_params is None:
                 raw_params = step.get("input_parameters")
@@ -1021,6 +1037,13 @@ async def execute_template(
                     str(p.get("name")): p.get("default_value")
                     for p in raw_params if isinstance(p, dict) and p.get("name")
                 }
+            # Keep the template's declared binding visible to the
+            # orchestrator's generic API dispatcher without overriding an
+            # explicit parameter value.
+            if step.get("service") and "service" not in step_params:
+                step_params = {**step_params, "service": step["service"]}
+            if step.get("action") and "action" not in step_params:
+                step_params = {**step_params, "action": step["action"]}
             next_steps = list(step.get("next_steps") or [])
             if not next_steps and index + 1 < len(raw_steps):
                 next_steps = [str(raw_steps[index + 1].get("step_id")

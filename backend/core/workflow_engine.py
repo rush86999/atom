@@ -153,6 +153,51 @@ def _as_aware_utc(value: Optional[datetime]) -> Optional[datetime]:
 
 
 class WorkflowEngine:
+    #: Canonical service registry names. The bound executor methods are
+    #: resolved lazily in ``_service_registry`` so tests can still replace a
+    #: handler on an instance. Catalog-template admission reads
+    #: ``supported_services`` instead of duplicating this list.
+    _SERVICE_HANDLER_METHODS = {
+        "slack": "_execute_slack_action",
+        "asana": "_execute_asana_action",
+        "github": "_execute_github_action",
+        "email": "_execute_email_action",
+        "gmail": "_execute_gmail_action",
+        "outlook": "_execute_outlook_action",
+        "jira": "_execute_jira_action",
+        "trello": "_execute_trello_action",
+        "stripe": "_execute_stripe_action",
+        "shopify": "_execute_shopify_action",
+        "zoho_crm": "_execute_zoho_crm_action",
+        "zoho_books": "_execute_zoho_books_action",
+        "zoho_inventory": "_execute_zoho_inventory_action",
+        "hubspot": "_execute_hubspot_action",
+        "salesforce": "_execute_salesforce_action",
+        "discord": "_execute_discord_action",
+        "zoom": "_execute_zoom_action",
+        "notion": "_execute_notion_action",
+        "calendar": "_execute_calendar_action",
+        "database": "_execute_database_action",
+        "ai": "_execute_ai_action",
+        "webhook": "_execute_webhook_action",
+        "mcp": "_execute_mcp_action",
+        "main_agent": "_execute_main_agent_action",
+        "workflow": "_execute_workflow_action",
+        "email_automation": "_execute_email_automation_action",
+        "goal_management": "_execute_goal_management_action",
+    }
+
+    @classmethod
+    def supported_services(cls) -> frozenset:
+        """Return the service names with a real dispatch handler."""
+        return frozenset(cls._SERVICE_HANDLER_METHODS)
+
+    def _service_registry(self) -> Dict[str, Any]:
+        return {
+            name: getattr(self, method_name)
+            for name, method_name in self._SERVICE_HANDLER_METHODS.items()
+        }
+
     def __init__(self, max_concurrent_steps: int = 5):
         self.state_manager = get_state_manager()
         # Regex for finding variable references like ${step_id.output_key}
@@ -2038,36 +2083,8 @@ class WorkflowEngine:
         logger.info(f"Executing {service}.{action} with params: {params}")
         
         # Fixed: Implement actual service registry lookup and execution
-        # Service registry mapping
-        service_registry = {
-            "slack": self._execute_slack_action,
-            "asana": self._execute_asana_action,
-            "github": self._execute_github_action,
-            "email": self._execute_email_action,
-            "gmail": self._execute_gmail_action,
-            "outlook": self._execute_outlook_action,
-            "jira": self._execute_jira_action,
-            "trello": self._execute_trello_action,
-            "stripe": self._execute_stripe_action,
-            "shopify": self._execute_shopify_action,
-            "zoho_crm": self._execute_zoho_crm_action,
-            "zoho_books": self._execute_zoho_books_action,
-            "zoho_inventory": self._execute_zoho_inventory_action,
-            "hubspot": self._execute_hubspot_action,
-            "salesforce": self._execute_salesforce_action,
-            "discord": self._execute_discord_action,
-            "zoom": self._execute_zoom_action,
-            "notion": self._execute_notion_action,
-            "calendar": self._execute_calendar_action,
-            "database": self._execute_database_action,
-            "ai": self._execute_ai_action,
-            "webhook": self._execute_webhook_action,
-            "mcp": self._execute_mcp_action,
-            "main_agent": self._execute_main_agent_action,
-            "workflow": self._execute_workflow_action,
-            "email_automation": self._execute_email_automation_action,
-            "goal_management": self._execute_goal_management_action
-        }
+        # Service registry mapping (source of truth for catalog admission).
+        service_registry = self._service_registry()
 
         # Check for fallback service
         fallback_service = step.get("fallback_service")

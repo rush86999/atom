@@ -528,6 +528,12 @@ class WorkflowTemplateManager:
                     "name": step.name,
                     "description": step.description,
                     "step_type": step.step_type,
+                    # Preserve the template's declared execution binding. The
+                    # editor route used to lose service/action here, then the
+                    # orchestrator could only report an unknown/call API
+                    # simulation for a step that had a real declaration.
+                    "service": step.service,
+                    "action": step.action,
                     # Parameters come in two shapes: declared TemplateParameter
                     # lists, or plain dicts (visual-editor exports / shipped
                     # starter content). Handle both — dict iteration used to

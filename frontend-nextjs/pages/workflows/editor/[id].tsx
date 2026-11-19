@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { Node, Edge } from 'reactflow';
+import { extractApiErrorMessage } from '@/lib/api-error';
 
 const mapStepTypeToNode = (stepType: string): string => {
     switch (stepType) {
@@ -22,6 +23,83 @@ const mapStepTypeToNode = (stepType: string): string => {
         case 'condition': return 'condition';
         case 'trigger': return 'trigger';
         default: return 'action';
+    }
+};
+
+type RunResponse = {
+    execution_id?: unknown;
+    status?: unknown;
+    workflow_status?: unknown;
+};
+
+const asNonEmptyString = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim().length > 0 ? value : null;
+
+const buildRunToast = (data: unknown): { title: string; description: string } => {
+    const payload: RunResponse =
+        data && typeof data === 'object' ? data as RunResponse : {};
+    const executionId = asNonEmptyString(payload.execution_id);
+    const status = (
+        asNonEmptyString(payload.workflow_status)
+        ?? asNonEmptyString(payload.status)
+        ?? ''
+    ).toLowerCase();
+    const execution = executionId ? `Execution ${executionId}` : 'Execution';
+
+    switch (status) {
+        case 'completed':
+            return {
+                title: 'Workflow Completed',
+                description: executionId
+                    ? `${execution} — status: completed`
+                    : 'Workflow completed.',
+            };
+        case 'failed':
+            return {
+                title: 'Workflow Failed',
+                description: executionId
+                    ? `${execution} — status: failed`
+                    : 'Workflow failed.',
+            };
+        case 'waiting_approval':
+            return {
+                title: 'Waiting for Approval',
+                description: executionId
+                    ? `${execution} is waiting for approval; no later step ran.`
+                    : 'Workflow is waiting for approval; no later step ran.',
+            };
+        case 'cancelled':
+        case 'canceled':
+            return {
+                title: 'Workflow Cancelled',
+                description: executionId
+                    ? `${execution} — status: ${status}`
+                    : 'Workflow cancelled.',
+            };
+        case 'pending':
+            return {
+                title: 'Workflow Pending',
+                description: executionId
+                    ? `${execution} — status: ${status}; no step has started.`
+                    : 'Workflow pending; no step has started.',
+            };
+        case 'running':
+            return {
+                title: 'Workflow Started',
+                description: executionId
+                    ? `${execution} is running. Approval gates will pause for your OK.`
+                    : 'Execution started.',
+            };
+        default:
+            return executionId
+                ? {
+                    title: 'Execution recorded',
+                    description: `${execution} was recorded; status is not yet known.`,
+                }
+                : {
+                    title: 'Response received',
+                    description: 'The run response was received; no execution id was returned.',
+                };
     }
 };
 
@@ -339,15 +417,10 @@ export default function WorkflowEditorPage() {
             const data = await res.json().catch((): null => null);
 
             if (!res.ok) {
-                throw new Error(data?.detail || data?.message || `Execution failed (${res.status})`);
+                throw new Error(extractApiErrorMessage(data, 'Execution failed', res.status));
             }
 
-            toast({
-                title: 'Workflow started',
-                description: data?.execution_id
-                    ? `Execution ${data.execution_id} is running. Approval gates will pause for your OK.`
-                    : 'Execution started.'
-            });
+            toast(buildRunToast(data));
             if (data?.execution_id) {
                 // Invalidate any in-flight results request tied to a prior run.
                 activeResultsExecutionRef.current = data.execution_id;
