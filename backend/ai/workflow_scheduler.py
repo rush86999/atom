@@ -151,6 +151,7 @@ class WorkflowScheduler:
     async def _execute_generated_job(
         workflow_def: Dict[str, Any], input_data: Dict[str, Any],
         authorized: bool,
+        actor_user_id: Optional[str] = None,
     ) -> None:
         """Run a generated entry through its canonical SQL blueprint.
 
@@ -159,6 +160,10 @@ class WorkflowScheduler:
         the existing consumer, and the real orchestrator dispatches supported
         handlers. Mandatory HITL checkpoints inside the definition stay in the
         execution path.
+
+        ``actor_user_id`` is the scheduling actor frozen into the persisted
+        job args at schedule time; the deployment's ``owner_user_id`` is only
+        a legacy fallback for jobs scheduled before that scope was captured.
         """
         from core.database import get_db_session
         from core.workflow_blueprint_service import (
@@ -214,7 +219,9 @@ class WorkflowScheduler:
             execution_context={
                 "tenant_id": tenant_id,
                 "workspace_id": workspace_id,
-                "user_id": str(deployment.get("owner_user_id") or "") or None,
+                "user_id": (
+                    actor_user_id
+                    or str(deployment.get("owner_user_id") or "") or None),
             },
         )
 
@@ -236,6 +243,14 @@ class WorkflowScheduler:
                 has_critical_automation_nodes,
                 has_critical_definition,
             )
+            from core.workflow_engine import frozen_execution_scope
+
+            # The deferred fire has no request principal. The only trusted
+            # actor is the scope frozen into the persisted job args by the
+            # authenticated schedule route; plain job input keys are never
+            # identity.
+            frozen_scope = frozen_execution_scope(input_data)
+
             workflows = load_workflows()
             workflow_def = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
             if workflow_def is None:
@@ -249,7 +264,8 @@ class WorkflowScheduler:
                 if (isinstance(deployment, dict)
                         and deployment.get("canonical_workflow_id")):
                     await WorkflowScheduler._execute_generated_job(
-                        workflow_def, input_data or {}, authorized)
+                        workflow_def, input_data or {}, authorized,
+                        actor_user_id=frozen_scope.get("user_id"))
                     return
                 # R69: skip critical definitions (orchestrator steps OR
                 # AutomationEngine nodes) unless the scheduler was authorized.
@@ -265,7 +281,9 @@ class WorkflowScheduler:
                 # only wrote executions.json.
                 from core.workflow_engine import get_workflow_engine
                 engine = get_workflow_engine()
-                execution_id = await engine.start_workflow(workflow_def, input_data or {})
+                execution_id = await engine.start_workflow(
+                    workflow_def, input_data or {},
+                    scope=frozen_scope or None)
                 logger.info(f"Scheduled execution {execution_id} started")
             else:
                 # Self-heal (2026-09-05): the definition is gone (deleted

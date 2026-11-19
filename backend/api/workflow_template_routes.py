@@ -626,6 +626,194 @@ def _safe_json_loads(raw):
         return None
 
 
+_RESULT_AI_KEYS = ("agent_response", "provider", "model")
+_RESULT_MAX_STEPS = 100
+_RESULT_MAX_OUTPUTS = 50
+_RESULT_MAX_TEXT = 8000
+_RESULT_MAX_STEP_ID = 200
+_RESULT_MAX_STATUS = 100
+_RESULT_MAX_STEP_TYPE = 100
+
+# Leading punctuation commonly produced by quoting or light markdown around a
+# path token in prose (e.g. ``read '/Users/alice/x'`` or ``(`/tmp/x`)``).
+_LOCAL_PATH_TOKEN_LEADING = "\"'`([{<*_~>#-•"
+
+
+def _execution_projection_failure() -> None:
+    """Public, non-leaking failure for an unreadable/unprojectable result."""
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "error": "execution_result_unavailable",
+            "message": "the persisted execution result could not be projected "
+                       "safely",
+        },
+    )
+
+
+def _bounded_text(value: Any, limit: int) -> Optional[str]:
+    """Keep only bounded string values; never stringify structured data."""
+    if not isinstance(value, str):
+        return None
+    return value[:limit]
+
+
+def _project_verified_ai_result(value: Any) -> Dict[str, str]:
+    """Project only the verified AI result envelope.
+
+    The normal WorkflowEngine persists
+    ``{"result": {"result": {"agent_response": ..., "provider": ...,
+    "model": ...}}}``. Any other shape is refused rather than exposed as an
+    empty success, and only the allowlisted string fields are carried through.
+    """
+    if not isinstance(value, dict):
+        _execution_projection_failure()
+    wrapper = value.get("result")
+    if not isinstance(wrapper, dict):
+        _execution_projection_failure()
+    business = wrapper.get("result")
+    if not isinstance(business, dict):
+        _execution_projection_failure()
+
+    projected: Dict[str, str] = {}
+    for key in _RESULT_AI_KEYS:
+        item = business.get(key)
+        if item is None:
+            continue
+        if not isinstance(item, str) or len(item) > _RESULT_MAX_TEXT:
+            _execution_projection_failure()
+        projected[key] = item
+    if not projected.get("agent_response"):
+        _execution_projection_failure()
+    return projected
+
+
+def _stored_result_present(raw: Any) -> bool:
+    if raw is None:
+        return False
+    if isinstance(raw, str):
+        return bool(raw.strip())
+    if isinstance(raw, (dict, list)):
+        return bool(raw)
+    return True
+
+
+def _text_has_embedded_local_path(value: str, pattern) -> bool:
+    """Detect a local-path token embedded in bounded projected prose.
+
+    ``_EXPORT_LOCAL_PATH`` is anchored for whole values, so a response such as
+    ``read /Users/alice/private/report.txt`` slips past the shared scanner.
+    Apply that same pattern to whitespace-delimited tokens after stripping
+    leading quotes/markdown punctuation.
+    """
+    for token in value.split():
+        candidate = token.lstrip(_LOCAL_PATH_TOKEN_LEADING)
+        if candidate and pattern.match(candidate):
+            return True
+    return False
+
+
+def _project_normal_execution_results(row: Any):
+    """Project the normal WorkflowEngine ``row.outputs``/``row.steps`` shape.
+
+    Returns ``(steps, outputs)`` or ``None`` when the row carries no stored
+    result at all (e.g. still running). Malformed, unsupported, unsafe or
+    oversized stored fields raise one fixed public error instead of falling
+    back to raw input/context or pretending the missing result succeeded.
+    """
+    outputs_present = _stored_result_present(getattr(row, "outputs", None))
+    steps_present = _stored_result_present(getattr(row, "steps", None))
+    if not outputs_present and not steps_present:
+        return None
+
+    raw_outputs = _safe_json_loads(getattr(row, "outputs", None))
+    raw_steps = _safe_json_loads(getattr(row, "steps", None))
+    if outputs_present and not isinstance(raw_outputs, dict):
+        _execution_projection_failure()
+    if steps_present and not isinstance(raw_steps, dict):
+        _execution_projection_failure()
+    outputs_raw = raw_outputs if isinstance(raw_outputs, dict) else {}
+    steps_raw = raw_steps if isinstance(raw_steps, dict) else {}
+
+    if (len(outputs_raw) > _RESULT_MAX_OUTPUTS
+            or len(steps_raw) > _RESULT_MAX_STEPS):
+        _execution_projection_failure()
+
+    # Persisted JSON object keys are strings. Validate every step id before
+    # building any output, and never truncate one (that could merge receipts).
+    for source in (steps_raw, outputs_raw):
+        for step_id in source:
+            if (not isinstance(step_id, str) or not step_id
+                    or len(step_id) > _RESULT_MAX_STEP_ID):
+                _execution_projection_failure()
+
+    ordered_ids: List[str] = []
+    seen = set()
+    for source in (steps_raw, outputs_raw):
+        for step_id in source:
+            if step_id not in seen:
+                seen.add(step_id)
+                ordered_ids.append(step_id)
+    if len(ordered_ids) > _RESULT_MAX_STEPS:
+        _execution_projection_failure()
+
+    steps = []
+    status_by_id: Dict[str, Optional[str]] = {}
+    for step_id in ordered_ids:
+        raw_step = steps_raw.get(step_id)
+        if step_id in steps_raw and not isinstance(raw_step, dict):
+            _execution_projection_failure()
+        raw_output = outputs_raw.get(step_id)
+        status = raw_step.get("status") if isinstance(raw_step, dict) else None
+        if not status and isinstance(raw_output, dict):
+            status = raw_output.get("status")
+        status = _bounded_text(status, _RESULT_MAX_STATUS)
+        step_type = (raw_step.get("step_type")
+                     if isinstance(raw_step, dict) else None)
+        status_by_id[step_id] = status
+        steps.append({
+            "step_id": step_id,
+            "step_type": _bounded_text(step_type, _RESULT_MAX_STEP_TYPE),
+            "status": status,
+            "notes": None,
+        })
+
+    outputs = {}
+    for step_id in ordered_ids:
+        if step_id not in outputs_raw:
+            continue
+        raw_output = outputs_raw[step_id]
+        if not isinstance(raw_output, dict):
+            _execution_projection_failure()
+        status = raw_output.get("status")
+        if status is None:
+            status = status_by_id.get(step_id)
+        outputs[step_id] = {
+            "status": _bounded_text(status, _RESULT_MAX_STATUS),
+            "result": _project_verified_ai_result(raw_output),
+        }
+
+    # Scan only the small projected response — never the raw stored fields.
+    try:
+        from core.workflow_endpoints import (
+            _EXPORT_LOCAL_PATH,
+            _export_sensitive_fields,
+        )
+    except Exception:  # noqa: BLE001
+        _execution_projection_failure()
+    projected_response = {"steps": steps, "outputs": outputs or None}
+    if _export_sensitive_fields(projected_response, path="results"):
+        _execution_projection_failure()
+    for output in outputs.values():
+        answer = (output.get("result") or {}).get("agent_response")
+        if (isinstance(answer, str)
+                and _text_has_embedded_local_path(
+                    answer, _EXPORT_LOCAL_PATH)):
+            _execution_projection_failure()
+
+    return steps, (outputs or None)
+
+
 def _execution_access_filter(current_user: User):
     """R89: scope execution reads to their owner (or the caller's tenant for
     legacy unattributed rows).
@@ -695,7 +883,27 @@ async def get_execution_results(
     if not row:
         raise router.not_found_error("Execution", execution_id)
 
-    context = _safe_json_loads(row.context) or {}
+    context = _safe_json_loads(row.context)
+    if not isinstance(context, dict):
+        context = {}
+
+    if "results" not in context and "execution_history" not in context:
+        # A normal scoped WorkflowEngine execution stores its completed step
+        # output/status in row.outputs/row.steps, not in the orchestrator
+        # context. Project that shape only when the orchestrator result fields
+        # are absent, so generated executions keep the exact legacy shape.
+        projected = _project_normal_execution_results(row)
+        if projected is not None:
+            steps, outputs = projected
+            return {
+                "success": True,
+                "execution_id": row.execution_id,
+                "status": row.status,
+                "error": row.error,
+                "steps": steps,
+                "outputs": outputs,
+            }
+
     raw_history = context.get("execution_history") or []
     steps = []
     for entry in raw_history[:100]:

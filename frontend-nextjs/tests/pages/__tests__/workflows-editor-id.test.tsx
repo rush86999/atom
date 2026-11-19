@@ -303,7 +303,7 @@ describe("WorkflowEditorPage", () => {
   });
 
   describe("run flow with parameter entry", () => {
-    function mockTemplateAndReady() {
+    function mockTemplateAndReady(overrides: { results?: () => Promise<any> } = {}) {
       mockFetch.mockImplementation((url: string, opts?: any) => {
         if (url === "/api/workflow-templates/wf-1") {
           return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
@@ -330,6 +330,7 @@ describe("WorkflowEditorPage", () => {
           );
         }
         if (url.includes("/results")) {
+          if (overrides.results) return overrides.results();
           return Promise.resolve(
             okResponse({
               success: true,
@@ -428,6 +429,64 @@ describe("WorkflowEditorPage", () => {
       });
       expect(panel).toHaveTextContent("awaiting_approval");
       expect(panel).toHaveTextContent("waiting for human OK");
+    });
+
+    it("shows a safe retry when results fail to load, then retries the same GET", async () => {
+      let resultsAttempt = 0;
+      mockTemplateAndReady({
+        results: () => {
+          resultsAttempt += 1;
+          if (resultsAttempt === 1) {
+            return Promise.resolve(
+              errResponse(409, { detail: "results not ready: internal trace 123" }),
+            );
+          }
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              status: "completed",
+              error: null,
+              steps: [{ step_id: "scan_inbox", step_type: "action", status: "completed" }],
+              outputs: { chased_count: 3 },
+            }),
+          );
+        },
+      });
+
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+        target: { value: "21" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+      const chip = await screen.findByTestId("execution-status-chip");
+      fireEvent.click(within(chip).getByRole("button"));
+
+      const panel = await screen.findByTestId("execution-results-panel");
+      await waitFor(() => {
+        expect(panel).toHaveTextContent("Could not load run results.");
+      });
+      expect(panel).not.toHaveTextContent("internal trace 123");
+
+      fireEvent.click(within(panel).getByRole("button", { name: /retry/i }));
+
+      await waitFor(() => {
+        expect(panel).toHaveTextContent("scan_inbox");
+      });
+      expect(panel).not.toHaveTextContent("Could not load run results.");
+
+      const resultCalls = mockFetch.mock.calls.filter(
+        ([url]: [string]) => url === "/api/workflow-templates/executions/workflow_exe1/results",
+      );
+      expect(resultCalls).toHaveLength(2);
+      const executeCalls = mockFetch.mock.calls.filter(
+        ([url]: [string]) => url === "/api/workflow-templates/wf-1/execute",
+      );
+      expect(executeCalls).toHaveLength(1);
     });
   });
 });

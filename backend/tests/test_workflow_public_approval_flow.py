@@ -32,6 +32,7 @@ from fastapi import FastAPI
 from sqlalchemy import func
 
 from api.approvals_routes import router as approvals_router
+from api.workflow_template_routes import router as workflow_template_router
 from core import workflow_endpoints
 from core.auth import get_current_user
 from core.database import get_db_session
@@ -143,6 +144,7 @@ def _app(world: dict) -> FastAPI:
     app = FastAPI()
     app.include_router(workflow_endpoints.router)
     app.include_router(approvals_router)
+    app.include_router(workflow_template_router)
     app.dependency_overrides[get_current_user] = lambda: world["user"]
     return app
 
@@ -304,6 +306,7 @@ async def test_scheduled_real_workflow_approval_join(public_world, tmp_path):
             {},
             workspace_id=public_world["workspace_id"],
             tenant_id=public_world["tenant_id"],
+            user_id=public_world["user"].id,
         )
         scheduler.schedule_workflow(
             public_world["workflow_id"], "date",
@@ -320,9 +323,25 @@ async def test_scheduled_real_workflow_approval_join(public_world, tmp_path):
             assert paused["steps"]["s1"]["status"] == "PAUSED"
             assert _dispatch_count(execution_id) == 0
 
+            # The deferred fire has no request principal: the receipt must
+            # come from the scheduling actor frozen into the job args.
+            with get_db_session() as db:
+                receipt = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.execution_id == execution_id).one()
+                assert receipt.tenant_id == public_world["tenant_id"]
+                assert receipt.user_id == public_world["user"].id
+                assert receipt.owner_id == public_world["user"].id
+
             transport = httpx.ASGITransport(app=_app(public_world))
             async with httpx.AsyncClient(
                     transport=transport, base_url="http://test") as client:
+                # The scheduling actor can read the results of their own
+                # scheduled run.
+                own = await client.get(
+                    f"/api/workflow-templates/executions/{execution_id}/results")
+                assert own.status_code == 200, own.text
+                assert own.json()["execution_id"] == execution_id
+
                 pending = await _pending(client)
                 assert len(pending) == 1, pending
                 approval = pending[0]
@@ -379,6 +398,11 @@ async def test_resume_inputs_cannot_rewrite_the_frozen_scope(public_world):
             completed = await _wait_status(
                 state_manager, execution_id, "COMPLETED")
             assert _dispatch_count(execution_id) == 1
+            assert completed["input_data"][EXECUTION_SCOPE_KEY] == {
+                "workspace_id": public_world["workspace_id"],
+                "tenant_id": public_world["tenant_id"],
+                "user_id": public_world["user"].id,
+            }
             assert approval["id"] in (
                 completed["input_data"].get("consumed_hitl_action_ids") or [])
             with get_db_session() as db:
@@ -424,6 +448,7 @@ async def test_schedule_freezes_caller_scope_and_discards_client_scope(
     assert captured["input_data"][EXECUTION_SCOPE_KEY] == {
         "workspace_id": public_world["workspace_id"],
         "tenant_id": public_world["tenant_id"],
+        "user_id": public_world["user"].id,
     }
 
 
@@ -535,3 +560,238 @@ async def test_foreign_scope_cannot_see_or_decide_public_workflow_approval(
             with get_db_session() as db:
                 assert db.query(HITLAction).filter(
                     HITLAction.id == approval["id"]).first().status == "pending"
+
+
+def _add_user(*, scope: str, tenant_id: str) -> dict:
+    """Create an extra actor for peer/foreign visibility checks."""
+    suffix = _suffix()
+    user_id = f"reviewer-{scope}-{suffix}"
+    workspace_id = f"workspace-{scope}-{suffix}"
+    created_tenant = scope == "foreign"
+    with get_db_session() as db:
+        if created_tenant:
+            db.add(Tenant(id=tenant_id, name="Other",
+                          subdomain=f"o{suffix}"))
+        db.add(Workspace(id=workspace_id, name=f"Workspace {suffix}",
+                         tenant_id=tenant_id))
+        db.add(User(
+            id=user_id, email=f"{user_id}@example.invalid",
+            first_name=scope.title(), last_name="Reviewer",
+            role="team_lead", tenant_id=tenant_id,
+            workspace_id=workspace_id, status="active", is_active=True,
+        ))
+        db.commit()
+        user = db.query(User).filter(User.id == user_id).first()
+    return {
+        "user": user, "user_id": user_id, "workspace_id": workspace_id,
+        "tenant_id": tenant_id, "created_tenant": created_tenant,
+    }
+
+
+def _remove_user(extra: dict) -> None:
+    with get_db_session() as db:
+        db.query(User).filter(User.id == extra["user_id"]).delete()
+        db.query(Workspace).filter(
+            Workspace.id == extra["workspace_id"]).delete()
+        if extra["created_tenant"]:
+            db.query(Tenant).filter(Tenant.id == extra["tenant_id"]).delete()
+        db.commit()
+
+
+async def test_own_execution_receipt_and_results_peer_foreign_denial(
+        public_world):
+    """The public start stamps the actor and only that actor reads results."""
+    state_manager = ExecutionStateManager()
+    app = _app(public_world)
+    transport = httpx.ASGITransport(app=app)
+    peer = _add_user(
+        scope="peer", tenant_id=public_world["tenant_id"])
+    foreign = _add_user(
+        scope="foreign", tenant_id=f"tenant-foreign-{_suffix()}")
+    try:
+        with patch.object(WorkflowEngine, "_notify_workflow_paused",
+                          new=lambda *a, **k: None):
+            async with httpx.AsyncClient(
+                    transport=transport, base_url="http://test") as client:
+                execution_id = await _start(client, public_world["workflow_id"])
+                await _wait_status(state_manager, execution_id, "PAUSED")
+
+                with get_db_session() as db:
+                    receipt = db.query(WorkflowExecution).filter(
+                        WorkflowExecution.execution_id == execution_id).one()
+                    assert receipt.tenant_id == public_world["tenant_id"]
+                    assert receipt.user_id == public_world["user"].id
+                    assert receipt.owner_id == public_world["user"].id
+
+                own = await client.get(
+                    f"/api/workflow-templates/executions/{execution_id}/results")
+                assert own.status_code == 200, own.text
+                assert own.json()["success"] is True
+
+                app.dependency_overrides[get_current_user] = (
+                    lambda: peer["user"])
+                try:
+                    denied = await client.get(
+                        f"/api/workflow-templates/executions/"
+                        f"{execution_id}/results")
+                    assert denied.status_code == 404, denied.text
+                finally:
+                    app.dependency_overrides[get_current_user] = (
+                        lambda: public_world["user"])
+
+                app.dependency_overrides[get_current_user] = (
+                    lambda: foreign["user"])
+                try:
+                    denied = await client.get(
+                        f"/api/workflow-templates/executions/"
+                        f"{execution_id}/results")
+                    assert denied.status_code == 404, denied.text
+                finally:
+                    app.dependency_overrides[get_current_user] = (
+                        lambda: public_world["user"])
+    finally:
+        _remove_user(peer)
+        _remove_user(foreign)
+
+
+async def test_caller_marker_and_job_input_cannot_forge_execution_owner(
+        public_world):
+    """Only the authenticated actor becomes the durable owner receipt."""
+    from core.workflow_engine import (
+        EXECUTION_SCOPE_KEY, freeze_execution_scope,
+    )
+
+    # Provider values are normalized to plain tokens; containers are not
+    # provable identity and are dropped instead of stringified.
+    provider_id = uuid.uuid4()
+    frozen = freeze_execution_scope(
+        {EXECUTION_SCOPE_KEY: {"user_id": "forged", "tenant_id": "forged"}},
+        user_id=provider_id,
+    )
+    assert frozen[EXECUTION_SCOPE_KEY] == {"user_id": str(provider_id)}
+    assert freeze_execution_scope({}, user_id={"nested": "object"}) == {}
+
+    state_manager = ExecutionStateManager()
+    transport = httpx.ASGITransport(app=_app(public_world))
+    with patch.object(WorkflowEngine, "_notify_workflow_paused",
+                      new=lambda *a, **k: None):
+        async with httpx.AsyncClient(
+                transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                f"/workflows/{public_world['workflow_id']}/execute",
+                json={
+                    EXECUTION_SCOPE_KEY: {
+                        "workspace_id": "workspace-forged",
+                        "tenant_id": "tenant-forged",
+                        "user_id": "user-forged",
+                    },
+                    # Plain caller keys are workflow inputs, never identity.
+                    "user_id": "user-forged",
+                    "owner_id": "user-forged",
+                    "tenant_id": "tenant-forged",
+                })
+            assert response.status_code == 200, response.text
+            execution_id = response.json()["execution_id"]
+            await _wait_status(state_manager, execution_id, "PAUSED")
+
+            with get_db_session() as db:
+                receipt = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.execution_id == execution_id).one()
+                assert receipt.tenant_id == public_world["tenant_id"]
+                assert receipt.user_id == public_world["user"].id
+                assert receipt.owner_id == public_world["user"].id
+
+            state = await state_manager.get_execution_state(execution_id)
+            assert state["input_data"][EXECUTION_SCOPE_KEY] == {
+                "workspace_id": public_world["workspace_id"],
+                "tenant_id": public_world["tenant_id"],
+                "user_id": public_world["user"].id,
+            }
+
+
+async def test_direct_manager_cannot_stamp_ownership_from_input_marker(
+        public_world):
+    """The durable writer only trusts an explicit identity argument.
+
+    ``create_execution`` is a public internal surface: a direct caller can
+    supply any ``input_data``. The reserved marker in that data is untrusted
+    and must be stripped, never used to stamp tenant/user/owner.
+    """
+    from core.workflow_engine import EXECUTION_SCOPE_KEY
+
+    state_manager = ExecutionStateManager()
+    execution_id = await state_manager.create_execution(
+        public_world["workflow_id"],
+        {
+            EXECUTION_SCOPE_KEY: {
+                "workspace_id": public_world["workspace_id"],
+                "tenant_id": public_world["tenant_id"],
+                "user_id": public_world["user"].id,
+            },
+            # Plain input keys are workflow parameters, never identity.
+            "user_id": public_world["user"].id,
+            "owner_id": public_world["user"].id,
+            "tenant_id": public_world["tenant_id"],
+            "x": 1,
+        },
+    )
+
+    with get_db_session() as db:
+        receipt = db.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_id).one()
+        assert receipt.tenant_id is None
+        assert receipt.user_id is None
+        assert receipt.owner_id is None
+
+    state = await state_manager.get_execution_state(execution_id)
+    assert EXECUTION_SCOPE_KEY not in state["input_data"]
+    assert state["input_data"]["x"] == 1
+
+
+async def test_legacy_schedule_without_actor_stays_unattributed(
+        public_world, tmp_path):
+    """An older schedule with no trusted actor gains no tenant-wide read."""
+    from ai.workflow_scheduler import WorkflowScheduler
+    from core.workflow_engine import freeze_execution_scope
+
+    state_manager = ExecutionStateManager()
+    scheduler = WorkflowScheduler(
+        db_url=f"sqlite:///{tmp_path / 'legacy-schedule.db'}")
+    scheduler.reschedule_system_pipelines = lambda: None
+    scheduler.start()
+    try:
+        # Job args written before actor capture: scope only, no owner.
+        legacy_inputs = freeze_execution_scope(
+            {},
+            workspace_id=public_world["workspace_id"],
+            tenant_id=public_world["tenant_id"],
+        )
+        scheduler.schedule_workflow(
+            public_world["workflow_id"], "date",
+            {"run_date": datetime.now(timezone.utc) + timedelta(seconds=0.2)},
+            legacy_inputs, authorized=False,
+        )
+
+        with patch.object(WorkflowEngine, "_notify_workflow_paused",
+                          new=lambda *a, **k: None):
+            execution_id = await _wait_execution_for_workflow(
+                public_world["workflow_id"])
+            await _wait_status(state_manager, execution_id, "PAUSED")
+
+            with get_db_session() as db:
+                receipt = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.execution_id == execution_id).one()
+                # No actor proves nothing: all identity stays NULL. Stamping
+                # the tenant alone would make it tenant-wide readable.
+                assert receipt.tenant_id is None
+                assert receipt.user_id is None
+                assert receipt.owner_id is None
+
+            transport = httpx.ASGITransport(app=_app(public_world))
+            async with httpx.AsyncClient(
+                    transport=transport, base_url="http://test") as client:
+                denied = await client.get(
+                    f"/api/workflow-templates/executions/{execution_id}/results")
+                assert denied.status_code == 404, denied.text
+    finally:
+        scheduler.shutdown()
