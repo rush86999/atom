@@ -170,10 +170,10 @@ blanket qualification of every feature or connector.
 | [E2E Testing Guide](testing/e2e-guide.md) | 486 tests, API-first auth, POM | QA/Devs |
 | [Testing Index](testing/index.md) | Unit, integration, E2E, bug discovery | Devs |
 | [Bug Discovery](testing/BUG_DISCOVERY_INFRASTRUCTURE.md) | Fuzzing, property-based, chaos | QA |
-| [Stress Testing](../.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
+| [Stress Testing](testing/STRESS_TESTING_CI_CD.md) | k6, network sim, failure injection | QA |
 | [API Standards](api/API_STANDARDS.md) | Response formats, error codes | Devs |
 | [Database Migrations](getting_started/INSTALLATION.md) | Alembic + SQLite hybrid patterns | Devs |
-| [Makefile Reference](../../Makefile) | `make setup`, `make backend`, `make test` | Devs |
+| [Makefile Reference](../Makefile) | `make setup`, `make backend`, `make test` | Devs |
 
 ### 📊 Reference
 

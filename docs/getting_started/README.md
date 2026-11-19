@@ -22,9 +22,8 @@ Quick start guides, installation options, and first steps with Atom.
 - **[First Steps](FIRST_STEPS.md)** — What to do after the server is running
 - **[Troubleshooting](TROUBLESHOOTING.md)** — Common errors and fixes
 - **[Installation](INSTALLATION.md)** — Complete installation guide (pip + Docker variants)
-- **[Installation Options](installation-options.md)** — Installation variants
-- **[Mac Mini Install](mac-mini-install.md)** — Mac mini specific setup
-- **[Install Script](install-script.md)** — Automated installation script
+- **[Personal Edition (Docker)](../operations/personal-edition.md)** — Single-user SQLite compose stack
+- **[Install script](../../scripts/quickstart.sh)** — Automated one-shot bootstrap
 
 ## 🚀 Quick Start
 
@@ -65,7 +64,8 @@ cd frontend-nextjs && npm run dev -- -p 3001
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env   # edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY
+cp .env.example .env   # fresh checkout only; do not overwrite an existing .env
+# edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY
 docker compose -f docker-compose-personal.yml up -d --build
 ```
 
@@ -81,7 +81,7 @@ piece-engine), use `docker-compose.yml`.
 
 ### Requirements
 - **Python**: 3.11+
-- **Node.js**: 22+, **npm**: 9+
+- **Node.js**: 20.9+ (Node 22 LTS recommended), **npm**: 9+
 - **Database**: SQLite (default — zero setup) or PostgreSQL (production)
 - **Optional**: Docker for containerized deployment
 
@@ -101,7 +101,7 @@ See **[FIRST_STEPS.md](./FIRST_STEPS.md)** for the full walkthrough. Summary:
 2. **Pick an LLM provider**: edit `backend/.env`, restart
 3. **Create your first agent**: `POST /api/agents`
 4. **Try a workflow**: `POST /api/agent/route`
-5. **Open the UI**: http://localhost:3000/auth/signin
+5. **Open the UI**: http://localhost:3001/login
 
 ## 🔧 Configuration
 
