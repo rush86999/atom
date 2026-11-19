@@ -82,6 +82,48 @@ const FRAUD = {
   is_mock: false,
 };
 
+// Shapes published by backend/core/risk_prevention.py for live workspaces.
+const LIVE_CHURN = {
+  churn_risk: [
+    {
+      customer_id: "cus_1",
+      customer_name: "Northwind Traders",
+      churn_probability: 1.0,
+      risk_factors: ["Subscription recorded as canceled"],
+      mrr_at_risk: 1200,
+      recommended_action: "Confirm the cancellation and close the billing record.",
+    },
+  ],
+  vip_opportunities: [],
+  is_mock: false,
+};
+const LIVE_ALERTS = {
+  ar_alerts: [
+    {
+      invoice_id: "inv-9",
+      client_name: "Contoso Ltd",
+      amount: 2500,
+      due_date: "2025-11-01T00:00:00+00:00",
+      likelihood_late: 1.0,
+      reason: "Invoice due date has passed and it is still unpaid.",
+    },
+  ],
+  is_mock: false,
+};
+const LIVE_FRAUD = {
+  anomalies: [
+    {
+      transaction_id: "ord-42",
+      type: "REFUNDED",
+      amount: 450,
+      timestamp: "2026-07-01T12:00:00+00:00",
+      severity: "MEDIUM",
+      flag_reason: "Order recorded as refunded.",
+    },
+  ],
+  is_mock: false,
+};
+
 const INTERVENTIONS = [
   {
     id: "i1",
@@ -269,6 +311,124 @@ describe("BusinessHealthDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Fraud Watch/i }));
     expect(screen.getByText("Systems Secure")).toBeInTheDocument();
+  });
+
+  it("shows an unavailable state for a failed risk tab without hiding healthy tabs", async () => {
+    routeFetch(
+      mockFetch,
+      { churn: LIVE_CHURN, alerts: LIVE_ALERTS, fraud: LIVE_FRAUD },
+      { "/risk/early-warning": errJson }
+    );
+    render(<BusinessHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Northwind Traders")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Early Warning/i }));
+    expect(screen.getByText("Early warning data is unavailable.")).toBeInTheDocument();
+    expect(screen.queryByText("No early warnings.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Fraud Watch/i }));
+    expect(screen.getByText("Refund recorded")).toBeInTheDocument();
+    expect(screen.getByText("$450")).toBeInTheDocument();
+  });
+
+  it("renders live recorded risk payloads with labels, amounts and dates", async () => {
+    routeFetch(mockFetch, {
+      churn: LIVE_CHURN,
+      alerts: LIVE_ALERTS,
+      fraud: LIVE_FRAUD,
+    });
+    render(<BusinessHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Northwind Traders")).toBeInTheDocument();
+    });
+    expect(screen.getByText("At Risk (Recorded Churn Signals)")).toBeInTheDocument();
+    expect(
+      screen.getByText("Recorded cancellation • Churn signal 100%")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Subscription recorded as canceled")).toBeInTheDocument();
+    expect(screen.getByText("MRR at risk: $1,200")).toBeInTheDocument();
+    expect(
+      screen.getByText("Confirm the cancellation and close the billing record.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("CANCELED")).toBeInTheDocument();
+    expect(screen.queryByText("No high-risk clients detected.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Early Warning/i }));
+    expect(screen.getByText("Contoso Ltd")).toBeInTheDocument();
+    expect(screen.getByText("RECORDED OVERDUE")).toBeInTheDocument();
+    expect(screen.getByText("Invoice inv-9 • Due Nov 1, 2025")).toBeInTheDocument();
+    expect(screen.getByText("$2,500")).toBeInTheDocument();
+    expect(
+      screen.getByText("Invoice due date has passed and it is still unpaid.")
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Fraud Watch/i }));
+    expect(screen.getByText("Refund recorded")).toBeInTheDocument();
+    expect(screen.getByText("$450")).toBeInTheDocument();
+    expect(screen.getByText("Order recorded as refunded.")).toBeInTheDocument();
+    expect(screen.getByText("Transaction ord-42 • Jul 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders unavailable amounts instead of zeros or NaN for malformed live payloads", async () => {
+    routeFetch(mockFetch, {
+      churn: {
+        churn_risk: [
+          {
+            customer_name: "No Amount Co",
+            churn_probability: 1.0,
+            risk_factors: [],
+            mrr_at_risk: null,
+          },
+        ],
+        vip_opportunities: [],
+        is_mock: false,
+      },
+      alerts: {
+        ar_alerts: [
+          {
+            invoice_id: "inv-bad",
+            client_name: "Bad Amount Ltd",
+            amount: "not-a-number",
+            due_date: "not-a-date",
+          },
+        ],
+        is_mock: false,
+      },
+      fraud: {
+        anomalies: [
+          {
+            transaction_id: "tx-bad",
+            type: "CHARGEBACK",
+            amount: -50,
+            timestamp: null,
+            flag_reason: "",
+          },
+        ],
+        is_mock: false,
+      },
+    });
+    render(<BusinessHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No Amount Co")).toBeInTheDocument();
+    });
+    expect(screen.getByText("MRR at risk: unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("$0")).not.toBeInTheDocument();
+    expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Early Warning/i }));
+    expect(screen.getByText("Bad Amount Ltd")).toBeInTheDocument();
+    expect(screen.getByText("Invoice inv-bad • Due date unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Amount unavailable")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Fraud Watch/i }));
+    expect(screen.getByText("Chargeback recorded")).toBeInTheDocument();
+    expect(screen.getByText("Amount unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Transaction tx-bad • Date unavailable")).toBeInTheDocument();
   });
 
   it("keeps rendering other sections when one endpoint fails (allSettled)", async () => {

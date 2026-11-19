@@ -90,6 +90,14 @@ const RISK = {
   },
 };
 
+// The risk endpoints return raw objects (not the standard envelope), so an
+// empty live workspace must still provide each published list key.
+const EMPTY_RISK = {
+  churn: { churn_risk: [], vip_opportunities: [], is_mock: false },
+  alerts: { ar_alerts: [], is_mock: false },
+  fraud: { anomalies: [], is_mock: false },
+};
+
 const INTERVENTIONS = [
   {
     id: "int-1",
@@ -248,6 +256,15 @@ describe("BusinessHealthDashboard (pages/health.tsx)", () => {
         return Promise.resolve(
           okResponse({ success: true, data: [], timestamp: "2026-11-18T00:00:00Z" })
         );
+      }
+      if (url === "/api/risk/customer-protection") {
+        return Promise.resolve(okResponse(EMPTY_RISK.churn));
+      }
+      if (url === "/api/risk/early-warning") {
+        return Promise.resolve(okResponse(EMPTY_RISK.alerts));
+      }
+      if (url === "/api/risk/fraud") {
+        return Promise.resolve(okResponse(EMPTY_RISK.fraud));
       }
       return Promise.resolve(okResponse({ data: [], metadata: { is_mock: false } }));
     });
