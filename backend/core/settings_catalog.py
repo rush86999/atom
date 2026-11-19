@@ -118,9 +118,10 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     S("MINIMAX_API_KEY", "", C_LLM, "MiniMax API key", secret=True),
     S("OPENCODE_API_KEY", "", C_LLM, "OpenCode Go gateway key (canonical env name)", secret=True),
     S(
-        "OPENCODE_BASE_URL", "https://opencode.ai/zen/v1", C_LLM,
-        "OpenCode Go/Zen gateway base URL override (explicit; unset uses "
-        "provider defaults: Go=https://opencode.ai/inference/go/openai/v1, "
+        "OPENCODE_BASE_URL", "", C_LLM,
+        "Explicit shared OpenCode gateway base-URL override for BOTH "
+        "opencode-go and opencode (leave unset to use provider defaults: "
+        "Go=https://opencode.ai/inference/go/openai/v1, "
         "Zen=https://opencode.ai/zen/v1)"),
     I("OPENCODE_RPM", 60, C_LLM, "OpenCode requests/min ceiling (routing headroom)"),
     I("OPENCODE_TPM", 2000000, C_LLM, "OpenCode tokens/min ceiling"),

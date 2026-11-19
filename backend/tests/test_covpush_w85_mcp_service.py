@@ -387,8 +387,11 @@ async def test_local_finance_close_check(svc, base_env):
     agent.run_close_check = AsyncMock(return_value={"status": "done"})
     base_env.setattr("accounting.close_agent.CloseChecklistAgent",
                      lambda db: agent)
-    assert (await svc.execute_tool("local-tools", "finance_close_check",
-                                   {"period": "2026-01"}))["status"] == "done"
+    result = await svc.execute_tool(
+        "local-tools", "finance_close_check",
+        {"period": "2026-01"}, {"workspace_id": "trusted-ws"})
+    assert result["status"] == "done"
+    agent.run_close_check.assert_awaited_once_with("trusted-ws", "2026-01")
 
 
 async def test_local_b2b_tools(svc, base_env):

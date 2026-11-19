@@ -6,7 +6,7 @@ preserves **143 original claim identities**, **18 canonical goals**, the
 historical **111/123 functional result (90.2%)**, and `app_complete: false`.
 No readiness percentage is invented, no claim is re-scored, and no bounded test
 is promoted to whole-goal acceptance. The
-[November 18 evidence checkpoint](#november-18-evidence-checkpoint--product-readiness-bounded-synthetic)
+[November 19 evidence checkpoint](#november-19-evidence-checkpoint)
 records the latest dated synthetic observations without changing any of those
 preserved values.
 
@@ -16,6 +16,38 @@ still named the #972 release cut and described #932/#919 as drafts after both
 had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
+
+## November 19 evidence checkpoint
+
+Observed main is `0016ee66873789e9182793e874c84f43ce43a02a`. This checkpoint preserves the 143 claim identities, 18 goals, historical score, and open whole-app status.
+
+| Main change | Observed scope |
+|---|---|
+| [Voice and local transcription #1016](https://github.com/rush86999/atom/pull/1016) | A synthetic browser recording was submitted through the ordinary Voice path and transcribed by a locally configured Whisper model. The budget replay recorded the actual transcription spend and returned a hard-stop response. |
+| [Workflow main-agent execution #1017](https://github.com/rush86999/atom/pull/1017) | A date scheduler ran a scoped synthetic text step through a local Ollama model and persisted a receipt. Seventy focused tests passed. |
+| [Workflow receipt ownership #1018](https://github.com/rush86999/atom/pull/1018) | The saved run returned its text and model to the owner in a fresh application process. A same-tenant peer and a foreign user were refused. The editor can retry a failed receipt read. Thirty-three backend and thirteen editor tests passed. |
+| [Generic workflow AI and editor refresh #1019](https://github.com/rush86999/atom/pull/1019) | A synthetic scheduled generic summary used a local model. The editor refreshed the receipt when the run finished. The combined suite passed 263 tests, followed by 31 focused tests and 14 editor tests. |
+
+The supervisor's retained browser audit download matched all eight rows of the selected workspace timeline. The original network assertion captured background refresh traffic and remains unresolved. Core and explicit full returned their expected profile configuration through the mounted product route. Full-profile journey coverage remains open.
+
+[Workflow cancellation #1021](https://github.com/rush86999/atom/pull/1021) merged after the required hosted checks passed. Cancellation passed controlled SQLite and PostgreSQL probes, including separate-process finalization and a restored audit receipt. [Team Chat #1020](https://github.com/rush86999/atom/pull/1020) merged after all 17 hosted checks passed. Team Chat passed a synthetic two-member browser journey and a membership revocation replay. The projected combined tree passed all five changed backend test files, with 81 tests and two subtests. The evidence is scoped to the exercised paths.
+
+Two further candidates are undergoing hosted checks. [Storage diagnostic #1022](https://github.com/rush86999/atom/pull/1022) correctly reported healthy local memory alongside portable-drive acceptance worlds in a read-only probe. A four-layout check covered local, linked, missing, and dangling stores. [Setup and provider defaults #1023](https://github.com/rush86999/atom/pull/1023) passed six OpenCode Go and Zen configuration tests, validation of both sample Compose files, and a local link check covering 331 paths and ten section anchors. Container startup and live provider connectivity remain open.
+
+Marketplace import and editor persistence were verified separately from execution. The stock invoice template produced conflicting durable outcomes in two authenticated scratch replays. The editor marked simulated operations complete, while the Workflows list failed at the unregistered knowledge lookup. Both attempts used synthetic inputs. [Template execution feedback and admission #1024](https://github.com/rush86999/atom/pull/1024) remains in hosted checks. Its local replay refused the unsupported invoice and empty templates before creating a run, while supported summary and delay examples completed. Real invoice execution remains open.
+
+Goal 13 remains open for live Fleet acceptance. The retained case 9 reached a completed API state and persisted an attributed synthesis from two specialists. The verifier rejected the receipt because its tenant scope did not match, so the case remains failed. The subsequent scope repair requires its own live acceptance evidence.
+
+Goal 17 has a local API baseline on the backend source at `3c40fe0e`. The signed-in synthetic replay used one account and loopback Uvicorn in full profile. Each route and concurrency level measured 64 requests after warmup. The table reports milliseconds.
+
+| Route | Concurrent requests | p50 | p95 |
+|---|---:|---:|---:|
+| Dashboard feed | 1 | 8.7 | 12.3 |
+| Dashboard feed | 4 | 28.0 | 49.5 |
+| Documents list (limit 100) | 1 | 11.0 | 13.6 |
+| Documents list (limit 100) | 4 | 36.6 | 100.0 |
+
+Production throughput and comparative claims require separate measurements.
 
 ## November 18 evidence checkpoint — product readiness (bounded, synthetic)
 

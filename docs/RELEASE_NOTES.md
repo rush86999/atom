@@ -123,7 +123,7 @@ make backend
 
 ### Docker (Personal Edition — single-user SQLite stack)
 ```bash
-cp .env.personal .env   # generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
+cp .env.example .env   # generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
 docker compose -f docker-compose-personal.yml up -d --build
 # Frontend: http://localhost:3001   Backend: http://localhost:8001
 ```
@@ -140,4 +140,4 @@ Full env-var reference: [docs/reference/ENVIRONMENT_VARIABLES.md](reference/ENVI
 
 ## License
 
-AGPL v3 with a marketplace commercial appendix. See [LICENSE.md](LICENSE.md).
+AGPL v3 with a marketplace commercial appendix. See [LICENSE.md](../LICENSE.md).

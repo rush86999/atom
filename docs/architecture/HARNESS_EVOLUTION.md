@@ -13,7 +13,7 @@ Modern agentic engineering suffers from diminishing returns when relying on manu
 Live user sessions suffer from **"loopmaxxing"**—forcing an agent to re-try failed actions endlessly during an active session, which inflates token consumption and latency.
 
 ### 🛡️ Our Solution
-Atom shifts optimization from runtime user sessions to an offline **Meta-Runtime** via the `HarnessEvolutionService`. The system mines execution trace history, proposes targeted micro-patches to the harness, runs regression tests inside an isolated sandbox, and deploys the mutated configuration programmatically.
+`HarnessEvolutionService` supports mining execution traces and preparing targeted harness changes outside the active user session. The Chat API exposes tenant-scoped weakness mining. The diagram shows the service methods available to a caller that explicitly validates and deploys a patch.
 
 ---
 
@@ -25,8 +25,8 @@ flowchart TD
     B --> C[Failure Pattern Clusters]
     C --> D[propose_mutation]
     D --> E[HarnessMutationPatch]
-    E --> F[validate_mutation_in_sandbox]
-    F -->|Passed| G[deploy_harness_patch]
+    E --> F[Sandbox validation: structural checks or caller test]
+    F -->|Pass and caller requests deploy| G[deploy_harness_patch]
     F -->|Failed| H[Discard & Log]
 ```
 
@@ -40,10 +40,10 @@ Rather than global prompt changes, the engine proposes micro-patches targeted at
 - **Context Compaction Boundaries**: Tuning token bounds or compaction algorithms.
 
 ### 3. Sandbox Validation Gate
-Mutated patches are executed against test suites inside the copy-on-write `SandboxTransaction` context. If the test fails, changes to the workspace are rolled back automatically.
+Validation runs inside a `SandboxTransaction`. By default it checks patch structure and scope. A caller can supply a behavioral test. A failed check rejects the patch and rolls back sandbox changes.
 
 ### 4. Configuration Deployment
-Validated patches are appended to the `AgentRegistry.configuration["harness_patches"]` JSON payload and saved to the database.
+When a caller invokes deployment, the service takes a rollback snapshot and saves the patch in `AgentRegistry.configuration["harness_patches"]`.
 
 ---
 

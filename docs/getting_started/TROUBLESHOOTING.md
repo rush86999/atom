@@ -95,21 +95,19 @@ PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:a
 ### Admin password lost
 
 The password is written to `backend/logs/bootstrap_admin_password.txt`
-on first boot. If you've lost it:
-
-**Option A** — set a known password before launch:
+on first boot. If you've lost it, set a known password before launch:
 ```bash
 # In backend/.env
 ADMIN_PASSWORD=your-new-password
 ```
-Then restart. On restart the bootstrap resets the admin password to this
-value.
-
-**Option B** — delete the admin user and let bootstrap recreate:
-```bash
-sqlite3 backend/atom_dev.db "DELETE FROM users WHERE email='admin@example.com'"
-# Then restart the server
-```
+Then restart. On restart the existing `admin@example.com` row is updated to
+this password and re-activated (`backend/core/admin_bootstrap.py` honors
+`ADMIN_PASSWORD` only when it is explicitly set). If you cannot edit the
+environment before restart, restore the last copy of
+`backend/logs/bootstrap_admin_password.txt` from your own backup. Do not
+delete the admin row or the database: bootstrap keeps an existing admin's
+password unless `ADMIN_PASSWORD` is set, and deleting the row does not
+recover other user data.
 
 ### Login returns 200 but `/api/users/me` returns 401
 
@@ -127,17 +125,28 @@ curl http://localhost:8001/api/users/me -H "Authorization: Bearer $TOKEN"
 
 ### `sqlite3.OperationalError: no such table: X`
 
-**Cause**: Schema hasn't been created. On first boot, `Base.metadata.create_all`
-runs automatically — but if the DB was deleted or the bootstrap was
-interrupted, tables may be missing.
+**Cause**: Schema hasn't been created, or the app is pointed at a different
+SQLite file than the one you expect. Root-vs-`backend/` launches resolve
+relative paths differently, so first confirm the DB and config the running
+process actually uses.
 
-**Fix**: Stop the server, delete the dev DB, restart:
-```bash
-rm backend/atom_dev.db
-PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
-```
+**Fix**:
+1. Stop writers and identify the anchored database from `DATABASE_URL` and
+   the startup logs. Do not delete or re-seed it.
+2. Preserve a copy before maintenance: include the SQLite file and any
+   `-wal`/`-shm` sidecars, or use the existing snapshot under
+   `backend/data/backups/` (the `core/db_safety` maintenance/restart
+   snapshots).
+3. Restore the known-good snapshot, or run the migration shipped for the
+   missing schema family (see `backend/alembic/versions/` or the feature's
+   install notes). Do not assume a blanket Alembic upgrade is safe for every
+   existing install.
+4. Only a **disposable test world** may be recreated. A working install must
+   be repaired or restored, never dropped/reseeded; the bootstrap cannot
+   recover your user data.
 
-The bootstrap will recreate everything.
+The rule at the top of this page still applies: preserve data and generated
+keys.
 
 ### `no such table: model_catalog` (warning in logs)
 
@@ -224,7 +233,7 @@ admin user was created on, OR the password file was regenerated.
 
 **Fix**:
 1. Read the current password: `cat backend/logs/bootstrap_admin_password.txt`
-2. Sign in at http://localhost:3000/auth/signin with that password
+2. Sign in at http://localhost:3001/login with that password
 
 ---
 

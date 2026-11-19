@@ -36167,7 +36167,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if result["intent"] == "check_overdue":
                         collection_agent = CollectionAgent(db)
                         reminders = await collection_agent.check_overdue_invoices(workspace_id)
-                        result["answer"] = f"I've identified {len(reminders)} overdue invoices and triggered reminders."
+                        result["answer"] = (
+                            f"I've flagged {len(reminders)} overdue invoices and prepared internal reminder previews. "
+                            "Delivery status: not sent; no outbound reminders were sent."
+                        )
                         result["reminders"] = reminders
                     elif result["intent"] == "get_aging":
                         collection_agent = CollectionAgent(db)

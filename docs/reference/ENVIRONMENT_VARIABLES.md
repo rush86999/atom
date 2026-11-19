@@ -17,7 +17,7 @@
 | `.env` (repo root) | Docker Compose stacks | `docker compose -f docker-compose.yml` or `-f docker-compose-personal.yml` |
 
 The backend loads `backend/.env` automatically (via `python-dotenv`). The
-Docker stacks read the root `.env` (copy `.env.personal` → `.env`).
+Docker stacks read the root `.env` (copy `.env.example` → `.env` on a fresh checkout).
 
 ---
 
@@ -140,7 +140,8 @@ UI (Settings > AI) instead of setting env vars.
 | `GLM_API_KEY` | unset | — | Z.ai platform (GLM-5.2). |
 | `MOONSHOT_API_KEY` | unset | — | https://platform.moonshot.cn/ (Kimi K2). |
 | `OPENROUTER_API_KEY` | unset | — | https://openrouter.ai/keys (unified gateway). |
-| `OPENCODE_API_KEY` | unset | — | https://opencode.ai/zen/v1 (low-cost subscription, recommended). |
+| `OPENCODE_API_KEY` | unset | — | OpenCode Go subscription key (recommended). `opencode-go` default endpoint: `https://opencode.ai/inference/go/openai/v1`; the separate `opencode` (Zen) provider uses `https://opencode.ai/zen/v1`. |
+| `OPENCODE_BASE_URL` | unset | — | Explicit SHARED endpoint override for BOTH `opencode-go` and `opencode`. Leave unset to use the provider defaults above. |
 | `MODEL_NAME` | `gpt-3.5-turbo` | — | Default model. |
 | `MAX_TOKENS` | `2048` | — | Default max tokens. |
 | `TEMPERATURE` | `0.7` | — | Default sampling temperature. |

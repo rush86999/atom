@@ -6,7 +6,7 @@
 # standing up PostgreSQL, Redis, or the piece-engine.
 #
 # Quick Start:
-#   1. cp .env.personal .env
+#   1. cp .env.example .env
 #   2. Edit .env — set BYOK_ENCRYPTION_KEY, JWT_SECRET_KEY (run:
 #      openssl rand -base64 32) and at least one LLM provider key
 #      (or ATOM_LOCAL_ONLY=true for Ollama).
@@ -31,7 +31,7 @@
 # standing up PostgreSQL, Redis, or the piece-engine.
 #
 # Quick Start:
-#   1. cp .env.personal .env
+#   1. cp .env.example .env
 #   2. Edit .env — set BYOK_ENCRYPTION_KEY, JWT_SECRET_KEY (run:
 #      openssl rand -base64 32) and at least one LLM provider key
 #      (or ATOM_LOCAL_ONLY=true for Ollama).
@@ -94,6 +94,11 @@ services:
       - GLM_API_KEY=${GLM_API_KEY:-}
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # OPENCODE_BASE_URL is an explicit SHARED override for BOTH opencode-go
+      # and opencode. It is intentionally not injected here so provider
+      # defaults apply; add it explicitly only for a custom/loopback endpoint:
+      #   - OPENCODE_BASE_URL=${OPENCODE_BASE_URL}
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY:-}
 
       # --- Local LLM (Ollama) — no API key required ---
       # To run fully offline, set ATOM_LOCAL_ONLY=true and point OLLAMA_BASE_URL

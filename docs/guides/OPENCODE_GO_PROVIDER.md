@@ -1,11 +1,11 @@
 # OpenCode Go Provider — Low-Cost LLM Gateway
 
-> **Provider ID**: `opencode-go`  
-> **Gateway**: https://opencode.ai/zen/v1  
-> **Auth**: `OPENCODE_API_KEY` (not `OPENCODE-GO_API_KEY` — hyphen in env name doesn't work)  
-> **Tier**: Budget + Code  
-> **Default models**: DeepSeek V4.1 Flash/V4 Pro, Kimi K2.7 Code  
-> **Cost reduction**: ~90% vs direct provider APIs via subscription model  
+> **Provider ID**: `opencode-go`\
+> **Gateway**: https://opencode.ai/inference/go/openai/v1\
+> **Auth**: `OPENCODE_API_KEY` (not `OPENCODE-GO_API_KEY` — hyphen in env name doesn't work)\
+> **Tier**: Budget + Code\
+> **Default models**: DeepSeek V4.1 Flash/V4 Pro, Kimi K2.7 Code\
+> **Cost reduction**: ~90% vs direct provider APIs via subscription model\
 
 ---
 
@@ -35,7 +35,7 @@ The provider auto-registers when `OPENCODE_API_KEY` is set. No code changes need
 ### Architecture
 
 ```
-Your App → Atom BYOK Router → OpenCode Zen Gateway (opencode.ai/zen/v1) → Provider Models
+Your App → Atom BYOK Router → OpenCode Go gateway (opencode.ai/inference/go/openai/v1) → Provider Models
                                     ↑
                               Subscription billing
                               (not per-token)
@@ -69,11 +69,11 @@ When the dynamic pricing cache is unavailable, the router uses built-in mappings
 | COMPLEX | `deepseek-v4-pro` | Reasoning, multi-step tasks |
 | ADVANCED | `kimi-k2.7-code` | Code generation, debugging |
 
-> **Note**: These are the *gateway model IDs*. The actual upstream model may
-> differ — OpenCode Zen handles the mapping. The pricing fetcher merges the
-> live `/zen/v1/models` ID list with the documented price table
-> (`core.llm.opencode_catalog`), so delisted models drop out of routing
-> automatically and new ones appear as soon as they are priced.
+> **Note**: These are the *gateway model IDs*. The gateway maps them to the
+> upstream model. The pricing catalog refresh reads the Zen `/zen/v1/models`
+> list (`core.llm.opencode_catalog`); the `opencode-go` chat endpoint remains
+> the Go URL above, and `opencode` is the separate Zen provider. Delisted
+> models drop out of routing automatically as the catalog is refreshed.
 
 ---
 
@@ -84,7 +84,7 @@ When the dynamic pricing cache is unavailable, the router uses built-in mappings
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENCODE_API_KEY` | *to use this provider* | Subscription key from opencode.ai (format: `sk-opencode-...`) |
-| `OPENCODE_BASE_URL` | `https://opencode.ai/zen/v1` | Gateway endpoint (rarely needs changing) |
+| `OPENCODE_BASE_URL` | unset (provider defaults) | Explicit SHARED override for BOTH providers. Leave unset: `opencode-go` uses `https://opencode.ai/inference/go/openai/v1`; the separate `opencode` (Zen) uses `https://opencode.ai/zen/v1`. |
 | `OPENCODE_RPM` | `60` | Max requests/minute for your tier. Adjust to match your plan. |
 | `OPENCODE_TPM` | `2000000` | Max tokens/minute for your tier. |
 | `OPENCODE_MAX_CONTEXT` | `200000` | Max context tokens the gateway accepts. Clamps candidate models. |
@@ -187,12 +187,15 @@ gate, matching prior behavior.
 
 ### Verification
 
+Examples below use the dev host port **8001** (`make dev`); if you run the raw
+server on its default container/uvicorn port 8000, substitute 8000.
+
 ```bash
 # Check provider is registered
-curl http://localhost:8000/api/llm/providers | jq '.[] | select(.id=="opencode-go")'
+curl http://localhost:8001/api/llm/providers | jq '.[] | select(.id=="opencode-go")'
 
 # Check routing includes opencode-go
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "Content-Type: application/json" \
   -d '{"request": "Hello", "tier": "budget"}' | jq '.provider'
 ```
@@ -265,16 +268,16 @@ value_score *= 0.83  # Light penalty — OpenCode Go stays competitive
 
 ```bash
 # View per-model usage levels (weights, limits, window + monthly usage)
-curl http://localhost:8000/api/debug/opencode-usage | jq '.data'
+curl http://localhost:8001/api/debug/opencode-usage | jq '.data'
 
 # Filter to a single model
-curl "http://localhost:8000/api/debug/opencode-usage?model=kimi-k3" | jq '.data.models'
+curl "http://localhost:8001/api/debug/opencode-usage?model=kimi-k3" | jq '.data.models'
 
 # View provider health
-curl http://localhost:8000/api/ai/providers | jq '.[] | select(.id=="opencode-go")'
+curl http://localhost:8001/api/ai/providers | jq '.[] | select(.id=="opencode-go")'
 
 # Force OpenCode Go for a request
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "x-atom-tier: budget" \
   -H "Content-Type: application/json" \
   -d '{"request": "Write a Python function"}'
@@ -301,7 +304,7 @@ Both can be enabled simultaneously — the router picks the best per request.
 Force a specific OpenCode Go model via header:
 
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl -X POST http://localhost:8001/v1/chat/completions \
   -H "Authorization: Bearer atom_sk_..." \
   -H "x-atom-model: deepseek-v4-pro" \
   -H "Content-Type: application/json" \
@@ -311,7 +314,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 Or via Atom's internal routing API:
 
 ```bash
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "Content-Type: application/json" \
   -d '{"request": "...", "model": "deepseek-v4-pro"}'
 ```
@@ -349,7 +352,6 @@ A: Only for models with a quota weight > 1.0 at *quality parity*. The per-token 
 - [Routing Strategies](../reference/ROUTING_STRATEGIES.md) — How BPC ranking works
 - [Cognitive Tier System](../architecture/COGNITIVE_TIER_SYSTEM.md) — 5-tier routing
 - [Environment Variables](../reference/ENVIRONMENT_VARIABLES.md) — Complete env var reference
-- [Provider Rate Limits](../architecture/PROVIDER_RATE_LIMITS.md) — Rate tracking architecture
 
 ---
 

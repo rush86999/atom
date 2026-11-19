@@ -152,7 +152,7 @@ User → Email/Password or OAuth → JWT Session → API Access
 ### LLM Providers
 - **OpenAI**, **Anthropic**, **DeepSeek**, **Google Gemini**, **Z.ai GLM**, **Moonshot/Kimi**
 - **Ollama** (local, free, no API key)
-- **OpenCode Go** (low-cost subscription gateway at opencode.ai/zen/v1)
+- **OpenCode Go** (low-cost subscription on the Go OpenAI-compatible endpoint: opencode.ai/inference/go/openai/v1)
 - **OpenRouter** (unified gateway, 300+ models)
 - **Cognitive Tier System**: 5-tier LLM routing, ~90% cost reduction via caching
 - **Learning Router**: per-model satisfaction predictors re-rank candidates
@@ -180,7 +180,7 @@ User → Email/Password or OAuth → JWT Session → API Access
 
 ### Personal Edition (Docker)
 ```bash
-cp .env.personal .env
+cp .env.example .env
 docker compose -f docker-compose-personal.yml up -d --build
 # Backend: http://localhost:8001  Frontend: http://localhost:3001
 ```
