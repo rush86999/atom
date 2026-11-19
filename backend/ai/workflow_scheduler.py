@@ -314,6 +314,29 @@ class WorkflowScheduler:
                         workflow_id,
                     )
                     return
+                # Catalog templates are admitted through the same canonical
+                # preflight as the schedule/execute routes. Recheck at fire
+                # time because engine/catalog availability may have changed
+                # since the job was installed. Unsupported input is skipped
+                # with a warning; existing schedules are left intact.
+                if workflow_def.get("_template_catalog"):
+                    from core.workflow_endpoints import _resolve_workflow_steps
+                    from core.workflow_template_preflight import (
+                        preflight_template_steps,
+                    )
+
+                    blockers = preflight_template_steps(
+                        _resolve_workflow_steps(workflow_def),
+                        target="workflow_engine",
+                    )
+                    if blockers:
+                        logger.warning(
+                            "Skipping scheduled catalog template %s: "
+                            "unsupported steps %s; nothing was run",
+                            workflow_id,
+                            [blocker.as_dict() for blocker in blockers],
+                        )
+                        return
                 # Route through the durable WorkflowEngine so scheduled
                 # executions persist to the DB WorkflowExecution table and
                 # appear in the Executions tab — the legacy AutomationEngine

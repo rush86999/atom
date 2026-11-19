@@ -19,7 +19,7 @@ from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -29,6 +29,7 @@ from core.models import User
 
 # Import route modules
 from api.workflow_template_routes import router, CreateTemplateRequest, UpdateTemplateRequest, InstantiateRequest
+from api.workflow_template_routes import _project_normal_execution_results
 from core.workflow_template_system import (
     WorkflowTemplate,
     WorkflowTemplateManager,
@@ -1261,6 +1262,191 @@ class TestStateTransitions:
         # Both should succeed (last write wins)
         assert response1.status_code == 200
         assert response2.status_code == 200
+
+
+# =============================================================================
+# Task 11: Durable goal / in-app notification result projection
+# =============================================================================
+
+class TestNormalExecutionEffectProjection:
+    """Only known, successful durable effect wrappers may claim a receipt."""
+
+    @staticmethod
+    def _row(outputs):
+        return Mock(outputs=outputs, steps={})
+
+    @staticmethod
+    def _goal_output(verification_status="verified", **goal_overrides):
+        goal = {
+            "id": "goal-123",
+            "audit_id": "audit-456",
+            "verification": {
+                "status": verification_status,
+                "effect": "committed",
+                "audit_id": "audit-456",
+            },
+        }
+        goal.update(goal_overrides)
+        return {
+            "status": "success",
+            "service": "goal_management",
+            "action": "create_goal",
+            "result": {
+                "goal": goal,
+                "subtasks": [
+                    {"id": "subtask-1", "title": "private plan text"},
+                    {"id": "subtask-2", "title": "private plan text"},
+                ],
+            },
+        }
+
+    @staticmethod
+    def _notification_output(**result_overrides):
+        result = {
+            "notification_id": "notification-789",
+            "created": True,
+            "emailed": False,
+        }
+        result.update(result_overrides)
+        return {
+            "status": "success",
+            "service": "workflow_notification",
+            "action": "notify_caller",
+            "result": result,
+        }
+
+    @pytest.mark.parametrize("verification_status", ["verified", "already_applied"])
+    def test_goal_receipt_is_narrow_and_exact(self, verification_status):
+        output = self._goal_output(verification_status=verification_status)
+
+        _, projected = _project_normal_execution_results(
+            self._row({"goal_step": output}))
+
+        result = projected["goal_step"]["result"]
+        assert result == {
+            "goal_id": "goal-123",
+            "audit_id": "audit-456",
+            "verification_status": verification_status,
+            "subtask_count": 2,
+        }
+        assert "title" not in result
+        assert "plan" not in result
+        assert "subtasks" not in result
+        assert "verification" not in result
+
+    @pytest.mark.parametrize("case", [
+        "failed_status",
+        "missing_goal_id",
+        "wrong_type_goal_id",
+        "missing_audit_id",
+        "wrong_type_audit_id",
+        "missing_goal",
+        "missing_verification",
+        "verification_not_dict",
+        "unknown_verification",
+        "unhashable_status",
+        "missing_effect",
+        "effect_not_committed",
+        "missing_verification_audit_id",
+        "mismatched_audit_id",
+        "missing_subtasks",
+        "subtasks_not_list",
+        "unsupported_action",
+    ])
+    def test_malformed_or_unsupported_goal_never_projects_verified(self, case):
+        output = self._goal_output()
+        goal = output["result"].get("goal") if isinstance(
+            output["result"].get("goal"), dict) else {}
+        if case == "failed_status":
+            output["status"] = "failed"
+        elif case == "missing_goal_id":
+            del goal["id"]
+        elif case == "wrong_type_goal_id":
+            goal["id"] = 123
+        elif case == "missing_audit_id":
+            del goal["audit_id"]
+        elif case == "wrong_type_audit_id":
+            goal["audit_id"] = ["audit-456"]
+        elif case == "missing_goal":
+            output["result"] = {}
+        elif case == "missing_verification":
+            del goal["verification"]
+        elif case == "verification_not_dict":
+            goal["verification"] = "verified"
+        elif case == "unknown_verification":
+            goal["verification"]["status"] = "unverified"
+        elif case == "unhashable_status":
+            goal["verification"]["status"] = ["verified"]
+        elif case == "missing_effect":
+            del goal["verification"]["effect"]
+        elif case == "effect_not_committed":
+            goal["verification"]["effect"] = "pending"
+        elif case == "missing_verification_audit_id":
+            del goal["verification"]["audit_id"]
+        elif case == "mismatched_audit_id":
+            goal["verification"]["audit_id"] = "audit-other"
+        elif case == "missing_subtasks":
+            del output["result"]["subtasks"]
+        elif case == "subtasks_not_list":
+            output["result"]["subtasks"] = "subtask-1,subtask-2"
+        elif case == "unsupported_action":
+            output["action"] = "delete_goal"
+
+        with pytest.raises(HTTPException) as exc:
+            _project_normal_execution_results(
+                self._row({"goal_step": output}))
+        assert exc.value.status_code == 409
+
+    @pytest.mark.parametrize("created", [True, False])
+    def test_notification_receipt_reports_only_committed_id(self, created):
+        output = self._notification_output(created=created)
+
+        _, projected = _project_normal_execution_results(
+            self._row({"notification_step": output}))
+
+        result = projected["notification_step"]["result"]
+        assert result == {
+            "notification_id": "notification-789",
+            "committed": True,
+        }
+        assert "title" not in result
+
+    @pytest.mark.parametrize("case", [
+        "failed_status",
+        "missing_created",
+        "created_not_bool",
+        "emailed_true",
+        "emailed_not_bool",
+        "missing_notification_id",
+        "wrong_type_notification_id",
+        "missing_result",
+        "unsupported_action",
+    ])
+    def test_malformed_or_unsupported_notification_never_claims_commit(self, case):
+        output = self._notification_output()
+        if case == "failed_status":
+            output["status"] = "failed"
+        elif case == "missing_created":
+            del output["result"]["created"]
+        elif case == "created_not_bool":
+            output["result"]["created"] = 1
+        elif case == "emailed_true":
+            output["result"]["emailed"] = True
+        elif case == "emailed_not_bool":
+            output["result"]["emailed"] = None
+        elif case == "missing_notification_id":
+            del output["result"]["notification_id"]
+        elif case == "wrong_type_notification_id":
+            output["result"]["notification_id"] = 789
+        elif case == "missing_result":
+            del output["result"]
+        elif case == "unsupported_action":
+            output["action"] = "send_email"
+
+        with pytest.raises(HTTPException) as exc:
+            _project_normal_execution_results(
+                self._row({"notification_step": output}))
+        assert exc.value.status_code == 409
 
 
 # =============================================================================

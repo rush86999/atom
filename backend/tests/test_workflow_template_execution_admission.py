@@ -20,6 +20,7 @@ import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -50,6 +51,23 @@ def capability_sources(monkeypatch):
 
 def _invoice_steps():
     return json.loads(TEMPLATE_FILE.read_text())["steps"]
+
+
+def _stock_invoice_steps():
+    """Self-contained shape of the stock invoice template used by #1029."""
+    return [
+        {"id": "lookup_invoice", "name": "Lookup Invoice",
+         "step_type": "action", "service": "invoice", "action": "lookup"},
+        {"id": "check_status", "name": "Check Status",
+         "step_type": "action"},
+        {"id": "send_reminder", "name": "Send Reminder",
+         "step_type": "action"},
+        {"id": "await_commitment", "name": "Await Commitment",
+         "step_type": "trigger", "depends_on": ["send_reminder"]},
+        {"id": "escalate", "name": "Escalate", "step_type": "action"},
+        {"id": "confirm_settled", "name": "Confirm Settled",
+         "step_type": "action"},
+    ]
 
 
 def _codes(blockers):
@@ -304,7 +322,7 @@ def test_editor_route_refuses_before_orchestrator_dispatch(
 
 
 @pytest.mark.parametrize("step_type", ["action", "api_call"])
-def test_editor_route_refuses_bound_ai_summarize_simulation(
+def test_editor_route_dispatches_bound_ai_summarize_via_canonical_engine(
         capability_sources, monkeypatch, step_type):
     try:
         import api.workflow_template_routes as routes
@@ -329,7 +347,7 @@ def test_editor_route_refuses_bound_ai_summarize_simulation(
 
         def create_workflow_from_template(self, *args, **kwargs):
             return {
-                "workflow_id": "workflow-should-not-run",
+                "workflow_id": "workflow-generated",
                 "workflow_definition": {
                     "name": "AI Summarize",
                     "steps": [{**step, "step_id": step["id"]}
@@ -340,16 +358,201 @@ def test_editor_route_refuses_bound_ai_summarize_simulation(
     async def allow_executor(*_args, **_kwargs):
         return None
 
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(
+                self, definition, input_data, background_tasks, scope=None):
+            started.append((definition, input_data, scope))
+            return "exec-ai-summarize"
+
     monkeypatch.setattr(
         routes, "get_template_manager", lambda: FakeManager())
     monkeypatch.setattr(
         routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    result = asyncio.run(execute(
+        template_id="ai_summarize_template",
+        parameters={},
+        request=None,
+        current_user=user,
+        db=None,
+        agent_id=None,
+    ))
+
+    assert result["execution_id"] == "exec-ai-summarize"
+    assert result["workflow_status"] == "running"
+    assert len(started) == 1
+    definition, _input_data, scope = started[0]
+    assert definition["_template_catalog"] is True
+    assert definition["steps"][0]["service"] == "ai"
+    assert definition["steps"][0]["action"] == "summarize"
+    assert scope == {"workspace_id": "w1", "tenant_id": "t1", "user_id": "u1"}
+
+
+def test_editor_route_executes_stock_goal_driven_template_canonically(
+        capability_sources, monkeypatch, tmp_path):
+    try:
+        import api.workflow_template_routes as routes
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    execute = getattr(routes.execute_template, "__wrapped__", None)
+    if execute is None:
+        pytest.skip("governance decorator does not expose the route body")
+
+    # The stock fixture's bindings are real built-in engine services. (The
+    # public packet has no WorkflowEngine implementation, so pin the registry
+    # explicitly, as the other admission tests do.)
+    monkeypatch.setattr(
+        preflight, "_engine_services",
+        lambda: frozenset({"goal_management", "workflow_notification"}),
+    )
+
+    manager = WorkflowTemplateManager(template_dir=str(tmp_path))
+    goal = next(
+        template for template in manager.list_templates(limit=100)
+        if template.name == "Goal-Driven Automation"
+    )
+
+    class FakeManager:
+        def get_template(self, _template_id):
+            return goal
+
+        def create_workflow_from_template(self, *args, **kwargs):
+            return manager.create_workflow_from_template(
+                template_id=goal.template_id,
+                workflow_name="Goal-Driven Automation Run",
+                template_parameters=kwargs.get("template_parameters") or {},
+            )
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(
+                self, definition, input_data, background_tasks, scope=None):
+            started.append((definition, input_data, scope))
+            return "exec-goal-durable"
+
+    monkeypatch.setattr(
+        routes, "get_template_manager", lambda: FakeManager())
+    monkeypatch.setattr(
+        routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+    parameters = {
+        "goal_text": "Close the Q4 sales deal with Acme Corp",
+        "target_date": "2026-12-31T23:59:59Z",
+    }
+
+    result = asyncio.run(execute(
+        template_id=goal.template_id,
+        parameters=parameters,
+        request=None,
+        current_user=user,
+        db=None,
+        agent_id=None,
+    ))
+
+    assert result == {
+        "status": "success",
+        "execution_id": "exec-goal-durable",
+        "workflow_status": "running",
+        "message": "Workflow started. Status: running",
+    }
+    assert len(started) == 1
+    definition, input_data, scope = started[0]
+    assert definition["id"] == goal.template_id
+    assert definition["_template_catalog"] is True
+    by_id = {step["id"]: step for step in definition["steps"]}
+    assert by_id["init_goal"]["service"] == "goal_management"
+    assert by_id["init_goal"]["action"] == "create_goal"
+    assert by_id["init_goal"]["parameters"]["title"] == (
+        "${input.goal_text}")
+    assert by_id["notify_user"]["service"] == "workflow_notification"
+    assert by_id["notify_user"]["action"] == "notify_caller"
+    assert input_data == parameters
+    assert scope == {"workspace_id": "w1", "tenant_id": "t1", "user_id": "u1"}
+
+
+def test_editor_route_refuses_mixed_supported_and_unsupported_steps(
+        capability_sources, monkeypatch):
+    try:
+        import api.workflow_template_routes as routes
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    execute = getattr(routes.execute_template, "__wrapped__", None)
+    if execute is None:
+        pytest.skip("governance decorator does not expose the route body")
+
+    monkeypatch.setattr(
+        preflight, "_engine_services",
+        lambda: frozenset({"goal_management"}),
+    )
+
+    steps = [
+        {
+            "id": "init_goal",
+            "name": "Initialize Goal",
+            "step_type": "goal_initialization",
+            "service": "goal_management",
+            "action": "create_goal",
+        },
+        {
+            "id": "unknown",
+            "name": "Unknown Step",
+            "step_type": "action",
+            "service": "external_unknown",
+            "action": "query",
+        },
+    ]
+
+    class FakeManager:
+        def get_template(self, _template_id):
+            return SimpleNamespace(steps=steps)
+
+        def create_workflow_from_template(self, *args, **kwargs):
+            return {
+                "workflow_id": "workflow-generated",
+                "workflow_definition": {
+                    "name": "Mixed Steps",
+                    "steps": [{**step, "step_id": step["id"]}
+                              for step in steps],
+                },
+            }
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "should-not-run"
+
+    monkeypatch.setattr(
+        routes, "get_template_manager", lambda: FakeManager())
+    monkeypatch.setattr(
+        routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
 
     user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
 
     with pytest.raises(Exception) as raised:
         asyncio.run(execute(
-            template_id="ai_summarize_template",
+            template_id="mixed_steps",
             parameters={},
             request=None,
             current_user=user,
@@ -360,8 +563,152 @@ def test_editor_route_refuses_bound_ai_summarize_simulation(
     error = raised.value
     assert getattr(error, "status_code", None) == 422
     assert error.detail["error"] == "execution_blocked"
-    assert [item["code"] for item in error.detail["blockers"]] == [
-        "simulated_api_call"]
+    assert {item["step_id"] for item in error.detail["blockers"]} == {
+        "unknown"}
+    assert started == [], "no execution receipt may be created"
+
+
+def test_editor_route_refuses_unknown_binding_without_starting_engine(
+        capability_sources, monkeypatch):
+    try:
+        import api.workflow_template_routes as routes
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    execute = getattr(routes.execute_template, "__wrapped__", None)
+    if execute is None:
+        pytest.skip("governance decorator does not expose the route body")
+
+    steps = [{
+        "id": "lookup",
+        "name": "Lookup",
+        "step_type": "action",
+        "service": "external_unknown",
+        "action": "query",
+    }]
+
+    class FakeManager:
+        def get_template(self, _template_id):
+            return SimpleNamespace(steps=steps)
+
+        def create_workflow_from_template(self, *args, **kwargs):
+            return {
+                "workflow_id": "workflow-generated",
+                "workflow_definition": {
+                    "name": "Unknown Binding",
+                    "steps": [{**steps[0], "step_id": "lookup"}],
+                },
+            }
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "should-not-run"
+
+    monkeypatch.setattr(
+        routes, "get_template_manager", lambda: FakeManager())
+    monkeypatch.setattr(
+        routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    with pytest.raises(Exception) as raised:
+        asyncio.run(execute(
+            template_id="unknown_binding",
+            parameters={},
+            request=None,
+            current_user=user,
+            db=None,
+            agent_id=None,
+        ))
+
+    error = raised.value
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "execution_blocked"
+    assert error.detail["blockers"][0]["step_id"] == "lookup"
+    assert started == [], "no execution receipt may be created"
+
+
+def test_editor_route_refuses_catalog_only_external_fallback(
+        capability_sources, monkeypatch):
+    try:
+        import api.workflow_template_routes as routes
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    execute = getattr(routes.execute_template, "__wrapped__", None)
+    if execute is None:
+        pytest.skip("governance decorator does not expose the route body")
+
+    steps = [{
+        "id": "sync",
+        "name": "Sync",
+        "step_type": "action",
+        "service": "external_crm",
+        "action": "sync",
+    }]
+
+    class FakeManager:
+        def get_template(self, _template_id):
+            return SimpleNamespace(steps=steps)
+
+        def create_workflow_from_template(self, *args, **kwargs):
+            return {
+                "workflow_id": "workflow-generated",
+                "workflow_definition": {
+                    "name": "External Sync",
+                    "steps": [{**steps[0], "step_id": "sync"}],
+                },
+            }
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "should-not-run"
+
+    # The catalog knows the action, but the canonical engine's built-in
+    # registry does not. The editor must not silently take over the
+    # Workflows-list route's external fallback.
+    monkeypatch.setattr(
+        preflight, "_catalog_actions",
+        lambda service: [{"name": "sync"}]
+        if service == "external_crm" else None)
+    monkeypatch.setattr(
+        routes, "get_template_manager", lambda: FakeManager())
+    monkeypatch.setattr(
+        routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    with pytest.raises(Exception) as raised:
+        asyncio.run(execute(
+            template_id="external_sync",
+            parameters={},
+            request=None,
+            current_user=user,
+            db=None,
+            agent_id=None,
+        ))
+
+    error = raised.value
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "execution_blocked"
+    assert error.detail["blockers"][0]["code"] == "service_not_available"
+    assert started == [], "no execution receipt may be created"
 
 
 def test_workflows_route_refuses_before_engine_creates_a_receipt(
@@ -422,6 +769,135 @@ def test_workflows_route_refuses_before_engine_creates_a_receipt(
         "await_commitment", "escalate", "confirm_settled",
     }
     assert started == [], "no execution receipt may be created"
+
+
+def test_schedule_route_refuses_catalog_template_before_installing_job(
+        capability_sources, monkeypatch):
+    try:
+        import core.workflow_endpoints as endpoints
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    template_definition = {
+        "id": "htn_invoice_followup",
+        "name": "Invoice Follow-up Sequence",
+        "description": "",
+        "steps": _stock_invoice_steps(),
+        "_template_catalog": True,
+    }
+    monkeypatch.setattr(
+        endpoints, "_find_visible_workflow", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        endpoints, "_load_template_definition",
+        lambda *_args, **_kwargs: template_definition,
+    )
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        endpoints, "require_workflow_executor", allow_executor)
+
+    scheduler = SimpleNamespace(
+        schedule_workflow=MagicMock(return_value="job_should_not_exist"))
+
+    def freeze_scope(input_data, **_kwargs):
+        return dict(input_data or {})
+
+    monkeypatch.setattr(
+        "core.workflow_engine.freeze_execution_scope", freeze_scope)
+    monkeypatch.setattr(
+        "ai.workflow_scheduler.workflow_scheduler", scheduler)
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    with pytest.raises(Exception) as raised:
+        asyncio.run(endpoints.schedule_workflow(
+            "htn_invoice_followup",
+            {
+                "trigger_type": "interval",
+                "trigger_config": {"minutes": 30},
+                "input_data": {"invoice_number": "INV-1"},
+            },
+            user,
+            None,
+        ))
+
+    error = raised.value
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "execution_blocked"
+    assert {item["step_id"] for item in error.detail["blockers"]} == {
+        "lookup_invoice", "check_status", "send_reminder",
+        "await_commitment", "escalate", "confirm_settled",
+    }
+    scheduler.schedule_workflow.assert_not_called()
+
+
+def test_schedule_route_installs_supported_catalog_template(
+        capability_sources, monkeypatch):
+    try:
+        import core.workflow_endpoints as endpoints
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    template_definition = {
+        "id": "supported_goal",
+        "name": "Supported Goal",
+        "description": "",
+        "steps": [{
+            "id": "notify",
+            "name": "Notify",
+            "step_type": "action",
+            "service": "email",
+            "action": "send",
+            "parameters": {"to": "ops@example.test"},
+        }],
+        "_template_catalog": True,
+    }
+    monkeypatch.setattr(
+        endpoints, "_find_visible_workflow", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        endpoints, "_load_template_definition",
+        lambda *_args, **_kwargs: template_definition,
+    )
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        endpoints, "require_workflow_executor", allow_executor)
+    monkeypatch.setattr(
+        endpoints.RBACService, "check_permission",
+        lambda *_args, **_kwargs: True,
+    )
+
+    scheduler = SimpleNamespace(
+        schedule_workflow=MagicMock(return_value="job_supported"))
+
+    def freeze_scope(input_data, **_kwargs):
+        return dict(input_data or {})
+
+    monkeypatch.setattr(
+        "core.workflow_engine.freeze_execution_scope", freeze_scope)
+    monkeypatch.setattr(
+        "ai.workflow_scheduler.workflow_scheduler", scheduler)
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    result = asyncio.run(endpoints.schedule_workflow(
+        "supported_goal",
+        {
+            "trigger_type": "interval",
+            "trigger_config": {"minutes": 30},
+            "input_data": {},
+        },
+        user,
+        None,
+    ))
+
+    assert result["success"] is True
+    assert result["job_id"] == "job_supported"
+    scheduler.schedule_workflow.assert_called_once()
 
 
 def test_draft_import_still_accepts_unresolved_required_inputs(tmp_path):

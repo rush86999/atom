@@ -154,6 +154,95 @@ class TemplateMarketplace(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+def normalize_template_execution_definition(template: Any) -> Dict[str, Any]:
+    """Normalize a file-backed template record into an executable definition.
+
+    Both the Workflows-list executor (``_load_template_definition``) and the
+    editor's canonical dispatch path must hand the engine the same step
+    contract: ``id``/``service``/``action``/``type``/``parameters``. Keep the
+    normalization in one place so those two execution surfaces cannot drift.
+
+    Declared (list-shaped) parameters bind to execution inputs through the
+    engine's ``${input.<name>}`` convention, preferring the declared default
+    when one exists. Dict-shaped parameters are already executable and pass
+    through unchanged. Plain dict steps are accepted as well as the pydantic
+    ``TemplateStep`` rows the manager normally stores.
+    """
+
+    if isinstance(template, dict):
+        template_id = template.get("template_id") or template.get("id")
+        template_name = template.get("name") or ""
+        description = template.get("description") or ""
+        raw_steps = template.get("steps") or []
+    else:
+        template_id = getattr(template, "template_id", None)
+        template_name = getattr(template, "name", None) or ""
+        description = getattr(template, "description", None) or ""
+        raw_steps = getattr(template, "steps", None) or []
+
+    steps = []
+    for step in raw_steps:
+        if isinstance(step, dict):
+            step_id = step.get("step_id") or step.get("id")
+            step_name = step.get("name") or step_id
+            step_type = step.get("step_type") or step.get("type") or "action"
+            service = step.get("service")
+            action = step.get("action")
+            params = step.get("parameters")
+            depends_on = step.get("depends_on") or []
+            condition = step.get("condition")
+        else:
+            step_id = getattr(step, "step_id", None)
+            step_name = getattr(step, "name", None) or step_id
+            step_type = getattr(step, "step_type", None) or "action"
+            service = getattr(step, "service", None)
+            action = getattr(step, "action", None)
+            params = getattr(step, "parameters", None)
+            depends_on = getattr(step, "depends_on", None) or []
+            condition = getattr(step, "condition", None)
+
+        if isinstance(params, list):
+            bound: Dict[str, Any] = {}
+            for parameter in params:
+                if isinstance(parameter, dict):
+                    param_name = parameter.get("name")
+                    param_default = parameter.get("default_value")
+                else:
+                    param_name = getattr(parameter, "name", None)
+                    param_default = getattr(parameter, "default_value", None)
+                if not param_name:
+                    continue
+                bound[str(param_name)] = (
+                    param_default
+                    if param_default is not None
+                    else f"${{input.{param_name}}}"
+                )
+            params = bound
+        elif not isinstance(params, dict):
+            params = {}
+
+        steps.append({
+            "id": step_id,
+            "name": step_name,
+            "service": service or "default",
+            "action": action or "default",
+            "type": step_type or "action",
+            "parameters": params or {},
+            "depends_on": depends_on,
+            "condition": condition,
+        })
+
+    return {
+        "id": template_id,
+        "name": template_name,
+        "description": description,
+        "steps": steps,
+        # Internal provenance marker: execution admission applies to catalog
+        # templates, not to ordinary stored workflows.
+        "_template_catalog": True,
+    }
+
+
 class WorkflowTemplateManager:
     """Manages workflow templates, marketplace, and template operations"""
 
