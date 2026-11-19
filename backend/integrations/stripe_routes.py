@@ -25,16 +25,13 @@ from accounting.invoice_provider_binding import (
     InvoiceProviderBindingInvoiceNotFound,
     bind_invoice_to_provider,
 )
+from accounting.models import (
+    Invoice,
+    InvoiceProviderBinding,
+    InvoiceProviderBindingRevision,
+)
 from core.models import Tenant, User, UserRole, Workspace
 from core.security.rbac import user_meets_role
-
-try:
-    from core.models import Invoice
-except ImportError:  # pragma: no cover - layout compatibility for accounting models
-    try:
-        from core.models.accounting import Invoice
-    except ImportError:
-        Invoice = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -877,4 +874,204 @@ async def confirm_invoice_link(
         "invoice_number": preview_facts["invoice_number"],
         "revision": revision,
     }
+
+
+def _exact_amount_text(value: Any) -> Optional[str]:
+    """Render a durable numeric amount without float rounding."""
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            return None
+        return format(value, "f")
+    return str(value)
+
+
+def _invoice_selection_facts(invoice: Invoice) -> Dict[str, Any]:
+    """Return only the safe invoice facts needed to choose a link target."""
+    raw_currency = getattr(invoice, "currency", None)
+    currency = (
+        raw_currency.strip().lower()
+        if isinstance(raw_currency, str)
+        else None
+    )
+    amount = getattr(invoice, "amount", None)
+
+    total_minor_units: Optional[int] = None
+    if currency is not None:
+        try:
+            currency = _normalize_currency(currency)
+            total_minor_units = _to_integer_minor_units(currency, amount)
+        except HTTPException:
+            # A durable row with an unsupported currency remains selectable by
+            # its exact amount text, but is not misrepresented as Stripe units.
+            total_minor_units = None
+
+    return {
+        "invoice_id": invoice.id,
+        "invoice_number": getattr(invoice, "invoice_number", None),
+        "currency": currency,
+        "amount": _exact_amount_text(amount),
+        "total_minor_units": total_minor_units,
+    }
+
+
+def _current_binding_facts(
+    binding: Optional[InvoiceProviderBinding],
+) -> Optional[Dict[str, Any]]:
+    """Expose the exact stored binding identity, never connection secrets."""
+    if binding is None:
+        return None
+    return {
+        "provider": binding.provider,
+        "provider_account_id": binding.provider_account_id,
+        "provider_mode": binding.provider_mode,
+        "external_invoice_id": binding.external_invoice_id,
+        "connection_id": binding.connection_id,
+        "revision": binding.revision,
+        "created_at": binding.created_at,
+        "updated_at": binding.updated_at,
+    }
+
+
+def _revision_receipt_facts(
+    receipt: InvoiceProviderBindingRevision,
+) -> Dict[str, Any]:
+    """Expose only the allowlisted receipt columns from the real model."""
+    return {
+        "revision": receipt.revision,
+        "actor_id": receipt.actor_id,
+        "reason": receipt.reason,
+        "created_at": receipt.created_at,
+        "prior_provider": receipt.prior_provider,
+        "prior_provider_account_id": receipt.prior_provider_account_id,
+        "prior_provider_mode": receipt.prior_provider_mode,
+        "prior_external_invoice_id": receipt.prior_external_invoice_id,
+        "prior_connection_id": receipt.prior_connection_id,
+        "new_provider": receipt.new_provider,
+        "new_provider_account_id": receipt.new_provider_account_id,
+        "new_provider_mode": receipt.new_provider_mode,
+        "new_external_invoice_id": receipt.new_external_invoice_id,
+        "new_connection_id": receipt.new_connection_id,
+    }
+
+
+@router.get("/invoice-links")
+async def list_invoice_links(
+    db: Session = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> Dict[str, Any]:
+    """List durable workspace invoices for choosing a Stripe link target."""
+    actor_id = _current_user_id(current_user)
+    scope = _resolve_active_workspace_admin_scope(db, actor_id)
+
+    invoices = (
+        db.query(Invoice)
+        .filter(Invoice.workspace_id == scope.workspace_id)
+        .order_by(Invoice.created_at.desc(), Invoice.id.desc())
+        .offset(offset)
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(invoices) > limit
+    page = invoices[:limit]
+
+    binding_revisions: Dict[str, int] = {}
+    if page:
+        invoice_ids = [invoice.id for invoice in page]
+        bindings = (
+            db.query(InvoiceProviderBinding)
+            .filter(
+                InvoiceProviderBinding.workspace_id == scope.workspace_id,
+                InvoiceProviderBinding.invoice_id.in_(invoice_ids),
+                InvoiceProviderBinding.provider == "stripe",
+            )
+            .all()
+        )
+        binding_revisions = {
+            binding.invoice_id: binding.revision for binding in bindings
+        }
+
+    items: List[Dict[str, Any]] = []
+    for invoice in page:
+        item = _invoice_selection_facts(invoice)
+        item["binding_revision"] = binding_revisions.get(invoice.id)
+        items.append(item)
+
+    return {
+        "items": items,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
+        "next_offset": offset + limit if has_more else None,
+    }
+
+
+@router.get("/invoice-links/{invoice_id}")
+async def get_invoice_link(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> Dict[str, Any]:
+    """Read the current Stripe binding and bounded revision receipts."""
+    actor_id = _current_user_id(current_user)
+    if not _nonempty_str(invoice_id):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    scope = _resolve_active_workspace_admin_scope(db, actor_id)
+
+    invoice = (
+        db.query(Invoice)
+        .filter(
+            Invoice.id == invoice_id.strip(),
+            Invoice.workspace_id == scope.workspace_id,
+        )
+        .first()
+    )
+    if invoice is None:
+        # A foreign or unknown invoice id is indistinguishable from missing.
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    binding = (
+        db.query(InvoiceProviderBinding)
+        .filter(
+            InvoiceProviderBinding.workspace_id == scope.workspace_id,
+            InvoiceProviderBinding.invoice_id == invoice.id,
+            InvoiceProviderBinding.provider == "stripe",
+        )
+        .first()
+    )
+
+    receipts: List[InvoiceProviderBindingRevision] = []
+    if binding is not None:
+        receipts = (
+            db.query(InvoiceProviderBindingRevision)
+            .filter(
+                InvoiceProviderBindingRevision.workspace_id == scope.workspace_id,
+                InvoiceProviderBindingRevision.invoice_id == invoice.id,
+                InvoiceProviderBindingRevision.binding_id == binding.id,
+            )
+            .order_by(InvoiceProviderBindingRevision.revision.asc())
+            .offset(offset)
+            .limit(limit + 1)
+            .all()
+        )
+    has_more = len(receipts) > limit
+    receipt_page = receipts[:limit]
+
+    detail = _invoice_selection_facts(invoice)
+    detail["binding_revision"] = binding.revision if binding is not None else None
+    detail["binding"] = _current_binding_facts(binding)
+    detail["receipts"] = [
+        _revision_receipt_facts(receipt) for receipt in receipt_page
+    ]
+    detail["limit"] = limit
+    detail["offset"] = offset
+    detail["has_more"] = has_more
+    detail["next_offset"] = offset + limit if has_more else None
+    return detail
 
