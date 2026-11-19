@@ -58,9 +58,9 @@ def app():
 
 @pytest.fixture
 def client(app, mock_admin, worker_database):
-    """Authenticated super-admin client backed by the in-memory DB.
+    """Authenticated platform-admin client backed by the in-memory DB.
 
-    ``get_super_admin`` is overridden so we bypass JWT resolution; the DB is
+    ``get_platform_admin`` is overridden so we bypass JWT resolution; the DB is
     the shared in-memory SQLite factory so Tenant/TenantSetting rows persist.
     """
     from core.admin_endpoints import get_platform_admin
