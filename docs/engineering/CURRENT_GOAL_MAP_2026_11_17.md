@@ -5,7 +5,10 @@ not a completion declaration, and not a replacement for the original audit. It
 preserves **143 original claim identities**, **18 canonical goals**, the
 historical **111/123 functional result (90.2%)**, and `app_complete: false`.
 No readiness percentage is invented, no claim is re-scored, and no bounded test
-is promoted to whole-goal acceptance.
+is promoted to whole-goal acceptance. The
+[November 18 evidence checkpoint](#november-18-evidence-checkpoint--product-readiness-bounded-synthetic)
+records the latest dated synthetic observations without changing any of those
+preserved values.
 
 When this map was created, the current-tense banner in
 [the November 14 readiness index](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md)
@@ -13,6 +16,62 @@ still named the #972 release cut and described #932/#919 as drafts after both
 had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
+
+## November 18 evidence checkpoint — product readiness (bounded, synthetic)
+
+Observed main: `0b932af6d47afdc33a6fbd0119eaf6f9cd59569d`. This checkpoint adds
+dated, synthetic, bounded observations only. It preserves the **143** original
+claim identities, **18** canonical goals, the historical **111/123 functional
+result (90.2%)**, `app_complete: false`, every retained negative and the frozen
+acceptance ledger. It changes no score, promotes no deferred surface, and makes
+no whole-goal or whole-app claim. **Whole-app readiness remains open.**
+
+| PR | State | Bounded synthetic observation |
+|---|---|---|
+| [#1004](https://github.com/rush86999/atom/pull/1004) | merged | Persisted completed workflow audit |
+| [#1005](https://github.com/rush86999/atom/pull/1005) | merged | Scoped reviewer receipt in a signed-in browser |
+| [#1006](https://github.com/rush86999/atom/pull/1006) | merged | Document picker failure and a successful same-file retry |
+| [#1007](https://github.com/rush86999/atom/pull/1007) | merged | Unified Search: **47 tests** and signed-in same-account Markdown upload/search |
+| [#1008](https://github.com/rush86999/atom/pull/1008) | merged | Boards error and retry: **46 Jest** regression cases plus browser evidence |
+| [#1009](https://github.com/rush86999/atom/pull/1009) | merged | Finance: **24 frontend** and **37 backend** tests; the signed-in browser confirmed a missing metric and recovery after an interrupted read |
+| [#1010](https://github.com/rush86999/atom/pull/1010) | merged | Health: **23 Jest** tests; real advice/refresh with signed-in retry, no intervention execution |
+| [#1011](https://github.com/rush86999/atom/pull/1011) | merged | Risk scope: **42 tests** and authorized synthetic records |
+| [#1013](https://github.com/rush86999/atom/pull/1013) | merged | Health Risk cards rendered cancellation, invoice, and refund for an authorized synthetic workspace; **26 Jest** cases passed |
+| [#1015](https://github.com/rush86999/atom/pull/1015) | merged | Subscription Waste: both installed routes returned the expected signed-in synthetic record; **111 backend** tests passed on the tree combined with #1013 |
+| [#1014](https://github.com/rush86999/atom/pull/1014) | merged | Marketplace: an admin imported the invoice template and reopened all six steps after a backend restart. A member could preview and received HTTP 403 on import. All **17 hosted checks** passed on the original PR revision |
+
+Other full-profile observations are synthetic only: the Agents list and four
+maturity tiers rendered (no agent run); Marketplace showed **28 templates** and
+an invoice follow-up preview (no import); BPE and Runtime Settings performed a
+harmless save/reset; the Learning admin panel loaded and refreshed (no judge
+execution); Voice started and released one synthetic microphone track (the
+detector simulates, and real detection remains open). The queued tree passed
+**33** Voice and Whisper backend checks. Signed-in recording-to-transcription
+with a normally configured local provider remains open. Team Chat remains a
+maintenance placeholder. WorkDrive issue
+[#620](https://github.com/rush86999/atom/issues/620) is closed.
+
+On merged Cards, a signed-in synthetic Learning replay used Tab and Enter to
+open and save a correction, then confirm and promote the revised lesson. All
+305 pre-restart checks and all ten Learning post-restart checks passed,
+including revision history, reason, and actor. The broader supervisor export
+browser assertion failed when the audit overview refreshed during the download
+window. A controlled component test triggered the overview refresh separately
+and observed no additional calls from the download action.
+
+On the queued Marketplace tree, seven isolated task-wait tests passed for
+independent work, process restart, crash recovery, source revocation, and job
+isolation. Seven scheduler tests passed for process restart, recovery, and
+scheduled pipeline jobs. Live-model and multi-worker verification remain open.
+
+Goal 17 has an exact merged-main **local sequential** benchmark only: **5
+warm-up plus 50 measured** requests per path, p95 **Dashboard 10.0 ms** and
+**Documents list 11.2 ms**. No production, concurrent-user, comparative or
+whole-goal performance claim follows.
+
+These are bounded synthetic observations. They do not establish live models,
+connectors, PostgreSQL or multi-worker behavior, operator deployment, or
+whole-app readiness.
 
 ## Release facts at this cut — merged #996
 
@@ -310,7 +369,7 @@ acceptance. The earlier pending-at-cut record above remains historical.
 | 12 | Repeatable workflows and schedules | accepted-bounded | Public workflow scope `49d45c7f3`; scheduler `78d2e0ca8`; recovery `e2ba4b01c`; ORCH-01 `0fae2d46c`; [readiness §12](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#goal-12) | merged + controlled proof; **served-model/operator gap** | One real served workflow request through the production route/deadline path; a full scheduled real-workflow result and receipt; PostgreSQL/multi-worker/soak. ORCH-01 still uses a controlled LLM double. |
 | 13 | Fleet, goals and background work | accepted-bounded | [Real fleet delegation, incomplete answer](CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md#fleet-real-delegation-incomplete-deliverable) @ `a868435fd` (#943, final answer not accepted); one capped synthesis sample (#951); [fleet diagnostics](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md#fleet-diagnostics-remain-separate-from-application-acceptance) (capped live test failed; 11 offline fault controls, including 17 attempted / 16 synthetic send starts) | merged implementation; scripted/API proof; **live workflow failed**; broader model quality **unknown** | Current-main live TASK with a real model, one in-scope chain, complete attributed final answer, restart/durable state, no shadow success or out-of-scope specialist. Case 6 remains **FAILED**. [Case 7](FLEET_LIVE_COMPATIBILITY_2026_11_17.md) also failed fleet acceptance: 14 actual upstream requests, 13 structured HTTP 400 and one correct direct Flash reply; verifier error-contract limits prevent a definitive upstream-cause claim. Its allowance is consumed; no automatic rerun. [Case 8](FLEET_LIVE_DELEGATION_2026_11_17.md) recovered the optional-logprob rejection and completed structured calls on merged main `02c9b1674`, but chose direct conversation: zero specialist chains/links. Six starts stayed within the cap; its one-shot allowance is consumed. [Explicit collaboration authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) merged later at #984 `7f7952c65` carries an accepted specialist requirement into the existing fleet lane with 85 offline checks; case 8's source predates it, so it is not a live delegation pass and needs a fresh allowance. The old 43-case scripted pass remains source-bound, not a current live pass. |
 | 14 | Direct mutations and whole-app ORACLE | open | Activity checkpoint authority (#976) and [never-autonomous task fences](NEVER_AUTONOMOUS_TASK_BASKETS_2026_11_16.md) (#977) are scoped mutation/authority families; static inventory 836/371/311; merged families #650–#695; Canvas delete/undelete current-actor authority repaired by [#763](https://github.com/rush86999/atom/pull/763) `c97dada13`; #994 merged `d701872` (audit correction request/receipt/refusal and scoped timeline reads) | merged scoped implementation; **whole-app runtime unknown** | Every reachable mutation family enforcing current authority/material, exact operation, durable effect and independent readback; replay/rollback/unknown truth; refreshed current-main inventory; PostgreSQL/multi-worker. #994's audit correction/refusal path is synthetic browser evidence, not a census of mutation families or whole-app ORACLE. The four historical delete/undelete scope failures stay preserved at their baseline; 54 bounded current controls pass, which does not qualify every Canvas route or whole-app ORACLE ([reconciliation](CANVAS_LIFECYCLE_AUTHORITY_RECONCILIATION_2026_11_17.md)). Adjacent bounded authority controls merged later: [entry task-profile isolation](NEVER_AUTONOMOUS_TASK_PROFILE_ISOLATION_2026_11_17.md) #986 `8afac828c` (737 independent checks; SQLite only), [M3 canonical final reply](../architecture/orchestration_migration/acceptance/lane3/M3_CANONICAL_DELIVERY_PROOF.md) #985 `7e51e0976` (22 public-boundary controls; flag default OFF), and [durable collaboration pending authority](EXPLICIT_COLLABORATION_AUTHORITY_2026_11_17.md) #984 `7f7952c65` (85 offline checks). |
-| 15 | Remaining exposed application | open/partial | [Web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) core pages render; [signed-in Settings](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md) 29/29 @ `a53b56fdc`; Canvas list 22/22 @ `6ad2738ed`; Tasks/Projects #797 `3541e8115`; #994 merged `d701872` (core-workspace Audit Trail, actor/supervisor-scoped reads, correction receipt/refusal, evidence export) | browser proof, partial; **deferred scope**; many surfaces **unknown** | The signed-in Core Search refusal and Documents-to-Chat fallback passed on `d701872`. Primary actions and durable readback remain open across Tasks/Boards, marketplace install, search/grounding, finance/voice/BPE/settings/skill editor/team chat, broader blocked-route errors, and direct admin/member behavior. #994 is one synthetic 520-assertion audit/Learning campaign, not every exposed surface or broader audit integrity. Tasks/Boards are owner-deferred by the core release profile and must not be force-enabled. |
+| 15 | Remaining exposed application | open/partial | [Web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) core pages render; [signed-in Settings](../acceptance/WA-075_SIGNED_IN_SETTINGS_ACCEPTANCE_2026-11-13.md) 29/29 @ `a53b56fdc`; Canvas list 22/22 @ `6ad2738ed`; Tasks/Projects #797 `3541e8115`; #994 merged `d701872` (core-workspace Audit Trail, actor/supervisor-scoped reads, correction receipt/refusal, evidence export) | browser proof, partial; **deferred scope**; many surfaces **unknown** | The signed-in Core Search refusal and Documents-to-Chat fallback passed on `d701872`. The November 18 checkpoint above records signed-in Search, Boards, Finance, Health, Risk and Marketplace evidence. Broader task and board operations, Marketplace workflow execution, search grounding, Voice, BPE, settings, skill editing, Team Chat, and blocked-route and role behavior still need qualification. #994 is one synthetic 520-assertion audit/Learning campaign, not every exposed surface or broader audit integrity. Tasks/Boards are owner-deferred by the core release profile and must not be force-enabled. |
 | 16 | Installation, compatibility and operations | open | [Persistent PostgreSQL restart](POSTGRES_PERSISTENT_RESTART_2026_11_16.md) @ `3316b0fe7`; [logical restore](POSTGRES_LOGICAL_RESTORE_2026_11_16.md) @ `c1ab1af1`; [full-app restart](POSTGRES_FULLAPP_RESTART_2026_11_16.md); [fresh bootstrap](POSTGRES_FRESH_BOOTSTRAP_2026_11_16.md) @ `5aa8c1c8`; #936/#941/#943; #991 acceptance-world storage preflight merged `4071ef9ba`; #994 `d701872` isolated fresh-store launch + same-world restart (SQLite/loopback; addendum below) | bounded operator/deployment proof; merged; **unknown breadth** | [Document-lineage existing-table revision](POSTGRES_DOCUMENT_LINEAGE_UPGRADE_2026_11_17.md) merged #981 `0ef449aea` with a bounded PostgreSQL 14.24 proof (29 independent tests including one real cluster, clean restart/data/index preservation) for that single revision. Other existing upgrades, full migration graph/app upgrade, async transport, abrupt outage, cluster/PITR, multi-worker/soak, Linux/ARM, native mobile device, menu-bar native live chat, KVM, and full rollback/restore child flow. #977 exercised only SQLite migration, not PostgreSQL. #991's storage guard was offline preflight only **at that dated cut**: no browser, restart, fresh-world launch, drive-pull-while-running or operator deployment was exercised then. The later #994 fresh-launch/same-world restart below covers the isolated SQLite/loopback path only; browser interaction, true deployment, PostgreSQL, cloud/model, portable-drive removal and operator breadth remain open. |
 | 17 | Performance and comparative promises | unverified | [Audit PERF/MKT rows](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json); [performance reconciliation](APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json); cache-only benchmark `dd2610502` (37 tests), reproduced on `d701872` | Bounded cache measurement. Advertised end-to-end performance and comparisons remain unverified | Reproducible measurement with declared environment, workload, sample size and command; dated source for every comparative/pricing claim. A cache-only test is not app throughput or model quality. No invented numbers. CI delivery work is explicitly **not** app performance: #982 adds `--durations=20` reporting only, and #989 repartitions lanes with an **estimated** 42.6-minute critical lane, +5.7 runner-minutes and no measured speedup or whole-app latency result. |
 | 18 | Profile breadth | open/deferred | `CORE-07` profile switch; [web boundary](../acceptance/WEB_BOUNDARY_VERIFICATION_2026_11_16.md) confirms core defers Tasks/Boards; [goal catalogue](APP_GOALS_INDEX.json) explicit requirements | **deferred scope** | Explicit owner decision on full-profile enablement and qualified journeys for the restored surfaces. Do not force-enable deferred profiles or add SaaS gates to close the row. |
