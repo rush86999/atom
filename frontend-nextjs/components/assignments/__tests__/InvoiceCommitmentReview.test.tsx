@@ -255,20 +255,23 @@ describe("invoice commitment step helpers", () => {
   it("recognises only applied invoice reply wait steps", () => {
     expect(
       isAppliedInvoiceReplyStep({
+        adapter: "invoice.wait_for_reply",
         status: "applied",
-        operation: "invoice.wait_for_reply",
+        title: "Wait for exact Outlook reply",
       }),
     ).toBe(true);
     expect(
       isAppliedInvoiceReplyStep({
+        adapter: "invoice.wait_for_reply",
         status: "waiting",
-        operation: "invoice.wait_for_reply",
+        title: "Wait for exact Outlook reply",
       }),
     ).toBe(false);
     expect(
       isAppliedInvoiceReplyStep({
+        adapter: "outlook.wait_for_reply",
         status: "applied",
-        title: "Send invoice",
+        title: "Invoice wait for reply",
       }),
     ).toBe(false);
   });

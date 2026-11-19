@@ -24,61 +24,16 @@ const VERDICT_CONFIRMED: InvoiceCommitmentVerdict = "confirmed";
 const VERDICT_NO_COMMITMENT: InvoiceCommitmentVerdict = "no_commitment";
 const VERDICT_UNCLEAR: InvoiceCommitmentVerdict = "unclear";
 
-function stepStrings(step: unknown): string[] {
-  if (!step || typeof step !== "object") return [];
-  const value = step as Record<string, unknown>;
-  const result: string[] = [];
-  const push = (item: unknown) => {
-    if (typeof item === "string" && item.trim()) result.push(item);
-  };
-
-  [
-    "step_id",
-    "title",
-    "description",
-    "label",
-    "name",
-    "operation",
-    "operation_name",
-    "operation_kind",
-    "kind",
-    "type",
-    "action",
-    "template",
-  ].forEach((key) => {
-    const item = value[key];
-    if (item && typeof item === "object") {
-      Object.values(item as Record<string, unknown>).forEach(push);
-    } else {
-      push(item);
-    }
-  });
-
-  const waiting = value.waiting;
-  if (waiting && typeof waiting === "object") {
-    Object.values(waiting as Record<string, unknown>).forEach(push);
-  }
-  return result;
-}
-
 /**
  * The commitment review belongs only on an applied invoice reply wait.
- * The normalised text handles `invoice.wait_for_reply`, `invoice_wait_for_reply`
- * and a human title such as "Invoice wait for reply".
+ * The assignment step projects the canonical adapter, so identity comes from
+ * that adapter and the applied status rather than any human-readable title.
  */
 export function isAppliedInvoiceReplyStep(step: unknown): boolean {
   if (!step || typeof step !== "object") return false;
-  if ((step as Record<string, unknown>).status !== "applied") return false;
-  const text = stepStrings(step)
-    .join(" ")
-    .toLowerCase()
-    .replace(/[\s./\\:_-]+/g, "_");
-  if (!text.includes("invoice")) return false;
+  const value = step as Record<string, unknown>;
   return (
-    text.includes("wait_for_reply") ||
-    text.includes("await_reply") ||
-    text.includes("waiting_for_reply") ||
-    text.includes("reply_wait")
+    value.adapter === "invoice.wait_for_reply" && value.status === "applied"
   );
 }
 
