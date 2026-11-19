@@ -1,131 +1,31 @@
-# Team Chat & Real-time Collaboration
+# Team Chat
 
-## Quick Start
+Team Chat is available in the full product profile. Start Atom using the main [setup instructions](../README.md) and select `ATOM_PRODUCT_PROFILE=full` in the deployment configuration. Sign in and open `/team-chat`.
 
-### 1. Start Backend
-```bash
-cd backend
-uvicorn main_api_app:app --port 5061
-```
+The picker shows teams you belong to in your current workspace and tenant. Ask your workspace administrator to add you to a team if the picker is empty. Choose a team to read its recent messages. Send a message with Enter or the Send message button. Use Shift+Enter for a new line.
 
-### 2. Initialize Database
-```bash
-cd backend
-python scripts/init_db.py
-```
+The panel requests the 50 newest messages and displays them in chronological order. It refreshes about every 15 seconds while visible. Once Atom confirms the send, the saved message appears in the conversation. Refresh the conversation if Atom cannot confirm a send before you retry.
 
-### 3. Access the Application
-- Login/Register: `http://localhost:3000/login`
-- Team Chat: `http://localhost:3000/team-chat`
+## Message API
 
-## Features
+The application authenticates these requests using the current session and checks team membership and scope.
 
-### ✨ Real-time Messaging
-- Instant message delivery via WebSockets
-- Auto-scroll to latest messages
-- Typing indicators (coming soon)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/teams/mine` | List the current actor's eligible team IDs and names. |
+| GET | `/api/teams/{team_id}/messages` | Fetch message history with optional `context_type`, `context_id` and `limit`. |
+| POST | `/api/teams/{team_id}/messages` | Save a message with nonblank `content` of up to 8,000 characters and optional context fields. |
 
-### 👥 Team Collaboration
-- Multiple teams per workspace
-- Team selection sidebar
-- Member presence (coming soon)
+The application returns a generic 404 when the requested team is unavailable to the current actor. Persisted messages are read from scoped HTTP history. The shared WebSocket channel carries no Team Chat message payloads.
 
-### 🎯 Context-Aware Chat
-Embed chat anywhere in your app:
+## Embedding the panel
+
+Use the authorized team ID from the application. A context can limit the conversation to a specific workflow or task.
+
 ```tsx
-<TeamChatPanel 
-  teamId="team-123"
-  contextType="task"      // 'task' | 'workflow' | 'general'
-  contextId="task-456"    // ID of the related item
+<TeamChatPanel
+    teamId={selectedTeam.id}
+    contextType="workflow"
+    contextId={workflowId}
 />
 ```
-
-## Architecture
-
-### Authentication Flow
-1. User registers/logs in via `/api/auth/register` or `/api/auth/login`
-2. JWT token stored in `localStorage`
-3. WebSocket connection uses token: `ws://localhost:5061/ws?token={jwt}`
-
-### Message Flow
-1. User types message in `TeamChatPanel`
-2. POST to `/api/teams/{team_id}/messages`
-3. Backend broadcasts to `team:{team_id}` channel
-4. All connected team members receive update instantly
-
-### Channel System
-- `user:{user_id}` - Personal notifications
-- `team:{team_id}` - Team collaboration
-- `workspace:{workspace_id}` - Organization-wide updates
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Create account
-- `POST /api/auth/login` - Login (OAuth2 password flow)
-
-### Team Messaging
-- `POST /api/teams/{team_id}/messages` - Send message
-- `GET /api/teams/{team_id}/messages` - Get message history
-  - Query params: `context_type`, `context_id`, `limit`
-
-### WebSocket
-- `GET /ws?token={jwt}` - Connect to real-time stream
-
-## Environment Variables
-
-Add to `.env`:
-```bash
-DATABASE_URL=sqlite:///./atom.db
-SECRET_KEY=your-secret-key-here
-```
-
-## Development Tips
-
-### Testing WebSocket Connection
-```javascript
-const token = localStorage.getItem('auth_token');
-// Use the shared guard rather than a bare socket: a raw `new WebSocket` has no
-// generation, so when the surrounding effect re-runs (team switch, canvas
-// switch) the previous socket's late `onmessage` can still append another
-// room's messages to the room now on screen.
-//
-//   const guard = useRef(createSocketGuard()).current;
-//   return guard.open(url, {
-//     onOpen: (ws) => ws.send(JSON.stringify({ type: 'subscribe', channel })),
-//     onMessage: (data) => { /* ... */ },
-//   });
-//
-// See lib/guardedSocket.ts.
-const ws = new WebSocket(`ws://localhost:5061/ws?token=${token}`);
-
-ws.onopen = () => {
-  // Subscribe to a channel
-  ws.send(JSON.stringify({
-    type: 'subscribe',
-    channel: 'team:your-team-id'
-  }));
-};
-
-ws.onmessage = (event) => {
-  console.log('Received:', JSON.parse(event.data));
-};
-```
-
-### Creating Teams
-Currently teams must be created via backend API or database directly. UI for team creation is coming soon.
-
-## Troubleshooting
-
-### "Connection refused" error
-- Ensure backend is running on correct port (5061)
-- Check DATABASE_URL in .env
-
-### Messages not appearing
-- Verify WebSocket connection in browser DevTools (Network tab)
-- Check that user is member of the team
-- Ensure token is valid (not expired)
-
-### "No teams" message
-- Create a workspace and team via backend API
-- Assign user to team using `/api/enterprise/teams/{team_id}/users/{user_id}`
