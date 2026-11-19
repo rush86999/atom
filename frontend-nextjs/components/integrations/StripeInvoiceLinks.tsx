@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
+import StripePaymentAllocationProof from './StripePaymentAllocationProof';
 
 const LINKS_PATH = '/api/integrations/stripe/invoice-links';
 const INVOICE_PAGE_SIZE = 10;
@@ -1026,6 +1027,14 @@ const StripeInvoiceLinks = ({ setupConnectionId }: StripeInvoiceLinksProps) => {
                                     </p>
                                 )}
                             </div>
+                        )}
+
+                        {detail?.binding && selectedInvoiceId && (
+                            <StripePaymentAllocationProof
+                                invoiceId={selectedInvoiceId}
+                                connectionId={detail.binding.connection_id}
+                                bindingRevision={detail.binding.revision}
+                            />
                         )}
 
                         {detail && (
