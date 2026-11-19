@@ -27,6 +27,7 @@ from api.routes import local_model_routes
 from core.database import get_db
 from core.models import LocalModelCapabilities, LocalModelProvider
 from core.security_dependencies import get_current_user
+from core.spend_aggregation_service import BudgetReservationRefused
 
 
 MODEL_ID = "whisper-local:small"
@@ -168,6 +169,19 @@ def _post(
         data={"model": model},
         files={"file": (filename, _wav_bytes() if data is None else data, content_type)},
     )
+
+
+def _budget_refusal(status_code: str = "BUDGET_EXCEEDED") -> BudgetReservationRefused:
+    return BudgetReservationRefused(
+        "budget reservation refused", status_code=status_code
+    )
+
+
+def _accounting_error(cause: BaseException) -> RuntimeError:
+    """The core accounting error that chains the refusal as its direct cause."""
+    error = RuntimeError("budget accounting failed")
+    error.__cause__ = cause
+    return error
 
 
 class TestTranscriptionRouteRegistration:
@@ -376,3 +390,39 @@ class TestTranscriptionDispatch:
         assert response.status_code == 200
         with harness.session_factory() as db:
             assert db.query(LocalModelCapabilities).count() == before
+
+
+class TestTranscriptionBudgetFeedback:
+    def test_typed_budget_refusal_cause_returns_429_policy_detail(
+        self, transcription_harness
+    ):
+        """A real BudgetReservationRefused cause is a policy refusal, not a 502."""
+        refusal = _budget_refusal()
+        assert isinstance(refusal, BudgetReservationRefused)
+        assert refusal.status_code == "BUDGET_EXCEEDED"
+        FakeLLMService.error = _accounting_error(refusal)
+
+        response = _post(transcription_harness)
+
+        assert response.status_code == 429
+        assert response.json()["detail"] == (
+            "The configured AI budget has been reached. "
+            "Review the budget before trying again."
+        )
+        assert "BUDGET_EXCEEDED" not in response.text
+        assert "budget reservation refused" not in response.text
+        assert "budget accounting failed" not in response.text
+
+    def test_untyped_error_with_budget_status_stays_generic(
+        self, transcription_harness
+    ):
+        """Only the typed spend-service refusal is recognized; code alone is not."""
+        impostor = RuntimeError("not the spend-service refusal")
+        impostor.status_code = "BUDGET_EXCEEDED"
+        FakeLLMService.error = _accounting_error(impostor)
+
+        response = _post(transcription_harness)
+
+        assert response.status_code == 502
+        assert response.json()["detail"] == "Transcription failed. Please try again."
+        assert "BUDGET_EXCEEDED" not in response.text

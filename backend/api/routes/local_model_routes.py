@@ -28,6 +28,7 @@ from core.llm_service import LLMService
 from core.media_duration import media_duration_seconds
 from core.models import LocalModelProvider, LocalModelCapabilities, User
 from core.security_dependencies import get_current_user
+from core.spend_aggregation_service import BudgetReservationRefused
 
 logger = logging.getLogger(__name__)
 
@@ -625,6 +626,12 @@ def _extract_transcript(result: Any) -> Optional[str]:
     return None
 
 
+_BUDGET_REACHED_DETAIL = (
+    "The configured AI budget has been reached. "
+    "Review the budget before trying again."
+)
+
+
 @router.post("/{provider_id}/transcriptions")
 async def transcribe_with_local_model(
     provider_id: str,
@@ -760,6 +767,21 @@ async def transcribe_with_local_model(
         if inspect.isawaitable(result):
             result = await result
     except Exception as exc:  # noqa: BLE001 — provider detail stays server-side
+        cause = exc.__cause__
+        if (
+            isinstance(cause, BudgetReservationRefused)
+            and cause.status_code == "BUDGET_EXCEEDED"
+        ):
+            logger.warning(
+                "Local transcription blocked by configured budget for "
+                "provider=%s model=%s",
+                provider.id,
+                model_id,
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=_BUDGET_REACHED_DETAIL,
+            )
         logger.warning(
             "Local transcription failed for provider=%s model=%s: %s",
             provider.id,
