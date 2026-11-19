@@ -111,6 +111,59 @@ ENTITY_EXECUTABLE_ACTIONS = frozenset({
     "create", "update", "query", "lookup",
 })
 
+#: Step types with an explicit handler in ``_execute_step_by_type`` (or a
+#: connector mapping in ``STEP_TYPE_TO_CONNECTOR``). TRIGGER is handled
+#: separately because it is only valid as a design-time start marker.
+#: API_CALL and UNIVERSAL_INTEGRATION are intentionally absent: they need an
+#: explicit service/action binding, and API_CALL alone is a simulation.
+#: Catalog-template admission reads this set instead of guessing from the
+#: enum, which also contains values that fall through to a generic completion.
+ORCHESTRATOR_NATIVE_STEP_TYPES = frozenset({
+    WorkflowStepType.NLU_ANALYSIS,
+    WorkflowStepType.EMAIL_SEND,
+    WorkflowStepType.SLACK_NOTIFICATION,
+    WorkflowStepType.ASANA_INTEGRATION,
+    WorkflowStepType.CONDITIONAL_LOGIC,
+    WorkflowStepType.PARALLEL_EXECUTION,
+    WorkflowStepType.NOTION_INTEGRATION,
+    WorkflowStepType.GMAIL_FETCH,
+    WorkflowStepType.GMAIL_INTEGRATION,
+    WorkflowStepType.GMAIL_SEARCH,
+    WorkflowStepType.NOTION_SEARCH,
+    WorkflowStepType.NOTION_DB_QUERY,
+    WorkflowStepType.HUBSPOT_INTEGRATION,
+    WorkflowStepType.SALESFORCE_INTEGRATION,
+    WorkflowStepType.KNOWLEDGE_LOOKUP,
+    WorkflowStepType.KNOWLEDGE_UPDATE,
+    WorkflowStepType.SYSTEM_REASONING,
+    WorkflowStepType.INVOICE_PROCESSING,
+    WorkflowStepType.ECOMMERCE_SYNC,
+    WorkflowStepType.AGENT_EXECUTION,
+    WorkflowStepType.COST_LEAK_DETECTION,
+    WorkflowStepType.BUDGET_CHECK,
+    WorkflowStepType.INVOICE_RECONCILIATION,
+    WorkflowStepType.BACKGROUND_AGENT_START,
+    WorkflowStepType.BACKGROUND_AGENT_STOP,
+    WorkflowStepType.GRAPHRAG_QUERY,
+    WorkflowStepType.PROJECT_CREATE,
+    WorkflowStepType.PROJECT_STATUS_SYNC,
+    WorkflowStepType.CONTRACT_PROVISION,
+    WorkflowStepType.MILESTONE_BILLING,
+    WorkflowStepType.AUTO_STAFFING,
+    WorkflowStepType.REVENUE_RECOGNITION,
+    WorkflowStepType.RETENTION_PLAYBOOK,
+    WorkflowStepType.BUSINESS_AGENT_EXECUTION,
+    WorkflowStepType.B2B_PO_DETECTION,
+    WorkflowStepType.ZOHO_CRM_INTEGRATION,
+    WorkflowStepType.ZOOM_INTEGRATION,
+    WorkflowStepType.BROWSER,
+    WorkflowStepType.TERMINAL,
+    WorkflowStepType.ENTITY,
+    WorkflowStepType.APPROVAL_REQUIRED,
+    WorkflowStepType.DELAY,
+    WorkflowStepType.APP_SEARCH,
+})
+
 #: Version tag for the complete server-required checkpoint binding. Rows
 #: without this exact tag remain readable/listable but are not executable
 #: authority for a new checkpoint; they require a fresh review.

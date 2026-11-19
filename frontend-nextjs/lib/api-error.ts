@@ -2,8 +2,9 @@
 //
 // Backend error bodies vary by handler: FastAPI `detail` may be a string,
 // an object, or a validation-error array; other handlers return `error`
-// (string or {type, message}) or `message`. Stringify whatever comes back
-// so toasts never render "[object Object]" (see PR #616, issue #618).
+// (string or {type, message}) or `message`. Prefer readable strings,
+// including structured `detail.message`, and stringify other values so
+// toasts never render "[object Object]" (see PR #616, issue #618).
 export function extractApiErrorMessage(
   data: unknown,
   fallback: string,
@@ -26,6 +27,16 @@ export function extractApiErrorMessage(
         // FastAPI validation entries also carry raw `input` and `ctx`. A
         // password form must display the message, never that submitted value.
         return candidate.map(item => item.msg).join("; ");
+      } else if (
+        candidate != null
+        && typeof candidate === "object"
+        && !Array.isArray(candidate)
+        && typeof (candidate as Record<string, unknown>).message === "string"
+        && (candidate as { message: string }).message.trim()
+      ) {
+        // Structured handler details may carry {message, blockers}; show the
+        // readable message instead of stringifying the whole object.
+        return (candidate as { message: string }).message;
       } else if (candidate != null) {
         return JSON.stringify(candidate);
       }

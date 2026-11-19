@@ -433,6 +433,9 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
                     "name": template.name,
                     "description": template.description or "",
                     "steps": template.steps or [],
+                    # Internal provenance marker: execution admission applies
+                    # to catalog templates, not to ordinary stored workflows.
+                    "_template_catalog": True,
                 }
         finally:
             db.close()
@@ -475,6 +478,9 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
             "name": template.name,
             "description": template.description or "",
             "steps": steps,
+            # Internal provenance marker: execution admission applies to
+            # catalog templates, not to ordinary stored workflows.
+            "_template_catalog": True,
         }
     except Exception as e:
         logger.error(f"Failed to resolve file-backed template '{workflow_id}': {e}")
@@ -2381,6 +2387,24 @@ async def execute_workflow(
     # top-level `steps`, so resolve them (nodes → steps) before gating —
     # otherwise critical actions bypass the gate.
     await require_workflow_executor(user, _resolve_workflow_steps(workflow))
+
+    # Truthful admission for catalog templates: the canonical engine dispatches
+    # strictly by service/action. Refuse unsupported/missing bindings BEFORE
+    # creating a durable execution row, instead of persisting a FAILED run at
+    # the first step the catalog cannot resolve.
+    if workflow.get("_template_catalog"):
+        from core.workflow_template_preflight import (
+            blockers_detail,
+            preflight_template_steps,
+        )
+
+        blockers = preflight_template_steps(
+            _resolve_workflow_steps(workflow),
+            target="workflow_engine",
+        )
+        if blockers:
+            raise HTTPException(
+                status_code=422, detail=blockers_detail(blockers))
 
     # Create execution record
     started_at = datetime.now().isoformat()

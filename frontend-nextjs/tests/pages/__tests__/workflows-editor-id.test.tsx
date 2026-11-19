@@ -306,6 +306,7 @@ describe("WorkflowEditorPage", () => {
     function mockTemplateAndReady(overrides: {
       results?: () => Promise<any>;
       status?: () => Promise<any>;
+      execute?: () => Promise<any>;
     } = {}) {
       mockFetch.mockImplementation((url: string, opts?: any) => {
         if (url === "/api/workflow-templates/wf-1") {
@@ -317,8 +318,9 @@ describe("WorkflowEditorPage", () => {
           );
         }
         if (url === "/api/workflow-templates/wf-1/execute" && opts?.method === "POST") {
+          if (overrides.execute) return overrides.execute();
           return Promise.resolve(
-            okResponse({ status: "success", execution_id: "workflow_exe1" }),
+            okResponse({ workflow_status: "running", execution_id: "workflow_exe1" }),
           );
         }
         if (url.includes("/executions/") && url.includes("/status")) {
@@ -404,7 +406,7 @@ describe("WorkflowEditorPage", () => {
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith(
           expect.objectContaining({
-            title: "Workflow started",
+            title: "Workflow Started",
             description: expect.stringContaining("workflow_exe1"),
           }),
         );
@@ -433,6 +435,139 @@ describe("WorkflowEditorPage", () => {
       });
       expect(panel).toHaveTextContent("awaiting_approval");
       expect(panel).toHaveTextContent("waiting for human OK");
+    });
+
+    it.each([
+      [
+        "structured detail.message",
+        { detail: { message: "Approval gate is not configured for this workflow." } },
+        "Approval gate is not configured for this workflow.",
+      ],
+      [
+        "string detail",
+        { detail: "Workflow inputs are invalid." },
+        "Workflow inputs are invalid.",
+      ],
+      [
+        "flat message",
+        { message: "Execution queue is unavailable." },
+        "Execution queue is unavailable.",
+      ],
+    ])(
+      "shows the %s rejection message instead of [object Object]",
+      async (_label: string, body: any, expected: string) => {
+        mockTemplateAndReady({
+          execute: () => Promise.resolve(errResponse(422, body)),
+        });
+
+        render(<WorkflowEditorPage />);
+        await screen.findByTestId("workflow-builder");
+
+        fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+        const dialog = await screen.findByRole("dialog");
+        fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+          target: { value: "21" },
+        });
+        fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+        await waitFor(() => {
+          expect(mockToast).toHaveBeenCalledWith(
+            expect.objectContaining({
+              title: "Error",
+              description: expected,
+              variant: "error",
+            }),
+          );
+        });
+        expect(mockToast).not.toHaveBeenCalledWith(
+          expect.objectContaining({ description: "[object Object]" }),
+        );
+        expect(screen.queryByTestId("execution-status-chip")).not.toBeInTheDocument();
+      },
+    );
+
+    it("toasts completion truthfully and still tracks a completed execution id", async () => {
+      mockTemplateAndReady({
+        execute: () => Promise.resolve(
+          okResponse({ workflow_status: "completed", execution_id: "wf_exe_done" }),
+        ),
+      });
+
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+        target: { value: "21" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Workflow Completed",
+            description: "Execution wf_exe_done — status: completed",
+          }),
+        );
+      });
+      expect(mockToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Workflow started",
+          description: expect.stringContaining("wf_exe_done"),
+        }),
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      const chip = await screen.findByTestId("execution-status-chip");
+      expect(chip).toHaveTextContent("wf_exe_done");
+      await waitFor(() => expect(chip).toHaveTextContent("completed"));
+      expect(
+        mockFetch.mock.calls.filter(
+          ([url]: [string]) => url === "/api/workflow-templates/executions/wf_exe_done/status",
+        ),
+      ).toHaveLength(1);
+    });
+
+    it("uses neutral copy for an unknown status with an execution id", async () => {
+      mockTemplateAndReady({
+        execute: () => Promise.resolve(
+          okResponse({ workflow_status: "queued", execution_id: "wf_exe_unk" }),
+        ),
+      });
+
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+        target: { value: "21" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Execution recorded",
+            description: "Execution wf_exe_unk was recorded; status is not yet known.",
+          }),
+        );
+      });
+      expect(mockToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Workflow started",
+          description: expect.stringContaining("wf_exe_unk"),
+        }),
+      );
+      expect(mockToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: expect.stringMatching(/running|approval/i),
+        }),
+      );
+
+      const chip = await screen.findByTestId("execution-status-chip");
+      expect(chip).toHaveTextContent("wf_exe_unk");
     });
 
     it("shows a safe retry when results fail to load, then retries the same GET", async () => {
