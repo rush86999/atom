@@ -97,7 +97,7 @@ If you haven't already:
 cd frontend-nextjs && npm run dev
 ```
 
-Open http://localhost:3000 and sign in with `admin@example.com` + the
+Open http://localhost:3001 and sign in with `admin@example.com` + the
 password from `backend/logs/bootstrap_admin_password.txt`.
 
 The UI gives you:

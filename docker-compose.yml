@@ -34,6 +34,15 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GLM_API_KEY=${GLM_API_KEY}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # OPENCODE_BASE_URL is an explicit SHARED override for BOTH opencode-go
+      # and opencode. It is intentionally not injected here so provider
+      # defaults apply; add it explicitly only for a custom/loopback endpoint:
+      #   - OPENCODE_BASE_URL=${OPENCODE_BASE_URL}
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
       - "SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}"
       - "JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}"
       - ENVIRONMENT=development

@@ -66,13 +66,16 @@ Endpoints are exposed under the `/api/v1/office` prefix:
 
 ```mermaid
 sequenceDiagram
-    User->>Canvas UI: Edits Text / Cell (onBlur)
+    User->>Canvas UI: Edit a document, sheet, or slide
     Canvas UI->>REST API: POST /api/v1/office/sync-update
+    REST API->>REST API: Authenticate and check path, owner, active state, and binding
     REST API->>OfficeSyncService: sync_canvas_to_file()
-    OfficeSyncService->>Filesystem: Write file in place (docx paragraphs / xlsx cell / pptx slide)
-    OfficeSyncService->>OfficeSyncService: Structured snapshot + HTML render
-    OfficeSyncService->>WebSocket: Broadcast 'canvas:update' on canvas:{id} AND user:{uid}
-    WebSocket->>Canvas UI: OfficeFileCanvas re-renders from the snapshot
+    OfficeSyncService->>Filesystem: Write the bound file
+    OfficeSyncService->>OfficeSyncService: Build a structured snapshot and HTML
+    OfficeSyncService->>OfficeSyncService: Refresh the saved Canvas snapshot
+    OfficeSyncService-->>WebSocket: Schedule canvas and user channel updates and the Canvas page update
+    OfficeSyncService-->>REST API: Return the edit result and snapshot
+    REST API-->>Canvas UI: Apply the returned snapshot
 ```
 
 The editable UI (`frontend-nextjs/components/canvas/OfficeFileCanvas.tsx`) renders

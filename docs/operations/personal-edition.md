@@ -55,8 +55,9 @@ are disabled until you configure a provider. Options:
 git clone https://github.com/rush86999/atom.git
 cd atom
 
-# Copy personal edition environment template
-cp .env.personal .env
+# Copy the root Docker environment template (fresh checkout only; if .env
+# already exists, edit it instead of overwriting it)
+cp .env.example .env
 
 # Edit .env and add your API keys (optional — server boots without any LLM key)
 nano .env  # or use your favorite editor
@@ -118,25 +119,40 @@ Governance (permission gates, STUDENT-agent blocking, audit trail) applies
 identically to webhook mode. For groups, disable the bot's privacy mode in
 BotFather (`/setprivacy`). Full guide: [IM Adapter Setup](../integrations/IM_ADAPTER_SETUP.md).
 
-### 6. (Optional) Verify Vector Embeddings
+### 6. (Optional) Check readiness and embedding startup logs (not a vector test)
 
-Test that vector embeddings are working properly:
+`/health/ready` is a readiness probe only: it checks database connectivity
+and disk space (`backend/api/health_routes.py`). It does **not** check
+embeddings, LanceDB contents, generated vectors, or semantic retrieval.
 
 ```bash
-# Run embeddings test
-python3 test-embeddings.py
+curl -fsS http://localhost:8001/health/ready
+docker compose -f docker-compose-personal.yml logs atom-backend \
+  | grep -E "EmbeddingService|LanceDB"
 ```
 
-Expected output:
-```
-✅ Provider: fastembed
-✅ Model: BAAI/bge-small-en-v1.5
-✅ Generated 384-dimensional vector
-✅ Semantic similarity working correctly!
-✅ Vector storage ready
-```
+The startup log names the configured embedding provider/model and reports a
+LanceDB connection. Those lines prove initialization only — not that a vector
+was generated, not that vectors are populated, and not that semantic
+retrieval returns correct results. If a line is missing, inspect the backend
+log for the actual initialization error rather than deleting the data volume.
 
-**Learn more:** Vector Embeddings Guide
+**Actual vector/retrieval verification remains open in this guide.** The
+existing operator harness [`core/memory_eval.py`](../../backend/core/memory_eval.py)
+runs a golden-set recall@k check and exercises real embeddings when the stack
+is available. It is **not** a safe default against a working install:
+`_seed_eval_workspace` uses the process-configured `core.database.engine`
+(creating schema if needed) and the configured SQL/Lance stores. Its unique
+eval workspace id is namespace isolation only — not independent database or
+storage isolation — so it can write to configured stores.
+
+Do not run it against a working install. An operator who elects to run it must
+start a separate process with `TESTING=1` and absolute fresh scratch
+`DATABASE_URL`, `ATOM_DATA_DIR` and `LANCEDB_URI` set before core imports,
+with cloud/model downloads blocked unless explicitly available. This guide
+does not run it and does not claim end-to-end retrieval quality on your data.
+
+**Learn more:** [Context Memory](../architecture/CONTEXT_MEMORY.md)
 
 ---
 
@@ -194,8 +210,9 @@ newgrp docker
 # Navigate to Atom directory
 cd atom
 
-# Copy personal edition template
-cp .env.personal .env
+# Copy the root Docker environment template (fresh checkout only; if .env
+# already exists, edit it instead of overwriting it)
+cp .env.example .env
 
 # Edit .env file
 nano .env
@@ -299,11 +316,12 @@ docker compose -f docker-compose-personal.yml logs -f atom-frontend
 ```bash
 # Stop all services
 docker compose -f docker-compose-personal.yml down
-
-# Stop and remove all data (clean slate)
-docker compose -f docker-compose-personal.yml down -v
-rm -rf data/
 ```
+
+The `atom-personal-data` volume holds the SQLite database and artifacts.
+**Do not remove it to troubleshoot.** Back it up first. Only a disposable
+test stack may be reset with `down -v`; that deletes the durable volume and
+is not an ordinary recovery step.
 
 ### Restart Atom
 
@@ -392,17 +410,18 @@ Full Documentation →
 
 ### Issue: Port Already in Use
 
-**Error:** `Bind for 0.0.0.0:3000 failed: port is already allocated`
+**Error:** `Bind for 0.0.0.0:3001 failed: port is already allocated`
 
 **Solution:**
 ```bash
-# Check what's using the port
-lsof -i :3000  # macOS/Linux
-netstat -ano | findstr :3000  # Windows
-
-# Change ports in docker-compose-personal.yml
-# Edit line: "3000:3000" → "3001:3000"
+# Check what's using the frontend host port
+lsof -i :3001  # macOS/Linux
+netstat -ano | findstr :3001  # Windows
 ```
+
+The Personal Edition maps frontend host `3001` to container `3000`
+(`docker-compose-personal.yml`). If 3001 is busy, change the host side of that
+mapping (for example `3002:3000`) and open the new host port.
 
 ### Issue: API Key Not Working
 
@@ -424,7 +443,7 @@ netstat -ano | findstr :3000  # Windows
 docker compose -f docker-compose-personal.yml logs atom-backend
 
 # Common issues:
-# 1. Missing .env file → Copy from .env.personal
+# 1. Missing .env file → Copy from .env.example
 # 2. Invalid encryption keys → Regenerate with openssl
 # 3. Port conflicts → Change ports in docker-compose-personal.yml
 ```
@@ -479,7 +498,7 @@ a Redis service. The app otherwise falls back to in-process operation.
 | **Use Case** | Personal use, development | Production deployment |
 | **Scalability** | Single user, light usage | Multi-user, enterprise |
 | **Data Storage** | Local `./data` directory | Docker volumes with backups |
-| **Configuration** | `.env.personal` template | Full `.env.example` |
+| **Configuration** | `.env.example` (root Docker template) | `backend/.env.example` (full native list) |
 
 **When to use Personal Edition:**
 - ✅ Personal productivity automation
@@ -615,7 +634,7 @@ command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload --log-leve
 1. **Check logs first:** `docker compose logs -f`
 2. **Verify .env file:** Ensure no typos in API keys
 3. **Restart services:** Often fixes transient issues
-4. **Clean restart:** `docker compose down -v && docker compose up -d`
+4. **Restart without deleting data:** `docker compose -f docker-compose-personal.yml down && docker compose -f docker-compose-personal.yml up -d` (do not add `-v` on a working install; `-v` deletes the data volume)
 5. **Check Docker resources:** Ensure enough memory allocated
 
 ---

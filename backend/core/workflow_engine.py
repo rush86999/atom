@@ -4130,7 +4130,6 @@ Return your response in a clear, structured format."""
             return {
                 "action": action,
                 "status": "error",
-                "notification_id": None,
                 "error": f"Workflow notification failed: {detail}",
             }
 

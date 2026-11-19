@@ -25,8 +25,10 @@ Bug found + fixed in the assigned modules (regression tests below):
    test_handle_event_degrades_when_no_integrity_check.
 """
 import asyncio
+import json
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -743,8 +745,10 @@ class TestFinancialWorkflowService:
 # 6. accounting/workflows.py
 # ============================================================================
 def _mk_invoice(inv_id="inv-1", due_offset_days=0, amount=100.0, status=InvoiceStatus.OPEN,
-                customer_name="Acme", number="INV-1"):
+                customer_name="Acme", number="INV-1", naive=False):
     due = datetime.now(timezone.utc) - timedelta(days=due_offset_days)
+    if naive:
+        due = due.replace(tzinfo=None)  # SQLite round-trip style
     return SimpleNamespace(
         id=inv_id,
         workspace_id="ws1",
@@ -767,7 +771,7 @@ class TestCollectionAgentOverdue:
 
     def test_overdue_invoice_reminder_and_broadcast(self):
         db = _FakeDB({})
-        invoice = _mk_invoice(due_offset_days=15)
+        invoice = _mk_invoice(due_offset_days=15, amount=Decimal("1234.50"))
         db._specs[Invoice] = [invoice]
         broadcast = AsyncMock()
         with patch.object(__import__("accounting.workflows", fromlist=["x"]), "manager",
@@ -776,20 +780,33 @@ class TestCollectionAgentOverdue:
         assert invoice.status == InvoiceStatus.OVERDUE
         assert len(reminders) == 1
         assert reminders[0]["invoice_id"] == "inv-1"
+        assert reminders[0]["amount"] == Decimal("1234.50")
         assert db.commits == 1
         call = broadcast.call_args
         assert call.args[0] == "workspace:ws1"
-        assert call.args[1]["type"] == "accounting.reminder_sent"
+        assert call.args[1]["type"] == "accounting.reminder_prepared"
         assert call.args[1]["data"]["customer"] == "Acme"
+        assert call.args[1]["data"]["delivery_status"] == "not_sent"
+        # The websocket manager encodes the payload with standard json.dumps;
+        # the Decimal ORM amount must be normalized to a JSON number first.
+        assert call.args[1]["data"]["amount"] == 1234.5
+        assert isinstance(call.args[1]["data"]["amount"], (int, float))
+        assert json.loads(json.dumps(call.args[1]))["data"]["amount"] == 1234.5
 
 
 class TestCollectionAgentReminderMessage:
     def test_reminder_message_format(self):
-        invoice = _mk_invoice(due_offset_days=3, amount=1234.5, number="INV-77")
+        invoice = _mk_invoice(due_offset_days=3, amount=Decimal("1234.50"), number="INV-77")
         message = CollectionAgent(_FakeDB({}))._generate_reminder_message(invoice)
         assert "Hello Acme" in message
         assert "INV-77" in message
         assert "$1,234.50" in message
+        assert "3 days overdue" in message
+
+    def test_reminder_message_with_naive_due_date(self):
+        invoice = _mk_invoice(due_offset_days=3, number="INV-78", naive=True)
+        message = CollectionAgent(_FakeDB({}))._generate_reminder_message(invoice)
+        assert "INV-78" in message
         assert "3 days overdue" in message
 
 
@@ -808,36 +825,75 @@ class TestCollectionAgentAgingReport:
 
     def test_buckets(self):
         report = self._report([
-            _mk_invoice("i1", due_offset_days=-5, amount=100.0),   # current
-            _mk_invoice("i2", due_offset_days=20, amount=200.0),   # 31-60? no: 20 → overdue_30
-            _mk_invoice("i3", due_offset_days=45, amount=300.0),   # overdue_60
-            _mk_invoice("i4", due_offset_days=80, amount=400.0),   # overdue_90
-            _mk_invoice("i5", due_offset_days=200, amount=500.0),  # overdue_90
-            _mk_invoice("i6", due_offset_days=5, amount=10.0, status=InvoiceStatus.OVERDUE),  # overdue_30
+            _mk_invoice("i1", due_offset_days=-5, amount=Decimal("100.10")),   # current
+            _mk_invoice("i2", due_offset_days=20, amount=200.0),                # 20 → overdue_30
+            _mk_invoice("i3", due_offset_days=45, amount=300),                  # overdue_60
+            _mk_invoice("i4", due_offset_days=80, amount=Decimal("400.40")),    # overdue_90
+            _mk_invoice("i5", due_offset_days=200, amount=500.0),               # overdue_90
+            _mk_invoice("i6", due_offset_days=5, amount=Decimal("10.90"),
+                        status=InvoiceStatus.OVERDUE),                           # overdue_30
         ])
-        assert report["current"] == 100.0
-        assert report["overdue_30"] == 210.0
+        assert report["current"] == 100.1
+        assert report["overdue_30"] == 210.9
         assert report["overdue_60"] == 300.0
-        assert report["overdue_90"] == 900.0
-        assert report["total_ar"] == 1510.0
+        assert report["overdue_90"] == 900.4
+        assert report["total_ar"] == 1511.4
+        assert json.loads(json.dumps(report))["total_ar"] == 1511.4
+
+    def test_naive_due_dates_treated_as_utc(self):
+        report = self._report([
+            _mk_invoice("n1", due_offset_days=-5, amount=Decimal("50.25"), naive=True),   # current
+            _mk_invoice("n2", due_offset_days=20, amount=100.5, naive=True),              # overdue_30
+            _mk_invoice("n3", due_offset_days=45, amount=200, naive=True),                # overdue_60
+            _mk_invoice("n4", due_offset_days=200, amount=Decimal("400.25"), naive=True), # overdue_90
+        ])
+        assert report["current"] == 50.25
+        assert report["overdue_30"] == 100.5
+        assert report["overdue_60"] == 200.0
+        assert report["overdue_90"] == 400.25
+        assert report["total_ar"] == 751.0
 
 
 # ============================================================================
 # 7. api/admin/budget_routes.py
 # ============================================================================
 @pytest.fixture
-def mock_super_admin():
-    user = MagicMock()
-    user.id = "admin-w74"
-    user.email = "admin@test.local"
-    user.role = UserRole.SUPER_ADMIN.value
-    return user
+def mock_platform_admin(worker_database):
+    from core.models import User
+
+    SessionLocal = worker_database
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == "admin-w74").first()
+        if user is None:
+            user = User(
+                id="admin-w74",
+                email="admin-w74@example.invalid",
+                hashed_password="x",
+                first_name="Admin",
+                last_name="User",
+                role=UserRole.WORKSPACE_ADMIN.value,
+                status="active",
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    finally:
+        db.close()
 
 
 @pytest.fixture
-def budget_client(mock_super_admin, worker_database):
+def budget_client(mock_platform_admin, worker_database):
+    """Authenticated platform-admin client for the budget routes.
+
+    The production router depends on ``get_platform_admin``; the retired
+    dependency is no longer wired, so override the active callable to bypass
+    JWT resolution.
+    """
     from api.admin.budget_routes import router
-    from core.admin_endpoints import get_super_admin
+    from core.admin_endpoints import get_platform_admin
     from core.database import get_db
 
     app = FastAPI()
@@ -845,7 +901,7 @@ def budget_client(mock_super_admin, worker_database):
     SessionLocal = worker_database
 
     async def _override_admin():
-        return mock_super_admin
+        return mock_platform_admin
 
     def _override_get_db():
         session = SessionLocal()
@@ -854,7 +910,7 @@ def budget_client(mock_super_admin, worker_database):
         finally:
             session.close()
 
-    app.dependency_overrides[get_super_admin] = _override_admin
+    app.dependency_overrides[get_platform_admin] = _override_admin
     app.dependency_overrides[get_db] = _override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()

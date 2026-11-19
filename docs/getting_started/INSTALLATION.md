@@ -38,7 +38,7 @@ Docker Compose is the recommended path for deploying stable releases.
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env
+cp .env.example .env   # fresh checkout only; do not overwrite an existing .env
 # Edit .env — generate SECRET_KEY, JWT_SECRET_KEY, BYOK_ENCRYPTION_KEY
 # (openssl rand -base64 32) and set one LLM key OR ATOM_LOCAL_ONLY=true
 docker compose -f docker-compose-personal.yml up -d --build

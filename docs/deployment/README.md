@@ -26,7 +26,7 @@ Production deployment, monitoring, and operations guides.
 # Clone and setup
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env
+cp .env.example .env
 
 # Start with Docker Compose
 docker compose -f docker-compose-personal.yml up -d

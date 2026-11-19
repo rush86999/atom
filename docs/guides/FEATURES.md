@@ -74,7 +74,7 @@ Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed a
 | Feature | Description | Status |
 |---------|-------------|--------|
 | **Multi-Provider BYOK** | OpenAI, Anthropic, DeepSeek, Gemini, GLM, MiniMax, OpenRouter, Ollama (local), **OpenCode Go** (subscription gateway). | ✅ Implemented |
-| **OpenCode Go Provider** | Low-cost subscription via `https://opencode.ai/zen/v1`. Custom RPM/TPM/context limits feed BPC routing (headroom penalty + context clamp + hard-skip). | ✅ Implemented |
+| **OpenCode Go Provider** | Low-cost subscription via the Go OpenAI-compatible endpoint `https://opencode.ai/inference/go/openai/v1` (the separate `opencode` provider uses Zen `https://opencode.ai/zen/v1`). Custom RPM/TPM/context limits feed BPC routing (headroom penalty + context clamp + hard-skip). | ✅ Implemented |
 | **LLM Gateway** | Inbound OpenAI/Anthropic-compatible `/v1/chat/completions` + `/v1/messages` over BYOK routing. `atom_sk_*` keys (SHA-256). SSE adapters. Header overrides (`x-atom-model/tier/intent`). Subscription-credential reuse (ChatGPT Plus/Claude Pro). | ✅ Implemented |
 | **46+ Service Integrations** | Slack, Discord, Gmail, Outlook, Teams, Notion, Asana, Jira, Linear, Salesforce, HubSpot, Stripe, GitHub, GitLab, Figma, Dropbox, Box, Zoom, Calendly, Shopify, Mailchimp, Twilio, SendGrid, Deepgram, ElevenLabs, Plaid, QuickBooks, Xero, Airtable, Monday, Trello, ClickUp, Zapier, Zoho, DocuSign, Greenhouse, BambooHR, LinkedIn, TikTok, Instagram, Twitter, Facebook. | ✅ Implemented |
 | **Browser Automation** | Playwright CDP. INTERN+ required. Sandboxed. | ✅ Implemented |
@@ -173,14 +173,14 @@ Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed a
 
 ## Quick Links
 
-- [Quick Start](getting_started/quick-start.md) — 15 min to running server
-- [LLM Providers Guide](guides/LLM_PROVIDERS.md) — All providers, setup, costs
-- [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) — Tier system deep dive
-- [Memory Systems](guides/MEMORY_SYSTEMS.md) — Three-tier recall, episodic, self-evolution
-- [Execution Sandbox](guides/EXECUTION_SANDBOX.md) — Blast-radius defense
-- [Mini-Apps Guide](guides/MINI_APPS_GUIDE.md) — Agent-authored stateful apps
-- [Office Automation](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word/Excel/PowerPoint co-editing
-- [Production Readiness](operations/production-readiness.md) — Pre-flight checklist
+- [Quick Start](../getting_started/quick-start.md) — 15 min to running server
+- [LLM Providers Guide](LLM_PROVIDERS.md) — All providers, setup, costs
+- [Agent Maturity & Governance](AGENT_MATURITY_GOVERNANCE.md) — Tier system deep dive
+- [Memory Systems](MEMORY_SYSTEMS.md) — Three-tier recall, episodic, self-evolution
+- [Execution Sandbox](EXECUTION_SANDBOX.md) — Blast-radius defense
+- [Mini-Apps Guide](MINI_APPS_GUIDE.md) — Agent-authored stateful apps
+- [Office Automation](ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word/Excel/PowerPoint co-editing
+- [Production Readiness](../operations/production-readiness.md) — Pre-flight checklist
 
 ---
 
