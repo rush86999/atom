@@ -264,7 +264,9 @@ def _row_with_engine_state(outputs=None, steps=None, context=None, *,
 
 _SYNTHETIC_ENGINE_OUTPUTS = {
     "summarize": {
-        "status": "completed",
+        "service": "main_agent",
+        "action": "generate_content",
+        "status": "success",
         "result": {
             "success": True,
             "result": {
@@ -301,19 +303,66 @@ async def test_results_projects_safe_scoped_finished_engine_step():
         "notes": None,
     }]
     projected = result["outputs"]["summarize"]
-    assert projected["status"] == "completed"
+    assert projected["status"] == "success"
     assert projected["result"] == {
         "agent_response": "Synthetic total 42",
         "model": "test-local",
         "provider": "ollama",
     }
-    # Only the projected business result is exposed; raw input, context,
-    # errors and tool metadata stay out of the response.
+    # Only the projected business result is exposed; outer main-agent
+    # service/action metadata, raw input, context, errors and tool metadata
+    # stay out of the response.
+    assert "main_agent" not in str(result)
+    assert "generate_content" not in str(result)
     assert "private_input" not in str(result)
     assert "input_processed" not in str(result)
     assert "tool_metadata" not in str(result)
     assert "raw_error" not in str(result)
     assert "context_secret" not in str(result)
+
+
+_SYNTHETIC_GENERIC_AI_OUTPUT = {
+    "service": "ai",
+    "action": "summarize",
+    "status": "success",
+    "result": {
+        "status": "success",
+        "result": "text",
+        "agent_response": "text",
+        "provider": "ollama",
+        "model": "test-model",
+    },
+}
+
+
+async def test_results_projects_generic_ai_wrapper_envelope():
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "success", "step_type": "ai_task"}},
+        outputs={"summarize": _SYNTHETIC_GENERIC_AI_OUTPUT},
+    )
+    result = await wtr.get_execution_results(
+        "exe-engine-1",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+
+    assert result["steps"] == [{
+        "step_id": "summarize",
+        "step_type": "ai_task",
+        "status": "success",
+        "notes": None,
+    }]
+    assert result["outputs"]["summarize"] == {
+        "status": "success",
+        "result": {
+            "agent_response": "text",
+            "provider": "ollama",
+            "model": "test-model",
+        },
+    }
+    # Wrapper metadata, arbitrary keys and the legacy string result stay out.
+    projected_result = result["outputs"]["summarize"]["result"]
+    assert set(projected_result) == {"agent_response", "provider", "model"}
 
 
 async def test_results_engine_no_result_is_empty_not_failure():

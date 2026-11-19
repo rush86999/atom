@@ -64,6 +64,28 @@ logger = logging.getLogger(__name__)
 # creation persists it only from an explicit trusted identity, never from a
 # caller-supplied copy.
 
+# Internal marker the dispatcher attaches to every step (regardless of the
+# primary service, so an ``ai`` fallback is covered too). It carries ONLY the
+# caller scope frozen into the persisted execution inputs; it is never read
+# from the workflow definition or params.
+AI_EXECUTION_SCOPE_KEY = "_atom_ai_execution_scope"
+
+
+def _ai_failure(
+    action: str,
+    error: str,
+    failure_reason: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build the fixed, public failure envelope for the legacy AI service."""
+    result: Dict[str, Any] = {
+        "action": action,
+        "status": "error",
+        "error": error,
+    }
+    if failure_reason:
+        result["failure_reason"] = failure_reason
+    return result
+
 
 def freeze_execution_scope(
     input_data: Optional[Dict[str, Any]],
@@ -341,6 +363,29 @@ class WorkflowEngine:
             tenant_id = str(workflow.get("tenant_id") or "").strip()
         return workspace_id or "default", tenant_id or "default"
 
+    def _ai_execution_scope(
+        self,
+        state: Optional[Dict[str, Any]],
+    ) -> Optional[Dict[str, str]]:
+        """Return the caller-frozen AI scope, with no definition/default fallback.
+
+        The legacy ``ai`` service may call a provider, so it is authorized ONLY
+        by the scope persisted in the execution's ``input_data`` at start. A
+        workflow definition's own workspace/tenant or the literal ``"default"``
+        is not proof of the caller's identity and must never reach the provider.
+        """
+        inputs = state.get("input_data") if isinstance(state, dict) else None
+        frozen = (
+            inputs.get(EXECUTION_SCOPE_KEY)
+            if isinstance(inputs, dict) else None)
+        if not isinstance(frozen, dict):
+            return None
+        workspace_id = str(frozen.get("workspace_id") or "").strip()
+        tenant_id = str(frozen.get("tenant_id") or "").strip()
+        if not workspace_id or not tenant_id:
+            return None
+        return {"workspace_id": workspace_id, "tenant_id": tenant_id}
+
     async def start_workflow(
         self,
         workflow: Dict[str, Any],
@@ -527,6 +572,11 @@ class WorkflowEngine:
 
         graph = self._build_execution_graph(workflow)
         workspace_id, tenant_id = self._execution_scope(workflow, state)
+        # Provider-backed ``ai`` steps are authorized only by the scope frozen
+        # into the persisted execution inputs. Attach it to every step (not
+        # just service == "ai") so a fallback to ``ai`` cannot bypass it, and
+        # overwrite any marker a workflow definition may have supplied.
+        ai_scope = self._ai_execution_scope(state)
         nodes = graph["nodes"]
         adjacency = graph["adjacency"]
         reverse_adjacency = graph["reverse_adjacency"]
@@ -610,7 +660,8 @@ class WorkflowEngine:
                         "execution_id": execution_id,
                         "connection_id": config.get("connectionId"),
                         "workspace_id": workspace_id,
-                        "tenant_id": tenant_id
+                        "tenant_id": tenant_id,
+                        AI_EXECUTION_SCOPE_KEY: ai_scope,
                     }
 
                     async with self.semaphore:
@@ -1114,6 +1165,10 @@ class WorkflowEngine:
             # Prefer the scope frozen at start (durable across restarts);
             # fall back to the definition's own scope for seeded/scheduled runs.
             workspace_id, tenant_id = self._execution_scope(workflow, state)
+            # The legacy ``ai`` service is NOT authorized by that fallback.
+            # It sees only the exact pair frozen into the persisted execution
+            # inputs, attached to every step so fallback ai is covered too.
+            ai_scope = self._ai_execution_scope(state)
 
             # TASK-LEVEL never-autonomous admission BEFORE the first step,
             # model call or output. Reuses a durable approved task HITL on
@@ -1131,8 +1186,11 @@ class WorkflowEngine:
                 # If it returns, we assume completion or failure handled
                 return
 
-            steps = workflow.get("steps", [])
-            # Sort steps by sequence_order
+            # Work on a run-local shallow copy of each step so attaching
+            # runtime scope cannot mutate the shared workflow definition or
+            # race with simultaneous runs of the same definition.
+            steps = [dict(step) for step in workflow.get("steps", [])]
+            # Sort the run-local copies by sequence_order
             steps.sort(key=lambda x: x.get("sequence_order", 0))
 
             # Tracks steps that failed but were allowed to continue via the
@@ -1159,6 +1217,9 @@ class WorkflowEngine:
                 # Attach context for execution
                 step["workspace_id"] = workspace_id
                 step["tenant_id"] = tenant_id
+                # Always overwrite, even for non-ai services: the step may fall
+                # back to ``ai`` after the primary executor fails.
+                step[AI_EXECUTION_SCOPE_KEY] = ai_scope
                 
                 # Check dependencies
                 if not self._check_dependencies(step, state):
@@ -1933,9 +1994,11 @@ class WorkflowEngine:
                 # tool dispatch goes through the shared sandbox gate.
                 # main_agent needs the same trusted step so it can resolve its
                 # requested agent inside the run's workspace/tenant scope.
+                # The legacy ai text service likewise reads only the run's
+                # trusted scope from the step, never from params.
                 step_kwargs = (
                     {"step": step}
-                    if service in ("mcp", "main_agent")
+                    if service in ("mcp", "main_agent", "ai")
                     else {})
 
                 if timeout is not None and timeout > 0:
@@ -1983,7 +2046,7 @@ class WorkflowEngine:
                 fallback_executor = service_registry[fallback_service]
                 fallback_step_kwargs = (
                     {"step": step}
-                    if fallback_service in ("mcp", "main_agent")
+                    if fallback_service in ("mcp", "main_agent", "ai")
                     else {})
                 if timeout is not None and timeout > 0:
                     try:
@@ -2537,13 +2600,121 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_ai_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
-        """Execute AI service actions"""
-        await asyncio.sleep(0.2)  # AI actions take longer
+    async def _execute_ai_action(
+        self,
+        action: str,
+        params: dict,
+        connection_id: Optional[str] = None,
+        step: Optional[dict] = None,
+    ) -> dict:
+        """Execute the legacy AI service's text-only actions.
+
+        Only ``generate_content`` and ``summarize`` are real. They use the
+        existing scoped LLM facade with the dispatcher's frozen AI scope, never
+        the definition fallback and never params. Unknown actions, missing
+        input/scope, provider failures and blank output are truthful failures.
+        """
+        ai_scope = (step or {}).get(AI_EXECUTION_SCOPE_KEY)
+        workspace_id = (
+            str(ai_scope.get("workspace_id") or "").strip()
+            if isinstance(ai_scope, dict) else "")
+        tenant_id = (
+            str(ai_scope.get("tenant_id") or "").strip()
+            if isinstance(ai_scope, dict) else "")
+        if not workspace_id or not tenant_id:
+            return _ai_failure(
+                action, "ai step is missing its execution scope")
+
+        if action == "generate_content":
+            prompt = params.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                return _ai_failure(
+                    action,
+                    "generate_content requires a nonblank 'prompt' parameter")
+            messages = [{"role": "user", "content": prompt}]
+        elif action == "summarize":
+            text = params.get("text")
+            if not isinstance(text, str) or not text.strip():
+                return _ai_failure(
+                    action,
+                    "summarize requires a nonblank 'text' parameter")
+            messages = [{
+                "role": "user",
+                "content": f"Summarize the following text:\n\n{text}",
+            }]
+        else:
+            return _ai_failure(
+                action,
+                f"Unsupported AI action '{action}'; supported actions: "
+                "generate_content, summarize")
+
+        from core.database import get_db_session
+        from core.llm_service import get_llm_service
+
+        try:
+            with get_db_session() as db:
+                llm_service = get_llm_service(
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                    db=db)
+                completion = await llm_service.generate_completion(
+                    messages=messages,
+                    temperature=0.7,
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                )
+        except Exception as llm_error:
+            logger.error(
+                "AI action '%s' failed in scoped LLM execution: %s",
+                action, llm_error)
+            return _ai_failure(
+                action, "AI text completion failed", "provider_error")
+
+        if not isinstance(completion, dict) or completion.get("success") is not True:
+            failure = (
+                completion.get("failure")
+                if isinstance(completion, dict) else None)
+            reason = (
+                str(failure.get("reason") or "")
+                if isinstance(failure, dict) else "")
+            if not isinstance(completion, dict) or reason == "empty_generation":
+                logger.error(
+                    "AI action '%s' received empty LLM content", action)
+                return _ai_failure(
+                    action, "AI action returned no usable response",
+                    "empty_response")
+            logger.error(
+                "AI action '%s' LLM completion failed (%s)",
+                action, reason or "generation_failed")
+            return _ai_failure(
+                action, "AI text completion failed", "provider_error")
+
+        content = completion.get("content")
+        if not isinstance(content, str) or not content.strip():
+            logger.error(
+                "AI action '%s' received empty LLM content", action)
+            return _ai_failure(
+                action, "AI action returned no usable response",
+                "empty_response")
+
+        provider_value = completion.get("provider")
+        provider = (
+            provider_value.strip()
+            if isinstance(provider_value, str) and provider_value.strip()
+            else None)
+        model_value = completion.get("model")
+        model = (
+            model_value.strip()
+            if isinstance(model_value, str) and model_value.strip()
+            else None)
         return {
             "action": action,
-            "result": f"AI {action} executed",
-            "status": "success"
+            "status": "success",
+            # Preserve the legacy AI result location for existing callers.
+            "result": content,
+            "agent_response": content,
+            "provider": provider,
+            "model": model,
         }
 
     async def _execute_webhook_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:

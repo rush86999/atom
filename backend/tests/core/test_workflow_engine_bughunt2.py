@@ -8,10 +8,7 @@ Focuses on UNcovered regions (where undetected bugs hide):
 - _check_dependencies / _path_exists (None-value) edge cases
 """
 
-import sys
 from unittest.mock import MagicMock, AsyncMock, patch
-
-sys.path.insert(0, "/Users/rushiparikh/projects/atom/backend")
 
 import pytest
 
@@ -72,7 +69,7 @@ async def test_execute_step_error_status_surfaces_as_exception(engine):
     must raise, not be wrapped as a successful result. This guards the fix at
     workflow_engine.py:1222-1225 (primary) and 1255-1259 (fallback)."""
 
-    async def failing_executor(action, params, connection_id=None):
+    async def failing_executor(action, params, connection_id=None, **kwargs):
         return {"status": "error", "error": "boom"}
 
     engine._execute_ai_action = failing_executor
@@ -115,7 +112,7 @@ async def test_execute_step_falls_back_to_fallback_service(engine):
     attempted and its result returned (with fallback_used=True). Previously the
     generic-execution failure aborted before trying the fallback."""
 
-    async def good_fallback(action, params, connection_id=None):
+    async def good_fallback(action, params, connection_id=None, **kwargs):
         return {"ok": True}
 
     engine._execute_ai_action = good_fallback

@@ -627,6 +627,8 @@ def _safe_json_loads(raw):
 
 
 _RESULT_AI_KEYS = ("agent_response", "provider", "model")
+_RESULT_AI_WRAPPER_SERVICE = "ai"
+_RESULT_AI_WRAPPER_ACTIONS = ("summarize", "generate_content")
 _RESULT_MAX_STEPS = 100
 _RESULT_MAX_OUTPUTS = 50
 _RESULT_MAX_TEXT = 8000
@@ -663,15 +665,26 @@ def _project_verified_ai_result(value: Any) -> Dict[str, str]:
 
     The normal WorkflowEngine persists
     ``{"result": {"result": {"agent_response": ..., "provider": ...,
-    "model": ...}}}``. Any other shape is refused rather than exposed as an
-    empty success, and only the allowlisted string fields are carried through.
+    "model": ...}}}``. The generic AI engine persists
+    ``{"service": "ai", "action": ..., "status": "success",
+    "result": {"agent_response": ..., "provider": ..., "model": ..., ...}}``.
+    Only the allowlisted string fields are carried through; the wrapper's
+    metadata, arbitrary keys, and legacy string ``result`` are never exposed.
+    Any other shape is refused rather than exposed as an empty success.
     """
     if not isinstance(value, dict):
         _execution_projection_failure()
     wrapper = value.get("result")
     if not isinstance(wrapper, dict):
         _execution_projection_failure()
-    business = wrapper.get("result")
+    if value.get("service") == _RESULT_AI_WRAPPER_SERVICE:
+        if (value.get("status") != "success"
+                or value.get("action") not in _RESULT_AI_WRAPPER_ACTIONS
+                or wrapper.get("status") != "success"):
+            _execution_projection_failure()
+        business = wrapper
+    else:
+        business = wrapper.get("result")
     if not isinstance(business, dict):
         _execution_projection_failure()
 

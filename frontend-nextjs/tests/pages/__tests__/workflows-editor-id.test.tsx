@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import WorkflowEditorPage from "@/pages/workflows/editor/[id]";
 import { useRouter } from "next/router";
 import { useToast } from "@/components/ui/use-toast";
@@ -303,7 +303,10 @@ describe("WorkflowEditorPage", () => {
   });
 
   describe("run flow with parameter entry", () => {
-    function mockTemplateAndReady(overrides: { results?: () => Promise<any> } = {}) {
+    function mockTemplateAndReady(overrides: {
+      results?: () => Promise<any>;
+      status?: () => Promise<any>;
+    } = {}) {
       mockFetch.mockImplementation((url: string, opts?: any) => {
         if (url === "/api/workflow-templates/wf-1") {
           return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
@@ -319,6 +322,7 @@ describe("WorkflowEditorPage", () => {
           );
         }
         if (url.includes("/executions/") && url.includes("/status")) {
+          if (overrides.status) return overrides.status();
           return Promise.resolve(
             okResponse({
               success: true,
@@ -487,6 +491,100 @@ describe("WorkflowEditorPage", () => {
         ([url]: [string]) => url === "/api/workflow-templates/wf-1/execute",
       );
       expect(executeCalls).toHaveLength(1);
+    });
+
+    it("refreshes an open results panel with final output when a running run completes", async () => {
+      jest.useFakeTimers();
+      try {
+        let statusAttempt = 0;
+        let resultsAttempt = 0;
+        mockTemplateAndReady({
+          status: () => {
+            statusAttempt += 1;
+            return Promise.resolve(
+              okResponse({
+                success: true,
+                execution_id: "workflow_exe1",
+                workflow_id: "workflow_exe1",
+                status: statusAttempt === 1 ? "running" : "completed",
+                error: null,
+              }),
+            );
+          },
+          results: () => {
+            resultsAttempt += 1;
+            if (resultsAttempt === 1) {
+              // The first GET races the run and succeeds with no history yet.
+              return Promise.resolve(
+                okResponse({
+                  success: true,
+                  status: "running",
+                  error: null,
+                  steps: [],
+                  outputs: null,
+                }),
+              );
+            }
+            return Promise.resolve(
+              okResponse({
+                success: true,
+                status: "completed",
+                error: null,
+                steps: [
+                  { step_id: "scan_inbox", step_type: "action", status: "completed" },
+                  { step_id: "send_digest", step_type: "action", status: "completed" },
+                ],
+                outputs: { chased_count: 3 },
+              }),
+            );
+          },
+        });
+
+        render(<WorkflowEditorPage />);
+        await screen.findByTestId("workflow-builder");
+
+        fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+        const dialog = await screen.findByRole("dialog");
+        fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+          target: { value: "21" },
+        });
+        fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+        // Open the panel while the status is still running, so the first
+        // results GET returns an empty (but successful) payload.
+        const chip = await screen.findByTestId("execution-status-chip");
+        fireEvent.click(within(chip).getByRole("button"));
+        const panel = await screen.findByTestId("execution-results-panel");
+
+        await waitFor(() => {
+          expect(chip).toHaveTextContent(/running/i);
+          expect(panel).toHaveTextContent("No step history recorded.");
+        });
+
+        // Advance the real status poll to its terminal response.
+        await act(async () => {
+          jest.advanceTimersByTime(3000);
+        });
+
+        await waitFor(() => {
+          expect(chip).toHaveTextContent(/completed/i);
+          expect(panel).toHaveTextContent("scan_inbox");
+          expect(panel).toHaveTextContent("send_digest");
+          expect(panel).toHaveTextContent("chased_count");
+        });
+        expect(panel).not.toHaveTextContent("No step history recorded.");
+
+        const resultCalls = mockFetch.mock.calls.filter(
+          ([url]: [string]) => url === "/api/workflow-templates/executions/workflow_exe1/results",
+        );
+        expect(resultCalls).toHaveLength(2);
+        const executeCalls = mockFetch.mock.calls.filter(
+          ([url]: [string]) => url === "/api/workflow-templates/wf-1/execute",
+        );
+        expect(executeCalls).toHaveLength(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });
