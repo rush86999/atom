@@ -4,18 +4,23 @@ import logging
 from typing import Any, Dict, List, Optional
 from accounting.ledger import EventSourcedLedger
 from accounting.models import Account, AccountType, EntryType, JournalEntry, Transaction
+import core.llm_service as llm_service_module
+from core.models import Workspace
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from integrations.ai_enhanced_service import (
-    AIModelType,
-    AIRequest,
-    AIServiceType,
-    AITaskType,
-    ai_enhanced_service,
-)
-
 logger = logging.getLogger(__name__)
+
+
+def get_llm_service(*args, **kwargs):
+    """Resolve the scoped LLM facade through its public factory."""
+    return llm_service_module.get_llm_service(*args, **kwargs)
+
+INTENT_INSTRUCTION = (
+    "Interpret the accounting query. Is the user asking for a balance, runway, "
+    "burn rate, or wanting to record a transaction? Return JSON with 'intent', "
+    "'params' (dict), and 'reasoning'."
+)
 
 class AccountingAssistant:
     """
@@ -26,34 +31,76 @@ class AccountingAssistant:
         self.db = db
         self.ledger = EventSourcedLedger(db)
 
+    def _resolve_tenant_id(self, workspace_id: str) -> str:
+        """Resolve the tenant from the workspace row that owns the scope.
+
+        The caller supplies only the authoritative workspace id. The tenant
+        must come from that workspace's own row; it is never assumed from a
+        query parameter or replaced with an unrelated default tenant.
+        """
+        workspace = (
+            self.db.query(Workspace)
+            .filter(Workspace.id == workspace_id)
+            .first()
+        )
+        tenant_id = str(getattr(workspace, "tenant_id", "") or "").strip()
+        if not tenant_id:
+            raise ValueError(
+                f"Could not resolve a tenant for workspace '{workspace_id}'."
+            )
+        return tenant_id
+
+    async def _interpret_query(self, workspace_id: str, query: str) -> Dict[str, Any]:
+        """Interpret an accounting query through the scoped LLM service."""
+        tenant_id = self._resolve_tenant_id(workspace_id)
+        llm_service = get_llm_service(
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            db=self.db,
+        )
+        completion = await llm_service.generate_completion(
+            messages=[{
+                "role": "user",
+                "content": f"{INTENT_INSTRUCTION}\n\nAccounting query: {query}",
+            }],
+            temperature=0.7,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+        )
+
+        if not isinstance(completion, dict) or completion.get("success") is not True:
+            failure = (
+                completion.get("failure")
+                if isinstance(completion, dict) else None)
+            reason = (
+                str(failure.get("reason") or "")
+                if isinstance(failure, dict) else "")
+            if not isinstance(completion, dict) or reason == "empty_generation":
+                raise RuntimeError("AI interpretation returned no usable response")
+            raise RuntimeError(
+                f"AI interpretation failed ({reason or 'generation_failed'})")
+
+        content = completion.get("content")
+        if isinstance(content, dict):
+            return content
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("AI interpretation returned no usable response")
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.debug(f"Failed to parse AI response as JSON: {e}")
+            raise ValueError("AI interpretation was not valid JSON") from e
+        if not isinstance(result, dict):
+            raise ValueError("AI interpretation did not contain a structured intent")
+        return result
+
     async def process_query(self, workspace_id: str, query: str) -> Dict[str, Any]:
         """Process a natural language accounting query"""
         
-        # 1. Use AI to understand intent and extract parameters
-        ai_request = AIRequest(
-            request_id=f"finance_query_{int(datetime.now(timezone.utc).timestamp())}",
-            task_type=AITaskType.NATURAL_LANGUAGE_COMMANDS,
-            model_type=AIModelType.GPT_4,
-            service_type=AIServiceType.OPENAI,
-            input_data={
-                "text": query,
-                "instruction": (
-                    "Interpret the accounting query. Is the user asking for a balance, runway, burn rate, "
-                    "or wanting to record a transaction? Return JSON with 'intent', 'params' (dict), and 'reasoning'."
-                )
-            }
-        )
-        
+        # 1. Use the scoped LLM service to understand intent and extract parameters
         try:
-            ai_response = await ai_enhanced_service.process_ai_request(ai_request)
-            # For brevity in MVP, we handle some intents directly or via AI result
-            result = ai_response.output_data
-            if isinstance(result, str):
-                try:
-                    result = json.loads(result)
-                except json.JSONDecodeError as e:
-                    logger.debug(f"Failed to parse AI response as JSON: {e}")
-            
+            result = await self._interpret_query(workspace_id, query)
+
             intent = result.get("intent", "unknown")
             params = result.get("params", {})
 

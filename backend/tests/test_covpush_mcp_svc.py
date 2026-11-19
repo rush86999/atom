@@ -746,6 +746,8 @@ class TestExecuteToolLocalTools:
             "local-tools", "finance_close_check", {}, {"workspace_id": "default"}
         )
         assert result == {"ok": True}
+        agent.run_close_check.assert_awaited_once()
+        assert agent.run_close_check.await_args.args[0] == "default"
 
     @pytest.mark.asyncio
     async def test_b2b_extract_po(self, svc, monkeypatch):
