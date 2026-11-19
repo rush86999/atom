@@ -36,6 +36,106 @@ interface Priority {
     action_link: string;
 }
 
+/**
+ * Risk endpoints have two published shapes: the live contracts (recorded
+ * cancellations, overdue invoices, refunds) and the demo/mock mode payloads
+ * that predate them. Amounts and dates must never be invented, so anything
+ * unusable renders as "unavailable" instead of $0 or NaN.
+ */
+const formatAmount = (value: unknown): string | null => {
+    let numeric: number;
+    if (typeof value === "number") {
+        numeric = value;
+    } else if (typeof value === "string" && value.trim() !== "") {
+        numeric = Number(value);
+    } else {
+        return null;
+    }
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    return `$${numeric.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+};
+
+const formatDays = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+
+const formatProbability = (value: unknown): string | null => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return null;
+    const percent = value >= 0 && value <= 1 ? value * 100 : value;
+    if (percent < 0 || percent > 100) return null;
+    return `${Math.round(percent)}%`;
+};
+
+const formatScore = (value: unknown): string | null =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0
+        ? `${Math.round(value)}`
+        : null;
+
+const formatDate = (value: unknown): string | null => {
+    let input: string | number;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed === "") return null;
+        // Recorded timestamps may be naive UTC (datetime.utcnow().isoformat());
+        // anchor them to UTC so the rendered day does not shift by timezone.
+        const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+        input = /^\d{4}-\d{2}-\d{2}T/.test(trimmed) && !hasZone ? `${trimmed}Z` : trimmed;
+    } else if (typeof value === "number") {
+        input = value;
+    } else {
+        return null;
+    }
+    const date = new Date(input);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+    });
+};
+
+const hasField = (item: any, field: string) =>
+    item !== null && typeof item === "object" && field in item;
+
+const isRecordedChurn = (item: any) =>
+    hasField(item, "customer_name") ||
+    hasField(item, "mrr_at_risk") ||
+    hasField(item, "churn_probability");
+
+const isRecordedArAlert = (item: any) =>
+    hasField(item, "invoice_id") ||
+    hasField(item, "due_date") ||
+    hasField(item, "likelihood_late");
+
+const isRecordedFraudAlert = (item: any) =>
+    hasField(item, "transaction_id") ||
+    hasField(item, "timestamp") ||
+    hasField(item, "flag_reason");
+
+const nonEmptyString = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+
+const recordedFraudLabel = (type: unknown): string => {
+    const label = nonEmptyString(type);
+    if (!label) return "Recorded anomaly";
+    const normalized = label.toUpperCase();
+    if (normalized === "REFUNDED" || normalized === "REFUND") return "Refund recorded";
+    if (normalized === "CHARGEBACK") return "Chargeback recorded";
+    return `${label} recorded`;
+};
+
+const readRiskList = (payload: any, key: string): any[] | null =>
+    Array.isArray(payload?.[key]) ? payload[key] : null;
+
+const riskBody = async (response: Response | null): Promise<any | null> => {
+    if (!response) return null;
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
+
 const BusinessHealthDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
@@ -54,13 +154,13 @@ const BusinessHealthDashboard: React.FC = () => {
         waste: { data: [], is_mock: false }
     });
     const [riskData, setRiskData] = useState<{
-        churn: { churn_risk: any[], vip_opportunities: any[], is_mock: boolean };
-        alerts: { ar_alerts: any[], is_mock: boolean };
-        fraud: { anomalies: any[], is_mock: boolean };
+        churn: { churn_risk: any[], vip_opportunities: any[], is_mock: boolean, error: boolean };
+        alerts: { ar_alerts: any[], is_mock: boolean, error: boolean };
+        fraud: { anomalies: any[], is_mock: boolean, error: boolean };
     }>({
-        churn: { churn_risk: [], vip_opportunities: [], is_mock: false },
-        alerts: { ar_alerts: [], is_mock: false },
-        fraud: { anomalies: [], is_mock: false }
+        churn: { churn_risk: [], vip_opportunities: [], is_mock: false, error: false },
+        alerts: { ar_alerts: [], is_mock: false, error: false },
+        fraud: { anomalies: [], is_mock: false, error: false }
     });
     const [interventions, setInterventions] = useState<any[]>([]);
     const [executing, setExecuting] = useState<string | null>(null);
@@ -144,18 +244,35 @@ const BusinessHealthDashboard: React.FC = () => {
                 } catch {}
             }
 
-            if (cRes && ewRes && fRes) {
-                try {
-                    const churn = await cRes.json();
-                    const alerts = await ewRes.json();
-                    const fraud = await fRes.json();
-                    setRiskData({
-                        churn: { churn_risk: churn?.churn_risk ?? [], vip_opportunities: churn?.vip_opportunities ?? [], is_mock: churn?.is_mock ?? false },
-                        alerts: { ar_alerts: alerts?.ar_alerts ?? [], is_mock: alerts?.is_mock ?? false },
-                        fraud: { anomalies: fraud?.anomalies ?? [], is_mock: fraud?.is_mock ?? false }
-                    });
-                } catch {}
-            }
+            // Each risk endpoint is read independently so one failed tab does
+            // not hide healthy data from the others, and an unreachable
+            // endpoint is reported as unavailable rather than "no risk".
+            const [churnBody, alertsBody, fraudBody] = await Promise.all([
+                riskBody(cRes),
+                riskBody(ewRes),
+                riskBody(fRes)
+            ]);
+            const churnRisks = readRiskList(churnBody, "churn_risk");
+            const arAlerts = readRiskList(alertsBody, "ar_alerts");
+            const anomalies = readRiskList(fraudBody, "anomalies");
+            setRiskData({
+                churn: {
+                    churn_risk: churnRisks ?? [],
+                    vip_opportunities: readRiskList(churnBody, "vip_opportunities") ?? [],
+                    is_mock: churnBody?.is_mock === true,
+                    error: churnRisks === null
+                },
+                alerts: {
+                    ar_alerts: arAlerts ?? [],
+                    is_mock: alertsBody?.is_mock === true,
+                    error: arAlerts === null
+                },
+                fraud: {
+                    anomalies: anomalies ?? [],
+                    is_mock: fraudBody?.is_mock === true,
+                    error: anomalies === null
+                }
+            });
 
         } catch (error) {
             toast({
@@ -514,66 +631,215 @@ const BusinessHealthDashboard: React.FC = () => {
                                         <TabsTrigger value="fraud">Fraud Watch</TabsTrigger>
                                     </TabsList>
                                     <TabsContent value="churn" className="space-y-4 pt-4">
-                                        <div className="space-y-4">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">At Risk (Churn Predictor)</h4>
-                                                {riskData.churn.churn_risk.map((c, i) => (
-                                                    <div key={i} className="flex justify-between items-center p-3 mb-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
-                                                        <div>
-                                                            <p className="font-semibold">{c.client_name}</p>
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{c.days_silent} days silent • ${c.value.toLocaleString()}</p>
-                                                        </div>
-                                                        <Badge variant="secondary" className="bg-red-200 text-red-800">
-                                                            {c.risk_level} RISK
-                                                        </Badge>
-                                                    </div>
-                                                ))}
-                                                {riskData.churn.churn_risk.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No high-risk clients detected.</p>}
+                                        {riskData.churn.error ? (
+                                            <div className="p-4 text-center text-amber-700 dark:text-amber-400">
+                                                <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
+                                                <p className="text-sm font-medium">Customer health data is unavailable.</p>
+                                                <p className="text-xs">Refresh Diagnostics to try again.</p>
                                             </div>
-                                            <div>
-                                                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">VIP Opportunities</h4>
-                                                {riskData.churn.vip_opportunities.map((v, i) => (
-                                                    <div key={i} className="flex justify-between items-center p-3 mb-2 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100">
-                                                        <div>
-                                                            <p className="font-semibold text-purple-900 dark:text-purple-300">{v.name}</p>
-                                                            <p className="text-xs text-purple-700">{v.company} • AI Score: {v.ai_score}</p>
-                                                        </div>
-                                                        <Badge className="bg-purple-600">VIP</Badge>
-                                                    </div>
-                                                ))}
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                                                        {riskData.churn.is_mock ? "At Risk (Churn Predictor)" : "At Risk (Recorded Churn Signals)"}
+                                                    </h4>
+                                                    {riskData.churn.churn_risk.map((c, i) => {
+                                                        if (!c || typeof c !== "object") return null;
+                                                        if (isRecordedChurn(c)) {
+                                                            const name = nonEmptyString(c.customer_name) ?? "Recorded customer";
+                                                            const probability = formatProbability(c.churn_probability);
+                                                            const amount = formatAmount(c.mrr_at_risk);
+                                                            const factors = Array.isArray(c.risk_factors)
+                                                                ? c.risk_factors.filter((factor: any) => nonEmptyString(factor))
+                                                                : [];
+                                                            const recommendedAction = nonEmptyString(c.recommended_action);
+                                                            return (
+                                                                <div key={`churn-${i}`} className="flex justify-between items-start gap-3 p-3 mb-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
+                                                                    <div className="min-w-0 space-y-1">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <p className="font-semibold">{name}</p>
+                                                                            <Badge variant="outline" className="text-[9px] h-4 px-1 border-red-300 text-red-700 bg-white/60 dark:bg-transparent">RECORDED</Badge>
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                            Recorded cancellation{probability ? ` • Churn signal ${probability}` : ""}
+                                                                        </p>
+                                                                        {factors.length > 0 && (
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{factors.join(" • ")}</p>
+                                                                        )}
+                                                                        <p className="text-xs text-gray-600 dark:text-gray-300">
+                                                                            MRR at risk: {amount ?? "unavailable"}
+                                                                        </p>
+                                                                        {recommendedAction && (
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{recommendedAction}</p>
+                                                                        )}
+                                                                    </div>
+                                                                    <Badge variant="secondary" className="bg-red-200 text-red-800 whitespace-nowrap">
+                                                                        CANCELED
+                                                                    </Badge>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        const name = nonEmptyString(c.client_name) ?? "At-risk client";
+                                                        const days = formatDays(c.days_silent);
+                                                        const amount = formatAmount(c.value);
+                                                        const riskLevel = nonEmptyString(c.risk_level);
+                                                        return (
+                                                            <div key={`churn-${i}`} className="flex justify-between items-center gap-3 p-3 mb-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
+                                                                <div className="min-w-0">
+                                                                    <p className="font-semibold">{name}</p>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                        {days !== null ? `${days} days silent` : "Activity unavailable"} • {amount ?? "Amount unavailable"}
+                                                                    </p>
+                                                                </div>
+                                                                <Badge variant="secondary" className="bg-red-200 text-red-800 whitespace-nowrap">
+                                                                    {riskLevel ? `${riskLevel} RISK` : "AT RISK"}
+                                                                </Badge>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {riskData.churn.churn_risk.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No high-risk clients detected.</p>}
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">VIP Opportunities</h4>
+                                                    {riskData.churn.vip_opportunities.map((v, i) => {
+                                                        if (!v || typeof v !== "object") return null;
+                                                        const name = nonEmptyString(v.name) ?? "Opportunity";
+                                                        const company = nonEmptyString(v.company);
+                                                        const score = formatScore(v.ai_score);
+                                                        return (
+                                                            <div key={`vip-${i}`} className="flex justify-between items-center p-3 mb-2 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100">
+                                                                <div>
+                                                                    <p className="font-semibold text-purple-900 dark:text-purple-300">{name}</p>
+                                                                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                                                                        {company ? `${company} • ` : ""}AI Score: {score ?? "unavailable"}
+                                                                    </p>
+                                                                </div>
+                                                                <Badge className="bg-purple-600">VIP</Badge>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {riskData.churn.vip_opportunities.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No VIP opportunities recorded.</p>}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </TabsContent>
                                     <TabsContent value="alerts" className="space-y-4 pt-4">
-                                        {riskData.alerts.ar_alerts.map((a, i) => (
-                                            <div key={i} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border-l-4 border-amber-500">
-                                                <div>
-                                                    <p className="font-semibold">{a.description}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">Overdue by {a.days_overdue} days</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-amber-700">${a.amount.toLocaleString()}</p>
-                                                    <Button variant="link" size="sm" className="h-4 p-0 text-amber-600 text-xs">Remind</Button>
-                                                </div>
+                                        {riskData.alerts.error ? (
+                                            <div className="p-4 text-center text-amber-700 dark:text-amber-400">
+                                                <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
+                                                <p className="text-sm font-medium">Early warning data is unavailable.</p>
+                                                <p className="text-xs">Refresh Diagnostics to try again.</p>
                                             </div>
-                                        ))}
-                                        {riskData.alerts.ar_alerts.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No early warnings.</p>}
+                                        ) : (
+                                            <>
+                                                {riskData.alerts.ar_alerts.map((a, i) => {
+                                                    if (!a || typeof a !== "object") return null;
+                                                    const amount = formatAmount(a.amount);
+                                                    if (isRecordedArAlert(a)) {
+                                                        const name = nonEmptyString(a.client_name) ?? "Recorded invoice";
+                                                        const invoiceId = nonEmptyString(a.invoice_id);
+                                                        const due = formatDate(a.due_date);
+                                                        const reason = nonEmptyString(a.reason);
+                                                        return (
+                                                            <div key={`ar-${i}`} className="flex justify-between items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border-l-4 border-amber-500">
+                                                                <div className="min-w-0 space-y-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <p className="font-semibold">{name}</p>
+                                                                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-400 text-amber-700 bg-white/60 dark:bg-transparent">RECORDED OVERDUE</Badge>
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                        {invoiceId ? `Invoice ${invoiceId} • ` : ""}
+                                                                        {due ? `Due ${due}` : "Due date unavailable"}
+                                                                    </p>
+                                                                    {reason && <p className="text-xs text-gray-500 dark:text-gray-400">{reason}</p>}
+                                                                </div>
+                                                                <div className="text-right shrink-0">
+                                                                    <p className="font-bold text-amber-700 dark:text-amber-400">{amount ?? "Amount unavailable"}</p>
+                                                                    <Button variant="link" size="sm" className="h-4 p-0 text-amber-600 text-xs">Remind</Button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    const description = nonEmptyString(a.description) ?? "Overdue invoice";
+                                                    const days = formatDays(a.days_overdue);
+                                                    const date = formatDate(a.date);
+                                                    return (
+                                                        <div key={`ar-${i}`} className="flex justify-between items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border-l-4 border-amber-500">
+                                                            <div className="min-w-0">
+                                                                <p className="font-semibold">{description}</p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    {days !== null ? `Overdue by ${days} days` : "Overdue"}
+                                                                    {date ? ` • Due ${date}` : ""}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <p className="font-bold text-amber-700 dark:text-amber-400">{amount ?? "Amount unavailable"}</p>
+                                                                <Button variant="link" size="sm" className="h-4 p-0 text-amber-600 text-xs">Remind</Button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {riskData.alerts.ar_alerts.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No early warnings.</p>}
+                                            </>
+                                        )}
                                     </TabsContent>
                                     <TabsContent value="fraud" className="space-y-4 pt-4">
-                                        {riskData.fraud.anomalies.map((f, i) => (
-                                            <div key={i} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <AlertTriangle className="w-4 h-4 text-red-500" />
-                                                        <p className="font-bold text-red-600">{f.type}</p>
-                                                    </div>
-                                                    <p className="text-sm font-mono">${f.amount.toLocaleString()}</p>
-                                                </div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">{f.description}</p>
-                                                <p className="text-xs text-gray-400 mt-2">{f.date}</p>
+                                        {riskData.fraud.error ? (
+                                            <div className="p-4 text-center text-amber-700 dark:text-amber-400">
+                                                <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
+                                                <p className="text-sm font-medium">Fraud watch data is unavailable.</p>
+                                                <p className="text-xs">Refresh Diagnostics to try again.</p>
                                             </div>
-                                        ))}
-                                        {riskData.fraud.anomalies.length === 0 && <p className="text-sm text-center py-4 text-green-600 flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" /> Systems Secure</p>}
+                                        ) : (
+                                            <>
+                                                {riskData.fraud.anomalies.map((f, i) => {
+                                                    if (!f || typeof f !== "object") return null;
+                                                    const amount = formatAmount(f.amount);
+                                                    if (isRecordedFraudAlert(f)) {
+                                                        const title = recordedFraudLabel(f.type);
+                                                        const description = nonEmptyString(f.flag_reason);
+                                                        const date = formatDate(f.timestamp);
+                                                        const severity = nonEmptyString(f.severity);
+                                                        const transactionId = nonEmptyString(f.transaction_id);
+                                                        return (
+                                                            <div key={`fraud-${i}`} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                                <div className="flex justify-between items-start gap-2 mb-1">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                                                                        <p className="font-bold text-red-600">{title}</p>
+                                                                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-red-300 text-red-700 bg-white/60 dark:bg-transparent">RECORDED</Badge>
+                                                                        {severity && <Badge variant="secondary" className="text-[9px] h-4">{severity}</Badge>}
+                                                                    </div>
+                                                                    <p className="text-sm font-mono shrink-0">{amount ?? "Amount unavailable"}</p>
+                                                                </div>
+                                                                {description && <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>}
+                                                                <p className="text-xs text-gray-400 mt-2">
+                                                                    {transactionId ? `Transaction ${transactionId} • ` : ""}
+                                                                    {date ?? "Date unavailable"}
+                                                                </p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    const type = nonEmptyString(f.type) ?? "Anomaly";
+                                                    const description = nonEmptyString(f.description);
+                                                    const date = formatDate(f.date);
+                                                    return (
+                                                        <div key={`fraud-${i}`} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                            <div className="flex justify-between items-start gap-2 mb-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                                                                    <p className="font-bold text-red-600">{type}</p>
+                                                                </div>
+                                                                <p className="text-sm font-mono shrink-0">{amount ?? "Amount unavailable"}</p>
+                                                            </div>
+                                                            {description && <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>}
+                                                            <p className="text-xs text-gray-400 mt-2">{date ?? "Date unavailable"}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {riskData.fraud.anomalies.length === 0 && <p className="text-sm text-center py-4 text-green-600 flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" /> Systems Secure</p>}
+                                            </>
+                                        )}
                                     </TabsContent>
                                 </Tabs>
                             </CardContent>
