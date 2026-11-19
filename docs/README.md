@@ -11,7 +11,7 @@ The historical first-use snapshot is `successor-first-use-2026-11-01`.
 For current readiness evidence, use the
 [2026-11-17 current goal map](engineering/CURRENT_GOAL_MAP_2026_11_17.md) and the
 [2026-11-14 detailed readiness evidence index](engineering/CURRENT_READINESS_EVIDENCE_INDEX_2026_11_14.md).
-The map is the current release/navigation overlay at main `0e9b0dfc9` (#977);
+The map is the current release/navigation overlay and names the cut it was written at;
 the index remains the detailed historical ledger. Together they cover all 18
 canonical goals and all 143 original claims, preserve the historical 111/123
 result and list the remaining user-boundary gates; neither is a claim that the

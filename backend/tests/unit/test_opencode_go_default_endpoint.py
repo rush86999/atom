@@ -69,3 +69,25 @@ def test_settings_label_explains_shared_override_and_both_defaults():
     assert "Go" in text and "Zen" in text
     assert "override" in text.lower()
     assert "inference/go/openai/v1" in text
+
+
+def test_settings_default_does_not_pin_a_provider_endpoint(monkeypatch):
+    """The admin/UI default must stay unset so provider defaults apply.
+
+    The BYOK handler reads ``OPENCODE_BASE_URL`` directly; a catalog default
+    of the Zen URL made the UI advertise an override that was never applied
+    and mislabeled the Go provider. Unset default + env override precedence is
+    the meaningful contract (client-route defaults are covered above).
+    """
+    from core import runtime_settings
+
+    monkeypatch.delenv("OPENCODE_BASE_URL", raising=False)
+    monkeypatch.setattr(runtime_settings, "_db_snapshot", lambda db=None: {})
+    resolved = runtime_settings.resolve_setting("OPENCODE_BASE_URL")
+    assert resolved.value == ""
+    assert resolved.source == "default"
+
+    monkeypatch.setenv("OPENCODE_BASE_URL", "http://127.0.0.1:65535/v1")
+    resolved = runtime_settings.resolve_setting("OPENCODE_BASE_URL")
+    assert resolved.value == "http://127.0.0.1:65535/v1"
+    assert resolved.source == "env"

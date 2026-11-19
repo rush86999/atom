@@ -22,8 +22,8 @@ git clone https://github.com/rush86999/atom.git
 cd atom
 ./scripts/quickstart.sh
 # Edit backend/.env — set ATOM_LOCAL_ONLY=true
-./scripts/dev.sh          # NOTE: launches minimal_app (smoke subset). For the
-                          # full app, use: make backend
+./scripts/dev.sh          # launches the full app (main_api_app) plus frontend;
+                          # minimal_app is the separate smoke subset.
 ```
 
 ## Option B: Docker
@@ -31,7 +31,7 @@ cd atom
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env
+cp .env.example .env   # fresh checkout only; do not overwrite an existing .env
 # Edit .env — set:
 #   ATOM_LOCAL_ONLY=true
 #   OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
@@ -63,7 +63,7 @@ PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:a
 
 ## Verifying It Works
 
-1. Open http://localhost:3000
+1. Open http://localhost:3001
 2. Send a chat message: "Hello, what can you help me with?"
 3. The response comes from your local Ollama model — no cloud, no API key, no cost
 

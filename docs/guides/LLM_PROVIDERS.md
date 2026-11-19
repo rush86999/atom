@@ -1,8 +1,8 @@
 # LLM Providers Guide — Complete Setup & Comparison
 
 > **Quick decision**: 
-> - **Free local** → [Ollama](getting_started/run-with-ollama.md) (no API key, runs on your hardware)
-> - **Lowest cost cloud** → [OpenCode Go](guides/OPENCODE_GO_PROVIDER.md) (subscription, ~90% savings)
+> - **Free local** → [Ollama](../getting_started/run-with-ollama.md) (no API key, runs on your hardware)
+> - **Lowest cost cloud** → [OpenCode Go](OPENCODE_GO_PROVIDER.md) (subscription, ~90% savings)
 > - **Best quality** → OpenAI / Anthropic (pay-per-token, highest capability)
 > - **Model variety** → OpenRouter (unified gateway, 100+ models)
 > - **Specialized** → DeepSeek (code/reasoning), Gemini (long context), GLM (Chinese)
@@ -49,7 +49,7 @@ ATOM_LOCAL_ONLY=true         # Blocks all cloud providers
 **Pros**: Zero cost, total privacy, no rate limits, works offline  
 **Cons**: Needs GPU/RAM, slower than cloud, limited model quality
 
-> 📖 Full guide: [Run with Ollama](getting_started/run-with-ollama.md)
+> 📖 Full guide: [Run with Ollama](../getting_started/run-with-ollama.md)
 
 ---
 
@@ -69,7 +69,7 @@ OPENCODE_MAX_CONTEXT=200000
 **Pros**: ~90% cheaper than direct APIs, 200K context, code-specialized models  
 **Cons**: Requires subscription, fewer model choices
 
-> 📖 Full guide: [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md)
+> 📖 Full guide: [OpenCode Go Provider](OPENCODE_GO_PROVIDER.md)
 
 ---
 
@@ -166,22 +166,22 @@ Atom uses **BPC (Best Provider Candidate)** ranking. For each request:
 
 ```bash
 # Force budget tier (prefers OpenCode Go, Ollama, cheap models)
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "x-atom-tier: budget" \
   -d '{"request": "..."}'
 
 # Force specific model
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "x-atom-model: gpt-4o" \
   -d '{"request": "..."}'
 
 # Force cognitive tier (routes to appropriate provider)
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "x-atom-tier: reasoning" \
   -d '{"request": "Complex math problem"}'
 ```
 
-> 📖 Details: [Routing Strategies](reference/ROUTING_STRATEGIES.md) | [Routing Headers](reference/ROUTING_HEADERS.md)
+> 📖 Details: [Routing Strategies](../reference/ROUTING_STRATEGIES.md) | [Routing Headers](../reference/ROUTING_HEADERS.md)
 
 ---
 
@@ -233,18 +233,18 @@ ATOM_MONTHLY_BUDGET=200.00   # $200/month hard cap
 
 ```bash
 # List configured providers
-curl http://localhost:8000/api/llm/providers
+curl http://localhost:8001/api/llm/providers
 
 # Check provider health + rate limits
-curl http://localhost:8000/api/llm/providers/health
+curl http://localhost:8001/api/llm/providers/health
 
 # See routing decision for a request
-curl -X POST http://localhost:8000/api/agent/route \
+curl -X POST http://localhost:8001/api/agent/route \
   -H "Content-Type: application/json" \
   -d '{"request": "Your test prompt"}' | jq '{provider, model, tier, complexity}'
 
 # View rate tracker (OpenCode Go, OpenRouter)
-curl http://localhost:8000/api/debug/rate-tracker
+curl http://localhost:8001/api/debug/rate-tracker
 ```
 
 ---
@@ -362,13 +362,13 @@ A: Not natively. Use OpenRouter (supports both) or implement custom provider.
 
 ## Related Documentation
 
-- [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) — Deep dive
-- [Run with Ollama](getting_started/run-with-ollama.md) — Local setup
-- [Routing Strategies](reference/ROUTING_STRATEGIES.md) — BPC, fusion, cascade
-- [Routing Headers](reference/ROUTING_HEADERS.md) — Per-request control
-- [Cognitive Tier System](architecture/COGNITIVE_TIER_SYSTEM.md) — 5-tier routing
-- [Learning LLM Router](architecture/LEARNING_LLM_ROUTER.md) — Feedback-based re-ranking
-- [Environment Variables](reference/ENVIRONMENT_VARIABLES.md) — Complete reference
+- [OpenCode Go Provider](OPENCODE_GO_PROVIDER.md) — Deep dive
+- [Run with Ollama](../getting_started/run-with-ollama.md) — Local setup
+- [Routing Strategies](../reference/ROUTING_STRATEGIES.md) — BPC, fusion, cascade
+- [Routing Headers](../reference/ROUTING_HEADERS.md) — Per-request control
+- [Cognitive Tier System](../architecture/COGNITIVE_TIER_SYSTEM.md) — 5-tier routing
+- [Learning LLM Router](../architecture/LEARNING_LLM_ROUTER.md) — Feedback-based re-ranking
+- [Environment Variables](../reference/ENVIRONMENT_VARIABLES.md) — Complete reference
 
 ---
 

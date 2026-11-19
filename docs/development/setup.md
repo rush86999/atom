@@ -6,7 +6,7 @@
 
 ### Prerequisites
 - **Python 3.11+** (required)
-- **Node.js 22+** (required, Next.js 16.2.2)
+- **Node.js 20.9+** (supported; Node 22 LTS recommended, Next.js 16.2.2)
 - **Git** (for cloning and version control)
 
 ### Starting the Application
@@ -91,10 +91,14 @@ kill -9 <PID>
 - There is no `backend/main.py`. Use `main_api_app:app` (full app) or `minimal_app:app` (smoke).
 
 **Problem: Database errors**
-```bash
-rm backend/atom_dev.db   # delete dev DB
-# Restart server — bootstrap recreates everything
-```
+- Confirm the app is using the database you expect (`DATABASE_URL`, startup
+  logs, and a root-vs-`backend/` launch can resolve different relative paths).
+- Preserve the SQLite file and any `-wal`/`-shm` sidecars, or use the existing
+  snapshot under `backend/data/backups/` (see `core/db_safety`).
+- Restore that snapshot or run the migration for the missing schema family.
+  Do not assume a blanket Alembic upgrade is safe, and do not drop/reseed a
+  working database. Only a disposable test world may be recreated; see
+  [Troubleshooting](../getting_started/TROUBLESHOOTING.md#database-issues).
 
 ### Frontend Issues
 
