@@ -232,6 +232,43 @@ export const byokAPI = {
     apiClient.post(`/api/ai/providers/${providerId}/validate`, config),
 };
 
+// Local model provider API (workspace-scoped registrations)
+export const localModelsAPI = {
+  listProviders: async () => {
+    const response = await apiClient.get("/api/local-models");
+    return response.data;
+  },
+  getCapabilities: async (providerId: string) => {
+    const response = await apiClient.get(
+      `/api/local-models/${encodeURIComponent(providerId)}/capabilities`,
+    );
+    return response.data;
+  },
+  // One explicitly selected model + one audio file. The axios/XHR adapter
+  // lets the browser set the multipart boundary; the auth interceptor above
+  // still attaches the signed-in user's bearer token.
+  transcribe: async (
+    providerId: string,
+    model: string,
+    file: Blob,
+    filename = "recording.webm",
+  ) => {
+    const formData = new FormData();
+    formData.append("model", model);
+    formData.append("file", file, filename);
+    const response = await apiClient.post(
+      `/api/local-models/${encodeURIComponent(providerId)}/transcriptions`,
+      formData,
+      // Transcription is side-effectful and can legitimately outlive the
+      // shared 10s JSON budget: never auto-retry an audio dispatch.
+      // Override the shared JSON content type so Axios leaves FormData alone
+      // and the browser supplies multipart/form-data with its boundary.
+      { timeout: 120000, retry: false, headers: { "Content-Type": undefined } },
+    );
+    return response.data;
+  },
+};
+
 // Workflow API
 export const workflowAPI = {
   getTemplates: () => apiClient.get("/api/workflow-templates/"),

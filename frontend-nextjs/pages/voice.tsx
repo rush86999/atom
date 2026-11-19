@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import WakeWordDetector from '../components/Voice/WakeWordDetector';
 import VoiceCommands from '../components/Voice/VoiceCommands';
+import TranscriptionRecorder from '../components/Voice/TranscriptionRecorder';
 
 
 const VoicePage: React.FC = () => {
@@ -11,8 +12,9 @@ const VoicePage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Voice & AI Features</h1>
 
         <Tabs defaultValue="chat" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="chat">AI Chat</TabsTrigger>
+            <TabsTrigger value="transcribe">Record &amp; Transcribe</TabsTrigger>
             <TabsTrigger value="commands">Voice Commands</TabsTrigger>
             <TabsTrigger value="wakeword">Wake Word Detection</TabsTrigger>
           </TabsList>
@@ -24,6 +26,10 @@ const VoicePage: React.FC = () => {
                 Click the chat icon in the bottom-right corner to access the AI assistant from anywhere in the application.
               </p>
             </div>
+          </TabsContent>
+
+          <TabsContent value="transcribe" className="mt-6">
+            <TranscriptionRecorder />
           </TabsContent>
 
           <TabsContent value="commands" className="mt-6">

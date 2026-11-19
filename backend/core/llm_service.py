@@ -1922,7 +1922,8 @@ class LLMService:
         response_format: str = "json",
         workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
-        duration_seconds: Optional[float] = None
+        duration_seconds: Optional[float] = None,
+        local_provider_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Transcribe audio to text.
@@ -1935,6 +1936,11 @@ class LLMService:
             response_format: "json", "text", "srt", "verbose_json", "vtt"
             tenant_id: Optional tenant override
             duration_seconds: Optional already-probed media duration (seconds)
+            local_provider_id: Optional durable id of a workspace-owned local
+                model provider. When supplied, dispatch is confined to that
+                exact registered local audio route (never a URL) and fails
+                closed on any missing/mismatched registration. Omitting it
+                preserves the historical OpenAI behavior.
             
         Returns:
             Dict containing 'text' and metadata.
@@ -1951,10 +1957,12 @@ class LLMService:
             "prompt": prompt,
             "response_format": response_format,
         }
-        # Only forward an explicitly supplied duration so existing callers
-        # keep the exact delegation contract.
+        # Only forward explicitly supplied optional values so existing callers
+        # keep the exact historical delegation contract.
         if duration_seconds is not None:
             kwargs["duration_seconds"] = duration_seconds
+        if local_provider_id is not None:
+            kwargs["local_provider_id"] = local_provider_id
         return await handler.generate_transcription(**kwargs)
 
     async def generate_embeddings_batch(

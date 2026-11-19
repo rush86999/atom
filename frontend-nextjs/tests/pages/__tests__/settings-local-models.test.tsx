@@ -35,6 +35,44 @@ const PROVIDERS = [
   },
 ];
 
+const AUDIO_MODEL = "whisper-base";
+
+const mockAudioModel = (overrides: Record<string, unknown> = {}) => {
+  mockGet.mockImplementation((url: string) => {
+    if (url.includes("/models")) {
+      return Promise.resolve({ data: { models: [AUDIO_MODEL] } });
+    }
+    if (url.includes("/capabilities")) {
+      return Promise.resolve({
+        data: [
+          {
+            model_id: AUDIO_MODEL,
+            supports_tools: false,
+            supports_vision: false,
+            supports_reasoning: false,
+            supports_chat: true,
+            supports_transcription: false,
+            audio_input_cost_per_second_usd: null,
+            quality_score: 0.5,
+            speed_score: 0.5,
+            context_window: 4096,
+            ...overrides,
+          },
+        ],
+      });
+    }
+    return Promise.resolve({ data: PROVIDERS });
+  });
+};
+
+const openAudioEditor = async () => {
+  render(<LocalModelsPage />);
+  await waitFor(() => expect(screen.getByText("My Ollama")).toBeInTheDocument());
+  fireEvent.click(screen.getAllByRole("button", { name: /discover/i })[0]);
+  await waitFor(() => expect(screen.getByText(AUDIO_MODEL)).toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: /configure/i }));
+};
+
 describe("LocalModelsPage", () => {
   let alertSpy: jest.SpyInstance;
 
@@ -136,8 +174,8 @@ describe("LocalModelsPage", () => {
       if (url.includes("/capabilities")) {
         return Promise.resolve({
           data: [
-            { model_id: "llama3:8b", supports_tools: true, supports_vision: true, supports_reasoning: false, quality_score: 0.8, speed_score: 0.6, context_window: 8192 },
-            { model_id: "qwen2.5:7b", supports_tools: false, supports_vision: false, supports_reasoning: true, quality_score: 0.55, speed_score: 0.9, context_window: 32768 },
+            { model_id: "llama3:8b", supports_tools: true, supports_vision: true, supports_reasoning: false, supports_transcription: true, audio_input_cost_per_second_usd: 0.0002, quality_score: 0.8, speed_score: 0.6, context_window: 8192 },
+            { model_id: "qwen2.5:7b", supports_tools: false, supports_vision: false, supports_reasoning: true, supports_transcription: false, audio_input_cost_per_second_usd: null, quality_score: 0.55, speed_score: 0.9, context_window: 32768 },
           ],
         });
       }
@@ -159,6 +197,7 @@ describe("LocalModelsPage", () => {
     expect(screen.getByText("tools")).toBeInTheDocument();
     expect(screen.getByText("vision")).toBeInTheDocument();
     expect(screen.getByText("reasoning")).toBeInTheDocument();
+    expect(screen.getByText("transcription")).toBeInTheDocument();
     expect(screen.getByText("Q: 80%")).toBeInTheDocument();
     expect(screen.getByText("Q: 55%")).toBeInTheDocument();
   });
@@ -239,5 +278,179 @@ describe("LocalModelsPage", () => {
         })
       );
     });
+  });
+
+  it("requires an audio rate before transcription can be enabled", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    // Understandable labels for the audio settings.
+    expect(
+      screen.getByLabelText(/audio input cost \(usd per second\)/i)
+    ).toBeInTheDocument();
+
+    const transcription = screen.getByRole("checkbox", { name: /transcription/i });
+    fireEvent.click(transcription);
+    expect(transcription).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /enter an audio input price in usd per second to enable transcription/i
+    );
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it("saves an explicit zero audio rate when transcription is enabled", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /transcription/i }));
+    fireEvent.change(screen.getByLabelText(/audio input cost/i), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/local-models/p1/capabilities",
+        expect.objectContaining({
+          model_id: AUDIO_MODEL,
+          supports_transcription: true,
+          audio_input_cost_per_second_usd: 0,
+        })
+      );
+    });
+  });
+
+  it("disables transcription and clears the rate deliberately", async () => {
+    mockAudioModel({
+      supports_transcription: true,
+      audio_input_cost_per_second_usd: 0.0005,
+    });
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    const transcription = screen.getByRole("checkbox", { name: /transcription/i });
+    expect(transcription).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(transcription);
+    fireEvent.change(screen.getByLabelText(/audio input cost/i), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/local-models/p1/capabilities",
+        expect.objectContaining({
+          model_id: AUDIO_MODEL,
+          supports_transcription: false,
+          audio_input_cost_per_second_usd: null,
+        })
+      );
+    });
+  });
+
+  it("rejects a negative audio rate without saving", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    fireEvent.change(screen.getByLabelText(/audio input cost/i), {
+      target: { value: "-0.01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/0 is allowed/i);
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it("labels chat clearly and defaults it on for legacy models", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    const chat = screen.getByRole("checkbox", { name: /chat \(text\)/i });
+    expect(chat).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/local-models/p1/capabilities",
+        expect.objectContaining({
+          model_id: AUDIO_MODEL,
+          supports_chat: true,
+        })
+      );
+    });
+  });
+
+  it("rejects audio-only without transcription", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /chat \(text\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /audio-only models require transcription/i
+    );
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it("saves an audio-only model with transcription enabled", async () => {
+    mockAudioModel();
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    await openAudioEditor();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /chat \(text\)/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /transcription/i }));
+    fireEvent.change(screen.getByLabelText(/audio input cost/i), {
+      target: { value: "0.0002" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save capabilities/i }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/local-models/p1/capabilities",
+        expect.objectContaining({
+          model_id: AUDIO_MODEL,
+          supports_chat: false,
+          supports_transcription: true,
+          audio_input_cost_per_second_usd: 0.0002,
+        })
+      );
+    });
+  });
+
+  it("shows an audio-only badge for a model that is not offered for chat", async () => {
+    mockAudioModel({
+      supports_chat: false,
+      supports_transcription: true,
+      audio_input_cost_per_second_usd: 0.0002,
+    });
+
+    render(<LocalModelsPage />);
+    await waitFor(() => expect(screen.getByText("My Ollama")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button", { name: /discover/i })[0]);
+    await waitFor(() => expect(screen.getByText(AUDIO_MODEL)).toBeInTheDocument());
+
+    expect(screen.getByText("audio-only")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /configure/i }));
+    expect(
+      screen.getByRole("checkbox", { name: /chat \(text\)/i })
+    ).toHaveAttribute("aria-checked", "false");
   });
 });

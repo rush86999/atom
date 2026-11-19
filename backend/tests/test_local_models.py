@@ -26,6 +26,30 @@ class TestLocalModelModels:
         cols = {c.name for c in LocalModelCapabilities.__table__.columns}
         assert {"id", "provider_id", "model_id", "supports_tools", "supports_vision", "quality_score"}.issubset(cols)
 
+    def test_audio_transcription_columns_and_defaults(self):
+        """Fresh schemas declare explicit audio columns; unset rate != zero."""
+        from core.models import LocalModelCapabilities
+        cols = LocalModelCapabilities.__table__.columns
+        assert "supports_transcription" in cols
+        assert "audio_input_cost_per_second_usd" in cols
+
+        transcription = cols["supports_transcription"]
+        assert transcription.nullable is False
+        assert transcription.default.arg is False
+
+        audio_rate = cols["audio_input_cost_per_second_usd"]
+        assert audio_rate.nullable is True
+        assert audio_rate.default is None
+
+    def test_supports_chat_column_defaults_true(self):
+        """Legacy rows/submissions stay chat-capable; audio-only is opt-in."""
+        from core.models import LocalModelCapabilities
+        column = LocalModelCapabilities.__table__.columns["supports_chat"]
+
+        assert column.nullable is False
+        assert column.default.arg is True
+        assert column.server_default is not None
+
 
 class TestLocalModelRoutes:
     """API routes exist and have the right paths."""
@@ -38,6 +62,67 @@ class TestLocalModelRoutes:
         assert "/api/local-models/{provider_id}/models" in paths
         assert "/api/local-models/{provider_id}/capabilities" in paths
         assert "/api/local-models/{provider_id}/test" in paths
+
+
+class TestAudioCapabilityValidation:
+    """Request-level validation for the audio settings."""
+
+    def test_non_finite_rate_is_rejected(self):
+        from pydantic import ValidationError
+        from api.routes.local_model_routes import SetCapabilitiesRequest
+
+        for bad in (float("inf"), float("-inf"), float("nan")):
+            with pytest.raises(ValidationError):
+                SetCapabilitiesRequest(
+                    model_id="m", audio_input_cost_per_second_usd=bad
+                )
+
+    def test_old_capability_fields_keep_original_defaults_and_null_behavior(self):
+        from pydantic import ValidationError
+        from api.routes.local_model_routes import SetCapabilitiesRequest
+
+        omitted = SetCapabilitiesRequest(model_id="m")
+        assert omitted.supports_tools is False
+        assert omitted.supports_vision is False
+        assert omitted.supports_reasoning is False
+        assert omitted.quality_score == 0.5
+        assert omitted.speed_score == 0.5
+        assert omitted.context_window == 4096
+
+        for field in ("supports_tools", "supports_vision", "supports_reasoning"):
+            with pytest.raises(ValidationError):
+                SetCapabilitiesRequest(model_id="m", **{field: None})
+
+    def test_zero_rate_and_unset_are_distinct(self):
+        from api.routes.local_model_routes import SetCapabilitiesRequest
+
+        omitted = SetCapabilitiesRequest(model_id="m")
+        assert "audio_input_cost_per_second_usd" not in omitted.model_fields_set
+        assert omitted.audio_input_cost_per_second_usd is None
+
+        zero = SetCapabilitiesRequest(
+            model_id="m", audio_input_cost_per_second_usd=0
+        )
+        assert "audio_input_cost_per_second_usd" in zero.model_fields_set
+        assert zero.audio_input_cost_per_second_usd == 0
+
+        cleared = SetCapabilitiesRequest(
+            model_id="m", audio_input_cost_per_second_usd=None
+        )
+        assert "audio_input_cost_per_second_usd" in cleared.model_fields_set
+        assert cleared.audio_input_cost_per_second_usd is None
+
+    def test_supports_chat_is_omission_preserving(self):
+        """An omitted chat setting keeps its stored value; new rows default true."""
+        from api.routes.local_model_routes import SetCapabilitiesRequest
+
+        omitted = SetCapabilitiesRequest(model_id="m")
+        assert omitted.supports_chat is None
+        assert "supports_chat" not in omitted.model_fields_set
+
+        audio_only = SetCapabilitiesRequest(model_id="m", supports_chat=False)
+        assert "supports_chat" in audio_only.model_fields_set
+        assert audio_only.supports_chat is False
 
 
 class TestCognitiveTierLocalModels:
@@ -140,3 +225,20 @@ class TestMigration:
         content = open(path).read()
         assert 'revision: str = "20260712_local_models"' in content
         assert 'down_revision: Union[str, Sequence[str], None] = "20260711_llm_routing_feedback"' in content
+
+    def test_audio_capability_migration_chains_from_goal_run_revision(self):
+        """The additive audio migration sits on the required head and is additive."""
+        import os
+        path = os.path.join(
+            os.path.dirname(__file__), "..", "alembic", "versions",
+            "20261118_local_model_audio_capability.py"
+        )
+        assert os.path.exists(path), "Audio capability migration file must exist"
+        content = open(path).read()
+        assert 'revision: str = "20261118_local_model_audio_capability"' in content
+        assert 'down_revision: Union[str, Sequence[str], None] = "20261102_goal_run_material_revision"' in content
+        assert "supports_chat" in content
+        assert "supports_transcription" in content
+        assert "audio_input_cost_per_second_usd" in content
+        assert "create_table" not in content
+        assert "drop_table" not in content
