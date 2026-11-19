@@ -388,10 +388,14 @@ def apply_transition(
         removed = set(transition.get("removed_entity_ids") or [])
         # OBJECTIVE BACKFILL (round 39): a task created by a denied edit
         # lane has no objective_text; the shell backfill's revise carries
-        # the authorized ask — write it, not just the entities.
+        # the authorized ask — write it, not just the entities. A genuine
+        # shell may also lack the schema-required goal_text; seed that from
+        # the same material objective without overwriting a real one.
         if transition.get("objective_text"):
-            new_task["objective_text"] = str(
-                transition["objective_text"])[:500]
+            objective_text = str(transition["objective_text"])[:500]
+            new_task["objective_text"] = objective_text
+            if not str(new_task.get("goal_text") or "").strip():
+                new_task["goal_text"] = objective_text
         if "entities" in transition:
             new_task["entities"] = [dict(e) for e in transition["entities"]]
         if "requested_fields" in transition:
@@ -3231,38 +3235,35 @@ def begin_retrieval_turn(
         # like "Tennsmith row 338" mining "338") are NOT new subjects
         # and must not overwrite it. Only a task with no entities of
         # its own adopts this turn's items.
-        _rev_now = ((record or {}).get("task_revision") or {})
-        if requested_fields and not (
-                _rev_now.get("requested_fields") or []):
-            lifecycle.apply_transition(run_id, {
-                "kind": "revise_objective",
-                "requested_change": _bounded_text(message, 500),
-                "objective_text": _bounded_text(
-                    message, 500) if not str(
-                    _rev_now.get("objective_text") or "").strip()
-                else _bounded_text(
-                    str(_rev_now.get("objective_text")), 500),
-                "entities": (list(_rev_now.get("entities") or [])
-                             or _entities_from_items(items)),
-                "requested_fields": list(requested_fields),
-            })
-        # SHELL BACKFILL (round 39 diagnosis): the objective and entities
-        # are set ONLY at creation — a task created by a denied edit lane
-        # (empty objective, no entities) stayed a shell forever, so
-        # continuation had no unresolved work to resume and the record
-        # carried none of the job. When an existing task's objective is
-        # empty, this turn's authorized ask and items define the job.
         _rev = ((record or {}).get("task_revision") or {})
-        if not str(_rev.get("objective_text") or "").strip():
-            lifecycle.apply_transition(run_id, {
+        # ``goal_text`` is the canonical persisted objective for revision 1
+        # (and for already-persisted rows); ``objective_text`` is written by
+        # a revise. Treat either as the existing objective so a normal task
+        # is never mistaken for an empty shell.
+        _objective = str(
+            _rev.get("objective_text") or _rev.get("goal_text")
+            or "").strip()
+        _needs_fields = bool(requested_fields) and not (
+            _rev.get("requested_fields") or [])
+        # BACKFILL: the field contract is additive, and a denied-edit-lane
+        # shell (empty objective, no entities) gains this turn's authorized
+        # ask and items. Both cases are one revise with the existing fields,
+        # entities and output preferences where present — exactly once.
+        if _needs_fields or not _objective:
+            transition = {
                 "kind": "revise_objective",
                 "requested_change": _bounded_text(message, 500),
-                "objective_text": _bounded_text(message, 500),
                 "entities": (list(_rev.get("entities") or [])
                              or _entities_from_items(items)),
-                "removed_entity_ids": [],
-                "requested_fields": list(requested_fields or []),
-            })
+                "requested_fields": (list(_rev.get("requested_fields") or [])
+                                     or list(requested_fields or [])),
+            }
+            if not _objective:
+                # A genuine shell recovers its material objective; a named
+                # task keeps its canonical goal_text and does not mint the
+                # 500-character compatibility key.
+                transition["objective_text"] = _bounded_text(message, 500)
+            _rev = lifecycle.apply_transition(run_id, transition)
         lifecycle.apply_transition(run_id, {
             "kind": "research_and_present",
             "requested_change": _bounded_text(message, 500),

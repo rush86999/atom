@@ -340,6 +340,7 @@ class TestRecordTurns:
         run_id = record_retrieval_turn(
             lifecycle, session, "conv-1", "look up M-1 and M-2",
             _structured_result(), "ex-1", True)
+        decisions_before = len(lifecycle.runs.get_decisions(run_id))
         run_id2 = record_retrieval_turn(
             lifecycle, session, "conv-1", "search again",
             _structured_result(), "ex-2", True)
@@ -349,6 +350,11 @@ class TestRecordTurns:
         assert record["task_revision"]["revision"] == 4
         assert record["task_revision"]["last_transition"]["kind"] == \
             "attach_evidence"
+        second_turn = [
+            d.get("transition") for d in
+            lifecycle.runs.get_decisions(run_id)[decisions_before:]
+            if d.get("kind") == "task_revision"]
+        assert second_turn == ["research_and_present", "attach_evidence"]
         kinds = [d.get("transition") or d.get("kind") for d in
                  lifecycle.runs.get_decisions(run_id)]
         assert "research_and_present" in kinds
@@ -356,6 +362,58 @@ class TestRecordTurns:
                 record["task_revision"]["entities"]] == ["M-1", "M-2"]
         assert len(record["operations"]) == 2
         assert record["operations"][0]["status"] == "applied"
+
+    def test_field_backfill_preserves_existing_objective(self, lifecycle):
+        created = lifecycle.create_task(
+            "conv-1", "look up M-1 prices", entities=_entities(1))
+        run_id = created["run_id"]
+        begin_retrieval_turn(
+            lifecycle, {}, "conv-1", "show values for M-1", "ex-1",
+            items=["M-1"], requested_fields=["value"])
+        record = lifecycle.get_task(run_id)
+        revision = record["task_revision"]
+        # The original objective survives the field-contract revise.
+        assert revision["goal_text"] == "look up M-1 prices"
+        assert revision["requested_fields"] == ["value"]
+        # Exactly the field-contract revise plus research_and_present;
+        # the existing objective must not trigger the shell backfill.
+        assert revision["revision"] == 3
+        kinds = [d.get("transition") for d in
+                 lifecycle.runs.get_decisions(run_id)
+                 if d.get("kind") == "task_revision"]
+        assert kinds[-2:] == ["revise_objective", "research_and_present"]
+        assert [e["id"] for e in revision["entities"]] == ["e1"]
+
+    def test_empty_shell_backfills_once_then_researches(self, lifecycle):
+        created = lifecycle.create_task("conv-1", "placeholder")
+        run_id = created["run_id"]
+        current = lifecycle.get_task(run_id)
+        shell = copy.deepcopy(current["task_revision"])
+        shell["goal_text"] = ""
+        shell.pop("objective_text", None)
+        shell["entities"] = []
+        shell["requested_fields"] = []
+        assert lifecycle._cas_write(
+            run_id, current["task_version"],
+            {"task_revision": shell, "operations": [],
+             "conversation_id": "conv-1"}, {"kind": "seed_shell"}) is True
+        begin_retrieval_turn(
+            lifecycle, {}, "conv-1", "look up M-1 value", "ex-1",
+            items=["M-1"], requested_fields=["value"])
+        record = lifecycle.get_task(run_id)
+        revision = record["task_revision"]
+        kinds = [d.get("transition") for d in
+                 lifecycle.runs.get_decisions(run_id)
+                 if d.get("kind") == "task_revision"]
+        # One material revise fills the shell, then the existing retrieval
+        # transition runs; the field-contract revise is not applied twice.
+        assert kinds[-2:] == ["revise_objective", "research_and_present"]
+        assert kinds.count("revise_objective") == 1
+        assert revision["revision"] == 3
+        assert revision["objective_text"] == "look up M-1 value"
+        assert revision["goal_text"] == "look up M-1 value"
+        assert revision["requested_fields"] == ["value"]
+        assert [e["id"] for e in revision["entities"]] == ["M-1"]
 
     def test_partial_observation_makes_no_entity_revision(self, lifecycle):
         """Seeing a subset of the tasked set is coverage, not scope change.
@@ -577,9 +635,11 @@ class TestOrchestratorWiring:
         assert response["data"]["task_run_id"] == run_id
         lifecycle = chat._task_lifecycle_for("default", None)
         record = lifecycle.get_task(run_id)
-        # Revision 1 records the intention; revision 2 binds the
-        # observed entities/fields; revision 3 binds the evidence.
-        assert record["task_revision"]["revision"] == 3
+        # Revision 1 records the intention together with the observed
+        # entities/fields (creation carries them); revision 2 binds the
+        # evidence. This matches the canonical direct-lane behavior in
+        # test_first_retrieval_creates_task_and_applies.
+        assert record["task_revision"]["revision"] == 2
         assert [e["id"] for e in
                 record["task_revision"]["entities"]] == ["M-1", "M-2"]
         assert record["operations"][0]["status"] == "applied"
@@ -620,7 +680,7 @@ class TestOrchestratorWiring:
             assert second["data"]["task_run_id"] == run_id
         lifecycle = chat._task_lifecycle_for("default", None)
         record = lifecycle.get_task(run_id)
-        assert record["task_revision"]["revision"] == 5
+        assert record["task_revision"]["revision"] == 4
         assert record["task_revision"]["last_transition"]["kind"] == \
             "attach_evidence"
         assert len(record["operations"]) == 2
@@ -675,7 +735,7 @@ class TestOrchestratorWiring:
             assert second["data"]["task_run_id"] == run_id
         lifecycle = chat._task_lifecycle_for("default", None)
         record = lifecycle.get_task(run_id)
-        assert record["task_revision"]["revision"] == 5
+        assert record["task_revision"]["revision"] == 4
         assert len(record["operations"]) == 2
 
     @pytest.mark.asyncio
@@ -1301,7 +1361,11 @@ class TestOverlapSafety:
                      and d.get("revision") is not None]
         assert revisions == list(range(1, max(revisions) + 1))
         assert record["task_revision"]["revision"] == max(revisions)
-        assert len(record["task_revision"]["entities"]) == 1
+        # The turns observe two distinct subjects (M-0 and M-1); both are
+        # genuine additions and must survive. A single entity here would
+        # itself be the lost update this test exists to disprove.
+        assert {e["id"] for e in
+                record["task_revision"]["entities"]} == {"M-0", "M-1"}
 
 
 class TestPreExecutionFailure:
