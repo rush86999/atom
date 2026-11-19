@@ -1,6 +1,6 @@
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -77,22 +77,62 @@ class SubscriptionWasteService:
         Correlates billing with usage. Without a connected billing source (or
         recorded subscription rows) there is nothing to report; this used to
         return a fictional Adobe subscription as a live saving.
+
+        Subscriptions are tenant-keyed while this service is called with a
+        workspace id, so the workspace's persisted tenant binding is resolved
+        first. An empty, unknown, or unbound workspace refuses the read instead
+        of falling back to an unscoped query across every tenant.
         """
         try:
-            from core.models import Subscription
+            from core.models import Subscription, Workspace
         except Exception:
             Subscription = None
+            Workspace = None
 
-        if self.db is None or Subscription is None:
+        if self.db is None or Subscription is None or Workspace is None:
             return []
 
-        rows = self.db.query(Subscription).all()
+        workspace_key = str(workspace_id or "").strip()
+        if not workspace_key:
+            logger.warning(
+                "Subscription waste requested without a workspace id; "
+                "refusing unscoped subscription read.")
+            return []
+
+        workspace = (
+            self.db.query(Workspace)
+            .filter(Workspace.id == workspace_key)
+            .first()
+        )
+        tenant_id = (
+            getattr(workspace, "tenant_id", None)
+            if workspace is not None
+            else None
+        )
+        if not tenant_id:
+            logger.warning(
+                "Workspace %s has no tenant binding; refusing unscoped "
+                "subscription read.", workspace_key)
+            return []
+
+        rows = (
+            self.db.query(Subscription)
+            .filter(Subscription.tenant_id == str(tenant_id))
+            .all()
+        )
         zombies: List[Dict[str, Any]] = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         for row in rows:
             status = str(getattr(row, "status", "") or "").lower()
             next_billing = getattr(row, "next_billing_at", None)
-            still_billed = bool(next_billing and next_billing > now)
+            if isinstance(next_billing, datetime):
+                if next_billing.tzinfo is None:
+                    # Stored timestamps may be naive; treat them as UTC so the
+                    # comparison never mixes naive and aware datetimes.
+                    next_billing = next_billing.replace(tzinfo=timezone.utc)
+                still_billed = next_billing > now
+            else:
+                still_billed = False
             if status in {"canceled", "cancelled"} and still_billed:
                 zombies.append({
                     "subscription_id": getattr(row, "id", ""),

@@ -40,13 +40,13 @@ def _require_supervisor(db: Session, current_user: User) -> None:
         )
 
 
-def _resolve_intervention_scope(user: User) -> Tuple[str, str]:
-    """Resolve persisted tenant/workspace bindings for intervention reads.
+def _resolve_forensics_workspace(user: User) -> str:
+    """Resolve the persisted workspace binding for forensics reads.
 
-    The reasoning engine calls risk services that read tenant-keyed
-    subscriptions and workspace-keyed invoices. A missing or unreadable
-    binding fails closed; only the server-owned bootstrap identity keeps the
-    Personal Edition fallback.
+    This is the same authenticated workspace resolution used by the direct
+    ``/api/forensics`` endpoints: explicit binding first, Personal Edition
+    fallback only for the server-owned bootstrap identity, and a hard failure
+    for every other unbound or unreadable account.
     """
     try:
         workspace_id = resolve_document_workspace_id(user)
@@ -61,6 +61,19 @@ def _resolve_intervention_scope(user: User) -> Tuple[str, str]:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No workspace scope is bound to this account",
         )
+
+    return str(workspace_id)
+
+
+def _resolve_intervention_scope(user: User) -> Tuple[str, str]:
+    """Resolve persisted tenant/workspace bindings for intervention reads.
+
+    The reasoning engine calls risk services that read tenant-keyed
+    subscriptions and workspace-keyed invoices. A missing or unreadable
+    binding fails closed; only the server-owned bootstrap identity keeps the
+    Personal Edition fallback.
+    """
+    workspace_id = _resolve_forensics_workspace(user)
 
     if getattr(user, "tenant_id", None):
         tenant_id = resolve_tenant_id(user)
@@ -79,7 +92,7 @@ def _resolve_intervention_scope(user: User) -> Tuple[str, str]:
             )
         tenant_id = resolve_tenant_id(user)
 
-    return str(workspace_id), tenant_id
+    return workspace_id, tenant_id
 
 
 logger = logging.getLogger(__name__)
@@ -169,12 +182,16 @@ async def get_subscription_waste(
 ):
     """
     Identifies SaaS waste and zombie subscriptions.
+
+    Scope comes from the authenticated workspace binding (never a literal
+    ``"default"``); the service derives the tenant from that workspace row and
+    fails closed when the binding is absent.
     """
+    workspace_id = _resolve_forensics_workspace(current_user)
     try:
         from core.financial_forensics import SubscriptionWasteService
         service = SubscriptionWasteService(db)
-        data = await service.find_zombie_subscriptions(
-            current_user.workspace_id or "default")
+        data = await service.find_zombie_subscriptions(workspace_id)
         return router.success_response(
             data=data,
             metadata={"is_mock": False}

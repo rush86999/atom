@@ -47,16 +47,17 @@ def make_client(router, overrides=None):
     return TestClient(app, raise_server_exceptions=False)
 
 
-def fake_user(user_id="u-69", tenant_id="t-1"):
+def fake_user(user_id="u-69", tenant_id="t-1", workspace_id="ws-1"):
     u = MagicMock()
     u.id = user_id
     u.tenant_id = tenant_id
+    u.workspace_id = workspace_id
     return u
 
 
-def user_override(user_id="u-69", tenant_id="t-1"):
+def user_override(user_id="u-69", tenant_id="t-1", workspace_id="ws-1"):
     def _override():
-        return fake_user(user_id, tenant_id)
+        return fake_user(user_id, tenant_id, workspace_id)
     return _override
 
 
@@ -757,6 +758,7 @@ class TestOperationalRoutes:
             resp = client.get("/api/business-health/forensics/waste")
         assert resp.status_code == 200
         assert resp.json()["data"] == [{"service": "zombie"}]
+        svc.find_zombie_subscriptions.assert_awaited_once_with("ws-1")
 
     def test_subscription_waste_error_graceful_fallback(self, client):
         with patch("core.financial_forensics.SubscriptionWasteService") as cls:
@@ -813,7 +815,86 @@ class TestOperationalRoutes:
 
 
 # ============================================================================
-# 4. api/llm_oauth_routes.py
+# 4. api/forensics_api.py + api/operations_api.py scope resolution
+# ============================================================================
+
+class TestForensicsApi:
+    """Direct forensics reads use the authenticated workspace, not "default"."""
+
+    @pytest.fixture
+    def client(self):
+        from api.forensics_api import router
+
+        return make_client(
+            router,
+            {
+                get_current_user: user_override(workspace_id="ws-auth"),
+                get_db: lambda: MagicMock(),
+            },
+        )
+
+    def test_vendor_drift_reads_authenticated_workspace(self, client):
+        services = {"vendor": MagicMock()}
+        services["vendor"].detect_price_drift = AsyncMock(return_value=[])
+        with patch("api.forensics_api.get_forensics_services", return_value=services):
+            resp = client.get("/api/forensics/vendor-drift")
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
+        services["vendor"].detect_price_drift.assert_awaited_once_with("ws-auth")
+
+    def test_pricing_reads_authenticated_workspace(self, client):
+        services = {"pricing": MagicMock()}
+        services["pricing"].get_pricing_recommendations = AsyncMock(return_value=[])
+        with patch("api.forensics_api.get_forensics_services", return_value=services):
+            resp = client.get("/api/forensics/pricing-opportunities")
+        assert resp.status_code == 200
+        services["pricing"].get_pricing_recommendations.assert_awaited_once_with(
+            "ws-auth"
+        )
+
+    def test_subscription_waste_reads_authenticated_workspace(self, client):
+        services = {"waste": MagicMock()}
+        services["waste"].find_zombie_subscriptions = AsyncMock(return_value=[])
+        with patch("api.forensics_api.get_forensics_services", return_value=services):
+            resp = client.get("/api/forensics/subscription-waste")
+        assert resp.status_code == 200
+        services["waste"].find_zombie_subscriptions.assert_awaited_once_with(
+            "ws-auth"
+        )
+
+
+class TestOperationsDashboard:
+    """Owner cockpit reads use the authenticated workspace, not "default"."""
+
+    @pytest.fixture
+    def client(self):
+        from api.operations_api import router
+
+        return make_client(
+            router,
+            {
+                get_current_user: user_override(workspace_id="ws-auth"),
+                get_db: lambda: MagicMock(),
+            },
+        )
+
+    def test_dashboard_reads_authenticated_workspace(self, client):
+        with patch("api.operations_api.business_health_service") as svc:
+            svc.get_daily_priorities = AsyncMock(
+                return_value={"priorities": [], "owner_advice": "none"}
+            )
+            svc.get_health_metrics = MagicMock(return_value={"cash_runway": {}})
+            resp = client.get("/api/operations/dashboard")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["data"]["briefing"] == {"priorities": [], "owner_advice": "none"}
+        assert body["data"]["metrics"] == {"cash_runway": {}}
+        svc.get_daily_priorities.assert_awaited_once_with("ws-auth")
+        svc.get_health_metrics.assert_called_once_with("ws-auth")
+
+
+# ============================================================================
+# 5. api/llm_oauth_routes.py
 # ============================================================================
 
 class TestLlmOauthRoutes:
