@@ -12422,6 +12422,13 @@ class LocalModelCapabilities(Base):
     supports_tools = Column(Boolean, default=False)
     supports_vision = Column(Boolean, default=False)
     supports_reasoning = Column(Boolean, default=False)
+    # Explicit, per-model audio transcription opt-in. Existing rows and rows
+    # created by older clients default to disabled. Enabling requires an
+    # explicit audio_input_cost_per_second_usd (zero is valid).
+    supports_transcription = Column(Boolean, nullable=False, default=False, server_default="0")
+    # USD per second of audio input. NULL means "not configured"; 0.0 is an
+    # explicit free rate and must stay distinguishable from NULL.
+    audio_input_cost_per_second_usd = Column(Float, nullable=True, default=None)
     quality_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
     speed_score = Column(Float, default=0.5)  # 0.0–1.0, user-estimated
     context_window = Column(Integer, default=4096)  # Max context length in tokens

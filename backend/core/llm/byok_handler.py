@@ -2055,6 +2055,32 @@ def _configured_audio_cost(
     return _valid_cost(get_llm_audio_cost(model, seconds))
 
 
+def _route_audio_cost(
+    audio_rate_per_second: Any, audio_seconds: Optional[float],
+) -> Optional[float]:
+    """USD cost for TIME-billed audio at ONE admitted route's exact rate.
+
+    A registered local route carries its owning workspace's per-second rate
+    declaration. That declaration is the ONLY pricing authority for the call:
+    the shared/global catalog has no entry attributable to a workspace-defined
+    endpoint, and falling back to it would either invent a price or mask an
+    invalid declaration. An explicit numeric zero is authoritative free;
+    missing/invalid rates or durations stay explicit unknown (``None``).
+    """
+    rate = _valid_cost(audio_rate_per_second)
+    if rate is None:
+        return None
+    if audio_seconds is None or isinstance(audio_seconds, bool):
+        return None
+    try:
+        seconds = float(audio_seconds)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    return _valid_cost(rate * seconds)
+
+
 def _positive_seconds(value: Any) -> Optional[float]:
     """Finite positive duration in seconds, or ``None``.
 
@@ -4715,6 +4741,17 @@ class BYOKHandler:
         # so routing can attribute a model to the client that actually
         # serves it, with THIS workspace's declared capabilities.
         self._local_routes: Dict[str, Dict[str, Any]] = {}
+        # AUDIO ROUTE IDENTITY (provider id, exact model): a model NAME is not
+        # a durable route identity. Two registrations in one workspace may
+        # serve the same model over different endpoints at different prices,
+        # so chat keeps its historical model-keyed map (unchanged) while
+        # explicit audio selection reads this full-pair index. Each entry
+        # carries the client and rate created for THAT registration.
+        self._local_audio_routes: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        # True once a successful registration read has built the pair index.
+        # An authoritative index that lacks a pair means "not registered" —
+        # it must not be bypassed through the model-keyed chat map.
+        self._local_audio_routes_loaded: bool = False
         self._load_local_providers()
 
         # Discover which identifiers each configured provider actually serves.
@@ -5017,6 +5054,15 @@ class BYOKHandler:
                     LocalModelProvider.is_active == True,  # noqa: E712
                 ).all()
 
+                # A successful registration read is authoritative for audio:
+                # rebuild the full-pair index so a removed registration can
+                # never keep dispatching audio through a stale chat entry or a
+                # previously loaded pair. (Chat's model-keyed map keeps its
+                # historical best-effort accumulation.) A DB failure raises
+                # before this point, leaving the last verified index intact.
+                self._local_audio_routes = {}
+                self._local_audio_routes_loaded = True
+
                 if not providers:
                     return
 
@@ -5026,14 +5072,20 @@ class BYOKHandler:
                     provider_key = f"local_{provider.id[:8]}"
                     api_key = provider.api_key or "local"
                     base_url = provider.base_url.rstrip("/")
+                    provider_tenant = str(
+                        getattr(provider, "tenant_id", None) or "").strip()
+                    provider_workspace = str(
+                        getattr(provider, "workspace_id", None) or "").strip()
 
                     try:
-                        self.clients[provider_key] = OpenAI(
+                        local_client = OpenAI(
                             api_key=api_key, base_url=base_url,
                             max_retries=_SDK_MAX_RETRIES)
-                        self.async_clients[provider_key] = AsyncOpenAI(
+                        self.clients[provider_key] = local_client
+                        local_async_client = AsyncOpenAI(
                             api_key=api_key, base_url=base_url,
                             max_retries=_SDK_MAX_RETRIES)
+                        self.async_clients[provider_key] = local_async_client
                         logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
                     except Exception as e:
                         logger.warning(f"Could not create client for local provider '{provider.name}': {e}")
@@ -5054,7 +5106,7 @@ class BYOKHandler:
                             # cache entry, so two workspaces registering
                             # the same model name keep their own
                             # endpoint and capability association.
-                            self._local_routes[cap.model_id] = {
+                            route = {
                                 "provider_key": provider_key,
                                 "workspace_id": ws_id,
                                 "provider_id": provider.id,
@@ -5062,13 +5114,43 @@ class BYOKHandler:
                                 "supports_tools": bool(cap.supports_tools),
                                 "supports_vision": bool(cap.supports_vision),
                                 "supports_reasoning": bool(cap.supports_reasoning),
+                                # AUDIO DECLARATION (local transcription): the
+                                # owning workspace declares whether this exact
+                                # model accepts audio and, if so, its own
+                                # per-second rate. Both stay on the SCOPED
+                                # route record — never inferred from the
+                                # shared global price catalog.
+                                "supports_transcription": bool(
+                                    cap.supports_transcription),
+                                "audio_input_cost_per_second_usd": (
+                                    cap.audio_input_cost_per_second_usd),
                                 "quality_score": cap.quality_score,
                                 "context_window": cap.context_window or 8192,
                             }
-                            # Public pricing metadata stays shared, but the
-                            # entry carries its association so a foreign
-                            # workspace's handler can tell the entry is not
-                            # its own (and never routes on it).
+                            # Chat routing keeps its historical model-keyed
+                            # map (last registration wins on a name clash).
+                            self._local_routes[cap.model_id] = route
+                            # AUDIO ROUTES ARE PAIR-KEYED: the same model
+                            # name on two registrations must stay two
+                            # independently selectable routes. The entry
+                            # carries THE registration's own client objects,
+                            # never a lookup through a display key that two
+                            # truncated provider ids can share.
+                            audio_route = dict(route)
+                            audio_route.update({
+                                "client": local_client,
+                                "async_client": local_async_client,
+                                "tenant_id": provider_tenant,
+                                "provider_workspace_id": provider_workspace,
+                            })
+                            self._local_audio_routes[
+                                (str(provider.id or "").strip(),
+                                 cap.model_id)] = audio_route
+                            # Public pricing metadata stays shared for catalog
+                            # display only. It deliberately carries no audio
+                            # declaration: a registered local route's own
+                            # record remains the only authority for local
+                            # transcription capability and rate.
                             fetcher.pricing_cache[cap.model_id] = {
                                 "model_id": cap.model_id,
                                 "litellm_provider": provider.provider_type,
@@ -12280,6 +12362,150 @@ class BYOKHandler:
         # Graceful degradation: best-ranked valid sample wins.
         return valid[0]
 
+    def _local_transcription_dispatch(
+        self, *, model: str, local_provider_id: str,
+    ) -> tuple:
+        """Validate ONE explicitly requested workspace-owned local audio route.
+
+        ``local_provider_id`` is the DURABLE registration id (never a URL)
+        supplied by the caller through the public transcription entry points.
+        That explicit intent is the only way to reach a local route: without
+        it the historical OpenAI path is used unchanged. When supplied, the
+        registration itself must prove every dispatch fact before audio
+        leaves the process:
+
+        * the exact ``(durable provider id, model)`` pair has a route in
+          THIS handler's scoped audio route index;
+        * that route names the same durable provider id;
+        * the route and this handler have the same NONEMPTY workspace, and
+          the provider row's own tenant (when known) matches this handler;
+        * the scoped provider key is derived from the registration
+          (``local_<provider id prefix>``) and the route's OWN client exists;
+        * the route declares transcription support with a valid rate
+          (explicit zero is valid free).
+
+        A model name alone is not route identity: two registrations may serve
+        the same name, so selection reads the full-pair index. Its entry
+        carries the client created for that registration; the shared
+        ``clients`` map is keyed by a display id that truncated provider ids
+        can collide on and is therefore never used to lend a client to an
+        indexed route.
+
+        Anything missing or mismatched raises ``ValueError``. There is no
+        cloud fallback and no shared-cache/price authority.
+        """
+        requested_id = str(local_provider_id or "").strip()
+        if not requested_id:
+            raise ValueError(
+                "Local transcription requires a nonempty durable "
+                "local_provider_id; audio was not sent.")
+        current_workspace = str(
+            getattr(self, "workspace_id", None) or "").strip()
+        if not current_workspace:
+            raise ValueError(
+                "Local transcription requires a resolved nonempty "
+                "workspace; audio was not sent.")
+        routes = getattr(self, "_local_routes", None) or {}
+        # The pair index is authoritative once it holds registered pairs or a
+        # successful registration read (which may legitimately be empty) built
+        # it. Before either (hand-built handlers, older synthetic route
+        # registration) the model-keyed chat map remains the only source.
+        pair_routes = getattr(self, "_local_audio_routes", None)
+        pair_index_authoritative = (
+            isinstance(pair_routes, dict)
+            and (bool(getattr(self, "_local_audio_routes_loaded", False))
+                 or bool(pair_routes)))
+        route = None
+        if pair_index_authoritative:
+            route = pair_routes.get((requested_id, model))
+        else:
+            route = routes.get(model)
+        if route is None:
+            raise ValueError(
+                f"No local model route for '{model}'; audio was not sent.")
+        if not isinstance(route, dict):
+            raise ValueError(
+                f"Local transcription route '{model}' is malformed; "
+                "audio was not sent.")
+        route_workspace = str(route.get("workspace_id") or "").strip()
+        if not route_workspace:
+            raise ValueError(
+                f"Local transcription route '{model}' has no owning "
+                "workspace; audio was not sent.")
+        if route_workspace != current_workspace:
+            raise ValueError(
+                f"Local transcription route '{model}' belongs to another "
+                "workspace; audio was not sent.")
+        registration_id = str(route.get("provider_id") or "").strip()
+        if not registration_id or registration_id != requested_id:
+            raise ValueError(
+                f"Local transcription route '{model}' does not match the "
+                "requested durable provider id; audio was not sent.")
+        # Provider-row workspace evidence, when the record carries it, must
+        # agree with this handler's resolved workspace. The route-level check
+        # above stays authoritative for routes that predate this field.
+        route_provider_workspace = str(
+            route.get("provider_workspace_id") or "").strip()
+        if (route_provider_workspace
+                and route_provider_workspace != current_workspace):
+            raise ValueError(
+                f"Local transcription route '{model}' belongs to another "
+                "workspace; audio was not sent.")
+        # Tenant binding is verified only where BOTH sides are known, and only
+        # on this explicit local audio path (non-audio callers unchanged).
+        route_tenant = str(route.get("tenant_id") or "").strip()
+        handler_tenant = str(
+            getattr(self, "tenant_id", None) or "").strip()
+        if route_tenant and handler_tenant and route_tenant != handler_tenant:
+            raise ValueError(
+                f"Local transcription route '{model}' belongs to another "
+                "tenant; audio was not sent.")
+        # The scoped client key is derived from the registration, never from
+        # caller-supplied transport material (a URL cannot select a client).
+        provider_id = f"local_{registration_id[:8]}"
+        if str(route.get("provider_key") or "").strip() != provider_id:
+            raise ValueError(
+                f"Local transcription route '{model}' has an invalid scoped "
+                "provider key; audio was not sent.")
+        if not bool(route.get("supports_transcription")):
+            raise ValueError(
+                f"Local transcription route '{model}' does not declare "
+                "transcription support; audio was not sent.")
+        rate = _valid_cost(route.get("audio_input_cost_per_second_usd"))
+        if rate is None:
+            raise ValueError(
+                f"Local transcription route '{model}' has no valid "
+                "per-second audio rate; audio was not sent.")
+        if _local_only_blocks_provider(provider_id, routes):
+            raise ValueError(
+                f"Local-only mode blocks local transcription provider "
+                f"'{provider_id}'; audio was not sent.")
+        policy = getattr(self, "provider_policy", None)
+        if policy is not None and not policy.allows(provider_id, model):
+            raise ValueError(
+                f"Provider policy excludes the local transcription route "
+                f"'{provider_id}/{model}'; audio was not sent.")
+        # Selection uses THIS registration's own client when the route record
+        # carries it (every loader-produced audio route does). That is the
+        # only collision-safe choice: ``clients`` is keyed by the display id
+        # ``local_<id[:8]>``, which two durable ids can share. A pair-indexed
+        # route without its own client is refused rather than borrowing the
+        # map's occupant; the model-keyed legacy path keeps its historical
+        # lookup.
+        client = route.get("async_client") or route.get("client")
+        if not client:
+            if pair_index_authoritative:
+                raise ValueError(
+                    f"Local transcription client '{provider_id}' is not "
+                    "configured; audio was not sent.")
+            client = (self.async_clients.get(provider_id)
+                      or self.clients.get(provider_id))
+        if not client:
+            raise ValueError(
+                f"Local transcription client '{provider_id}' is not "
+                "configured; audio was not sent.")
+        return provider_id, client, rate
+
     def _admit_transcription_attempt(
         self,
         *,
@@ -12287,6 +12513,7 @@ class BYOKHandler:
         model: str,
         audio_seconds: Optional[float],
         agent_id: Optional[str] = None,
+        audio_rate_per_second: Optional[float] = None,
     ) -> tuple:
         """Durable pre-dispatch admission for ONE physical transcription call.
 
@@ -12297,6 +12524,10 @@ class BYOKHandler:
         is an explicit unknown bound: hard_stop refuses before any audio
         leaves the process.
 
+        ``audio_rate_per_second`` is the ADMITTED route's exact declared rate
+        (registered local audio). When supplied it — never the global catalog
+        — prices the bound, and the SAME value is passed to settlement.
+
         Enforcement is always on. A non-default tenant whose billing policy
         cannot be resolved fails closed through the strict policy read, the
         same as every other paid dispatch; an unresolvable scope is never
@@ -12304,8 +12535,11 @@ class BYOKHandler:
         """
         request_id = f"transcription-{uuid.uuid4().hex}"
         attempt_id = f"{request_id}:1"
-        cost = _configured_audio_cost(
-            get_pricing_fetcher(), model, audio_seconds)
+        if audio_rate_per_second is None:
+            cost = _configured_audio_cost(
+                get_pricing_fetcher(), model, audio_seconds)
+        else:
+            cost = _route_audio_cost(audio_rate_per_second, audio_seconds)
         if cost is None:
             bound = None
         else:
@@ -12350,6 +12584,7 @@ class BYOKHandler:
         reserved_bound: Optional[float],
         audio_seconds: Optional[float],
         agent_id: Optional[str] = None,
+        audio_rate_per_second: Optional[float] = None,
     ) -> None:
         """Settle one transcription response under its exact attempt id.
 
@@ -12358,14 +12593,22 @@ class BYOKHandler:
         means explicit unknown liability (the reservation is retained), never
         a fabricated free/zero settlement. A genuine numeric-zero admission
         bound remains authoritative free.
+
+        ``audio_rate_per_second`` is the exact rate pinned at admission for a
+        registered local audio route; settlement applies the same rate rather
+        than re-pricing the call through the global catalog.
         """
         actual_seconds = _audio_duration_from_response(response)
         if actual_seconds is None:
             actual_seconds = audio_seconds
         cost: Optional[float] = None
         if actual_seconds is not None:
-            cost = _configured_audio_cost(
-                get_pricing_fetcher(), model, actual_seconds)
+            if audio_rate_per_second is None:
+                cost = _configured_audio_cost(
+                    get_pricing_fetcher(), model, actual_seconds)
+            else:
+                cost = _route_audio_cost(
+                    audio_rate_per_second, actual_seconds)
         if reserved_bound == 0.0 and cost is None:
             cost = 0.0
         try:
@@ -12395,30 +12638,49 @@ class BYOKHandler:
         language: Optional[str] = None,
         prompt: Optional[str] = None,
         response_format: str = "json",
-        duration_seconds: Optional[float] = None
+        duration_seconds: Optional[float] = None,
+        local_provider_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Transcribe audio to text using OpenAI Whisper.
-        Uses BYOK keys for the 'openai' provider.
-        """
-        # Whisper is currently only supported via OpenAI provider in this
-        # architecture. Audio is request content: a policy that excludes
-        # openai must fail closed rather than transcribe elsewhere.
-        provider_id = "openai"
-        if _local_only_blocks_provider(
-                provider_id, getattr(self, "_local_routes", None)):
-            raise ValueError(
-                "Local-only mode blocks openai, the only configured "
-                "transcription route; audio was not sent.")
-        policy = getattr(self, "provider_policy", None)
-        if policy is not None and not policy.allows(provider_id, model):
-            raise ValueError(
-                "Provider policy excludes openai, the only configured "
-                "transcription route; audio was not sent.")
-        client = self.async_clients.get(provider_id) or self.clients.get(provider_id)
+        Transcribe audio to text.
 
-        if not client:
-            raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
+        ``local_provider_id`` is the explicit, optional durable id of a
+        workspace-owned local model provider. Supplying it selects ONLY that
+        local registration: the exact (provider id, model) route, matching
+        workspace/tenant, the registration-derived scoped client key and its
+        own audio declaration/client must all agree, or the call fails closed
+        before any audio leaves the process — never a cloud fallback and never
+        shared-price/cache authority. Omitting it preserves the historical
+        BYOK 'openai' transcription path for every existing caller.
+        """
+        provider_id = "openai"
+        audio_rate_per_second: Optional[float] = None
+        if local_provider_id is not None:
+            # EXPLICIT LOCAL AUDIO INTENT: validate the durable registration
+            # and use its scoped client/rate exclusively.
+            provider_id, client, audio_rate_per_second = (
+                self._local_transcription_dispatch(
+                    model=model, local_provider_id=local_provider_id))
+        else:
+            # Historical default: Whisper is currently only supported via the
+            # OpenAI provider in this architecture. Audio is request content:
+            # a policy that excludes openai must fail closed rather than
+            # transcribe elsewhere.
+            if _local_only_blocks_provider(
+                    provider_id, getattr(self, "_local_routes", None)):
+                raise ValueError(
+                    "Local-only mode blocks openai, the only configured "
+                    "transcription route; audio was not sent.")
+            policy = getattr(self, "provider_policy", None)
+            if policy is not None and not policy.allows(provider_id, model):
+                raise ValueError(
+                    "Provider policy excludes openai, the only configured "
+                    "transcription route; audio was not sent.")
+            client = (self.async_clients.get(provider_id)
+                      or self.clients.get(provider_id))
+
+            if not client:
+                raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
 
         # ONE physical request per admission. The clients built by
         # `_initialize_clients` already carry `max_retries=0`, but a runtime
@@ -12463,6 +12725,7 @@ class BYOKHandler:
                 provider_id=provider_id,
                 model=model,
                 audio_seconds=duration_seconds,
+                audio_rate_per_second=audio_rate_per_second,
             )
         )
         try:
@@ -12483,6 +12746,7 @@ class BYOKHandler:
                 attempt_id=_tx_attempt_id,
                 reserved_bound=_tx_bound,
                 audio_seconds=duration_seconds,
+                audio_rate_per_second=audio_rate_per_second,
             )
             
             # Format response (handle both standard and raw response types)

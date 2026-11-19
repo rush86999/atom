@@ -24,6 +24,8 @@ interface ModelCapabilities {
     supports_tools: boolean;
     supports_vision: boolean;
     supports_reasoning: boolean;
+    supports_transcription: boolean;
+    audio_input_cost_per_second_usd: number | null;
     quality_score: number;
     speed_score: number;
     context_window: number;
@@ -189,6 +191,7 @@ const LocalModelsPage: React.FC = () => {
                                                                     {cap.supports_tools && <Badge variant="secondary">tools</Badge>}
                                                                     {cap.supports_vision && <Badge variant="secondary">vision</Badge>}
                                                                     {cap.supports_reasoning && <Badge variant="secondary">reasoning</Badge>}
+                                                                    {cap.supports_transcription && <Badge variant="secondary">transcription</Badge>}
                                                                     <Badge variant="outline">Q: {(cap.quality_score * 100).toFixed(0)}%</Badge>
                                                                 </div>
                                                             )}
@@ -230,15 +233,43 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
         supports_tools: existing?.supports_tools ?? false,
         supports_vision: existing?.supports_vision ?? false,
         supports_reasoning: existing?.supports_reasoning ?? false,
+        supports_transcription: existing?.supports_transcription ?? false,
         quality_score: existing?.quality_score ?? 0.5,
         speed_score: existing?.speed_score ?? 0.5,
         context_window: existing?.context_window ?? 4096,
     });
+    // Keep the rate as raw text so "blank" (clear/unset) stays distinct from
+    // an explicit 0 rate while the user is editing.
+    const [audioRate, setAudioRate] = useState<string>(
+        existing?.audio_input_cost_per_second_usd != null
+            ? String(existing.audio_input_cost_per_second_usd)
+            : ''
+    );
+    const [error, setError] = useState<string | null>(null);
 
     const handleSave = async () => {
+        const trimmedRate = audioRate.trim();
+        let parsedRate: number | null = null;
+        if (trimmedRate !== '') {
+            parsedRate = Number(trimmedRate);
+            if (!Number.isFinite(parsedRate) || parsedRate < 0) {
+                setError('Enter a valid USD-per-second price. 0 is allowed; negative or non-numeric values are not.');
+                return;
+            }
+        }
+        if (caps.supports_transcription && parsedRate === null) {
+            setError('Enter an audio input price in USD per second to enable transcription.');
+            return;
+        }
+
+        setError(null);
         try {
             const { apiClient } = await import('../../lib/api-client');
-            await apiClient.post(`/api/local-models/${providerId}/capabilities`, { model_id: modelId, ...caps });
+            await apiClient.post(`/api/local-models/${providerId}/capabilities`, {
+                model_id: modelId,
+                ...caps,
+                audio_input_cost_per_second_usd: parsedRate,
+            });
             onSaved();
         } catch (e) {
             console.error('Failed to save capabilities:', e);
@@ -252,7 +283,31 @@ const CapabilityEditor: React.FC<{ providerId: string; modelId: string; existing
                 <div className="flex items-center gap-2"><Checkbox checked={caps.supports_tools} onCheckedChange={(v: any) => setCaps({ ...caps, supports_tools: !!v })} /> Tools</div>
                 <div className="flex items-center gap-2"><Checkbox checked={caps.supports_vision} onCheckedChange={(v: any) => setCaps({ ...caps, supports_vision: !!v })} /> Vision</div>
                 <div className="flex items-center gap-2"><Checkbox checked={caps.supports_reasoning} onCheckedChange={(v: any) => setCaps({ ...caps, supports_reasoning: !!v })} /> Reasoning</div>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        aria-label="Transcription"
+                        checked={caps.supports_transcription}
+                        onCheckedChange={(v: any) => setCaps({ ...caps, supports_transcription: !!v })}
+                    /> Transcription
+                </div>
             </div>
+            <div>
+                <p className="text-xs text-muted-foreground">Audio input cost (USD per second)</p>
+                <Input
+                    aria-label="Audio input cost (USD per second)"
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="e.g. 0.0001"
+                    value={audioRate}
+                    onChange={(e: any) => setAudioRate(e.target.value)}
+                    className="w-[180px]"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                    Required to enable transcription. Leave blank to clear the rate. Enter 0 for free audio input.
+                </p>
+            </div>
+            {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
             <div className="flex gap-6 items-end">
                 <div>
                     <p className="text-xs text-muted-foreground">Quality: {(caps.quality_score * 100).toFixed(0)}%</p>
