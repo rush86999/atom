@@ -32,7 +32,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import (
+    Any, Awaitable, Callable, Dict, List, Mapping, Optional, Sequence, Tuple,
+)
 
 from core.action_effects import (
     MUTATING_EFFECTS,
@@ -305,6 +307,83 @@ _STAGED_INVOICE_SEND_ADAPTERS = frozenset({
     "invoice.send_reminder_outlook",
     "invoice.dispatch_reminder",
 })
+
+
+def _outlook_verification_available(
+    operation: Dict[str, Any],
+    step: Optional[Mapping[str, Any]] = None,
+    plan_revision: Optional[Any] = None,
+) -> bool:
+    """Whether Sent Items verification can be offered for this operation.
+
+    Only the exact current uncertain outbound staged-invoice step is flagged:
+    the operation id, plan revision and adapter must match that step. The
+    durable mailbox binding must name both keys (the token row and the
+    Microsoft Graph /me id), the pre-dispatch send marker must exist, and the
+    exact committed draft id must be present. Guessed aliases and copies
+    nested inside other operation containers are not evidence.
+
+    Only the boolean crosses the public status projection. The durable
+    mailbox binding, send marker and draft id stay internal: callers cannot
+    reconstruct or forge provider evidence from them.
+    """
+    if str(operation.get("status") or "").strip().casefold() != "uncertain":
+        return False
+    if str(operation.get("operation_type") or "").strip().casefold() != (
+            "outbound"):
+        return False
+    operation_id = str(operation.get("operation_id") or "").strip()
+    if not operation_id:
+        return False
+    adapter = str(operation.get("adapter") or "").strip().casefold()
+    if adapter not in _STAGED_INVOICE_SEND_ADAPTERS:
+        return False
+
+    if not isinstance(step, Mapping):
+        return False
+    if str(step.get("step_id") or "") != str(
+            operation.get("step_id") or ""):
+        return False
+    if str(step.get("operation_id") or "").strip() != operation_id:
+        return False
+    if str(step.get("adapter") or "").strip().casefold() != adapter:
+        return False
+    if str(step.get("status") or "").strip().casefold() != "uncertain":
+        return False
+    if plan_revision is None:
+        plan_revision = step.get("plan_revision")
+    if plan_revision is None:
+        return False
+    step_revision = step.get("plan_revision")
+    if (step_revision is not None and step_revision != plan_revision):
+        return False
+    if operation.get("plan_revision") != plan_revision:
+        return False
+
+    from core.outlook_draft_dispatch import (
+        DRAFT_ID_FIELD,
+        SEND_STARTED_FIELD,
+        mailbox_binding,
+    )
+
+    _, mailbox = mailbox_binding(operation)
+    if not isinstance(mailbox, Mapping):
+        return False
+    if not str(mailbox.get("token_row_id") or "").strip():
+        return False
+    if not str(mailbox.get("graph_user_id") or "").strip():
+        return False
+    send_started = operation.get(SEND_STARTED_FIELD)
+    if send_started is None:
+        return False
+    draft_id = str(operation.get(DRAFT_ID_FIELD) or "").strip()
+    if not draft_id:
+        return False
+    if isinstance(send_started, Mapping):
+        marked_draft = str(send_started.get("draft_id") or "").strip()
+        if marked_draft and marked_draft != draft_id:
+            return False
+    return True
 
 
 def _operation_id_for_step(
@@ -2710,6 +2789,9 @@ class AssignmentExecutor:
             budget_view["wall_seconds"] = round(wall, 3)
         projected["budget"] = budget_view
         steps = assignment.get("steps") or []
+        steps_by_id = {
+            step.get("step_id"): step for step in steps}
+        plan_revision = assignment.get("plan_revision")
         required = [step for step in steps if step.get("required", True)]
         projected["progress"] = {
             "total_steps": len(steps),
@@ -2738,6 +2820,11 @@ class AssignmentExecutor:
                     "status": operation.get("status"),
                     "needs_reconciliation": bool(
                         operation.get("needs_reconciliation")),
+                    "outlook_verification_available":
+                        _outlook_verification_available(
+                            operation,
+                            steps_by_id.get(operation.get("step_id")),
+                            plan_revision),
                     "approval": copy.deepcopy(
                         operation.get("approval_request") or {}),
                     "uncertainty_reason": operation.get(
@@ -6100,8 +6187,9 @@ class AssignmentExecutor:
         adapter = str(step.get("adapter") or "").strip().casefold()
         if (verdict == "not_applied"
                 and adapter in _STAGED_INVOICE_SEND_ADAPTERS):
+            from core.outlook_draft_dispatch import SEND_STARTED_FIELD
             operation = _operation_by_id(record, operation_id) or {}
-            if operation.get("outlook_dispatch_send_started") is not None:
+            if operation.get(SEND_STARTED_FIELD) is not None:
                 # The send phase was durably reserved before the provider call,
                 # so this reminder may already have been accepted (HTTP 202).
                 # Treating it as not_applied would clear the operation and let

@@ -478,6 +478,16 @@ export function AssignmentPanel({
   const uncertain = detail?.assignment.steps.find(
     (s) => s.status === "uncertain"
   );
+  const uncertainOperation = uncertain
+    ? (detail?.operations || []).find(
+        (operation) =>
+          uncertain.operation_id &&
+          String(operation.operation_id) === String(uncertain.operation_id)
+      )
+    : undefined;
+  const outlookVerificationAvailable = Boolean(
+    uncertainOperation?.outlook_verification_available
+  );
 
   return (
     <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
@@ -1711,6 +1721,36 @@ export function AssignmentPanel({
                 {String(uncertain.failure?.message || "The provider may have accepted the effect.")}
                 {" "}It will not be resent automatically. Reconcile before retrying.
               </p>
+              {outlookVerificationAvailable ? (
+                <div className="mt-1">
+                  <Button
+                    size="sm"
+                    data-testid="assignment-verify-outlook"
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        const result = await reconcileAssignmentStep(
+                          detail.run_id,
+                          String(uncertain.step_id),
+                          "verify_outlook",
+                          ""
+                        );
+                        const applied =
+                          result?.verdict === "applied" ||
+                          result?.status === "reconciled";
+                        setNotice(
+                          applied
+                            ? "Outlook verified the send; the step was applied."
+                            : "Outlook could not verify the send; the evidence is insufficient and the step remains uncertain."
+                        );
+                      }, detail.run_id)
+                    }
+                  >
+                    <RefreshCw className="h-3 w-3" /> Verify in Outlook
+                  </Button>
+                </div>
+              ) : (
+                <>
               <input
                 value={reconcileEvidence}
                 onChange={(e) => setReconcileEvidence(e.target.value)}
@@ -1784,6 +1824,8 @@ export function AssignmentPanel({
                   Evidence insufficient
                 </Button>
               </div>
+                </>
+              )}
             </div>
           ) : null}
 
