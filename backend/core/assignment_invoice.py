@@ -2603,3 +2603,795 @@ register_assignment_adapter(
     metadata={"effect": "read_only", "required_actions": ["retrieve"],
               "allow_standing_authorization": False},
 )(_invoice_wait_for_reply)
+
+
+_INVOICE_COMMITMENT_ADAPTER = "invoice.await_commitment"
+_INVOICE_COMMITMENT_FIELD = "invoice_commitments"
+_INVOICE_COMMITMENT_SCHEMA = "atom-invoice-commitment-1"
+_INVOICE_COMMITMENT_VERDICTS = frozenset(
+    {"confirmed", "no_commitment", "unclear"})
+
+
+def _commitment_gap(
+    concept: str, reason: str, question: str, *, checked: Any = None,
+) -> None:
+    gap = {
+        "concept": concept,
+        "reason": reason,
+        "question": question,
+        "next_retrieval": "request the invoice commitment reviewer decision",
+        "kind": "missing_evidence",
+    }
+    if checked:
+        gap["checked_evidence"] = list(checked)
+    raise NeedsContext(gap)
+
+
+def _commitment_text(
+    value: Any, field: str, *, required: bool = False,
+    nonblank: bool = False,
+) -> Optional[str]:
+    """Read one identity exactly; never coerce or substitute another value."""
+    if value is None:
+        if required:
+            _commitment_gap(
+                "invoice_commitment_source",
+                f"invoice reply evidence is missing {field}",
+                "Which exact verified invoice reply should be reviewed?",
+                checked=[f"missing={field}"],
+            )
+        return None
+    if type(value) is not str:
+        _commitment_gap(
+            "invoice_commitment_source",
+            f"invoice reply evidence {field} must be an exact string",
+            "Which exact verified invoice reply should be reviewed?",
+            checked=[f"invalid={field}"],
+        )
+    if not value:
+        if required:
+            _commitment_gap(
+                "invoice_commitment_source",
+                f"invoice reply evidence is missing {field}",
+                "Which exact verified invoice reply should be reviewed?",
+                checked=[f"missing={field}"],
+            )
+        return None
+    if nonblank and not value.strip():
+        _commitment_gap(
+            "invoice_commitment_source",
+            f"invoice reply evidence is missing {field}",
+            "Which exact verified invoice reply should be reviewed?",
+            checked=[f"missing={field}"],
+        )
+    return value
+
+
+def _commitment_assignment(
+    record: Mapping[str, Any], context: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    assignment = record.get("assignment")
+    if not isinstance(assignment, Mapping):
+        assignment = context.get("assignment")
+    return assignment if isinstance(assignment, Mapping) else {}
+
+
+def _commitment_step_applied(step: Mapping[str, Any]) -> bool:
+    return _text(step.get("status") or "applied").lower() == "applied"
+
+
+def _commitment_current_step(
+    assignment: Mapping[str, Any], context: Mapping[str, Any],
+) -> Dict[str, Any]:
+    steps = [
+        dict(step) for step in (assignment.get("steps") or [])
+        if isinstance(step, Mapping)
+    ]
+    current = context.get("step")
+    current = dict(current) if isinstance(current, Mapping) else {}
+    step_id = _text(current.get("step_id"))
+    if step_id:
+        matches = [
+            step for step in steps if _text(step.get("step_id")) == step_id
+        ]
+        if len(matches) == 1:
+            current = matches[0]
+    if not current:
+        matches = [
+            step for step in steps
+            if _text(step.get("adapter")) == _INVOICE_COMMITMENT_ADAPTER
+        ]
+        if len(matches) == 1:
+            current = matches[0]
+    if not current or (
+            current.get("adapter")
+            and _text(current.get("adapter")) != _INVOICE_COMMITMENT_ADAPTER):
+        _commitment_gap(
+            "invoice_commitment_step",
+            "the persisted step is not an invoice.await_commitment step",
+            "Which persisted invoice commitment review is awaiting a verdict?",
+        )
+    return current
+
+
+def _commitment_reply_predecessor(
+    assignment: Mapping[str, Any], current: Mapping[str, Any],
+) -> Dict[str, Any]:
+    steps = [
+        dict(step) for step in (assignment.get("steps") or [])
+        if isinstance(step, Mapping)
+    ]
+    current_id = _text(current.get("step_id"))
+    dependency_ids = {
+        _text(item) for item in (current.get("depends_on") or [])
+        if _text(item)
+    }
+    candidates = [
+        step for step in steps
+        if _text(step.get("adapter")) == _INVOICE_REPLY_ADAPTER
+        and _text(step.get("step_id")) != current_id
+    ]
+    if dependency_ids:
+        candidates = [
+            step for step in candidates
+            if _text(step.get("step_id")) in dependency_ids
+        ]
+    applied = [
+        step for step in candidates if _commitment_step_applied(step)
+    ]
+    if len(applied) != 1:
+        _commitment_gap(
+            "invoice_commitment_source",
+            (
+                "the commitment review has no unique directly applied "
+                "invoice.wait_for_reply predecessor"
+                if not applied else
+                "the commitment review has more than one directly applied "
+                "invoice.wait_for_reply predecessor"),
+            "Which exact verified invoice reply should be reviewed?",
+            checked=[
+                f"reply_candidates={len(candidates)}",
+                f"applied_candidates={len(applied)}",
+            ],
+        )
+    return applied[0]
+
+
+def _commitment_packet(
+    record: Mapping[str, Any],
+    reply_step: Mapping[str, Any],
+    assignment: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Derive the published source packet for one verified invoice reply."""
+    if _text(reply_step.get("adapter")) != _INVOICE_REPLY_ADAPTER \
+            or _text(reply_step.get("operation_type")) != "retrieve" \
+            or _text(reply_step.get("status")) != "applied":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the predecessor is not an applied invoice.wait_for_reply "
+            "retrieve step",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+
+    reply_operation_id = _commitment_text(
+        reply_step.get("operation_id"), "step operation_id", required=True)
+    operations = [
+        dict(operation) for operation in (record.get("operations") or [])
+        if isinstance(operation, Mapping)
+    ]
+    operation_matches = [
+        operation for operation in operations
+        if _text(operation.get("operation_id")) == reply_operation_id
+    ]
+    if len(operation_matches) != 1:
+        _commitment_gap(
+            "invoice_commitment_source",
+            (
+                "the applied reply step has no exact source operation"
+                if not operation_matches else
+                "the reply source operation identity is ambiguous"),
+            "Which exact verified invoice reply should be reviewed?",
+            checked=[f"operation_candidates={len(operation_matches)}"],
+        )
+    operation = operation_matches[0]
+    if _text(operation.get("adapter")) != _INVOICE_REPLY_ADAPTER \
+            or _text(operation.get("operation_type")) != "retrieve" \
+            or _text(operation.get("status")) != "applied":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the reply source operation is not an applied retrieve",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+
+    result = reply_step.get("result")
+    if not isinstance(result, Mapping):
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice.wait_for_reply result is missing",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    evidence = reply_step.get("evidence_refs")
+    if not isinstance(evidence, list) or len(evidence) != 1:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence is not unique",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    typed = evidence[0]
+    if not isinstance(typed, Mapping):
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence is not typed",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    typed = dict(typed)
+    if _text(typed.get("kind")) != "invoice_reply":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence has the wrong type",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    if typed.get("verified") is not True \
+            or typed.get("reply_seen") is not True:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence is not a verified seen reply",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    for field in ("commitment", "payment", "settled", "send_performed"):
+        if typed.get(field) is not False:
+            _commitment_gap(
+                "invoice_commitment_source",
+                f"the invoice reply evidence must record {field}=false",
+                "Which exact verified invoice reply should be reviewed?",
+                checked=[f"{field}={typed.get(field)!r}"],
+            )
+
+    dispatch_operation_id = _commitment_text(
+        typed.get("operation_id"), "evidence operation_id", required=True)
+    if dispatch_operation_id == reply_operation_id:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence does not name a distinct dispatch "
+            "operation",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    correlation_id = _commitment_text(
+        typed.get("correlation_id"), "evidence correlation_id",
+        required=True)
+    if correlation_id != f"invoice-reply:{dispatch_operation_id}":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence correlation is not bound to the "
+            "dispatch operation",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    message_id = _commitment_text(
+        typed.get("message_id"), "evidence message_id", required=True)
+    reply_message_id = _commitment_text(
+        typed.get("reply_message_id"), "evidence reply_message_id",
+        required=True)
+    if message_id == reply_message_id:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply evidence does not name distinct sent and reply "
+            "messages",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    invoice_id = _commitment_text(
+        typed.get("invoice_id"), "evidence invoice_id", required=True,
+        nonblank=True)
+    conversation_id = _commitment_text(
+        typed.get("conversation_id"), "evidence conversation_id",
+        required=True, nonblank=True)
+    reply_sender = _commitment_text(
+        typed.get("reply_sender"), "evidence reply_sender",
+        required=True, nonblank=True)
+
+    depends_on = reply_step.get("depends_on")
+    if not isinstance(depends_on, list):
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice.wait_for_reply step has no predecessor",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    steps = [
+        dict(step) for step in (assignment.get("steps") or [])
+        if isinstance(step, Mapping)
+    ]
+    predecessor_matches = [
+        step for step in steps
+        if _text(step.get("operation_id")) == dispatch_operation_id
+    ]
+    if len(predecessor_matches) != 1:
+        _commitment_gap(
+            "invoice_commitment_source",
+            (
+                "the reply dispatch step was not found"
+                if not predecessor_matches else
+                "the reply dispatch step identity is ambiguous"),
+            "Which exact invoice reminder send produced this reply?",
+            checked=[f"dispatch_candidates={len(predecessor_matches)}"],
+        )
+    predecessor = predecessor_matches[0]
+    if _text(predecessor.get("adapter")) not in _INVOICE_SEND_ADAPTERS \
+            or _text(predecessor.get("operation_type")) != "outbound" \
+            or _text(predecessor.get("status")) != "applied":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the reply evidence does not point to an applied outbound "
+            "invoice reminder step",
+            "Which exact invoice reminder send produced this reply?",
+        )
+    if _text(predecessor.get("step_id")) not in depends_on:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice.wait_for_reply step does not depend on the reply "
+            "dispatch step",
+            "Which exact invoice reminder send produced this reply?",
+        )
+
+    dispatch_matches = [
+        operation for operation in operations
+        if _text(operation.get("operation_id")) == dispatch_operation_id
+    ]
+    if len(dispatch_matches) != 1:
+        _commitment_gap(
+            "invoice_commitment_source",
+            (
+                "the reply dispatch operation was not found"
+                if not dispatch_matches else
+                "the reply dispatch operation identity is ambiguous"),
+            "Which exact invoice reminder send produced this reply?",
+            checked=[f"dispatch_candidates={len(dispatch_matches)}"],
+        )
+    dispatch_operation = dispatch_matches[0]
+    if _text(dispatch_operation.get("adapter")) not in _INVOICE_SEND_ADAPTERS \
+            or _text(dispatch_operation.get("operation_type")) != "outbound" \
+            or _text(dispatch_operation.get("status")) != "applied":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the reply dispatch operation is not an applied outbound invoice "
+            "reminder",
+            "Which exact invoice reminder send produced this reply?",
+        )
+
+    verification = result.get("verification")
+    if not isinstance(verification, Mapping) \
+            or _text(verification.get("status")) != "verified":
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply verification is not verified",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+    coverage = verification.get("coverage")
+    if not isinstance(coverage, Mapping) \
+            or coverage.get("complete") is not True \
+            or coverage.get("truncated") is not False:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the invoice reply verification is not complete",
+            "Which exact verified invoice reply should be reviewed?",
+        )
+
+    source = {
+        "operation_id": dispatch_operation_id,
+        "reply_operation_id": reply_operation_id,
+        "correlation_id": correlation_id,
+        "reply_message_id": reply_message_id,
+        "message_id": message_id,
+        "draft_id": _commitment_text(
+            typed.get("draft_id"), "evidence draft_id"),
+        "reply_sender": reply_sender,
+        "invoice_id": invoice_id,
+        "invoice_number": _commitment_text(
+            typed.get("invoice_number"), "evidence invoice_number"),
+        "conversation_id": conversation_id,
+        "evidence_kind": "invoice_reply",
+    }
+    return {
+        "step": dict(reply_step),
+        "operation": operation,
+        "dispatch_step": predecessor,
+        "evidence": typed,
+        "source": source,
+    }
+
+
+def _commitment_revisions(
+    assignment: Mapping[str, Any], reply_step_id: str,
+) -> list[Dict[str, Any]]:
+    """Read one reply step's append-only commitment revisions."""
+    store = assignment.get(_INVOICE_COMMITMENT_FIELD)
+    if store is None:
+        return []
+    if not isinstance(store, Mapping) \
+            or store.get("schema") != _INVOICE_COMMITMENT_SCHEMA:
+        _commitment_gap(
+            "invoice_commitment_history",
+            "invoice commitment history is malformed",
+            "Which reviewed invoice commitment revision is current?",
+        )
+    revisions = store.get("revisions")
+    if not isinstance(revisions, list):
+        _commitment_gap(
+            "invoice_commitment_history",
+            "invoice commitment history is malformed",
+            "Which reviewed invoice commitment revision is current?",
+        )
+    selected: list[Dict[str, Any]] = []
+    for raw in revisions:
+        if not isinstance(raw, Mapping):
+            _commitment_gap(
+                "invoice_commitment_history",
+                "invoice commitment history is malformed",
+                "Which reviewed invoice commitment revision is current?",
+            )
+        raw_step_id = raw.get("step_id")
+        revision = raw.get("revision")
+        if type(raw_step_id) is not str or not raw_step_id \
+                or type(revision) is not int or revision < 1 \
+                or raw.get("verdict") not in _INVOICE_COMMITMENT_VERDICTS \
+                or type(raw.get("reviewed_by")) is not str \
+                or not raw.get("reviewed_by") \
+                or type(raw.get("reviewed_at")) is not str \
+                or not raw.get("reviewed_at") \
+                or not isinstance(raw.get("source"), Mapping):
+            _commitment_gap(
+                "invoice_commitment_history",
+                "invoice commitment history is malformed",
+                "Which reviewed invoice commitment revision is current?",
+            )
+        if raw_step_id == reply_step_id:
+            selected.append(dict(raw))
+    for index, item in enumerate(selected, start=1):
+        if item.get("revision") != index:
+            _commitment_gap(
+                "invoice_commitment_history",
+                "invoice commitment revisions are not contiguous",
+                "Which reviewed invoice commitment revision is current?",
+            )
+    return selected
+
+
+def _commitment_assert_source(
+    source: Mapping[str, Any], history: list[Dict[str, Any]],
+) -> None:
+    """Keep every revision bound to the one published operation/reply pair."""
+    for item in history:
+        recorded = item.get("source")
+        recorded = recorded if isinstance(recorded, Mapping) else {}
+        for field in (
+            "operation_id", "reply_operation_id", "reply_message_id",
+        ):
+            current = recorded.get(field)
+            if _text(current) != _text(source.get(field)):
+                _commitment_gap(
+                    "invoice_commitment_source",
+                    "the published invoice reply no longer matches the recorded "
+                    "commitment source",
+                    "Which exact verified invoice reply was reviewed?",
+                    checked=[f"field={field}"],
+                )
+            if field in item \
+                    and _text(item.get(field)) != _text(source.get(field)):
+                _commitment_gap(
+                    "invoice_commitment_source",
+                    "the published invoice reply no longer matches the recorded "
+                    "commitment source",
+                    "Which exact verified invoice reply was reviewed?",
+                    checked=[f"field={field}"],
+                )
+
+
+def _commitment_reviewer_waiting(
+    *,
+    context: Mapping[str, Any],
+    record: Mapping[str, Any],
+    source: Mapping[str, Any],
+    step_id: str,
+    revision: int,
+    detail: str,
+) -> Dict[str, Any]:
+    """Build the durable reviewer wait, never a busy loop.
+
+    The wait carries the exact workflow source and the revision the adapter
+    last observed.  The executor wakes it only for a newer conclusive
+    revision bound to that source, or at the single ``expires_at`` business
+    timer; it never schedules the short reply-recheck interval.
+    """
+    existing = _existing_reply_wait(context, record, step_id)
+    now = datetime.now(timezone.utc)
+
+    correlation_id = existing.get("correlation_id") or (
+        f"invoice-commitment:{source['reply_operation_id']}")
+    since_text = _text(existing.get("since"))
+    since = _reply_wait_time(since_text)
+    if since is None:
+        since = now
+        since_text = now.isoformat()
+
+    expires = _reply_wait_time(existing.get("expires_at"))
+    if expires is not None:
+        expires_text = _text(existing.get("expires_at"))
+    else:
+        legacy_deadline = _reply_wait_time(existing.get("deadline"))
+        if legacy_deadline is not None and legacy_deadline > now:
+            expires = legacy_deadline
+        else:
+            expires = since + timedelta(
+                seconds=_INVOICE_REPLY_EXPIRY_SECONDS)
+        expires_text = expires.isoformat()
+
+    waiting = {
+        "event": "invoice_commitment_review",
+        "state": "waiting_for_person",
+        "party": "reviewer",
+        "resume_on": "reviewer_decision",
+        "detail": detail,
+        "correlation_id": correlation_id,
+        "expires_at": expires_text,
+        "operation_id": source["operation_id"],
+        "reply_operation_id": source["reply_operation_id"],
+        "reply_message_id": source["reply_message_id"],
+        # The executor may wake this wait only from a newer conclusive
+        # decision revision bound to this exact workflow source.  It is a
+        # local review, never an approval or a provider poll.
+        "wait_source": {
+            "operation_id": _text(source.get("operation_id")),
+            "reply_operation_id": _text(source.get("reply_operation_id")),
+            "reply_message_id": _text(source.get("reply_message_id")),
+        },
+        "invoice_id": source.get("invoice_id"),
+        "invoice_number": source.get("invoice_number"),
+        "revision": revision,
+        "commitment": False,
+        "payment": False,
+        "settled": False,
+        "send_performed": False,
+        "since": since_text,
+    }
+
+    if now >= expires:
+        waiting.update({
+            "event": "invoice_commitment_review_expired",
+            "party": "owner",
+            "resume_on": "owner_decision",
+            "detail": (
+                "the invoice commitment review did not receive a decision "
+                "before the wait expired"),
+            "expired_at": now.isoformat(),
+            "escalation": "owner",
+            "reason": "invoice_commitment_review_expired",
+        })
+        raise NeedsContext({
+            "concept": "invoice_commitment_review_expired",
+            "reason": (
+                "the invoice commitment review expired without a reviewer "
+                "decision"),
+            "question": (
+                "The invoice commitment review expired without a decision. "
+                "Should the owner close the wait or follow up on the invoice "
+                "reply?"),
+            "next_retrieval": (
+                "the assignment owner must decide the next invoice collection "
+                "action"),
+            "resolver": "owner",
+            "kind": "business_decision",
+            "checked_evidence": [
+                f"correlation_id={correlation_id}",
+                f"revision={revision}",
+                f"expires_at={expires_text}",
+            ],
+            "waiting": waiting,
+        })
+
+    # A reviewer decision is durable assignment state, not a provider poll.
+    # Park until the real business expiry.  The executor wakes early only
+    # from a newer conclusive revision bound to the exact wait source; the
+    # short reply-recheck interval must not re-enter this wait, because each
+    # empty re-entry consumes an attempt before the reviewer can act.
+    waiting["deadline"] = expires_text
+    return waiting
+
+
+async def _invoice_await_commitment(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Wait for or read the reviewer's verdict on one exact invoice reply.
+
+    Read-only: ``inputs`` never authorize or select the source.  The unique
+    directly applied ``invoice.wait_for_reply`` predecessor is re-read through
+    the scoped lifecycle, its one typed evidence ref is revalidated, and the
+    append-only ``invoice_commitments`` history supplies the current verdict.
+    No provider is called and no payment or settlement is asserted.
+    """
+    del inputs  # caller arguments are deliberately not authority
+
+    actor_id, tenant_id, workspace_id = _persisted_execution_authority(context)
+    missing = [
+        name for name, value in (
+            ("actor_id", actor_id),
+            ("tenant_id", tenant_id),
+            ("workspace_id", workspace_id),
+        ) if not value
+    ]
+    if missing:
+        _commitment_gap(
+            "authenticated_scope",
+            "the persisted execution context has no " + ", ".join(missing),
+            "Which authenticated actor, tenant and workspace authorize this "
+            "invoice commitment review?",
+            checked=[f"missing={name}" for name in missing],
+        )
+
+    run_id = _reply_run_id(context)
+    if not run_id:
+        _commitment_gap(
+            "execution_identity",
+            "the persisted commitment review has no run id",
+            "Which persisted assignment owns this invoice commitment review?",
+            checked=["run_id=missing"],
+        )
+
+    lifecycle = _fresh_scoped_lifecycle(
+        context,
+        actor_id=actor_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    if lifecycle is None:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the scoped lifecycle needed to re-read the reviewed reply is "
+            "unavailable",
+            "Which persisted invoice reply should be reviewed?",
+            checked=["lifecycle=unavailable"],
+        )
+
+    try:
+        record = lifecycle.get_task(run_id) or {}
+    except Exception as exc:  # noqa: BLE001 — no external read happened
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the persisted task could not be re-read for the commitment "
+            f"review: {type(exc).__name__}: {exc}",
+            "Which persisted invoice reply should be reviewed?",
+        )
+    if not record:
+        candidate = context.get("task") or context.get("task_record")
+        if isinstance(candidate, Mapping):
+            record = dict(candidate)
+    if not isinstance(record, Mapping) or not record:
+        _commitment_gap(
+            "invoice_commitment_source",
+            "the persisted task for the commitment review is missing",
+            "Which persisted invoice reply should be reviewed?",
+            checked=[f"run_id={run_id}"],
+        )
+
+    assignment = _commitment_assignment(record, context)
+    current_step = _commitment_current_step(assignment, context)
+    reply_step = _commitment_reply_predecessor(assignment, current_step)
+    packet = _commitment_packet(record, reply_step, assignment)
+    source = packet["source"]
+    history = _commitment_revisions(
+        assignment, _text(reply_step.get("step_id")))
+    _commitment_assert_source(source, history)
+    current = history[-1] if history else None
+    revision = current.get("revision") if current else 0
+    verdict = current.get("verdict") if current else None
+
+    if verdict is None or verdict == "unclear":
+        detail = (
+            "the invoice reply has not been reviewed for a commitment yet"
+            if verdict is None else
+            "the reviewer marked the invoice reply unclear; a reviewer "
+            "decision is still required")
+        raise WaitingForExternal(_commitment_reviewer_waiting(
+            context=context,
+            record=record,
+            source=source,
+            step_id=_text(current_step.get("step_id")),
+            revision=revision,
+            detail=detail,
+        ))
+
+    committed = verdict == "confirmed"
+    commitment_date = current.get("commitment_date") if committed else None
+    attention = "owner" if verdict == "no_commitment" else None
+    resolution = (
+        "owner_attention" if verdict == "no_commitment"
+        else "commitment_confirmed")
+    invoice = dict(_send_step_invoice(packet["dispatch_step"]))
+    for field in ("invoice_id", "invoice_number"):
+        if source.get(field):
+            invoice.setdefault(field, source[field])
+    commitment = {
+        "verdict": verdict,
+        "revision": revision,
+        "commitment_date": commitment_date,
+        "reviewed_by": current.get("reviewed_by"),
+        "reviewed_at": current.get("reviewed_at"),
+        "source": dict(source),
+        "attention": attention,
+        "route": resolution,
+    }
+    attention_evidence = None
+    if verdict == "no_commitment":
+        attention_evidence = {
+            "kind": "invoice_commitment",
+            "verdict": verdict,
+            "revision": revision,
+            "attention": "owner",
+            "route": "owner_attention",
+            "source": dict(source),
+        }
+    data = {
+        **commitment,
+        "resolution": resolution,
+        "current_revision": revision,
+        "operation_id": source["operation_id"],
+        "reply_operation_id": source["reply_operation_id"],
+        "reply_message_id": source["reply_message_id"],
+        "correlation_id": source["correlation_id"],
+        "invoice_id": source.get("invoice_id"),
+        "invoice_number": source.get("invoice_number"),
+        "requires_owner_attention": verdict == "no_commitment",
+        "attention_evidence": attention_evidence,
+        "commitment": committed,
+        "payment": False,
+        "settled": False,
+        "send_performed": False,
+        "payment_asserted": False,
+        "settlement_asserted": False,
+    }
+    return {
+        "status": "applied",
+        "action_result": "applied",
+        "resolution": resolution,
+        "route": resolution,
+        "summary": (
+            f"invoice reply commitment {verdict} at revision {revision}"
+            + (f" for {commitment_date}" if commitment_date else "")),
+        "verdict": verdict,
+        "revision": revision,
+        "current_revision": revision,
+        "commitment_date": commitment_date,
+        "reviewed_by": current.get("reviewed_by"),
+        "reviewed_at": current.get("reviewed_at"),
+        "attention": attention,
+        "requires_owner_attention": verdict == "no_commitment",
+        "attention_evidence": attention_evidence,
+        "source": dict(source),
+        "invoice": invoice,
+        "operation_id": source["operation_id"],
+        "dispatch_operation_id": source["operation_id"],
+        "reply_operation_id": source["reply_operation_id"],
+        "reply_message_id": source["reply_message_id"],
+        "correlation_id": source["correlation_id"],
+        "commitment": committed,
+        "payment": False,
+        "settled": False,
+        "send_performed": False,
+        "provider_state": "read_only",
+        "data": data,
+        "evidence": [dict(packet["evidence"])],
+        "evidence_refs": [dict(packet["evidence"])],
+        "verification": {
+            "status": "verified",
+            "resource_id": source["reply_message_id"],
+            "version": f"invoice_commitment:{revision}",
+            "coverage": {"complete": True, "truncated": False},
+        },
+    }
+
+
+register_assignment_adapter(
+    "invoice.await_commitment",
+    description=(
+        "Read the reviewer's commitment verdict for one verified invoice "
+        "reply"),
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False},
+)(_invoice_await_commitment)

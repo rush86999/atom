@@ -308,6 +308,21 @@ _STAGED_INVOICE_SEND_ADAPTERS = frozenset({
     "invoice.dispatch_reminder",
 })
 
+#: A local invoice commitment review is a durable person-owned wait, not an
+#: approval or a provider poll.  It may wake early only from a newer
+#: conclusive append-only decision revision bound to the exact workflow wait
+#: source, and otherwise only at its single business-expiry timer.
+_INVOICE_COMMITMENT_WAIT_ADAPTER = "invoice.await_commitment"
+_INVOICE_COMMITMENT_WAIT_EVENT = "invoice_commitment_review"
+_INVOICE_COMMITMENT_FIELD = "invoice_commitments"
+_INVOICE_COMMITMENT_SCHEMA = "atom-invoice-commitment-1"
+_INVOICE_COMMITMENT_VERDICTS = frozenset(
+    {"confirmed", "no_commitment", "unclear"})
+_INVOICE_COMMITMENT_CONCLUSIVE = frozenset({"confirmed", "no_commitment"})
+_INVOICE_COMMITMENT_SOURCE_FIELDS = (
+    "operation_id", "reply_operation_id", "reply_message_id",
+)
+
 
 def _outlook_verification_available(
     operation: Dict[str, Any],
@@ -6942,8 +6957,11 @@ class AssignmentExecutor:
     def _parse_clock(value: Any) -> Optional[float]:
         if value in (None, ""):
             return None
+        text = str(value)
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
         try:
-            return datetime.fromisoformat(str(value)).timestamp()
+            return datetime.fromisoformat(text).timestamp()
         except (TypeError, ValueError):
             return None
 
@@ -7659,10 +7677,150 @@ class AssignmentExecutor:
             "previous_results": prior,
         }
 
+    @staticmethod
+    def _commitment_waiting(
+        operation: Optional[Mapping[str, Any]],
+        step: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        waiting = (
+            (operation or {}).get("waiting")
+            or step.get("waiting") or {})
+        return dict(waiting) if isinstance(waiting, Mapping) else {}
+
+    @classmethod
+    def _is_invoice_commitment_wait(
+        cls,
+        step: Mapping[str, Any],
+        operation: Optional[Mapping[str, Any]],
+    ) -> bool:
+        """Whether this is the local reviewer wait, not an ordinary wait."""
+        if str(step.get("adapter") or "").strip() == (
+                _INVOICE_COMMITMENT_WAIT_ADAPTER):
+            return True
+        waiting = cls._commitment_waiting(operation, step)
+        return str(waiting.get("event") or "").strip() == (
+            _INVOICE_COMMITMENT_WAIT_EVENT)
+
+    @staticmethod
+    def _commitment_wait_source(waiting: Mapping[str, Any]) -> Dict[str, str]:
+        """Read the exact workflow source the wait was parked on."""
+        recorded = waiting.get("wait_source")
+        recorded = recorded if isinstance(recorded, Mapping) else {}
+        source: Dict[str, str] = {}
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            value = recorded.get(field)
+            if value in (None, ""):
+                value = waiting.get(field)
+            source[field] = str(value or "").strip()
+        return source
+
+    @staticmethod
+    def _commitment_revision_matches_source(
+        source: Mapping[str, str],
+        revision: Mapping[str, Any],
+    ) -> bool:
+        """A revision may wake the wait only when it names the same source."""
+        recorded = revision.get("source")
+        if not isinstance(recorded, Mapping):
+            return False
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            expected = str(source.get(field) or "")
+            if str(recorded.get(field) or "").strip() != expected:
+                return False
+            if field in revision \
+                    and str(revision.get(field) or "").strip() != expected:
+                return False
+        return True
+
+    def _commitment_wait_wake(
+        self,
+        record: Mapping[str, Any],
+        waiting: Mapping[str, Any],
+    ) -> bool:
+        """True only for a newer conclusive revision of this exact wait.
+
+        The fresh durable assignment is the authority.  The wait records the
+        workflow source (dispatch operation, reply operation and reply
+        message) plus the revision the adapter last observed.  A wake needs
+        the latest revision carrying that exact source to be newer than the
+        observed revision and conclusive.  ``unclear`` or a missing/ambiguous
+        source keeps the wait.
+        """
+        assignment = record.get("assignment")
+        if not isinstance(assignment, Mapping):
+            return False
+        store = assignment.get(_INVOICE_COMMITMENT_FIELD)
+        if not isinstance(store, Mapping):
+            return False
+        if str(store.get("schema") or "") != _INVOICE_COMMITMENT_SCHEMA:
+            return False
+        revisions = store.get("revisions")
+        if not isinstance(revisions, list):
+            return False
+
+        source = self._commitment_wait_source(waiting)
+        # The source must be exact enough to identify one published reply.
+        if not source.get("operation_id") \
+                or not source.get("reply_operation_id") \
+                or not source.get("reply_message_id"):
+            return False
+
+        selected: List[Dict[str, Any]] = []
+        for raw in revisions:
+            if not isinstance(raw, Mapping):
+                return False
+            if not self._commitment_revision_matches_source(source, raw):
+                continue
+            selected.append(dict(raw))
+        if not selected:
+            return False
+        for item in selected:
+            if type(item.get("revision")) is not int \
+                    or item.get("revision") < 1:
+                return False
+            if str(item.get("verdict") or "") not in (
+                    _INVOICE_COMMITMENT_VERDICTS):
+                return False
+
+        latest = selected[-1]
+        try:
+            observed_revision = int(waiting.get("revision") or 0)
+        except (TypeError, ValueError):
+            observed_revision = 0
+        if int(latest.get("revision") or 0) <= observed_revision:
+            return False
+        return str(latest.get("verdict") or "") in (
+            _INVOICE_COMMITMENT_CONCLUSIVE)
+
+    def _commitment_expiry_reached(
+        self, waiting: Mapping[str, Any],
+    ) -> bool:
+        """The one real business timer for a reviewer wait.
+
+        ``expires_at`` is the stable business expiry.  A legacy wait without
+        it keeps its persisted ``deadline`` as the single timer; a short
+        adapter recheck deadline must never re-enter the wait.
+        """
+        expires = self._parse_clock(waiting.get("expires_at"))
+        if expires is None:
+            expires = self._parse_clock(waiting.get("deadline"))
+        if expires is None:
+            return False
+        return float(self.clock()) >= expires
+
     def _resolve_waiting(self, record: Dict[str, Any], step: Dict[str, Any]) -> bool:
         """True when a waiting step is eligible to run again."""
         operation_id = _operation_id_for_step(record, step)
         operation = _operation_by_id(record, operation_id) if operation_id else None
+        if self._is_invoice_commitment_wait(step, operation):
+            # This local reviewer wait is durable assignment state, never an
+            # approval or a provider poll.  Approval state is deliberately not
+            # consulted: only a newer conclusive source-bound revision wakes
+            # it, otherwise its single business-expiry timer applies.
+            waiting = self._commitment_waiting(operation, step)
+            if self._commitment_wait_wake(record, waiting):
+                return True
+            return self._commitment_expiry_reached(waiting)
         if operation is None:
             return True
         status = operation.get("status")
@@ -7691,20 +7849,23 @@ class AssignmentExecutor:
         if step.get("status") == "awaiting_approval":
             operation_id = _operation_id_for_step(record, step)
             operation = _operation_by_id(record, operation_id) if operation_id else None
-            if not operation or operation.get("status") != "approved":
-                return False
-            assignment = self._close_idle(
-                assignment, reason="approval arrived")
-            # Approved: the executor re-prepares and verifies the payload
-            # before running, so changed content cannot ride an old approval.
-            updated = self._mark_step(assignment, step["step_id"], {
-                "status": "running", "updated_at": _utc_now_iso()})
-            self._persist_assignment(
-                run_id, updated, f"step {step['step_id']} approved")
-            record = self.lifecycle.get_task(run_id) or record
-            step = step_by_id(updated, step["step_id"]) or step
-            await self._run_step(run_id, record, updated, step)
-            return True
+            if not self._is_invoice_commitment_wait(step, operation):
+                if not operation or operation.get("status") != "approved":
+                    return False
+                assignment = self._close_idle(
+                    assignment, reason="approval arrived")
+                # Approved: the executor re-prepares and verifies the payload
+                # before running, so changed content cannot ride an old approval.
+                updated = self._mark_step(assignment, step["step_id"], {
+                    "status": "running", "updated_at": _utc_now_iso()})
+                self._persist_assignment(
+                    run_id, updated, f"step {step['step_id']} approved")
+                record = self.lifecycle.get_task(run_id) or record
+                step = step_by_id(updated, step["step_id"]) or step
+                await self._run_step(run_id, record, updated, step)
+                return True
+            # A local reviewer wait is never an approval. Fall through to the
+            # durable source-bound revision/expiry predicate below.
         if not self._resolve_waiting(record, step):
             return False
         assignment = self._close_idle(
