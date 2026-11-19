@@ -55,6 +55,13 @@ export default function WorkflowEditorPage() {
     const [resultsError, setResultsError] = useState(false);
     const resultsRequestRef = useRef(0);
     const activeResultsExecutionRef = useRef<string | null>(null);
+    const resultsOpenRef = useRef(false);
+    const resultsSnapshotRef = useRef<{ executionId: string; terminal: boolean } | null>(null);
+    const resultsFetchRef = useRef<{
+        requestId: number;
+        executionId: string;
+        terminal: boolean;
+    } | null>(null);
 
     const fetchWorkflow = useCallback(async (workflowId: string) => {
         setIsLoading(true);
@@ -195,8 +202,11 @@ export default function WorkflowEditorPage() {
     };
 
     const TERMINAL_STATUSES = new Set([
-        'completed', 'success', 'succeeded', 'failed', 'error', 'cancelled', 'canceled'
+        'completed', 'success', 'succeeded', 'failed', 'error', 'cancelled', 'canceled', 'partial'
     ]);
+
+    const isTerminalStatus = (status: string | null | undefined) =>
+        status != null && TERMINAL_STATUSES.has(String(status).toLowerCase());
 
     const pollExecutionStatus = (executionId: string, attempt = 0) => {
         if (attempt > 20) return;
@@ -207,19 +217,41 @@ export default function WorkflowEditorPage() {
             .then(r => (r.ok ? r.json() : null))
             .then(d => {
                 if (!d || !d.status) return;
+                // A newer run superseded this poll; never let its status replace it.
+                if (activeResultsExecutionRef.current !== executionId) return;
+                const terminal = isTerminalStatus(d.status);
                 setLastRun(prev =>
                     prev && prev.id === executionId ? { ...prev, status: d.status } : prev
                 );
-                if (!TERMINAL_STATUSES.has(String(d.status).toLowerCase())) {
+                if (!terminal) {
                     setTimeout(() => pollExecutionStatus(executionId, attempt + 1), 3000);
+                    return;
+                }
+                if (!resultsOpenRef.current) return;
+
+                const snapshot = resultsSnapshotRef.current;
+                const fetchState = resultsFetchRef.current;
+                const terminalFetchInFlight =
+                    fetchState != null
+                    && fetchState.executionId === executionId
+                    && fetchState.terminal
+                    && fetchState.requestId === resultsRequestRef.current;
+                const hasTerminalResults =
+                    snapshot != null
+                    && snapshot.executionId === executionId
+                    && snapshot.terminal;
+                // One refresh when the run settles; not a periodic results poll.
+                if (!terminalFetchInFlight && !hasTerminalResults) {
+                    fetchRunResults(executionId, true);
                 }
             })
             .catch(() => {});
     };
 
-    const fetchRunResults = (executionId: string) => {
+    const fetchRunResults = (executionId: string, terminal = false) => {
         const requestId = resultsRequestRef.current + 1;
         resultsRequestRef.current = requestId;
+        resultsFetchRef.current = { requestId, executionId, terminal };
         setResultsError(false);
 
         const token = localStorage.getItem('auth_token');
@@ -237,6 +269,7 @@ export default function WorkflowEditorPage() {
                     setResultsError(true);
                     return;
                 }
+                resultsSnapshotRef.current = { executionId, terminal };
                 setRunResults({ steps: d.steps || [], outputs: d.outputs || null });
                 if (d.error) {
                     setLastRun(prev => (prev && prev.id === executionId ? { ...prev, status: 'failed' } : prev));
@@ -253,8 +286,19 @@ export default function WorkflowEditorPage() {
         if (!lastRun) return;
         const next = !resultsOpen;
         setResultsOpen(next);
-        if (next && runResults === null && !resultsError) {
-            fetchRunResults(lastRun.id);
+        resultsOpenRef.current = next;
+        if (!next) return;
+
+        const terminal = isTerminalStatus(lastRun.status);
+        const snapshot = resultsSnapshotRef.current;
+        const hasOnlyRunningResults =
+            terminal
+            && !resultsError
+            && snapshot != null
+            && snapshot.executionId === lastRun.id
+            && !snapshot.terminal;
+        if ((runResults === null && !resultsError) || hasOnlyRunningResults) {
+            fetchRunResults(lastRun.id, terminal);
         }
     };
 
@@ -308,11 +352,13 @@ export default function WorkflowEditorPage() {
                 // Invalidate any in-flight results request tied to a prior run.
                 activeResultsExecutionRef.current = data.execution_id;
                 resultsRequestRef.current += 1;
+                resultsSnapshotRef.current = null;
+                resultsFetchRef.current = null;
                 setRunResults(null);
                 setResultsError(false);
                 setLastRun({ id: data.execution_id, status: null });
                 pollExecutionStatus(data.execution_id);
-                if (resultsOpen) {
+                if (resultsOpenRef.current) {
                     fetchRunResults(data.execution_id);
                 }
             }
@@ -485,7 +531,7 @@ export default function WorkflowEditorPage() {
                                     <p className="text-muted-foreground">Could not load run results.</p>
                                     <button
                                       type="button"
-                                      onClick={() => lastRun && fetchRunResults(lastRun.id)}
+                                      onClick={() => lastRun && fetchRunResults(lastRun.id, isTerminalStatus(lastRun.status))}
                                       className="mt-1 text-xs font-medium underline hover:no-underline"
                                     >
                                         Retry

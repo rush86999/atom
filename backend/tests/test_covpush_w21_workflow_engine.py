@@ -19,6 +19,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from core.workflow_engine import (
+    AI_EXECUTION_SCOPE_KEY,
+    EXECUTION_SCOPE_KEY,
     MissingInputError,
     SchemaValidationError,
     StepTimeoutError,
@@ -432,13 +434,216 @@ class TestExecuteStep:
 
 
 class TestSimpleExecutors:
-    @pytest.mark.parametrize("service", ["email", "calendar", "database", "webhook", "ai"])
+    @pytest.mark.parametrize("service", ["email", "calendar", "database", "webhook"])
     def test_simple_executors(self, service):
         engine = make_engine()
         executor = getattr(engine, f"_execute_{service}_action")
         result = asyncio.run(executor("any_action", {"x": 1}, "conn-1"))
         assert result["status"] == "success"
         assert result["action"] == "any_action"
+
+
+class TestAiTextExecutor:
+    @staticmethod
+    def _step(**overrides):
+        step = step_dict(
+            service="ai", action="generate_content",
+            workspace_id="ws-1", tenant_id="tenant-1",
+            **{AI_EXECUTION_SCOPE_KEY: {
+                "workspace_id": "ws-1", "tenant_id": "tenant-1"}})
+        step.update(overrides)
+        return step
+
+    @staticmethod
+    def _llm(completion=None, side_effect=None):
+        llm_service = MagicMock()
+        if side_effect is not None:
+            generate = AsyncMock(side_effect=side_effect)
+        else:
+            generate = AsyncMock(return_value=completion)
+        llm_service.generate_completion = generate
+        return llm_service, generate
+
+    async def test_generate_content_uses_trusted_scope_and_receipt_keys(self):
+        engine = make_engine()
+        llm_service, generate = self._llm({
+            "success": True, "content": "hello", "provider": "local",
+            "model": "synthetic"})
+        fake_db = MagicMock()
+        params = {
+            "prompt": "Write a launch note",
+            # Params can never replace the engine-attached run scope or
+            # choose a provider/model/tool.
+            "workspace_id": "attacker-ws",
+            "tenant_id": "attacker-tenant",
+            "model": "override-model",
+            "vendor": "override-vendor",
+            "tools": [{"name": "danger"}],
+        }
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service) as get_llm:
+            mock_session.return_value.__enter__.return_value = fake_db
+            result = await engine._execute_ai_action(
+                "generate_content", params, None, step=self._step())
+
+        assert result["status"] == "success"
+        assert result["agent_response"] == "hello"
+        assert result["result"] == "hello"
+        assert result["provider"] == "local"
+        assert result["model"] == "synthetic"
+        assert "content" not in result
+        assert "usage" not in result
+        assert generate.call_args.kwargs["workspace_id"] == "ws-1"
+        assert generate.call_args.kwargs["tenant_id"] == "tenant-1"
+        assert generate.call_args.kwargs["messages"] == [
+            {"role": "user", "content": "Write a launch note"}]
+        assert "agent_id" not in generate.call_args.kwargs
+        get_llm.assert_called_with(
+            workspace_id="ws-1", tenant_id="tenant-1", db=fake_db)
+
+    async def test_summarize_uses_explicit_text(self):
+        engine = make_engine()
+        llm_service, generate = self._llm({
+            "success": True, "content": "short", "provider": "local",
+            "model": "synthetic"})
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await engine._execute_ai_action(
+                "summarize", {"text": "a long update"}, None,
+                step=self._step(action="summarize"))
+
+        assert result["status"] == "success"
+        assert result["agent_response"] == "short"
+        assert "a long update" in (
+            generate.call_args.kwargs["messages"][0]["content"])
+
+    async def test_execute_step_passes_trusted_step_to_ai(self):
+        engine = make_engine()
+        captured = {}
+
+        async def fake_ai(action, params, connection_id=None, step=None):
+            captured["step"] = step
+            return {
+                "action": action,
+                "status": "success",
+                "agent_response": "ok",
+                "provider": "local",
+                "model": "synthetic",
+            }
+
+        step = self._step()
+        with patch.object(engine, "_execute_ai_action", new=fake_ai):
+            output = await engine._execute_step(step, {"prompt": "x"})
+
+        assert captured["step"] is step
+        assert output["result"]["agent_response"] == "ok"
+        assert output["result"]["provider"] == "local"
+        assert output["result"]["model"] == "synthetic"
+
+    async def test_missing_input_is_rejected_before_provider(self):
+        engine = make_engine()
+        cases = [
+            ("generate_content", {}),
+            ("generate_content", {"prompt": "   "}),
+            ("summarize", {}),
+            ("summarize", {"text": "  "}),
+        ]
+        for action, params in cases:
+            with patch("core.llm_service.get_llm_service") as get_llm:
+                result = await engine._execute_ai_action(
+                    action, params, None,
+                    step=self._step(action=action))
+            assert result["status"] == "error"
+            assert "requires a nonblank" in result["error"]
+            get_llm.assert_not_called()
+
+    async def test_unknown_action_is_rejected_before_provider(self):
+        engine = make_engine()
+        with patch("core.llm_service.get_llm_service") as get_llm:
+            result = await engine._execute_ai_action(
+                "bogus_action", {"prompt": "x", "text": "y"}, None,
+                step=self._step(action="bogus_action"))
+        assert result["status"] == "error"
+        assert "Unsupported AI action" in result["error"]
+        get_llm.assert_not_called()
+
+    async def test_missing_scope_is_rejected_before_provider(self):
+        engine = make_engine()
+        with patch("core.llm_service.get_llm_service") as get_llm:
+            result = await engine._execute_ai_action(
+                "generate_content",
+                {"prompt": "x", "workspace_id": "ws", "tenant_id": "tnt"},
+                None, step=None)
+        assert result["status"] == "error"
+        assert "scope" in result["error"]
+        get_llm.assert_not_called()
+
+    async def test_definition_or_default_scope_cannot_authorize_provider(self):
+        engine = make_engine()
+        # Same step fields the engine attaches from the workflow definition
+        # (or its "default"), but no server-frozen AI marker.
+        step = step_dict(
+            service="ai", action="generate_content",
+            workspace_id="definition-ws", tenant_id="definition-tenant")
+        with patch("core.llm_service.get_llm_service") as get_llm:
+            result = await engine._execute_ai_action(
+                "generate_content", {"prompt": "x"}, None, step=step)
+        assert result["status"] == "error"
+        assert "scope" in result["error"]
+        get_llm.assert_not_called()
+
+    async def test_provider_failure_is_not_success(self):
+        engine = make_engine()
+        llm_service, _ = self._llm(side_effect=RuntimeError("no provider"))
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await engine._execute_ai_action(
+                "generate_content", {"prompt": "x"}, None,
+                step=self._step())
+
+        assert result["status"] == "error"
+        assert result["failure_reason"] == "provider_error"
+        assert "no provider" not in result["error"]
+
+    @pytest.mark.parametrize("completion", [
+        "not-a-dict",
+        {"success": True, "content": "   ", "provider": "local", "model": "m"},
+        {"success": False, "content": "",
+         "failure": {"reason": "empty_generation"}},
+    ])
+    async def test_malformed_or_blank_output_is_not_success(self, completion):
+        engine = make_engine()
+        llm_service, _ = self._llm(completion)
+        with patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.get_llm_service", return_value=llm_service):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await engine._execute_ai_action(
+                "generate_content", {"prompt": "x"}, None,
+                step=self._step())
+
+        assert result["status"] == "error"
+        assert result["failure_reason"] == "empty_response"
+
+    async def test_ai_primary_failure_uses_fallback_service(self):
+        engine = make_engine()
+
+        async def failing_ai(action, params, connection_id=None, step=None):
+            raise RuntimeError("provider down")
+
+        async def good_fallback(action, params, connection_id=None):
+            return {"ok": True}
+
+        with patch.object(engine, "_execute_ai_action", new=failing_ai), \
+             patch.object(engine, "_execute_email_action", new=good_fallback):
+            output = await engine._execute_step(
+                self._step(fallback_service="email"), {"prompt": "x"})
+
+        assert output["status"] == "success"
+        assert output["fallback_used"] is True
+        assert output["execution_method"] == "fallback_service"
+        assert output["original_service"] == "ai"
 
 
 class TestSlackExecutor:
@@ -1767,6 +1972,120 @@ class TestRunExecution:
             mock_session.return_value.__enter__.return_value = db
             await engine._run_execution("ex-g", workflow)
         assert exec_mock.call_count >= 1
+
+    async def test_linear_dispatch_attaches_frozen_ai_scope_for_fallback(self):
+        engine = make_engine()
+        sm, ws, analytics, db, governance = self._env()
+        sm.get_execution_state = AsyncMock(return_value={
+            "steps": {},
+            "input_data": {EXECUTION_SCOPE_KEY: {
+                "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}},
+            "outputs": {}})
+        engine.state_manager = sm
+        # A non-ai primary service may fall back to ai, so the marker is
+        # attached (and any definition-supplied candidate overwritten) too.
+        step = step_dict(
+            service="email", action="send", fallback_service="ai",
+            workspace_id="definition-ws", tenant_id="definition-tenant",
+            **{AI_EXECUTION_SCOPE_KEY: {
+                "workspace_id": "attacker-ws",
+                "tenant_id": "attacker-tenant"}})
+        original_step = {
+            **step,
+            AI_EXECUTION_SCOPE_KEY: dict(step[AI_EXECUTION_SCOPE_KEY]),
+        }
+        captured = {}
+
+        async def capture(step_arg, params):
+            captured["step"] = step_arg
+            return {"status": "success", "result": {}}
+
+        with patch("core.workflow_engine.get_connection_manager", return_value=ws), \
+             patch("core.analytics_engine.get_analytics_engine", return_value=analytics), \
+             patch("core.workflow_engine.get_db_session") as mock_session, \
+             patch.object(engine, "_execute_step", new=capture), \
+             patch("core.workflow_notifier.notifier.notify_completion", new=AsyncMock()):
+            mock_session.return_value.__enter__.return_value = db
+            await engine._run_execution(
+                "ex-1", {"id": "wf-1", "workspace_id": "definition-ws",
+                         "tenant_id": "definition-tenant", "steps": [step]})
+
+        assert captured["step"][AI_EXECUTION_SCOPE_KEY] == {
+            "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}
+        # Runtime scope is attached to a run-local copy; the shared
+        # definition step remains untouched for other/simultaneous runs.
+        assert step == original_step
+
+    async def test_linear_dispatch_definition_scope_has_no_ai_authority(self):
+        engine = make_engine()
+        sm, ws, analytics, db, governance = self._env()
+        sm.get_execution_state = AsyncMock(return_value={
+            "steps": {}, "input_data": {}, "outputs": {}})
+        engine.state_manager = sm
+        step = step_dict(
+            service="ai", action="generate_content",
+            parameters={"prompt": "x"},
+            workspace_id="definition-ws", tenant_id="definition-tenant",
+            **{AI_EXECUTION_SCOPE_KEY: {
+                "workspace_id": "attacker-ws",
+                "tenant_id": "attacker-tenant"}})
+        captured = {}
+
+        async def capture(step_arg, params):
+            captured["step"] = step_arg
+            return {"status": "success", "result": {}}
+
+        with patch("core.workflow_engine.get_connection_manager", return_value=ws), \
+             patch("core.analytics_engine.get_analytics_engine", return_value=analytics), \
+             patch("core.workflow_engine.get_db_session") as mock_session, \
+             patch.object(engine, "_execute_step", new=capture), \
+             patch("core.workflow_notifier.notifier.notify_completion", new=AsyncMock()):
+            mock_session.return_value.__enter__.return_value = db
+            await engine._run_execution(
+                "ex-1", {"id": "wf-1", "workspace_id": "definition-ws",
+                         "tenant_id": "definition-tenant", "steps": [step]})
+
+        assert captured["step"][AI_EXECUTION_SCOPE_KEY] is None
+
+    async def test_dag_dispatch_attaches_only_frozen_ai_scope(self):
+        engine = make_engine()
+        sm, ws, analytics, db, governance = self._env()
+        sm.get_execution_state = AsyncMock(return_value={
+            "steps": {},
+            "input_data": {EXECUTION_SCOPE_KEY: {
+                "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}},
+            "outputs": {}})
+        engine.state_manager = sm
+        workflow = {
+            "id": "wf-g",
+            "workspace_id": "definition-ws",
+            "tenant_id": "definition-tenant",
+            "nodes": [
+                {"id": "a", "title": "A", "type": "action",
+                 "config": {"service": "ai", "action": "generate_content",
+                            "parameters": {"prompt": "x"}}},
+            ],
+            "connections": [
+                {"source": "a", "target": "b",
+                 "condition": "${input.go} == true"},
+            ],
+        }
+        captured = {}
+
+        async def capture(step_arg, params):
+            captured["step"] = step_arg
+            return {"status": "success", "result": {}}
+
+        with patch("core.workflow_engine.get_connection_manager", return_value=ws), \
+             patch("core.analytics_engine.get_analytics_engine", return_value=analytics), \
+             patch("core.workflow_engine.get_db_session") as mock_session, \
+             patch.object(engine, "_execute_step", new=capture), \
+             patch("core.workflow_notifier.notifier.notify_completion", new=AsyncMock()):
+            mock_session.return_value.__enter__.return_value = db
+            await engine._run_execution("ex-g", workflow)
+
+        assert captured["step"][AI_EXECUTION_SCOPE_KEY] == {
+            "workspace_id": "frozen-ws", "tenant_id": "frozen-tenant"}
 
     async def test_graph_cancellation(self):
         engine = make_engine()
