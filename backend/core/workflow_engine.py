@@ -1893,11 +1893,16 @@ class WorkflowEngine:
 
                 # P9: the mcp executor consumes the step's run identity so its
                 # tool dispatch goes through the shared sandbox gate.
-                mcp_kwargs = {"step": step} if service == "mcp" else {}
+                # main_agent needs the same trusted step so it can resolve its
+                # requested agent inside the run's workspace/tenant scope.
+                step_kwargs = (
+                    {"step": step}
+                    if service in ("mcp", "main_agent")
+                    else {})
 
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id"), **mcp_kwargs), timeout=timeout)
+                        result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id"), **step_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             f"Step {step['id']} timed out after {timeout} seconds",
@@ -1905,7 +1910,7 @@ class WorkflowEngine:
                             timeout=timeout
                         )
                 else:
-                    result = await executor(action, params, connection_id=step.get("connection_id"), **mcp_kwargs)
+                    result = await executor(action, params, connection_id=step.get("connection_id"), **step_kwargs)
                 # Executors that return a non-success status envelope (e.g.
                 # MCP {"status": "error"}, sub-workflow {"status": "timeout"})
                 # must surface as failures, not be wrapped as a successful
@@ -1938,10 +1943,13 @@ class WorkflowEngine:
             logger.info(f"Attempting fallback service {fallback_service}.{action}")
             try:
                 fallback_executor = service_registry[fallback_service]
-                fallback_mcp_kwargs = {"step": step} if fallback_service == "mcp" else {}
+                fallback_step_kwargs = (
+                    {"step": step}
+                    if fallback_service in ("mcp", "main_agent")
+                    else {})
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_mcp_kwargs), timeout=timeout)
+                        result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             message=f"Fallback service {fallback_service}.{action} timed out after {timeout}s",
@@ -1949,7 +1957,7 @@ class WorkflowEngine:
                             timeout=timeout,
                         )
                 else:
-                    result = await fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_mcp_kwargs)
+                    result = await fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs)
                 if isinstance(result, dict) and result.get("status") and result.get("status") != "success":
                     raise ValueError(
                         f"Fallback service {fallback_service}.{action} returned error: "
@@ -2586,44 +2594,82 @@ class WorkflowEngine:
                 "status": "error"
             }
 
-    async def _execute_main_agent_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
-        """Execute Main Agent actions with MCP connections"""
-        try:
-            # This allows the main agent to act as a workflow node with MCP capabilities
-            agent_action = params.get("agent_action", action)
-            mcp_servers = params.get("mcp_servers", [])
-            input_data = params.get("input_data", {})
+    async def _execute_main_agent_action(
+        self,
+        action: str,
+        params: dict,
+        connection_id: Optional[str] = None,
+        step: Optional[dict] = None,
+    ) -> dict:
+        """Execute a main_agent text action inside the run's trusted scope.
 
-            # Prepare agent context with MCP connections
-            agent_context = {
-                "action": agent_action,
-                "input_data": input_data,
-                "mcp_connections": {},
-                "available_tools": []
+        The workflow step carries the run's trusted scope. The requested
+        agent is resolved only inside that workspace/tenant; an absent
+        agent id, an unresolved caller scope, a requested MCP server, a
+        provider failure, or an empty response is a failed action — never
+        a successful one wrapped around an inner failure.
+        """
+        agent_action = params.get("agent_action", action)
+        mcp_servers = params.get("mcp_servers")
+        input_data = params.get("input_data", {})
+        requested_agent_id = str(params.get("agent_id") or "").strip()
+        workspace_id = str((step or {}).get("workspace_id") or "").strip()
+        tenant_id = str((step or {}).get("tenant_id") or "").strip()
+
+        # Direct callers must prove the run's scope. Do NOT invent a
+        # permissive "default" scope for an unresolved workflow caller.
+        if not workspace_id or not tenant_id:
+            return {
+                "action": action,
+                "error": "main_agent step is missing its execution scope",
+                "status": "error"
+            }
+        if not requested_agent_id:
+            return {
+                "action": action,
+                "error": "agent_id is required for main_agent steps",
+                "status": "error"
+            }
+        # The MCP catalog is global and carries no authenticated tenant
+        # filtering, so this workflow action must not consult it. Refuse an
+        # explicit request rather than silently ignoring it.
+        if mcp_servers:
+            return {
+                "action": action,
+                "error": "mcp_servers are not available to main_agent workflow steps",
+                "status": "error"
             }
 
-            # Get active MCP connections
-            if mcp_servers:
-                from integrations.mcp_service import mcp_service
-                active_connections = await mcp_service.get_active_connections()
+        try:
+            # Prepare agent context with the trusted execution scope. No MCP
+            # connections or tool definitions are admitted on this path.
+            agent_context = {
+                "action": agent_action,
+                "agent_id": requested_agent_id,
+                "workspace_id": workspace_id,
+                "tenant_id": tenant_id,
+                "input_data": input_data,
+                "mcp_connections": {}
+            }
 
-                for connection in active_connections:
-                    if connection["server_id"] in mcp_servers:
-                        server_tools = await mcp_service.get_server_tools(connection["server_id"])
-                        agent_context["mcp_connections"][connection["server_id"]] = {
-                            "connected_at": connection["connected_at"],
-                            "tools": server_tools
-                        }
-                        agent_context["available_tools"].extend([
-                            {
-                                "server_id": connection["server_id"],
-                                "tool": tool
-                            } for tool in server_tools
-                        ])
-
-            # Execute main agent action with MCP context
-            # This would integrate with your existing main agent system
             result = await self._execute_agent_with_mcp(agent_context)
+
+            if not isinstance(result, dict) or result.get("success") is not True:
+                # The existing workflow envelope: a status that is not
+                # "success" makes _execute_step raise instead of marking the
+                # step COMPLETED. Keep the inner diagnostics for callers.
+                error_message = (
+                    result.get("error")
+                    if isinstance(result, dict) else None
+                ) or "main_agent execution failed"
+                return {
+                    "action": action,
+                    "agent_action": agent_action,
+                    "mcp_servers_used": list(agent_context["mcp_connections"].keys()),
+                    "result": result,
+                    "status": "error",
+                    "error": str(error_message)
+                }
 
             return {
                 "action": action,
@@ -2634,111 +2680,241 @@ class WorkflowEngine:
             }
 
         except Exception as e:
+            # Log the detail; return only a concise, safe message.
+            logger.error(f"main_agent action '{action}' failed: {e}")
             return {
                 "action": action,
-                "error": str(e),
+                "error": "main_agent execution failed",
                 "status": "error"
             }
 
     async def _execute_agent_with_mcp(self, agent_context: dict) -> dict:
         """
-        Execute main agent with MCP (Model Context Protocol) tool access.
+        Execute a main_agent text action through the scoped LLM service.
 
-        This integrates with the BYOK LLM handler to provide the agent with
-        access to MCP tools during execution.
+        The requested agent must be an enabled AgentRegistry row for the
+        workflow's exact (id, workspace, tenant); that single scoped query
+        is the admission gate. The existing LLMService.generate_completion
+        facade owns provider routing and reports explicit
+        success/content/provider/model. A provider failure, an unresolved
+        LLM scope or an empty/unusable response is a failure result, never a
+        fabricated success. This text-only path advertises and executes no
+        tools.
         """
         try:
-            from core.agent_context_resolver import AgentContextResolver
-            workspace_id = agent_context.get("workspace_id", "default")
-            tenant_id = agent_context.get("tenant_id", "default")
-            from core.llm_service import get_llm_service
-            from core.models import AgentRegistry
-
             action = agent_context.get("action", "unknown")
             input_data = agent_context.get("input_data", {})
             mcp_connections = agent_context.get("mcp_connections", {})
-            available_tools = agent_context.get("available_tools", [])
-            agent_id = agent_context.get("agent_id")
+            agent_id = str(agent_context.get("agent_id") or "").strip()
+            workspace_id = str(
+                agent_context.get("workspace_id") or "").strip()
+            tenant_id = str(agent_context.get("tenant_id") or "").strip()
 
-            # Get agent from database
-            from core.database import get_db_session
-            with get_db_session() as db:
-                agent = db.query(AgentRegistry).filter(
-                    AgentRegistry.id == agent_id
-                ).first()
-
-            if not agent:
-                logger.error(f"Agent {agent_id} not found for MCP execution")
+            if not workspace_id or not tenant_id:
                 return {
                     "success": False,
-                    "error": f"Agent {agent_id} not found"
+                    "failure_reason": "scope_unavailable",
+                    "error": "main_agent execution scope is unavailable"
+                }
+            if not agent_id:
+                return {
+                    "success": False,
+                    "failure_reason": "agent_required",
+                    "error": "agent_id is required for main_agent execution"
                 }
 
-            # Format MCP tools for LLM function calling
-            tool_definitions = [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": tool.get("name", "unknown"),
-                        "description": tool.get("description", ""),
-                        "parameters": tool.get("input_schema", {})
+            from core.llm_service import get_llm_service
+            from core.models import AgentRegistry
+            from core.database import get_db_session
+
+            # One exact, scoped admission query: the row must exist for the
+            # requested id in this workspace AND tenant, and must be enabled.
+            with get_db_session() as db:
+                agent = (
+                    db.query(AgentRegistry)
+                    .filter(
+                        AgentRegistry.id == agent_id,
+                        AgentRegistry.workspace_id == workspace_id,
+                        AgentRegistry.tenant_id == tenant_id,
+                        AgentRegistry.enabled.is_(True),
+                    )
+                    .first()
+                )
+                if agent is None:
+                    logger.error(
+                        "Agent %s is not enabled in the workflow scope",
+                        agent_id)
+                    return {
+                        "success": False,
+                        "failure_reason": "agent_not_found",
+                        "error": (
+                            "requested agent is not available in this "
+                            "workflow scope")
                     }
-                }
-                for tool in available_tools
-            ]
 
-            # Build the prompt with context about available tools
-            tool_info = "\n".join([
-                f"- {tool.get('name')}: {tool.get('description', 'No description')}"
-                for tool in available_tools
-            ])
+            # No tools are advertised: this workflow action is text-only.
+            tool_definitions = []
 
             prompt = f"""You are executing action: {action}
-
-Available MCP Tools:
-{tool_info}
 
 Input data:
 {input_data if isinstance(input_data, str) else str(input_data)}
 
-Use the available tools as needed to complete the action. Return your response in a clear, structured format."""
+Return your response in a clear, structured format."""
 
-            # Execute using LLMService (infrastructure layer - accessing handler for tool calling support)
+            # Dispatch through the existing LLM service facade with the SAME
+            # trusted workspace and tenant that scoped the agent resolution.
+            # generate_completion owns provider routing and reports an
+            # explicit success/content/provider/model result; the BYOK
+            # handler's raw chat_completion shape is not part of this
+            # workflow contract.
             try:
                 with get_db_session() as db:
-                    llm_service = get_llm_service(db=db)
-                    response = await llm_service.handler.chat_completion(
-                        provider=agent.llm_provider,
-                        model=agent.llm_model,
+                    llm_service = get_llm_service(
+                        workspace_id=workspace_id,
+                        tenant_id=tenant_id,
+                        db=db)
+                    completion = await llm_service.generate_completion(
                         messages=[{"role": "user", "content": prompt}],
-                        tools=tool_definitions if tool_definitions else None,
-                        temperature=0.7
+                        temperature=0.7,
+                        workspace_id=workspace_id,
+                        tenant_id=tenant_id,
+                        agent_id=agent_id,
                     )
-
+            except Exception as llm_error:
+                # Never turn a provider failure into a made-up success.
+                logger.error(
+                    "LLM execution failed for agent %s: %s",
+                    agent_id, llm_error)
                 return {
-                    "success": True,
-                    "agent_response": response.get("content", ""),
-                    "tool_calls": response.get("tool_calls", []),
-                    "tools_available": len(available_tools),
-                    "mcp_connections": len(mcp_connections),
-                    "input_processed": input_data,
+                    "success": False,
+                    "failure_reason": "provider_error",
                     "execution_method": "main_agent_with_mcp",
                     "agent_id": agent_id,
-                    "action": action
+                    "provider": None,
+                    "model": None,
+                    "tool_definitions": tool_definitions,
+                    "tools_available": 0,
+                    "mcp_connections": len(mcp_connections),
+                    "error": "main_agent LLM execution failed"
                 }
 
-            except Exception as llm_error:
-                logger.error(f"LLM execution failed for agent {agent_id}: {llm_error}")
-                # Fallback: Return basic response without LLM
+            if not isinstance(completion, dict):
+                logger.error(
+                    "LLM returned an unusable response for agent %s",
+                    agent_id)
                 return {
-                    "success": True,
-                    "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available (LLM execution failed, using fallback)",
-                    "tools_available": len(available_tools),
+                    "success": False,
+                    "failure_reason": "empty_response",
+                    "execution_method": "main_agent_with_mcp",
+                    "agent_id": agent_id,
+                    "provider": None,
+                    "model": None,
+                    "tool_definitions": tool_definitions,
+                    "tools_available": 0,
                     "mcp_connections": len(mcp_connections),
-                    "input_processed": input_data,
-                    "execution_method": "fallback",
-                    "error": str(llm_error)
+                    "error": "main_agent returned no usable response"
                 }
+
+            content = completion.get("content")
+            provider_value = completion.get("provider")
+            provider = (
+                provider_value.strip()
+                if isinstance(provider_value, str) and provider_value.strip()
+                else None)
+            model_value = completion.get("model")
+            model = (
+                model_value.strip()
+                if isinstance(model_value, str) and model_value.strip()
+                else None)
+
+            if completion.get("success") is not True:
+                failure = completion.get("failure")
+                failure = failure if isinstance(failure, dict) else {}
+                failure_reason = str(failure.get("reason") or "")
+                if completion.get("unresolved_scope"):
+                    logger.error(
+                        "LLM scope is unresolved for agent %s", agent_id)
+                    return {
+                        "success": False,
+                        "failure_reason": "llm_scope_unresolved",
+                        "execution_method": "main_agent_with_mcp",
+                        "agent_id": agent_id,
+                        "provider": provider,
+                        "model": model,
+                        "tool_definitions": tool_definitions,
+                        "tools_available": 0,
+                        "mcp_connections": len(mcp_connections),
+                        "error": "main_agent LLM scope is unresolved"
+                    }
+                if failure_reason == "empty_generation":
+                    logger.error(
+                        "LLM returned empty content for agent %s", agent_id)
+                    return {
+                        "success": False,
+                        "failure_reason": "empty_response",
+                        "execution_method": "main_agent_with_mcp",
+                        "agent_id": agent_id,
+                        "provider": provider,
+                        "model": model,
+                        "tool_definitions": tool_definitions,
+                        "tools_available": 0,
+                        "mcp_connections": len(mcp_connections),
+                        "error": "main_agent returned no usable response"
+                    }
+                logger.error(
+                    "LLM completion failed for agent %s (%s)",
+                    agent_id, failure_reason or "generation_failed")
+                return {
+                    "success": False,
+                    "failure_reason": "provider_error",
+                    "execution_method": "main_agent_with_mcp",
+                    "agent_id": agent_id,
+                    "provider": provider,
+                    "model": model,
+                    "tool_definitions": tool_definitions,
+                    "tools_available": 0,
+                    "mcp_connections": len(mcp_connections),
+                    "error": "main_agent LLM execution failed"
+                }
+
+            if not isinstance(content, str) or not content.strip():
+                logger.error(
+                    "LLM returned empty content for agent %s", agent_id)
+                return {
+                    "success": False,
+                    "failure_reason": "empty_response",
+                    "execution_method": "main_agent_with_mcp",
+                    "agent_id": agent_id,
+                    "provider": provider,
+                    "model": model,
+                    "tool_definitions": tool_definitions,
+                    "tools_available": 0,
+                    "mcp_connections": len(mcp_connections),
+                    "error": "main_agent returned no usable response"
+                }
+
+            return {
+                "success": True,
+                "agent_response": content,
+                "content": content,
+                # No MCP tool was executed by this text-only path; empty is
+                # truthful, and the definitions stay as metadata.
+                "tool_calls": [],
+                "tool_definitions": tool_definitions,
+                "tools_available": 0,
+                "mcp_connections": len(mcp_connections),
+                "mcp_connection_metadata": mcp_connections,
+                "input_processed": input_data,
+                "execution_method": "main_agent_with_mcp",
+                "agent_id": agent_id,
+                "provider": provider,
+                "model": model,
+                "usage": (
+                    completion.get("usage")
+                    if isinstance(completion.get("usage"), dict) else {}),
+                "action": action
+            }
 
         except Exception as e:
             logger.error(f"MCP agent execution failed: {e}")
