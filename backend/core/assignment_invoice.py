@@ -2315,18 +2315,22 @@ def _exact_verified_reply(
     """Accept only the helper's exact, verified direct-reply result."""
     if not isinstance(evidence, Mapping):
         return None
+    # The published typed evidence only proves a direct reply when every
+    # provider flag is exactly positive and the status/kind pair is exact.
     if evidence.get("verified") is not True:
         return None
-    status = _text(evidence.get("status")).lower()
-    if status and status != "reply_verified":
+    if evidence.get("direct_reply_verified") is not True:
         return None
-    kind = _text(evidence.get("kind")).lower()
-    if kind and kind != "reply":
+    if evidence.get("status") != "reply_verified":
         return None
-    if evidence.get("direct_reply_verified") is False:
+    if evidence.get("kind") != "reply":
         return None
-    returned_operation = _text(evidence.get("operation_id"))
-    if returned_operation and returned_operation != operation_id:
+    returned_operation = evidence.get("operation_id")
+    if not isinstance(returned_operation, str) \
+            or not returned_operation.strip():
+        return None
+    returned_operation = returned_operation.strip()
+    if returned_operation != operation_id:
         _invoice_reply_gap(
             "invoice_reply_source",
             "the reply evidence names a different send operation",
@@ -2334,6 +2338,26 @@ def _exact_verified_reply(
             checked=[f"expected_operation={operation_id}",
                      f"returned_operation={returned_operation}"],
         )
+        return None
+    message_id = evidence.get("message_id")
+    reply_message_id = evidence.get("reply_message_id")
+    # A reply is only real when it names a distinct sent message and reply
+    # message, with the conversation and sender that carried it.
+    if not isinstance(message_id, str) or not message_id.strip():
+        return None
+    if not isinstance(reply_message_id, str) \
+            or not reply_message_id.strip():
+        return None
+    message_id = message_id.strip()
+    reply_message_id = reply_message_id.strip()
+    if message_id == reply_message_id:
+        return None
+    conversation_id = evidence.get("conversation_id")
+    if not isinstance(conversation_id, str) or not conversation_id.strip():
+        return None
+    reply_sender = evidence.get("reply_sender")
+    if not isinstance(reply_sender, str) or not reply_sender.strip():
+        return None
     return dict(evidence)
 
 
