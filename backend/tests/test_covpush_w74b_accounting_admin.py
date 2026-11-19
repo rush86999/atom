@@ -858,18 +858,42 @@ class TestCollectionAgentAgingReport:
 # 7. api/admin/budget_routes.py
 # ============================================================================
 @pytest.fixture
-def mock_super_admin():
-    user = MagicMock()
-    user.id = "admin-w74"
-    user.email = "admin@test.local"
-    user.role = UserRole.SUPER_ADMIN.value
-    return user
+def mock_platform_admin(worker_database):
+    from core.models import User
+
+    SessionLocal = worker_database
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == "admin-w74").first()
+        if user is None:
+            user = User(
+                id="admin-w74",
+                email="admin-w74@example.invalid",
+                hashed_password="x",
+                first_name="Admin",
+                last_name="User",
+                role=UserRole.WORKSPACE_ADMIN.value,
+                status="active",
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    finally:
+        db.close()
 
 
 @pytest.fixture
-def budget_client(mock_super_admin, worker_database):
+def budget_client(mock_platform_admin, worker_database):
+    """Authenticated platform-admin client for the budget routes.
+
+    The production router depends on ``get_platform_admin``; the retired
+    dependency is no longer wired, so override the active callable to bypass
+    JWT resolution.
+    """
     from api.admin.budget_routes import router
-    from core.admin_endpoints import get_super_admin
+    from core.admin_endpoints import get_platform_admin
     from core.database import get_db
 
     app = FastAPI()
@@ -877,7 +901,7 @@ def budget_client(mock_super_admin, worker_database):
     SessionLocal = worker_database
 
     async def _override_admin():
-        return mock_super_admin
+        return mock_platform_admin
 
     def _override_get_db():
         session = SessionLocal()
@@ -886,7 +910,7 @@ def budget_client(mock_super_admin, worker_database):
         finally:
             session.close()
 
-    app.dependency_overrides[get_super_admin] = _override_admin
+    app.dependency_overrides[get_platform_admin] = _override_admin
     app.dependency_overrides[get_db] = _override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
