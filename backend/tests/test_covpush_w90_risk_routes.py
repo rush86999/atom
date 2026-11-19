@@ -5,6 +5,7 @@ Covers all three endpoints in BOTH modes: FINANCIAL_FORENSICS_MOCK=true
 Auth 401 verified on every endpoint. MOCK_MODE is read at import time,
 so the module is reloaded inside the env patch.
 """
+import asyncio
 import importlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,12 +20,30 @@ import api.risk_routes as rr
 
 class FakeUser:
     id = "u-1"
+    tenant_id = "tenant-u-1"
+    workspace_id = "workspace-u-1"
 
 
-def _build_client(raise_exc=True):
+class UnboundUser:
+    """Authenticated, but with no persisted scope binding."""
+
+    id = "u-unbound"
+
+
+class BootstrapUser:
+    """Server-owned Personal Edition bootstrap account (NULL scope)."""
+
+    id = "u-bootstrap"
+    email = "admin@example.com"
+    role = "workspace_admin"
+    tenant_id = None
+    workspace_id = None
+
+
+def _build_client(raise_exc=True, user=None):
     app = FastAPI()
     app.include_router(rr.router)
-    app.dependency_overrides[get_current_user] = lambda: FakeUser()
+    app.dependency_overrides[get_current_user] = lambda: user or FakeUser()
     return TestClient(app, raise_server_exceptions=raise_exc)
 
 
@@ -104,7 +123,7 @@ class TestLiveMode:
         assert data["is_mock"] is False
         assert data["churn_risk"] == [{"deal_id": "d1", "risk_level": "MEDIUM"}]
         assert data["vip_opportunities"] == []
-        svc.predict_churn_risk.assert_awaited_once_with("default")
+        svc.predict_churn_risk.assert_awaited_once_with("tenant-u-1")
 
     def test_customer_protection_live_service_failure(self, err_client):
         svc = AsyncMock()
@@ -123,7 +142,7 @@ class TestLiveMode:
         data = resp.json()
         assert data["is_mock"] is False
         assert data["ar_alerts"] == [{"id": "inv-1", "amount": 500}]
-        svc.detect_ar_delays.assert_awaited_once_with("default")
+        svc.detect_ar_delays.assert_awaited_once_with("workspace-u-1")
 
     def test_early_warning_live_service_failure(self, err_client):
         svc = AsyncMock()
@@ -141,7 +160,7 @@ class TestLiveMode:
         data = resp.json()
         assert data["is_mock"] is False
         assert data["anomalies"] == [{"id": "tx-1", "severity": "HIGH"}]
-        svc.detect_anomalies.assert_awaited_once_with("default")
+        svc.detect_anomalies.assert_awaited_once_with("tenant-u-1")
 
     def test_fraud_live_service_failure(self, err_client):
         svc = AsyncMock()
@@ -149,3 +168,90 @@ class TestLiveMode:
         with patch.object(rr, "FraudDetectionService", return_value=svc):
             resp = err_client.get("/api/risk/fraud")
         assert resp.status_code == 500
+
+
+class TestScopeBinding:
+    def test_unbound_principal_fails_closed(self):
+        client = _build_client(user=UnboundUser())
+        with patch.object(rr, "is_bootstrap_identity", return_value=False):
+            resp = client.get("/api/risk/customer-protection")
+        assert resp.status_code == 403
+
+    def test_bootstrap_uses_personal_defaults(self):
+        svc = AsyncMock()
+        svc.predict_churn_risk.return_value = []
+        client = _build_client(user=BootstrapUser())
+        with patch("core.personal_scope.is_bootstrap_identity", return_value=True), \
+                patch.object(rr, "is_bootstrap_identity", return_value=True), \
+                patch.object(rr, "CustomerProtectionService", return_value=svc):
+            resp = client.get("/api/risk/customer-protection")
+        assert resp.status_code == 200
+        svc.predict_churn_risk.assert_awaited_once_with("default")
+
+
+class _RecordingQuery:
+    def __init__(self, model):
+        self.model = model
+        self.filters = []
+
+    def filter(self, *criteria):
+        self.filters.extend(criteria)
+        return self
+
+    def limit(self, _limit):
+        return self
+
+    def all(self):
+        return []
+
+
+class _RecordingDB:
+    def __init__(self):
+        self.queries = []
+
+    def query(self, model):
+        query = _RecordingQuery(model)
+        self.queries.append(query)
+        return query
+
+
+def _has_scope_filter(query, column_name, expected_value):
+    for criterion in query.filters:
+        left = getattr(criterion, "left", None)
+        right = getattr(criterion, "right", None)
+        if (
+            getattr(left, "name", None) == column_name
+            and getattr(right, "value", None) == expected_value
+        ):
+            return True
+    return False
+
+
+class TestScopedQueries:
+    def test_subscription_query_is_tenant_scoped(self):
+        from core.risk_prevention import CustomerProtectionService
+
+        db = _RecordingDB()
+        asyncio.run(CustomerProtectionService(db).predict_churn_risk("tenant-q"))
+        assert _has_scope_filter(db.queries[0], "tenant_id", "tenant-q")
+
+    def test_invoice_query_is_workspace_scoped(self):
+        from core.risk_prevention import EarlyWarningService
+
+        db = _RecordingDB()
+        asyncio.run(EarlyWarningService(db).detect_ar_delays("workspace-q"))
+        assert _has_scope_filter(db.queries[0], "workspace_id", "workspace-q")
+
+    def test_ecommerce_order_query_is_tenant_scoped(self):
+        from core.risk_prevention import FraudDetectionService
+
+        db = _RecordingDB()
+        asyncio.run(FraudDetectionService(db).detect_anomalies("tenant-q"))
+        assert _has_scope_filter(db.queries[0], "tenant_id", "tenant-q")
+
+    def test_empty_scope_does_not_query(self):
+        from core.risk_prevention import EarlyWarningService
+
+        db = _RecordingDB()
+        assert asyncio.run(EarlyWarningService(db).detect_ar_delays("")) == []
+        assert db.queries == []
