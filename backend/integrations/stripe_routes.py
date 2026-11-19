@@ -8,7 +8,8 @@ class is the source of truth; these endpoints delegate to it.
 import logging
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -19,8 +20,22 @@ from core.auth import get_current_user
 from core.connection_service import connection_service
 from core.database import get_db
 from core.integrations.adapters.stripe import StripeAdapter
+from accounting.invoice_provider_binding import (
+    InvoiceProviderBindingConflict,
+    InvoiceProviderBindingInvoiceNotFound,
+    bind_invoice_to_provider,
+)
 from core.models import Tenant, User, UserRole, Workspace
 from core.security.rbac import user_meets_role
+
+try:
+    from core.models import Invoice
+except ImportError:  # pragma: no cover - layout compatibility for accounting models
+    try:
+        from core.models.accounting import Invoice
+    except ImportError:
+        Invoice = None  # type: ignore[assignment]
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +46,56 @@ _STRIPE_TIMEOUT_SECONDS = 10.0
 _STRIPE_INTEGRATION_ID = "stripe"
 _RESTRICTED_KEY_RE = re.compile(r"rk_(test|live)_[A-Za-z0-9_]+")
 _STRIPE_ACCOUNT_ID_RE = re.compile(r"acct_[A-Za-z0-9]+")
+
+# Currencies Stripe accepts today.  Unknown three-letter codes are refused
+# before any provider request so a bad durable value can never broaden intent.
+_SUPPORTED_CURRENCIES = frozenset(
+    """
+    AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND
+    BOB BOV BRL BSD BTN BWP BYN BZD CAD CDF CHE CHF CHW CLF CLP CNY COP COU
+    CRC CUC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS
+    GIP GMD GNF GTQ GYD HKD HNL HRK HTG HUF IDR ILS INR IQD IRR ISK JMD JOD
+    JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL
+    MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MXV MYR MZN NAD NGN NIO NOK NPR
+    NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG
+    SEK SGD SHP SLE SLL SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY
+    TTD TWD TZS UAH UGX USD USN UYI UYU UYW UZS VED VES VND VUV WST XAF XCD
+    XOF XPF YER ZAR ZMW ZWL
+    """.lower().split()
+)
+
+# Stripe documents these as zero-decimal: the API amount is the whole unit.
+_ZERO_DECIMAL_CURRENCIES = frozenset(
+    "bif clp djf gnf jpy kmf krw mga pyg rwf ugx vnd vuv xaf xof xpf".split()
+)
+
+# ISK and UGX are zero-decimal currencies, but Stripe represents their API
+# amount in hundredths (for example, 1 ISK is sent as 100).
+_SPECIAL_TWO_DECIMAL_CURRENCIES = frozenset({"isk", "ugx"})
+
+# Stripe only supports two decimal places for these currencies, even though
+# their smallest unit is 1/1000 (amount must be a multiple of ten).
+_THREE_DECIMAL_CURRENCIES = frozenset({"bhd", "jod", "kwd", "omr", "tnd"})
+
+_PREVIEW_FACT_FIELDS = (
+    "account_id",
+    "invoice_id",
+    "currency",
+    "total_minor_units",
+    "livemode",
+    "invoice_number",
+)
+
+_CREDENTIAL_BODY_KEYS = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "credentials",
+        "restricted_key",
+        "secret_key",
+        "token",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +110,32 @@ class _SetupInput:
     restricted_key: str
     account_id: str
     mode: str
+
+
+@dataclass(frozen=True)
+class _InvoiceLinkInput:
+    local_invoice_id: str
+    connection_id: str
+    external_invoice_id: str
+    expected_revision: Optional[int] = None
+    reason: Optional[str] = None
+    expected_preview: Optional[Dict[str, Any]] = None
+
+
+@dataclass(frozen=True)
+class _InvoiceLinkSnapshot:
+    user_id: str
+    tenant_id: str
+    workspace_id: str
+    local_invoice_id: str
+    connection_id: str
+    account_id: str
+    mode: str
+    livemode: bool
+    currency: str
+    total_minor_units: int
+    external_invoice_id: str
+    restricted_key: str = field(repr=False)
 
 
 def _nonempty_str(value: Any) -> bool:
@@ -301,4 +392,489 @@ async def capabilities() -> Dict[str, Any]:
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
+
+def _required_body_text(payload: Dict[str, Any], name: str) -> str:
+    value = payload.get(name)
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail="Invalid request")
+    value = value.strip()
+    if not value or len(value) > 255:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    return value
+
+
+def _normalize_currency(value: Any) -> str:
+    if not isinstance(value, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice currency is not supported",
+        )
+    currency = value.strip().lower()
+    if (
+        not re.fullmatch(r"[a-z]{3}", currency)
+        or currency not in _SUPPORTED_CURRENCIES
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice currency is not supported",
+        )
+    return currency
+
+
+def _currency_exponent(currency: str) -> int:
+    if currency in _SPECIAL_TWO_DECIMAL_CURRENCIES:
+        return 2
+    if currency in _ZERO_DECIMAL_CURRENCIES:
+        return 0
+    if currency in _THREE_DECIMAL_CURRENCIES:
+        return 3
+    return 2
+
+
+def _to_integer_minor_units(currency: str, amount: Any) -> int:
+    """Convert a durable Decimal amount exactly, refusing fractional input."""
+    if not isinstance(amount, Decimal) or not amount.is_finite() or amount < 0:
+        raise HTTPException(status_code=400, detail="Invoice amount is not supported")
+
+    exponent = _currency_exponent(currency)
+    scaled = amount * (Decimal(10) ** exponent)
+    if not scaled.is_finite():
+        raise HTTPException(status_code=400, detail="Invoice amount is not supported")
+
+    integral = scaled.to_integral_value()
+    if scaled != integral:
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice amount cannot be represented exactly",
+        )
+
+    minor_units = int(integral)
+    if exponent == 3 and minor_units % 10 != 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Invoice amount cannot be represented exactly",
+        )
+    return minor_units
+
+
+def _parse_expected_preview(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Require the exact six canonical preview facts echoed for confirmation."""
+    facts = payload.get("expected_preview")
+    if not isinstance(facts, dict) or set(facts) != set(_PREVIEW_FACT_FIELDS):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    account_id = facts.get("account_id")
+    invoice_id = facts.get("invoice_id")
+    if not _nonempty_str(account_id) or not _nonempty_str(invoice_id):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    total_minor_units = facts.get("total_minor_units")
+    if (
+        isinstance(total_minor_units, bool)
+        or not isinstance(total_minor_units, int)
+        or total_minor_units < 0
+    ):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    livemode = facts.get("livemode")
+    if not isinstance(livemode, bool):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    invoice_number = facts.get("invoice_number")
+    if invoice_number is not None and (
+        not isinstance(invoice_number, str) or not invoice_number
+    ):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    return {
+        "account_id": account_id,
+        "invoice_id": invoice_id,
+        "currency": _normalize_currency(facts.get("currency")),
+        "total_minor_units": total_minor_units,
+        "livemode": livemode,
+        "invoice_number": invoice_number,
+    }
+
+
+async def _parse_invoice_link_input(
+    request: Request,
+    *,
+    path_invoice_id: str,
+    include_binding_fields: bool,
+) -> _InvoiceLinkInput:
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    # Credentials are read only from the scoped connection record.  Rejecting
+    # these keys makes an accidental secret-bearing client call fail closed.
+    if any(key in payload for key in _CREDENTIAL_BODY_KEYS):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    connection_id = _required_body_text(payload, "connection_id")
+    external_invoice_id = _required_body_text(payload, "external_invoice_id")
+
+    expected_revision: Optional[int] = None
+    reason: Optional[str] = None
+    expected_preview: Optional[Dict[str, Any]] = None
+
+    if include_binding_fields:
+        raw_revision = payload.get("expected_revision")
+        if raw_revision is not None:
+            if (
+                isinstance(raw_revision, bool)
+                or not isinstance(raw_revision, int)
+                or raw_revision < 0
+            ):
+                raise HTTPException(status_code=400, detail="Invalid request")
+            expected_revision = raw_revision
+
+        raw_reason = payload.get("reason")
+        if raw_reason is not None:
+            if not isinstance(raw_reason, str):
+                raise HTTPException(status_code=400, detail="Invalid request")
+            raw_reason = raw_reason.strip()
+            if len(raw_reason) > 500:
+                raise HTTPException(status_code=400, detail="Invalid request")
+            reason = raw_reason or None
+
+        expected_preview = _parse_expected_preview(payload)
+
+    return _InvoiceLinkInput(
+        local_invoice_id=path_invoice_id,
+        connection_id=connection_id,
+        external_invoice_id=external_invoice_id,
+        expected_revision=expected_revision,
+        reason=reason,
+        expected_preview=expected_preview,
+    )
+
+
+def _resolve_invoice_link_snapshot(
+    db: Session,
+    actor_id: str,
+    link_input: _InvoiceLinkInput,
+) -> _InvoiceLinkSnapshot:
+    """Read the invoice, connection, and expected facts from durable rows."""
+    scope = _resolve_active_workspace_admin_scope(db, actor_id)
+
+    if Invoice is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Invoice storage is unavailable",
+        )
+
+    invoice = db.query(Invoice).filter(
+        Invoice.id == link_input.local_invoice_id,
+        Invoice.workspace_id == scope.workspace_id,
+    ).first()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    currency = _normalize_currency(getattr(invoice, "currency", None))
+    total_minor_units = _to_integer_minor_units(
+        currency,
+        getattr(invoice, "amount", None),
+    )
+
+    try:
+        credentials = connection_service.get_scoped_connection_credentials(
+            user_id=scope.user_id,
+            tenant_id=scope.tenant_id,
+            workspace_id=scope.workspace_id,
+            connection_id=link_input.connection_id,
+            integration_id=_STRIPE_INTEGRATION_ID,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Stripe scoped connection read failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to read Stripe connection",
+        )
+
+    if not isinstance(credentials, dict) or not credentials:
+        raise HTTPException(status_code=404, detail="Stripe connection not found")
+
+    restricted_key = credentials.get("restricted_key")
+    account_id = credentials.get("account_id")
+    mode = credentials.get("mode")
+    if (
+        not _nonempty_str(restricted_key)
+        or not _nonempty_str(account_id)
+        or mode not in ("test", "live")
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Stripe connection is not usable",
+        )
+
+    restricted_key = restricted_key.strip()
+    account_id = account_id.strip()
+    if not _STRIPE_ACCOUNT_ID_RE.fullmatch(account_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Stripe connection is not usable",
+        )
+
+    return _InvoiceLinkSnapshot(
+        user_id=scope.user_id,
+        tenant_id=scope.tenant_id,
+        workspace_id=scope.workspace_id,
+        local_invoice_id=link_input.local_invoice_id,
+        connection_id=link_input.connection_id,
+        account_id=account_id,
+        mode=mode,
+        livemode=(mode == "live"),
+        currency=currency,
+        total_minor_units=total_minor_units,
+        external_invoice_id=link_input.external_invoice_id,
+        restricted_key=restricted_key,
+    )
+
+
+def _invoice_preview_adapter(
+    db: Session,
+    snapshot: _InvoiceLinkSnapshot,
+) -> StripeAdapter:
+    """Build the existing adapter and bind only the durable connection secret."""
+    adapter = StripeAdapter(db, workspace_id=snapshot.workspace_id)
+    setattr(adapter, "_access_token", snapshot.restricted_key)
+    return adapter
+
+
+def _safe_preview_facts(
+    preview: Any,
+    snapshot: _InvoiceLinkSnapshot,
+) -> Dict[str, Any]:
+    """Require the provider output to be exactly the six canonical facts."""
+    if not isinstance(preview, dict) or set(preview) != set(_PREVIEW_FACT_FIELDS):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice preview does not match expected facts",
+        )
+
+    invoice_number = preview["invoice_number"]
+    if (
+        preview["account_id"] != snapshot.account_id
+        or preview["invoice_id"] != snapshot.external_invoice_id
+        or preview["currency"] != snapshot.currency
+        or isinstance(preview["total_minor_units"], bool)
+        or not isinstance(preview["total_minor_units"], int)
+        or preview["total_minor_units"] != snapshot.total_minor_units
+        or not isinstance(preview["livemode"], bool)
+        or preview["livemode"] != snapshot.livemode
+        or (
+            invoice_number is not None
+            and (not isinstance(invoice_number, str) or not invoice_number)
+        )
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice preview does not match expected facts",
+        )
+
+    return {
+        "account_id": snapshot.account_id,
+        "invoice_id": snapshot.external_invoice_id,
+        "currency": snapshot.currency,
+        "total_minor_units": snapshot.total_minor_units,
+        "livemode": snapshot.livemode,
+        "invoice_number": invoice_number,
+    }
+
+
+def _require_expected_match(
+    expected: Optional[Dict[str, Any]],
+    facts: Dict[str, Any],
+) -> None:
+    if expected != facts:
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice preview does not match expected facts",
+        )
+
+
+async def _fetch_invoice_identity_preview(
+    db: Session,
+    snapshot: _InvoiceLinkSnapshot,
+) -> Dict[str, Any]:
+    adapter = _invoice_preview_adapter(db, snapshot)
+
+    try:
+        preview = await adapter.get_invoice_identity_preview(
+            expected_account_id=snapshot.account_id,
+            invoice_id=snapshot.external_invoice_id,
+            currency=snapshot.currency,
+            expected_total_minor_units=snapshot.total_minor_units,
+            expected_livemode=snapshot.livemode,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "Stripe invoice identity preview rejected (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe invoice preview does not match expected facts",
+        )
+    except Exception as exc:
+        logger.warning(
+            "Stripe invoice identity preview failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Stripe invoice preview failed",
+        )
+
+    return _safe_preview_facts(preview, snapshot)
+
+
+def _binding_conflict_details(exc: Exception) -> Dict[str, Any]:
+    details: Dict[str, Any] = {"error": "Invoice provider binding conflict"}
+    expected_revision = getattr(exc, "expected_revision", None)
+    current_revision = getattr(exc, "current_revision", None)
+    binding_id = getattr(exc, "binding_id", None)
+    if expected_revision is not None:
+        details["expected_revision"] = expected_revision
+    if current_revision is not None:
+        details["current_revision"] = current_revision
+    if binding_id is not None:
+        details["binding_id"] = binding_id
+    return details
+
+
+@router.post("/invoice-links/{invoice_id}/preview")
+async def preview_invoice_link(
+    invoice_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Return the exact read-only Stripe identity facts for one invoice link."""
+    actor_id = _current_user_id(current_user)
+    if not _nonempty_str(invoice_id):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    link_input = await _parse_invoice_link_input(
+        request,
+        path_invoice_id=invoice_id,
+        include_binding_fields=False,
+    )
+    snapshot = _resolve_invoice_link_snapshot(db, actor_id, link_input)
+    return await _fetch_invoice_identity_preview(db, snapshot)
+
+
+@router.put("/invoice-links/{invoice_id}")
+async def confirm_invoice_link(
+    invoice_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Confirm a previewed link after rechecking all authority and snapshots."""
+    actor_id = _current_user_id(current_user)
+    if not _nonempty_str(invoice_id):
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    link_input = await _parse_invoice_link_input(
+        request,
+        path_invoice_id=invoice_id,
+        include_binding_fields=True,
+    )
+    initial_snapshot = _resolve_invoice_link_snapshot(db, actor_id, link_input)
+    preview_facts = await _fetch_invoice_identity_preview(db, initial_snapshot)
+    _require_expected_match(link_input.expected_preview, preview_facts)
+
+    # Re-read after the awaited provider call.  Expiring first prevents the
+    # identity map from hiding a role, invoice, or connection change.
+    try:
+        db.expire_all()
+    except Exception as exc:
+        logger.warning(
+            "Stripe invoice link revalidation freshness check failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to verify invoice link authorization",
+        )
+
+    rechecked_snapshot = _resolve_invoice_link_snapshot(db, actor_id, link_input)
+    if rechecked_snapshot != initial_snapshot:
+        raise HTTPException(
+            status_code=409,
+            detail="Invoice or Stripe connection changed during preview",
+        )
+    _safe_preview_facts(preview_facts, rechecked_snapshot)
+
+    reason = link_input.reason or "Stripe invoice link confirmed after identity preview"
+
+    try:
+        binding = bind_invoice_to_provider(
+            db,
+            invoice_id=rechecked_snapshot.local_invoice_id,
+            workspace_id=rechecked_snapshot.workspace_id,
+            provider="stripe",
+            provider_account_id=rechecked_snapshot.account_id,
+            provider_mode=rechecked_snapshot.mode,
+            external_invoice_id=rechecked_snapshot.external_invoice_id,
+            connection_id=rechecked_snapshot.connection_id,
+            actor_id=rechecked_snapshot.user_id,
+            reason=reason,
+            expected_revision=link_input.expected_revision,
+        )
+        revision = getattr(binding, "revision", None)
+        db.commit()
+    except InvoiceProviderBindingConflict as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=409,
+            detail=_binding_conflict_details(exc),
+        )
+    except InvoiceProviderBindingInvoiceNotFound:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.warning(
+            "Stripe invoice link persistence failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to link Stripe invoice",
+        )
+
+    return {
+        "invoice_id": rechecked_snapshot.local_invoice_id,
+        "provider": "stripe",
+        "connection_id": rechecked_snapshot.connection_id,
+        "account_id": preview_facts["account_id"],
+        "provider_account_id": preview_facts["account_id"],
+        "provider_mode": rechecked_snapshot.mode,
+        "external_invoice_id": preview_facts["invoice_id"],
+        "provider_invoice_id": preview_facts["invoice_id"],
+        "currency": preview_facts["currency"],
+        "total_minor_units": preview_facts["total_minor_units"],
+        "livemode": preview_facts["livemode"],
+        "invoice_number": preview_facts["invoice_number"],
+        "revision": revision,
+    }
 

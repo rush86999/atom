@@ -294,3 +294,134 @@ class Budget(Base):
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class InvoiceProviderBinding(Base):
+    """Current local invoice -> provider invoice binding.
+
+    A local invoice has at most one current binding per provider.  The
+    ``(workspace_id, provider, provider_account_id, provider_mode,
+    external_invoice_id)`` constraint is deliberately independent of the local
+    invoice: one external invoice may not be claimed by two local invoices in
+    the same provider account/mode.
+
+    Provider credentials are intentionally absent.  Only the scoped connection
+    identifier needed to look up credentials is stored.
+    """
+
+    __tablename__ = "accounting_invoice_provider_bindings"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "invoice_id",
+            "provider",
+            name="_accounting_invoice_provider_binding_uc",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "provider",
+            "provider_account_id",
+            "provider_mode",
+            "external_invoice_id",
+            name="_accounting_provider_invoice_binding_uc",
+        ),
+        {"extend_existing": True},
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        String,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    invoice_id = Column(
+        String,
+        ForeignKey("accounting_invoices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    provider = Column(String, nullable=False, index=True)
+    provider_account_id = Column(String, nullable=False)
+    provider_mode = Column(String, nullable=False)
+    external_invoice_id = Column(String, nullable=False)
+    connection_id = Column(
+        String,
+        ForeignKey("user_connections.id"),
+        nullable=False,
+        index=True,
+    )
+
+    # Starts at 1 and is incremented by the compare-and-swap update.  It is the
+    # optimistic concurrency token used by ``invoice_provider_binding``.
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    revisions = relationship(
+        "InvoiceProviderBindingRevision",
+        back_populates="binding",
+        cascade="all, delete-orphan",
+    )
+
+
+class InvoiceProviderBindingRevision(Base):
+    """Append-only receipt for a binding creation or correction.
+
+    Each row records the exact provider identity before and after the change,
+    including the scoped connection identifier, but never provider credentials
+    or customer content.  The binding and its receipt are written in the same
+    transaction/savepoint.
+    """
+
+    __tablename__ = "accounting_invoice_provider_binding_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "binding_id",
+            "revision",
+            name="_accounting_invoice_provider_binding_revision_uc",
+        ),
+        {"extend_existing": True},
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    binding_id = Column(
+        String,
+        ForeignKey("accounting_invoice_provider_bindings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    workspace_id = Column(
+        String,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    invoice_id = Column(
+        String,
+        ForeignKey("accounting_invoices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    revision = Column(Integer, nullable=False)
+    actor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    reason = Column(Text, nullable=True)
+
+    prior_provider = Column(String, nullable=True)
+    prior_provider_account_id = Column(String, nullable=True)
+    prior_provider_mode = Column(String, nullable=True)
+    prior_external_invoice_id = Column(String, nullable=True)
+    prior_connection_id = Column(String, nullable=True)
+
+    new_provider = Column(String, nullable=False)
+    new_provider_account_id = Column(String, nullable=False)
+    new_provider_mode = Column(String, nullable=False)
+    new_external_invoice_id = Column(String, nullable=False)
+    new_connection_id = Column(String, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    binding = relationship("InvoiceProviderBinding", back_populates="revisions")
