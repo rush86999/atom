@@ -3307,7 +3307,6 @@ def finish_retrieval_turn(
         return None
     current_ids = [str(e.get("id")) for e in
                    (record["task_revision"].get("entities") or [])]
-    needs_entities = bool(observed) and set(observed) != set(current_ids)
     needs_fields = bool(structured_result.get("requested_fields")) and not (
         record["task_revision"].get("requested_fields"))
     # SCOPE PROTECTION (round 40 reviewer correction 1): observation binds
@@ -3315,29 +3314,41 @@ def finish_retrieval_turn(
     # Eight requested items became eleven because descriptive aliases of
     # the same machines ("Roper Whitney", "Linmac Bead Roller", ...) were
     # added as entities; a partial observation could equally DROP tasked
-    # items. An observed token whose normalized form overlaps an existing
-    # entity (substring either way) is coverage of the same item — never
-    # a scope expansion; tasked items are never removed by observation.
+    # items. An observed token whose normalized form overlaps a
+    # PRE-EXISTING tasked entity (substring either way) is coverage of
+    # the same item — never a scope expansion; tasked items are never
+    # removed by observation. Comparisons stay against the tasked set
+    # only: distinct new observations in one batch (M-3, M-30) are each
+    # additions, not aliases of one another.
     def _norm(s: Any) -> str:
         return re.sub(r"[^a-z0-9]", "", str(s).lower())
     _cur_norm = [_norm(i) for i in current_ids if _norm(i)]
-    _added = [o for o in observed
-              if _norm(o) and not any(
-                  _norm(o) in c or c in _norm(o) for c in _cur_norm)]
-    if _added:
-        needs_entities = True
+    _added = []
+    for o in observed:
+        _o_norm = _norm(o)
+        if not _o_norm or any(
+                _o_norm in c or c in _o_norm for c in _cur_norm):
+            continue
+        _added.append(o)
+    # Only ACTUAL distinct additions revise the objective. A partial
+    # observation of the tasked set (M-1 seen, M-2 not) is coverage of
+    # the same scope — not a scope change, and never a rewrite of the
+    # tasked entity objects.
+    needs_entities = bool(_added)
     needs_fields = needs_fields and not needs_entities
     if needs_entities or needs_fields:
         # One revision binds what observation taught us (new distinct
-        # entities and/or fields); the tasked set is preserved.
+        # entities and/or fields); the tasked set is preserved — existing
+        # entity objects keep their metadata, additions are appended.
         removed = []
         lifecycle.apply_transition(run_id, {
             "kind": "revise_objective",
             "requested_change": "observed items differ from tasked items",
-            "entities": (_entities_from_items(
-                list(current_ids) + list(_added))
-            if needs_entities else list(
-                record["task_revision"].get("entities") or [])),
+            "entities": (
+                list(record["task_revision"].get("entities") or [])
+                + _entities_from_items(_added)
+            ) if needs_entities else list(
+                record["task_revision"].get("entities") or []),
             "removed_entity_ids": removed,
             "requested_fields": list(
                 structured_result.get("requested_fields") or [])

@@ -3,6 +3,7 @@
 Scratch-file sqlite via injected session_factory — never the live dev DB.
 Entity labels are generic (e1..e8, M-1/M-2); no incident vocabulary here.
 """
+import copy
 import os
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,6 +31,7 @@ from core.task_lifecycle import (
     expand_task_scope,
     register_scope_validator,
     finish_edit_turn,
+    finish_retrieval_turn,
     new_delivery,
     new_operation,
     new_task_revision,
@@ -354,6 +356,99 @@ class TestRecordTurns:
                 record["task_revision"]["entities"]] == ["M-1", "M-2"]
         assert len(record["operations"]) == 2
         assert record["operations"][0]["status"] == "applied"
+
+    def test_partial_observation_makes_no_entity_revision(self, lifecycle):
+        """Seeing a subset of the tasked set is coverage, not scope change.
+
+        Root replay: tasked M-1/M-2, then retrieval observes only M-1.
+        The subject set stays both, the tasked entity objects (including
+        metadata) survive, evidence is still attached, and settling adds
+        no entity revision for a non-addition. ``begin_retrieval_turn``
+        may legitimately revise the objective first, so the test snapshots
+        the begun revision and asserts only the settle delta.
+        """
+        created = lifecycle.create_task(
+            "conv-1", "look up M-1 and M-2",
+            entities=[
+                {"id": "M-1", "label": "M-1", "aliases": ["m-one"],
+                 "provenance_turn": 1, "inferred": False},
+                {"id": "M-2", "label": "M-2", "aliases": ["m-two"],
+                 "provenance_turn": 1, "inferred": False},
+            ],
+            requested_fields=["value"])
+        run_id = created["run_id"]
+        result = _structured_result(("M-1",))
+        result["attempt_id"] = "attempt-2"
+        run_id2, operation_id = begin_retrieval_turn(
+            lifecycle, {}, "conv-1", "read M-1 only", "ex-2",
+            items=["M-1"], requested_fields=["value"])
+        assert run_id2 == run_id
+        begun = lifecycle.get_task(run_id)
+        begin_revision = begun["task_revision"]["revision"]
+        begin_entities = copy.deepcopy(begun["task_revision"]["entities"])
+        begin_evidence = copy.deepcopy(begun["task_revision"]["evidence"])
+        begin_transitions = [d.get("transition") for d in
+                             lifecycle.runs.get_decisions(run_id)
+                             if d.get("transition")]
+        assert begin_evidence == []
+        assert "research_and_present" in begin_transitions
+        finish_retrieval_turn(
+            lifecycle, run_id, operation_id, result, "ex-2", True)
+        record = lifecycle.get_task(run_id)
+        # Settlement bumps the revision exactly once, for evidence only.
+        assert record["task_revision"]["revision"] == begin_revision + 1
+        assert record["task_revision"]["last_transition"]["kind"] == \
+            "attach_evidence"
+        transitions = [d.get("transition") for d in
+                       lifecycle.runs.get_decisions(run_id)
+                       if d.get("transition")]
+        assert transitions[len(begin_transitions):] == ["attach_evidence"]
+        # The exact two tasked entity objects (identity + metadata) survive.
+        assert record["task_revision"]["entities"] == begin_entities
+        assert len(record["task_revision"]["entities"]) == 2
+        assert [e["id"] for e in
+                record["task_revision"]["entities"]] == ["M-1", "M-2"]
+        assert [e["aliases"] for e in
+                record["task_revision"]["entities"]] == \
+            [["m-one"], ["m-two"]]
+        assert record["task_revision"]["evidence"] == \
+            begin_evidence + [{
+                "evidence_id": "attempt-2", "entity_ids": ["M-1"],
+                "evidence_revision": "rev-1"}]
+        assert record["operations"][0]["status"] == "applied"
+
+    def test_distinct_new_observations_in_one_batch_both_retained(
+            self, lifecycle):
+        """New observations compare only to the tasked set, not each other.
+
+        Root replay: tasked M-1/M-2, then a turn observes both new M-3
+        and M-30. Substring matching against earlier additions would
+        treat "M-3" as an alias of "M-30" and drop it; both are distinct
+        additions and both must be retained.
+        """
+        created = lifecycle.create_task(
+            "conv-1", "look up M-1 and M-2",
+            entities=[
+                {"id": "M-1", "label": "M-1", "aliases": ["m-one"],
+                 "provenance_turn": 1, "inferred": False},
+                {"id": "M-2", "label": "M-2", "aliases": ["m-two"],
+                 "provenance_turn": 1, "inferred": False},
+            ],
+            requested_fields=["value"])
+        run_id = created["run_id"]
+        result = _structured_result(("M-3", "M-30"))
+        result["attempt_id"] = "attempt-2"
+        run_id2 = record_retrieval_turn(
+            lifecycle, {}, "conv-1", "read M-3 and M-30", result,
+            "ex-2", True)
+        assert run_id2 == run_id
+        record = lifecycle.get_task(run_id)
+        assert [e["id"] for e in
+                record["task_revision"]["entities"]] == \
+            ["M-1", "M-2", "M-3", "M-30"]
+        assert [e["aliases"] for e in
+                record["task_revision"]["entities"]] == \
+            [["m-one"], ["m-two"], [], []]
 
     def test_incomplete_retrieval_leaves_operation_running(self, lifecycle):
         session = {}
