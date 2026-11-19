@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
 
+from core import notification_service
 from core.assignment_plan import validate_assignment
 from core.database import get_db_session
 from core.models import GoalObjective, GoalRun, WorkflowExecution
@@ -25,6 +26,7 @@ from core.task_lifecycle import new_task_revision
 
 
 _WORKFLOW_ID = "htn_invoice_followup"
+_ACCOUNT_OWNER_CONTEXT_KEY = "_atom_account_owner_user_id"
 
 # A stable namespace keeps the goal and run ids reproducible from the
 # execution id alone.
@@ -49,6 +51,27 @@ def _execution_key(execution_id: Any) -> str:
     if not key:
         raise ValueError("execution_id is required")
     return key
+
+
+def _optional_account_owner(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(
+            "account_owner_user_id must be a non-empty string")
+    owner = value.strip()
+    if not owner:
+        raise ValueError(
+            "account_owner_user_id must be a non-empty string")
+    return owner
+
+
+def _stored_account_owner(context: Dict[str, Any]) -> Optional[str]:
+    value = context.get(_ACCOUNT_OWNER_CONTEXT_KEY)
+    if value is None:
+        return None
+    owner = _text(value)
+    return owner or None
 
 
 def _identity_values(identity: Any) -> Dict[str, str]:
@@ -172,6 +195,21 @@ def _require_invoice_intent(
             "workflow execution invoice intent does not match invoice_number")
 
 
+def _require_account_owner_recipient(
+    session: Any,
+    owner_id: str,
+    identity: Dict[str, str],
+) -> None:
+    scope_error = notification_service._workflow_scope_error(
+        session,
+        user_id=owner_id,
+        workspace_id=identity["workspace_id"],
+        tenant_id=identity["tenant_id"],
+    )
+    if scope_error:
+        raise PermissionError(str(scope_error))
+
+
 def _is_pending(status: Any) -> bool:
     value = getattr(status, "value", status)
     return _text(value).lower() == "pending"
@@ -290,6 +328,7 @@ def _persist_assignment(
     projection: list,
     goal_id: str,
     run_id: str,
+    account_owner_user_id: Optional[str],
 ) -> None:
     objective = _text(assignment.get("objective"))
     revision = new_task_revision(
@@ -378,6 +417,8 @@ def _persist_assignment(
         "workspace_id": identity["workspace_id"],
         "user_id": identity["user_id"],
     })
+    if account_owner_user_id is not None:
+        context[_ACCOUNT_OWNER_CONTEXT_KEY] = account_owner_user_id
 
     session.add(goal)
     session.add(run)
@@ -473,6 +514,7 @@ def _recover_existing_run(
     invoice_number: str,
     goal_id: str,
     run_id: str,
+    account_owner_user_id: Optional[str],
 ) -> Optional[str]:
     """Read-only recovery for a deterministic goal/run id collision."""
     row = session.query(WorkflowExecution).filter(
@@ -487,6 +529,9 @@ def _recover_existing_run(
         _require_invoice_intent(input_data, invoice_number)
         has_link, run = _resolve_link(
             session, row, execution_key, identity, goal_id, run_id)
+        context = _json_object(row.context, "workflow execution context")
+        if _stored_account_owner(context) != account_owner_user_id:
+            return None
     except Exception:  # noqa: BLE001 - failed recovery keeps original error
         return None
 
@@ -501,15 +546,21 @@ def attach_stock_invoice_assignment(
     *,
     identity: Any,
     assignment: Any,
+    account_owner_user_id: Optional[str] = None,
 ) -> Dict[str, str]:
     """Attach *assignment* to an existing ``htn_invoice_followup`` execution.
 
     The execution must belong to the caller's tenant/workspace/user, its
     ``_atom_invoice_intent`` must hash the exact invoice number, and the plan
     must be a validated, non-empty assignment for the same employee/scope.
+
+    When ``account_owner_user_id`` is supplied it is an explicit launch input:
+    the recipient is validated in the caller's scope and the exact value is
+    persisted with the execution.  Omitting it preserves the legacy behavior.
     """
     execution_key = _execution_key(execution_id)
     identity_values = _identity_values(identity)
+    account_owner = _optional_account_owner(account_owner_user_id)
 
     if not isinstance(invoice_number, str) or not invoice_number.strip():
         raise ValueError("invoice_number is required")
@@ -542,11 +593,22 @@ def attach_stock_invoice_assignment(
                 if existing_run is None:
                     raise LookupError(
                         "workflow execution links an unverified goal run")
+                stored_owner = _stored_account_owner(
+                    _json_object(
+                        row.context, "workflow execution context"))
+                if stored_owner != account_owner:
+                    raise ValueError(
+                        "account_owner_user_id conflicts with the existing "
+                        "assignment")
                 return {"run_id": _text(existing_run.id)}
 
             if not _is_pending(row.status):
                 raise ValueError(
                     "an unlinked workflow execution must be PENDING")
+
+            if account_owner is not None:
+                _require_account_owner_recipient(
+                    session, account_owner, identity_values)
 
             _persist_assignment(
                 session,
@@ -557,6 +619,7 @@ def attach_stock_invoice_assignment(
                 projection,
                 goal_id,
                 run_id,
+                account_owner,
             )
             return {"run_id": run_id}
         except Exception as exc:
@@ -570,6 +633,7 @@ def attach_stock_invoice_assignment(
                 invoice_number,
                 goal_id,
                 run_id,
+                account_owner,
             )
             if recovered_run_id is None:
                 raise

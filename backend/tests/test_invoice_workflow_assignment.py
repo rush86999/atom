@@ -39,6 +39,8 @@ from core.models import (
 TENANT_ID = "fixture-tenant"
 WORKSPACE_ID = "fixture-workspace"
 USER_ID = "fixture-user"
+OWNER_ID = "fixture-account-owner"
+OTHER_OWNER_ID = "fixture-other-owner"
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +159,40 @@ def _seed_scope(session_factory):
         db.commit()
 
 
+def _add_recipient(session_factory, user_id=OWNER_ID,
+                   status="active", is_active=True):
+    with session_factory() as db:
+        db.add(_make_model(
+            User,
+            id=user_id,
+            tenant_id=TENANT_ID,
+            workspace_id=WORKSPACE_ID,
+            email=f"{user_id}@example.invalid",
+            first_name="Fixture",
+            last_name="Recipient",
+            status=status,
+            role="workspace_admin",
+            is_active=is_active,
+        ))
+        db.commit()
+
+
+def _install_scope_validator(monkeypatch, result=None):
+    calls = []
+
+    def fake_scope_error(db, *, user_id, workspace_id, tenant_id):
+        calls.append({
+            "user_id": user_id,
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
+        })
+        return result
+
+    monkeypatch.setattr(
+        iwa.notification_service, "_workflow_scope_error", fake_scope_error)
+    return calls
+
+
 def _invoice_intent(invoice_number):
     return hashlib.sha256(invoice_number.encode("utf-8")).hexdigest()
 
@@ -207,7 +243,7 @@ def _plan(invoice_number):
     )
 
 
-def _attach(execution_id, invoice_number, plan=None):
+def _attach(execution_id, invoice_number, plan=None, **kwargs):
     return iwa.attach_stock_invoice_assignment(
         execution_id,
         invoice_number,
@@ -218,6 +254,7 @@ def _attach(execution_id, invoice_number, plan=None):
             "employee_id": USER_ID,
         },
         assignment=plan or _plan(invoice_number),
+        **kwargs,
     )
 
 
@@ -283,6 +320,205 @@ def test_linked_terminal_execution_replays_existing_run(scratch):
         context = _as_json(row.context)
         assert context["run_id"] == first["run_id"]
         assert db.get(GoalRun, first["run_id"]).goal_id == context["goal_id"]
+
+
+# ---------------------------------------------------------------------------
+# Explicit account owner
+# ---------------------------------------------------------------------------
+
+
+def test_explicit_account_owner_is_validated_and_persisted(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-OWNER-PERSIST"
+    _add_execution(scratch, "exec-owner-persist", invoice_number)
+    calls = _install_scope_validator(monkeypatch)
+
+    result = _attach(
+        "exec-owner-persist",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+
+    assert calls == [{
+        "user_id": OWNER_ID,
+        "workspace_id": WORKSPACE_ID,
+        "tenant_id": TENANT_ID,
+    }]
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-persist")
+        context = _as_json(row.context)
+        assert context[iwa._ACCOUNT_OWNER_CONTEXT_KEY] == OWNER_ID
+        assert context[iwa._ACCOUNT_OWNER_CONTEXT_KEY] != USER_ID
+        assert context["user_id"] == USER_ID
+        assert db.get(GoalRun, result["run_id"]) is not None
+
+
+@pytest.mark.parametrize("value", ["", "   ", 123, False])
+def test_invalid_account_owner_is_rejected_without_write(
+        scratch, monkeypatch, value):
+    _seed_scope(scratch)
+    invoice_number = "INV-OWNER-INVALID"
+    _add_execution(scratch, "exec-owner-invalid", invoice_number)
+    calls = _install_scope_validator(monkeypatch)
+    before = _counts(scratch)
+
+    with pytest.raises(ValueError):
+        _attach(
+            "exec-owner-invalid",
+            invoice_number,
+            account_owner_user_id=value,
+        )
+
+    assert calls == []
+    assert _counts(scratch) == before
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-invalid")
+        assert getattr(row.status, "value", row.status) == "PENDING"
+        assert _as_json(row.context) == {}
+
+
+def test_recipient_scope_error_blocks_first_attach_without_write(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    invoice_number = "INV-OWNER-SCOPE"
+    _add_execution(scratch, "exec-owner-scope", invoice_number)
+    calls = _install_scope_validator(monkeypatch, "recipient_inactive")
+    before = _counts(scratch)
+
+    with pytest.raises(PermissionError) as raised:
+        _attach(
+            "exec-owner-scope",
+            invoice_number,
+            account_owner_user_id=OWNER_ID,
+        )
+
+    assert "recipient_inactive" in str(raised.value)
+    assert calls == [{
+        "user_id": OWNER_ID,
+        "workspace_id": WORKSPACE_ID,
+        "tenant_id": TENANT_ID,
+    }]
+    assert _counts(scratch) == before
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-scope")
+        assert getattr(row.status, "value", row.status) == "PENDING"
+        assert _as_json(row.context) == {}
+
+
+def test_replay_with_unchanged_owner_returns_existing_run(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-OWNER-REPLAY"
+    _add_execution(scratch, "exec-owner-replay", invoice_number)
+    calls = _install_scope_validator(monkeypatch)
+
+    first = _attach(
+        "exec-owner-replay",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    baseline = _counts(scratch)
+
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-replay")
+        baseline_context = _as_json(row.context)
+        row.status = "COMPLETED"
+        db.commit()
+
+    replay = _attach(
+        "exec-owner-replay",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+
+    assert replay == first
+    assert _counts(scratch) == baseline
+    assert len(calls) == 1
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-replay")
+        assert _as_json(row.context) == baseline_context
+
+
+@pytest.mark.parametrize(("first_owner", "replay_owner"), [
+    (OWNER_ID, OTHER_OWNER_ID),
+    (OWNER_ID, None),
+    (None, OWNER_ID),
+])
+def test_replay_owner_conflict_does_not_write(
+        scratch, monkeypatch, first_owner, replay_owner):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    _add_recipient(scratch, OTHER_OWNER_ID)
+    invoice_number = "INV-OWNER-CONFLICT"
+    _add_execution(scratch, "exec-owner-conflict", invoice_number)
+    calls = _install_scope_validator(monkeypatch)
+
+    first_kwargs = (
+        {} if first_owner is None
+        else {"account_owner_user_id": first_owner})
+    _attach("exec-owner-conflict", invoice_number, **first_kwargs)
+    baseline = _counts(scratch)
+    with scratch() as db:
+        stored_context = _as_json(
+            db.get(WorkflowExecution, "exec-owner-conflict").context)
+
+    replay_kwargs = (
+        {} if replay_owner is None
+        else {"account_owner_user_id": replay_owner})
+    with pytest.raises(ValueError) as raised:
+        _attach("exec-owner-conflict", invoice_number, **replay_kwargs)
+
+    assert "conflict" in str(raised.value).lower()
+    assert _counts(scratch) == baseline
+    assert len(calls) == (1 if first_owner is not None else 0)
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-conflict")
+        assert _as_json(row.context) == stored_context
+
+
+def test_omitting_account_owner_keeps_legacy_behavior(scratch, monkeypatch):
+    _seed_scope(scratch)
+    invoice_number = "INV-OWNER-LEGACY"
+    _add_execution(scratch, "exec-owner-legacy", invoice_number)
+    calls = _install_scope_validator(monkeypatch)
+
+    first = _attach("exec-owner-legacy", invoice_number)
+    replay = _attach("exec-owner-legacy", invoice_number)
+
+    assert replay == first
+    assert calls == []
+    with scratch() as db:
+        context = _as_json(
+            db.get(WorkflowExecution, "exec-owner-legacy").context)
+        assert iwa._ACCOUNT_OWNER_CONTEXT_KEY not in context
+
+
+def test_owner_link_write_failure_rolls_back_everything(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-OWNER-ROLLBACK"
+    _add_execution(scratch, "exec-owner-rollback", invoice_number)
+    _install_scope_validator(monkeypatch)
+    _install_link_write_failure(scratch)
+
+    before = _counts(scratch)
+    with pytest.raises(IntegrityError) as raised:
+        _attach(
+            "exec-owner-rollback",
+            invoice_number,
+            account_owner_user_id=OWNER_ID,
+        )
+
+    assert "synthetic link write failure" in str(raised.value.orig)
+    assert _counts(scratch) == before
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-owner-rollback")
+        assert getattr(row.status, "value", row.status) == "PENDING"
+        assert _as_json(row.context) == {}
 
 
 # ---------------------------------------------------------------------------
