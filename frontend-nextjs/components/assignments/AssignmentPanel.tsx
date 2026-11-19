@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  InvoiceCommitmentReview,
+  invoiceCommitmentReplyId,
+  isAppliedInvoiceReplyStep,
+} from "@/components/assignments/InvoiceCommitmentReview";
 import { useProductProfile } from "@/lib/product-profile";
 import {
   approveAssignmentStep,
@@ -488,6 +493,9 @@ export function AssignmentPanel({
   const outlookVerificationAvailable = Boolean(
     uncertainOperation?.outlook_verification_available
   );
+  const invoiceCommitmentSteps = detail
+    ? detail.assignment.steps.filter(isAppliedInvoiceReplyStep)
+    : [];
 
   return (
     <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
@@ -1276,6 +1284,25 @@ export function AssignmentPanel({
               </div>
             </div>
           ) : null}
+
+          {invoiceCommitmentSteps.map((invoiceStep) => {
+            const operation = (detail.operations || []).find(
+              (item) =>
+                invoiceStep.operation_id &&
+                String(item.operation_id) === String(invoiceStep.operation_id)
+            );
+            return (
+              <InvoiceCommitmentReview
+                key={`${detail.run_id}:${invoiceStep.step_id}`}
+                runId={detail.run_id}
+                stepId={invoiceStep.step_id}
+                expectedReplyId={invoiceCommitmentReplyId(
+                  invoiceStep,
+                  operation
+                )}
+              />
+            );
+          })}
 
           <div>
             <p className="mb-1 font-medium">Completed work</p>
