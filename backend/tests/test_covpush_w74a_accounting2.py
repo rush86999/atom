@@ -81,7 +81,7 @@ from accounting.models import (  # noqa: E402
     JournalEntry,
     Transaction,
 )
-from core.models import BusinessProductService  # noqa: E402
+from core.models import BusinessProductService, Workspace  # noqa: E402
 from ecommerce.models import EcommerceOrderItem  # noqa: E402
 
 from accounting.assistant import AccountingAssistant  # noqa: E402
@@ -220,16 +220,61 @@ def _patched_ai(output=None, side_effect=None):
 # ===========================================================================
 # AccountingAssistant
 # ===========================================================================
+_UNSET = object()
+
+
 class TestAccountingAssistant:
-    def _run(self, db, output=None, side_effect=None):
-        ai = _patched_ai(output=output, side_effect=side_effect)
+    @pytest.fixture
+    def workspace_lookup(self):
+        """Workspace lookup fixture: scope id -> the row that owns its tenant."""
+
+        def _lookup(workspace_id):
+            return SimpleNamespace(id=workspace_id, tenant_id="tenant-1")
+
+        return _lookup
+
+    @pytest.fixture(autouse=True)
+    def _bind_workspace(self, workspace_lookup):
+        self.workspace = workspace_lookup("ws1")
+
+    def _make_assistant(self, db):
         ledger = MagicMock()
         ledger.get_account_balance = MagicMock(return_value=12345.67)
-        with patch.object(assist_mod, "ai_enhanced_service", ai), patch.object(
-            assist_mod, "EventSourcedLedger", return_value=ledger
-        ):
+        with patch.object(assist_mod, "EventSourcedLedger", return_value=ledger):
             svc = AccountingAssistant(db)
-            result = asyncio.run(svc.process_query("ws1", "what's my balance?"))
+        return svc, ledger
+
+    def _run(
+        self,
+        db,
+        output=None,
+        side_effect=None,
+        completion=_UNSET,
+        workspace=_UNSET,
+        query="what's my balance?",
+    ):
+        # The scoped service resolves its tenant from the workspace row; seed
+        # the scripted session so the lookup fixture is authoritative. Passing
+        # workspace=None explicitly models a workspace with no owning row.
+        if workspace is _UNSET:
+            workspace = self.workspace
+        db._specs[Workspace] = [] if workspace is None else [workspace]
+
+        service = MagicMock()
+        if completion is not _UNSET:
+            service.generate_completion = AsyncMock(return_value=completion)
+        elif side_effect is not None:
+            service.generate_completion = AsyncMock(side_effect=side_effect)
+        else:
+            service.generate_completion = AsyncMock(
+                return_value={"success": True, "content": output}
+            )
+        factory = MagicMock(return_value=service)
+        svc, ledger = self._make_assistant(db)
+        with patch.object(assist_mod, "get_llm_service", factory):
+            result = asyncio.run(svc.process_query("ws1", query))
+        self.llm_service = service
+        self.llm_factory = factory
         return result, svc, ledger
 
     def test_ledger_is_initialized_from_db(self):
@@ -237,6 +282,63 @@ class TestAccountingAssistant:
         _, svc, _ = self._run(db, output={"intent": "unknown"})
         assert svc.db is db
         assert svc.ledger is not None
+
+    def test_scoped_completion_service_receives_workspace_tenant_and_db(self):
+        db = _FakeDB()
+        result, _, _ = self._run(
+            db, output={"intent": "get_tax_estimate"}, query="what tax will I owe?"
+        )
+        assert result == {"intent": "get_tax_estimate"}
+        self.llm_factory.assert_called_once_with(
+            workspace_id="ws1", tenant_id="tenant-1", db=db
+        )
+        self.llm_service.generate_completion.assert_awaited_once()
+        kwargs = self.llm_service.generate_completion.await_args.kwargs
+        assert kwargs["workspace_id"] == "ws1"
+        assert kwargs["tenant_id"] == "tenant-1"
+        assert kwargs["temperature"] == 0.7
+        assert kwargs["messages"][0]["role"] == "user"
+        assert "what tax will I owe?" in kwargs["messages"][0]["content"]
+
+    def test_tenant_comes_from_workspace_row_not_workspace_id(self):
+        db = _FakeDB()
+        workspace = SimpleNamespace(id="ws1", tenant_id="tenant-42")
+        result, _, _ = self._run(
+            db, output={"intent": "get_aging"}, workspace=workspace
+        )
+        assert result == {"intent": "get_aging"}
+        self.llm_factory.assert_called_once_with(
+            workspace_id="ws1", tenant_id="tenant-42", db=db
+        )
+        kwargs = self.llm_service.generate_completion.await_args.kwargs
+        assert kwargs["tenant_id"] == "tenant-42"
+
+    def test_resolve_tenant_id_strips_workspace_row(self):
+        db = _FakeDB(
+            {Workspace: [SimpleNamespace(id="ws1", tenant_id="  tenant-9  ")]}
+        )
+        svc, _ = self._make_assistant(db)
+        assert svc._resolve_tenant_id("ws1") == "tenant-9"
+
+    def test_resolve_tenant_id_rejects_blank_workspace_tenant(self):
+        db = _FakeDB({Workspace: [SimpleNamespace(id="ws1", tenant_id="   ")]})
+        svc, _ = self._make_assistant(db)
+        with pytest.raises(ValueError, match="Could not resolve a tenant"):
+            svc._resolve_tenant_id("ws1")
+
+    def test_resolve_tenant_id_rejects_missing_workspace(self):
+        db = _FakeDB({Workspace: []})
+        svc, _ = self._make_assistant(db)
+        with pytest.raises(ValueError, match="Could not resolve a tenant"):
+            svc._resolve_tenant_id("ws1")
+
+    def test_unresolved_tenant_fails_before_calling_completion_service(self):
+        db = _FakeDB()
+        result, _, _ = self._run(
+            db, output={"intent": "get_balance"}, workspace=None
+        )
+        assert "Could not resolve a tenant for workspace 'ws1'" in result["answer"]
+        self.llm_factory.assert_not_called()
 
     def test_get_balance_found(self):
         db = _FakeDB({Account: [_mk_account(name="Bank of America")]})
@@ -342,10 +444,64 @@ class TestAccountingAssistant:
         )
         assert "current balance of Cash" in result["answer"]
 
+    def test_ai_response_as_structured_content_dict(self):
+        db = _FakeDB({Account: [_mk_account()]})
+        result, _, _ = self._run(
+            db,
+            completion={
+                "success": True,
+                "content": {"intent": "get_balance", "params": {"account_name": "Cash"}},
+            },
+        )
+        assert "current balance of Cash" in result["answer"]
+
     def test_ai_response_bad_json_string(self):
         db = _FakeDB()
         result, _, _ = self._run(db, output="not-json-at-all")
-        assert "Sorry, I encountered an error" in result["answer"]
+        assert "AI interpretation was not valid JSON" in result["answer"]
+
+    def test_ai_response_non_object_json(self):
+        db = _FakeDB()
+        result, _, _ = self._run(db, output='["get_balance"]')
+        assert "did not contain a structured intent" in result["answer"]
+
+    def test_ai_response_blank_content(self):
+        db = _FakeDB()
+        result, _, _ = self._run(db, output="   ")
+        assert "AI interpretation returned no usable response" in result["answer"]
+
+    def test_ai_response_missing_content(self):
+        db = _FakeDB()
+        result, _, _ = self._run(
+            db, completion={"success": True, "content": None}
+        )
+        assert "AI interpretation returned no usable response" in result["answer"]
+
+    def test_empty_generation_failure_is_unusable_response(self):
+        db = _FakeDB()
+        result, _, _ = self._run(
+            db,
+            completion={"success": False, "failure": {"reason": "empty_generation"}},
+        )
+        assert "AI interpretation returned no usable response" in result["answer"]
+
+    def test_generation_failure_reports_reason(self):
+        db = _FakeDB()
+        result, _, _ = self._run(
+            db,
+            completion={"success": False, "failure": {"reason": "provider_error"}},
+        )
+        assert "AI interpretation failed (provider_error)" in result["answer"]
+
+    def test_generation_failure_without_reason_is_generic(self):
+        db = _FakeDB()
+        result, _, _ = self._run(db, completion={"success": False})
+        assert "AI interpretation failed (generation_failed)" in result["answer"]
+
+    def test_non_dict_completion_is_unusable_response(self):
+        db = _FakeDB()
+        result, _, _ = self._run(db, completion=["not", "a", "dict"])
+        assert "AI interpretation returned no usable response" in result["answer"]
 
     def test_ai_service_error_returns_message(self):
         db = _FakeDB()

@@ -53,7 +53,11 @@ class CloseChecklistAgent:
         # In our EventSourcedLedger, this shouldn't happen, but good to verify
         # SELECT transaction_id, SUM(CASE WHEN type='debit' THEN amount ELSE -amount END) as diff
         from sqlalchemy import case
-        unbalanced = self.db.query(JournalEntry.transaction_id).group_by(JournalEntry.transaction_id).having(
+        unbalanced = self.db.query(JournalEntry.transaction_id).join(
+            Transaction, JournalEntry.transaction_id == Transaction.id
+        ).filter(
+            Transaction.workspace_id == workspace_id
+        ).group_by(JournalEntry.transaction_id).having(
             func.abs(func.sum(case((JournalEntry.type == 'debit', JournalEntry.amount), else_=-JournalEntry.amount))) > 0.001
         ).all()
 

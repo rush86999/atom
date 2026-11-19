@@ -76,6 +76,7 @@ sys.modules["integrations.ai_enhanced_service"] = _ai_mod
 
 from accounting import (  # noqa: E402
     ap_service as ap_mod,
+    assistant as assistant_mod,
     categorizer as cat_mod,
     credit_risk_engine as cre_mod,
     multi_entity as me_mod,
@@ -1310,3 +1311,202 @@ class TestIntercompany:
         assert report["total_elimination_volume"] == 350.0
         assert report["breakdown_by_counterparty"] == {"ws2": 100.0, "Unknown": 250.0}
         assert report["transaction_count"] == 3
+
+
+# ===========================================================================
+# AccountingAssistant — scoped LLM intent interpretation
+# ===========================================================================
+def _mk_workspace(workspace_id="ws1", tenant_id="tenant-acme"):
+    return SimpleNamespace(id=workspace_id, tenant_id=tenant_id)
+
+
+def _completion(payload=None, **overrides):
+    body = (
+        {"success": True, "content": json.dumps(payload)}
+        if payload is not None else {}
+    )
+    body.update(overrides)
+    return body
+
+
+def _run_assistant(db, completion, query="What is my Cash balance?"):
+    service = MagicMock()
+    service.generate_completion = AsyncMock(return_value=completion)
+    ledger = MagicMock()
+    ledger.get_account_balance.return_value = 250.0
+    with patch.object(
+        assistant_mod, "EventSourcedLedger", return_value=ledger
+    ), patch.object(
+        assistant_mod, "get_llm_service", return_value=service
+    ) as getter:
+        result = asyncio.run(
+            assistant_mod.AccountingAssistant(db).process_query("ws1", query)
+        )
+    return result, service, getter, ledger
+
+
+class TestAccountingAssistant:
+    def test_does_not_import_removed_legacy_ai_service(self):
+        assert not hasattr(assistant_mod, "ai_enhanced_service")
+        assert not hasattr(assistant_mod, "AIRequest")
+        assert not hasattr(assistant_mod, "AITaskType")
+
+    def test_imports_when_legacy_ai_module_is_absent(self):
+        """Regression: assistant has no dependency on the removed module."""
+        saved = sys.modules.pop("integrations.ai_enhanced_service", None)
+        try:
+            importlib.reload(assistant_mod)
+            assert not hasattr(assistant_mod, "ai_enhanced_service")
+            assert hasattr(assistant_mod, "AccountingAssistant")
+        finally:
+            if saved is not None:
+                sys.modules["integrations.ai_enhanced_service"] = saved
+            importlib.reload(assistant_mod)
+
+    def test_uses_authoritative_workspace_tenant_and_scoped_completion(self):
+        db = _FakeDB(
+            {
+                assistant_mod.Workspace: [_mk_workspace()],
+                assistant_mod.Account: [_mk_account("1000", name="Cash")],
+            }
+        )
+        result, service, getter, ledger = _run_assistant(
+            db,
+            _completion(
+                {
+                    "intent": "get_balance",
+                    "params": {"account_name": "Cash"},
+                    "reasoning": "balance query",
+                }
+            ),
+        )
+        getter.assert_called_once_with(
+            workspace_id="ws1", tenant_id="tenant-acme", db=db
+        )
+        call = service.generate_completion.call_args
+        assert call.kwargs["workspace_id"] == "ws1"
+        assert call.kwargs["tenant_id"] == "tenant-acme"
+        assert call.kwargs["temperature"] == 0.7
+        assert "model" not in call.kwargs
+        assert "What is my Cash balance?" in call.kwargs["messages"][0]["content"]
+        assert result["data"] == {"account": "Cash", "balance": 250.0}
+        ledger.get_account_balance.assert_called_once_with("acc-1000")
+
+    def test_missing_workspace_refuses_without_provider_call(self):
+        db = _FakeDB({assistant_mod.Workspace: []})
+        result, service, getter, ledger = _run_assistant(
+            db, _completion({"intent": "get_balance"})
+        )
+        getter.assert_not_called()
+        service.generate_completion.assert_not_called()
+        ledger.get_account_balance.assert_not_called()
+        assert result["answer"].startswith("Sorry, I encountered an error:")
+        assert "tenant" in result["answer"].lower()
+
+    def test_blank_tenant_never_falls_back_to_default(self):
+        db = _FakeDB(
+            {assistant_mod.Workspace: [_mk_workspace(tenant_id="   ")]}
+        )
+        result, service, getter, ledger = _run_assistant(
+            db, _completion({"intent": "get_aging"})
+        )
+        getter.assert_not_called()
+        service.generate_completion.assert_not_called()
+        assert result["answer"].startswith("Sorry, I encountered an error:")
+        assert "tenant" in result["answer"].lower()
+
+    @pytest.mark.parametrize(
+        "intent,expected",
+        [
+            ("check_overdue", {"intent": "check_overdue"}),
+            ("get_aging", {"intent": "get_aging"}),
+            (
+                "check_close_readiness",
+                {"intent": "check_close_readiness", "params": {"period": "2026-01"}},
+            ),
+            ("get_tax_estimate", {"intent": "get_tax_estimate"}),
+            ("get_cash_forecast", {"intent": "get_cash_forecast"}),
+            (
+                "run_scenario",
+                {"intent": "run_scenario", "params": {"period": "2026-01"}},
+            ),
+            ("get_intercompany_report", {"intent": "get_intercompany_report"}),
+        ],
+    )
+    def test_supported_intent_branches_are_preserved(self, intent, expected):
+        db = _FakeDB({assistant_mod.Workspace: [_mk_workspace()]})
+        result, _, _, _ = _run_assistant(
+            db,
+            _completion(
+                {
+                    "intent": intent,
+                    "params": {"period": "2026-01"},
+                    "reasoning": "supported intent",
+                }
+            ),
+        )
+        assert result == expected
+
+    def test_record_transaction_is_acknowledged_without_storage_effect(self):
+        db = _FakeDB({assistant_mod.Workspace: [_mk_workspace()]})
+        result, _, _, ledger = _run_assistant(
+            db,
+            _completion(
+                {
+                    "intent": "record_transaction",
+                    "params": {"amount": 10, "account": "Cash"},
+                }
+            ),
+            query="Record a $10 cash transaction",
+        )
+        assert result == {
+            "answer": (
+                "I've understood you want to record a transaction. "
+                "(Integration with ledger coming in Phase 2!)"
+            ),
+            "intent": "record_transaction",
+            "extracted_params": {"amount": 10, "account": "Cash"},
+        }
+        assert ledger.method_calls == []
+        assert db.added == []
+        assert db.commits == 0
+
+    def test_unknown_intent_returns_truthful_fallback(self):
+        db = _FakeDB({assistant_mod.Workspace: [_mk_workspace()]})
+        result, _, _, _ = _run_assistant(
+            db, _completion({"intent": "not_supported", "params": {}})
+        )
+        assert result["intent"] == "not_supported"
+        assert "not sure how to help" in result["answer"]
+
+    def test_dict_content_is_accepted_as_structured_output(self):
+        db = _FakeDB({assistant_mod.Workspace: [_mk_workspace()]})
+        result, _, _, _ = _run_assistant(
+            db, {"success": True, "content": {"intent": "get_aging"}}
+        )
+        assert result == {"intent": "get_aging"}
+
+    @pytest.mark.parametrize(
+        "completion",
+        [
+            {
+                "success": False,
+                "content": "",
+                "failure": {"reason": "provider_error"},
+            },
+            {"success": False, "content": "no usable response"},
+            {"success": True, "content": ""},
+            {"success": True, "content": "   "},
+            {"success": True, "content": "{not valid json"},
+            {"success": True, "content": json.dumps([1, 2])},
+            "not-a-completion-dict",
+        ],
+    )
+    def test_unusable_completion_is_a_truthful_error_without_storage(self, completion):
+        db = _FakeDB({assistant_mod.Workspace: [_mk_workspace()]})
+        result, service, _, ledger = _run_assistant(db, completion)
+        service.generate_completion.assert_awaited_once()
+        ledger.get_account_balance.assert_not_called()
+        assert db.added == []
+        assert db.commits == 0
+        assert result["answer"].startswith("Sorry, I encountered an error:")

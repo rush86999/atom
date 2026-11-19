@@ -457,8 +457,42 @@ class TestExecuteToolLocalTools:
         db.__exit__ = MagicMock(return_value=False)
         with patch("accounting.close_agent.CloseChecklistAgent", _cls(agent)), \
              patch("core.database.SessionLocal", lambda: db):
-            r = await _run_local(svc, "finance_close_check", {"period": "2026-07"})
+            r = await _run_local(
+                svc, "finance_close_check", {"period": "2026-07"},
+                {"workspace_id": "trusted-ws"})
         assert r == {"ok": True}
+        agent.run_close_check.assert_awaited_once_with("trusted-ws", "2026-07")
+
+    async def test_finance_close_check_context_scope_only(self):
+        """Args cannot override the dispatch workspace; missing scope refuses
+        the close report before a DB session or close agent is opened."""
+        svc = _svc()
+        agent = MagicMock()
+        agent.run_close_check = AsyncMock(return_value={"ok": True})
+        agent_cls = _cls(agent)
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        db_factory = MagicMock(return_value=db)
+        args = {"workspace_id": "args-ws", "period": "2026-02"}
+        with patch("accounting.close_agent.CloseChecklistAgent", agent_cls), \
+             patch("core.database.SessionLocal", db_factory):
+            r = await _run_local(
+                svc, "finance_close_check", args, {"workspace_id": "ctx-ws"})
+            assert r == {"ok": True}
+            agent.run_close_check.assert_awaited_once_with("ctx-ws", "2026-02")
+
+            agent.run_close_check.reset_mock()
+            agent_cls.reset_mock()
+            db_factory.reset_mock()
+            refused = await _run_local(svc, "finance_close_check", args, {})
+        assert refused["success"] is False
+        assert refused["status"] == "refused"
+        assert "workspace" in refused["error"].lower()
+        assert refused["verification"]["effect"] == "none"
+        db_factory.assert_not_called()
+        agent_cls.assert_not_called()
+        agent.run_close_check.assert_not_awaited()
 
     async def test_b2b_tools(self):
         svc = _svc()
@@ -976,6 +1010,8 @@ class TestExecuteToolLocalTools:
              patch("core.database.SessionLocal", lambda: db):
             r = await _run_local(svc, "finance_close_check", {}, {"workspace_id": "w"})
         assert r == {"ok": True}
+        agent.run_close_check.assert_awaited_once()
+        assert agent.run_close_check.await_args.args[0] == "w"
 
     async def test_get_inventory_levels(self):
         svc = _svc()

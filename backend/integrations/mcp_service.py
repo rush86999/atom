@@ -1878,14 +1878,32 @@ class MCPService(IntegrationService):
             workspace_id = context.get("workspace_id") or arguments.get("workspace_id", "default")
             
             if tool_name == "finance_close_check":
+                # The dispatch CONTEXT is the sole workspace authority for the
+                # close report. A model-visible arguments["workspace_id"] must
+                # never select another workspace, and there is no "default"
+                # fallback: missing scope is refused before any DB session is
+                # opened.
+                workspace_id = str(
+                    context.get("workspace_id") or "").strip()
+                if not workspace_id:
+                    return {
+                        "success": False,
+                        "status": "refused",
+                        "error": (
+                            "finance_close_check requires a trusted dispatch "
+                            "workspace"),
+                        "verification": {
+                            "status": "not_attempted", "effect": "none"},
+                    }
+
                 from accounting.close_agent import CloseChecklistAgent
                 from core.database import SessionLocal
-                
+
+                period = arguments.get(
+                    "period",
+                    datetime.now(timezone.utc).strftime("%Y-%m"))
                 with SessionLocal() as db:
                     agent = CloseChecklistAgent(db)
-                    # Use a default workspace or passed one
-                    workspace_id = arguments.get("workspace_id", "default")
-                    period = arguments.get("period", datetime.now(timezone.utc).strftime("%Y-%m"))
                     return await agent.run_close_check(workspace_id, period)
 
             elif tool_name == "b2b_extract_po":
