@@ -6,6 +6,7 @@ its own scratch SQLite database so nothing can reach a configured live DB.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import sqlite3
@@ -273,6 +274,54 @@ def _install_link_write_failure(session_factory):
             END
         """))
         db.commit()
+
+
+def _run(coro):
+    return asyncio.run(coro)
+
+
+def _deliver(execution_id, run_id, invoice_number, *, identity=None, **kwargs):
+    return _run(iwa.deliver_stock_invoice_owner_handoff(
+        execution_id=execution_id,
+        run_id=run_id,
+        invoice_number=invoice_number,
+        identity=identity or {
+            "tenant_id": TENANT_ID,
+            "workspace_id": WORKSPACE_ID,
+            "user_id": USER_ID,
+            "employee_id": USER_ID,
+        },
+        **kwargs,
+    ))
+
+
+def _install_notification_fake(monkeypatch, factory=None, error=None):
+    calls = []
+
+    class FakeNotificationService:
+        def __init__(self, db_session=None):
+            self.db = db_session
+
+        async def send_workflow_notification(self, **kwargs):
+            calls.append(dict(kwargs))
+            if error is not None:
+                raise error
+            if factory is not None:
+                return factory(kwargs, len(calls))
+            return {
+                "success": True,
+                "notification_id": kwargs["operation_id"],
+                "created": len(calls) == 1,
+                "emailed": False,
+                "error": None,
+            }
+
+    monkeypatch.setattr(
+        iwa.notification_service,
+        "NotificationService",
+        FakeNotificationService,
+    )
+    return calls
 
 
 # ---------------------------------------------------------------------------
@@ -627,3 +676,249 @@ def test_postgres_near_miss_is_not_replayable(orig):
 def test_non_integrity_error_is_not_replayable():
     error = ValueError("UNIQUE constraint failed: goal_runs.id")
     assert not iwa._is_deterministic_pk_collision(error)
+
+
+# ---------------------------------------------------------------------------
+# Scoped in-app owner handoff delivery
+# ---------------------------------------------------------------------------
+
+
+def test_owner_handoff_requires_exact_scope_link_and_invoice(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-SCOPE"
+    _add_execution(scratch, "exec-handoff-scope", invoice_number)
+    attached = _attach(
+        "exec-handoff-scope",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    calls = _install_notification_fake(monkeypatch)
+
+    with pytest.raises(PermissionError):
+        _deliver(
+            "exec-handoff-scope",
+            attached["run_id"],
+            invoice_number,
+            identity={
+                "tenant_id": "other-tenant",
+                "workspace_id": WORKSPACE_ID,
+                "user_id": USER_ID,
+                "employee_id": USER_ID,
+            },
+        )
+    with pytest.raises(LookupError):
+        _deliver(
+            "exec-handoff-scope",
+            str(uuid.uuid4()),
+            invoice_number,
+        )
+    with pytest.raises(ValueError):
+        _deliver(
+            "exec-handoff-scope",
+            attached["run_id"],
+            "INV-WRONG",
+        )
+
+    assert calls == []
+
+
+def test_owner_handoff_uses_immutable_owner_not_caller(scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-OWNER"
+    _add_execution(scratch, "exec-handoff-owner", invoice_number)
+    attached = _attach(
+        "exec-handoff-owner",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    calls = _install_notification_fake(monkeypatch)
+
+    receipt = _deliver(
+        "exec-handoff-owner", attached["run_id"], invoice_number)
+
+    assert receipt["delivered"] is True
+    assert len(calls) == 1
+    assert calls[0]["user_id"] == OWNER_ID
+    assert calls[0]["user_id"] != USER_ID
+    assert calls[0]["tenant_id"] == TENANT_ID
+    assert calls[0]["workspace_id"] == WORKSPACE_ID
+    assert receipt["notification_id"] == calls[0]["operation_id"]
+
+
+def test_owner_handoff_refuses_absent_or_malformed_binding_without_call(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    invoice_number = "INV-HANDOFF-NO-OWNER"
+    _add_execution(scratch, "exec-handoff-no-owner", invoice_number)
+    attached = _attach("exec-handoff-no-owner", invoice_number)
+    calls = _install_notification_fake(monkeypatch)
+
+    with pytest.raises(LookupError):
+        _deliver(
+            "exec-handoff-no-owner",
+            attached["run_id"],
+            invoice_number,
+        )
+
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-handoff-no-owner")
+        context = _as_json(row.context)
+        context[iwa._ACCOUNT_OWNER_CONTEXT_KEY] = "  "
+        row.context = json.dumps(context)
+        db.commit()
+
+    with pytest.raises(ValueError):
+        _deliver(
+            "exec-handoff-no-owner",
+            attached["run_id"],
+            invoice_number,
+        )
+
+    assert calls == []
+
+
+def test_owner_handoff_retry_reuses_one_stable_operation(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-RETRY"
+    _add_execution(scratch, "exec-handoff-retry", invoice_number)
+    attached = _attach(
+        "exec-handoff-retry",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    calls = _install_notification_fake(monkeypatch)
+
+    first = _deliver(
+        "exec-handoff-retry", attached["run_id"], invoice_number)
+
+    # A different handoff trigger state must not become new notification
+    # material or a new operation.
+    with scratch() as db:
+        row = db.get(WorkflowExecution, "exec-handoff-retry")
+        context = _as_json(row.context)
+        context["trigger_reason"] = "review_expired"
+        context["review_expires_at"] = "2026-01-01T00:00:00+00:00"
+        row.context = json.dumps(context)
+        db.commit()
+
+    retry = _deliver(
+        "exec-handoff-retry", attached["run_id"], invoice_number)
+
+    assert first["operation_id"] == retry["operation_id"]
+    assert first["notification_id"] == retry["notification_id"]
+    assert first["created"] is True
+    assert retry["created"] is False
+    assert retry["duplicate"] is True
+    assert len(calls) == 2
+    assert calls[0]["operation_id"] == calls[1]["operation_id"]
+    assert calls[0]["title"] == calls[1]["title"]
+    assert calls[0]["message"] == calls[1]["message"]
+    assert calls[0]["message"] == (
+        "Invoice INV-HANDOFF-RETRY has been handed off to you for review.")
+
+
+def test_owner_handoff_failure_receipt_never_reports_delivery(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-FAIL"
+    _add_execution(scratch, "exec-handoff-fail", invoice_number)
+    attached = _attach(
+        "exec-handoff-fail",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: {
+            "success": False,
+            "notification_id": None,
+            "created": False,
+            "emailed": False,
+            "error": "recipient_inactive",
+        },
+    )
+
+    receipt = _deliver(
+        "exec-handoff-fail", attached["run_id"], invoice_number)
+
+    assert receipt["success"] is False
+    assert receipt["delivered"] is False
+    assert receipt["status"] == "failed"
+    assert receipt["notification_id"] is None
+    assert receipt["error"] == "recipient_inactive"
+    assert receipt["operation_id"] == iwa._owner_handoff_operation_id(
+        "exec-handoff-fail", attached["run_id"])
+
+
+@pytest.mark.parametrize("malformed", [
+    "absent_success",
+    "wrong_notification_id",
+    "emailed_true",
+    "missing_created",
+])
+def test_owner_handoff_malformed_response_is_never_delivered(
+        scratch, monkeypatch, malformed):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = f"INV-HANDOFF-{malformed.upper()}"
+    execution_id = f"exec-handoff-{malformed}"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id,
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+
+    def factory(kwargs, attempt):
+        response = {
+            "success": True,
+            "notification_id": kwargs["operation_id"],
+            "created": True,
+            "emailed": False,
+            "error": None,
+        }
+        if malformed == "absent_success":
+            response.pop("success")
+        elif malformed == "wrong_notification_id":
+            response["notification_id"] = f"not-{kwargs['operation_id']}"
+        elif malformed == "emailed_true":
+            response["emailed"] = True
+        elif malformed == "missing_created":
+            response.pop("created")
+        return response
+
+    _install_notification_fake(monkeypatch, factory=factory)
+    receipt = _deliver(execution_id, attached["run_id"], invoice_number)
+
+    assert receipt["success"] is False
+    assert receipt["delivered"] is False
+    assert receipt["status"] == "failed"
+    assert receipt["notification_id"] is None
+    assert receipt["error"] == "notification_failed"
+
+
+def test_owner_handoff_unavailable_service_raises(scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-UNAVAILABLE"
+    _add_execution(scratch, "exec-handoff-unavailable", invoice_number)
+    attached = _attach(
+        "exec-handoff-unavailable",
+        invoice_number,
+        account_owner_user_id=OWNER_ID,
+    )
+    _install_notification_fake(
+        monkeypatch, error=RuntimeError("synthetic unavailable"))
+
+    with pytest.raises(iwa.OwnerHandoffDeliveryError):
+        _deliver(
+            "exec-handoff-unavailable",
+            attached["run_id"],
+            invoice_number,
+        )

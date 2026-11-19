@@ -1,8 +1,9 @@
-"""Persist a stock-invoice assignment against an existing workflow execution.
+"""Persist a stock-invoice assignment and deliver its owner handoff.
 
-The execution row is the authorization anchor.  This module intentionally does
-not execute the assignment; it only records a server-validated plan and the
-goal/run that owns it.
+The execution row is the authorization anchor.  The assignment path records a
+server-validated plan and the goal/run that owns it; the handoff path rereads
+those durable facts and sends one scoped in-app notification.  Neither path
+executes the assignment or performs an external send.
 """
 
 from __future__ import annotations
@@ -28,10 +29,18 @@ from core.task_lifecycle import new_task_revision
 _WORKFLOW_ID = "htn_invoice_followup"
 _ACCOUNT_OWNER_CONTEXT_KEY = "_atom_account_owner_user_id"
 
+_OWNER_HANDOFF_TITLE = "Invoice owner handoff"
+_OWNER_HANDOFF_MESSAGE = (
+    "Invoice {invoice_number} has been handed off to you for review.")
+
 # A stable namespace keeps the goal and run ids reproducible from the
 # execution id alone.
 _ASSIGNMENT_NAMESPACE = uuid.uuid5(
     uuid.NAMESPACE_URL, "atom.invoice.workflow.assignment")
+
+
+class OwnerHandoffDeliveryError(RuntimeError):
+    """The in-app owner handoff could not prove that it was delivered."""
 
 
 def _text(value: Any) -> str:
@@ -638,3 +647,216 @@ def attach_stock_invoice_assignment(
             if recovered_run_id is None:
                 raise
             return {"run_id": recovered_run_id}
+
+
+# ---------------------------------------------------------------------------
+# Reusable in-app owner handoff delivery/receipt boundary
+# ---------------------------------------------------------------------------
+
+
+def _owner_handoff_operation_id(execution_key: str, run_id: str) -> str:
+    """Return the one stable operation id for an assignment's owner handoff.
+
+    The id deliberately depends only on durable assignment identity.  Trigger
+    reasons, reply/review expiry timestamps and the latest invoice snapshot are
+    not inputs, so every handoff state for this assignment shares one
+    notification and one idempotency key.  Including the validated run id binds
+    the operation to the exact deterministic assignment rather than to a bare
+    execution string supplied by a caller.
+    """
+    return str(uuid.uuid5(
+        _ASSIGNMENT_NAMESPACE,
+        f"owner-handoff:{execution_key}:{run_id}",
+    ))
+
+
+def _bound_account_owner(context: Dict[str, Any]) -> str:
+    """Return the exact persisted owner binding, never the caller fallback."""
+    raw = context.get(_ACCOUNT_OWNER_CONTEXT_KEY)
+    if raw is None:
+        raise LookupError(
+            "workflow execution has no account owner binding")
+    if not isinstance(raw, str):
+        raise ValueError(
+            "workflow execution account owner binding is malformed")
+    owner = raw.strip()
+    if not owner or owner != raw:
+        raise ValueError(
+            "workflow execution account owner binding is malformed")
+    return owner
+
+
+def _read_owner_handoff_binding(
+    execution_key: str,
+    run_id: str,
+    invoice_number: str,
+    identity: Dict[str, str],
+) -> Dict[str, str]:
+    """Re-read and prove every durable fact needed to deliver the handoff.
+
+    This helper returns only copied strings.  Its transaction is closed before
+    the caller opens the notification transaction.
+    """
+    with get_db_session() as session:
+        row = session.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_key,
+        ).populate_existing().first()
+        if row is None:
+            raise LookupError("workflow execution not found")
+        if _text(row.workflow_id) != _WORKFLOW_ID:
+            raise ValueError(
+                "workflow execution is not htn_invoice_followup")
+
+        input_data = _json_object(
+            row.input_data, "workflow execution input_data")
+        _require_execution_scope(row, input_data, identity)
+        _require_invoice_intent(input_data, invoice_number)
+
+        goal_id = _goal_id(execution_key)
+        has_link, run = _resolve_link(
+            session, row, execution_key, identity, goal_id, run_id)
+        if not has_link:
+            raise LookupError(
+                "workflow execution has no stock invoice goal run link")
+        if run is None:
+            raise LookupError(
+                "workflow execution links an unverified goal run")
+
+        context = _json_object(
+            row.context, "workflow execution context")
+        owner_user_id = _bound_account_owner(context)
+
+        return {
+            "execution_id": execution_key,
+            "run_id": _text(run.id),
+            "invoice_number": invoice_number,
+            "owner_user_id": owner_user_id,
+            "tenant_id": identity["tenant_id"],
+            "workspace_id": identity["workspace_id"],
+        }
+
+
+def _owner_handoff_receipt(
+    *,
+    notification_id: str,
+    operation_id: str,
+    created: bool,
+) -> Dict[str, Any]:
+    return {
+        "notification_id": notification_id,
+        "operation_id": operation_id,
+        "status": "delivered",
+        "delivery_status": "delivered",
+        "delivered": True,
+        "success": True,
+        "created": created,
+        "duplicate": not created,
+    }
+
+
+def _owner_handoff_failure(
+    operation_id: str,
+    error: str,
+) -> Dict[str, Any]:
+    """Return a truthful failure receipt; never look like a handoff."""
+    return {
+        "notification_id": None,
+        "operation_id": operation_id,
+        "status": "failed",
+        "delivery_status": "failed",
+        "delivered": False,
+        "success": False,
+        "created": False,
+        "duplicate": False,
+        "error": _text(error) or "notification_failed",
+    }
+
+
+async def deliver_stock_invoice_owner_handoff(
+    *,
+    execution_id: str,
+    run_id: str,
+    invoice_number: str,
+    identity: Any,
+) -> Dict[str, Any]:
+    """Deliver the one scoped in-app owner handoff for a stock invoice.
+
+    ``execution_id``, the deterministic ``run_id`` and the exact
+    ``invoice_number`` are checked against the durable execution row in a short
+    read transaction.  The recipient comes only from the execution's immutable
+    account-owner binding; the caller's identity is used solely to prove the
+    execution scope.
+
+    The read transaction is released before a *separate* notification
+    transaction calls the existing scoped ``NotificationService`` boundary.
+    That service rechecks current recipient usability.  The notification
+    material and operation id contain no trigger reason, mutable dates or other
+    changing state, so reply expiry, review expiry and reviewed-without-
+    commitment all converge on one deduplicated delivery.
+
+    A delivered receipt requires the service's explicit ``success is True``,
+    ``notification_id`` exactly equal to the operation id (the service uses it
+    as the primary key), an actual boolean ``created``, ``emailed is False``
+    and no error.  A known negative outcome keeps its error; a missing or
+    malformed response is a generic failure, never a delivered receipt.  An
+    unavailable/broken service raises :class:`OwnerHandoffDeliveryError`.
+    """
+    execution_key = _execution_key(execution_id)
+    expected_run_id = _run_id(execution_key)
+    run_key = _text(run_id)
+    if not run_key:
+        raise ValueError("goal run id is required")
+    if run_key != expected_run_id:
+        raise LookupError(
+            "goal run is not the deterministic stock invoice assignment run")
+    if not isinstance(invoice_number, str) or not invoice_number.strip():
+        raise ValueError("invoice_number is required")
+
+    identity_values = _identity_values(identity)
+
+    facts = _read_owner_handoff_binding(
+        execution_key, run_key, invoice_number, identity_values)
+    operation_id = _owner_handoff_operation_id(
+        facts["execution_id"], facts["run_id"])
+
+    try:
+        with get_db_session() as send_session:
+            service = notification_service.NotificationService(send_session)
+            outcome = await service.send_workflow_notification(
+                user_id=facts["owner_user_id"],
+                workspace_id=facts["workspace_id"],
+                tenant_id=facts["tenant_id"],
+                operation_id=operation_id,
+                title=_OWNER_HANDOFF_TITLE,
+                message=_OWNER_HANDOFF_MESSAGE.format(
+                    invoice_number=facts["invoice_number"]),
+            )
+    except Exception as exc:
+        raise OwnerHandoffDeliveryError(
+            "owner handoff delivery is unavailable") from exc
+
+    if not isinstance(outcome, Mapping):
+        return _owner_handoff_failure(operation_id, "notification_failed")
+
+    error = _text(outcome.get("error"))
+    if outcome.get("success") is not True:
+        return _owner_handoff_failure(
+            operation_id, error or "notification_failed")
+    if error:
+        return _owner_handoff_failure(operation_id, "notification_failed")
+
+    notification_id = outcome.get("notification_id")
+    if notification_id != operation_id:
+        return _owner_handoff_failure(operation_id, "notification_failed")
+
+    created = outcome.get("created")
+    if not isinstance(created, bool):
+        return _owner_handoff_failure(operation_id, "notification_failed")
+    if outcome.get("emailed") is not False:
+        return _owner_handoff_failure(operation_id, "notification_failed")
+
+    return _owner_handoff_receipt(
+        notification_id=notification_id,
+        operation_id=operation_id,
+        created=created,
+    )
