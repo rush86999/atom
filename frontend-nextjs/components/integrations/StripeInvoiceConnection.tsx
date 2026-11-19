@@ -6,13 +6,17 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api-client';
 
-type StripeInvoiceConnectionState = {
-    connectionId?: string;
+export type StripeInvoiceConnectionState = {
+    connectionId: string;
     account: string;
     mode: string;
 };
 
-const StripeInvoiceConnection = () => {
+type StripeInvoiceConnectionProps = {
+    onConnectionVerified?: (connection: StripeInvoiceConnectionState) => void;
+};
+
+const StripeInvoiceConnection = ({ onConnectionVerified }: StripeInvoiceConnectionProps) => {
     const { toast } = useToast();
 
     const [stripeRestrictedKey, setStripeRestrictedKey] = useState('');
@@ -58,11 +62,13 @@ const StripeInvoiceConnection = () => {
                 throw new Error('Invalid invoice connection response');
             }
 
-            setStripeInvoiceConnection({
+            const verifiedConnection = {
                 connectionId,
                 account,
                 mode,
-            });
+            };
+            setStripeInvoiceConnection(verifiedConnection);
+            onConnectionVerified?.(verifiedConnection);
             setStripeRestrictedKey('');
             toast({
                 title: 'Stripe invoice connection verified.',
