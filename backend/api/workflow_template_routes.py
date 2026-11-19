@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Body, Depends, HTTPException, Request
+from fastapi import BackgroundTasks, Body, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -635,6 +635,13 @@ _RESULT_MAX_TEXT = 8000
 _RESULT_MAX_STEP_ID = 200
 _RESULT_MAX_STATUS = 100
 _RESULT_MAX_STEP_TYPE = 100
+_RESULT_MAX_EFFECT_ID = 200
+_RESULT_MAX_SUBTASKS = 100
+_RESULT_EFFECT_GOAL_SERVICE = "goal_management"
+_RESULT_EFFECT_GOAL_ACTION = "create_goal"
+_RESULT_EFFECT_NOTIFICATION_SERVICE = "workflow_notification"
+_RESULT_EFFECT_NOTIFICATION_ACTION = "notify_caller"
+_RESULT_EFFECT_GOAL_VERIFICATION_STATUSES = ("verified", "already_applied")
 
 # Leading punctuation commonly produced by quoting or light markdown around a
 # path token in prose (e.g. ``read '/Users/alice/x'`` or ``(`/tmp/x`)``).
@@ -699,6 +706,93 @@ def _project_verified_ai_result(value: Any) -> Dict[str, str]:
     if not projected.get("agent_response"):
         _execution_projection_failure()
     return projected
+
+
+def _project_exact_effect_id(value: Any) -> str:
+    """Keep an effect id exactly as persisted, never truncating or coercing it."""
+    if (not isinstance(value, str) or not value
+            or len(value) > _RESULT_MAX_EFFECT_ID):
+        _execution_projection_failure()
+    return value
+
+
+def _project_effect_success_result(value: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the result object of a successful effect wrapper only."""
+    if value.get("status") != "success":
+        _execution_projection_failure()
+    result = value.get("result")
+    if not isinstance(result, dict):
+        _execution_projection_failure()
+    return result
+
+
+def _project_goal_management_result(value: Dict[str, Any]) -> Dict[str, Any]:
+    """Project the audited create_goal receipt without its goal text or plan."""
+    result = _project_effect_success_result(value)
+    goal = result.get("goal")
+    if not isinstance(goal, dict):
+        _execution_projection_failure()
+    goal_id = _project_exact_effect_id(goal.get("id"))
+    audit_id = _project_exact_effect_id(goal.get("audit_id"))
+    verification = goal.get("verification")
+    if not isinstance(verification, dict):
+        _execution_projection_failure()
+    verification_status = verification.get("status")
+    if (not isinstance(verification_status, str)
+            or verification_status
+            not in _RESULT_EFFECT_GOAL_VERIFICATION_STATUSES):
+        _execution_projection_failure()
+    if verification.get("effect") != "committed":
+        _execution_projection_failure()
+    if verification.get("audit_id") != audit_id:
+        _execution_projection_failure()
+    subtasks = result.get("subtasks")
+    if (not isinstance(subtasks, list)
+            or len(subtasks) > _RESULT_MAX_SUBTASKS):
+        _execution_projection_failure()
+    return {
+        "goal_id": goal_id,
+        "audit_id": audit_id,
+        "verification_status": verification_status,
+        "subtask_count": len(subtasks),
+    }
+
+
+def _project_workflow_notification_result(
+        value: Dict[str, Any]) -> Dict[str, Any]:
+    """Project only the committed in-app notification receipt."""
+    result = _project_effect_success_result(value)
+    notification_id = _project_exact_effect_id(
+        result.get("notification_id"))
+    created = result.get("created")
+    if (not isinstance(created, bool)
+            or result.get("emailed") is not False):
+        _execution_projection_failure()
+    return {
+        "notification_id": notification_id,
+        "committed": True,
+    }
+
+
+def _project_verified_output_result(value: Any) -> Dict[str, Any]:
+    """Dispatch only the known durable success wrappers to safe projections."""
+    if not isinstance(value, dict):
+        _execution_projection_failure()
+    service = value.get("service")
+    action = value.get("action")
+    if (service == _RESULT_EFFECT_GOAL_SERVICE
+            or action == _RESULT_EFFECT_GOAL_ACTION):
+        if (service != _RESULT_EFFECT_GOAL_SERVICE
+                or action != _RESULT_EFFECT_GOAL_ACTION):
+            _execution_projection_failure()
+        return _project_goal_management_result(value)
+    if (service == _RESULT_EFFECT_NOTIFICATION_SERVICE
+            or action == _RESULT_EFFECT_NOTIFICATION_ACTION):
+        if (service != _RESULT_EFFECT_NOTIFICATION_SERVICE
+                or action != _RESULT_EFFECT_NOTIFICATION_ACTION):
+            _execution_projection_failure()
+        return _project_workflow_notification_result(value)
+    return _project_verified_ai_result(value)
 
 
 def _stored_result_present(raw: Any) -> bool:
@@ -803,7 +897,7 @@ def _project_normal_execution_results(row: Any):
             status = status_by_id.get(step_id)
         outputs[step_id] = {
             "status": _bounded_text(status, _RESULT_MAX_STATUS),
-            "result": _project_verified_ai_result(raw_output),
+            "result": _project_verified_output_result(raw_output),
         }
 
     # Scan only the small projected response — never the raw stored fields.
@@ -959,7 +1053,8 @@ async def execute_template(
     request: Request = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = None,
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Execute a workflow template immediately.
@@ -971,7 +1066,15 @@ async def execute_template(
     try:
         manager = get_template_manager()
 
-        # 1. Instantiate the template
+        # Select the catalog row once. Both the native orchestrator path and
+        # the canonical dispatch path below use this exact manager-selected
+        # record; the canonical path must not re-resolve the id in another
+        # store (workflows.json / DB templates).
+        template = manager.get_template(template_id)
+
+        # 1. Instantiate the template (validates required inputs and keeps the
+        # native editor contract). The generated id is only used by the
+        # native orchestrator path.
         workflow_data = manager.create_workflow_from_template(
             template_id=template_id,
             workflow_name=f"Execution of {template_id}",
@@ -981,37 +1084,141 @@ async def execute_template(
         workflow_id = workflow_data.get("workflow_id")
 
         # R68: governance maturity (SUPERVISED+) is not a role gate — critical
-        # MCP steps still require WORKFLOW_MANAGE (TEAM_LEAD+).
+        # MCP steps still require WORKFLOW_MANAGE (TEAM_LEAD+). This checks
+        # the instantiated definition; the canonical branch below re-checks
+        # the canonical step contract it will actually dispatch.
         await require_workflow_executor_definition(
             current_user, workflow_data.get("workflow_definition") or {}
         )
 
         # Truthful admission: inspect the catalog template's own bindings
-        # before registering anything with the orchestrator. Unsupported
-        # business steps used to be mapped to API_CALL and reported as
-        # completed simulations. Drafts/imports stay editable; only execution
-        # is refused.
+        # before registering anything with an engine. Unsupported business
+        # steps used to be mapped to API_CALL and reported as completed
+        # simulations. Drafts/imports stay editable; only execution is
+        # refused.
         from core.workflow_template_preflight import (
+            TemplateExecutionBlocker,
+            _clean_binding,
+            _engine_services,
             blockers_detail,
             normalize_orchestrator_step_type,
             preflight_template_steps,
         )
 
-        template = manager.get_template(template_id)
-        blockers = preflight_template_steps(
-            getattr(template, "steps", []) or [],
+        template_steps = getattr(template, "steps", []) or []
+        orchestrator_blockers = preflight_template_steps(
+            template_steps,
             target="orchestrator",
         )
-        if blockers:
-            raise HTTPException(
-                status_code=422, detail=blockers_detail(blockers))
+
+        canonical_definition: Optional[Dict[str, Any]] = None
+        if orchestrator_blockers:
+            # Native orchestrator dispatch stays first for compatible shapes.
+            # Only a template containing at least one orchestrator simulator
+            # (API_CALL) can need canonical dispatch at all. If none of the
+            # refusals is a simulator, these are missing/unknown/design-time
+            # steps that canonical cannot invent either — refuse immediately.
+            if not any(
+                blocker.code == "simulated_api_call"
+                for blocker in orchestrator_blockers
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail=blockers_detail(orchestrator_blockers),
+                )
+            if template is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=blockers_detail(orchestrator_blockers),
+                )
+
+            from core.workflow_template_system import (
+                normalize_template_execution_definition,
+            )
+
+            canonical_definition = normalize_template_execution_definition(
+                template)
+            canonical_blockers = list(preflight_template_steps(
+                canonical_definition.get("steps") or [],
+                target="workflow_engine",
+            ))
+
+            # Only real built-in service bindings with proven registry
+            # support may take the canonical path. A catalog-only external
+            # service is the Workflows-list route's concern, not an implicit
+            # editor fallback.
+            builtin_services = set(_engine_services())
+            for step in canonical_definition.get("steps") or []:
+                if str(step.get("type") or "").strip().lower() == "trigger":
+                    continue
+                service = _clean_binding(step.get("service"))
+                if service and service not in builtin_services:
+                    canonical_blockers.append(TemplateExecutionBlocker(
+                        step_id=str(step.get("id") or "template"),
+                        step_name=str(step.get("name") or step.get("id")
+                                       or "template"),
+                        code="service_not_available",
+                        reason=(
+                            f"service '{service}' is not in the canonical "
+                            "engine's built-in registry; the editor does not "
+                            "auto-dispatch external/catalog-only fallbacks"
+                        ),
+                    ))
+
+            if canonical_blockers:
+                # The candidate path's full preflight is the truthful answer:
+                # it reports every step the canonical engine cannot run and
+                # nothing is registered or started.
+                raise HTTPException(
+                    status_code=422,
+                    detail=blockers_detail(canonical_blockers),
+                )
+
+        if canonical_definition is not None:
+            # Canonical dispatch uses the same real file-backed definition
+            # and durable engine as the Workflows-list route. Validate the
+            # graph and the canonical critical-step contract before starting
+            # anything, then freeze the authenticated caller's scope into the
+            # durable run.
+            from core.workflow_endpoints import _validate_workflow_dag
+
+            _validate_workflow_dag(canonical_definition)
+            await require_workflow_executor_definition(
+                current_user, canonical_definition)
+
+            from core.workflow_engine import get_workflow_engine
+
+            if background_tasks is None:
+                background_tasks = BackgroundTasks()
+
+            execution_id = await get_workflow_engine().start_workflow(
+                canonical_definition,
+                parameters or {},
+                background_tasks,
+                scope={
+                    "workspace_id": getattr(
+                        current_user, "workspace_id", None),
+                    "tenant_id": getattr(current_user, "tenant_id", None),
+                    "user_id": getattr(current_user, "id", None),
+                },
+            )
+
+            logger.info(
+                f"Template executed via canonical engine: {template_id} "
+                f"by agent {agent_id or 'system'}, "
+                f"execution_id: {execution_id}")
+            return {
+                "status": "success",
+                "execution_id": execution_id,
+                "workflow_status": "running",
+                "message": "Workflow started. Status: running",
+            }
 
         # 2. Register the instantiated definition with the orchestrator, then
         # execute it. create_workflow_from_template returns a definition, but
         # the orchestrator's registry is a separate in-memory store; without
         # this registration execute_workflow saw only the generated id and
         # raised "not found in registry or templates".
-        import asyncio
         from advanced_workflow_orchestrator import (
             WorkflowDefinition,
             WorkflowStep,

@@ -91,6 +91,127 @@ async def test_scheduled_template_fire_uses_template_fallback():
 
 
 @pytest.mark.asyncio
+async def test_unsupported_catalog_template_fire_warns_without_start_or_cleanup(
+        caplog):
+    """The delayed callback rechecks catalog admission. Unsupported stock
+    invoice input must not start the engine or delete the existing job."""
+    template_def = {
+        "id": "htn_invoice_followup",
+        "name": "Invoice Follow-up Sequence",
+        "_template_catalog": True,
+        "steps": [{
+            "id": "lookup_invoice",
+            "name": "Lookup Invoice",
+            "type": "action",
+            "service": "invoice",
+            "action": "lookup",
+        }],
+    }
+    blocker = SimpleNamespace(as_dict=lambda: {
+        "step_id": "lookup_invoice",
+        "step_name": "Lookup Invoice",
+        "code": "service_not_available",
+        "reason": "service 'invoice' action 'lookup' is not available",
+    })
+    durable_engine = AsyncMock()
+    existing_job = SimpleNamespace(
+        id="job_invoice", args=["htn_invoice_followup", {}, True])
+    scheduler = _scheduler_with_jobs(existing_job)
+
+    with (
+        patch("core.workflow_engine.frozen_execution_scope",
+              return_value={}),
+        patch("core.database.get_db_session", return_value=_fake_db_session()),
+        patch("core.workflow_engine.get_workflow_engine",
+              return_value=durable_engine),
+        patch("core.workflow_endpoints.load_workflows", return_value=[]),
+        patch("core.workflow_endpoints._load_template_definition",
+              return_value=template_def),
+        patch("core.workflow_template_preflight.preflight_template_steps",
+              return_value=[blocker]),
+        patch("ai.workflow_scheduler.workflow_scheduler", scheduler),
+    ):
+        await WorkflowScheduler._execute_job(
+            "htn_invoice_followup",
+            {"invoice_number": "INV-1"},
+            authorized=True,
+        )
+
+    assert durable_engine.start_workflow.await_count == 0
+    scheduler.scheduler.remove_job.assert_not_called()
+    assert "Skipping scheduled catalog template" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_supported_catalog_template_fire_still_starts_engine():
+    """Supported catalog templates keep their normal scheduled behavior."""
+    template_def = {
+        "id": "supported_goal",
+        "name": "Supported Goal",
+        "_template_catalog": True,
+        "steps": [{
+            "id": "notify",
+            "name": "Notify",
+            "type": "action",
+            "service": "email",
+            "action": "send",
+            "parameters": {"to": "ops@example.test"},
+        }],
+    }
+    durable_engine = AsyncMock()
+
+    with (
+        patch("core.workflow_engine.frozen_execution_scope",
+              return_value={}),
+        patch("core.database.get_db_session", return_value=_fake_db_session()),
+        patch("core.workflow_engine.get_workflow_engine",
+              return_value=durable_engine),
+        patch("core.workflow_endpoints.load_workflows", return_value=[]),
+        patch("core.workflow_endpoints._load_template_definition",
+              return_value=template_def),
+        patch("core.workflow_template_preflight.preflight_template_steps",
+              return_value=[]),
+    ):
+        await WorkflowScheduler._execute_job(
+            "supported_goal", {}, authorized=True)
+
+    assert durable_engine.start_workflow.await_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_historical_stored_workflow_fire_skips_catalog_preflight():
+    """Ordinary stored workflows have no catalog marker; their historical
+    behavior is unchanged even when their steps look unsupported."""
+    stored_def = {
+        "id": "ordinary",
+        "name": "Ordinary Stored Workflow",
+        "steps": [{
+            "id": "legacy",
+            "service": "missing",
+            "action": "legacy-action",
+        }],
+    }
+    durable_engine = AsyncMock()
+    preflight = MagicMock(return_value=[])
+
+    with (
+        patch("core.workflow_engine.frozen_execution_scope",
+              return_value={}),
+        patch("core.database.get_db_session", return_value=_fake_db_session()),
+        patch("core.workflow_engine.get_workflow_engine",
+              return_value=durable_engine),
+        patch("core.workflow_endpoints.load_workflows",
+              return_value=[stored_def]),
+        patch("core.workflow_template_preflight.preflight_template_steps",
+              preflight),
+    ):
+        await WorkflowScheduler._execute_job("ordinary", {}, authorized=True)
+
+    preflight.assert_not_called()
+    assert durable_engine.start_workflow.await_count >= 1
+
+
+@pytest.mark.asyncio
 async def test_scheduled_template_fire_uses_current_read_actor_for_complete_scope():
     """The frozen scope is revalidated through _current_read_actor, not a stale
     user row or a plain job input user_id."""

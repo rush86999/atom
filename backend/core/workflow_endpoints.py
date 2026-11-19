@@ -464,46 +464,19 @@ def _load_template_definition(
             logger.error(
                 f"Failed to resolve template definition '{workflow_id}': {e}")
 
-    # File-backed template system. Steps carry the engine's execution
-    # contract natively (service/action/parameters — see
-    # WorkflowEngine._execute_step). Declared (list-shaped) parameters bind
-    # to the execution's input_data through the engine's ${input.<name>}
-    # convention, preferring the declared default when one exists.
+    # File-backed template system. The shared normalizer keeps this route and
+    # the editor's canonical dispatch on the same engine contract
+    # (service/action/parameters — see WorkflowEngine._execute_step).
     try:
-        from core.workflow_template_system import WorkflowTemplateManager
+        from core.workflow_template_system import (
+            WorkflowTemplateManager,
+            normalize_template_execution_definition,
+        )
 
         template = WorkflowTemplateManager().get_template(workflow_id)
         if template is None:
             return None
-        steps = []
-        for step in template.steps or []:
-            params = step.parameters
-            if isinstance(params, list):
-                params = {
-                    p.name: p.default_value
-                    if p.default_value is not None
-                    else f"${{input.{p.name}}}"
-                    for p in params
-                }
-            steps.append({
-                "id": step.step_id,
-                "name": step.name,
-                "service": step.service or "default",
-                "action": step.action or "default",
-                "type": step.step_type or "action",
-                "parameters": params or {},
-                "depends_on": step.depends_on or [],
-                "condition": step.condition,
-            })
-        return {
-            "id": template.template_id,
-            "name": template.name,
-            "description": template.description or "",
-            "steps": steps,
-            # Internal provenance marker: execution admission applies to
-            # catalog templates, not to ordinary stored workflows.
-            "_template_catalog": True,
-        }
+        return normalize_template_execution_definition(template)
     except Exception as e:
         logger.error(f"Failed to resolve file-backed template '{workflow_id}': {e}")
         return None
@@ -3136,6 +3109,24 @@ async def schedule_workflow(
     else:
         # Node-based definitions: resolve nodes → steps before gating.
         await require_workflow_executor(user, _resolve_workflow_steps(workflow))
+
+    # Truthful admission for catalog templates: the deferred fire dispatches
+    # strictly by service/action. Refuse unsupported/missing bindings here —
+    # after visibility and the critical-step gate — BEFORE installing a job,
+    # instead of queuing a schedule that can only no-op or fail at fire time.
+    if workflow.get("_template_catalog"):
+        from core.workflow_template_preflight import (
+            blockers_detail,
+            preflight_template_steps,
+        )
+
+        blockers = preflight_template_steps(
+            _resolve_workflow_steps(workflow),
+            target="workflow_engine",
+        )
+        if blockers:
+            raise HTTPException(
+                status_code=422, detail=blockers_detail(blockers))
 
     try:
         trigger_type = schedule_config.get('trigger_type')
