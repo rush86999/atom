@@ -86,7 +86,10 @@ class AssignmentApproval(BaseModel):
 
 class AssignmentReconciliation(BaseModel):
     verdict: str
-    evidence: str
+    # ``verify_outlook`` derives its evidence from the provider and therefore
+    # does not accept caller evidence. Human verdicts still require it in the
+    # executor, so the empty default never weakens the generic route.
+    evidence: str = ""
     evidence_ref: Optional[str] = None
     provider_ref: Optional[str] = None
 
@@ -3385,7 +3388,10 @@ async def reconcile_assignment_step(
 
     ``applied`` records completion and advances; ``not_applied`` permits a
     NEW operation on the next resume; ``insufficient`` leaves the uncertain
-    state intact and never resends. Evidence is required for every verdict.
+    state intact and never resends. Human verdicts require evidence.
+    ``verify_outlook`` is the scoped exception: it reads Sent Items evidence
+    for the exact durable staged-invoice operation and accepts no caller
+    evidence, provider reference, send or retry.
     """
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
@@ -3400,6 +3406,51 @@ async def reconcile_assignment_step(
         raise HTTPException(
             status_code=403,
             detail="Insufficient reconciliation authority for this assignment")
+    if body.verdict == "verify_outlook":
+        assignment = record.get("assignment") or {}
+        step = next((
+            item for item in assignment.get("steps") or []
+            if item.get("step_id") == step_id), None)
+        operation = None
+        if step is not None and step.get("operation_id"):
+            operation = next((
+                item for item in record.get("operations") or []
+                if item.get("operation_id") == step.get("operation_id")), None)
+        binding = operation.get("operation_binding") if isinstance(
+            operation, Mapping) else None
+        bound_actor = (
+            str((binding or {}).get("account_id") or "").strip()
+            if isinstance(binding, Mapping) else "")
+        bound_actor = (
+            bound_actor
+            or str(assignment.get("employee_id") or "").strip())
+        if not bound_actor or bound_actor != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Only the employee bound to this mailbox operation may "
+                    "verify its Outlook Sent Items evidence"))
+        try:
+            # Evidence, provider identity, and provider references are never
+            # read from the request for this verdict: the executor probes the
+            # exact durable operation with the authenticated scope.
+            result = await executor.reconcile_outlook_step(
+                run_id, step_id,
+                actor_id=str(current_user.id),
+                tenant_id=str(
+                    run.get("tenant_id")
+                    or assignment.get("tenant_id") or "default"),
+                workspace_id=str(
+                    run.get("workspace_id")
+                    or assignment.get("workspace_id") or "default"),
+            )
+        except Exception as exc:  # noqa: BLE001 — the uncertain state stays
+            raise HTTPException(status_code=409, detail=str(exc))
+        if result.get("verdict") != "applied":
+            return result
+        result["assignment"] = await executor.resume(run_id)
+        return result
+
     try:
         result = executor.reconcile_step(
             run_id, step_id, body.verdict,

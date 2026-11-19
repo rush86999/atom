@@ -296,6 +296,17 @@ def _authorization_revision(assignment: Dict[str, Any]) -> str:
     })[:32]
 
 
+#: Staged invoice senders whose provider phase can be verified from Outlook
+#: Sent Items. These adapters reserve the send marker before the provider call,
+#: so ``not_applied`` is never safe until the exact durable message id has been
+#: observed as sent.
+_STAGED_INVOICE_SEND_ADAPTERS = frozenset({
+    "invoice.send_reminder",
+    "invoice.send_reminder_outlook",
+    "invoice.dispatch_reminder",
+})
+
+
 def _operation_id_for_step(
     record: Dict[str, Any], step: Dict[str, Any],
     plan_revision: Optional[int] = None,
@@ -6075,6 +6086,7 @@ class AssignmentExecutor:
         evidence: str,
         evidence_ref: Optional[str] = None,
         provider_ref: Optional[str] = None,
+        provider_verified: bool = False,
     ) -> Dict[str, Any]:
         record = self.lifecycle.get_task(run_id)
         if record is None:
@@ -6087,11 +6099,7 @@ class AssignmentExecutor:
             raise AssignmentError("step has no operation to reconcile")
         adapter = str(step.get("adapter") or "").strip().casefold()
         if (verdict == "not_applied"
-                and adapter in {
-                    "invoice.send_reminder",
-                    "invoice.send_reminder_outlook",
-                    "invoice.dispatch_reminder",
-                }):
+                and adapter in _STAGED_INVOICE_SEND_ADAPTERS):
             operation = _operation_by_id(record, operation_id) or {}
             if operation.get("outlook_dispatch_send_started") is not None:
                 # The send phase was durably reserved before the provider call,
@@ -6120,11 +6128,20 @@ class AssignmentExecutor:
                     "provider_state": "accepted",
                     "provider_ref": str(provider_ref),
                     "remote_id": str(provider_ref),
-                    "verification": {
-                        "status": "verified",
-                        "provider_ref": str(provider_ref),
-                    },
                 }
+                # A manual ``applied`` for a staged invoice sender must not
+                # manufacture provider verification from a caller-supplied
+                # reference. Only the Sent Items evidence path, which resolves
+                # the exact durable id itself, may record the verified claim.
+                if (provider_verified
+                        or adapter not in _STAGED_INVOICE_SEND_ADAPTERS):
+                    execution = {
+                        **execution,
+                        "verification": {
+                            "status": "verified",
+                            "provider_ref": str(provider_ref),
+                        },
+                    }
             assignment = self._mark_step(
                 (self.lifecycle.get_assignment(run_id) or {}),
                 step_id,
@@ -6159,6 +6176,189 @@ class AssignmentExecutor:
             "operation": result,
             "assignment": self.lifecycle.get_assignment(run_id) or {},
         }
+
+    async def reconcile_outlook_step(
+        self,
+        run_id: str,
+        step_id: str,
+        *,
+        actor_id: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Verify one uncertain staged invoice send against Outlook Sent Items.
+
+        This is a read-only provider probe followed by the existing
+        reconciliation commit. The authenticated actor must be the actor bound
+        to the durable operation, the step must be a staged invoice sender,
+        and the operation must be that step's exact uncertain outbound
+        operation. Callers cannot supply evidence, a provider reference, a
+        send, or a retry. Only ``sent_verified`` evidence for the operation's
+        own durable draft id may mark the step applied.
+        """
+        actor = str(actor_id or "").strip()
+        if not actor:
+            raise AssignmentError(
+                "Outlook verification requires the authenticated actor")
+        record = self.lifecycle.get_task(run_id)
+        if record is None:
+            raise AssignmentError(f"no task record on run {run_id}")
+        assignment = record.get("assignment") or {}
+        authorization = str(
+            (record.get("task_revision") or {}).get("authorization") or ""
+        ).strip().casefold()
+        if authorization in ("cancelled", "revoked") or str(
+                assignment.get("status") or "").strip().casefold() == (
+                    "cancelled"):
+            raise AssignmentError(
+                "the assignment is cancelled; Outlook verification cannot "
+                "revive it")
+        step = step_by_id(assignment, step_id)
+        if step is None:
+            raise AssignmentError(f"unknown step {step_id!r}")
+        adapter = str(step.get("adapter") or "").strip().casefold()
+        if adapter not in _STAGED_INVOICE_SEND_ADAPTERS:
+            raise AssignmentError(
+                "Outlook Sent Items verification is only available for "
+                "staged invoice senders")
+
+        operation_id = _operation_id_for_step(record, step)
+        if not operation_id:
+            # An uncertain step normally still carries the exact operation id.
+            # If a durable replay lost that pointer, only an unambiguous
+            # uncertain operation for this step and plan revision is eligible.
+            plan_revision = assignment.get("plan_revision")
+            candidates = [
+                operation for operation in record.get("operations") or []
+                if (isinstance(operation, dict)
+                    and operation.get("step_id") == step_id
+                    and operation.get("plan_revision") == plan_revision
+                    and str(operation.get("status") or "").strip().casefold()
+                    == "uncertain")
+            ]
+            if len(candidates) == 1:
+                operation_id = str(candidates[0].get("operation_id") or "")
+        if not operation_id:
+            raise AssignmentError("step has no operation to verify")
+        operation = _operation_by_id(record, operation_id)
+        if not operation:
+            raise AssignmentError(
+                f"operation {operation_id!r} was not found on this task")
+        if operation.get("step_id") not in (None, step_id):
+            raise AssignmentError(
+                "the uncertain operation does not belong to this step")
+        if operation.get("assignment_id") not in (
+                None, assignment.get("assignment_id")):
+            raise AssignmentError(
+                "the uncertain operation does not belong to this assignment")
+        if operation.get("plan_revision") not in (
+                None, assignment.get("plan_revision")):
+            raise AssignmentError(
+                "the uncertain operation belongs to another plan revision")
+        if str(operation.get("operation_type") or "").strip().casefold() != (
+                "outbound"):
+            raise AssignmentError(
+                "only an outbound operation can be verified in Sent Items")
+        if str(operation.get("status") or "").strip().casefold() != (
+                "uncertain"):
+            raise AssignmentError(
+                "only an uncertain operation may be verified")
+        operation_adapter = str(
+            operation.get("adapter") or "").strip().casefold()
+        if operation_adapter and operation_adapter != adapter:
+            raise AssignmentError(
+                "the operation adapter does not match the step adapter")
+
+        binding = operation.get("operation_binding")
+        binding = dict(binding) if isinstance(binding, dict) else {}
+        binding_action = str(
+            binding.get("action_name") or "").strip().casefold()
+        if binding_action and binding_action != adapter:
+            raise AssignmentError(
+                "the operation binding describes a different action")
+        bound_actor = str(binding.get("account_id") or "").strip()
+        assignment_actor = str(assignment.get("employee_id") or "").strip()
+        if (bound_actor and assignment_actor
+                and bound_actor != assignment_actor):
+            raise AssignmentError(
+                "the operation actor does not match the assignment actor")
+        if (bound_actor or assignment_actor) != actor:
+            raise AssignmentError(
+                "the authenticated user is not the actor bound to this "
+                "mailbox operation")
+
+        bound_workspace = str(binding.get("workspace_id") or "").strip()
+        durable_workspace = str(
+            assignment.get("workspace_id") or "").strip()
+        requested_workspace = (
+            durable_workspace or str(workspace_id or "").strip())
+        if (bound_workspace and requested_workspace
+                and bound_workspace != requested_workspace):
+            raise AssignmentError(
+                "the operation workspace does not match this assignment")
+        bound_tenant = str(binding.get("tenant_id") or "").strip()
+        durable_tenant = str(assignment.get("tenant_id") or "").strip()
+        requested_tenant = (
+            durable_tenant or str(tenant_id or "").strip())
+        if (bound_tenant and requested_tenant
+                and bound_tenant != requested_tenant):
+            raise AssignmentError(
+                "the operation tenant does not match this assignment")
+
+        from core.outlook_draft_dispatch import (
+            DRAFT_ID_FIELD,
+            read_outlook_dispatch_evidence,
+        )
+
+        typed = await read_outlook_dispatch_evidence(
+            self.lifecycle,
+            run_id,
+            operation_id,
+            actor_id=actor,
+            tenant_id=requested_tenant or bound_tenant or "default",
+            workspace_id=(
+                requested_workspace or bound_workspace or "default"),
+            reply=False,
+        )
+        typed = typed if isinstance(typed, dict) else {}
+        durable_id = str(operation.get(DRAFT_ID_FIELD) or "").strip()
+        evidence_draft_id = str(typed.get("draft_id") or "").strip()
+        exact_durable_id = bool(
+            durable_id and evidence_draft_id == durable_id)
+        verified = (
+            str(typed.get("status") or "").strip() == "sent_verified"
+            and typed.get("verified") is not False
+            and typed.get("sent_items_verified") is not False
+            and exact_durable_id)
+        if not verified:
+            # The read-only probe proved neither sent nor not-sent. Leave the
+            # operation and its original uncertainty evidence untouched.
+            return {
+                "status": "uncertain",
+                "verdict": "insufficient",
+                "operation_id": operation_id,
+                "operation": operation,
+                "reason": str(
+                    typed.get("reason") or "sent_items_unverified"),
+                "outlook_evidence": _json_safe(typed),
+                "assignment": assignment,
+            }
+
+        reason = str(typed.get("reason") or "").strip()
+        evidence_text = (
+            f"Outlook Sent Items verified the exact sent message {durable_id}"
+            + (f" ({reason})" if reason else ""))
+        result = self.reconcile_step(
+            run_id,
+            step_id,
+            "applied",
+            evidence=evidence_text,
+            evidence_ref=f"outlook-sent-items:{durable_id}",
+            provider_ref=durable_id,
+            provider_verified=True,
+        )
+        result["outlook_evidence"] = _json_safe(typed)
+        return result
 
     # ------------------------------------------------------------- cancel
 
