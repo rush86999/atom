@@ -29,7 +29,14 @@ from core.exceptions import (
     ExternalServiceError,
     ValidationError as AtomValidationError,
 )
-from core.execution_state_manager import ExecutionStateManager, get_state_manager
+from core.execution_state_manager import (
+    EXECUTION_SCOPE_KEY,
+    ExecutionStateManager,
+    frozen_execution_identity,
+    get_state_manager,
+    normalize_execution_identity,
+    normalize_scope_token,
+)
 from core.models import IntegrationCatalog, WorkflowExecutionLog, WorkflowSnapshot, AgentRegistry
 from core.token_storage import token_storage
 from core.websockets import get_connection_manager
@@ -52,8 +59,10 @@ logger = logging.getLogger(__name__)
 # Reserved execution-input key carrying the authenticated caller's frozen
 # scope. It lives in the persisted execution input_data so a resumed worker
 # (including one in a new process) resolves the same tenant/workspace as the
-# request that started the run. Never read as a workflow parameter.
-EXECUTION_SCOPE_KEY = "_atom_execution_scope"
+# request that started the run. Never read as a workflow parameter. The
+# constant is owned by the durable writer (core.execution_state_manager);
+# creation persists it only from an explicit trusted identity, never from a
+# caller-supplied copy.
 
 
 def freeze_execution_scope(
@@ -61,18 +70,25 @@ def freeze_execution_scope(
     *,
     workspace_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Attach the caller's authoritative scope to execution inputs.
 
     Call this only AFTER authentication. Any client-supplied value under the
     reserved key is discarded first; missing scope values are not invented —
-    the engine falls back to the workflow definition's own scope.
+    the engine falls back to the workflow definition's own scope. Values are
+    normalized to plain JSON/pickle-safe tokens (never provider or ORM
+    objects), so a persisted scheduled job can round-trip them.
     """
-    frozen = dict(input_data or {})
+    frozen = dict(input_data) if isinstance(input_data, dict) else {}
     frozen.pop(EXECUTION_SCOPE_KEY, None)
     scope: Dict[str, str] = {}
-    for key, value in (("workspace_id", workspace_id), ("tenant_id", tenant_id)):
-        text = str(value or "").strip()
+    for key, value in (
+        ("workspace_id", workspace_id),
+        ("tenant_id", tenant_id),
+        ("user_id", user_id),
+    ):
+        text = normalize_scope_token(value)
         if text:
             scope[key] = text
     if scope:
@@ -82,9 +98,21 @@ def freeze_execution_scope(
 
 def strip_execution_scope(input_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Drop the reserved scope key from untrusted resume inputs."""
-    cleaned = dict(input_data or {})
+    cleaned = dict(input_data) if isinstance(input_data, dict) else {}
     cleaned.pop(EXECUTION_SCOPE_KEY, None)
     return cleaned
+
+
+def frozen_execution_scope(
+    input_data: Optional[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Trusted scope persisted in server-owned job args / execution inputs.
+
+    The scheduler calls this to re-supply the scope frozen at schedule time to
+    ``start_workflow``. Only the reserved marker is read; it is never derived
+    from job input keys or workflow metadata.
+    """
+    return frozen_execution_identity(input_data)
 
 
 def _as_aware_utc(value: Optional[datetime]) -> Optional[datetime]:
@@ -304,13 +332,9 @@ class WorkflowEngine:
         """
         frozen: Dict[str, Any] = {}
         if isinstance(state, dict):
-            inputs = state.get("input_data")
-            if isinstance(inputs, dict):
-                candidate = inputs.get(EXECUTION_SCOPE_KEY)
-                if isinstance(candidate, dict):
-                    frozen = candidate
-        workspace_id = str(frozen.get("workspace_id") or "").strip()
-        tenant_id = str(frozen.get("tenant_id") or "").strip()
+            frozen = frozen_execution_identity(state.get("input_data"))
+        workspace_id = frozen.get("workspace_id") or ""
+        tenant_id = frozen.get("tenant_id") or ""
         if not workspace_id:
             workspace_id = str(workflow.get("workspace_id") or "").strip()
         if not tenant_id:
@@ -328,9 +352,12 @@ class WorkflowEngine:
         """Start a new workflow execution.
 
         ``scope`` is the authenticated caller's authoritative
-        ``{"workspace_id", "tenant_id"}``. When supplied it is frozen into the
-        persisted execution inputs so governance-created approvals and every
-        later resume resolve the same scope.
+        ``{"workspace_id", "tenant_id", "user_id"}``. It is normalized and
+        passed explicitly to the durable writer, which freezes it into the
+        persisted execution inputs so governance-created approvals, the
+        durable owner/user/tenant stamp and every later resume resolve the
+        same scope. Any marker already in ``input_data`` is stripped by the
+        writer and never treated as identity.
         """
         # Convert graph to steps if needed
         if "steps" not in workflow and "nodes" in workflow:
@@ -342,14 +369,25 @@ class WorkflowEngine:
         if "id" not in workflow and workflow.get("workflow_id"):
             workflow["id"] = workflow["workflow_id"]
 
-        if scope is not None:
-            input_data = freeze_execution_scope(
-                input_data,
-                workspace_id=scope.get("workspace_id"),
-                tenant_id=scope.get("tenant_id"),
-            )
+        scope_values = scope if isinstance(scope, dict) else {}
+        trusted_scope = normalize_execution_identity({
+            "workspace_id": scope_values.get("workspace_id"),
+            "tenant_id": scope_values.get("tenant_id"),
+            "user_id": scope_values.get("user_id"),
+        })
+        input_data = strip_execution_scope(input_data)
 
-        execution_id = await self.state_manager.create_execution(workflow["id"], input_data)
+        # Only pass the identity keyword when a trusted scope was proven. An
+        # unscoped run (no authenticated caller scope) keeps the historical
+        # two-argument call, so positional-only/fake writers still work.
+        if trusted_scope:
+            execution_id = await self.state_manager.create_execution(
+                workflow["id"], input_data, identity=trusted_scope,
+            )
+        else:
+            execution_id = await self.state_manager.create_execution(
+                workflow["id"], input_data,
+            )
 
         # Phase 5: publish a WORKFLOW_STARTED event for the EventBus.
         self._publish_orchestration_event(

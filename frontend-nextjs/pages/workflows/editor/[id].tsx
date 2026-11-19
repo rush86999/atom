@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import WorkflowBuilder from '@/components/Automations/WorkflowBuilder';
 import { useToast } from '@/components/ui/use-toast';
@@ -52,6 +52,9 @@ export default function WorkflowEditorPage() {
         outputs: Record<string, any> | null;
         error?: string | null;
     } | null>(null);
+    const [resultsError, setResultsError] = useState(false);
+    const resultsRequestRef = useRef(0);
+    const activeResultsExecutionRef = useRef<string | null>(null);
 
     const fetchWorkflow = useCallback(async (workflowId: string) => {
         setIsLoading(true);
@@ -215,26 +218,42 @@ export default function WorkflowEditorPage() {
     };
 
     const fetchRunResults = (executionId: string) => {
+        const requestId = resultsRequestRef.current + 1;
+        resultsRequestRef.current = requestId;
+        setResultsError(false);
+
         const token = localStorage.getItem('auth_token');
         fetch(`/api/workflow-templates/executions/${encodeURIComponent(executionId)}/results`, {
             headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
         })
-            .then(r => (r.ok ? r.json() : null))
+            .then(r => {
+                if (!r.ok) throw new Error('Failed to load run results');
+                return r.json();
+            })
             .then(d => {
-                if (!d) return;
+                if (requestId !== resultsRequestRef.current
+                    || activeResultsExecutionRef.current !== executionId) return;
+                if (!d) {
+                    setResultsError(true);
+                    return;
+                }
                 setRunResults({ steps: d.steps || [], outputs: d.outputs || null });
                 if (d.error) {
                     setLastRun(prev => (prev && prev.id === executionId ? { ...prev, status: 'failed' } : prev));
                 }
             })
-            .catch(() => {});
+            .catch(() => {
+                if (requestId !== resultsRequestRef.current
+                    || activeResultsExecutionRef.current !== executionId) return;
+                setResultsError(true);
+            });
     };
 
     const toggleResultsPanel = () => {
         if (!lastRun) return;
         const next = !resultsOpen;
         setResultsOpen(next);
-        if (next && runResults === null) {
+        if (next && runResults === null && !resultsError) {
             fetchRunResults(lastRun.id);
         }
     };
@@ -286,8 +305,16 @@ export default function WorkflowEditorPage() {
                     : 'Execution started.'
             });
             if (data?.execution_id) {
+                // Invalidate any in-flight results request tied to a prior run.
+                activeResultsExecutionRef.current = data.execution_id;
+                resultsRequestRef.current += 1;
+                setRunResults(null);
+                setResultsError(false);
                 setLastRun({ id: data.execution_id, status: null });
                 pollExecutionStatus(data.execution_id);
+                if (resultsOpen) {
+                    fetchRunResults(data.execution_id);
+                }
             }
             setRunOpen(false);
         } catch (error) {
@@ -450,8 +477,20 @@ export default function WorkflowEditorPage() {
                           data-testid="execution-results-panel"
                           className="mt-2 max-h-72 w-72 overflow-y-auto border-t pt-2 dark:border-gray-700"
                         >
-                            {runResults === null && (
+                            {runResults === null && !resultsError && (
                                 <p className="text-muted-foreground">Loading results…</p>
+                            )}
+                            {resultsError && (
+                                <div role="alert" data-testid="execution-results-error">
+                                    <p className="text-muted-foreground">Could not load run results.</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => lastRun && fetchRunResults(lastRun.id)}
+                                      className="mt-1 text-xs font-medium underline hover:no-underline"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
                             )}
                             {runResults && runResults.steps.length === 0 && (
                                 <p className="text-muted-foreground">No step history recorded.</p>

@@ -2399,6 +2399,7 @@ async def execute_workflow(
             scope={
                 "workspace_id": getattr(user, "workspace_id", None),
                 "tenant_id": getattr(user, "tenant_id", None),
+                "user_id": getattr(user, "id", None),
             },
         )
         
@@ -3093,12 +3094,14 @@ async def schedule_workflow(
 
         # Freeze the scheduling user's authoritative scope into the persisted
         # job args: the deferred fire has no request principal, and a later
-        # approval must still land in that user's tenant/workspace queue.
+        # approval and the durable execution's owner/user/tenant receipt must
+        # still resolve to that user's tenant/workspace.
         from core.workflow_engine import freeze_execution_scope
         input_data = freeze_execution_scope(
             input_data,
             workspace_id=getattr(user, "workspace_id", None),
             tenant_id=getattr(user, "tenant_id", None),
+            user_id=getattr(user, "id", None),
         )
         
         if not trigger_type or not trigger_config:

@@ -231,3 +231,288 @@ async def test_results_caps_history_and_outputs():
     )
     assert len(result["steps"]) == 100
     assert len(result["outputs"]) == 50
+
+
+# --- Normal (WorkflowEngine) result projection ---
+
+
+def _row_with_engine_state(outputs=None, steps=None, context=None, *,
+                           status="completed", error=None):
+    import json
+    from datetime import datetime
+
+    def _dump(value):
+        if value is None:
+            return None
+        return value if isinstance(value, str) else json.dumps(value)
+
+    return SimpleNamespace(
+        execution_id="exe-engine-1",
+        workflow_id="workflow_engine_1",
+        status=status,
+        error=error,
+        created_at=datetime(2026, 8, 23, 12, 0, 0),
+        completed_at=datetime(2026, 8, 23, 12, 0, 5),
+        user_id="u1",
+        owner_id="u1",
+        tenant_id=None,
+        outputs=_dump(outputs),
+        steps=_dump(steps),
+        context=_dump(context),
+    )
+
+
+_SYNTHETIC_ENGINE_OUTPUTS = {
+    "summarize": {
+        "status": "completed",
+        "result": {
+            "success": True,
+            "result": {
+                "agent_response": "Synthetic total 42",
+                "model": "test-local",
+                "provider": "ollama",
+            },
+            "input_processed": {"private_input": "omit"},
+        },
+        "raw_error": "private error",
+        "context": {"context_secret": "omit"},
+        "tool_metadata": {"tool_name": "private-tool"},
+    },
+}
+
+
+async def test_results_projects_safe_scoped_finished_engine_step():
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "COMPLETED", "step_type": "ai_task"}},
+        outputs=_SYNTHETIC_ENGINE_OUTPUTS,
+    )
+    result = await wtr.get_execution_results(
+        "exe-engine-1",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+
+    assert result["success"] is True
+    assert result["status"] == "completed"
+    assert result["steps"] == [{
+        "step_id": "summarize",
+        "step_type": "ai_task",
+        "status": "COMPLETED",
+        "notes": None,
+    }]
+    projected = result["outputs"]["summarize"]
+    assert projected["status"] == "completed"
+    assert projected["result"] == {
+        "agent_response": "Synthetic total 42",
+        "model": "test-local",
+        "provider": "ollama",
+    }
+    # Only the projected business result is exposed; raw input, context,
+    # errors and tool metadata stay out of the response.
+    assert "private_input" not in str(result)
+    assert "input_processed" not in str(result)
+    assert "tool_metadata" not in str(result)
+    assert "raw_error" not in str(result)
+    assert "context_secret" not in str(result)
+
+
+async def test_results_engine_no_result_is_empty_not_failure():
+    row = _row_with_engine_state(outputs=None, steps=None)
+    result = await wtr.get_execution_results(
+        "exe-engine-1",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+    assert result["steps"] == []
+    assert result["outputs"] is None
+
+
+def _assert_public_projection_error(exc):
+    detail = exc.value.detail
+    assert exc.value.status_code == 409
+    assert detail == {
+        "error": "execution_result_unavailable",
+        "message": "the persisted execution result could not be projected safely",
+    }
+    rendered = str(detail)
+    for private in (
+        "fields", "outputs", "agent_response", "input_processed",
+        "private_input", "api_key",
+    ):
+        assert private not in rendered
+
+
+async def test_results_engine_malformed_output_fails_safely():
+    from fastapi import HTTPException
+
+    row = _row_with_engine_state(outputs="not-json{secret", steps=None)
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "exe-engine-1",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(row),
+        )
+    _assert_public_projection_error(exc)
+    assert "not-json" not in str(exc.value.detail)
+    assert "secret" not in str(exc.value.detail)
+
+
+async def test_results_engine_unsupported_shape_is_refused_not_faked():
+    from fastapi import HTTPException
+
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "completed"}},
+        outputs={
+            "summarize": {
+                "status": "completed",
+                "result": {
+                    "success": True,
+                    "result": {"content": "Synthetic total 42"},
+                },
+            },
+        },
+    )
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "exe-engine-1",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(row),
+        )
+    _assert_public_projection_error(exc)
+
+
+async def test_results_engine_oversize_business_result_refused():
+    from fastapi import HTTPException
+
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "completed"}},
+        outputs={
+            "summarize": {
+                "status": "completed",
+                "result": {
+                    "success": True,
+                    "result": {
+                        "agent_response": "x" * (wtr._RESULT_MAX_TEXT + 1),
+                        "model": "test-local",
+                        "provider": "ollama",
+                    },
+                },
+            },
+        },
+    )
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "exe-engine-1",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(row),
+        )
+    _assert_public_projection_error(exc)
+
+
+async def test_results_engine_overlong_step_id_refused():
+    from fastapi import HTTPException
+
+    long_id = "s" * (wtr._RESULT_MAX_STEP_ID + 1)
+    row = _row_with_engine_state(
+        steps={long_id: {"status": "completed"}},
+        outputs={long_id: _SYNTHETIC_ENGINE_OUTPUTS["summarize"]},
+    )
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "exe-engine-1",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(row),
+        )
+    _assert_public_projection_error(exc)
+
+
+async def test_results_engine_sensitive_output_refused():
+    from fastapi import HTTPException
+
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "completed"}},
+        outputs={
+            "summarize": {
+                "status": "completed",
+                "result": {
+                    "success": True,
+                    "result": {
+                        "agent_response": (
+                            "read /Users/alice/private/report.txt"),
+                        "model": "test-local",
+                        "provider": "ollama",
+                    },
+                    "input_processed": {"private_input": "omit"},
+                },
+                "tool_metadata": {"api_key": "sk-abcdefgh12345678"},
+            },
+        },
+    )
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "exe-engine-1",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(row),
+        )
+    _assert_public_projection_error(exc)
+    assert "Users" not in str(exc.value.detail)
+    assert "alice" not in str(exc.value.detail)
+    assert "sk-abcdefgh12345678" not in str(exc.value.detail)
+
+
+async def test_results_generated_shape_unchanged_when_engine_fields_exist():
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "completed"}},
+        outputs=_SYNTHETIC_ENGINE_OUTPUTS,
+        context={
+            "variables": {"x": 1},
+            "results": {"s1": {"status": "completed"}},
+            "execution_history": [{
+                "step_id": "s1",
+                "step_type": "action",
+                "status": "completed",
+            }],
+        },
+    )
+    result = await wtr.get_execution_results(
+        "exe-engine-1",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+    assert result == {
+        "success": True,
+        "execution_id": "exe-engine-1",
+        "status": "completed",
+        "error": None,
+        "steps": [{
+            "step_id": "s1",
+            "step_type": "action",
+            "status": "completed",
+            "notes": None,
+        }],
+        "outputs": {"s1": {"status": "completed"}},
+    }
+
+
+async def test_results_legacy_owner_bounds_use_existing_access_filter(monkeypatch):
+    seen = {}
+    marker = object()
+
+    def _fake_access_filter(user):
+        seen["user"] = user
+        return marker
+
+    monkeypatch.setattr(wtr, "_execution_access_filter", _fake_access_filter)
+    user = SimpleNamespace(id="u1")
+    row = _row_with_engine_state(
+        steps={"summarize": {"status": "completed"}},
+        outputs=_SYNTHETIC_ENGINE_OUTPUTS,
+    )
+    result = await wtr.get_execution_results(
+        "exe-engine-1",
+        current_user=user,
+        db=_FakeExecDB(row),
+    )
+    assert seen["user"] is user
+    assert result["outputs"]["summarize"]["result"]["agent_response"] == (
+        "Synthetic total 42")
