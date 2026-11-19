@@ -1071,3 +1071,317 @@ class StripeAdapter:
             "livemode": livemode,
             "invoice_number": invoice_number,
         }
+
+    @staticmethod
+    def _stripe_balance_transaction_charge_id(
+        transaction: Dict[str, Any],
+    ) -> Optional[str]:
+        source = transaction.get("source")
+        if isinstance(source, str):
+            return source
+        if isinstance(source, dict):
+            if "object" in source and source.get("object") != "charge":
+                return None
+            source_id = source.get("id")
+            return source_id if isinstance(source_id, str) else None
+        return None
+
+    async def _verify_stripe_payout_membership(
+        self,
+        *,
+        expected_account_id: str,
+        payout_id: str,
+        currency: str,
+        expected_livemode: bool,
+        expected_pairs: List[Any],
+    ) -> Dict[str, Any]:
+        """
+        Verify exact charge/balance-transaction membership in one known payout.
+
+        The caller supplies the trusted connected account, automatic standard
+        payout id, currency, livemode, and the exact ``(charge_id,
+        balance_transaction_id)`` pairs from an upstream payment proof. This
+        helper reads the payout and its payout-filtered balance transactions
+        directly; it does not list unrelated transactions, infer settlement,
+        assert bank receipt, mutate Stripe, or write local state.
+
+        Raises ``ValueError`` for malformed input, a payout that is not an
+        automatic standard paid payout with completed reconciliation and no
+        reversal or failure, non-exact account/currency/livemode facts,
+        incomplete or duplicate pagination, or any supplied pair that is not
+        present exactly once with the expected charge source.
+        """
+        if not self._access_token:
+            raise ValueError("Stripe access token not available")
+
+        account_id = self._require_stripe_identifier(
+            expected_account_id, "expected_account_id"
+        )
+        provider_payout_id = self._require_stripe_identifier(payout_id, "payout_id")
+        currency_code = self._require_iso_currency(currency, "currency")
+        livemode = self._require_bool(expected_livemode, "expected_livemode")
+
+        if (
+            not isinstance(expected_pairs, (list, tuple))
+            or not expected_pairs
+        ):
+            raise ValueError(
+                "Stripe payout membership requires at least one supplied "
+                "charge/balance transaction pair"
+            )
+
+        pairs: List[Dict[str, str]] = []
+        expected_by_transaction_id: Dict[str, str] = {}
+        seen_pair_keys = set()
+        seen_charge_ids = set()
+        seen_transaction_ids = set()
+        for index, pair in enumerate(expected_pairs):
+            if isinstance(pair, dict):
+                charge_id = pair.get("charge_id")
+                transaction_id = pair.get("balance_transaction_id")
+            elif isinstance(pair, (list, tuple)) and len(pair) == 2:
+                charge_id, transaction_id = pair
+            else:
+                raise ValueError(
+                    f"Stripe payout membership pair {index} is malformed"
+                )
+
+            charge_id = self._require_stripe_identifier(
+                charge_id, f"pairs[{index}].charge_id"
+            )
+            transaction_id = self._require_stripe_identifier(
+                transaction_id, f"pairs[{index}].balance_transaction_id"
+            )
+
+            pair_key = (charge_id, transaction_id)
+            if pair_key in seen_pair_keys:
+                raise ValueError("Duplicate Stripe payout membership pair")
+            if charge_id in seen_charge_ids:
+                raise ValueError("Duplicate Stripe payout membership charge ids")
+            if transaction_id in seen_transaction_ids:
+                raise ValueError(
+                    "Duplicate Stripe payout membership balance transaction ids"
+                )
+            seen_pair_keys.add(pair_key)
+            seen_charge_ids.add(charge_id)
+            seen_transaction_ids.add(transaction_id)
+            expected_by_transaction_id[transaction_id] = charge_id
+            pairs.append(
+                {
+                    "charge_id": charge_id,
+                    "balance_transaction_id": transaction_id,
+                }
+            )
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Stripe-Version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+        }
+        page_limit = _STRIPE_INVOICE_PAYMENT_PAGE_LIMIT
+
+        async with httpx.AsyncClient() as client:
+            account = await self._stripe_evidence_get(client, "/account", headers)
+            if account.get("id") != account_id:
+                raise ValueError(
+                    "Stripe account id does not match the expected account id"
+                )
+            if "object" in account and account.get("object") != "account":
+                raise ValueError("Stripe response is not an account object")
+
+            payout_path = f"/payouts/{quote(provider_payout_id, safe='')}"
+            payout = await self._stripe_evidence_get(
+                client, payout_path, headers
+            )
+
+            if payout.get("id") != provider_payout_id:
+                raise ValueError(
+                    "Stripe payout id does not match the expected payout"
+                )
+            if "object" in payout and payout.get("object") != "payout":
+                raise ValueError("Stripe response is not a payout object")
+
+            automatic = self._require_bool(
+                payout.get("automatic"), "payout.automatic"
+            )
+            if automatic is not True:
+                raise ValueError("Stripe payout is not an automatic payout")
+            if payout.get("method") != "standard":
+                raise ValueError("Stripe payout method is not standard")
+            if payout.get("status") != "paid":
+                raise ValueError("Stripe payout is not in paid status")
+            if payout.get("reconciliation_status") != "completed":
+                raise ValueError("Stripe payout reconciliation is not completed")
+            if payout.get("reversed_by") is not None:
+                raise ValueError("Stripe payout has been reversed")
+            if payout.get("failure_balance_transaction") is not None:
+                raise ValueError(
+                    "Stripe payout has a failure balance transaction"
+                )
+
+            self._require_matching_currency(payout, currency_code)
+            self._require_matching_livemode(payout, livemode)
+
+            observed_transaction_ids: List[str] = []
+            observed_transaction_id_set = set()
+            matched_transaction_ids = set()
+            source_mismatch_transaction_ids = set()
+            seen_cursors = set()
+            starting_after: Optional[str] = None
+            previous_page_had_more = False
+
+            for _ in range(_STRIPE_INVOICE_PAYMENT_MAX_PAGES):
+                params: Dict[str, Any] = {
+                    "payout": provider_payout_id,
+                    "limit": page_limit,
+                }
+                if starting_after is not None:
+                    params["starting_after"] = starting_after
+
+                page = await self._stripe_evidence_get(
+                    client, "/balance_transactions", headers, params
+                )
+
+                data = page.get("data")
+                if not isinstance(data, list):
+                    raise ValueError(
+                        "Stripe balance transactions response has no data list"
+                    )
+
+                has_more = page.get("has_more")
+                if not isinstance(has_more, bool):
+                    raise ValueError(
+                        "Stripe balance transactions response has invalid "
+                        "pagination"
+                    )
+
+                if previous_page_had_more and not data:
+                    raise ValueError(
+                        "Stripe balance transactions pagination contains a gap"
+                    )
+
+                if starting_after is not None and data:
+                    first_item = data[0]
+                    if (
+                        isinstance(first_item, dict)
+                        and first_item.get("id") == starting_after
+                    ):
+                        raise ValueError(
+                            "Stripe balance transactions pagination did not "
+                            "advance"
+                        )
+
+                for transaction in data:
+                    if not isinstance(transaction, dict):
+                        raise ValueError(
+                            "Stripe balance transaction entry is malformed"
+                        )
+
+                    transaction_id = self._require_stripe_identifier(
+                        transaction.get("id"), "balance_transaction.id"
+                    )
+                    if (
+                        "object" in transaction
+                        and transaction.get("object") != "balance_transaction"
+                    ):
+                        raise ValueError(
+                            "Stripe response is not a balance transaction object"
+                        )
+
+                    self._require_matching_currency(transaction, currency_code)
+                    if "livemode" in transaction:
+                        self._require_matching_livemode(transaction, livemode)
+
+                    if transaction_id in observed_transaction_id_set:
+                        raise ValueError(
+                            "Duplicate Stripe balance transaction ids"
+                        )
+                    observed_transaction_id_set.add(transaction_id)
+                    observed_transaction_ids.append(transaction_id)
+
+                    expected_charge_id = expected_by_transaction_id.get(
+                        transaction_id
+                    )
+                    if expected_charge_id is None:
+                        continue
+
+                    charge_id = self._stripe_balance_transaction_charge_id(
+                        transaction
+                    )
+                    transaction_type = transaction.get("type")
+                    if (
+                        charge_id != expected_charge_id
+                        or (
+                            transaction_type is not None
+                            and transaction_type != "charge"
+                        )
+                    ):
+                        source_mismatch_transaction_ids.add(transaction_id)
+                    else:
+                        matched_transaction_ids.add(transaction_id)
+
+                if not has_more:
+                    break
+
+                if not data:
+                    raise ValueError(
+                        "Stripe balance transactions pagination contains a gap"
+                    )
+
+                last_item = data[-1]
+                last_id = (
+                    last_item.get("id")
+                    if isinstance(last_item, dict)
+                    else None
+                )
+                if not isinstance(last_id, str) or not last_id:
+                    raise ValueError(
+                        "Stripe balance transactions pagination has no cursor"
+                    )
+                if last_id == starting_after or last_id in seen_cursors:
+                    raise ValueError(
+                        "Stripe balance transactions pagination is cyclic"
+                    )
+
+                seen_cursors.add(last_id)
+                starting_after = last_id
+                previous_page_had_more = True
+            else:
+                raise ValueError(
+                    "Stripe balance transactions pagination exceeded the safety "
+                    "limit"
+                )
+
+        if source_mismatch_transaction_ids:
+            raise ValueError(
+                "Stripe balance transaction source/charge id does not match the "
+                "expected charge for payout membership"
+            )
+
+        missing_pairs = [
+            pair
+            for pair in pairs
+            if pair["balance_transaction_id"] not in matched_transaction_ids
+        ]
+        if missing_pairs:
+            raise ValueError(
+                "Stripe balance transaction is not a member of the payout "
+                "(payout does not contain the expected charge balance "
+                "transaction pair)"
+            )
+
+        return {
+            "evidence_type": "stripe_payout_membership",
+            "account_id": account_id,
+            "payout_id": provider_payout_id,
+            "currency": currency_code,
+            "livemode": livemode,
+            "charge_balance_transaction_pairs": pairs,
+            "pair_count": len(pairs),
+            "charge_ids": [pair["charge_id"] for pair in pairs],
+            "balance_transaction_ids": observed_transaction_ids,
+            "balance_transaction_count": len(observed_transaction_ids),
+            "matched_balance_transaction_ids": [
+                pair["balance_transaction_id"] for pair in pairs
+            ],
+            "stripe_api_version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+        }
