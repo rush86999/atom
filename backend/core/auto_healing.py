@@ -109,9 +109,16 @@ def async_retry_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
-    exceptions: tuple = (Exception,)
+    exceptions: tuple = (Exception,),
+    retry_if: Optional[Callable[[BaseException], bool]] = None,
 ):
-    """Async version of retry_with_backoff decorator"""
+    """Async version of retry_with_backoff decorator.
+
+    ``retry_if`` is an optional opt-out predicate. When supplied it is called
+    with the caught exception and may return ``False`` to re-raise immediately
+    instead of retrying. The default (``None``) preserves the historical
+    behavior: every exception in ``exceptions`` is retried.
+    """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
@@ -122,7 +129,14 @@ def async_retry_with_backoff(
                     return await func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
-                    
+
+                    if retry_if is not None and not retry_if(e):
+                        logger.warning(
+                            f"{func.__name__} failed with a non-retryable "
+                            f"{type(e).__name__}; not retrying. Error: {str(e)}"
+                        )
+                        raise
+
                     if attempt < max_retries:
                         delay = min(base_delay * (exponential_base ** attempt), max_delay)
                         logger.warning(
