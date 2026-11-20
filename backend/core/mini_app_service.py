@@ -2792,6 +2792,7 @@ def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
         "runtime_image": app.runtime_image,
         "logic": {
             "present": bool(source),
+            "source_sha256": logic_source_sha256(source) if source else None,
             "syntax_ok": syntax_ok,
             "syntax_error": syntax_error,
         },

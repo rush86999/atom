@@ -17,6 +17,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
+import AcceptanceCaseEditor from "./AcceptanceCaseEditor";
 import {
   Play,
   Save,
@@ -112,6 +113,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [showAcceptance, setShowAcceptance] = useState(false);
   const [scaffolding, setScaffolding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -512,6 +514,22 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
               onChange={(val) => setSource(val ?? "")}
               options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false }}
             />
+          )}
+
+          {appId && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                aria-expanded={showAcceptance}
+                className="rounded border border-zinc-200 px-2 py-1 text-xs dark:border-zinc-700"
+                onClick={() => setShowAcceptance((visible) => !visible)}
+              >
+                {showAcceptance ? "Hide acceptance tests" : "Show acceptance tests"}
+              </button>
+              {showAcceptance && (
+                <AcceptanceCaseEditor key={appId} appId={appId} rpc={rpc.call.bind(rpc)} sourceRevision={source} />
+              )}
+            </div>
           )}
 
           {/* Dev-run result (stdout/stderr + state) */}

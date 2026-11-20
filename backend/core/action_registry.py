@@ -1654,6 +1654,7 @@ _MINI_APP_SET_TESTS_SCHEMA = {
     "type": "object",
     "properties": {
         "app_id": {"type": "string", "description": "Mini-app id"},
+        "expected_tests_sha256": {"type": "string"},
         "tests": {
             "type": "array",
             "items": {
@@ -1703,7 +1704,14 @@ async def _mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> 
 @register_action(
     "mini_app_run_tests",
     description="Run a mini-app's acceptance tests in the Firecracker microVM (dry, no commit). Returns per-case pass/fail with expected-vs-actual state diffs and a pass count — the generator-evaluator feedback loop for agent self-correction.",
-    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    parameters_schema={
+        **_MINI_APP_APP_ID_SCHEMA,
+        "properties": {
+            **_MINI_APP_APP_ID_SCHEMA["properties"],
+            "expected_tests_sha256": {"type": "string"},
+            "expected_source_sha256": {"type": "string"},
+        },
+    },
     effects=[{"effect": "read"}],
 )
 async def _mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -1739,7 +1747,13 @@ async def _mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) 
 @register_action(
     "mini_app_status",
     description="Probe a mini-app's authoring constraints before iterating: logic syntax validity, effective scopes (viewer tier ∩ declared), dependency-scan state, per-app rootfs presence, and Firecracker runtime availability.",
-    parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    parameters_schema={
+        **_MINI_APP_APP_ID_SCHEMA,
+        "properties": {
+            **_MINI_APP_APP_ID_SCHEMA["properties"],
+            "include_acceptance_cases": {"type": "boolean"},
+        },
+    },
     effects=[{"effect": "read"}],
 )
 async def _mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:

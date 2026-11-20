@@ -665,3 +665,60 @@ async def test_acceptance_repair_cannot_overwrite_newer_saved_logic(patched_db):
     assert not repair["success"] and repair["error"] == "mini_app_logic_changed"
     with get_db_session() as db:
         assert CanvasLogicService(db).load_logic(draft["canvas_id"])["source"] == peer_source
+
+
+@pytest.mark.asyncio
+async def test_owner_case_editor_preserves_newer_suite(patched_db):
+    owner = _uid()
+    app_id = (await _scaffold(owner))["app_id"]
+    async def call(action, args, actor=owner):
+        return await action_registry.execute_action(action, {"app_id": app_id, **args}, _ctx(actor))
+
+    read = {"include_acceptance_cases": True}
+    status = (await call("mini_app_status", read))["status"]
+    loaded = status["acceptance"]
+    from core.mini_app_service import logic_source_sha256
+    from core.models import CanvasLogic, MiniApp
+
+    with patched_db[1]() as db:
+        canvas_id = db.get(MiniApp, app_id).blueprint_canvas_id
+        logic = db.query(CanvasLogic).filter_by(canvas_id=canvas_id).one()
+        assert status["logic"]["source_sha256"] == logic_source_sha256(logic.source)
+    assert loaded["cases"] == []
+    assert not (await call("mini_app_status", read, _uid()))["success"]
+    first = [{"name": "initial", "expect_state": {"total": 7}}]
+    saved = await call("mini_app_set_tests", {"tests": first,
+                                             "expected_tests_sha256": loaded["tests_sha256"]})
+    assert saved["success"]
+    assert saved["tests_sha256"] != loaded["tests_sha256"]
+    rejected = await call("mini_app_set_tests", {"tests": [{"expect_state": {"total": 8}}],
+                                                "expected_tests_sha256": loaded["tests_sha256"]})
+    assert rejected["error"] == "mini_app_acceptance_tests_changed"
+    refreshed = (await call("mini_app_status", read))["status"]["acceptance"]
+    assert refreshed == {"cases": first, "tests_sha256": saved["tests_sha256"]}
+
+
+@pytest.mark.asyncio
+async def test_owner_case_editor_rejects_invalid_existing_suite(patched_db):
+    from core.models import MiniApp
+    from core.task_lifecycle import _approval_payload_hash
+
+    owner = _uid()
+    app_id = (await _scaffold(owner))["app_id"]
+    with patched_db[1]() as db:
+        app = db.get(MiniApp, app_id)
+        app.manifest = {**app.manifest, "tests": {"legacy": "invalid"}}
+        db.commit()
+
+    loaded = await action_registry.execute_action(
+        "mini_app_status", {"app_id": app_id, "include_acceptance_cases": True}, _ctx(owner)
+    )
+    assert loaded["error"] == "mini_app_saved_tests_invalid"
+    saved = await action_registry.execute_action(
+        "mini_app_set_tests",
+        {"app_id": app_id, "tests": [{"expect_state": {"total": 7}}],
+         "expected_tests_sha256": _approval_payload_hash([])}, _ctx(owner),
+    )
+    assert saved["error"] == "mini_app_saved_tests_invalid"
+    with patched_db[1]() as db:
+        assert db.get(MiniApp, app_id).manifest["tests"] == {"legacy": "invalid"}
