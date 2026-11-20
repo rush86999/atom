@@ -10,11 +10,12 @@ import tempfile
 import threading
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.execution_state_manager import INVOICE_LAUNCH_WORKFLOW_ID
 from core.models import User
 from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
@@ -513,6 +514,203 @@ def _caller_scope(user: User) -> Dict[str, str]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Stock invoice launch handoff
+# ---------------------------------------------------------------------------
+
+#: Server-known catalog id for the stock invoice follow-up launch.
+STOCK_INVOICE_LAUNCH_WORKFLOW_ID = "htn_invoice_followup"
+
+
+def _stock_launch_field_error(field: str, message: str) -> HTTPException:
+    """Return the fixed field-shaped validation error used by stock launch."""
+    return HTTPException(
+        status_code=422,
+        detail={
+            "error": "validation_error",
+            "field": field,
+            "message": message,
+        },
+    )
+
+
+def _stock_idempotency_key(
+    request: Optional[Request], body: Dict[str, Any],
+) -> str:
+    """Read the required key from the header, then the documented body form."""
+    headers = getattr(request, "headers", None)
+    if headers is not None:
+        value = headers.get("Idempotency-Key")
+        if not isinstance(value, str) or not value.strip():
+            # Starlette's Headers is case-insensitive; this also tolerates a
+            # plain mapping that spells the header in lower case.
+            value = headers.get("idempotency-key")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    # Documented fallback for clients that cannot set request headers.
+    value = body.get("idempotency_key")
+    if not isinstance(value, str) or not value.strip():
+        value = body.get("Idempotency-Key")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return ""
+
+
+def _stock_launch_response(result: Any) -> Dict[str, Any]:
+    """Project the admission receipt onto the small public launch response."""
+    data = result if isinstance(result, dict) else {}
+    execution_id = data.get("execution_id")
+    if not isinstance(execution_id, str):
+        execution_id = str(execution_id or "")
+
+    status = data.get("status")
+    status_text = (
+        status.strip().lower()
+        if isinstance(status, str) and status.strip()
+        else ""
+    )
+
+    if data.get("terminal") is True:
+        # The admission receipt is authoritative that the slot is terminal;
+        # the small launch response deliberately does not claim a success label
+        # beyond that durable fact.
+        return {
+            "execution_id": execution_id,
+            "state": "terminal",
+            "next_action": "none",
+        }
+
+    if data.get("attached") is True or status_text == "attached":
+        response: Dict[str, Any] = {
+            "execution_id": execution_id,
+            "state": "attached",
+            "next_action": "wait",
+        }
+        run_id = data.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            response["run_id"] = run_id
+        return response
+
+    if (data.get("paused") is True
+            or data.get("review_required") is True
+            or data.get("requires_review") is True
+            or status_text in ("paused", "review", "blocked", "denied")):
+        return {
+            "execution_id": execution_id,
+            "state": "paused",
+            "next_action": "review",
+        }
+
+    return {
+        "execution_id": execution_id,
+        "state": "terminal",
+        "next_action": "none",
+    }
+
+
+async def run_stock_invoice_launch(
+    *,
+    current_user: Any,
+    request: Optional[Request],
+    body: Optional[Dict[str, Any]],
+    validate_executor,
+) -> Dict[str, Any]:
+    """Validate the stock launch contract, then use shared admission.
+
+    Visibility and RBAC stay in each execute handler. This helper owns only
+    the stock input contract: it never reads a plan, tenant, actor or
+    workspace from request fields, and the executor gate sees the canonical
+    plan built from the authenticated caller plus the invoice number.
+    """
+    values = body if isinstance(body, dict) else {}
+
+    invoice_number = values.get("invoice_number")
+    if not isinstance(invoice_number, str) or not invoice_number.strip():
+        raise _stock_launch_field_error(
+            "invoice_number",
+            "invoice_number is required and must be a non-blank string",
+        )
+
+    idempotency_key = _stock_idempotency_key(request, values)
+    if not idempotency_key:
+        raise _stock_launch_field_error(
+            "idempotency_key",
+            "Idempotency-Key header is required (or body idempotency_key)",
+        )
+
+    if "account_owner_user_id" not in values:
+        raise _stock_launch_field_error(
+            "account_owner_user_id",
+            "account_owner_user_id must be explicitly present as null or a "
+            "non-blank string",
+        )
+    account_owner = values.get("account_owner_user_id")
+    if account_owner is not None:
+        if not isinstance(account_owner, str) or not account_owner.strip():
+            raise _stock_launch_field_error(
+                "account_owner_user_id",
+                "account_owner_user_id must be explicitly present as null or "
+                "a non-blank string",
+            )
+        account_owner = account_owner.strip()
+
+    # Scope comes only from the authenticated principal. Missing/empty
+    # tenant or workspace is a refusal, not an implicit "default" grant.
+    actor_id = getattr(current_user, "id", None)
+    tenant_id = getattr(current_user, "tenant_id", None)
+    workspace_id = getattr(current_user, "workspace_id", None)
+    if any(
+        value is None or not str(value).strip()
+        for value in (actor_id, tenant_id, workspace_id)
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    identity = {
+        "tenant_id": str(tenant_id),
+        "workspace_id": str(workspace_id),
+        "user_id": str(actor_id),
+    }
+    employee_id = getattr(current_user, "employee_id", None)
+    if employee_id is not None and str(employee_id).strip():
+        identity["employee_id"] = str(employee_id).strip()
+
+    from core.invoice_launch_admission import (
+        InvalidStockInvoiceAccountOwner,
+        InvoiceLaunchConflict,
+        admit_stock_invoice_launch,
+        build_stock_invoice_launch_workflow,
+    )
+
+    # Build the plan server-side from the authenticated actor only. The
+    # executor gate must inspect this canonical material, not the catalog
+    # template's declared steps or any caller-supplied plan.
+    workflow = build_stock_invoice_launch_workflow(
+        invoice_number, identity=identity)
+    await validate_executor(current_user, workflow)
+
+    try:
+        result = await admit_stock_invoice_launch(
+            invoice_number,
+            identity=identity,
+            idempotency_key=idempotency_key,
+            account_owner_user_id=account_owner,
+        )
+    except InvalidStockInvoiceAccountOwner:
+        raise _stock_launch_field_error(
+            "account_owner_user_id",
+            "account_owner_user_id is not valid for this request",
+        ) from None
+    except InvoiceLaunchConflict:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "invoice_launch_conflict",
+                "message": "the invoice launch conflicts with durable state",
+            },
+        ) from None
+
+    return _stock_launch_response(result)
+
+
 def _is_visible_to_user(workflow: Dict[str, Any], user: User) -> bool:
     """Strict for new generated rows; legacy rows keep their old behavior.
 
@@ -703,6 +901,257 @@ def _authorize_workflow_history(user: User, workflow_id: str, rows: List[Any]) -
     if not rows:
         return False
     return all(_authorize_execution_row(user, row) for row in rows)
+
+
+# ---------------------------------------------------------------------------
+# Stock invoice receipt projection
+# ---------------------------------------------------------------------------
+#
+# Stock invoice executions carry a durable owner/tenant receipt plus the frozen
+# execution scope in their inputs. Their generic execution shape (inputs,
+# context, outputs, steps, errors) is not a public receipt: the whole row is
+# owner-only and even the owner receives only the fixed projection below.
+# Generic fallbacks must never be used to surface a stock row.
+STOCK_INVOICE_WORKFLOW_ID = INVOICE_LAUNCH_WORKFLOW_ID
+
+_STOCK_SCOPE_KEY = "_atom_execution_scope"
+_STOCK_SCOPE_FIELDS = ("tenant_id", "workspace_id", "user_id")
+
+
+def _stock_scope_token(value: Any) -> str:
+    """Normalize one authoritative identity token for exact comparison."""
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, (str, int, uuid.UUID)):
+        return str(value).strip()
+    return ""
+
+
+def _is_stock_workflow_id(value: Any) -> bool:
+    return _stock_scope_token(value) == STOCK_INVOICE_WORKFLOW_ID
+
+
+def _stock_json_object(raw: Any) -> Optional[Dict[str, Any]]:
+    """Strictly parse a JSON object column; malformed input is not a match."""
+    if isinstance(raw, dict):
+        return dict(raw)
+    if isinstance(raw, (str, bytes, bytearray)):
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return None
+        return dict(parsed) if isinstance(parsed, dict) else None
+    return None
+
+
+def _stock_caller_scope(user: User) -> Optional[Dict[str, str]]:
+    """Return the current authenticated caller receipt scope, or ``None``.
+
+    A literal ``default`` token is a valid durable identity when it is the
+    caller's exact scope. Only absent tokens are refused: there is no implicit
+    fallback for a missing tenant/workspace/actor.
+    """
+    if not bool(getattr(user, "is_active", True)):
+        return None
+    status = _stock_scope_token(getattr(user, "status", None)).lower()
+    if status and status != "active":
+        return None
+
+    scope = {
+        "user_id": _stock_scope_token(getattr(user, "id", None)),
+        "tenant_id": _stock_scope_token(getattr(user, "tenant_id", None)),
+        "workspace_id": _stock_scope_token(
+            getattr(user, "workspace_id", None)),
+    }
+    for value in scope.values():
+        if not value:
+            return None
+    return scope
+
+
+def _stock_row_matches_scope(
+    row: Any, scope: Dict[str, str],
+) -> bool:
+    """Prove both durable actor columns and the frozen input scope match."""
+    if not _is_stock_workflow_id(getattr(row, "workflow_id", None)):
+        return False
+
+    row_user = _stock_scope_token(getattr(row, "user_id", None))
+    row_owner = _stock_scope_token(getattr(row, "owner_id", None))
+    row_tenant = _stock_scope_token(getattr(row, "tenant_id", None))
+    if row_user != scope["user_id"] or row_owner != scope["user_id"]:
+        return False
+    if row_tenant != scope["tenant_id"]:
+        return False
+
+    # Some older reservation rows have no workspace column value. If one is
+    # present it must match; the immutable input scope below is always exact.
+    row_workspace = _stock_scope_token(
+        getattr(row, "workspace_id", None))
+    if row_workspace and row_workspace != scope["workspace_id"]:
+        return False
+
+    inputs = _stock_json_object(getattr(row, "input_data", None))
+    if inputs is None:
+        return False
+    stored_scope = inputs.get(_STOCK_SCOPE_KEY)
+    if not isinstance(stored_scope, dict):
+        return False
+    for field in _STOCK_SCOPE_FIELDS:
+        if _stock_scope_token(stored_scope.get(field)) != scope[field]:
+            return False
+    return True
+
+
+def _stock_timestamp(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except (TypeError, ValueError):
+            return None
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _stock_field(value: Any, name: str) -> Any:
+    if isinstance(value, dict):
+        return value.get(name)
+    return getattr(value, name, None)
+
+
+def _stock_linked_run_id(
+    db: Optional[Session], row: Any, scope: Dict[str, str],
+) -> Optional[str]:
+    """Return a run id only after the durable stock link is re-proved.
+
+    The stock assignment module owns the deterministic link ids. This helper
+    re-reads the exact durable goal run, its scope and its execution-context
+    binding. Any lookup/validation failure simply omits the reference.
+    """
+    if db is None:
+        return None
+    try:
+        from core.invoice_workflow_assignment import (
+            _WORKFLOW_ID as INVOICE_WORKFLOW_ID,
+            _goal_id,
+            _run_id,
+        )
+        from core.models import GoalRun
+    except Exception:  # noqa: BLE001 - unvalidated link is not exposed
+        return None
+
+    try:
+        execution_id = _stock_scope_token(
+            _stock_field(row, "execution_id"))
+        if not execution_id:
+            return None
+        if _stock_scope_token(
+                _stock_field(row, "workflow_id")) != INVOICE_WORKFLOW_ID:
+            return None
+
+        context = _stock_json_object(_stock_field(row, "context"))
+        if context is None:
+            return None
+        link = {
+            "execution_id": _stock_scope_token(context.get("execution_id")),
+            "workflow_id": _stock_scope_token(context.get("workflow_id")),
+            "goal_id": _stock_scope_token(context.get("goal_id")),
+            "run_id": _stock_scope_token(context.get("run_id")),
+            "tenant_id": _stock_scope_token(context.get("tenant_id")),
+            "workspace_id": _stock_scope_token(
+                context.get("workspace_id")),
+            "user_id": _stock_scope_token(context.get("user_id")),
+        }
+        expected = {
+            "execution_id": execution_id,
+            "workflow_id": INVOICE_WORKFLOW_ID,
+            "goal_id": _goal_id(execution_id),
+            "run_id": _run_id(execution_id),
+            "tenant_id": scope["tenant_id"],
+            "workspace_id": scope["workspace_id"],
+            "user_id": scope["user_id"],
+        }
+        if link != expected:
+            return None
+
+        run = db.query(GoalRun).filter(
+            GoalRun.id == expected["run_id"],
+            GoalRun.tenant_id == expected["tenant_id"],
+            GoalRun.workspace_id == expected["workspace_id"],
+        ).first()
+        if run is None:
+            return None
+        if _stock_scope_token(
+                _stock_field(run, "goal_id")) != expected["goal_id"]:
+            return None
+        if _stock_scope_token(
+                _stock_field(run, "tenant_id")) != expected["tenant_id"]:
+            return None
+        if _stock_scope_token(
+                _stock_field(run, "workspace_id")) != expected["workspace_id"]:
+            return None
+        if _stock_scope_token(
+                _stock_field(run, "created_by")) != expected["user_id"]:
+            return None
+
+        parameters = _stock_json_object(
+            _stock_field(run, "parameters"))
+        if parameters is None:
+            return None
+        execution_context = _stock_field(parameters, "execution_context")
+        if not isinstance(execution_context, dict):
+            return None
+        if dict(execution_context) != {
+            "execution_id": expected["execution_id"],
+            "workflow_id": INVOICE_WORKFLOW_ID,
+            "tenant_id": expected["tenant_id"],
+            "workspace_id": expected["workspace_id"],
+            "user_id": expected["user_id"],
+        }:
+            return None
+        return expected["run_id"]
+    except Exception:  # noqa: BLE001 - unproven link is never exposed
+        return None
+
+
+def _stock_invoice_receipt_projection(
+    user: User, row: Any, db: Optional[Session] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the fixed owner-only stock receipt, or ``None`` when refused.
+
+    Only the scoped execution id, fixed workflow id, durable status/timestamps
+    and an independently validated linked run id are ever returned. Raw input,
+    context, outputs, telemetry and operation details are never projected.
+    """
+    scope = _stock_caller_scope(user)
+    if scope is None:
+        return None
+    if not _stock_row_matches_scope(row, scope):
+        return None
+
+    execution_id = _stock_scope_token(getattr(row, "execution_id", None))
+    raw_status = getattr(row, "status", None)
+    if hasattr(raw_status, "value"):
+        raw_status = raw_status.value
+    status = _stock_scope_token(raw_status)
+    if not execution_id or not status:
+        return None
+
+    projection = {
+        "execution_id": execution_id,
+        "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+        "status": status.lower(),
+        "created_at": _stock_timestamp(getattr(row, "created_at", None)),
+        "updated_at": _stock_timestamp(getattr(row, "updated_at", None)),
+        "completed_at": _stock_timestamp(getattr(row, "completed_at", None)),
+    }
+    run_id = _stock_linked_run_id(db, row, scope)
+    if run_id:
+        projection["run_id"] = run_id
+    return projection
 
 
 def _definition_material_from_view(view: Dict[str, Any]) -> Dict[str, Any]:
@@ -1316,6 +1765,52 @@ async def get_workflows(user: User = Depends(require_permission(Permission.WORKF
     for w in workflows:
         _enrich_workflow(w)
     return workflows
+
+
+class WorkflowAccountOwnerOption(BaseModel):
+    user_id: str
+    display_label: str
+
+
+@router.get(
+    "/workflows/htn_invoice_followup/account-owner-options",
+    response_model=List[WorkflowAccountOwnerOption],
+)
+async def get_stock_invoice_account_owner_options(
+    user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE)),
+    db: Session = Depends(get_db),
+):
+    """Read the stock invoice launch form's eligible account-owner roster.
+
+    Tenant/workspace come only from the authenticated principal; there is no
+    client-supplied scope. The principal must currently be an active exact
+    member of that workspace, using the same predicate as workflow
+    notification delivery. This route only reads and never touches workflow
+    execution, scheduling or the catalog.
+    """
+    from core.notification_service import (
+        workflow_account_owner_options,
+        workflow_recipient_is_eligible,
+    )
+
+    user_id = str(getattr(user, "id", None) or "").strip()
+    tenant_id = str(getattr(user, "tenant_id", None) or "").strip()
+    workspace_id = str(getattr(user, "workspace_id", None) or "").strip()
+    if not user_id or not tenant_id or not workspace_id:
+        raise HTTPException(status_code=403, detail="Workflow scope unavailable")
+    if not workflow_recipient_is_eligible(
+        db,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    ):
+        raise HTTPException(status_code=403, detail="Workflow scope unavailable")
+    return workflow_account_owner_options(
+        db,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+
 
 @router.get("/workflows/{workflow_id}", response_model=WorkflowDefinition)
 async def get_workflow(workflow_id: str, user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
@@ -2346,13 +2841,18 @@ async def _execute_generated_workflow(
     )
 
 
-@router.post("/workflows/{workflow_id}/execute", response_model=ExecutionResult)
+# The stock launch path returns a small execution/state/next_action receipt,
+# not ExecutionResult. Every other workflow still returns the same
+# ExecutionResult instances as before; leaving the route unpinned only avoids
+# rejecting the intentionally minimal stock receipt.
+@router.post("/workflows/{workflow_id}/execute")
 async def execute_workflow(
     workflow_id: str, 
     background_tasks: BackgroundTasks,
     input_data: Optional[Dict[str, Any]] = None,
     user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
     """Execute a workflow by ID"""
     from core.workflow_engine import get_workflow_engine
@@ -2367,6 +2867,21 @@ async def execute_workflow(
         workflow = _load_template_definition(workflow_id, user, db)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
+
+    # Stock invoice launch: the server-known catalog id takes the shared
+    # admission path. Visibility was already decided above and RBAC stays on
+    # the route dependency. Malformed stock input is refused here rather than
+    # falling through to generic dispatch.
+    if workflow_id == STOCK_INVOICE_LAUNCH_WORKFLOW_ID:
+        return await run_stock_invoice_launch(
+            current_user=user,
+            request=request,
+            body=input_data,
+            validate_executor=lambda actor, definition: (
+                require_workflow_executor(
+                    actor, definition.get("steps") or [])
+            ),
+        )
 
     deployment = workflow.get("deployment")
     if isinstance(deployment, dict) and deployment.get("canonical_workflow_id"):
@@ -2558,24 +3073,54 @@ async def get_workflow_executions(
     """Get execution history for a workflow in the caller's scope."""
     from core.models import WorkflowExecution as WorkflowExecutionRow
 
+    stock_workflow = _is_stock_workflow_id(workflow_id)
     rows = []
+    stock_receipts: List[Dict[str, Any]] = []
+    db = None
     try:
         db = next(get_db())
         try:
             rows = db.query(WorkflowExecutionRow).filter(
                 WorkflowExecutionRow.workflow_id == workflow_id
             ).all()
+            if stock_workflow:
+                for row in rows:
+                    receipt = _stock_invoice_receipt_projection(
+                        user, row, db)
+                    if receipt is None:
+                        # A malformed/foreign stock row makes the whole stock
+                        # history unanswerable. Never fall back to the generic
+                        # in-memory history for it.
+                        raise HTTPException(
+                            status_code=404, detail="Workflow not found")
+                    stock_receipts.append(receipt)
         finally:
             db.close()
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to read persisted execution history")
+        if stock_workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+    if stock_workflow:
+        # Stock rows have one reviewed, owner-only receipt shape. The generic
+        # AutomationEngine/DB history projection is never applied to them.
+        return stock_receipts
 
     if not _authorize_workflow_history(user, workflow_id, rows):
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     from ai.automation_engine import AutomationEngine
     engine = AutomationEngine()
-    executions = [e.to_dict() for e in engine.get_execution_history(workflow_id)]
+    executions = [
+        e.to_dict() for e in engine.get_execution_history(workflow_id)
+    ]
+    # Even a mis-keyed generic history entry must not surface a stock row.
+    executions = [
+        e for e in executions
+        if not _is_stock_workflow_id(e.get("workflow_id"))
+    ]
 
     # Durable-engine fallback: merge DB rows already loaded for the scope
     # check, deduping against the legacy AutomationEngine executions.
@@ -2599,14 +3144,24 @@ async def get_execution_details(
     # Resolve the durable row first: cache/orchestrator fallbacks must not
     # bypass the generated workflow's authoritative scope.
     row = None
+    db = None
     try:
         db = next(get_db())
         try:
             row = db.query(WorkflowExecutionRow).filter(
                 WorkflowExecutionRow.execution_id == execution_id
             ).first()
+            if row is not None and _is_stock_workflow_id(
+                    getattr(row, "workflow_id", None)):
+                receipt = _stock_invoice_receipt_projection(user, row, db)
+                if receipt is None:
+                    raise HTTPException(
+                        status_code=404, detail="Execution not found")
+                return receipt
         finally:
             db.close()
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to read persisted execution details")
     if row is not None:
@@ -2614,14 +3169,22 @@ async def get_execution_details(
             raise HTTPException(status_code=404, detail="Execution not found")
         return _db_execution_row_to_dict(row)
 
-    # Orchestrator fallback (workflow UI path).
+    # Orchestrator fallback (workflow UI path). A stock identity is never
+    # surfaced through this generic path, even when its scope would otherwise
+    # look legacy/global.
     from advanced_workflow_orchestrator import get_orchestrator
     context = get_orchestrator().active_contexts.get(execution_id)
     if context is not None:
         variables = getattr(context, "variables", {}) or {}
+        context_workflow_id = getattr(context, "workflow_id", "")
         definition_id = str(
             variables.get("_workflow_definition_id")
-            or getattr(context, "workflow_id", "") or "")
+            or context_workflow_id or "")
+        if (_is_stock_workflow_id(definition_id)
+                or _is_stock_workflow_id(context_workflow_id)
+                or _is_stock_workflow_id(
+                    variables.get("workflow_id"))):
+            raise HTTPException(status_code=404, detail="Execution not found")
         if not definition_id or not _authorize_runtime_scope(
                 user, definition_id, variables):
             raise HTTPException(status_code=404, detail="Execution not found")
@@ -2634,7 +3197,9 @@ async def get_execution_details(
     if execution_id in engine.executions:
         data = engine.executions[execution_id].to_dict()
         workflow_id = str(data.get("workflow_id") or "")
-        if not workflow_id or not _authorize_generated_read(user, workflow_id):
+        if (_is_stock_workflow_id(workflow_id)
+                or not workflow_id
+                or not _authorize_generated_read(user, workflow_id)):
             raise HTTPException(status_code=404, detail="Execution not found")
         return data
 
@@ -2971,6 +3536,17 @@ async def export_execution_result(
         WorkflowExecutionRow.execution_id == execution_id).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Execution not found")
+    if _is_stock_workflow_id(getattr(row, "workflow_id", None)):
+        # There is deliberately no raw stock export yet. Prove the same
+        # owner/actor/frozen-scope receipt before returning a truthful refusal;
+        # malformed/foreign rows remain indistinguishable from not-found.
+        if _stock_invoice_receipt_projection(user, row, db) is None:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        raise HTTPException(status_code=409, detail={
+            "error": "stock_invoice_export_unavailable",
+            "message": "raw export of a stock invoice execution is not "
+                       "available until a reviewed stock export exists",
+        })
     if not _authorize_execution_row(user, row):
         raise HTTPException(status_code=404, detail="Execution not found")
     if _current_read_actor(db, _caller_scope(user)) is None:

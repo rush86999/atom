@@ -1072,6 +1072,21 @@ async def execute_template(
         # store (workflows.json / DB templates).
         template = manager.get_template(template_id)
 
+        # Stock invoice launch: the server-known catalog id takes the shared
+        # admission path. Visibility was already decided by the catalog
+        # lookup above and RBAC stays on the route dependency. Malformed stock
+        # input is refused here before any generic instantiation.
+        # (Matches core.workflow_endpoints.STOCK_INVOICE_LAUNCH_WORKFLOW_ID.)
+        if template and template_id == "htn_invoice_followup":
+            from core.workflow_endpoints import run_stock_invoice_launch
+
+            return await run_stock_invoice_launch(
+                current_user=current_user,
+                request=request,
+                body=parameters,
+                validate_executor=require_workflow_executor_definition,
+            )
+
         # 1. Instantiate the template (validates required inputs and keeps the
         # native editor contract). The generated id is only used by the
         # native orchestrator path.

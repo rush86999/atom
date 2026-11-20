@@ -15,6 +15,16 @@ import {
 import { Loader2 } from 'lucide-react';
 import { Node, Edge } from 'reactflow';
 import { extractApiErrorMessage } from '@/lib/api-error';
+import {
+    isHtnInvoiceFollowupWorkflow,
+    parseWorkflowLaunchReceipt,
+    type WorkflowLaunchReceipt,
+} from '@/lib/workflow-launch-receipt';
+import {
+    StockInvoiceLaunchFields,
+    useStockInvoiceLaunch,
+    type PreparedStockLaunch,
+} from '@/components/StockInvoiceLaunchForm';
 
 const mapStepTypeToNode = (stepType: string): string => {
     switch (stepType) {
@@ -103,6 +113,24 @@ const buildRunToast = (data: unknown): { title: string; description: string } =>
     }
 };
 
+const buildStockLaunchToast = (receipt: WorkflowLaunchReceipt) => ({
+    title: receipt.title,
+    description: receipt.description,
+    ...(receipt.assignmentHref
+        ? {
+            action: (
+                <a
+                    href={receipt.assignmentHref}
+                    data-testid="open-assignment"
+                    className="text-sm font-medium underline underline-offset-4"
+                >
+                    Open assignment
+                </a>
+            ),
+        }
+        : {}),
+});
+
 export default function WorkflowEditorPage() {
     const router = useRouter();
     const { id } = router.query;
@@ -123,7 +151,15 @@ export default function WorkflowEditorPage() {
     const [runOpen, setRunOpen] = useState(false);
     const [paramValues, setParamValues] = useState<Record<string, string>>({});
     const [isRunning, setIsRunning] = useState(false);
-    const [lastRun, setLastRun] = useState<{ id: string; status: string | null } | null>(null);
+    const stockWorkflow = isHtnInvoiceFollowupWorkflow(id);
+    const stockLaunch = useStockInvoiceLaunch({ enabled: runOpen && stockWorkflow });
+    const stockDraftInitializedRef = useRef(false);
+    const [lastRun, setLastRun] = useState<{
+        id: string;
+        status: string | null;
+        label?: string;
+        stockReceipt?: boolean;
+    } | null>(null);
     const [resultsOpen, setResultsOpen] = useState(false);
     const [runResults, setRunResults] = useState<{
         steps: { step_id?: string; step_type?: string; status?: string; notes?: string | null }[];
@@ -229,6 +265,10 @@ export default function WorkflowEditorPage() {
         fetchWorkflow(id as string);
     }, [fetchWorkflow, id]);
 
+    useEffect(() => {
+        stockDraftInitializedRef.current = false;
+    }, [id]);
+
     const handleSave = async (data: { nodes: Node[], edges: Edge[] }) => {
         try {
             // Convert React Flow -> Backend JSON
@@ -280,7 +320,8 @@ export default function WorkflowEditorPage() {
     };
 
     const TERMINAL_STATUSES = new Set([
-        'completed', 'success', 'succeeded', 'failed', 'error', 'cancelled', 'canceled', 'partial'
+        'completed', 'success', 'succeeded', 'failed', 'error', 'cancelled', 'canceled',
+        'timed_out', 'terminated', 'partial'
     ]);
 
     const isTerminalStatus = (status: string | null | undefined) =>
@@ -350,7 +391,7 @@ export default function WorkflowEditorPage() {
                 resultsSnapshotRef.current = { executionId, terminal };
                 setRunResults({ steps: d.steps || [], outputs: d.outputs || null });
                 if (d.error) {
-                    setLastRun(prev => (prev && prev.id === executionId ? { ...prev, status: 'failed' } : prev));
+                    setLastRun(prev => (prev && prev.id === executionId ? { ...prev, status: 'failed', label: undefined } : prev));
                 }
             })
             .catch(() => {
@@ -361,7 +402,8 @@ export default function WorkflowEditorPage() {
     };
 
     const toggleResultsPanel = () => {
-        if (!lastRun) return;
+        // Stock launch receipts have no generic step-results feed.
+        if (!lastRun || lastRun.stockReceipt) return;
         const next = !resultsOpen;
         setResultsOpen(next);
         resultsOpenRef.current = next;
@@ -381,11 +423,19 @@ export default function WorkflowEditorPage() {
     };
 
     const openRunDialog = () => {
-        setParamValues(
-            Object.fromEntries(
-                templateInputs.map(i => [i.name, i.default_value != null ? String(i.default_value) : ''])
-            )
-        );
+        // Keep a stock invoice draft across reopen/review so the same opaque
+        // intent (and therefore idempotency key) is retained. Ordinary
+        // workflows keep their existing reset-to-defaults behavior.
+        if (!stockWorkflow || !stockDraftInitializedRef.current) {
+            setParamValues(
+                Object.fromEntries(
+                    templateInputs.map(i => [i.name, i.default_value != null ? String(i.default_value) : ''])
+                )
+            );
+            if (stockWorkflow) {
+                stockDraftInitializedRef.current = true;
+            }
+        }
         setRunOpen(true);
     };
 
@@ -403,21 +453,113 @@ export default function WorkflowEditorPage() {
             return;
         }
 
+        let preparedStock: PreparedStockLaunch | null = null;
+        if (stockWorkflow) {
+            try {
+                preparedStock = await stockLaunch.prepareLaunch(paramValues);
+            } catch (error) {
+                // The shared stock form shows the visible scope/options/storage
+                // correction. Never submit while launch setup is unconfirmed.
+                toast({
+                    title: 'Launch setup needs correction',
+                    description: error instanceof Error
+                        ? error.message
+                        : 'The stock invoice launch could not be prepared.',
+                    variant: 'error'
+                });
+                return;
+            }
+        }
+
         setIsRunning(true);
         try {
-            const token = localStorage.getItem('auth_token');
+            if (preparedStock) {
+                // Refuse to POST with a credential context other than the one
+                // that loaded the identity/roster; show revalidation instead.
+                stockLaunch.assertCurrentLaunchContext(preparedStock);
+            }
+            const token = preparedStock
+                ? (preparedStock.authToken ?? null)
+                : localStorage.getItem('auth_token');
             const res = await fetch(`/api/workflow-templates/${id}/execute`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    ...(preparedStock
+                        ? { 'Idempotency-Key': preparedStock.idempotencyKey }
+                        : {})
                 },
-                body: JSON.stringify(paramValues)
+                body: JSON.stringify(
+                    preparedStock
+                        ? {
+                            ...paramValues,
+                            invoice_number:
+                                preparedStock.invoiceNumber
+                                ?? paramValues.invoice_number,
+                            account_owner_user_id: preparedStock.accountOwnerUserId
+                        }
+                        : paramValues
+                )
             });
+            if (!res.ok) {
+                const errorData = await res.json().catch((): null => null);
+                throw new Error(extractApiErrorMessage(errorData, 'Execution failed', res.status));
+            }
             const data = await res.json().catch((): null => null);
 
-            if (!res.ok) {
-                throw new Error(extractApiErrorMessage(data, 'Execution failed', res.status));
+            // Stock launch receipts are only authoritative for the stock
+            // invoice-followup workflow. Every other workflow keeps the
+            // existing execution-status behavior below.
+            const stockReceipt = (preparedStock || isHtnInvoiceFollowupWorkflow(id))
+                ? parseWorkflowLaunchReceipt(data)
+                : null;
+
+            if (stockReceipt) {
+                toast(buildStockLaunchToast(stockReceipt) as any);
+                if (preparedStock) {
+                    // A settled receipt keeps the exact key so reopen/duplicate
+                    // submit still represents the same launch. The key is only
+                    // cleared by the explicit Start a new launch action.
+                    stockLaunch.noteReceipt(stockReceipt, preparedStock);
+                }
+
+                if (stockReceipt.executionId) {
+                    // Invalidate any in-flight results request tied to a prior run.
+                    activeResultsExecutionRef.current = stockReceipt.executionId;
+                    resultsRequestRef.current += 1;
+                    resultsSnapshotRef.current = null;
+                    resultsFetchRef.current = null;
+                    resultsOpenRef.current = false;
+                    setResultsOpen(false);
+                    setRunResults(null);
+                    setResultsError(false);
+                    setLastRun({
+                        id: stockReceipt.executionId,
+                        stockReceipt: true,
+                        status: stockReceipt.kind === 'awaiting_review'
+                            ? 'paused'
+                            : stockReceipt.kind === 'attached'
+                                ? 'attached'
+                                : stockReceipt.kind === 'unconfirmed'
+                                    ? 'unconfirmed'
+                                    : stockReceipt.state,
+                        ...(stockReceipt.kind === 'awaiting_review'
+                            ? { label: 'Awaiting review' }
+                            : stockReceipt.kind === 'unconfirmed'
+                                ? { label: 'Unconfirmed' }
+                                : {}),
+                    });
+                    // Paused/review, attached, terminal and unconfirmed receipts
+                    // never start generic polling. Attached runs are followed
+                    // through the assignment instead.
+                    if (stockReceipt.shouldPoll) {
+                        pollExecutionStatus(stockReceipt.executionId);
+                    }
+                }
+                setRunOpen(false);
+                return;
             }
 
             toast(buildRunToast(data));
@@ -429,7 +571,7 @@ export default function WorkflowEditorPage() {
                 resultsFetchRef.current = null;
                 setRunResults(null);
                 setResultsError(false);
-                setLastRun({ id: data.execution_id, status: null });
+                setLastRun({ id: data.execution_id, status: null, stockReceipt: false });
                 pollExecutionStatus(data.execution_id);
                 if (resultsOpenRef.current) {
                     fetchRunResults(data.execution_id);
@@ -457,6 +599,27 @@ export default function WorkflowEditorPage() {
     const showChecklist =
         !checklistDismissed &&
         (requiredInputs.length > 0 || missingDeps.length > 0);
+
+    const stockReceiptRun = lastRun?.stockReceipt === true;
+    const executionStatusContent = lastRun ? (
+        <>
+            <span className="text-muted-foreground">Last run </span>
+            <span className="font-mono">{lastRun.id.slice(0, 12)}…</span>{' '}
+            <span
+              className={
+                lastRun.status == null
+                    ? 'font-medium text-blue-600 dark:text-blue-400'
+                    : ['completed', 'success', 'succeeded'].includes(lastRun.status.toLowerCase())
+                      ? 'font-medium text-green-600 dark:text-green-400'
+                      : ['failed', 'error', 'cancelled', 'canceled', 'timed_out', 'terminated'].includes(lastRun.status.toLowerCase())
+                        ? 'font-medium text-red-600 dark:text-red-400'
+                        : 'font-medium text-amber-600 dark:text-amber-400'
+              }
+            >
+                {lastRun.label ?? lastRun.status ?? 'starting…'}
+            </span>
+        </>
+    ) : null;
 
     return (
         <div className="h-[calc(100vh-64px)] w-full bg-gray-50 dark:bg-gray-800">
@@ -552,11 +715,25 @@ export default function WorkflowEditorPage() {
                                 )}
                             </div>
                         ))}
+                        {stockWorkflow && (
+                            <StockInvoiceLaunchFields
+                                controller={stockLaunch}
+                                disabled={isRunning}
+                            />
+                        )}
                     </div>
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRunOpen(false)}>Cancel</Button>
-                        <Button onClick={handleRunSubmit} disabled={isRunning}>
+                        <Button
+                            onClick={handleRunSubmit}
+                            disabled={
+                                isRunning
+                                || (stockWorkflow
+                                    && (stockLaunch.status !== 'ready'
+                                        || stockLaunch.problems.length > 0))
+                            }
+                        >
                             {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                             {isRunning ? 'Starting…' : 'Run workflow'}
                         </Button>
@@ -569,29 +746,21 @@ export default function WorkflowEditorPage() {
                   data-testid="execution-status-chip"
                   className="fixed bottom-4 right-4 z-50 rounded-lg border bg-white px-3 py-2 text-xs shadow-md dark:bg-gray-900 dark:border-gray-700"
                 >
-                    <button
-                      onClick={toggleResultsPanel}
-                      className="flex items-center gap-2"
-                      title="Toggle step results"
-                    >
-                        <span className="text-muted-foreground">Last run </span>
-                        <span className="font-mono">{lastRun.id.slice(0, 12)}…</span>{' '}
-                        <span
-                          className={
-                            lastRun.status == null
-                                ? 'font-medium text-blue-600 dark:text-blue-400'
-                                : ['completed', 'success', 'succeeded'].includes(lastRun.status.toLowerCase())
-                                  ? 'font-medium text-green-600 dark:text-green-400'
-                                  : ['failed', 'error', 'cancelled', 'canceled'].includes(lastRun.status.toLowerCase())
-                                    ? 'font-medium text-red-600 dark:text-red-400'
-                                    : 'font-medium text-amber-600 dark:text-amber-400'
-                          }
+                    {stockReceiptRun ? (
+                        <div className="flex items-center gap-2">
+                            {executionStatusContent}
+                        </div>
+                    ) : (
+                        <button
+                          onClick={toggleResultsPanel}
+                          className="flex items-center gap-2"
+                          title="Toggle step results"
                         >
-                            {lastRun.status ?? 'starting…'}
-                        </span>
-                    </button>
+                            {executionStatusContent}
+                        </button>
+                    )}
 
-                    {resultsOpen && (
+                    {!stockReceiptRun && resultsOpen && (
                         <div
                           data-testid="execution-results-panel"
                           className="mt-2 max-h-72 w-72 overflow-y-auto border-t pt-2 dark:border-gray-700"

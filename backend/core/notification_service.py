@@ -607,37 +607,20 @@ def _workflow_scope_error(
     return None
 
 
-def _workflow_notification_insert_statement(
+def _workflow_recipient_predicate(
     *,
-    notification_id: str,
-    user_id: str,
-    workspace_id: str,
     tenant_id: str,
-    title: str,
-    message: str,
-    metadata: Dict[str, Any],
+    workspace_id: str,
+    user_id: Optional[str] = None,
 ):
-    """Build the conditional workflow-notification insert.
+    """Build the shared SQL predicate for an eligible workflow recipient.
 
-    The recipient's authority is a predicate of the same ``INSERT ... SELECT``
-    that writes the row, so membership cannot be revoked between an
-    authorisation read and the write: the database evaluates the predicate
-    when the insert executes. A denial inserts zero rows.
-
-    Authority matches :func:`_workflow_scope_error`: the recipient is active,
-    in the requested tenant, and is either directly assigned to the exact
-    workspace or has an explicit membership row for it. The workspace itself
-    must exist in that tenant.
+    The notification INSERT recheck and the read-only roster both call this
+    helper so they use the same active-user/tenant/exact-workspace membership
+    eligibility. Passing ``user_id`` narrows the predicate to one recipient.
     """
-    from core.models import (
-        Notification,
-        User,
-        UserStatus,
-        Workspace,
-        user_workspaces,
-    )
+    from core.models import User, UserStatus, Workspace, user_workspaces
 
-    notifications = Notification.__table__
     users = User.__table__
     workspaces = Workspace.__table__
     memberships = user_workspaces
@@ -660,12 +643,111 @@ def _workflow_notification_insert_statement(
         .exists(),
     )
     authority = and_(
-        users.c.id == user_id,
         func.lower(users.c.status) == UserStatus.ACTIVE.value,
         or_(users.c.is_active.is_(None), users.c.is_active.is_(True)),
         users.c.tenant_id == tenant_id,
         workspace_in_tenant,
         exact_membership,
+    )
+    if user_id is not None:
+        authority = and_(users.c.id == user_id, authority)
+    return users, authority
+
+
+def workflow_recipient_is_eligible(
+    db: Session,
+    *,
+    user_id: str,
+    tenant_id: str,
+    workspace_id: str,
+) -> bool:
+    """Read-only check using the notification recipient SQL predicate."""
+    users, predicate = _workflow_recipient_predicate(
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        user_id=user_id,
+    )
+    return db.execute(
+        select(users.c.id).select_from(users).where(predicate).limit(1)
+    ).first() is not None
+
+
+def workflow_account_owner_options(
+    db: Session,
+    *,
+    tenant_id: str,
+    workspace_id: str,
+) -> list[Dict[str, str]]:
+    """Read the eligible workflow-recipient roster for an account owner picker.
+
+    This is a pure read: it uses the same exact membership eligibility as the
+    notification INSERT recheck and returns only stable ``user_id`` and
+    ``display_label`` values. No email, role, scope or notification metadata is
+    exposed and nothing is written.
+    """
+    users, predicate = _workflow_recipient_predicate(
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+    )
+    rows = db.execute(
+        select(users.c.id, users.c.first_name, users.c.last_name)
+        .select_from(users)
+        .where(predicate)
+    ).all()
+
+    options: list[Dict[str, str]] = []
+    for row in rows:
+        user_id = str(row[0] or "").strip()
+        if not user_id:
+            continue
+        first_name = str(row[1] or "").strip()
+        last_name = str(row[2] or "").strip()
+        display_label = " ".join(
+            part for part in (first_name, last_name) if part
+        )
+        options.append({
+            "user_id": user_id,
+            "display_label": display_label or user_id,
+        })
+    options.sort(
+        key=lambda option: (
+            option["display_label"].casefold(),
+            option["user_id"],
+        )
+    )
+    return options
+
+
+def _workflow_notification_insert_statement(
+    *,
+    notification_id: str,
+    user_id: str,
+    workspace_id: str,
+    tenant_id: str,
+    title: str,
+    message: str,
+    metadata: Dict[str, Any],
+):
+    """Build the conditional workflow-notification insert.
+
+    The recipient's authority is a predicate of the same ``INSERT ... SELECT``
+    that writes the row, so membership cannot be revoked between an
+    authorisation read and the write: the database evaluates the predicate
+    when the insert executes. A denial inserts zero rows.
+
+    Authority matches :func:`_workflow_scope_error`: the recipient is active,
+    in the requested tenant, and is either directly assigned to the exact
+    workspace or has an explicit membership row for it. The workspace itself
+    must exist in that tenant. The predicate is shared with the read-only
+    roster via :func:`_workflow_recipient_predicate`.
+    """
+    from core.models import Notification
+
+    notifications = Notification.__table__
+    users, authority = _workflow_recipient_predicate(
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
     return insert(notifications).from_select(
