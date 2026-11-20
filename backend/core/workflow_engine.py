@@ -233,6 +233,42 @@ def _as_aware_utc(value: Optional[datetime]) -> Optional[datetime]:
     return value.astimezone(timezone.utc)
 
 
+# Text-only model dispatch services. A workflow-engine deadline on these has a
+# narrower retry contract than an ordinary integration call: the provider
+# worker can still be in flight after ``wait_for`` stops awaiting it.
+_TEXT_MODEL_SERVICES = frozenset({"main_agent", "ai"})
+
+
+def _retry_step_failure(exc: BaseException) -> bool:
+    """Retry every step failure except the model timeout subtype."""
+    return not isinstance(exc, ModelStepTimeoutError)
+
+
+def _step_timeout_error(
+    service: str,
+    step_id: str,
+    timeout: float,
+    *,
+    message: Optional[str] = None,
+) -> "StepTimeoutError":
+    """Build the typed timeout for one executor dispatch.
+
+    ``main_agent`` and ``ai`` are text-model dispatches and use the
+    non-retryable subtype; every other service retains the existing retryable
+    timeout behavior.
+    """
+    error_type = (
+        ModelStepTimeoutError
+        if service in _TEXT_MODEL_SERVICES
+        else StepTimeoutError
+    )
+    return error_type(
+        message or f"Step {step_id} timed out after {timeout} seconds",
+        step_id=step_id,
+        timeout=timeout,
+    )
+
+
 class WorkflowEngine:
     #: Canonical service registry names. The bound executor methods are
     #: resolved lazily in ``_service_registry`` so tests can still replace a
@@ -2167,7 +2203,7 @@ class WorkflowEngine:
                 errors=[e.message]
             )
 
-    @async_retry_with_backoff(max_retries=3)
+    @async_retry_with_backoff(max_retries=3, retry_if=_retry_step_failure)
     async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a single step.
@@ -2237,11 +2273,8 @@ class WorkflowEngine:
                     try:
                         result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id"), **step_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
-                        raise StepTimeoutError(
-                            f"Step {step['id']} timed out after {timeout} seconds",
-                            step_id=step['id'],
-                            timeout=timeout
-                        )
+                        raise _step_timeout_error(
+                            service, step['id'], timeout)
                 else:
                     result = await executor(action, params, connection_id=step.get("connection_id"), **step_kwargs)
                 # Executors that return a non-success status envelope (e.g.
@@ -2286,10 +2319,13 @@ class WorkflowEngine:
                     try:
                         result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
-                        raise StepTimeoutError(
-                            message=f"Fallback service {fallback_service}.{action} timed out after {timeout}s",
-                            step_id=step.get("id", "unknown"),
-                            timeout=timeout,
+                        raise _step_timeout_error(
+                            fallback_service,
+                            step.get("id", "unknown"),
+                            timeout,
+                            message=(
+                                f"Fallback service {fallback_service}.{action} "
+                                f"timed out after {timeout}s"),
                         )
                 else:
                     result = await fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs)
@@ -2313,6 +2349,17 @@ class WorkflowEngine:
                 # Both primary and fallback failed — raise so the run loop marks
                 # the step FAILED. Returning an error dict would be treated as a
                 # COMPLETED step (the run loop only fails steps on exceptions).
+                #
+                # A model dispatch that timed out may still be running in the
+                # background. Keep its original typed timeout (and its
+                # configured deadline) instead of masking it as a generic
+                # fallback error; the shared retry predicate then declines to
+                # repeat the same step automatically. A model timeout raised by
+                # the fallback itself is preserved for the same reason.
+                if isinstance(primary_error, ModelStepTimeoutError):
+                    raise primary_error from e
+                if isinstance(e, ModelStepTimeoutError):
+                    raise
                 raise ValueError(
                     f"Primary service failed: {primary_error}; "
                     f"fallback {fallback_service} also failed: {e}"
@@ -4296,10 +4343,32 @@ class SchemaValidationError(Exception):
         self.errors = errors or []
 
 class StepTimeoutError(Exception):
+    #: Ordinary integration timeouts keep the shared retry helper's default
+    #: retry behavior.
+    retryable = True
+
     def __init__(self, message: str, step_id: str, timeout: float):
         super().__init__(message)
         self.step_id = step_id
         self.timeout = timeout
+        self.retryable = True
+
+
+class ModelStepTimeoutError(StepTimeoutError):
+    """A workflow deadline expired while awaiting a text-model dispatch.
+
+    ``asyncio.wait_for`` stops awaiting the provider task at the step deadline,
+    but the underlying provider worker may still be running. Automatically
+    repeating the same step could overlap or duplicate that work, so this
+    typed timeout opts out of the shared retry helper while retaining the
+    original configured timeout.
+    """
+
+    retryable = False
+
+    def __init__(self, message: str, step_id: str, timeout: float):
+        super().__init__(message, step_id=step_id, timeout=timeout)
+        self.retryable = False
 
 # Global instance
 _workflow_engine = None
