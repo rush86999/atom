@@ -475,7 +475,8 @@ def scaffold(
         status="active",
         # The source canvas is the app's own dev instance — run_stateful()
         # (used by the harness dev-run route) resolves the app via this.
-        mini_app_id=app_id,
+        # Deferred: the FK target MiniApp is inserted after this flush (the
+        # circular Canvas ↔ MiniApp reference requires the canvas first).
     )
     db.add(source_canvas)
     db.flush()
@@ -544,6 +545,10 @@ def scaffold(
         runtime_version=0,
     )
     db.add(app)
+    db.flush()
+    # Complete the circular reference now that the MiniApp row exists; this
+    # remains in the same transaction and is persisted by the commit below.
+    source_canvas.mini_app_id = app_id
     db.commit()
     db.refresh(app)
     if receipt_out is not None:
