@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import logging
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional, Union
 import uuid
 import httpx
@@ -29,6 +30,7 @@ from core.exceptions import (
     ExternalServiceError,
     ValidationError as AtomValidationError,
 )
+from core.llm.byok_handler import _CallerDeadlineExceeded
 from core.execution_state_manager import (
     EXECUTION_SCOPE_KEY,
     ExecutionStateManager,
@@ -2270,8 +2272,20 @@ class WorkflowEngine:
                     else {})
 
                 if timeout is not None and timeout > 0:
+                    # A text-model dispatch gets the same configured step
+                    # deadline as an absolute monotonic instant, so the
+                    # provider worker cannot start after the workflow's
+                    # budget has already elapsed.
+                    if service in _TEXT_MODEL_SERVICES:
+                        step_kwargs["caller_deadline"] = (
+                            time.monotonic() + timeout)
                     try:
                         result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id"), **step_kwargs), timeout=timeout)
+                    except _CallerDeadlineExceeded:
+                        # The provider never dispatched: this is the model's
+                        # configured step timeout, not a provider failure.
+                        raise _step_timeout_error(
+                            service, step['id'], timeout)
                     except asyncio.TimeoutError:
                         raise _step_timeout_error(
                             service, step['id'], timeout)
@@ -2316,8 +2330,20 @@ class WorkflowEngine:
                         "workflow_notification")
                     else {})
                 if timeout is not None and timeout > 0:
+                    if fallback_service in _TEXT_MODEL_SERVICES:
+                        fallback_step_kwargs["caller_deadline"] = (
+                            time.monotonic() + timeout)
                     try:
                         result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs), timeout=timeout)
+                    except _CallerDeadlineExceeded:
+                        raise _step_timeout_error(
+                            fallback_service,
+                            step.get("id", "unknown"),
+                            timeout,
+                            message=(
+                                f"Fallback service {fallback_service}.{action} "
+                                f"timed out after {timeout}s"),
+                        )
                     except asyncio.TimeoutError:
                         raise _step_timeout_error(
                             fallback_service,
@@ -2887,6 +2913,7 @@ class WorkflowEngine:
         params: dict,
         connection_id: Optional[str] = None,
         step: Optional[dict] = None,
+        caller_deadline: Optional[float] = None,
     ) -> dict:
         """Execute the legacy AI service's text-only actions.
 
@@ -2932,6 +2959,17 @@ class WorkflowEngine:
         from core.database import get_db_session
         from core.llm_service import get_llm_service
 
+        completion_kwargs: Dict[str, Any] = {
+            "messages": messages,
+            "temperature": 0.7,
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
+        }
+        # An unset deadline keeps the historical call exactly as it was; only
+        # a timed workflow step opts the provider dispatch into the boundary.
+        if caller_deadline is not None:
+            completion_kwargs["caller_deadline"] = caller_deadline
+
         try:
             with get_db_session() as db:
                 llm_service = get_llm_service(
@@ -2939,11 +2977,12 @@ class WorkflowEngine:
                     tenant_id=tenant_id,
                     db=db)
                 completion = await llm_service.generate_completion(
-                    messages=messages,
-                    temperature=0.7,
-                    workspace_id=workspace_id,
-                    tenant_id=tenant_id,
-                )
+                    **completion_kwargs)
+        except _CallerDeadlineExceeded:
+            # Let the engine boundary translate this pre-dispatch refusal into
+            # the configured step's typed timeout. Returning the ordinary AI
+            # failure envelope here would erase both the type and its message.
+            raise
         except Exception as llm_error:
             logger.error(
                 "AI action '%s' failed in scoped LLM execution: %s",
@@ -2952,6 +2991,13 @@ class WorkflowEngine:
                 action, "AI text completion failed", "provider_error")
 
         if not isinstance(completion, dict) or completion.get("success") is not True:
+            if (
+                caller_deadline is not None
+                and isinstance(completion, dict)
+                and isinstance((failure := completion.get("failure")), dict)
+                and failure.get("reason") == "deadline_exceeded"
+            ):
+                raise _CallerDeadlineExceeded("caller deadline expired before provider dispatch")
             failure = (
                 completion.get("failure")
                 if isinstance(completion, dict) else None)
@@ -3090,6 +3136,7 @@ class WorkflowEngine:
         params: dict,
         connection_id: Optional[str] = None,
         step: Optional[dict] = None,
+        caller_deadline: Optional[float] = None,
     ) -> dict:
         """Execute a main_agent text action inside the run's trusted scope.
 
@@ -3139,8 +3186,12 @@ class WorkflowEngine:
                 "workspace_id": workspace_id,
                 "tenant_id": tenant_id,
                 "input_data": input_data,
-                "mcp_connections": {}
+                "mcp_connections": {},
             }
+            # Only a timed step adds the provider boundary, preserving the
+            # existing agent context shape for every untimed call.
+            if caller_deadline is not None:
+                agent_context["caller_deadline"] = caller_deadline
 
             result = await self._execute_agent_with_mcp(agent_context)
 
@@ -3169,6 +3220,10 @@ class WorkflowEngine:
                 "status": "success"
             }
 
+        except _CallerDeadlineExceeded:
+            # Pre-dispatch caller-deadline refusal: the engine boundary owns
+            # translating it into the typed configured-step timeout.
+            raise
         except Exception as e:
             # Log the detail; return only a concise, safe message.
             logger.error(f"main_agent action '{action}' failed: {e}")
@@ -3199,6 +3254,7 @@ class WorkflowEngine:
             workspace_id = str(
                 agent_context.get("workspace_id") or "").strip()
             tenant_id = str(agent_context.get("tenant_id") or "").strip()
+            caller_deadline = agent_context.get("caller_deadline")
 
             if not workspace_id or not tenant_id:
                 return {
@@ -3258,6 +3314,18 @@ Return your response in a clear, structured format."""
             # explicit success/content/provider/model result; the BYOK
             # handler's raw chat_completion shape is not part of this
             # workflow contract.
+            completion_kwargs: Dict[str, Any] = {
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "workspace_id": workspace_id,
+                "tenant_id": tenant_id,
+                "agent_id": agent_id,
+            }
+            # Only a timed workflow step opts in; an unset deadline preserves
+            # the existing generate_completion call exactly.
+            if caller_deadline is not None:
+                completion_kwargs["caller_deadline"] = caller_deadline
+
             try:
                 with get_db_session() as db:
                     llm_service = get_llm_service(
@@ -3265,12 +3333,12 @@ Return your response in a clear, structured format."""
                         tenant_id=tenant_id,
                         db=db)
                     completion = await llm_service.generate_completion(
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.7,
-                        workspace_id=workspace_id,
-                        tenant_id=tenant_id,
-                        agent_id=agent_id,
-                    )
+                        **completion_kwargs)
+            except _CallerDeadlineExceeded:
+                # The provider was never dispatched. Surface the boundary
+                # exception unchanged so the engine can translate it into the
+                # configured step's typed timeout and message.
+                raise
             except Exception as llm_error:
                 # Never turn a provider failure into a made-up success.
                 logger.error(
@@ -3319,6 +3387,13 @@ Return your response in a clear, structured format."""
                 else None)
 
             if completion.get("success") is not True:
+                if (
+                    caller_deadline is not None
+                    and isinstance(completion, dict)
+                    and isinstance((failure := completion.get("failure")), dict)
+                    and failure.get("reason") == "deadline_exceeded"
+                ):
+                    raise _CallerDeadlineExceeded("caller deadline expired before provider dispatch")
                 failure = completion.get("failure")
                 failure = failure if isinstance(failure, dict) else {}
                 failure_reason = str(failure.get("reason") or "")
@@ -3406,6 +3481,10 @@ Return your response in a clear, structured format."""
                 "action": action
             }
 
+        except _CallerDeadlineExceeded:
+            # Never wrap the caller-deadline refusal as an agent failure: the
+            # engine boundary must see it to preserve the typed step timeout.
+            raise
         except Exception as e:
             logger.error(f"MCP agent execution failed: {e}")
             raise AgentExecutionError(

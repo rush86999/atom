@@ -1524,3 +1524,97 @@ def test_paid_free_fallback_keeps_a_separate_paid_reservation(
     assert paid_row.attempt_id != free_row.attempt_id
     assert float(paid_row.reserved_cost_usd or 0.0) > 0.0
     assert paid_row.reservation_status == "uncertain"
+
+
+def test_queued_workflow_cancellation_clears_unused_intent(host, monkeypatch, tmp_path):
+    from core.llm import byok_handler as bh
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch)
+    calls = []
+    def create(**kwargs):
+        calls.append(kwargs)
+        return _response("UNEXPECTED DISPATCH")
+
+    client = SimpleNamespace(chat=SimpleNamespace(
+        completions=SimpleNamespace(create=create)))
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        sync={"openai": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("openai", "gpt-4o")])
+    gate = Event()
+    queued = Event()
+
+    async def cancel_before_dispatch(executor):
+        class ObserveSubmission:
+            def submit(self, *args, **kwargs):
+                future = executor.submit(*args, **kwargs)
+                queued.set()
+                return future
+        monkeypatch.setattr(bh, "_worker_executor", lambda: ObserveSubmission())
+        task = asyncio.create_task(handler.generate_response(
+            "hello", caller_deadline=time.monotonic() + 10))
+        try:
+            assert await asyncio.to_thread(queued.wait, 5)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            gate.set()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(gate.wait, 10)
+        asyncio.run(cancel_before_dispatch(executor))
+    rows = _attempt_rows(host)
+    assert not calls
+    assert len(rows) == 1
+    assert rows[0].cost_usd == 0.0, (rows[0].cost_usd, rows[0].reservation_status)
+
+def test_started_workflow_cancellation_keeps_unresolved_intent(host, monkeypatch, tmp_path):
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from core.llm import byok_handler as bh
+
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch)
+    started, finish = Event(), Event()
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        started.set()
+        assert finish.wait(10)
+        raise RuntimeError("synthetic provider may have charged")
+
+    client = SimpleNamespace(chat=SimpleNamespace(
+        completions=SimpleNamespace(create=create)))
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        sync={"openai": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("openai", "gpt-4o")])
+
+    async def cancel_after_dispatch():
+        task = asyncio.create_task(handler.generate_response(
+            "hello", caller_deadline=time.monotonic() + 10))
+        try:
+            assert await asyncio.to_thread(started.wait, 5)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            finish.set()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        monkeypatch.setattr(bh, "_worker_executor", lambda: executor)
+        asyncio.run(cancel_after_dispatch())
+    rows = _attempt_rows(host)
+    assert len(calls) == 1
+    assert len(rows) == 1
+    assert rows[0].cost_usd is None
+    assert rows[0].reservation_status in ("active", "uncertain")
