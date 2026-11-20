@@ -278,10 +278,10 @@ def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[st
     )
     prompt = (
         "Write the Python controller for an Atom canvas mini-app.\n"
-        "Runtime contract: define `def run(inputs):`. `inputs['state']` is the "
-        "current state dict; `inputs` may carry per-run fields. Return "
-        "`{'state': {...}}` with the NEW state (returning nothing keeps state "
-        "unchanged). Print nothing except short debug lines. Stdlib only.\n"
+        "Write executable top-level statements. The runtime supplies the state "
+        "dict and each per-run input field as a separate global. To persist "
+        "results, update or assign the global state dict using JSON-serializable "
+        "values. No function is called automatically. Stdlib only.\n"
         f"App name: {name}. App family/kind: {kind or 'general'}. "
         f"What it should do: {what}\n"
     )
@@ -323,13 +323,11 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
             source = _strip_code_fences((resp or {}).get("content") or "")
         except Exception as e:  # noqa: BLE001
             logger.debug("mini-app logic generation failed: %s", e)
-    if not source:
+    used_starter = not source
+    if used_starter:
         # Deterministic starter body (same contract the scaffold template uses).
         source = (
-            "def run(inputs):\n"
-            "    state = inputs.get('state', {}) or {}\n"
-            "    state['items'] = int(state.get('items', 0)) + 1\n"
-            "    return {'state': state}\n"
+            "state['items'] = int(state.get('items', 0)) + 1\n"
         )
     res = await mini_app_write_logic({"app_id": app_id, "source": source}, _ctx(user_id))
     if not res.get("success") and "SyntaxError" in str(res.get("error", "")) and llm_service is not None:
@@ -340,7 +338,7 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
         fixed = _strip_code_fences((retry or {}).get("content") or "")
         if fixed:
             res = await mini_app_write_logic({"app_id": app_id, "source": fixed}, _ctx(user_id))
-    return res
+    return {**res, "used_starter": used_starter}
 
 
 async def _resolve_app(user_id: str, message: str, canvas_id: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -542,6 +540,22 @@ async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
                     "syntax-checked and will run on a provisioned host")
     else:
         run_note = f"dev-run failed: {run.get('error')}"
+
+    if write.get("used_starter") and write.get("success"):
+        result = _say(
+            f"Saved starter draft '{name}'"
+            + (f" on a {kind} canvas" if kind and kind != "mini_app" else "")
+            + f" — app {app_id}, blueprint canvas {scaffold.get('canvas_id')}. "
+            + "The requested logic was not generated. "
+            + f"Starter smoke test: {run_note}. Requested behavior is unverified. "
+            "Review or edit the draft in the Mini-App Harness."
+        )
+        result["data"].update({
+            "authoring_status": "starter_saved",
+            "requested_logic_generated": False,
+            "requested_behavior_verified": False,
+        })
+        return result
 
     return _say(
         f"Built mini-app '{name}'"

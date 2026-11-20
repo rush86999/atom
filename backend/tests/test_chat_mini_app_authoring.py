@@ -84,9 +84,11 @@ class TestChatDrivenLoop:
         # 1. Build (no LLM → deterministic authoring; kind from message scan).
         res = await try_handle(self.BUILD, [], user, None, None)
         assert res is not None and res["success"] is True
-        assert "Built mini-app" in res["message"]
+        assert "Saved starter draft" in res["message"]
+        assert res["data"]["authoring_status"] == "starter_saved"
+        assert res["data"]["requested_behavior_verified"] is False
         assert "on a inventory canvas" in res["message"] or "inventory" in res["message"]
-        assert "publish it" in res["message"]  # never auto-ships
+        assert "Review or edit the draft" in res["message"]  # never auto-ships
 
         from tools.mini_app_tool import mini_app_list
         listing = await mini_app_list({}, {"user_id": user})
@@ -102,7 +104,12 @@ class TestChatDrivenLoop:
             assert bp.canvas_type == "inventory"
             from core.canvas_logic_service import CanvasLogicService
             logic = CanvasLogicService(db).load_logic(bp.id)
-            assert logic and "def run(inputs)" in logic["source"]
+            assert logic
+            from core.sandbox_runtime.firecracker_guest.agent import run_code
+
+            result = run_code(logic["source"], {"state": {"items": 3}})
+            assert result["exit_code"] == 0
+            assert result["state_envelope"]["state"] == {"items": 4}
 
         # A bare "publish it" with NO mini-app context must NOT hijack a turn.
         assert await try_handle("publish it", [], user, None, None) is None
