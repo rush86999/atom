@@ -1270,7 +1270,19 @@ async def decide_hitl_action(
                     f"{params_err}")
 
         if not claim_pending_decision(db, action, **claim_kwargs):
+            conflict = db.info.pop("decision_conflict", None)
             db.rollback()
+            if (
+                isinstance(conflict, dict)
+                and conflict.get("error_code")
+                and conflict.get("message")
+            ):
+                raise router.error_response(
+                    conflict["error_code"],
+                    conflict["message"],
+                    status_code=409,
+                    details=conflict.get("details"),
+                )
             raise router.error_response(
                 "DECISION_CONFLICT",
                 "This approval was already decided, or its reviewed "
@@ -1608,6 +1620,7 @@ _RESULT_RECONCILIATION_STATUSES = frozenset({"uncertain"})
 from core.information_wait import (  # noqa: E402 — shared wait vocabulary
     INFORMATION_WAIT_ACTION_TYPES as _INFORMATION_WAIT_ACTIONS,
     WAITING_SINCE_FIELD as _WAITING_SINCE_FIELD,
+    canonical_deadline,
     deadline_passed as _deadline_passed,
     waiting_age_seconds as _waiting_age_seconds,
 )
@@ -1654,6 +1667,10 @@ _TRUSTED_CONTEXT_KEYS = (
     "information_wait_resume",
     "information_source",
     "reviewer_id",
+    # The canonical owner-set deadline is re-derived from the durable job
+    # payload for each dispatch; a request body can neither supply nor
+    # override it.
+    "_trusted_job_deadline",
 )
 
 
@@ -1864,6 +1881,21 @@ def _execution_outcome(
     if result.get("terminal_authority_denial") is True:
         return failed(
             "blocked", "execution_authority_denied", "review_authority")
+    if raw == "expired":
+        trusted_deadline = (
+            namespace.get("_trusted_job_deadline")
+            if isinstance(namespace, dict) else None)
+        deadline_payload = (
+            trusted_deadline
+            if isinstance(trusted_deadline, dict)
+            else {"deadline": trusted_deadline})
+        if (
+            isinstance(namespace, dict)
+            and "_trusted_job_deadline" in namespace
+            and _deadline_passed(deadline_payload)
+        ):
+            return failed(
+                "expired", "wait_deadline_exceeded", "review_deadline")
     if contradictory:
         return failed(
             "contradictory", "execution_contradictory",
@@ -1990,6 +2022,7 @@ def _scoped_agent_context(
     """
     context = dict(params or {})
     if not trusted:
+        context.pop("_trusted_job_deadline", None)
         return context
     namespace = _execution_namespace(agent, trusted)
     for key in _TRUSTED_CONTEXT_KEYS:
@@ -3006,6 +3039,7 @@ async def _dispatch_admitted_run(
     # An absolute deadline is enforced before the first model/effect pass. A
     # queued dispatch that starts after expiry records the terminal truth and
     # never runs the agent.
+    admitted_payload: Dict[str, Any] = {}
     admitted_job = _safe_get(bind, AgentJob, job_id)
     if admitted_job is not None:
         try:
@@ -3115,6 +3149,11 @@ async def _dispatch_admitted_run(
         _restore_agent_status(agent_id, prior_status, bind)
         return None
 
+    admitted_deadline = canonical_deadline(
+        admitted_payload.get("deadline")
+        if isinstance(admitted_payload, dict) else None)
+    if admitted_deadline:
+        trusted["_trusted_job_deadline"] = admitted_deadline
     try:
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)
@@ -3803,6 +3842,10 @@ async def resume_information_wait_action(
                 "reader": str(revalidated_source.get("reader") or ""),
                 "receipt": revalidated_source.get("receipt") or {},
             }
+
+        resumed_deadline = canonical_deadline(payload.get("deadline"))
+        if resumed_deadline:
+            trusted["_trusted_job_deadline"] = resumed_deadline
 
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)

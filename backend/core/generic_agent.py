@@ -801,8 +801,44 @@ class GenericAgent:
                         )
                         break
 
+                    # Deadline gate: check the trusted job deadline immediately
+                    # before the expensive model call. On expiry halt cleanly
+                    # without discarding accumulated steps, prior effects, or
+                    # reconciliation state.
+                    from core.information_wait import deadline_passed
+
+                    if deadline_passed(
+                        {"deadline": (context or {}).get("_trusted_job_deadline")}
+                    ):
+                        status = "expired"
+                        final_answer = (
+                            f"Job deadline expired — execution halted at step "
+                            f"{current_step}."
+                        )
+                        logger.warning(
+                            f"Deadline gate halted agent {getattr(self, 'name', '?')} at "
+                            f"step {current_step} before the model call"
+                        )
+                        break
+
                     # Plan/Think - Use instructor for structured parsing
                     react_step = await self._react_step(task_input, memory_context, execution_history, context, utility_delta=_utility_delta if _objective_loop else None)
+
+                    # The model call may itself have crossed the deadline; stop
+                    # immediately after the await, before acting on its output.
+                    if deadline_passed(
+                        {"deadline": (context or {}).get("_trusted_job_deadline")}
+                    ):
+                        status = "expired"
+                        final_answer = (
+                            f"Job deadline expired — execution halted at step "
+                            f"{current_step}."
+                        )
+                        logger.warning(
+                            f"Deadline gate halted agent {getattr(self, 'name', '?')} at "
+                            f"step {current_step} after the model call"
+                        )
+                        break
 
                     thought = react_step.thought
                     action = react_step.action.model_dump() if react_step.action else None
@@ -3608,8 +3644,16 @@ What is your next step?"""
                                 "reason": auth_check["reason"]
                             })
 
-                        # Wait for approval
-                        approved = await self._wait_for_approval(action_id)
+                        # Wait for approval. Forward only the server-owned
+                        # deadline; omitting it keeps the legacy call shape.
+                        _approval_deadline = (
+                            context.get("_trusted_job_deadline")
+                            if isinstance(context, dict) else None)
+                        if _approval_deadline is not None:
+                            approved = await self._wait_for_approval(
+                                action_id, deadline=_approval_deadline)
+                        else:
+                            approved = await self._wait_for_approval(action_id)
                         if not approved:
                             _mark_dispatch_refused(
                                 evidence, status="denied",
@@ -4461,7 +4505,14 @@ What is your next step?"""
                 }
 
             if not durable.get("hitl_action_id"):
-                approved = await self._wait_for_approval(action_id)
+                _approval_deadline = (
+                    context.get("_trusted_job_deadline")
+                    if isinstance(context, dict) else None)
+                if _approval_deadline is not None:
+                    approved = await self._wait_for_approval(
+                        action_id, deadline=_approval_deadline)
+                else:
+                    approved = await self._wait_for_approval(action_id)
                 if not approved:
                     return {
                         "output": (
@@ -4926,54 +4977,193 @@ What is your next step?"""
                 "fresh human review is required.")
         return None
 
-    async def _wait_for_approval(self, action_id: str) -> bool:
-        """Poll for HITL decision"""
+    async def _wait_for_approval(
+        self,
+        action_id: str,
+        *,
+        deadline: Optional[datetime] = None,
+    ) -> bool:
+        """Poll for HITL decision.
+
+        ``deadline`` is an optional *absolute* instant, not a duration:
+        waiting never extends it. A UTC ``datetime`` is expected (a naive
+        value is read as UTC, and an ISO-8601 string is accepted for
+        convenience). The deadline also wins over a decision whose DB read
+        straddles it. ``REJECTED`` and ``EXPIRED`` are both terminal
+        refusals. An unparseable deadline is refused (fail closed).
+        Omitting the deadline preserves the legacy ``hitl_timeout``
+        behavior exactly.
+        """
         max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
         interval = 5
-        elapsed = 0
+        elapsed = 0.0
 
-        while elapsed < max_wait:
+        deadline_at: Optional[datetime] = None
+        if deadline is not None:
+            try:
+                deadline_at = (
+                    datetime.fromisoformat(
+                        deadline.strip().replace("Z", "+00:00"))
+                    if isinstance(deadline, str) else deadline)
+                if not isinstance(deadline_at, datetime):
+                    raise TypeError("deadline must be a datetime or ISO string")
+                if deadline_at.tzinfo is None:
+                    deadline_at = deadline_at.replace(tzinfo=timezone.utc)
+                deadline_at = deadline_at.astimezone(timezone.utc)
+            except (TypeError, ValueError, AttributeError):
+                logger.warning(
+                    "Refusing HITL approval wait for action %s: invalid "
+                    "deadline %r", action_id, deadline)
+                return False
+
+        def _now() -> datetime:
+            current = datetime.now(timezone.utc)
+            if current.tzinfo is None:  # tolerate a naive clock stub
+                current = current.replace(tzinfo=timezone.utc)
+            return current
+
+        while True:
+            if elapsed >= max_wait:
+                return False  # Timeout
+
+            # The absolute deadline is checked before every read, so no row
+            # observed after it can extend the wait.
+            if deadline_at is not None and _now() >= deadline_at:
+                logger.warning(
+                    "HITL approval wait deadline reached for action %s",
+                    action_id)
+                return False
+
             with get_db_session() as db:
                 gov = AgentGovernanceService(db)
                 status_info = gov.get_approval_status(action_id)
+                status = status_info["status"]
 
-                if status_info["status"] == HITLActionStatus.APPROVED.value:
-                    return True
-                if status_info["status"] == HITLActionStatus.REJECTED.value:
+                # Both are terminal refusals: an expired row never becomes
+                # an approval just because it is polled again.
+                if status in (
+                    HITLActionStatus.REJECTED.value,
+                    HITLActionStatus.EXPIRED.value,
+                ):
                     return False
+                if status == HITLActionStatus.APPROVED.value:
+                    # The DB read itself may have crossed the deadline; a
+                    # late approval must not win over it.
+                    if deadline_at is not None and _now() >= deadline_at:
+                        logger.warning(
+                            "HITL approval wait deadline crossed during the "
+                            "status read for action %s", action_id)
+                        return False
+                    return True
 
-            await asyncio.sleep(interval)
-            elapsed += interval
+            sleep_for = float(interval)
+            if deadline_at is not None:
+                remaining = (deadline_at - _now()).total_seconds()
+                if remaining <= 0:
+                    return False
+                sleep_for = min(sleep_for, remaining)
+            remaining_budget = max_wait - elapsed
+            if remaining_budget <= 0:
+                return False
+            sleep_for = min(sleep_for, float(remaining_budget))
+            await asyncio.sleep(sleep_for)
+            elapsed += sleep_for
 
-        return False # Timeout
-
-    async def _wait_for_all_approvals(self, action_ids: List[str]) -> bool:
+    async def _wait_for_all_approvals(
+        self,
+        action_ids: List[str],
+        *,
+        deadline: Optional[datetime] = None,
+    ) -> bool:
         """All-or-nothing HITL batch approval (Workstream G).
 
-        Returns True only when ALL actions are APPROVED; any REJECTION (or the
-        batch timeout) returns False — the caller must NOT execute any tool.
+        Returns True only when ALL actions are APPROVED; any REJECTION
+        (``REJECTED``), expiry (``EXPIRED``) or the batch timeout returns
+        False — the caller must NOT execute any tool.
+
+        ``deadline`` is an optional *absolute* instant, not a duration:
+        waiting never extends it. A UTC ``datetime`` is expected (a naive
+        value is read as UTC, and an ISO-8601 string is accepted for
+        convenience). It is enforced before each read, after each read (an
+        approval observed by a read that crossed it is refused), and as a
+        cap on every sleep. An unparseable deadline is refused (fail
+        closed). Omitting it preserves the legacy ``hitl_timeout`` behavior
+        exactly.
         """
         max_wait = self.config.get("hitl_timeout", 600)
         interval = 5
-        elapsed = 0
+        elapsed = 0.0
 
-        while elapsed < max_wait:
+        deadline_at: Optional[datetime] = None
+        if deadline is not None:
+            try:
+                deadline_at = (
+                    datetime.fromisoformat(
+                        deadline.strip().replace("Z", "+00:00"))
+                    if isinstance(deadline, str) else deadline)
+                if not isinstance(deadline_at, datetime):
+                    raise TypeError("deadline must be a datetime or ISO string")
+                if deadline_at.tzinfo is None:
+                    deadline_at = deadline_at.replace(tzinfo=timezone.utc)
+                deadline_at = deadline_at.astimezone(timezone.utc)
+            except (TypeError, ValueError, AttributeError):
+                logger.warning(
+                    "Refusing HITL batch approval wait: invalid deadline %r",
+                    deadline)
+                return False
+
+        def _now() -> datetime:
+            current = datetime.now(timezone.utc)
+            if current.tzinfo is None:  # tolerate a naive clock stub
+                current = current.replace(tzinfo=timezone.utc)
+            return current
+
+        while True:
+            if elapsed >= max_wait:
+                return False  # Timeout
+
+            if deadline_at is not None and _now() >= deadline_at:
+                logger.warning(
+                    "HITL batch approval wait deadline reached for %s",
+                    action_ids)
+                return False
+
             with get_db_session() as db:
                 gov = AgentGovernanceService(db)
                 all_approved = True
                 for action_id in action_ids:
                     status_info = gov.get_approval_status(action_id)
-                    if status_info["status"] == HITLActionStatus.REJECTED.value:
+                    status = status_info["status"]
+                    # Both are terminal refusals for the whole batch.
+                    if status in (
+                        HITLActionStatus.REJECTED.value,
+                        HITLActionStatus.EXPIRED.value,
+                    ):
                         return False
-                    if status_info["status"] != HITLActionStatus.APPROVED.value:
+                    if status != HITLActionStatus.APPROVED.value:
                         all_approved = False
                 if all_approved:
+                    # The read itself may have crossed the deadline; a late
+                    # approval must not authorize the batch.
+                    if deadline_at is not None and _now() >= deadline_at:
+                        logger.warning(
+                            "HITL batch approval wait deadline crossed "
+                            "during the status read for %s", action_ids)
+                        return False
                     return True
 
-            await asyncio.sleep(interval)
-            elapsed += interval
-
-        return False  # Timeout
+            sleep_for = float(interval)
+            if deadline_at is not None:
+                remaining = (deadline_at - _now()).total_seconds()
+                if remaining <= 0:
+                    return False
+                sleep_for = min(sleep_for, remaining)
+            remaining_budget = max_wait - elapsed
+            if remaining_budget <= 0:
+                return False
+            sleep_for = min(sleep_for, float(remaining_budget))
+            await asyncio.sleep(sleep_for)
+            elapsed += sleep_for
 
     async def _execute_parallel_tools(
         self,
@@ -5079,8 +5269,16 @@ What is your next step?"""
                     ]
 
         if approval_ids:
-            approved = await self._wait_for_all_approvals(
-                list(approval_ids.values()))
+            _approval_deadline = (
+                context.get("_trusted_job_deadline")
+                if isinstance(context, dict) else None)
+            if _approval_deadline is not None:
+                approved = await self._wait_for_all_approvals(
+                    list(approval_ids.values()),
+                    deadline=_approval_deadline)
+            else:
+                approved = await self._wait_for_all_approvals(
+                    list(approval_ids.values()))
             if not approved:
                 return [
                     {

@@ -462,6 +462,13 @@ def pending_decision_conditions(action: Any) -> List[Any]:
     ]
 
 
+# Session-scoped side channel for the exact refusal reason when the boolean
+# claim below loses to an owner-set job deadline. Callers that only understand
+# ``False`` keep working; a caller that wants to explain the conflict can read
+# this structured value from the SAME session/transaction.
+_DECISION_CONFLICT_INFO_KEY = "decision_conflict"
+
+
 def claim_pending_decision(
     db: Session,
     action: Any,
@@ -490,6 +497,9 @@ def claim_pending_decision(
     merge handler computes the merged value first), and an explicit value
     replaces it (the service's edit-before-approve contract).
     """
+    # Never inherit a previous claim's refusal on a reused Session.
+    db.info.pop(_DECISION_CONFLICT_INFO_KEY, None)
+
     if status not in (
             HITLActionStatus.APPROVED.value, HITLActionStatus.REJECTED.value):
         raise ValueError("decision status must be approved or rejected")
@@ -528,6 +538,81 @@ def claim_pending_decision(
             values["context_snapshot"] = updated_snapshot
 
     conditions = pending_decision_conditions(action)
+
+    # Ordinary tool approvals may carry the server-owned job/execution binding
+    # in their context snapshot. When that binding is real (the AgentJob names
+    # the same agent and the JSON result_summary names this dispatch
+    # execution), the job's absolute deadline is terminal for the decision too.
+    # Typed information waits and goal-run checkpoints already own their
+    # deadline/wake semantics on separate paths, so they are left untouched.
+    # Unbound actions (including legacy rows) are also left alone.
+    snapshot = getattr(action, "context_snapshot", None)
+    action_type = str(getattr(action, "action_type", "") or "")
+    if isinstance(snapshot, dict):
+        from core.information_wait import (
+            deadline_passed,
+            is_information_wait_action,
+        )
+
+        if (
+            not is_information_wait_action(action_type)
+            and action_type != "goal_run_checkpoint"
+        ):
+            job_id = str(snapshot.get("job_id") or "")
+            execution_id = str(snapshot.get("execution_id") or "")
+            if job_id and execution_id:
+                from core.models import AgentJob
+
+                job = db.get(AgentJob, job_id)
+                if job is not None:
+                    payload = getattr(job, "result_summary", None)
+                    if isinstance(payload, str):
+                        try:
+                            import json
+
+                            payload = json.loads(payload)
+                        except (TypeError, ValueError):
+                            payload = {}
+                    if not isinstance(payload, dict):
+                        payload = {}
+                    expected_agents = {
+                        str(value) for value in (
+                            getattr(action, "agent_id", None),
+                            snapshot.get("agent_id"),
+                        ) if value not in (None, "")
+                    }
+                    job_agent = str(getattr(job, "agent_id", "") or "")
+                    job_execution = str(
+                        payload.get("dispatch_execution_id") or "")
+                    if (
+                        expected_agents
+                        and all(
+                            agent == job_agent for agent in expected_agents)
+                        and job_execution == execution_id
+                    ):
+                        # Read the server clock at the last possible moment so
+                        # a decision prepared across a deadline boundary is
+                        # still refused. This is a pure read of another job:
+                        # the claim below never updates it.
+                        if deadline_passed(payload):
+                            conflict = _refusal(
+                                "The owner-set deadline for this job has "
+                                "passed; the decision was refused. Review the "
+                                "deadline or start a new authorized run.",
+                                "INFORMATION_WAIT_EXPIRED", 409,
+                                str(getattr(action, "id", "") or ""),
+                            )
+                            conflict.update({
+                                "code": "INFORMATION_WAIT_EXPIRED",
+                                "reason": "wait_deadline_exceeded",
+                                "job_id": job_id,
+                                "execution_id": execution_id,
+                                "deadline": payload.get("deadline"),
+                                "deadline_passed": True,
+                            })
+                            db.info[_DECISION_CONFLICT_INFO_KEY] = conflict
+                            return False
+
     result = db.execute(
         update(HITLAction)
         .where(*conditions)
@@ -1148,7 +1233,14 @@ class InterventionService:
                     record_history=True,
                 )
                 if not claimed:
+                    conflict = db.info.pop("decision_conflict", None)
                     db.rollback()
+                    if (
+                        isinstance(conflict, dict)
+                        and conflict.get("error_code")
+                        and conflict.get("message")
+                    ):
+                        return conflict
                     return _refusal(
                         "This approval was already decided, or its reviewed "
                         "payload/authority changed; refresh and retry.",
@@ -1275,7 +1367,14 @@ class InterventionService:
                         status=HITLActionStatus.REJECTED.value,
                         reviewer_id=approver_id,
                         user_feedback=reason):
+                    conflict = db.info.pop("decision_conflict", None)
                     db.rollback()
+                    if (
+                        isinstance(conflict, dict)
+                        and conflict.get("error_code")
+                        and conflict.get("message")
+                    ):
+                        return conflict
                     return _refusal(
                         "This rejection was already decided, or the reviewed "
                         "payload/authority changed; refresh and retry.",
