@@ -146,11 +146,16 @@ class TestMiniAppHarnessJourney:
         loaded = client.get(f"/api/canvas/{blueprint}/logic", headers=_auth(token))
         assert loaded.status_code == 200
         assert loaded.json()["data"]["source"] == STARTER
+        # The browser save path checkpoints too: this PUT is logic version 1.
+        hist = _rpc(client, token, "mini_app_logic_history", {"app_id": app_id})
+        versions = [h["version"] for h in hist["history"]]
+        assert versions == [1], versions
+        assert hist["history"][0]["preview"] == STARTER
 
         # 3) Agent path — mini_app_write_logic (syntax-gated + checkpointed)
         wl = _rpc(client, token, "mini_app_write_logic", {"app_id": app_id, "source": STARTER})
         assert wl["success"] is True
-        assert wl["version"] == 1
+        assert wl["version"] == 2  # browser PUT is v1; this explicit write is v2
 
         # Syntax gate rejects invalid source. This is an intentional negative:
         # the handler's success=False is propagated to the outer envelope, so
@@ -172,10 +177,16 @@ class TestMiniAppHarnessJourney:
         # 4) Logic history + revert (clean-state recovery)
         hist = _rpc(client, token, "mini_app_logic_history", {"app_id": app_id})
         versions = [h["version"] for h in hist["history"]]
-        assert versions == [1], versions  # BAD_SYNTAX appended no checkpoint
+        assert versions == [1, 2], versions  # BAD_SYNTAX appended no checkpoint
         assert hist["history"][0]["preview"] == STARTER
+        assert hist["history"][1]["preview"] == STARTER
         rev = _rpc(client, token, "mini_app_revert_logic", {"app_id": app_id, "version": 1})
         assert rev["success"] is True
+        assert rev["reverted_to"] == 1
+        # Version 1 is the browser-saved source, so revert restores it.
+        restored = client.get(f"/api/canvas/{blueprint}/logic", headers=_auth(token))
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["data"]["source"] == STARTER
 
         # 5) Acceptance tests (generator-evaluator loop)
         st = _rpc(client, token, "mini_app_set_tests", {
