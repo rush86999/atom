@@ -7,6 +7,14 @@ export default function AssignmentsPage() {
   const agentId = typeof router.query.agent === "string"
     ? router.query.agent
     : null;
+  const runQuery = router.query.run;
+  const invalidRunQuery =
+    runQuery !== undefined &&
+    (typeof runQuery !== "string" || runQuery.trim() === "");
+  const runId =
+    typeof runQuery === "string" && runQuery.trim() !== ""
+      ? runQuery
+      : null;
   return (
     <>
       <Head>
@@ -18,7 +26,13 @@ export default function AssignmentsPage() {
           This view reads the durable assignment projection. It does not infer
           progress from chat text and does not run restart recovery on load.
         </p>
-        <AssignmentPanel agentId={agentId} />
+        {!router.isReady ? null : invalidRunQuery ? (
+          <p className="text-sm text-destructive" role="alert">
+            This assignment link is invalid.
+          </p>
+        ) : (
+          <AssignmentPanel agentId={agentId} runId={runId} />
+        )}
       </main>
     </>
   );

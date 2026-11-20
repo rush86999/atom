@@ -2436,6 +2436,10 @@ async def assignment_status(
         open_obligations=status.get("open_gaps") or [],
         routing=employee_routing,
     )
+    stock_handoff = _stock_invoice_handoff_view(
+        run_id, run, record, current_user)
+    if stock_handoff is not None:
+        status["stock_invoice_handoff"] = stock_handoff
     return status
 
 
@@ -4118,3 +4122,130 @@ async def write_invoice_commitment(
         "current": result["current"],
         "history": result["history"],
     }
+
+
+def _stock_invoice_reviewer_allowed(
+    run: Mapping[str, Any],
+    record: Mapping[str, Any],
+    current_user: User,
+    steps: Mapping[str, Mapping[str, Any]],
+    trigger_info: Optional[Mapping[str, Any]],
+) -> bool:
+    """Whether the caller is the authorized reviewer of this exact reply.
+
+    Authorization stays separate from the frozen stock identity: the existing
+    reviewer check re-reads the active TEAM_LEAD in this run's scope, and the
+    packet check proves the exact applied, verified source-bound invoice reply.
+    Any ordinary refusal simply means the optional projection is omitted.
+    """
+    reply_step = steps.get("reply") or {}
+    step_id = reply_step.get("step_id")
+    if not isinstance(step_id, str) or not step_id:
+        return False
+    try:
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            _invoice_commitment_reviewer(run, current_user, db)
+        packet = _invoice_commitment_packet(record, step_id)
+    except (HTTPException, _InvoiceCommitmentConflict):
+        return False
+    trigger = (
+        trigger_info.get("trigger")
+        if isinstance(trigger_info, Mapping) else None)
+    if isinstance(trigger, Mapping):
+        source = packet.get("source")
+        source = source if isinstance(source, Mapping) else {}
+        for field in (
+                "operation_id", "reply_operation_id", "reply_message_id"):
+            expected = str(trigger.get(field) or "")
+            if expected and str(source.get(field) or "") != expected:
+                return False
+    return True
+
+
+def _stock_invoice_handoff_view(
+    run_id: str,
+    run: Mapping[str, Any],
+    record: Mapping[str, Any],
+    current_user: User,
+) -> Optional[Dict[str, Any]]:
+    """Bounded, read-only owner handoff for one exact stock invoice run.
+
+    The stock plan, frozen identity, trigger and invoice number are derived
+    from the fresh durable record exactly as the executor's reconcile path
+    derives them. Only the exact bound actor in the signed tenant/workspace,
+    or the current authorized reviewer of this exact source-bound invoice
+    reply, may see the projection. Every other case omits it; non-stock plans
+    are unchanged.
+    """
+    from core.assignment_executor import (
+        AssignmentExecutor,
+        _STOCK_INVOICE_WORKFLOW_ID,
+        _stock_invoice_number,
+        _stock_invoice_owner_handoff_trigger,
+        _stock_plan_steps,
+    )
+
+    assignment = record.get("assignment")
+    steps = _stock_plan_steps(assignment)
+    if steps is None:
+        return None
+    if str(assignment.get("status") or "").lower() == "cancelled":
+        return None
+    revision = record.get("task_revision")
+    revision = revision if isinstance(revision, Mapping) else {}
+    if str(revision.get("authorization") or "").lower() == "cancelled":
+        return None
+    provenance = revision.get("provenance")
+    provenance = provenance if isinstance(provenance, Mapping) else {}
+    execution_id = str(provenance.get("execution_id") or "").strip()
+    if str(provenance.get("workflow_id") or "").strip() != (
+            _STOCK_INVOICE_WORKFLOW_ID) or not execution_id:
+        return None
+
+    trigger_info = _stock_invoice_owner_handoff_trigger(record, assignment)
+    invoice_number = _stock_invoice_number(steps, trigger_info)
+    if not invoice_number and isinstance(trigger_info, Mapping):
+        invoice_number = str(
+            trigger_info.get("invoice_number") or "").strip()
+    if not invoice_number:
+        invoice_number = str(
+            provenance.get("invoice_number")
+            or provenance.get("invoice") or "").strip()
+    if not invoice_number:
+        return None
+
+    # The executor owns the one frozen stock identity; the route never
+    # rebuilds it or substitutes a module-level lookalike.
+    identity = AssignmentExecutor._stock_invoice_identity(
+        assignment, provenance)
+    if identity is None:
+        return None
+
+    actor_scope = (
+        str(current_user.tenant_id or "default"),
+        str(current_user.workspace_id or "default"),
+    )
+    run_scope = (
+        str(run.get("tenant_id") or "default"),
+        str(run.get("workspace_id") or "default"),
+    )
+    actor_allowed = (
+        (identity.get("tenant_id"), identity.get("workspace_id"))
+        == actor_scope == run_scope
+        and identity.get("user_id") == str(current_user.id)
+    )
+    if not actor_allowed and not _stock_invoice_reviewer_allowed(
+            run, record, current_user, steps, trigger_info):
+        return None
+
+    from core import invoice_workflow_assignment as iwa
+
+    return iwa.stock_invoice_owner_handoff_projection(
+        execution_id=execution_id,
+        run_id=str(record.get("run_id") or run_id).strip(),
+        invoice_number=invoice_number,
+        identity=identity,
+        required=trigger_info is not None,
+    )

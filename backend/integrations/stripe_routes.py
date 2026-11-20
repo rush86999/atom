@@ -10,7 +10,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -43,6 +43,12 @@ _STRIPE_TIMEOUT_SECONDS = 10.0
 _STRIPE_INTEGRATION_ID = "stripe"
 _RESTRICTED_KEY_RE = re.compile(r"rk_(test|live)_[A-Za-z0-9_]+")
 _STRIPE_ACCOUNT_ID_RE = re.compile(r"acct_[A-Za-z0-9]+")
+_PAYOUT_ID_RE = re.compile(r"po_[A-Za-z0-9]{1,255}")
+_PAYMENT_ALLOCATION_EVIDENCE_TYPE = "stripe_invoice_payment_allocation"
+_PAYMENT_ALLOCATION_LINEAGE_EVIDENCE_TYPE = (
+    "stripe_invoice_payment_allocation_lineage"
+)
+_PAYOUT_MEMBERSHIP_EVIDENCE_TYPE = "stripe_payout_membership"
 
 # Currencies Stripe accepts today.  Unknown three-letter codes are refused
 # before any provider request so a bad durable value can never broaden intent.
@@ -146,6 +152,19 @@ class _PaymentEvidenceSnapshot:
 
 def _nonempty_str(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _parse_payout_selector(value: Any) -> str:
+    """Require one exact, already-unambiguous Stripe payout id selector."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or any(character.isspace() for character in value)
+        or _PAYOUT_ID_RE.fullmatch(value) is None
+    ):
+        raise HTTPException(status_code=400, detail="Invalid request")
+    return value
 
 
 def _current_user_id(current_user: Any) -> str:
@@ -867,15 +886,80 @@ async def _fetch_payment_allocation_evidence(
     return evidence
 
 
+async def _fetch_payout_membership_evidence(
+    db: Session,
+    snapshot: _PaymentEvidenceSnapshot,
+    payout_id: str,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Read exact allocation lineage, then prove exact payout membership."""
+    adapter = _invoice_preview_adapter(db, snapshot.link)
+
+    try:
+        lineage = await adapter._get_invoice_payment_allocation_lineage_evidence(
+            expected_account_id=snapshot.link.account_id,
+            invoice_id=snapshot.link.external_invoice_id,
+            currency=snapshot.link.currency,
+            expected_amount_minor_units=snapshot.link.total_minor_units,
+            expected_livemode=snapshot.link.livemode,
+        )
+
+        # The lineage helper uses a distinct evidence tag. Validate it before
+        # reusing the safe allocation projection in the opt-in payout branch.
+        if (
+            not isinstance(lineage, dict)
+            or lineage.get("evidence_type")
+            != _PAYMENT_ALLOCATION_LINEAGE_EVIDENCE_TYPE
+        ):
+            raise ValueError("Stripe invoice payment lineage is not verified")
+
+        pairs = lineage.get("charge_balance_transaction_pairs")
+        if not isinstance(pairs, list) or not pairs:
+            raise ValueError(
+                "Stripe invoice payment lineage has no charge/balance "
+                "transaction pairs"
+            )
+
+        membership = await adapter._verify_stripe_payout_membership(
+            expected_account_id=snapshot.link.account_id,
+            payout_id=payout_id,
+            currency=snapshot.link.currency,
+            expected_livemode=snapshot.link.livemode,
+            expected_pairs=pairs,
+            include_bank_payout_reference=True,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "Stripe payout membership rejected (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe payout membership is not verified",
+        )
+    except Exception as exc:
+        logger.warning(
+            "Stripe payout membership failed (%s)",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Stripe payout membership verification failed",
+        )
+
+    return lineage, membership
+
+
 def _safe_payment_allocation_evidence(
     evidence: Any,
     snapshot: _PaymentEvidenceSnapshot,
+    *,
+    expected_evidence_type: str = _PAYMENT_ALLOCATION_EVIDENCE_TYPE,
 ) -> Dict[str, Any]:
     """Return only verified allocation facts; never raw provider output."""
     link = snapshot.link
     if (
         not isinstance(evidence, dict)
-        or evidence.get("evidence_type") != "stripe_invoice_payment_allocation"
+        or evidence.get("evidence_type") != expected_evidence_type
     ):
         raise HTTPException(
             status_code=409,
@@ -934,13 +1018,128 @@ def _safe_payment_allocation_evidence(
         "amount_minor_units": link.total_minor_units,
         "livemode": link.livemode,
         "binding_revision": snapshot.binding_revision,
-        "evidence_type": "stripe_invoice_payment_allocation",
+        "evidence_type": _PAYMENT_ALLOCATION_EVIDENCE_TYPE,
         "evidence_scope": "payment_allocation_only",
         "allocation_only": True,
         "invoice_payment_ids": list(payment_ids),
         "invoice_payment_count": len(payment_ids),
         "paid_allocation_subtotal_minor_units": link.total_minor_units,
         "stripe_api_version": api_version.strip(),
+    }
+
+
+def _exact_charge_balance_transaction_pairs(
+    value: Any,
+) -> Optional[List[Dict[str, str]]]:
+    """Allowlist only the exact pair facts needed for a payout proof."""
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+
+    pairs: List[Dict[str, str]] = []
+    seen_pair_keys = set()
+    seen_charge_ids = set()
+    seen_transaction_ids = set()
+    for pair in value:
+        if not isinstance(pair, dict):
+            return None
+        charge_id = pair.get("charge_id")
+        transaction_id = pair.get("balance_transaction_id")
+        if (
+            not _nonempty_str(charge_id)
+            or not _nonempty_str(transaction_id)
+            or charge_id != charge_id.strip()
+            or transaction_id != transaction_id.strip()
+        ):
+            return None
+
+        pair_key = (charge_id, transaction_id)
+        if (
+            pair_key in seen_pair_keys
+            or charge_id in seen_charge_ids
+            or transaction_id in seen_transaction_ids
+        ):
+            return None
+        seen_pair_keys.add(pair_key)
+        seen_charge_ids.add(charge_id)
+        seen_transaction_ids.add(transaction_id)
+        pairs.append(
+            {
+                "charge_id": charge_id,
+                "balance_transaction_id": transaction_id,
+            }
+        )
+    return pairs
+
+
+def _safe_payout_membership_result(
+    allocation_evidence: Any,
+    membership: Any,
+    snapshot: _PaymentEvidenceSnapshot,
+    payout_id: str,
+) -> Dict[str, Any]:
+    """Return allocation facts plus a redacted, exact payout membership proof."""
+    link = snapshot.link
+
+    # Reuse the established allocation projection, but explicitly require the
+    # private lineage tag that this opt-in branch is expected to receive.
+    allocation = _safe_payment_allocation_evidence(
+        allocation_evidence,
+        snapshot,
+        expected_evidence_type=_PAYMENT_ALLOCATION_LINEAGE_EVIDENCE_TYPE,
+    )
+
+    expected_pairs = _exact_charge_balance_transaction_pairs(
+        allocation_evidence.get("charge_balance_transaction_pairs")
+        if isinstance(allocation_evidence, dict)
+        else None
+    )
+
+    invalid = HTTPException(
+        status_code=409,
+        detail="Stripe payout membership is not verified",
+    )
+    if (
+        not isinstance(membership, dict)
+        or membership.get("evidence_type") != _PAYOUT_MEMBERSHIP_EVIDENCE_TYPE
+        or expected_pairs is None
+    ):
+        raise invalid
+
+    membership_pairs = _exact_charge_balance_transaction_pairs(
+        membership.get("charge_balance_transaction_pairs")
+    )
+    pair_count = membership.get("pair_count")
+    evidence_livemode = membership.get("livemode")
+    if (
+        membership_pairs != expected_pairs
+        or not isinstance(pair_count, int)
+        or isinstance(pair_count, bool)
+        or pair_count != len(expected_pairs)
+        or membership.get("payout_id") != payout_id
+        or membership.get("account_id") != link.account_id
+        or membership.get("currency") != link.currency
+        or not isinstance(evidence_livemode, bool)
+        or evidence_livemode != link.livemode
+    ):
+        raise invalid
+
+    bank_reference = membership.get("bank_payout_reference")
+    bank_reference_status = (
+        bank_reference.get("status") if isinstance(bank_reference, dict) else None
+    )
+    if bank_reference_status not in ("available", "unavailable"):
+        raise invalid
+
+    # Never expose the bank reference value, destination, amounts outside the
+    # allocation, raw provider fields, or settlement guesses.
+    return {
+        **allocation,
+        "payout_proof": {
+            "payout_id": payout_id,
+            "membership_verified": True,
+            "bank_reference_status": bank_reference_status,
+            "bank_settlement_status": "unverified",
+        },
     }
 
 
@@ -1291,22 +1490,40 @@ async def get_invoice_payment_evidence(
     invoice_id: str,
     db: Session = Depends(get_db),
     current_user: Any = Depends(get_current_user),
+    payout_id: Optional[str] = Query(None),
 ) -> Dict[str, Any]:
     """Return verified Stripe payment-allocation evidence for one bound invoice.
 
     Provider identity is resolved only from the persisted binding and scoped
-    connection. The response is allocation evidence only; it makes no payout
-    claim and changes no invoice, ledger, or receipt state.
+    connection. Without ``payout_id`` the response is allocation evidence only;
+    it makes no payout claim and changes no invoice, ledger, or receipt state.
+    Supplying an exact ``po_`` payout id opts into a redacted membership proof
+    for that payout, still without settlement, payment, ledger, or receipt
+    mutation.
     """
     actor_id = _current_user_id(current_user)
     if not _nonempty_str(invoice_id):
         raise HTTPException(status_code=400, detail="Invalid request")
     invoice_id = invoice_id.strip()
 
-    initial_snapshot = _resolve_payment_evidence_snapshot(db, actor_id, invoice_id)
-    evidence = await _fetch_payment_allocation_evidence(db, initial_snapshot)
+    payout_selector: Optional[str] = None
+    if payout_id is not None:
+        payout_selector = _parse_payout_selector(payout_id)
 
-    # Re-read after the awaited provider call. Expiring first prevents the
+    initial_snapshot = _resolve_payment_evidence_snapshot(db, actor_id, invoice_id)
+    membership_evidence: Optional[Dict[str, Any]] = None
+    if payout_selector is None:
+        allocation_evidence = await _fetch_payment_allocation_evidence(
+            db, initial_snapshot
+        )
+    else:
+        allocation_evidence, membership_evidence = (
+            await _fetch_payout_membership_evidence(
+                db, initial_snapshot, payout_selector
+            )
+        )
+
+    # Re-read after the awaited provider reads. Expiring first prevents the
     # identity map from hiding a role, invoice, binding, or credential change.
     try:
         db.expire_all()
@@ -1329,5 +1546,20 @@ async def get_invoice_payment_evidence(
 
     # The proof escapes only after authority, binding revision, invoice facts,
     # and credential identity have all been re-proved above.
-    return _safe_payment_allocation_evidence(evidence, rechecked_snapshot)
+    if payout_selector is None:
+        return _safe_payment_allocation_evidence(
+            allocation_evidence, rechecked_snapshot
+        )
+
+    if membership_evidence is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Stripe payout membership is not verified",
+        )
+    return _safe_payout_membership_result(
+        allocation_evidence,
+        membership_evidence,
+        rechecked_snapshot,
+        payout_selector,
+    )
 

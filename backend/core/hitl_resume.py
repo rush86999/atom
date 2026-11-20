@@ -634,8 +634,34 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
     # changed workflow_id there must not redirect the resume at another one.
     workflow_id = str(state.get("workflow_id") or "")
     from core.workflow_endpoints import (
-        _current_read_actor, _load_template_definition, load_workflows,
+        _current_read_actor,
+        _is_stock_workflow_id,
+        _load_template_definition,
+        load_workflows,
     )
+
+    # A stock invoice launch is continued only by the authenticated same-key
+    # launch endpoint, which replays the exact reservation and attaches the
+    # approved assignment. The catalog definition that happens to share its id
+    # is not that continuation: generic resume would run its knowledge step
+    # and fail terminally before any assignment exists. Classify from the
+    # persisted execution state, never from mutable approval selectors, and
+    # refuse every stock hit (paused, stale or already attached) so the
+    # original launch retry stays the only attach path.
+    if _is_stock_workflow_id(workflow_id):
+        return {
+            "handled": True,
+            "resumed": False,
+            "kind": "workflow",
+            "status": "DEFERRED",
+            "deferred": True,
+            "retry_required": True,
+            "retry_via": "stock_invoice_launch",
+            "reason": (
+                "Stock invoice launch approval is deferred to the "
+                "authenticated same-key launch retry; generic workflow "
+                "resume does not attach the approved reservation."),
+        }
 
     workflow = next(
         (w for w in load_workflows()

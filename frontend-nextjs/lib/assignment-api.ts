@@ -59,8 +59,22 @@ export interface AssignmentDeliverable {
   sha256: string | null;
 }
 
+export type StockInvoiceHandoffStatus =
+  | "not_required"
+  | "owner_not_selected"
+  | "pending"
+  | "delivered"
+  | "unavailable";
+
+export interface StockInvoiceHandoff {
+  status?: StockInvoiceHandoffStatus;
+  notification_id?: string | null;
+  delivered_at?: string | null;
+}
+
 export interface AssignmentDetail {
   run_id: string;
+  stock_invoice_handoff?: StockInvoiceHandoff | null;
   assignment: {
     assignment_id: string;
     objective: string;

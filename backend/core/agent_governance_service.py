@@ -1320,18 +1320,21 @@ class AgentGovernanceService:
         search_svc = PGPolicySearchService(self.db)
         return await search_svc.search(query=context, domain=domain, limit=limit)
 
-    def request_approval(
-        self, 
-        agent_id: str, 
-        action_type: str, 
-        params: Dict, 
+    def _build_hitl_action(
+        self,
+        *,
+        action_id: Optional[str],
+        agent_id: str,
+        action_type: str,
+        params: Dict,
         reason: str,
-        chain_id: Optional[str] = None, # NEW Phase 10
-        execution_context: Optional[Dict] = None,
-        user_id: Optional[str] = None,
-    ) -> str:
+        chain_id: Optional[str],
+        execution_context: Optional[Dict],
+        user_id: Optional[str],
+    ) -> HITLAction:
+        """Build one HITL row while preserving the generic request contract."""
         hitl = HITLAction(
-            id=str(uuid.uuid4()),
+            id=str(action_id or uuid.uuid4()),
             workspace_id=self.workspace_id,
             # The scoped service already knows the authoritative tenant; the
             # row must carry it or a real tenant's review queue (which filters
@@ -1375,10 +1378,113 @@ class AgentGovernanceService:
                     snapshot[key] = str(value)
         if snapshot is not None:
             hitl.context_snapshot = snapshot
+        return hitl
 
+    def request_approval(
+        self,
+        agent_id: str,
+        action_type: str,
+        params: Dict,
+        reason: str,
+        chain_id: Optional[str] = None, # NEW Phase 10
+        execution_context: Optional[Dict] = None,
+        user_id: Optional[str] = None,
+    ) -> str:
+        hitl = self._build_hitl_action(
+            action_id=None,
+            agent_id=agent_id,
+            action_type=action_type,
+            params=params,
+            reason=reason,
+            chain_id=chain_id,
+            execution_context=execution_context,
+            user_id=user_id,
+        )
         self.db.add(hitl)
         self.db.commit()
         return hitl.id
+
+    def request_task_admission_approval(
+        self,
+        *,
+        action_id: str,
+        agent_id: str,
+        action_type: str,
+        params: Dict,
+        reason: str,
+        execution_context: Optional[Dict] = None,
+        user_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+    ) -> str:
+        """Create or replay the one pending review for a deterministic id.
+
+        ``action_id`` is derived from the exact execution/principal/scope,
+        task fingerprint, agent and canonical rule revisions. Its primary-key
+        uniqueness is the cross-process guard: a concurrent writer collides
+        instead of inserting a second pending row. The committed row is always
+        read back before the id is returned, and a losing/colliding insert is
+        rolled back and re-read. Generic business approvals continue to use
+        :meth:`request_approval` with their existing random ids.
+        """
+        if not action_id:
+            return self.request_approval(
+                agent_id=agent_id,
+                action_type=action_type,
+                params=params,
+                reason=reason,
+                chain_id=chain_id,
+                execution_context=execution_context,
+                user_id=user_id,
+            )
+
+        existing = (
+            self.db.query(HITLAction)
+            .filter(HITLAction.id == action_id)
+            .first()
+        )
+        if existing is not None:
+            self.db.refresh(existing)
+            return existing.id
+
+        hitl = self._build_hitl_action(
+            action_id=action_id,
+            agent_id=agent_id,
+            action_type=action_type,
+            params=params,
+            reason=reason,
+            chain_id=chain_id,
+            execution_context=execution_context,
+            user_id=user_id,
+        )
+        try:
+            self.db.add(hitl)
+            self.db.commit()
+        except Exception:
+            # Another process may have committed this exact operation id
+            # between our read and insert. Start a fresh transaction and
+            # return the durable row only if it is actually there.
+            self.db.rollback()
+            existing = (
+                self.db.query(HITLAction)
+                .filter(HITLAction.id == action_id)
+                .first()
+            )
+            if existing is None:
+                raise
+            return existing.id
+
+        # Do not trust the in-memory object after commit; the caller verifies
+        # the committed row against the full review binding.
+        self.db.expire_all()
+        committed = (
+            self.db.query(HITLAction)
+            .filter(HITLAction.id == action_id)
+            .first()
+        )
+        if committed is None:
+            raise RuntimeError(
+                "task admission review was not durable after commit")
+        return committed.id
 
     def get_approval_status(self, action_id: str) -> Dict[str, Any]:
         """Check if a HITL action has been decided (Phase 10 Hardened)"""

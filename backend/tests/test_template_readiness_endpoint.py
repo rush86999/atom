@@ -565,3 +565,179 @@ async def test_results_legacy_owner_bounds_use_existing_access_filter(monkeypatc
     assert seen["user"] is user
     assert result["outputs"]["summarize"]["result"]["agent_response"] == (
         "Synthetic total 42")
+
+
+# --- Stock execution receipts on the editor read paths ---
+
+
+def _stock_user(user_id="u1"):
+    return SimpleNamespace(
+        id=user_id,
+        tenant_id="tenant-1",
+        workspace_id="workspace-1",
+    )
+
+
+def _stock_row():
+    import json
+    from datetime import datetime
+
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    return SimpleNamespace(
+        execution_id="stock-exec-1",
+        workflow_id=STOCK_INVOICE_WORKFLOW_ID,
+        status="completed",
+        error="raw private error",
+        created_at=datetime(2026, 8, 23, 12, 0, 0),
+        updated_at=datetime(2026, 8, 23, 12, 0, 4),
+        completed_at=datetime(2026, 8, 23, 12, 0, 5),
+        user_id="u1",
+        owner_id="u1",
+        tenant_id="tenant-1",
+        workspace_id="workspace-1",
+        input_data=json.dumps({
+            "_atom_execution_scope": {
+                "tenant_id": "tenant-1",
+                "workspace_id": "workspace-1",
+                "user_id": "u1",
+            },
+        }),
+        context=None,
+    )
+
+
+def _expected_stock_receipt():
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    return {
+        "execution_id": "stock-exec-1",
+        "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+        "status": "completed",
+        "created_at": "2026-08-23T12:00:00",
+        "updated_at": "2026-08-23T12:00:04",
+        "completed_at": "2026-08-23T12:00:05",
+    }
+
+
+async def test_execution_status_stock_exact_owner_gets_fixed_receipt():
+    result = await wtr.get_execution_status(
+        "stock-exec-1",
+        current_user=_stock_user(),
+        db=_FakeExecDB(_stock_row()),
+    )
+    assert result == _expected_stock_receipt()
+    assert "raw private error" not in str(result)
+    assert "_atom_execution_scope" not in str(result)
+
+
+async def test_execution_results_stock_exact_owner_gets_fixed_receipt():
+    result = await wtr.get_execution_results(
+        "stock-exec-1",
+        current_user=_stock_user(),
+        db=_FakeExecDB(_stock_row()),
+    )
+    assert result == _expected_stock_receipt()
+    assert "steps" not in result
+    assert "outputs" not in result
+    assert "raw private error" not in str(result)
+
+
+async def test_execution_status_stock_foreign_exact_id_is_404():
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_status(
+            "stock-exec-1",
+            current_user=_stock_user(user_id="someone-else"),
+            db=_FakeExecDB(_stock_row()),
+        )
+    assert exc.value.status_code == 404
+    assert "raw private error" not in str(exc.value.detail)
+
+
+async def test_execution_results_stock_foreign_exact_id_is_404():
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_results(
+            "stock-exec-1",
+            current_user=_stock_user(user_id="someone-else"),
+            db=_FakeExecDB(_stock_row()),
+        )
+    assert exc.value.status_code == 404
+    assert "raw private error" not in str(exc.value.detail)
+
+
+async def test_stock_workflow_id_alias_is_404_for_status_and_results():
+    from fastapi import HTTPException
+
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    for endpoint in (wtr.get_execution_status, wtr.get_execution_results):
+        with pytest.raises(HTTPException) as exc:
+            await endpoint(
+                STOCK_INVOICE_WORKFLOW_ID,
+                current_user=_stock_user(),
+                db=_FakeExecDB(_stock_row()),
+            )
+        assert exc.value.status_code == 404
+
+
+def test_stock_workflow_id_lookup_disables_workflow_id_alias():
+    from sqlalchemy.sql.elements import BinaryExpression, BooleanClauseList
+
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    ordinary = wtr._execution_lookup_filter("exe-ordinary")
+    stock = wtr._execution_lookup_filter(STOCK_INVOICE_WORKFLOW_ID)
+
+    assert isinstance(ordinary, BooleanClauseList)
+    assert isinstance(stock, BinaryExpression)
+
+
+class _RecordingExecQuery:
+    def __init__(self, row):
+        self._row = row
+        self.calls = []
+        self.filters = []
+
+    def filter(self, *args, **kwargs):
+        self.calls.append("filter")
+        self.filters.append(args)
+        return self
+
+    def order_by(self, *args, **kwargs):
+        self.calls.append("order_by")
+        return self
+
+    def first(self):
+        self.calls.append("first")
+        return self._row
+
+    def all(self):
+        self.calls.append("all")
+        raise AssertionError("unbounded materialization is not allowed")
+
+
+class _RecordingExecDB:
+    def __init__(self, row):
+        self.query_obj = _RecordingExecQuery(row)
+
+    def query(self, *_model):
+        return self.query_obj
+
+
+async def test_legacy_lookup_is_ordered_and_bounded(monkeypatch):
+    marker = object()
+    monkeypatch.setattr(wtr, "_execution_access_filter", lambda user: marker)
+    user = SimpleNamespace(id="u1")
+
+    for endpoint in (wtr.get_execution_status, wtr.get_execution_results):
+        row = _row_with_engine_state(outputs=None, steps=None)
+        db = _RecordingExecDB(row)
+
+        await endpoint("exe-engine-1", current_user=user, db=db)
+
+        assert db.query_obj.calls == ["filter", "filter", "order_by", "first"]
+        assert db.query_obj.filters[1][0] is marker
