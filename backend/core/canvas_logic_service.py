@@ -148,36 +148,46 @@ class CanvasLogicService:
         """
         from core.models import CanvasLogic
 
-        if require_cas:
-            # Mini-app CAS writes must serialize first saves on the canvas
-            # row. Regular Canvas writes keep their existing behavior.
-            self.lock_canvas_for_logic_write(canvas_id)
-
         row = (
             self.db.query(CanvasLogic)
             .filter(CanvasLogic.canvas_id == canvas_id)
             .first()
         )
         if row is None:
-            row = CanvasLogic(
-                canvas_id=canvas_id,
-                language=language,
-                source=source,
-                created_by=created_by,
-            )
-            self.db.add(row)
-            if commit:
-                self.db.commit()
-                self.db.refresh(row)
-            else:
-                # Flush only this new row, never another caller's dirty state.
-                self.db.flush([row])
-            return {
-                "id": row.id,
-                "canvas_id": row.canvas_id,
-                "language": row.language,
-                "source": row.source,
-            }
+            if require_cas:
+                # A CAS save found no row. Serialize on the parent canvas row
+                # so concurrent first saves cannot both create a row, then
+                # re-read in this transaction. If a peer created the row after
+                # the first read, report a conflict instead of overwriting it.
+                self.lock_canvas_for_logic_write(canvas_id)
+                row = (
+                    self.db.query(CanvasLogic)
+                    .filter(CanvasLogic.canvas_id == canvas_id)
+                    .first()
+                )
+                if row is not None:
+                    raise LogicConflict(
+                        "mini-app logic was created after it was read")
+            if row is None:
+                row = CanvasLogic(
+                    canvas_id=canvas_id,
+                    language=language,
+                    source=source,
+                    created_by=created_by,
+                )
+                self.db.add(row)
+                if commit:
+                    self.db.commit()
+                    self.db.refresh(row)
+                else:
+                    # Flush only this new row, never another caller's dirty state.
+                    self.db.flush([row])
+                return {
+                    "id": row.id,
+                    "canvas_id": row.canvas_id,
+                    "language": row.language,
+                    "source": row.source,
+                }
         if require_cas:
             from sqlalchemy import func, update
 
