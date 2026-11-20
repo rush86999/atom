@@ -27,6 +27,8 @@ from urllib.parse import quote
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 from core import db_safety
 
@@ -46,12 +48,37 @@ def safety_roots(tmp_path, monkeypatch):
     return tmp_path, backup_dir
 
 
-def _uri(path: Path, mode: str = "rw", double: bool = False) -> str:
-    encoded = quote(str(path), safe="/")
-    if double:
-        # SQLAlchemy unquotes the outer URL; SQLite URI-decodes once more.
-        encoded = quote(encoded, safe="/")
-    return f"sqlite:///file:{encoded}?mode={mode}&uri=true"
+# SQLAlchemy 2.0 preserves outer database percent escapes, while 2.1
+# consumes one outer layer; SQLite itself decodes once in both. Probe
+# make_url directly (never the resolver under test) so the fixtures get the
+# right number of encoding layers without a hardcoded version check.
+_PROBE_URL = "sqlite:///file:probe%2520name?mode=rw&uri=true"
+_OUTER_DECODES_ESCAPES = (
+    "%2520" not in (make_url(_PROBE_URL).database or "")
+)
+
+
+def _sqlite_uri(path: Path, mode: str = "rw", suffix: str = "") -> str:
+    """Build the inner SQLite ``file:`` URI with any real delimiter intact."""
+    base = f"file:{quote(str(path), safe='/')}"
+    if suffix.startswith("#"):
+        return f"{base}{suffix}?mode={mode}&uri=true"
+    if suffix.startswith("?"):
+        return f"{base}{suffix}&mode={mode}&uri=true"
+    return f"{base}?mode={mode}&uri=true"
+
+
+def _outer_url(sqlite_uri: str) -> str:
+    """Adapt a SQLite URI to an SQLAlchemy URL for the active version."""
+    if _OUTER_DECODES_ESCAPES:
+        # make_url() removes one outer layer. Preserve real URI delimiters,
+        # but encode '#' so it cannot discard the outer query as a fragment.
+        sqlite_uri = quote(sqlite_uri, safe="/:?&=")
+    return f"sqlite:///{sqlite_uri}"
+
+
+def _uri(path: Path, mode: str = "rw") -> str:
+    return _outer_url(_sqlite_uri(path, mode))
 
 
 def _seed_direct(path: Path):
@@ -65,9 +92,9 @@ def _seed_direct(path: Path):
         con.close()
 
 
-def _seed_engine(path: Path, double: bool = False) -> str:
+def _seed_engine(path: Path) -> str:
     """Create/seed through the real SQLAlchemy engine; return its actual file."""
-    uri = _uri(path, mode="rwc", double=double)
+    uri = _uri(path, mode="rwc")
     engine = create_engine(uri)
     try:
         with engine.begin() as conn:
@@ -147,9 +174,9 @@ def test_special_filename_opens_exact_file_read_only_and_snapshots(
 ):
     tmp_path, _ = safety_roots
     source = tmp_path / filename
-    # The real engine establishes the meaning of the double-encoded name.
-    assert _seed_engine(source, double=True) == str(source)
-    _set_database_url(monkeypatch, _uri(source, double=True))
+    # The real engine establishes the exact special-character filename.
+    assert _seed_engine(source) == str(source)
+    _set_database_url(monkeypatch, _uri(source))
 
     assert db_safety.live_db_path() == str(source)
 
@@ -186,8 +213,8 @@ def test_snapshot_publish_directory_with_special_chars(
     backup_dir.mkdir()
     monkeypatch.setattr(db_safety, "_BACKUP_DIR", str(backup_dir))
     source = tmp_path / "world #1.sqlite"
-    assert _seed_engine(source, double=True) == str(source)
-    _set_database_url(monkeypatch, _uri(source, double=True))
+    assert _seed_engine(source) == str(source)
+    _set_database_url(monkeypatch, _uri(source))
 
     dest = db_safety.snapshot_db("unittest")
     assert dest and os.path.isfile(dest)
@@ -195,33 +222,61 @@ def test_snapshot_publish_directory_with_special_chars(
         table: 1 for table in TABLES}
 
 
-@pytest.mark.parametrize("suffix", ["%23ignored", "%3Fignored"])
+@pytest.mark.parametrize("suffix", ["#ignored", "?cache=private"])
 def test_encoded_fragment_or_query_suffix_targets_actual_protected_file(
     safety_roots, monkeypatch, suffix,
 ):
-    """The actual engine opens atom.db; resolver/guard/backup must agree."""
+    """A real URI delimiter must not hide or retarget the protected file."""
     tmp_path, _ = safety_roots
     backend = tmp_path / "synthetic-backend"
     target = backend / "data" / "atom.db"
     target.parent.mkdir(parents=True)
     _seed_direct(target)
-    uri = (
-        f"sqlite:///file:{quote(str(target), safe='/')}{suffix}"
-        "?mode=rw&uri=true")
+    # Build the SQLite layer with an actual delimiter, then adapt only the
+    # outer SQLAlchemy URL so make_url hands that same URI to SQLite.
+    uri = _outer_url(_sqlite_uri(target, suffix=suffix))
     _set_database_url(monkeypatch, uri)
 
+    engine_opened = None
+    marker = None
     engine = create_engine(uri)
     try:
         with engine.connect() as conn:
-            actual_marker = conn.execute(text("SELECT id FROM users")).fetchone()[0]
+            engine_opened = conn.execute(
+                text("PRAGMA database_list")).fetchone()[2]
+            marker = conn.execute(text("SELECT id FROM users")).fetchone()[0]
+    except SQLAlchemyError:
+        # A true '#' fragment is optional in SQLite URI handling. When the
+        # runtime rejects it, keep the independent guarded-path checks below.
+        if suffix != "#ignored":
+            raise
+        engine_opened = None
     finally:
         engine.dispose()
-    assert actual_marker == "users-row"
+
+    if engine_opened is not None:
+        assert engine_opened == str(target)
+        assert marker == "users-row"
 
     from core.local_paths import resolve_sqlite_file_path
 
     assert resolve_sqlite_file_path(uri) == str(target)
     assert db_safety.live_db_path() == str(target)
+
+    # Independently of SQLAlchemy's URL parsing, the production opener must
+    # hit the exact protected file and refuse writes.
+    con, mode = db_safety._open_source_ro(str(target))
+    try:
+        opened = con.execute("PRAGMA database_list").fetchone()[2]
+        assert opened == str(target)
+        assert mode == "mode=ro"
+        with pytest.raises(sqlite3.OperationalError):
+            con.execute("CREATE TABLE must_not_write(x)")
+    finally:
+        con.close()
+
+    # No literal delimiter-bearing sibling was created by the URI.
+    assert sorted(p.name for p in target.parent.iterdir()) == [target.name]
 
     dest = db_safety.snapshot_db("unittest")
     assert dest and os.path.isfile(dest)
