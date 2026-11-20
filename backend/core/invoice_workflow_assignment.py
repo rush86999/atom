@@ -785,6 +785,160 @@ def _read_owner_handoff_binding(
         }
 
 
+def _project_owner_handoff_receipt(
+    receipt: Any,
+    operation_id: str,
+) -> Dict[str, Any]:
+    """Project a persisted owner-handoff receipt for a read-only caller.
+
+    This is a pure, read-only projection: it never writes and never mutates
+    *receipt*.  A pending receipt is reduced to ``{"status": "pending"}`` so
+    retry details never leak.  Delivered proof is returned only when every
+    marker written by the current delivery writer is present, well-typed and
+    mutually consistent; every other shape is ``unavailable``.
+    """
+    if not isinstance(receipt, Mapping):
+        return {"status": "unavailable"}
+    if not isinstance(operation_id, str) or not operation_id:
+        return {"status": "unavailable"}
+
+    stored_operation_id = receipt.get("operation_id")
+    if not isinstance(stored_operation_id, str) or (
+            stored_operation_id != operation_id):
+        return {"status": "unavailable"}
+
+    raw_status = receipt.get("status")
+    if not isinstance(raw_status, str):
+        return {"status": "unavailable"}
+    status = raw_status.strip().lower()
+
+    if status == "pending":
+        if "delivery_status" in receipt:
+            delivery_status = receipt.get("delivery_status")
+            if not isinstance(delivery_status, str) or (
+                    delivery_status.strip().lower() != "pending"):
+                return {"status": "unavailable"}
+        if "pending" in receipt and receipt.get("pending") is not True:
+            return {"status": "unavailable"}
+        if "delivered" in receipt and receipt.get("delivered") is not False:
+            return {"status": "unavailable"}
+        if "success" in receipt and receipt.get("success") is not False:
+            return {"status": "unavailable"}
+        if receipt.get("notification_id") is not None:
+            return {"status": "unavailable"}
+        if receipt.get("delivered_at") is not None:
+            return {"status": "unavailable"}
+        return {"status": "pending"}
+
+    if status != "delivered":
+        return {"status": "unavailable"}
+
+    delivery_status = receipt.get("delivery_status")
+    if not isinstance(delivery_status, str) or (
+            delivery_status.strip().lower() != "delivered"):
+        return {"status": "unavailable"}
+    if receipt.get("delivered") is not True:
+        return {"status": "unavailable"}
+    if receipt.get("success") is not True:
+        return {"status": "unavailable"}
+    if "pending" in receipt and receipt.get("pending") is not False:
+        return {"status": "unavailable"}
+
+    notification_id = receipt.get("notification_id")
+    if not isinstance(notification_id, str) or (
+            notification_id != operation_id):
+        return {"status": "unavailable"}
+
+    delivered_at = receipt.get("delivered_at")
+    if not isinstance(delivered_at, str):
+        return {"status": "unavailable"}
+    try:
+        parsed = datetime.fromisoformat(delivered_at)
+    except (TypeError, ValueError):
+        return {"status": "unavailable"}
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return {"status": "unavailable"}
+    if parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        return {"status": "unavailable"}
+
+    return {
+        "status": "delivered",
+        "notification_id": notification_id,
+        "delivered_at": delivered_at,
+    }
+
+
+def stock_invoice_owner_handoff_projection(
+    *,
+    execution_id: str,
+    run_id: str,
+    invoice_number: str,
+    identity: Any,
+    required: bool = True,
+) -> Optional[Dict[str, Any]]:
+    """Read the operator projection for one stock invoice owner handoff.
+
+    This is a pure read.  It proves the exact execution/run link, execution
+    scope and invoice intent with the same helpers used by delivery, then
+    projects only the durable receipt state.  It never opens a notification
+    transaction, retries a pending handoff or advances the assignment.
+
+    ``None`` means the link/scope is not verifiable, so the caller must omit
+    the projection.  A verified stock link is always one of the five bounded
+    statuses; a malformed receipt is ``unavailable``, never a false delivery.
+    """
+    try:
+        execution_key = _execution_key(execution_id)
+        expected_run_id = _run_id(execution_key)
+        run_key = _text(run_id)
+        if not run_key or run_key != expected_run_id:
+            return None
+        if not isinstance(invoice_number, str) or not invoice_number.strip():
+            return None
+        identity_values = _identity_values(identity)
+
+        with get_db_session() as session:
+            row = session.query(WorkflowExecution).filter(
+                WorkflowExecution.execution_id == execution_key,
+            ).populate_existing().first()
+            if row is None or _text(row.workflow_id) != _WORKFLOW_ID:
+                return None
+
+            input_data = _json_object(
+                row.input_data, "workflow execution input_data")
+            _require_execution_scope(row, input_data, identity_values)
+            _require_invoice_intent(input_data, invoice_number)
+
+            has_link, run = _resolve_link(
+                session, row, execution_key, identity_values,
+                _goal_id(execution_key), run_key)
+            if not has_link or run is None:
+                return None
+
+            context = _json_object(
+                row.context, "workflow execution context")
+    except (LookupError, PermissionError, TypeError, ValueError):
+        return None
+
+    raw_owner = context.get(_ACCOUNT_OWNER_CONTEXT_KEY)
+    receipt = context.get(_OWNER_HANDOFF_CONTEXT_KEY)
+    if receipt is not None:
+        return _project_owner_handoff_receipt(
+            receipt,
+            _owner_handoff_operation_id(execution_key, run_key),
+        )
+
+    if not required:
+        return {"status": "not_required"}
+    if raw_owner is None:
+        return {"status": "owner_not_selected"}
+    try:
+        _bound_account_owner(context)
+    except (LookupError, ValueError):
+        return {"status": "unavailable"}
+    return {"status": "pending"}
+
+
 def _owner_handoff_receipt(
     *,
     notification_id: str,

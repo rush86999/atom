@@ -558,6 +558,90 @@ test("a denied deep-linked run shows its error without falling back", async () =
   expect(screen.queryByTestId("assignment-detail")).not.toBeInTheDocument();
 });
 
+test("ignores a nested assignment proof for stock invoice handoff", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    assignment: {
+      ...detail.assignment,
+      stock_invoice_handoff: {
+        status: "delivered",
+        notification_id: "forged-nested",
+        delivered_at: "2026-01-02T03:04:05Z",
+      },
+    },
+  });
+
+  render(<AssignmentPanel />);
+  const detailNode = await screen.findByTestId("assignment-detail");
+
+  expect(
+    within(detailNode).queryByTestId("assignment-stock-invoice-handoff"),
+  ).not.toBeInTheDocument();
+  expect(within(detailNode).queryByText(/forged-nested/))
+    .not.toBeInTheDocument();
+});
+
+test("shows unavailable when a delivered proof is incomplete", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    stock_invoice_handoff: {
+      status: "delivered",
+      notification_id: "notif-present",
+      delivered_at: "not-a-date",
+    },
+  });
+
+  render(<AssignmentPanel />);
+  const handoff = await screen.findByTestId(
+    "assignment-stock-invoice-handoff",
+  );
+
+  expect(handoff.textContent).toContain("unavailable");
+  expect(handoff.textContent).not.toContain("notif-present");
+  expect(handoff.textContent).not.toContain("not-a-date");
+  expect(screen.queryByTestId("stock-invoice-handoff-delivered"))
+    .not.toBeInTheDocument();
+});
+
+test("shows the receipt id and date only for verified delivery", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    stock_invoice_handoff: {
+      status: "delivered",
+      notification_id: "notif-42",
+      delivered_at: "2026-03-04T12:30:00Z",
+    },
+  });
+
+  render(<AssignmentPanel />);
+  const delivered = await screen.findByTestId(
+    "stock-invoice-handoff-delivered",
+  );
+
+  expect(delivered.textContent).toContain("notif-42");
+  expect(delivered.textContent).toContain("2026-03-04T12:30:00Z");
+  expect(screen.queryByTestId("stock-invoice-handoff-unavailable"))
+    .not.toBeInTheDocument();
+});
+
+test("shows a concise no-owner handoff state", async () => {
+  (getAssignment as jest.Mock).mockResolvedValue({
+    ...detail,
+    stock_invoice_handoff: { status: "owner_not_selected" },
+  });
+
+  render(<AssignmentPanel />);
+  const noOwner = await screen.findByTestId(
+    "stock-invoice-handoff-no-owner",
+  );
+
+  expect(noOwner.textContent).toBe(
+    "Stock invoice handoff: no owner selected.",
+  );
+  expect(screen.queryByTestId("stock-invoice-handoff-delivered"))
+    .not.toBeInTheDocument();
+});
+
 test("a route run change hides the prior assignment and ignores stale detail", async () => {
   const first = JSON.parse(JSON.stringify(detail));
   first.assignment.objective = "First route objective";

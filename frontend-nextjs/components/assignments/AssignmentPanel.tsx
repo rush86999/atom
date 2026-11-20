@@ -43,6 +43,7 @@ import {
   recordAssignmentResponse,
   resolveAssignmentGap,
   resumeAssignment,
+  StockInvoiceHandoff,
   uploadAssignmentSource,
 } from "@/lib/assignment-api";
 
@@ -110,6 +111,40 @@ function authorityLabel(authority: string): string {
   if (authority === "source_evidence") return "source-established";
   if (authority === "taught") return "taught";
   return authority || "not established";
+}
+
+type StockHandoffView =
+  | { kind: "hidden" }
+  | { kind: "owner_not_selected" }
+  | { kind: "pending" }
+  | { kind: "unavailable" }
+  | { kind: "delivered"; notificationId: string; deliveredAt: string };
+
+function stockHandoffView(
+  handoff: StockInvoiceHandoff | null | undefined
+): StockHandoffView {
+  // Only the top-level contract is authoritative. A nested assignment copy
+  // must never be able to claim a delivery.
+  const status = handoff?.status;
+  if (!handoff || status === "not_required") return { kind: "hidden" };
+  if (status === "owner_not_selected") return { kind: "owner_not_selected" };
+  if (status === "pending") return { kind: "pending" };
+  if (status === "delivered") {
+    const notificationId = typeof handoff.notification_id === "string"
+      ? handoff.notification_id.trim()
+      : "";
+    const deliveredAt = typeof handoff.delivered_at === "string"
+      ? handoff.delivered_at.trim()
+      : "";
+    if (
+      notificationId &&
+      deliveredAt &&
+      Number.isFinite(Date.parse(deliveredAt))
+    ) {
+      return { kind: "delivered", notificationId, deliveredAt };
+    }
+  }
+  return { kind: "unavailable" };
 }
 
 export function AssignmentPanel({
@@ -556,6 +591,7 @@ export function AssignmentPanel({
   const exactRunId = runId && appliedRunIdRef.current !== runId
     ? runId
     : null;
+  const stockHandoff = stockHandoffView(detail?.stock_invoice_handoff);
 
   return (
     <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
@@ -1228,6 +1264,47 @@ export function AssignmentPanel({
                 sends used ·{" "}
                 {(detail.assignment.standing_authority.recipients || []).join(", ")}
               </p>
+            ) : null}
+            {stockHandoff.kind !== "hidden" ? (
+              <div
+                className="mt-1 rounded bg-slate-50 px-2 py-1 text-[10px]"
+                data-testid="assignment-stock-invoice-handoff"
+              >
+                {stockHandoff.kind === "owner_not_selected" ? (
+                  <p data-testid="stock-invoice-handoff-no-owner">
+                    Stock invoice handoff: no owner selected.
+                  </p>
+                ) : stockHandoff.kind === "pending" ? (
+                  <p data-testid="stock-invoice-handoff-pending">
+                    Stock invoice handoff pending.
+                  </p>
+                ) : stockHandoff.kind === "unavailable" ? (
+                  <p
+                    className="text-amber-700"
+                    data-testid="stock-invoice-handoff-unavailable"
+                  >
+                    Stock invoice handoff unavailable.
+                  </p>
+                ) : (
+                  <div data-testid="stock-invoice-handoff-delivered">
+                    <p className="font-medium text-emerald-700">
+                      Stock invoice delivered
+                    </p>
+                    <p>
+                      Receipt:{" "}
+                      <span data-testid="stock-invoice-handoff-notification-id">
+                        {stockHandoff.notificationId}
+                      </span>
+                    </p>
+                    <p>
+                      Delivered:{" "}
+                      <span data-testid="stock-invoice-handoff-delivered-at">
+                        {stockHandoff.deliveredAt}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : null}
             <p
               className="text-[10px] text-muted-foreground"

@@ -1504,3 +1504,206 @@ def test_pending_handoff_exception_does_not_persist_private_text(
         scratch, execution_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY]
     assert stored["error"] == "notification_failed"
     assert "private provider token value" not in json.dumps(stored)
+
+
+# ---------------------------------------------------------------------------
+# Read-only operator projection
+# ---------------------------------------------------------------------------
+
+
+def _project_stock_handoff(
+        execution_id, run_id, invoice_number, *, identity=None,
+        required=True):
+    return iwa.stock_invoice_owner_handoff_projection(
+        execution_id=execution_id,
+        run_id=run_id,
+        invoice_number=invoice_number,
+        identity=identity or {
+            "tenant_id": TENANT_ID,
+            "workspace_id": WORKSPACE_ID,
+            "user_id": USER_ID,
+            "employee_id": USER_ID,
+        },
+        required=required,
+    )
+
+
+def test_stock_handoff_projection_requires_exact_scope_link_and_invoice(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-PROJECTION-SCOPE"
+    execution_id = "exec-handoff-projection-scope"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(monkeypatch)
+
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) == {"status": "pending"}
+
+    assert _project_stock_handoff(
+        execution_id,
+        attached["run_id"],
+        invoice_number,
+        identity={
+            "tenant_id": "other-tenant",
+            "workspace_id": WORKSPACE_ID,
+            "user_id": USER_ID,
+            "employee_id": USER_ID,
+        },
+    ) is None
+    assert _project_stock_handoff(
+        execution_id,
+        attached["run_id"],
+        invoice_number,
+        identity={
+            "tenant_id": TENANT_ID,
+            "workspace_id": "other-workspace",
+            "user_id": USER_ID,
+            "employee_id": USER_ID,
+        },
+    ) is None
+    assert _project_stock_handoff(
+        execution_id, str(uuid.uuid4()), invoice_number) is None
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], "INV-WRONG") is None
+    assert calls == []
+
+
+def test_stock_handoff_projection_reports_no_owner_without_notification(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    invoice_number = "INV-HANDOFF-PROJECTION-NO-OWNER"
+    execution_id = "exec-handoff-projection-no-owner"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(execution_id, invoice_number)
+    calls = _install_notification_fake(monkeypatch)
+
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+        required=True,
+    ) == {"status": "owner_not_selected"}
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+        required=False,
+    ) == {"status": "not_required"}
+    assert calls == []
+
+
+def test_stock_handoff_projection_malformed_receipt_is_unavailable(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-PROJECTION-MALFORMED"
+    execution_id = "exec-handoff-projection-malformed"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(monkeypatch)
+
+    def store(receipt):
+        with scratch() as db:
+            row = db.get(WorkflowExecution, execution_id)
+            context = _as_json(row.context)
+            context[iwa._OWNER_HANDOFF_CONTEXT_KEY] = receipt
+            row.context = json.dumps(context)
+            db.commit()
+
+    store("not-a-receipt")
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) == {"status": "unavailable"}
+
+    store({
+        "status": "delivered",
+        "delivery_status": "delivered",
+        "delivered": True,
+        "success": True,
+        "notification_id": iwa._owner_handoff_operation_id(
+            execution_id, attached["run_id"]),
+    })
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) == {"status": "unavailable"}
+
+    store({
+        "status": "delivered",
+        "delivery_status": "delivered",
+        "delivered": True,
+        "success": True,
+        "notification_id": "not-the-operation",
+        "delivered_at": "2026-01-01T00:00:00+00:00",
+    })
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) == {"status": "unavailable"}
+    assert calls == []
+
+
+def test_stock_handoff_projection_real_delivered_receipt(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-PROJECTION-DELIVERED"
+    execution_id = "exec-handoff-projection-delivered"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(monkeypatch)
+
+    receipt = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_commitment_no_commitment", "step_id": "commitment"})
+    assert receipt["status"] == "delivered"
+
+    projection = _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number)
+    assert projection == {
+        "status": "delivered",
+        "notification_id": receipt["notification_id"],
+        "delivered_at": receipt["delivered_at"],
+    }
+    assert set(projection) == {
+        "status", "notification_id", "delivered_at"}
+    assert len(calls) == 1
+
+    # Projection is a read: a repeated status read must not deliver again.
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number) == projection
+    assert len(calls) == 1
+
+
+def test_stock_handoff_projection_pending_receipt_and_unverifiable_link(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-PROJECTION-PENDING"
+    execution_id = "exec-handoff-projection-pending"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    _install_notification_fake(
+        monkeypatch, factory=lambda kwargs, attempt: _failure_outcome())
+
+    receipt = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"})
+    assert receipt["status"] == "pending"
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) == {"status": "pending"}
+
+    # Removing the durable link makes the operator projection unverifiable.
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        context = _as_json(row.context)
+        for key in ("execution_id", "workflow_id", "goal_id", "run_id"):
+            context.pop(key, None)
+        row.context = json.dumps(context)
+        db.commit()
+
+    assert _project_stock_handoff(
+        execution_id, attached["run_id"], invoice_number,
+    ) is None
