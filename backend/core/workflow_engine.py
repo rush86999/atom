@@ -152,6 +152,73 @@ def _stable_operation_id(prefix: str, execution_id: str, step_id: str) -> str:
     return operation_id
 
 
+def _pending_task_admission_is_current(
+    row: Any,
+    decision: Any,
+    *,
+    execution_id: Any,
+    owner_user_id: Any,
+    tenant_id: Any,
+    workspace_id: Any,
+) -> bool:
+    """Return whether a pending task admission matches the current decision.
+
+    The durable review-binding contract is the same one used for an approved
+    receipt: the persisted request must name this exact execution and task
+    fingerprint, every rule id *and revision* the fresh decision was evaluated
+    against, and must not carry a different owner or scope.  A request filed
+    under an older rule revision is stale, so it must neither be reused nor
+    block the new current request.
+    """
+    from core.autonomy_policy import decision_covers
+
+    params = row.params if isinstance(row.params, dict) else {}
+    snapshot = (
+        row.context_snapshot
+        if isinstance(row.context_snapshot, dict) else {})
+    bound_execution = (
+        params.get("execution_id")
+        or snapshot.get("execution_id")
+        or snapshot.get("run_id"))
+    if str(bound_execution or "") != str(execution_id):
+        return False
+    if str(params.get("task_fingerprint") or "") != str(
+            decision.get("task_fingerprint") or ""):
+        return False
+
+    reviewed = {
+        "outcome": "review",
+        "rule_ids": list(params.get("rule_ids") or []),
+        "rule_bindings": list(params.get("rule_bindings") or []),
+    }
+    if not decision_covers(reviewed, decision):
+        return False
+
+    current_owner = (
+        decision.get("owner_user_id") or owner_user_id)
+    pending_owner = (
+        params.get("owner_user_id")
+        or snapshot.get("user_id")
+        or params.get("user_id")
+        or getattr(row, "user_id", None))
+    if (current_owner and pending_owner
+            and str(current_owner) != str(pending_owner)):
+        return False
+    for current, pending in (
+        (tenant_id,
+         snapshot.get("tenant_id")
+         or params.get("tenant_id")
+         or getattr(row, "tenant_id", None)),
+        (workspace_id,
+         snapshot.get("workspace_id")
+         or params.get("workspace_id")
+         or getattr(row, "workspace_id", None)),
+    ):
+        if current and pending and str(current) != str(pending):
+            return False
+    return True
+
+
 def _ai_failure(
     action: str,
     error: str,
@@ -1125,6 +1192,19 @@ class WorkflowEngine:
         await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
+    async def admit_never_autonomous_task(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Optional[str]:
+        """Public reusable seam for launch helpers.
+
+        This is the only public entry point; every caller reaches the same
+        task-level admission implementation, which the workflow path also
+        invokes directly under its pre-existing private name.
+        """
+        return await self._admit_never_autonomous_task(*args, **kwargs)
+
     async def _admit_never_autonomous_task(
         self,
         execution_id: str,
@@ -1133,14 +1213,19 @@ class WorkflowEngine:
         user_id: str,
         workspace_id: str,
         tenant_id: str,
+        *,
+        admission_action_id: Any = None,
     ) -> Optional[str]:
         """TASK-LEVEL admission before the workflow's first step/model call.
 
-        Returns ``"paused"`` when the run must stop for human review. A
-        previously approved durable task admission for THIS execution is
-        re-read and reused on resume; a boolean in the resume payload is never
-        authority. The granted clearance covers only this task and only the
-        reviewed rule revisions.
+        This is the canonical implementation used by the workflow path and the
+        public seam rather than reimplementing policy evaluation or durable
+        approval reuse. ``None`` means the task may proceed; ``"paused"``
+        means review is required or policy is unavailable. A previously
+        approved durable task admission for THIS execution is re-read and
+        reused on resume; a boolean in the resume payload is never authority.
+        The granted clearance covers only this task and only the reviewed rule
+        revisions.
         """
         from core.autonomy_policy import (
             NEVER_TASK_ADMISSION_ACTION,
@@ -1186,6 +1271,10 @@ class WorkflowEngine:
             with get_db_session() as db:
                 governance = ServiceFactory.get_governance_service(
                     db, workspace_id=workspace_id, tenant_id=tenant_id)
+                admission_kwargs = {}
+                if admission_action_id is not None:
+                    admission_kwargs["admission_action_id"] = (
+                        admission_action_id)
                 decision = evaluate_task_admission(
                     db,
                     profile,
@@ -1195,6 +1284,7 @@ class WorkflowEngine:
                     execution_id=execution_id,
                     tenant_id=tenant_id,
                     workspace_id=workspace_id,
+                    **admission_kwargs,
                 )
                 if decision.get("outcome") != "review":
                     return None
@@ -1216,8 +1306,9 @@ class WorkflowEngine:
                         execution_id, durable.get("hitl_action_id"))
                     return None
 
-                # Reuse an existing PENDING admission instead of filing a new
-                # decision every resume attempt for the same execution/task.
+                # Reuse an existing PENDING admission only while it still
+                # binds the current execution/task, rule revisions and
+                # owner/scope; a stale request must not stand in for a new one.
                 from core.models import HITLAction
 
                 pending = (
@@ -1228,20 +1319,19 @@ class WorkflowEngine:
                         HITLAction.agent_id == agent_id,
                     )
                     .order_by(HITLAction.created_at.desc())
-                    .limit(20)
+                    .limit(50)
                     .all()
                 )
                 analytics_task = None
                 for row in pending:
-                    params = row.params if isinstance(row.params, dict) else {}
-                    snapshot = (
-                        row.context_snapshot
-                        if isinstance(row.context_snapshot, dict) else {})
-                    if (str(params.get("execution_id")
-                            or snapshot.get("execution_id") or "")
-                            == str(execution_id)
-                            and str(params.get("task_fingerprint") or "")
-                            == str(decision.get("task_fingerprint") or "")):
+                    if _pending_task_admission_is_current(
+                        row,
+                        decision,
+                        execution_id=execution_id,
+                        owner_user_id=owner_user_id,
+                        tenant_id=tenant_id,
+                        workspace_id=workspace_id,
+                    ):
                         analytics_task = row
                         break
                 if analytics_task is None:

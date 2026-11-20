@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from core import notification_service
 from core.assignment_plan import validate_assignment
 from core.database import get_db_session
+from core.execution_state_manager import InvoiceLaunchConflict
 from core.models import GoalObjective, GoalRun, WorkflowExecution
 from core.task_lifecycle import new_task_revision
 
@@ -33,7 +34,6 @@ _ACCOUNT_OWNER_CONTEXT_KEY = "_atom_account_owner_user_id"
 # namespaced key so an execution context that carries unrelated state is never
 # replaced by the handoff path.
 _OWNER_HANDOFF_CONTEXT_KEY = "_atom_invoice_owner_handoff"
-_OWNER_HANDOFF_RECEIPT_KEY = _OWNER_HANDOFF_CONTEXT_KEY
 _OWNER_HANDOFF_CAS_ATTEMPTS = 5
 
 _OWNER_HANDOFF_TITLE = "Invoice owner handoff"
@@ -563,13 +563,18 @@ def _recover_existing_run(
         has_link, run = _resolve_link(
             session, row, execution_key, identity, goal_id, run_id)
         context = _json_object(row.context, "workflow execution context")
-        if _stored_account_owner(context) != account_owner_user_id:
-            return None
     except Exception:  # noqa: BLE001 - failed recovery keeps original error
         return None
 
     if not has_link or run is None:
         return None
+
+    # The winner of a create race has already committed the same deterministic
+    # link.  Re-read the exact durable owner binding and report the SAME typed
+    # conflict as the sequential replay path, never the raw integrity error.
+    if _stored_account_owner(context) != account_owner_user_id:
+        raise InvoiceLaunchConflict(
+            "account_owner_user_id conflicts with the existing assignment")
     return _text(run.id)
 
 
@@ -619,6 +624,18 @@ def attach_stock_invoice_assignment(
             _require_execution_scope(row, input_data, identity_values)
             _require_invoice_intent(input_data, invoice_number)
 
+            # A reservation may bind the explicit owner before review.  That
+            # binding is authoritative; an absent predecessor owner still
+            # allows the legacy first-attach behavior.
+            context = _json_object(
+                row.context, "workflow execution context")
+            reservation_owner = _stored_account_owner(context)
+            if (reservation_owner is not None
+                    and reservation_owner != account_owner):
+                raise InvoiceLaunchConflict(
+                    "account_owner_user_id conflicts with the existing "
+                    "assignment")
+
             has_link, existing_run = _resolve_link(
                 session, row, execution_key, identity_values,
                 goal_id, run_id)
@@ -630,7 +647,7 @@ def attach_stock_invoice_assignment(
                     _json_object(
                         row.context, "workflow execution context"))
                 if stored_owner != account_owner:
-                    raise ValueError(
+                    raise InvoiceLaunchConflict(
                         "account_owner_user_id conflicts with the existing "
                         "assignment")
                 return {"run_id": _text(existing_run.id)}
