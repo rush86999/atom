@@ -1565,6 +1565,7 @@ async def run_stateful(
     viewer: Any = None,
     viewer_tier: Optional[str] = None,
     initial_state: Optional[Dict[str, Any]] = None,
+    expected_source_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run the mini-app logic once (stateful controller run).
 
@@ -1714,7 +1715,11 @@ async def run_stateful(
             source = CanvasLogicService(db).load_logic(canvas_id)
             if source is None:
                 return {"success": False, "error": f"No logic saved for canvas {canvas_id}"}
-            wrapped = _wrap_source(source.get("source", ""))
+            logic_source = source.get("source", "")
+            if (expected_source_sha256 is not None
+                    and logic_source_sha256(logic_source) != expected_source_sha256):
+                return {"success": False, "error": "mini_app_logic_changed"}
+            wrapped = _wrap_source(logic_source)
 
             runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable (or docker-dev refused/unreachable)
             # Release the read snapshot before the guest: in-guest callback
@@ -2648,6 +2653,7 @@ async def run_tests(
     tests: List[Dict[str, Any]],
     viewer: Any = None,
     viewer_tier: Optional[str] = None,
+    expected_source_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run each acceptance case in the microVM (dry) and grade it.
 
@@ -2676,6 +2682,8 @@ async def run_tests(
                 viewer=viewer,
                 viewer_tier=viewer_tier,
                 initial_state=case.get("initial_state"),
+                **({"expected_source_sha256": expected_source_sha256}
+                   if expected_source_sha256 is not None else {}),
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("Acceptance case %s raised: %s", name, e)

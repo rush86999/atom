@@ -577,3 +577,66 @@ async def test_acceptance_distinguishes_missing_null_and_empty_assertions(monkey
     }
     assert report["results"][2]["passed"] is True
     assert guest.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_acceptance_checks_saved_case_digest_before_run(patched_db, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from core.task_lifecycle import _approval_payload_hash
+    from tools.mini_app_tool import mini_app_run_tests, mini_app_set_tests
+
+    actor_id = _uid()
+    draft = await _scaffold(actor_id)
+    context = _ctx(actor_id)
+    app_id = draft["app_id"]
+    original = [{"expect_state": {"total": 27}}]
+    changed = [{"expect_state": {"total": 0}}]
+    assert (await mini_app_set_tests({"app_id": app_id, "tests": changed}, context))["success"]
+    run = AsyncMock(return_value={"passed": 1, "total": 1, "results": []})
+    monkeypatch.setattr("core.mini_app_service.run_tests", run)
+
+    mismatch = await mini_app_run_tests({
+        "app_id": app_id, "expected_tests_sha256": _approval_payload_hash(original),
+    }, context)
+    assert mismatch["error"] == "mini_app_acceptance_tests_changed"
+    run.assert_not_awaited()
+
+    digest = _approval_payload_hash(changed)
+    result = await mini_app_run_tests({
+        "app_id": app_id, "expected_tests_sha256": digest,
+    }, context)
+    assert result["success"] and result["tests_sha256"] == digest
+    assert run.await_args.args[2] == changed
+
+
+@pytest.mark.asyncio
+async def test_acceptance_stops_after_concurrent_draft_edit(patched_db, patch_runtime, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from tools.mini_app_tool import mini_app_run_tests, mini_app_set_tests, mini_app_write_logic
+
+    actor_id = _uid()
+    app_id = (await _scaffold(actor_id))["app_id"]
+    context = _ctx(actor_id)
+    original = await mini_app_write_logic({"app_id": app_id, "source": "state = {'n': 1}"}, context)
+    assert original["success"]
+    cases = [{"name": name, "expect_state": {"n": 1}} for name in ("first", "second")]
+    assert (await mini_app_set_tests({"app_id": app_id, "tests": cases}, context))["success"]
+
+    async def execute_first(*args, **kwargs):
+        updated = await mini_app_write_logic({"app_id": app_id, "source": "state = {'n': 2}"}, context)
+        assert updated["success"]
+        return _FakeResult()
+
+    execute = AsyncMock(side_effect=execute_first)
+    runtime = _FakeRuntime()
+    runtime.execute_python = execute
+    monkeypatch.setattr("core.mini_app_service.get_miniapp_runtime", lambda: runtime)
+
+    report = await mini_app_run_tests({
+        "app_id": app_id, "expected_source_sha256": original["source_sha256"],
+    }, context)
+    assert report["passed"] == 1 and report["total"] == 2
+    assert report["results"][1]["error"] == "mini_app_logic_changed"
+    execute.assert_awaited_once()
