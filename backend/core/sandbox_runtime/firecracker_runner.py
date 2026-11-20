@@ -318,19 +318,32 @@ class FirecrackerRuntime:
 
         run_dir = tempfile.mkdtemp(prefix=f"{vm_id}-")
         start = time.time()
+        listener = None
         try:
+            # Guest-initiated vsock transport: firecracker delivers guest
+            # connects to a host listener at "<vsock_uds>_<guest_port>", which
+            # must already be bound and listening before the process starts.
+            import socket
+
+            guest_port = get_guest_port()
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            listener.setblocking(False)
+
             config_path = os.path.join(run_dir, "config.json")
             vsock_path = os.path.join(run_dir, "vsock.sock")
             _write_vm_config(
                 config_path,
                 vm_id=vm_id,
                 kernel_image=get_kernel_image(),
-                boot_args=get_guest_boot_args(),
+                boot_args=get_guest_boot_args(port=guest_port),
                 mem_mb=sandbox_config.get_sandbox_vm_mem_mb(),
                 vcpus=sandbox_config.get_sandbox_vm_vcpus(),
                 rootfs=rootfs,
                 vsock_uds=vsock_path,
             )
+
+            listener.bind(f"{vsock_path}_{guest_port}")
+            listener.listen(1)
 
             timeout = max(1, int(getattr(policy, "max_exec_seconds", 30) or 30))
             boot_timeout = sandbox_config.get_sandbox_vm_boot_timeout_seconds()
@@ -357,7 +370,7 @@ class FirecrackerRuntime:
 
             try:
                 stdout_text, stderr_text, exit_code, envelope, callbacks = await asyncio.wait_for(
-                    self._exchange(code, inputs or {}, vsock_path, callback_handler),
+                    self._exchange(code, inputs or {}, listener, callback_handler),
                     timeout=overall_timeout,
                 )
             except asyncio.TimeoutError:
@@ -393,6 +406,11 @@ class FirecrackerRuntime:
                 metadata=meta,
             )
         finally:
+            if listener is not None:
+                try:
+                    listener.close()
+                except Exception:  # noqa: BLE001
+                    pass
             try:
                 shutil.rmtree(run_dir, ignore_errors=True)
             except Exception:  # noqa: BLE001
@@ -419,10 +437,10 @@ class FirecrackerRuntime:
         self,
         code: str,
         inputs: Dict[str, Any],
-        vsock_path: str,
+        listener: Any,
         callback_handler: Any = None,
     ) -> tuple:
-        """Wait for the vsock UDS, then run the shared guest-protocol exchange.
+        """Accept the guest's vsock connection, then run the shared guest-protocol exchange.
 
         Protocol (see ``core.sandbox_runtime.guest_protocol`` — shared with the
         docker-dev stdio transport): host sends one ``{"type":"exec", ...}``
@@ -430,20 +448,27 @@ class FirecrackerRuntime:
         ``callback_handler``) before its terminal ``final`` reply carrying
         ``{"stdout","stderr","exit_code","state_envelope"?}``.
 
-        Boot-wait raises ``asyncio.TimeoutError`` if the socket never appears
-        within ``ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS``; the exchange itself
-        counts against the caller's ``asyncio.wait_for`` budget.
+        ``listener`` was bound at ``<vsock_uds>_<guest_port>`` before the VM
+        booted. Accept-wait raises ``asyncio.TimeoutError`` if the guest never
+        connects within ``ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS``; the exchange
+        itself counts against the caller's ``asyncio.wait_for`` budget.
         """
         boot_timeout = sandbox_config.get_sandbox_vm_boot_timeout_seconds()
-        deadline = time.time() + max(1, boot_timeout)
-        while not os.path.exists(vsock_path):
-            if time.time() > deadline:
-                raise asyncio.TimeoutError(
-                    f"vsock socket {vsock_path} never appeared (boot timeout)"
-                )
-            await asyncio.sleep(0.05)
+        loop = asyncio.get_running_loop()
+        conn, _ = await asyncio.wait_for(
+            loop.sock_accept(listener),
+            timeout=max(1, boot_timeout),
+        )
+        try:
+            reader, writer = await asyncio.open_unix_connection(sock=conn)
+        except Exception:
+            # Stream setup failed — the raw accepted socket is still ours.
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+            raise
 
-        reader, writer = await asyncio.open_unix_connection(vsock_path)
         try:
             return await _guest_exchange(reader, writer, code, inputs, callback_handler)
         finally:

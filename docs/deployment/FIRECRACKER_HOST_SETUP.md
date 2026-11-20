@@ -13,12 +13,12 @@ guide is for the operator who provisions the host; the API never auto-builds.
 
 ## 1. Host requirements
 
-- **Linux** with hardware virtualization: `/dev/kvm` present and usable.
+- **Linux** with hardware virtualization. The account running Atom needs read and write access to `/dev/kvm`.
 - The **firecracker** binary on `PATH` (download from the [Firecracker
   releases](https://github.com/firecracker-microvm/firecracker/releases)).
 - A **`vmlinux`** kernel image (download a generic x86_64/arm64 kernel).
 - A base **ext4 rootfs template** (built with `--base` below).
-- **e2fsprogs** (`mkfs.ext4`) and **docker** for rootfs construction.
+- **e2fsprogs** (`mkfs.ext4` and `e2fsck`) and **Docker** for rootfs construction.
 
 ## 2. Environment
 
@@ -40,6 +40,8 @@ scripts/build_miniapp_rootfs.sh --base
 # → data/firecracker/miniapp-base.ext4 (Python 3.11 + vsock guest agent)
 ```
 
+Rebuild images produced by earlier builders before using this runner. The builder validates the replacement image before publishing it and preserves an existing image if the build fails.
+
 ## 4. Build a per-app rootfs (after authoring an app with dependencies)
 
 ```bash
@@ -57,11 +59,15 @@ scripts/build_miniapp_rootfs.sh <app_id>
      `console=ttyS0 reboot=k panic=1 pci=off init=/opt/atom-guest/agent.py miniapp_port=5050`.
    - `drives`: the app rootfs, `is_root_device=true`, `is_read_only=true`.
    - `vsock`: `{guest_cid: 3, uds_path: <run_dir>/vsock.sock}`.
-2. The guest agent (PID 1) connects vsock to host CID 2, receives
-   `{code, inputs}` (a single JSON line), executes with `inputs` as globals,
-   and replies `{stdout, stderr, exit_code}`.
-3. The host parses the `__MINIAPP_STATE__:` envelope, executes host-mediated
-   `storage_ops`, upserts `CanvasState`, and kills the VM.
+2. Before starting Firecracker, the runner listens on
+   `<run_dir>/vsock.sock_<guest_port>` for the [guest-initiated connection](https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#guest-initiated-connections).
+3. The kernel starts the image's executable wrapper, which loads the guest
+   agent with the image's absolute Python path. The agent connects to host CID 2
+   and receives one JSON execution request. The same connection carries any
+   integration callbacks and the final result, including the structured state
+   envelope when the logic returns state.
+4. Atom applies authorized state and storage updates on the host. The runner
+   stops the VM and removes its temporary sockets after the run.
 
 ## 6. Security hardening
 
