@@ -17,6 +17,19 @@ had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
 
+## November 19 verification follow-up
+
+Main at `eb0ff2ef55d8d793e3f5c68999a5a5ff8ecd81cd` passed [CI](https://github.com/rush86999/atom/actions/runs/44619619460) and [Docker Build](https://github.com/rush86999/atom/actions/runs/44619619494). The checks below add bounded evidence to the existing goal map. The historical score and `app_complete: false` remain applicable.
+
+| Area | Verification on main |
+|---|---|
+| Local transcription and budget | The cached Whisper model transcribed a 2.694-second synthetic recording through Atom's local transcription service. One attempt settled for USD 0.002694. The budget blocked a second attempt before inference, another workspace could not use the configured provider, and duplicate settlement returned the original usage record. The model ran offline over loopback. A separate fixture run passed 91 transcription checks. |
+| Document lifecycle and WorkDrive | Sixty-five fixture tests covered deletion, lifecycle, workspace-scoped search and file permissions. Sixty-four WorkDrive fixture tests covered strict workbook reads, background delivery, approval reuse and cached workbook values. A fresh live workbook replay remains open. |
+| Audit and reviewed learning | Forty-one audit API tests covered ownership, redaction and correction behavior. Sixty-two reviewed-learning tests covered lesson scope and verified application. The retained 34-case browser replay covered keyboard controls and restart persistence on its tested revision. |
+| Marketplace and templates | Seventy-nine fixture tests covered workflow marketplace behavior, template readiness, execution resolution and agent publication rules. |
+
+[Stock invoice draft #1035](https://github.com/rush86999/atom/pull/1035) at `8470bb48828d7a3d0f947486fd5f6a1859b59d7e` passed all 17 hosted checks. Its isolated PostgreSQL replay approved a saved review via Atom's API, then two fresh processes resumed it and returned the same single durable run. The Stripe checks verified lineage from invoice allocation to a balance transaction using synthetic provider responses. Public launch wiring, browser retry handling, the scoped reviewer view and bank settlement remain open.
+
 ## November 19 evidence checkpoint
 
 Observed main is `0016ee66873789e9182793e874c84f43ce43a02a`. This checkpoint preserves the 143 claim identities, 18 goals, historical score, and open whole-app status.
