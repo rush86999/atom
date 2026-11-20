@@ -2476,8 +2476,13 @@ async def put_canvas_logic(
     db: Session = Depends(get_db),
 ):
     """Save per-canvas server-side Python logic."""
-    from core.canvas_logic_service import CanvasLogicService
-    from core.models import Canvas
+    from core.canvas_logic_service import CanvasLogicService, LogicConflict
+    from core.mini_app_service import (
+        logic_source_sha256,
+        record_logic_snapshot,
+        syntax_check,
+    )
+    from core.models import MiniApp
 
     # Access gate: writing logic mutates the canvas's controller. Allow the
     # owner on private canvases and any collaborator on collaborative canvases
@@ -2487,12 +2492,103 @@ async def put_canvas_logic(
 
     svc = CanvasLogicService(db)
     _enforce_logic_governance(svc, body.agent_id)
-    saved = svc.save_logic(
-        canvas_id=canvas_id,
-        source=body.source,
-        language=body.language,
-        created_by=str(current_user.id),
-    )
+
+    try:
+        # A MiniApp BLUEPRINT is the app definition, not just another
+        # collaborative canvas: only the app owner may rewrite its controller.
+        # Installed instance canvases (which no MiniApp names as its blueprint)
+        # keep the normal canvas policy applied above.
+        app = (
+            db.query(MiniApp)
+            .filter(MiniApp.blueprint_canvas_id == canvas_id)
+            .first()
+        )
+        if app is not None and str(app.created_by) != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Only the MiniApp owner can edit blueprint logic",
+            )
+
+        # Plain canvases keep the original save path unchanged.
+        if app is None:
+            saved = svc.save_logic(
+                canvas_id=canvas_id,
+                source=body.source,
+                language=body.language,
+                created_by=str(current_user.id),
+            )
+            return {
+                "success": True,
+                "data": saved,
+                "message": "Canvas logic saved",
+            }
+
+        # Blueprint controllers support Python only. Validate BEFORE the no-op
+        # check: an invalid body must not report success merely because it
+        # happens to match the stored source.
+        if (body.language or "python").strip().lower() not in {"python", "py"}:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported language: {body.language}",
+            )
+        try:
+            syntax_check(body.source)
+        except SyntaxError as exc:
+            raise HTTPException(status_code=400, detail=f"SyntaxError: {exc}")
+
+        # Hold the canvas write lock across the no-op check, the CAS write, and
+        # the commit so a concurrent replacement cannot slip in after the read.
+        svc.lock_canvas_for_logic_write(canvas_id)
+        prior = svc.load_logic(canvas_id)  # dict or None
+        if (
+            prior is not None
+            and prior.get("source") == body.source
+            and prior.get("language") == body.language
+        ):
+            db.rollback()  # read-only no-op: drop the lock, write nothing
+            return {
+                "success": True,
+                "data": prior,
+                "message": "Canvas logic unchanged",
+            }
+
+        # CAS binds a REPLACEMENT to the exact prior row/material just read.
+        # First-insert serialization remains the shared service's concern; this
+        # route does not make concurrent inserts conflict-free.
+        saved = svc.save_logic(
+            canvas_id=canvas_id,
+            source=body.source,
+            language=body.language,
+            created_by=str(current_user.id),
+            commit=False,
+            require_cas=True,
+        )
+        if app is not None:
+            # Checkpoint/receipt in the SAME transaction as the controller write.
+            record_logic_snapshot(
+                db,
+                canvas_id=canvas_id,
+                tenant_id=app.tenant_id,
+                app_id=app.id,
+                source=body.source,
+                actor_id=str(current_user.id),
+                source_sha256=logic_source_sha256(body.source),
+                commit=False,
+            )
+        db.commit()
+    except LogicConflict:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Canvas logic changed after it was read; "
+                "nothing was written"
+            ),
+        )
+    except Exception:
+        db.rollback()
+        raise
+
     return {"success": True, "data": saved, "message": "Canvas logic saved"}
 
 

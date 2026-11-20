@@ -72,6 +72,58 @@ class CanvasLogicService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
+    def lock_canvas_for_logic_write(self, canvas_id: str) -> None:
+        """Serialize a mini-app logic write against the target canvas row.
+
+        The lock is a no-op row write (``id = id``) that takes the row lock
+        without changing data. PostgreSQL would still run ``onupdate`` column
+        defaults for that UPDATE, so it uses ``SELECT ... FOR UPDATE`` instead.
+        SQLite has no ``FOR UPDATE``; its UPDATE explicitly assigns every
+        ``onupdate`` column to itself so those defaults do not fire.
+
+        No commit or rollback is performed: the caller owns the transaction.
+        A missing canvas row raises :class:`LogicConflict`.
+        """
+        from sqlalchemy import select, update
+        from core.models import Canvas
+
+        dialect = getattr(
+            getattr(self.db.get_bind(), "dialect", None), "name", "")
+
+        if dialect == "postgresql":
+            # Row-lock without issuing an UPDATE, so no timestamp default on
+            # the Canvas table can be triggered.
+            found = self.db.execute(
+                select(Canvas.id)
+                .where(Canvas.id == canvas_id)
+                .with_for_update()
+            ).first()
+            if found is None:
+                raise LogicConflict(
+                    f"canvas '{canvas_id}' not found for logic write lock")
+            return
+
+        # SQLite (and any dialect without SELECT ... FOR UPDATE): a no-op
+        # UPDATE takes the write lock. Suppress only the column defaults that
+        # are actually declared with ``onupdate`` — introspected from the
+        # mapped table rather than guessed — by assigning those columns to
+        # themselves.
+        table = Canvas.__table__
+        values: Dict[str, Any] = {"id": table.c.id}
+        for column in table.c:
+            if column is not table.c.id and column.onupdate is not None:
+                values[column.name] = column
+
+        result = self.db.execute(
+            update(Canvas)
+            .where(Canvas.id == canvas_id)
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        if int(result.rowcount or 0) != 1:
+            raise LogicConflict(
+                f"canvas '{canvas_id}' not found for logic write lock")
+
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
@@ -95,6 +147,11 @@ class CanvasLogicService:
         receipt in the same transaction as the write.
         """
         from core.models import CanvasLogic
+
+        if require_cas:
+            # Mini-app CAS writes must serialize first saves on the canvas
+            # row. Regular Canvas writes keep their existing behavior.
+            self.lock_canvas_for_logic_write(canvas_id)
 
         row = (
             self.db.query(CanvasLogic)
