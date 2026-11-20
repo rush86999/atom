@@ -206,6 +206,8 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
                     created_by=viewer.id,
                     commit=False,
                     require_cas=True,
+                    **({"expected_source_sha256": args["expected_source_sha256"]}
+                       if args.get("expected_source_sha256") is not None else {}),
                 )
             except LogicConflict:
                 return {

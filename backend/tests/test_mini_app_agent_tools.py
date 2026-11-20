@@ -640,3 +640,28 @@ async def test_acceptance_stops_after_concurrent_draft_edit(patched_db, patch_ru
     assert report["passed"] == 1 and report["total"] == 2
     assert report["results"][1]["error"] == "mini_app_logic_changed"
     execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_acceptance_repair_cannot_overwrite_newer_saved_logic(patched_db):
+    from core.canvas_logic_service import CanvasLogicService
+    from core.database import get_db_session
+    from tools.mini_app_tool import mini_app_write_logic
+
+    actor_id = _uid()
+    draft = await _scaffold(actor_id)
+    app_id = draft["app_id"]
+    context = _ctx(actor_id)
+
+    first = await mini_app_write_logic({"app_id": app_id, "source": "state = {'n': 1}"}, context)
+    peer_source = "state = {'n': 2}"
+    peer = await mini_app_write_logic({"app_id": app_id, "source": peer_source}, context)
+    assert first["success"] and peer["success"]
+
+    repair = await mini_app_write_logic({
+        "app_id": app_id, "source": "state = {'n': 3}",
+        "expected_source_sha256": first["source_sha256"],
+    }, context)
+    assert not repair["success"] and repair["error"] == "mini_app_logic_changed"
+    with get_db_session() as db:
+        assert CanvasLogicService(db).load_logic(draft["canvas_id"])["source"] == peer_source

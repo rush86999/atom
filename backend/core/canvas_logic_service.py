@@ -137,6 +137,7 @@ class CanvasLogicService:
         *,
         commit: bool = True,
         require_cas: bool = False,
+        expected_source_sha256: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Upsert the logic row for ``canvas_id``.
 
@@ -153,6 +154,12 @@ class CanvasLogicService:
             .filter(CanvasLogic.canvas_id == canvas_id)
             .first()
         )
+        if expected_source_sha256 is not None:
+            from core.mini_app_service import logic_source_sha256
+
+            if row is None or logic_source_sha256(row.source) != expected_source_sha256:
+                raise LogicConflict("The draft changed after it was graded")
+            require_cas = True
         if row is None:
             if require_cas:
                 # A CAS save found no row. Serialize on the parent canvas row
