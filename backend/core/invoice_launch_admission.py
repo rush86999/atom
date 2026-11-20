@@ -14,9 +14,14 @@ without the task-level admission ever being granted.
 
 from __future__ import annotations
 
+import asyncio
 import copy
+import functools
 import json
+import threading
+import weakref
 from collections.abc import Mapping
+from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
 from core.execution_state_manager import (
@@ -239,19 +244,127 @@ def _attached_result(
     }
 
 
-def _attach_plan(
+class _LaunchLock:
+    """One event-loop-local async lock and its acquired/waiter count."""
+
+    __slots__ = ("lock", "references")
+
+    def __init__(self) -> None:
+        self.lock = asyncio.Lock()
+        self.references = 0
+
+
+# Coordinate the *whole* same-execution admission sequence, not just the final
+# sync attachment.  Locks belong to the running event loop because asyncio
+# primitives are loop-bound.  The registry is weakly keyed by loop and each
+# key is removed as soon as its last holder/waiter leaves, so replaying many
+# idempotency keys cannot grow it without bound.  Different event loops (and
+# other processes) remain independent and rely on the durable DB guards.
+_LAUNCH_LOCKS: "weakref.WeakKeyDictionary[Any, Dict[tuple, _LaunchLock]]" = (
+    weakref.WeakKeyDictionary()
+)
+_LAUNCH_LOCKS_GUARD = threading.Lock()
+
+
+def _launch_lock_key(
+    identity: Mapping[str, str],
+    idempotency_key: str,
+) -> tuple:
+    """Return the deterministic trusted scope/idempotency coordination key."""
+    return (
+        identity["tenant_id"],
+        identity["workspace_id"],
+        identity["user_id"],
+        idempotency_key,
+    )
+
+
+def _release_launch_lock(
+    loop: Any,
+    key: tuple,
+    entry: _LaunchLock,
+) -> None:
+    with _LAUNCH_LOCKS_GUARD:
+        entry.references -= 1
+        if entry.references > 0 or entry.lock.locked():
+            return
+        per_loop = _LAUNCH_LOCKS.get(loop)
+        if per_loop is None or per_loop.get(key) is not entry:
+            return
+        del per_loop[key]
+        if not per_loop:
+            try:
+                del _LAUNCH_LOCKS[loop]
+            except KeyError:
+                pass
+
+
+@asynccontextmanager
+async def _launch_lock(key: tuple):
+    """Hold the event-loop-local lock for one deterministic launch slot."""
+    loop = asyncio.get_running_loop()
+    with _LAUNCH_LOCKS_GUARD:
+        per_loop = _LAUNCH_LOCKS.get(loop)
+        if per_loop is None:
+            per_loop = {}
+            _LAUNCH_LOCKS[loop] = per_loop
+        entry = per_loop.get(key)
+        if entry is None:
+            entry = _LaunchLock()
+            per_loop[key] = entry
+        entry.references += 1
+
+    try:
+        await entry.lock.acquire()
+    except BaseException:  # noqa: BLE001 - cancellation is re-raised
+        # The waiter never held the lock; drop only its registry reference.
+        _release_launch_lock(loop, key, entry)
+        raise
+
+    try:
+        yield
+    finally:
+        entry.lock.release()
+        _release_launch_lock(loop, key, entry)
+
+
+def _attach_plan_blocking(
+    execution_id: str,
+    invoice: str,
+    *,
+    identity: Dict[str, str],
+    plan: Dict[str, Any],
+    account_owner: Optional[str],
+) -> Dict[str, str]:
+    return attach_stock_invoice_assignment(
+        execution_id,
+        invoice,
+        identity=identity,
+        assignment=plan,
+        account_owner_user_id=account_owner,
+    )
+
+
+async def _attach_plan(
     execution_id: str,
     invoice: str,
     identity: Dict[str, str],
     plan: Dict[str, Any],
     account_owner: Optional[str],
 ) -> str:
-    attached = attach_stock_invoice_assignment(
-        execution_id,
-        invoice,
-        identity=identity,
-        assignment=plan,
-        account_owner_user_id=account_owner,
+    # Same-slot admission is already serialized by the event-loop-local lock,
+    # so this offload needs no process-wide attachment lock.  Independent
+    # slots may attach in parallel and rely on the attacher's durable guards.
+    attached = await asyncio.get_running_loop().run_in_executor(
+        None,
+        functools.partial(
+            _attach_plan_blocking,
+            execution_id,
+            invoice,
+            identity=identity,
+            plan=plan,
+            account_owner=account_owner,
+        ),
     )
     return _text(attached.get("run_id"))
 
@@ -422,6 +535,11 @@ async def admit_stock_invoice_launch(
     reservation.  On an approved retry the same gate must pass again; only then
     may the narrow PAUSED -> PENDING transition be used and the server-built
     plan attached.  Terminal and cancelled reservations stay terminal.
+
+    Same-slot calls are serialized for the complete reserve/gate/restore/attach
+    sequence on the current event loop.  Independent scope/idempotency tuples
+    are not globally serialized; cross-process contention remains guarded by
+    the reservation primary key and the assignment's durable checks.
     """
     invoice = _invoice_number(invoice_number)
     if not isinstance(idempotency_key, str) or not idempotency_key.strip():
@@ -431,19 +549,41 @@ async def admit_stock_invoice_launch(
     owner = _optional_account_owner(account_owner_user_id)
     values = _identity_values(identity)
 
+    async with _launch_lock(_launch_lock_key(values, idempotency_key)):
+        return await _admit_stock_invoice_launch_locked(
+            invoice,
+            idempotency_key=idempotency_key,
+            identity=values,
+            account_owner=owner,
+            state_manager=state_manager,
+            engine=engine,
+            admission_action_id=admission_action_id,
+        )
+
+
+async def _admit_stock_invoice_launch_locked(
+    invoice: str,
+    *,
+    idempotency_key: str,
+    identity: Dict[str, str],
+    account_owner: Optional[str],
+    state_manager: Any,
+    engine: Any,
+    admission_action_id: Any,
+) -> Dict[str, Any]:
     manager = (
         state_manager if state_manager is not None else get_state_manager())
     plan = build_stock_invoice_launch_assignment(
-        invoice, identity=values)
+        invoice, identity=identity)
     workflow = build_stock_invoice_launch_workflow(
-        invoice, identity=values, assignment=plan)
+        invoice, identity=identity, assignment=plan)
 
     execution_id, created = await _reserve_launch(
         manager,
         invoice,
-        identity=values,
+        identity=identity,
         idempotency_key=idempotency_key,
-        account_owner=owner,
+        account_owner=account_owner,
     )
 
     state = await _execution_state(manager, execution_id)
@@ -458,8 +598,8 @@ async def admit_stock_invoice_launch(
                 execution_id, created=created, status=status)
         # Already attached before it became terminal: replay is read-only and
         # keeps the exact owner-conflict guarantee.
-        run_id = _attach_plan(
-            execution_id, invoice, values, plan, owner)
+        run_id = await _attach_plan(
+            execution_id, invoice, identity, plan, account_owner)
         return _attached_result(
             execution_id,
             created=created,
@@ -476,7 +616,7 @@ async def admit_stock_invoice_launch(
             execution_id=execution_id,
             workflow=workflow,
             state=state,
-            identity=values,
+            identity=identity,
             admission_action_id=admission_action_id,
         )
     except Exception:  # noqa: BLE001 - configured policy fails CLOSED
@@ -524,8 +664,8 @@ async def admit_stock_invoice_launch(
             return _terminal_result(
                 execution_id, created=created, status=status)
 
-    run_id = _attach_plan(
-        execution_id, invoice, values, plan, owner)
+    run_id = await _attach_plan(
+        execution_id, invoice, identity, plan, account_owner)
     return _attached_result(
         execution_id,
         created=created,
