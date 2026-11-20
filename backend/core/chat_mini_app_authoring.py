@@ -525,12 +525,11 @@ async def _verify_build(
 ):
     if not cases:
         return {"status": "not_run"}
-    if not source_sha256:
-        return {"status": "unverified", "reason": "logic_not_saved"}
-
     saved = await save_cases({"app_id": app_id, "tests": cases}, context)
     if not saved.get("success"):
         return {"status": "unverified", "reason": "tests_not_saved"}
+    if not source_sha256:
+        return {"status": "unverified", "reason": "logic_not_saved"}
 
     args = {
         "app_id": app_id,

@@ -239,3 +239,32 @@ async def test_chat_repairs_against_same_owner_acceptance_cases(monkeypatch):
     assert save.await_args.args[0]["expected_source_sha256"] == "initial"
     assert "Previous draft failed" in str(model.generate_completion.await_args_list[1])
     smoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_starter_draft_retains_owner_acceptance_cases(patched_db, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from core.database import get_db_session
+    from core.models import MiniApp
+
+    user_id = _uid()
+    _seed_actor(user_id)
+    run_cases = AsyncMock()
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_run_tests", run_cases)
+    cases = [{"name": "sum", "inputs": {"amounts": [4, 8]}, "expect_state": {"total": 12}}]
+
+    result = await try_handle(
+        "build a mini app inventory tracker", [], user_id, None, None,
+        acceptance_cases=cases,
+    )
+
+    assert result["data"]["acceptance"] == {
+        "status": "unverified",
+        "reason": "logic_not_saved",
+    }
+    run_cases.assert_not_awaited()
+    with get_db_session() as db:
+        draft = db.query(MiniApp).filter_by(created_by=user_id).one()
+        assert draft.status == "draft"
+        assert draft.manifest["tests"] == cases
