@@ -1517,6 +1517,59 @@ class StripeAdapter:
             return source_id if isinstance(source_id, str) else None
         return None
 
+    @staticmethod
+    def _stripe_bank_payout_reference(
+        payout: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Read the optional opaque bank payout reference from a payout."""
+        unavailable = {"status": "unavailable"}
+
+        if payout.get("type") != "bank_account":
+            return unavailable
+
+        amount = payout.get("amount")
+        if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
+            return unavailable
+
+        destination = payout.get("destination")
+        try:
+            if isinstance(destination, str):
+                destination_id = StripeAdapter._require_stripe_identifier(
+                    destination, "payout.destination"
+                )
+            elif isinstance(destination, dict):
+                if destination.get("object") != "bank_account":
+                    return unavailable
+                destination_id = StripeAdapter._require_stripe_identifier(
+                    destination.get("id"), "payout.destination.id"
+                )
+            else:
+                return unavailable
+        except ValueError:
+            return unavailable
+
+        if not destination_id.startswith("ba_") or destination_id == "ba_":
+            return unavailable
+
+        trace_id = payout.get("trace_id")
+        if not isinstance(trace_id, dict):
+            return unavailable
+        if trace_id.get("status") != "supported":
+            return unavailable
+        try:
+            trace_value = StripeAdapter._require_stripe_identifier(
+                trace_id.get("value"), "payout.trace_id.value"
+            )
+        except ValueError:
+            return unavailable
+
+        return {
+            "status": "available",
+            "destination_id": destination_id,
+            "amount_minor_units": amount,
+            "value": trace_value,
+        }
+
     async def _verify_stripe_payout_membership(
         self,
         *,
@@ -1525,6 +1578,7 @@ class StripeAdapter:
         currency: str,
         expected_livemode: bool,
         expected_pairs: List[Any],
+        include_bank_payout_reference: bool = False,
     ) -> Dict[str, Any]:
         """
         Verify exact charge/balance-transaction membership in one known payout.
@@ -1534,7 +1588,10 @@ class StripeAdapter:
         balance_transaction_id)`` pairs from an upstream payment proof. This
         helper reads the payout and its payout-filtered balance transactions
         directly; it does not list unrelated transactions, infer settlement,
-        assert bank receipt, mutate Stripe, or write local state.
+        assert bank receipt, mutate Stripe, or write local state. When
+        ``include_bank_payout_reference`` is opt-in enabled, the result also
+        carries only the opaque Stripe bank-account destination id and trace
+        value; an unavailable reference never invalidates membership.
 
         Raises ``ValueError`` for malformed input, a payout that is not an
         automatic standard paid payout with completed reconciliation and no
@@ -1815,4 +1872,13 @@ class StripeAdapter:
                 pair["balance_transaction_id"] for pair in pairs
             ],
             "stripe_api_version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+            **(
+                {
+                    "bank_payout_reference": (
+                        self._stripe_bank_payout_reference(payout)
+                    )
+                }
+                if include_bank_payout_reference
+                else {}
+            ),
         }

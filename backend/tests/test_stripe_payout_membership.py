@@ -295,6 +295,7 @@ async def _run_case(case_id, expected_error, expected_paths):
                 "txn_second",
             ]
             assert evidence["stripe_api_version"] == "2026-10-28.endive"
+            assert "bank_payout_reference" not in evidence
             assert "fixture-only" not in json.dumps(evidence)
         else:
             with pytest.raises(ValueError) as exc_info:
@@ -311,3 +312,145 @@ async def _run_case(case_id, expected_error, expected_paths):
 @pytest.mark.parametrize("case_id,expected_error,expected_paths", CASES)
 def test_stripe_payout_membership(case_id, expected_error, expected_paths):
     asyncio.run(_run_case(case_id, expected_error, expected_paths))
+
+
+BANK_REFERENCE_KEYS = {
+    "status",
+    "destination_id",
+    "amount_minor_units",
+    "value",
+}
+
+
+async def _run_bank_reference_case(overrides, expected_reference, include=True):
+    case = _build_case("exact_two_pages")
+    case["payout"].update(
+        {
+            "type": "bank_account",
+            "amount": 123,
+            "destination": "ba_fixture",
+            "trace_id": {
+                "status": "supported",
+                "value": "trace_fixture",
+            },
+        }
+    )
+    case["payout"].update(overrides)
+
+    adapter = StripeAdapter(None, "fixture-workspace")
+    adapter._access_token = "fixture-only"
+    client = FakeStripeClient(case)
+
+    with patch(
+        "core.integrations.adapters.stripe.httpx.AsyncClient",
+        return_value=client,
+    ):
+        evidence = await adapter._verify_stripe_payout_membership(
+            **LOOKUP_KWARGS,
+            include_bank_payout_reference=include,
+        )
+
+    assert evidence["charge_balance_transaction_pairs"] == PAIRS
+    assert evidence["pair_count"] == 2
+    if expected_reference is None:
+        assert "bank_payout_reference" not in evidence
+    else:
+        assert evidence["bank_payout_reference"] == expected_reference
+        if expected_reference["status"] == "available":
+            assert set(evidence["bank_payout_reference"]) == BANK_REFERENCE_KEYS
+        else:
+            assert evidence["bank_payout_reference"] == {"status": "unavailable"}
+    assert client.paths == TRANSACTION_PATHS
+
+
+@pytest.mark.parametrize(
+    "overrides,expected_reference",
+    [
+        pytest.param(
+            {},
+            {
+                "status": "available",
+                "destination_id": "ba_fixture",
+                "amount_minor_units": 123,
+                "value": "trace_fixture",
+            },
+            id="available_string_destination",
+        ),
+        pytest.param(
+            {
+                "destination": {
+                    "object": "bank_account",
+                    "id": "ba_expanded",
+                }
+            },
+            {
+                "status": "available",
+                "destination_id": "ba_expanded",
+                "amount_minor_units": 123,
+                "value": "trace_fixture",
+            },
+            id="available_expanded_destination",
+        ),
+        pytest.param({}, None, id="legacy_opt_out"),
+        pytest.param({"type": "card"}, {"status": "unavailable"}, id="wrong_type"),
+        pytest.param({"amount": 0}, {"status": "unavailable"}, id="zero_amount"),
+        pytest.param({"amount": True}, {"status": "unavailable"}, id="boolean_amount"),
+        pytest.param(
+            {"destination": "ch_fixture"},
+            {"status": "unavailable"},
+            id="wrong_destination_prefix",
+        ),
+        pytest.param(
+            {"destination": "ba_"},
+            {"status": "unavailable"},
+            id="missing_destination_suffix",
+        ),
+        pytest.param(
+            {"destination": " ba_fixture"},
+            {"status": "unavailable"},
+            id="destination_not_trimmed",
+        ),
+        pytest.param(
+            {"destination": {"object": "card", "id": "ba_fixture"}},
+            {"status": "unavailable"},
+            id="wrong_expanded_object",
+        ),
+        pytest.param(
+            {"destination": {"id": "ba_fixture"}},
+            {"status": "unavailable"},
+            id="missing_expanded_object",
+        ),
+        pytest.param(
+            {"trace_id": {"status": "unsupported", "value": "trace_fixture"}},
+            {"status": "unavailable"},
+            id="unsupported_trace",
+        ),
+        pytest.param(
+            {"trace_id": {"status": "supported", "value": " trace_fixture"}},
+            {"status": "unavailable"},
+            id="trace_not_trimmed",
+        ),
+        pytest.param(
+            {"trace_id": {"status": "supported", "value": ""}},
+            {"status": "unavailable"},
+            id="empty_trace_value",
+        ),
+        pytest.param(
+            {"trace_id": "trace_fixture"},
+            {"status": "unavailable"},
+            id="string_trace",
+        ),
+        pytest.param(
+            {"trace_id": None},
+            {"status": "unavailable"},
+            id="missing_trace",
+        ),
+    ],
+)
+def test_stripe_payout_membership_bank_reference(
+    overrides, expected_reference
+):
+    include = expected_reference is not None
+    asyncio.run(
+        _run_bank_reference_case(overrides, expected_reference, include=include)
+    )
