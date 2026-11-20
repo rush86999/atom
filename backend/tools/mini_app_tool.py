@@ -206,6 +206,8 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
                     created_by=viewer.id,
                     commit=False,
                     require_cas=True,
+                    **({"expected_source_sha256": args["expected_source_sha256"]}
+                       if args.get("expected_source_sha256") is not None else {}),
                 )
             except LogicConflict:
                 return {
@@ -610,13 +612,13 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
         from core.task_lifecycle import _approval_payload_hash
         from sqlalchemy import select
 
-        validate_tests(tests)
         with get_db_session() as db:
             app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
             if app is None:
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
+            validate_tests(tests)
             prior_manifest = app.manifest
             prior_is_sql_null = bool(db.execute(
                 select(MiniApp.manifest.is_(None))
@@ -709,6 +711,7 @@ async def mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
         from core.database import get_db_session
         from core.mini_app_service import run_tests
         from core.models import MiniApp
+        from core.task_lifecycle import _approval_payload_hash
 
         with get_db_session() as db:
             app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
@@ -718,19 +721,34 @@ async def mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
                 return {"success": False, "error": "Not the app owner"}
             blueprint_canvas_id = app.blueprint_canvas_id
             tests = (app.manifest or {}).get("tests") or []
+        tests_sha256 = _approval_payload_hash(tests)
+        expected_tests_sha256 = args.get("expected_tests_sha256")
+        if expected_tests_sha256 is not None and expected_tests_sha256 != tests_sha256:
+            return {
+                "success": False,
+                "error": "mini_app_acceptance_tests_changed",
+                "tests_sha256": tests_sha256,
+            }
         if not tests:
             return {
                 "success": True,
                 "app_id": app_id,
+                "tests_sha256": tests_sha256,
                 "passed": 0,
                 "total": 0,
                 "results": [],
                 "message": "No acceptance tests saved — use mini_app_set_tests first",
             }
-        report = await run_tests(app_id, blueprint_canvas_id, tests, viewer=viewer)
+        expected_source_sha256 = args.get("expected_source_sha256")
+        report = await run_tests(
+            app_id, blueprint_canvas_id, tests, viewer=viewer,
+            **({"expected_source_sha256": expected_source_sha256}
+               if expected_source_sha256 is not None else {}),
+        )
         return {
             "success": True,
             "app_id": app_id,
+            "tests_sha256": tests_sha256,
             "passed": report["passed"],
             "total": report["total"],
             "all_passed": report["passed"] == report["total"],
