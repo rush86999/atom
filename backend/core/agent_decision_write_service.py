@@ -1912,10 +1912,14 @@ def admit_agent_run(
         return _not_applied(
             "The agent run could not be admitted; no effect was committed")
 
+    from core.execution_ownership import current_owner
+
     job_id = str(uuid.uuid4())
     job_material = {
         "operation_id": operation_id,
         "parameters_digest": parameters_digest,
+        # Server-owned owner captured at admission, never client-supplied.
+        "admission_owner": current_owner(),
         # Server-owned maturity captured before the status CAS above.
         # Dispatch re-reads this durable material; it is never inferred
         # from the transient ``running`` row. ``None`` means only the

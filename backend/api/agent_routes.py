@@ -2777,6 +2777,8 @@ def _begin_job(
     parameters are retained explicitly so the SAME job can be resumed after
     an information wait without inventing a new request.
     """
+    from core.execution_ownership import current_owner
+
     session = Session(bind=bind)
     try:
         job = session.get(AgentJob, job_id)
@@ -2796,6 +2798,7 @@ def _begin_job(
             return False
         current_summary = job.result_summary
         payload["dispatch_execution_id"] = execution_id
+        payload["dispatch_owner"] = current_owner()
         payload["dispatch_started"] = True
         if parameters is not None:
             try:

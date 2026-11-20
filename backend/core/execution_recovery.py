@@ -46,12 +46,16 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Tuple
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
 from core.models import (
     AgentExecution,
+    AgentJob,
+    AgentJobStatus,
     AgentRegistry,
+    AgentStatus,
     ChainLink,
     DelegationChain,
     ExecutionStatus,
@@ -76,6 +80,24 @@ _TERMINAL_CHAIN_STATUSES = frozenset({"completed", "failed", "cancelled", "cance
 #: once the chain's root execution is verified dead.
 _TERMINAL_LINK_STATUSES = _TERMINAL_CHAIN_STATUSES | frozenset({"skipped"})
 
+#: AgentJob statuses that can be orphaned by a dead worker. A waiting job is
+#: deliberately absent: it is a durable pause, not an in-flight claim.
+_ACTIVE_JOB_STATUSES = (
+    AgentJobStatus.PENDING.value,
+    AgentJobStatus.RUNNING.value,
+)
+
+# The registry stores the agent's pre-run status. These are the values this
+# recovery path is prepared to restore when a newer AgentStatus enum is not
+# available; "running" is never a valid *prior* status (it is the state being
+# recovered from).
+_SAFE_REGISTRY_PRIOR_STATUSES = frozenset({
+    "idle", "active", "inactive", "enabled", "disabled", "available",
+    "offline", "online", "ready", "busy", "paused", "suspended",
+    "stopped", "failed", "error", "success", "completed",
+    "student", "intern", "supervised", "autonomous",
+    "new", "draft", "archived",
+})
 
 
 def _recover_workflow_executions(session: Session) -> int:
@@ -261,6 +283,198 @@ def _metadata_dict(metadata: Any) -> Dict[str, Any]:
     if isinstance(metadata, dict):
         return dict(metadata)
     return {}
+
+
+def _job_payload(summary: Any) -> Any:
+    """Parse an AgentJob's persisted JSON payload without losing its shape.
+
+    Returns a dict for a valid object (or an empty job), and ``None`` when a
+    non-empty summary cannot be understood. The caller treats ``None`` as
+    UNKNOWN and leaves the row alone: rewriting an unreadable payload would
+    discard the only copy of whatever it contained.
+    """
+    if summary is None or summary == "":
+        return {}
+    if isinstance(summary, str):
+        try:
+            summary = json.loads(summary)
+        except (ValueError, TypeError):
+            return None
+    if isinstance(summary, dict):
+        return dict(summary)
+    return None
+
+
+def _valid_registry_prior_status(value: Any) -> bool:
+    """Whether ``value`` is a safe, non-active AgentRegistry status to restore."""
+    if not isinstance(value, str):
+        return False
+    token = value.strip().lower()
+    if not token or token == ExecutionStatus.RUNNING.value:
+        return False
+    allowed = set(_SAFE_REGISTRY_PRIOR_STATUSES)
+    try:
+        allowed.update(
+            str(member.value).strip().lower() for member in AgentStatus)
+    except (TypeError, AttributeError):
+        pass
+    return token in allowed
+
+
+def _restore_registry_after_job_recovery(
+    session: Session, *, job_id: Any, agent_id: Any, prior_status: Any,
+) -> bool:
+    """Restore an agent that admission changed to ``running`` for this job.
+
+    Every guard is required: this job's exact CAS must have won (the caller
+    only invokes this after a rowcount of one), the recorded prior status must
+    be valid and non-active, the registry must still be ``running``, and no
+    other active job may exist for the same agent. The registry update runs in
+    the caller's transaction, so the job transition and the restoration are
+    one durable decision.
+    """
+    if not agent_id or not _valid_registry_prior_status(prior_status):
+        return False
+    other_active = (
+        session.query(AgentJob.id)
+        .filter(
+            AgentJob.agent_id == agent_id,
+            AgentJob.id != job_id,
+            AgentJob.status.in_(_ACTIVE_JOB_STATUSES),
+        )
+        .first()
+    )
+    if other_active is not None:
+        return False
+    restored = session.execute(
+        update(AgentRegistry)
+        .where(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.status == ExecutionStatus.RUNNING.value,
+        )
+        .values(status=prior_status)
+    )
+    return restored.rowcount == 1
+
+
+def _recover_agent_jobs(session: Session) -> int:
+    """Terminally fail AgentJobs whose admitted/dispatched owner is dead.
+
+    Only ``pending`` and ``running`` jobs are candidates. The owner is the
+    persisted JSON ``dispatch_owner`` once ``dispatch_started`` is true, and
+    the persisted ``admission_owner`` before dispatch. ``owner_liveness`` is
+    the sole authority: a live, self, cross-host or otherwise UNKNOWN owner
+    leaves the row exactly as it was, waiting rows are never selected, and an
+    unreadable payload is preserved rather than rewritten.
+
+    The transition is an exact CAS on id, agent, original status and original
+    summary. The existing payload is copied forward, then only the terminal
+    outcome fields are replaced. A dispatched job is explicitly uncertain and
+    must be reconciled; nothing here retries work or claims that no side effect
+    occurred.
+
+    Returns the number of jobs recovered.
+    """
+    from core.execution_ownership import HOSTNAME, owner_liveness
+
+    rows = (
+        session.query(AgentJob)
+        .filter(AgentJob.status.in_(_ACTIVE_JOB_STATUSES))
+        .all()
+    )
+    now = datetime.now(timezone.utc)
+    recovered = 0
+    for job in rows:
+        original_status = str(job.status or "")
+        if original_status not in _ACTIVE_JOB_STATUSES:
+            continue
+        original_summary = job.result_summary
+        payload = _job_payload(original_summary)
+        if payload is None:
+            continue
+
+        if "dispatch_started" in payload:
+            dispatched = bool(payload.get("dispatch_started"))
+        else:
+            dispatched = bool(getattr(job, "dispatch_started", False))
+        owner_key = "dispatch_owner" if dispatched else "admission_owner"
+        owner = payload.get(owner_key)
+        if owner is None:
+            # Some deployments persist the owner in a JSON column beside the
+            # summary. Both forms are the same durable claim.
+            owner = getattr(job, owner_key, None)
+        if isinstance(owner, str):
+            try:
+                owner = json.loads(owner)
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(owner, dict) or not owner.get("pid"):
+            continue
+        owner_host = owner.get("host")
+        if owner_host != HOSTNAME:
+            # A pid on another host is not evidence about this host.
+            continue
+
+        state, info = owner_liveness({"owner": owner})
+        if state != "dead":
+            continue
+        if info.get("host") and info.get("host") != HOSTNAME:
+            continue
+
+        new_payload = dict(payload)
+        new_payload["status"] = AgentJobStatus.FAILED.value
+        new_payload["reason"] = "worker_crashed"
+        if dispatched:
+            # The process may have completed effects before dying. Record the
+            # uncertainty; never retry and never assert a no-effect outcome.
+            new_payload["outcome"] = "uncertain"
+            new_payload["next_action"] = "reconcile_operation"
+            new_payload["requires_reconciliation"] = True
+        else:
+            new_payload["outcome"] = "worker_crashed"
+            new_payload["next_action"] = "review_failure"
+            new_payload["requires_reconciliation"] = False
+        new_payload["finished"] = True
+        new_payload["waiting"] = False
+        new_payload["recovery"] = {
+            "crashed": True,
+            "recovered_at": now.isoformat(),
+            "owner_state": state,
+            "owner_source": owner_key,
+            "prior_job_status": original_status,
+        }
+        new_summary = json.dumps(new_payload, sort_keys=True)
+
+        conditions = [
+            AgentJob.id == job.id,
+            AgentJob.agent_id == job.agent_id,
+            AgentJob.status == original_status,
+        ]
+        if original_summary is None:
+            conditions.append(AgentJob.result_summary.is_(None))
+        else:
+            conditions.append(AgentJob.result_summary == original_summary)
+        claimed = session.execute(
+            update(AgentJob)
+            .where(*conditions)
+            .values(
+                status=AgentJobStatus.FAILED.value,
+                result_summary=new_summary,
+                end_time=now,
+            ))
+        if claimed.rowcount != 1:
+            # A peer changed the job between the read and this CAS. Its state
+            # wins; do not restore the registry on the strength of a lost claim.
+            continue
+
+        _restore_registry_after_job_recovery(
+            session,
+            job_id=job.id,
+            agent_id=job.agent_id,
+            prior_status=payload.get("prior_status"),
+        )
+        recovered += 1
+    return recovered
 
 
 def _scope_text(value: Any) -> Any:
@@ -455,6 +669,7 @@ def reconcile_orphaned_executions() -> dict:
 
     Returns:
         ``{"workflow_recovered": int, "agent_recovered": int,
+           "agent_jobs_recovered": int,
            "agent_untouched_live": int, "agent_untouched_detail": [...],
            "agent_unknown_owner": int, "agent_unknown_detail": [...],
            "fleet_chains_recovered": int, "fleet_links_reconciled": int,
@@ -464,6 +679,7 @@ def reconcile_orphaned_executions() -> dict:
     if not RECOVERY_ENABLED:
         logger.info("Execution recovery disabled (ATOM_EXECUTION_RECOVERY_ENABLED=false)")
         return {"workflow_recovered": 0, "agent_recovered": 0,
+                "agent_jobs_recovered": 0,
                 "agent_untouched_live": 0, "agent_untouched_detail": [],
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
                 "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
@@ -475,14 +691,17 @@ def reconcile_orphaned_executions() -> dict:
         wf_count = _recover_workflow_executions(session)
         (agent_count, untouched, untouched_detail,
          unknown, recovered_ids) = _recover_agent_executions(session)
+        job_count = _recover_agent_jobs(session)
         (chain_count, link_count,
          chain_scope_skipped) = _recover_fleet_chains(session, recovered_ids)
         released = _release_crashed_chat_requests(session, recovered_ids)
         session.commit()
-        if wf_count or agent_count or released or chain_count or link_count:
+        if (wf_count or agent_count or job_count or released
+                or chain_count or link_count):
             logger.warning(
-                f"Crash recovery: reconciled {wf_count} workflow execution(s) and "
-                f"{agent_count} agent execution(s) with a VERIFIED dead owner; "
+                f"Crash recovery: reconciled {wf_count} workflow execution(s), "
+                f"{agent_count} agent execution(s) and {job_count} agent job(s) "
+                f"with a VERIFIED dead owner; "
                 f"failed {chain_count} fleet delegation chain(s) and "
                 f"{link_count} non-terminal chain link(s) bound to them; "
                 f"released {released} in-progress chat request(s); left "
@@ -536,6 +755,7 @@ def reconcile_orphaned_executions() -> dict:
         return {
             "workflow_recovered": wf_count,
             "agent_recovered": agent_count,
+            "agent_jobs_recovered": job_count,
             "agent_untouched_live": untouched,
             "agent_untouched_detail": untouched_detail,
             "agent_unknown_owner": len(unknown),
@@ -550,6 +770,7 @@ def reconcile_orphaned_executions() -> dict:
         session.rollback()
         logger.error(f"Execution recovery sweep failed: {e}")
         return {"workflow_recovered": 0, "agent_recovered": 0,
+                "agent_jobs_recovered": 0,
                 "agent_untouched_live": 0, "agent_untouched_detail": [],
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
                 "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
