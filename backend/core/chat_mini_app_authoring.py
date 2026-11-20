@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -282,7 +283,10 @@ def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[st
         "Write executable top-level statements. The runtime supplies the state "
         "dict and each per-run input field as a separate global. To persist "
         "results, update or assign the global state dict using JSON-serializable "
-        "values. No function is called automatically. Stdlib only.\n"
+        "values. No function is called automatically. There is no inputs "
+        "dictionary. For example, if the run provides a field named rows, "
+        "read it directly as rows and save a count with state['count'] = len(rows). "
+        "Stdlib only.\n"
         f"App name: {name}. App family/kind: {kind or 'general'}. "
         f"What it should do: {what}\n"
     )
@@ -308,7 +312,10 @@ def _strip_code_fences(text: str) -> str:
 
 async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional[str],
                         description: Optional[str], user_id: str,
-                        lessons: Optional[str] = None) -> Dict[str, Any]:
+                        lessons: Optional[str] = None,
+                        acceptance_cases: Any = None,
+                        acceptance_failures: Any = None,
+                        expected_source_sha256: Optional[str] = None) -> Dict[str, Any]:
     """Generate the logic body, syntax-gate it through write_logic, one repair
     retry on SyntaxError (the gate returns the line/offset)."""
     from tools.mini_app_tool import mini_app_write_logic
@@ -330,11 +337,17 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
                     "success": False,
                     "error": f"SyntaxError: generated code cannot call {name}()",
                 }
-        return await mini_app_write_logic(
-            {"app_id": app_id, "source": code}, _ctx(user_id)
-        )
+        args = {"app_id": app_id, "source": code}
+        if expected_source_sha256 is not None:
+            args["expected_source_sha256"] = expected_source_sha256
+        return await mini_app_write_logic(args, _ctx(user_id))
 
     prompt = _build_logic_prompt(name, kind, description, lessons)
+    if acceptance_cases:
+        prompt += "\nFixed acceptance cases: " + json.dumps(acceptance_cases, sort_keys=True)
+    if acceptance_failures:
+        prompt += "\nPrevious draft failed: " + json.dumps(acceptance_failures, sort_keys=True)
+
     source = ""
     if llm_service is not None:
         try:
@@ -345,6 +358,8 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
             source = _strip_code_fences((resp or {}).get("content") or "")
         except Exception as e:  # noqa: BLE001
             logger.debug("mini-app logic generation failed: %s", e)
+    if not source and acceptance_failures:
+        return {"success": False, "error": "No repair generated"}
     used_starter = not source
     if used_starter:
         # Deterministic starter body (same contract the scaffold template uses).
@@ -394,6 +409,8 @@ async def try_handle(
     llm_service: Any,
     canvas: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,
+    *,
+    acceptance_cases: Any = None,
 ) -> Optional[Dict[str, Any]]:
     """Entry point from the chat flow. Returns the chat response dict when the
     turn IS a mini-app request (handled here), or None to fall through.
@@ -430,7 +447,8 @@ async def try_handle(
 
         if action == "build":
             res = await _handle_build(
-                ask, user_id, llm_service, host_canvas_type, canvas_id, message
+                ask, user_id, llm_service, host_canvas_type, canvas_id, message,
+                acceptance_cases=acceptance_cases,
             )
         else:
             res = await _route_app_action(action, ask, message, user_id, canvas_id)
@@ -501,11 +519,60 @@ async def _route_app_action(action: str, ask: Dict[str, Any], message: str,
     return None
 
 
+async def _verify_build(
+    app_id, context, cases, tests_sha256, source_sha256,
+    save_cases, run_cases, repair,
+):
+    if not cases:
+        return {"status": "not_run"}
+    if not source_sha256:
+        return {"status": "unverified", "reason": "logic_not_saved"}
+
+    saved = await save_cases({"app_id": app_id, "tests": cases}, context)
+    if not saved.get("success"):
+        return {"status": "unverified", "reason": "tests_not_saved"}
+
+    args = {
+        "app_id": app_id,
+        "expected_tests_sha256": tests_sha256,
+        "expected_source_sha256": source_sha256,
+    }
+    report = await run_cases(args, context)
+    for attempt in range(2):
+        if (not report.get("success")
+                or report.get("tests_sha256") != tests_sha256
+                or report.get("total") != len(cases)):
+            return {"status": "unverified", "reason": "test_run_incomplete"}
+        if report.get("all_passed") is True and report.get("passed") == len(cases):
+            return {"status": "passed", "report": report,
+                    "source_sha256": args["expected_source_sha256"]}
+        failures = [row for row in report.get("results", []) if row.get("passed") is False]
+        if attempt or not failures or any(row.get("error") for row in failures):
+            break
+        repaired_sha256 = await repair(failures)
+        if not repaired_sha256:
+            break
+        args = {**args, "expected_source_sha256": repaired_sha256}
+        report = await run_cases(args, context)
+    return {"status": "failed", "report": report,
+            "source_sha256": args["expected_source_sha256"]}
+
+
 async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
                         host_canvas_type: Optional[str],
                         canvas_id: Optional[str] = None,
-                        request_query: str = "") -> Dict[str, Any]:
+                        request_query: str = "",
+                        acceptance_cases: Any = None) -> Dict[str, Any]:
+    from core.mini_app_service import validate_tests
     from tools.mini_app_tool import mini_app_dev_run, mini_app_scaffold
+
+    if acceptance_cases is not None:
+        try:
+            validate_tests(acceptance_cases)
+        except ValueError as exc:
+            result = _say(f"Check the supplied acceptance cases before building. {exc}")
+            result["data"]["acceptance_status"] = "invalid_cases"
+            return result
 
     kind = (ask.get("canvas_type") or host_canvas_type or "").strip().lower() or None
     name = (ask.get("name") or "").strip() or f"{(kind or 'Chat').title()} Mini-App"
@@ -546,12 +613,42 @@ async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
 
     write = await _author_logic(
         llm_service, app_id, name, kind, ask.get("description"), user_id,
-        lessons=lessons,
+        lessons=lessons, acceptance_cases=acceptance_cases,
     )
     logic_note = (
         f"logic saved (checkpoint v{write.get('version')})" if write.get("success")
         else f"logic save failed: {write.get('error')} — fix it in the Mini-App Harness editor"
     )
+
+    if acceptance_cases:
+        from core.task_lifecycle import _approval_payload_hash
+        from tools.mini_app_tool import mini_app_run_tests, mini_app_set_tests
+
+        async def repair(failures):
+            if llm_service is None:
+                return None
+            fixed = await _author_logic(
+                llm_service, app_id, name, kind, ask.get("description"), user_id,
+                lessons=lessons, acceptance_cases=acceptance_cases,
+                acceptance_failures=failures,
+                expected_source_sha256=write["source_sha256"],
+            )
+            return fixed.get("source_sha256") if fixed.get("success") else None
+
+        outcome = await _verify_build(
+            app_id, _ctx(user_id), acceptance_cases,
+            _approval_payload_hash(acceptance_cases),
+            write.get("source_sha256") if write.get("success") and not write.get("used_starter") else None,
+            mini_app_set_tests, mini_app_run_tests, repair,
+        )
+        report = outcome.get("report") or {}
+        result = _say(
+            f"Saved draft '{name}' — app {app_id}, blueprint canvas {scaffold.get('canvas_id')}. "
+            + (f"{report['passed']}/{report['total']} supplied acceptance cases passed."
+               if report else "The supplied acceptance cases could not be verified.")
+        )
+        result["data"]["acceptance"] = outcome
+        return result
 
     run = await mini_app_dev_run({"app_id": app_id, "inputs": {}}, _ctx(user_id))
     if run.get("success"):

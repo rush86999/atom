@@ -35,6 +35,7 @@ import.
 """
 from __future__ import annotations
 
+import errno
 import hashlib
 import logging
 import os
@@ -51,6 +52,8 @@ from core.local_paths import anchor_sqlite_url
 logger = logging.getLogger(__name__)
 
 JOB_STORE_FILE = "jobs.sqlite"
+# Appended to the resolved store filename to form the sibling lock sidecar.
+JOB_STORE_LOCK_SUFFIX = ".lock"
 
 
 class SchedulerStoreConflict(RuntimeError):
@@ -64,6 +67,22 @@ class SchedulerStoreUnavailable(RuntimeError):
     remove consumers) so a refused startup can never acknowledge a RAM-only
     pending job or present an empty store as authoritative.
     """
+
+
+class SchedulerStoreLockError(RuntimeError):
+    """The scheduler store ownership lock could not be managed."""
+
+
+class SchedulerStoreLockUnsupported(SchedulerStoreLockError):
+    """The scheduler store cannot use a same-host filesystem lock.
+
+    Raised for non-SQLite backends, in-memory SQLite URLs and SQLite ``file:``
+    URI databases, which have no stable on-disk sibling for the sidecar.
+    """
+
+
+class SchedulerStoreLockContended(SchedulerStoreLockError):
+    """Another process already holds the scheduler store ownership lock."""
 
 
 _STORE_STATE_LOCK = threading.Lock()
@@ -157,6 +176,250 @@ def _safe_url(url: Optional[str]) -> str:
         return make_url(url).render_as_string(hide_password=True)
     except Exception:
         return "<unparseable-url>"
+
+
+def _ownership_lock_paths(
+    url: Optional[str], root: Path | str | None,
+) -> tuple[Path, Path]:
+    """Resolve the on-disk store path and its stable sibling lock sidecar.
+
+    Uses the same canonical URL anchoring as
+    :func:`reconcile_scheduler_job_store` and the same SQLite-file
+    classification as ``_sqlite_file_path``. Raises
+    :class:`SchedulerStoreLockUnsupported` for anything without a persistent
+    on-disk SQLite file. Error messages intentionally include no URL text, so
+    an unsupported backend's credentials cannot be echoed by this primitive.
+    """
+    if url is None:
+        from core.config import get_config
+
+        url = get_config().scheduler.job_store_url
+
+    base = Path(root) if root is not None else backend_root()
+    try:
+        effective = resolve_scheduler_job_store_url(url, base)
+    except Exception:
+        raise SchedulerStoreLockUnsupported(
+            "scheduler ownership lock could not resolve the configured "
+            "scheduler store URL; a persistent on-disk SQLite URL is required"
+        ) from None
+    path = _sqlite_file_path(effective)
+    if path is None:
+        try:
+            parsed = make_url(effective)
+        except Exception:
+            raise SchedulerStoreLockUnsupported(
+                "scheduler ownership lock requires a parseable SQLite URL; "
+                "the configured scheduler store URL could not be parsed"
+            ) from None
+        backend = parsed.get_backend_name()
+        database = parsed.database
+        if backend != "sqlite":
+            raise SchedulerStoreLockUnsupported(
+                "scheduler ownership lock supports only persistent on-disk "
+                f"SQLite stores; the configured backend is {backend!r}"
+            ) from None
+        if not database or database == ":memory:":
+            raise SchedulerStoreLockUnsupported(
+                "scheduler ownership lock requires a persistent on-disk "
+                "SQLite store; the configured URL is an in-memory database"
+            ) from None
+        raise SchedulerStoreLockUnsupported(
+            "scheduler ownership lock does not support SQLite URI (file:) "
+            "databases; configure a plain filesystem path"
+        ) from None
+
+    try:
+        store_path = path.resolve(strict=True)
+    except FileNotFoundError:
+        # Permit only a genuinely new final plain filename. Broken/cyclic final
+        # symlinks are not plain filenames, and the parent must fully resolve.
+        if path.is_symlink() or path.name in ("", ".", ".."):
+            raise SchedulerStoreLockError("invalid scheduler store path") from None
+        try:
+            parent_path = path.parent.resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise SchedulerStoreLockError("invalid scheduler store path") from None
+        store_path = parent_path / path.name
+    except (OSError, RuntimeError):
+        # Broken/cyclic symlinks and unresolvable parents must never acquire a lock.
+        raise SchedulerStoreLockError("invalid scheduler store path") from None
+    else:
+        # Defensive check for interpreters that fail to raise on a self-referential
+        # final symlink during strict resolution.
+        if not path.exists():
+            raise SchedulerStoreLockError("invalid scheduler store path") from None
+    lock_path = store_path.with_name(store_path.name + JOB_STORE_LOCK_SUFFIX)
+    return store_path, lock_path
+
+
+class SchedulerStoreOwnershipLock:
+    """Exclusive same-host ownership lock for a persistent SQLite job store.
+
+    This is an opt-in runtime primitive. It never creates, reconciles or
+    mutates the job store, and nothing in this module acquires it implicitly.
+
+    Lifecycle
+    ---------
+    * Construct with the scheduler's job-store URL (and the same optional
+      ``root`` test seam used by the reconciler). Construction resolves and
+      validates the URL but performs no filesystem writes.
+    * :meth:`acquire` opens/creates ``<store>.lock`` next to the store, takes
+      a nonblocking exclusive POSIX ``flock`` and keeps that descriptor open.
+      The lock is held until :meth:`release` (or ``__exit__``) closes it.
+    * :meth:`acquire` is not reentrant on one instance. A competing owner
+      raises :class:`SchedulerStoreLockContended`; other open/flock failures
+      raise :class:`SchedulerStoreLockError`. The descriptor is closed before
+      any acquisition failure escapes.
+    * :meth:`release` unlocks and closes the descriptor but deliberately never
+      unlinks ``<store>.lock``. Unlinking would let a later process create a
+      new inode at the same path while an earlier waiter still holds the old
+      one, defeating mutual exclusion.
+    * The returned object must be kept alive for the ownership period. Use it
+      as a context manager, or call :meth:`release` explicitly.
+
+    Limitations
+    -----------
+    * Same-host only: ``flock`` is not a reliable cross-host or NFS lock.
+    * Advisory only: processes that do not use this primitive are not blocked,
+      and SQLite's own locking is a separate mechanism.
+    * It coordinates scheduler ownership, not store reconciliation or job
+      execution; startup wiring is intentionally out of scope here.
+    * The sidecar may be created empty and is intentionally left behind.
+    * External deletion/replacement of the sidecar can defeat exclusion; this
+      primitive itself never unlinks it.
+    * The open descriptor is inherited across ``fork``; child processes should
+      release it or avoid forking while ownership is held.
+    * POSIX only: platforms without ``fcntl.flock`` are rejected explicitly.
+    """
+
+    def __init__(
+        self, url: Optional[str] = None, *,
+        root: Path | str | None = None,
+    ) -> None:
+        self._store_path, self._lock_path = _ownership_lock_paths(url, root)
+        self._fd: Optional[int] = None
+
+    @property
+    def store_path(self) -> Path:
+        """Canonical on-disk SQLite store this lock protects."""
+        return self._store_path
+
+    @property
+    def lock_path(self) -> Path:
+        """Stable sibling sidecar used for the ``flock``; never unlinked."""
+        return self._lock_path
+
+    @property
+    def is_held(self) -> bool:
+        """Whether this object currently holds an open lock descriptor."""
+        return self._fd is not None
+
+    def acquire(self) -> "SchedulerStoreOwnershipLock":
+        """Take the nonblocking exclusive lock, returning ``self``.
+
+        Raises :class:`SchedulerStoreLockContended` when another process owns
+        the store and :class:`SchedulerStoreLockError` for other failures.
+        """
+        if self._fd is not None:
+            raise SchedulerStoreLockError(
+                f"scheduler ownership lock {self._lock_path} is already held "
+                "by this object")
+        try:
+            import fcntl
+        except ImportError:
+            raise SchedulerStoreLockUnsupported(
+                "scheduler ownership locks require POSIX fcntl.flock, which "
+                "is unavailable on this platform") from None
+
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+        fd: Optional[int] = None
+        try:
+            fd = os.open(os.fspath(self._lock_path), flags, 0o600)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise SchedulerStoreLockContended(
+                    f"scheduler job store {self._store_path} is already owned "
+                    f"(lock {self._lock_path} is held by another owner)"
+                ) from None
+            except OSError as exc:
+                if exc.errno in (errno.EACCES, errno.EAGAIN,
+                                 errno.EWOULDBLOCK):
+                    raise SchedulerStoreLockContended(
+                        f"scheduler job store {self._store_path} is already "
+                        "owned (lock "
+                        f"{self._lock_path} is held by another owner)"
+                    ) from None
+                raise SchedulerStoreLockError(
+                    "could not acquire scheduler ownership lock "
+                    f"{self._lock_path}: {exc.strerror or exc}") from None
+        except SchedulerStoreLockError:
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            raise
+        except OSError as exc:
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            raise SchedulerStoreLockError(
+                "could not open scheduler ownership lock "
+                f"{self._lock_path}: {exc.strerror or exc}") from None
+
+        self._fd = fd
+        logger.info(
+            "scheduler job store: acquired ownership lock %s for %s",
+            self._lock_path, self._store_path)
+        return self
+
+    def release(self) -> None:
+        """Unlock and close the descriptor; never unlink the sidecar inode."""
+        fd, self._fd = self._fd, None
+        if fd is None:
+            return
+        try:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError as exc:
+            logger.warning(
+                "scheduler job store: explicit unlock of %s failed (%s); "
+                "closing the descriptor still releases it",
+                self._lock_path, exc.strerror or exc)
+        finally:
+            try:
+                os.close(fd)
+            except OSError as exc:
+                logger.warning(
+                    "scheduler job store: closing ownership lock descriptor "
+                    "for %s failed (%s)",
+                    self._lock_path, exc.strerror or exc)
+        logger.info(
+            "scheduler job store: released ownership lock %s for %s",
+            self._lock_path, self._store_path)
+        # Deliberately no unlink here. The inode is the lock identity: removing
+        # it would let a new process lock a fresh inode at the same path while
+        # an existing waiter still holds the old one.
+
+    def __enter__(self) -> "SchedulerStoreOwnershipLock":
+        return self.acquire()
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
+        self.release()
+        return False
+
+
+def acquire_scheduler_store_ownership_lock(
+    url: Optional[str],
+    *,
+    root: Path | str | None = None,
+) -> SchedulerStoreOwnershipLock:
+    return SchedulerStoreOwnershipLock(url, root=root).acquire()
 
 
 def _sha256(path: Path) -> str:

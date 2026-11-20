@@ -257,7 +257,7 @@ def validate_tests(tests: Any) -> None:
             raise ValueError("test.expect_ops must be a list")
         if "name" in case and not isinstance(case["name"], str):
             raise ValueError("test.name must be a string")
-        if "expect_state" not in case and "expect_ops" not in case:
+        if not case.get("expect_state") and not case.get("expect_ops"):
             raise ValueError(
                 "each test case must declare expect_state and/or expect_ops"
             )
@@ -1565,6 +1565,7 @@ async def run_stateful(
     viewer: Any = None,
     viewer_tier: Optional[str] = None,
     initial_state: Optional[Dict[str, Any]] = None,
+    expected_source_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run the mini-app logic once (stateful controller run).
 
@@ -1714,7 +1715,11 @@ async def run_stateful(
             source = CanvasLogicService(db).load_logic(canvas_id)
             if source is None:
                 return {"success": False, "error": f"No logic saved for canvas {canvas_id}"}
-            wrapped = _wrap_source(source.get("source", ""))
+            logic_source = source.get("source", "")
+            if (expected_source_sha256 is not None
+                    and logic_source_sha256(logic_source) != expected_source_sha256):
+                return {"success": False, "error": "mini_app_logic_changed"}
+            wrapped = _wrap_source(logic_source)
 
             runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable (or docker-dev refused/unreachable)
             # Release the read snapshot before the guest: in-guest callback
@@ -2648,6 +2653,7 @@ async def run_tests(
     tests: List[Dict[str, Any]],
     viewer: Any = None,
     viewer_tier: Optional[str] = None,
+    expected_source_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run each acceptance case in the microVM (dry) and grade it.
 
@@ -2660,7 +2666,13 @@ async def run_tests(
     results: List[Dict[str, Any]] = []
     passed = 0
     for i, case in enumerate(tests):
-        name = case.get("name") or f"case-{i}"
+        name = (case.get("name") if isinstance(case, dict) else None) or f"case-{i}"
+        try:
+            validate_tests([case])
+        except ValueError as exc:
+            results.append({"name": name, "passed": False, "error": str(exc)})
+            continue
+
         try:
             res = await run_stateful(
                 blueprint_canvas_id,
@@ -2670,6 +2682,8 @@ async def run_tests(
                 viewer=viewer,
                 viewer_tier=viewer_tier,
                 initial_state=case.get("initial_state"),
+                **({"expected_source_sha256": expected_source_sha256}
+                   if expected_source_sha256 is not None else {}),
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("Acceptance case %s raised: %s", name, e)
@@ -2687,9 +2701,13 @@ async def run_tests(
         actual = res.get("state") or {}
         expect = case.get("expect_state") or {}
         diff = {
-            k: {"expected": v, "actual": actual.get(k)}
+            k: (
+                {"expected": v, "actual": actual[k]}
+                if k in actual
+                else {"expected": v, "actual": None, "missing": True}
+            )
             for k, v in expect.items()
-            if actual.get(k) != v
+            if k not in actual or actual[k] != v
         }
         state_ok = not diff
 
