@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 jest.mock("@/lib/assignment-api", () => ({
@@ -504,4 +504,102 @@ test("explains a durable wait and delivers the source-bound answer", async () =>
     .toHaveBeenCalledWith(
       "run-1", "await-abc", "received 2 units", "", "2",
       "warehouse receiving"));
+});
+
+test("a deep link selects the exact run even when it is missing from recent summaries", async () => {
+  (listAssignments as jest.Mock).mockResolvedValue([
+    {
+      run_id: "run-other",
+      status: "completed",
+      assignment: {
+        assignment_id: "asg-other",
+        objective: "Unrelated recent assignment",
+        state: "completed",
+        plan_revision: 1,
+        current_action: "",
+      },
+    },
+  ]);
+
+  render(<AssignmentPanel runId="run-1" />);
+
+  const detailNode = await screen.findByTestId("assignment-detail");
+  expect(within(detailNode).getByText("Prepare the controlled response"))
+    .toBeInTheDocument();
+  expect(getAssignment).toHaveBeenCalledWith("run-1");
+  expect(getAssignment).not.toHaveBeenCalledWith("run-other");
+  expect(screen.getByTestId("assignment-summary-run-other"))
+    .toBeInTheDocument();
+});
+
+test("a denied deep-linked run shows its error without falling back", async () => {
+  (listAssignments as jest.Mock).mockResolvedValue([
+    {
+      run_id: "run-other",
+      status: "waiting",
+      assignment: {
+        assignment_id: "asg-other",
+        objective: "Unrelated recent assignment",
+        state: "waiting",
+        plan_revision: 1,
+        current_action: "Send response",
+      },
+    },
+  ]);
+  (getAssignment as jest.Mock).mockRejectedValue(
+    new Error("Assignment access denied"));
+
+  render(<AssignmentPanel runId="run-denied" />);
+
+  expect(await screen.findByText("Assignment access denied"))
+    .toBeInTheDocument();
+  expect(getAssignment).toHaveBeenCalledWith("run-denied");
+  expect(getAssignment).not.toHaveBeenCalledWith("run-other");
+  expect(screen.queryByTestId("assignment-detail")).not.toBeInTheDocument();
+});
+
+test("a route run change hides the prior assignment and ignores stale detail", async () => {
+  const first = JSON.parse(JSON.stringify(detail));
+  first.assignment.objective = "First route objective";
+  const second = JSON.parse(JSON.stringify(detail));
+  second.run_id = "run-2";
+  second.assignment.assignment_id = "asg-2";
+  second.assignment.objective = "Second route objective";
+  const third = JSON.parse(JSON.stringify(detail));
+  third.run_id = "run-3";
+  third.assignment.assignment_id = "asg-3";
+  third.assignment.objective = "Third route objective";
+
+  let resolveSecond: (value: unknown) => void = () => {};
+  const secondPromise = new Promise((resolve) => {
+    resolveSecond = resolve;
+  });
+  (getAssignment as jest.Mock).mockImplementation((requested: string) => {
+    if (requested === "run-1") return Promise.resolve(first);
+    if (requested === "run-2") return secondPromise;
+    if (requested === "run-3") return Promise.resolve(third);
+    return Promise.reject(new Error("not found"));
+  });
+
+  const { rerender } = render(<AssignmentPanel runId="run-1" />);
+  expect(await screen.findByText("First route objective")).toBeInTheDocument();
+
+  rerender(<AssignmentPanel runId="run-2" />);
+  await waitFor(() => expect(getAssignment).toHaveBeenCalledWith("run-2"));
+  expect(screen.queryByText("First route objective"))
+    .not.toBeInTheDocument();
+  expect(screen.queryByTestId("assignment-detail")).not.toBeInTheDocument();
+
+  rerender(<AssignmentPanel runId="run-3" />);
+  expect(await screen.findByText("Third route objective")).toBeInTheDocument();
+
+  await act(async () => {
+    resolveSecond(second);
+    await secondPromise;
+  });
+  expect(screen.queryByText("Second route objective"))
+    .not.toBeInTheDocument();
+  expect(screen.getByText("Third route objective")).toBeInTheDocument();
+  expect(screen.queryByText("First route objective"))
+    .not.toBeInTheDocument();
 });

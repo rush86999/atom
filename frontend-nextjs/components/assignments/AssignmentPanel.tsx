@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -115,9 +115,11 @@ function authorityLabel(authority: string): string {
 export function AssignmentPanel({
   className = "",
   agentId = null,
+  runId = null,
 }: {
   className?: string;
   agentId?: string | null;
+  runId?: string | null;
 }) {
   const { isCapabilityEnabled } = useProductProfile();
   const connectorsEnabled = isCapabilityEnabled("connectors");
@@ -165,21 +167,45 @@ export function AssignmentPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const runIdRef = useRef<string | null>(runId);
+  runIdRef.current = runId;
+  const selectedRef = useRef<string | null>(selected);
+  selectedRef.current = selected;
+  const detailRequestRef = useRef(0);
+  const listRequestRef = useRef(0);
+  const appliedRunIdRef = useRef<string | null>(null);
+
   const refreshList = useCallback(async () => {
+    const requestId = ++listRequestRef.current;
     try {
       const rows = await listAssignments();
+      if (listRequestRef.current !== requestId) return;
       setSummaries(rows);
-      if (!selected && rows.length) setSelected(rows[0].run_id);
+      setSelected((current) => {
+        if (current) return current;
+        const requested = runIdRef.current;
+        if (requested) return requested;
+        return rows.length ? rows[0].run_id : null;
+      });
     } catch (err) {
+      if (listRequestRef.current !== requestId) return;
       setError(err instanceof Error ? err.message : "Could not load assignments");
     }
-  }, [selected]);
+  }, []);
 
-  const refreshDetail = useCallback(async (runId: string) => {
+  const refreshDetail = useCallback(async (targetRunId: string) => {
+    if (selectedRef.current !== targetRunId) return;
+    const requestId = ++detailRequestRef.current;
     try {
-      setDetail(await getAssignment(runId));
+      const next = await getAssignment(targetRunId);
+      if (detailRequestRef.current !== requestId) return;
+      if (selectedRef.current !== targetRunId) return;
+      setDetail(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load assignment");
+      if (detailRequestRef.current !== requestId) return;
+      if (selectedRef.current !== targetRunId) return;
+      setDetail(null);
+      setError(userFacingError(err, "Could not load assignment"));
     }
   }, []);
 
@@ -217,13 +243,33 @@ export function AssignmentPanel({
   }, []);
 
   useEffect(() => {
+    if (runId) {
+      if (appliedRunIdRef.current !== runId) {
+        appliedRunIdRef.current = runId;
+        setSelected(runId);
+      }
+      return;
+    }
+    if (appliedRunIdRef.current !== null) {
+      appliedRunIdRef.current = null;
+      setSelected((current) => {
+        if (current && summaries.some((row) => row.run_id === current)) {
+          return current;
+        }
+        return summaries[0]?.run_id ?? null;
+      });
+    }
+  }, [runId, summaries]);
+
+  useEffect(() => {
     refreshList();
     refreshSources();
     refreshAgents();
     // The NextAuth bridge writes auth_token in an effect. On a first visit
     // immediately after login this page can mount before that write, fetch
     // unauthenticated, and keep showing "No durable assignments yet" until a
-    // manual reload. Re-run the three reads once the token appears.
+    // manual reload. Re-run the reads, plus the selected durable detail, once
+    // the token appears.
     const tokenReady = () =>
       typeof window !== "undefined" &&
       !!(localStorage.getItem("auth_token") || localStorage.getItem("token"));
@@ -232,28 +278,39 @@ export function AssignmentPanel({
     const timer = window.setInterval(() => {
       if (tokenReady()) {
         window.clearInterval(timer);
+        const runId = selectedRef.current;
         setError(null);
         refreshList();
         refreshSources();
         refreshAgents();
+        if (runId) refreshDetail(runId);
       } else if (++tries > 40) {
         window.clearInterval(timer);
       }
     }, 250);
     return () => window.clearInterval(timer);
-  }, [refreshList, refreshSources, refreshAgents]);
+  }, [refreshList, refreshSources, refreshAgents, refreshDetail]);
 
   useEffect(() => {
+    setDetail(null);
+    setError(null);
+    setNotice(null);
+    setGapDrafts({});
+    setCorrection(null);
+    setResponseDraft("");
+    setResolutionValue("");
+    setReconcileEvidence("");
+    setReconcileProviderRef("");
     if (selected) refreshDetail(selected);
   }, [selected, refreshDetail]);
 
-  const act = async (fn: () => Promise<unknown>, runId: string) => {
+  const act = async (fn: () => Promise<unknown>, targetRunId: string) => {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       await fn();
-      await refreshDetail(runId);
+      await refreshDetail(targetRunId);
       await refreshList();
     } catch (err) {
       setError(userFacingError(err, "Action failed"));
@@ -496,6 +553,9 @@ export function AssignmentPanel({
   const invoiceCommitmentSteps = detail
     ? detail.assignment.steps.filter(isAppliedInvoiceReplyStep)
     : [];
+  const exactRunId = runId && appliedRunIdRef.current !== runId
+    ? runId
+    : null;
 
   return (
     <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
@@ -907,7 +967,9 @@ export function AssignmentPanel({
       </div>
 
       {summaries.length === 0 ? (
-        <p className="text-muted-foreground">No durable assignments yet.</p>
+        selected ? null : (
+          <p className="text-muted-foreground">No durable assignments yet.</p>
+        )
       ) : (
         <div className="space-y-1">
           {summaries.map((item) => (
@@ -917,7 +979,9 @@ export function AssignmentPanel({
               data-testid={`assignment-summary-${item.run_id}`}
               onClick={() => setSelected(item.run_id)}
               className={`w-full rounded border px-2 py-1.5 text-left ${
-                selected === item.run_id ? "border-indigo-400 bg-indigo-50" : ""
+                (exactRunId ?? selected) === item.run_id
+                  ? "border-indigo-400 bg-indigo-50"
+                  : ""
               }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -954,7 +1018,8 @@ export function AssignmentPanel({
         </div>
       )}
 
-      {detail ? (
+      {detail && selected
+        && detail.run_id === (exactRunId ?? selected) ? (
         <div className="space-y-3 rounded border p-2" data-testid="assignment-detail">
           <div>
             <div className="flex items-center justify-between gap-2">
