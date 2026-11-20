@@ -18,6 +18,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import core.autonomy_policy as autonomy_policy
+import core.invoice_launch_admission as invoice_launch_admission
 import core.task_classification as task_classification
 import core.workflow_engine as workflow_engine
 from core.autonomy_policy import (
@@ -26,12 +27,14 @@ from core.autonomy_policy import (
     warm_task_admission_receipt_denial,
 )
 from core.database import Base
+from core.invoice_launch_admission import InvalidStockInvoiceAccountOwner
 from core.models import HITLAction, Tenant, User, Workspace
 
 TENANT_ID = "fixture-tenant"
 WORKSPACE_ID = "fixture-workspace"
 USER_ID = "fixture-user"
 OTHER_USER_ID = "fixture-foreign-user"
+FOREIGN_SCOPE_USER_ID = "fixture-foreign-scope-owner"
 OTHER_TENANT_ID = "fixture-foreign-tenant"
 OTHER_WORKSPACE_ID = "fixture-foreign-workspace"
 EXECUTION_ID = "exec-invoice-review"
@@ -148,6 +151,8 @@ def scratch(tmp_path, monkeypatch):
             session.close()
 
     monkeypatch.setattr(workflow_engine, "get_db_session", get_db_session)
+    monkeypatch.setattr(
+        invoice_launch_admission, "get_db_session", get_db_session)
     try:
         yield session_factory
     finally:
@@ -451,3 +456,90 @@ async def test_policy_revision_renews_the_pending_review(
     ]
     assert len(current) == 1
     assert current[0].id == "hitl-invoice-2"
+
+
+class _LaunchStateManager:
+    """Record reservation attempts without creating durable work."""
+
+    def __init__(self):
+        self.reservations = []
+        self.status_updates = []
+
+    async def reserve_invoice_launch(
+            self,
+            invoice_number,
+            *,
+            identity,
+            idempotency_key,
+            account_owner_user_id=None):
+        self.reservations.append({
+            "invoice_number": invoice_number,
+            "identity": dict(identity),
+            "idempotency_key": idempotency_key,
+            "account_owner_user_id": account_owner_user_id,
+        })
+        return "exec-owner-guard", True
+
+    async def get_execution_state(self, _execution_id):
+        return {"status": "pending"}
+
+    async def update_execution_status(
+            self, execution_id, status, error=None):
+        self.status_updates.append((execution_id, status, error))
+        return True
+
+    async def restore_paused_invoice_launch(self, _execution_id):
+        return True
+
+
+class _LaunchGate:
+    """Record task-gate calls without filing a review."""
+
+    def __init__(self):
+        self.calls = []
+
+    async def admit_never_autonomous_task(self, **kwargs):
+        self.calls.append(kwargs)
+        return "paused"
+
+
+@pytest.mark.asyncio
+async def test_foreign_scope_explicit_owner_is_rejected_before_new_work(
+        scratch):
+    with scratch() as db:
+        db.add(_make_model(
+            User,
+            id=FOREIGN_SCOPE_USER_ID,
+            tenant_id=OTHER_TENANT_ID,
+            workspace_id=OTHER_WORKSPACE_ID,
+            email="fixture-foreign-scope@example.invalid",
+            first_name="Fixture",
+            last_name="Foreign",
+            status="active",
+            role="workspace_admin",
+            is_active=True,
+        ))
+        db.commit()
+
+    state_manager = _LaunchStateManager()
+    gate = _LaunchGate()
+
+    with pytest.raises(InvalidStockInvoiceAccountOwner) as excinfo:
+        await invoice_launch_admission.admit_stock_invoice_launch(
+            "INV-OWNER-GUARD",
+            identity={
+                "tenant_id": TENANT_ID,
+                "workspace_id": WORKSPACE_ID,
+                "user_id": USER_ID,
+            },
+            idempotency_key="owner-guard-foreign-scope",
+            account_owner_user_id=FOREIGN_SCOPE_USER_ID,
+            state_manager=state_manager,
+            engine=gate,
+        )
+
+    # The sanitized error cannot echo the selected owner or recipient detail.
+    assert FOREIGN_SCOPE_USER_ID not in str(excinfo.value)
+    # The guard precedes both the reservation and the human-review gate.
+    assert state_manager.reservations == []
+    assert gate.calls == []

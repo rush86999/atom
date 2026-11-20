@@ -54,6 +54,11 @@ class InvoiceLaunchConflict(RuntimeError, ValueError):
     """
 
 
+_INVOICE_LAUNCH_CONFLICT_MESSAGE = (
+    "idempotency key is already bound to another invoice or account owner"
+)
+
+
 def _invoice_intent_digest(invoice_number: str) -> str:
     return hashlib.sha256(
         invoice_number.encode("utf-8", "surrogatepass")
@@ -136,6 +141,37 @@ def _normalize_invoice_account_owner(value: Any) -> Optional[str]:
         raise ValueError(
             "account_owner_user_id must be a non-empty string")
     return owner
+
+
+def _prepare_invoice_launch_slot(
+    invoice_number: str,
+    identity: Optional[Dict[str, Any]],
+    idempotency_key: str,
+    account_owner_user_id: Optional[str],
+) -> Tuple[str, Dict[str, str], Optional[str], str]:
+    """Validate a launch request and derive its deterministic slot.
+
+    Shared by the write reservation and the read-only replay lookup so both
+    reject malformed requests identically and address the same slot.
+    """
+    if type(invoice_number) is not str or not invoice_number.strip():
+        raise ValueError("invoice_number must be a non-blank string")
+    if type(idempotency_key) is not str or not idempotency_key.strip():
+        raise ValueError("idempotency_key must be a non-blank string")
+    if len(idempotency_key) > _MAX_IDEMPOTENCY_KEY_LENGTH:
+        raise ValueError("idempotency_key is too long")
+    account_owner = _normalize_invoice_account_owner(
+        account_owner_user_id)
+
+    trusted = normalize_execution_identity(identity)
+    if any(not trusted.get(key) for key in _SCOPE_KEYS):
+        raise ValueError(
+            "identity must include tenant_id, workspace_id and user_id"
+        )
+
+    digest = _invoice_intent_digest(invoice_number)
+    execution_id = _invoice_launch_slot(trusted, idempotency_key)
+    return digest, trusted, account_owner, execution_id
 
 
 def _stored_invoice_account_owner(execution: Any) -> Optional[str]:
@@ -352,23 +388,11 @@ class ExecutionStateManager:
         any review or assignment exists, so a later competing retry cannot
         silently substitute a different owner for the same approved review.
         """
-        if type(invoice_number) is not str or not invoice_number.strip():
-            raise ValueError("invoice_number must be a non-blank string")
-        if type(idempotency_key) is not str or not idempotency_key.strip():
-            raise ValueError("idempotency_key must be a non-blank string")
-        if len(idempotency_key) > _MAX_IDEMPOTENCY_KEY_LENGTH:
-            raise ValueError("idempotency_key is too long")
-        account_owner = _normalize_invoice_account_owner(
-            account_owner_user_id)
-
-        trusted = normalize_execution_identity(identity)
-        if any(not trusted.get(key) for key in _SCOPE_KEYS):
-            raise ValueError(
-                "identity must include tenant_id, workspace_id and user_id"
+        digest, trusted, account_owner, execution_id = (
+            _prepare_invoice_launch_slot(
+                invoice_number, identity, idempotency_key, account_owner_user_id
             )
-
-        digest = _invoice_intent_digest(invoice_number)
-        execution_id = _invoice_launch_slot(trusted, idempotency_key)
+        )
 
         now = datetime.now(timezone.utc)
         receipt = {
@@ -414,8 +438,7 @@ class ExecutionStateManager:
                 existing, digest, trusted, account_owner
             ):
                 raise InvoiceLaunchConflict(
-                    "idempotency key is already bound to another invoice "
-                    "or account owner"
+                    _INVOICE_LAUNCH_CONFLICT_MESSAGE
                 ) from error
             return execution_id, False
 
@@ -424,6 +447,37 @@ class ExecutionStateManager:
             f"workflow {INVOICE_LAUNCH_WORKFLOW_ID}"
         )
         return execution_id, True
+
+    async def find_invoice_launch_reservation(
+        self,
+        invoice_number: str,
+        *,
+        identity: Optional[Dict[str, Any]],
+        idempotency_key: str,
+        account_owner_user_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Find the durable execution already reserved for this exact intent.
+
+        Returns the scoped execution id, or ``None`` when the slot is absent.
+        The lookup only reads: it never inserts, changes status, commits or
+        dispatches a review. An occupied slot bound to another invoice, owner
+        or scope raises the same :class:`InvoiceLaunchConflict` as
+        :meth:`reserve_invoice_launch`.
+        """
+        digest, trusted, account_owner, execution_id = (
+            _prepare_invoice_launch_slot(
+                invoice_number, identity, idempotency_key, account_owner_user_id
+            )
+        )
+
+        existing = await self._get_raw_execution(execution_id)
+        if existing is None:
+            return None
+        if not _is_matching_invoice_reservation(
+            existing, digest, trusted, account_owner
+        ):
+            raise InvoiceLaunchConflict(_INVOICE_LAUNCH_CONFLICT_MESSAGE)
+        return execution_id
 
     async def restore_paused_invoice_launch(self, execution_id: str) -> bool:
         """Restore ONE paused invoice reservation to ``PENDING``.

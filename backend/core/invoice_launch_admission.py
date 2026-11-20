@@ -1,10 +1,11 @@
 """Shared admission boundary for the stock invoice launch workflow.
 
 The service in this module deliberately sits *behind* the future route layer.
-It compiles the assignment on the server, reserves (or replays) the
-deterministic execution slot, runs the existing task-level never-autonomous
-gate, and only then attaches the plan.  It does not start an execution, call an
-invoice provider, send a message, or expose a public route.
+It validates an explicitly selected account owner, compiles the assignment on
+the server, reserves (or replays) the deterministic execution slot, runs the
+existing task-level never-autonomous gate, and only then attaches the plan.  It
+does not start an execution, call an invoice provider, send a message, or
+expose a public route.
 
 Keeping attachment after the gate is important: the generic background
 assignment recovery executes plans that are already attached to a run.  A plan
@@ -24,6 +25,8 @@ from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
+from core import notification_service
+from core.database import get_db_session
 from core.execution_state_manager import (
     INVOICE_LAUNCH_WORKFLOW_ID,
     InvoiceLaunchConflict,
@@ -37,11 +40,34 @@ from core.workflow_engine import WorkflowEngine
 __all__ = [
     "STOCK_INVOICE_LAUNCH_WORKFLOW_ID",
     "InvoiceLaunchConflict",
+    "InvoiceLaunchInvalidAccountOwner",
+    "InvalidStockInvoiceAccountOwner",
+    "StockInvoiceInvalidAccountOwner",
     "StockInvoiceLaunchAdmissionService",
     "admit_stock_invoice_launch",
     "build_stock_invoice_launch_assignment",
     "build_stock_invoice_launch_workflow",
 ]
+
+
+class InvalidStockInvoiceAccountOwner(PermissionError):
+    """An explicitly selected stock invoice account owner is not admissible.
+
+    The message is fixed and contains no owner id, recipient-check detail or
+    account state.  A route can therefore map this type to a stable client
+    response without leaking identity or recipient information.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "account_owner_user_id is not an active recipient in this "
+            "tenant/workspace")
+
+
+#: Module-aligned aliases for callers that name the admission failure.
+InvoiceLaunchInvalidAccountOwner = InvalidStockInvoiceAccountOwner
+StockInvoiceInvalidAccountOwner = InvalidStockInvoiceAccountOwner
+
 
 #: The durable workflow id shared with the reservation and assignment modules.
 STOCK_INVOICE_LAUNCH_WORKFLOW_ID = INVOICE_LAUNCH_WORKFLOW_ID
@@ -106,6 +132,37 @@ def _optional_account_owner(value: Any) -> Optional[str]:
         raise ValueError(
             "account_owner_user_id must be a non-empty string")
     return owner
+
+
+def _require_active_account_owner_blocking(
+    owner_id: str,
+    identity: Dict[str, str],
+) -> None:
+    """Reuse the exact attach-time tenant/workspace recipient predicate."""
+    with get_db_session() as session:
+        scope_error = notification_service._workflow_scope_error(
+            session,
+            user_id=owner_id,
+            workspace_id=identity["workspace_id"],
+            tenant_id=identity["tenant_id"],
+        )
+    if scope_error:
+        raise InvalidStockInvoiceAccountOwner()
+
+
+async def _require_active_account_owner(
+    owner_id: str,
+    identity: Dict[str, str],
+) -> None:
+    """Validate a selected owner without blocking the admission event loop."""
+    await asyncio.get_running_loop().run_in_executor(
+        None,
+        functools.partial(
+            _require_active_account_owner_blocking,
+            owner_id,
+            dict(identity),
+        ),
+    )
 
 
 def _invoice_number(value: Any) -> str:
@@ -487,6 +544,42 @@ async def _execution_state(
     return state if isinstance(state, Mapping) else {}
 
 
+async def _terminal_replay_for_invalid_owner(
+    state_manager: Any,
+    invoice: str,
+    *,
+    identity: Dict[str, str],
+    idempotency_key: str,
+    account_owner: str,
+) -> Optional[Dict[str, Any]]:
+    """Replay an existing *terminal* receipt without touching durable state.
+
+    A caller whose selected owner has since been deactivated must still be able
+    to observe an already cancelled/finished launch for the same deterministic
+    slot.  The read-only lookup identifies the exact slot; its durable status
+    decides whether that receipt may be returned.  Nothing is reserved,
+    reopened, attached or sent to review here, and a missing or nonterminal
+    slot yields ``None`` so the typed invalid-owner error is re-raised.
+    """
+    find = getattr(
+        state_manager, "find_invoice_launch_reservation", None)
+    if not callable(find):
+        return None
+    execution_id = _text(await find(
+        invoice,
+        identity=identity,
+        idempotency_key=idempotency_key,
+        account_owner_user_id=account_owner,
+    ))
+    if not execution_id:
+        return None
+    state = await _execution_state(state_manager, execution_id)
+    status = _status_text(state.get("status"))
+    if status not in _TERMINAL_STATUSES:
+        return None
+    return _terminal_result(execution_id, created=False, status=status)
+
+
 async def _paused_or_terminal_result(
     state_manager: Any,
     execution_id: str,
@@ -555,7 +648,9 @@ async def admit_stock_invoice_launch(
     The deterministic execution slot comes from the trusted actor plus
     ``idempotency_key``.  The invoice is immutable in the reservation, and the
     account owner is carried explicitly through every retry so attachment uses
-    the same owner binding.
+    the same owner binding.  An explicitly selected owner must be an active
+    recipient in the caller's exact tenant/workspace before a reservation or
+    human review is created.
 
     The task-level never-autonomous gate is evaluated *before* any GoalRun or
     assignment exists.  A review/policy pause therefore leaves only the bare
@@ -600,6 +695,30 @@ async def _admit_stock_invoice_launch_locked(
 ) -> Dict[str, Any]:
     manager = (
         state_manager if state_manager is not None else get_state_manager())
+
+    # An explicitly selected owner is admitted only while they are an active
+    # recipient in this exact tenant/workspace.  This happens before the
+    # reservation slot or any human-review request exists, so a bad owner
+    # cannot create either.  Access changes after admission remain covered by
+    # the attach and handoff revalidation paths.
+    if account_owner is not None:
+        try:
+            await _require_active_account_owner(account_owner, identity)
+        except InvalidStockInvoiceAccountOwner:
+            # A now-inactive owner still gets a read-only replay of an exact
+            # terminal slot that already exists.  Nonterminal or missing slots
+            # (and any immutable-binding conflict) keep the original failure.
+            replay = await _terminal_replay_for_invalid_owner(
+                manager,
+                invoice,
+                identity=identity,
+                idempotency_key=idempotency_key,
+                account_owner=account_owner,
+            )
+            if replay is not None:
+                return replay
+            raise
+
     plan = build_stock_invoice_launch_assignment(
         invoice, identity=identity)
     workflow = build_stock_invoice_launch_workflow(

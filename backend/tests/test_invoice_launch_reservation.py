@@ -123,6 +123,98 @@ async def test_replay_and_conflict(store):
 
 
 @pytest.mark.asyncio
+async def test_find_invoice_launch_reservation_miss(store):
+    manager, _, engine = store
+    found = await manager.find_invoice_launch_reservation(
+        "INV-001", identity=IDENTITY, idempotency_key="launch-key"
+    )
+
+    assert found is None
+    async with engine.begin() as connection:
+        result = await connection.execute(
+            text("SELECT COUNT(*) FROM workflow_executions")
+        )
+        assert result.scalar_one() == 0
+
+
+@pytest.mark.asyncio
+async def test_find_invoice_launch_reservation_exact_hit(store):
+    manager, _, engine = store
+    execution_id, created = await manager.reserve_invoice_launch(
+        " INV-001 ",
+        identity=IDENTITY,
+        idempotency_key="launch-key",
+        account_owner_user_id="owner-1",
+    )
+    assert created is True
+
+    found = await manager.find_invoice_launch_reservation(
+        " INV-001 ",
+        identity=IDENTITY,
+        idempotency_key="launch-key",
+        account_owner_user_id="owner-1",
+    )
+
+    assert found == execution_id
+    state = await manager.get_execution_state(execution_id)
+    assert state["status"] == "PENDING"
+    async with engine.begin() as connection:
+        result = await connection.execute(
+            text("SELECT COUNT(*) FROM workflow_executions")
+        )
+        assert result.scalar_one() == 1
+
+
+@pytest.mark.asyncio
+async def test_find_invoice_launch_reservation_conflict(store):
+    manager, _, engine = store
+    execution_id, _ = await manager.reserve_invoice_launch(
+        "INV-001",
+        identity=IDENTITY,
+        idempotency_key="launch-key",
+        account_owner_user_id="owner-1",
+    )
+
+    with pytest.raises(InvoiceLaunchConflict):
+        await manager.find_invoice_launch_reservation(
+            "INV-002",
+            identity=IDENTITY,
+            idempotency_key="launch-key",
+            account_owner_user_id="owner-1",
+        )
+    with pytest.raises(InvoiceLaunchConflict):
+        await manager.find_invoice_launch_reservation(
+            "INV-001",
+            identity=IDENTITY,
+            idempotency_key="launch-key",
+            account_owner_user_id="owner-2",
+        )
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE workflow_executions SET tenant_id = :value "
+                "WHERE execution_id = :execution_id"
+            ),
+            {"value": "other-tenant", "execution_id": execution_id},
+        )
+
+    with pytest.raises(InvoiceLaunchConflict):
+        await manager.find_invoice_launch_reservation(
+            "INV-001",
+            identity=IDENTITY,
+            idempotency_key="launch-key",
+            account_owner_user_id="owner-1",
+        )
+
+    async with engine.begin() as connection:
+        result = await connection.execute(
+            text("SELECT COUNT(*) FROM workflow_executions")
+        )
+        assert result.scalar_one() == 1
+
+
+@pytest.mark.asyncio
 async def test_replay_after_restart(store, monkeypatch):
     manager, path, old_engine = store
     execution_id, created = await manager.reserve_invoice_launch(
