@@ -101,9 +101,12 @@ from scratch — no hand-coding. The agent authors, tests, publishes, and instal
 5. Show the constraint probe (`mini_app_status`): syntax, effective scopes,
    dep scan, rootfs, runtime availability
 
-**Why it's impressive:** The agent is a *developer*, not a chat partner — it
-writes code, grades itself against acceptance tests, and ships a stateful,
-microVM-isolated app on request. "Software, spoken into existence."
+**Verify a draft:** In the draft Canvas, open **Mini-App Harness** and select
+**Show acceptance tests**. Name a case, supply the input and expected state,
+and select **Add case**. Use **Run saved tests** to check the saved logic.
+If a case fails, correct and save the logic, then run the same case again.
+If an agent or another editor changes the saved cases, reload the snapshot
+before saving. The form keeps the unsaved case during reload.
 
 ---
 
