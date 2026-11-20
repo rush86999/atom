@@ -16281,7 +16281,7 @@ class ChatOrchestrator:
                 from core.chat_mini_app_authoring import try_handle as _mini_app_try_handle
                 _mini_app_response = await _mini_app_try_handle(
                     message, session.get("history", []) or history, user_id,
-                    self.llm_service, canvas=_canvas_ctx, session_id=session_id,
+                    _scope_llm, canvas=_canvas_ctx, session_id=session_id,
                 )
             except Exception as mini_app_err:
                 logger.debug(f"mini-app authoring leg skipped: {mini_app_err}")

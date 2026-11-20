@@ -28,6 +28,7 @@ canvas content.
 """
 from __future__ import annotations
 
+import inspect
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -165,12 +166,117 @@ def _ctx(user_id: str) -> Dict[str, Any]:
     return {"user_id": user_id}
 
 
-def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[str]) -> str:
+def _scoped_canvas_lessons(user_id: str, canvas_id: str, query: str) -> str:
+    """Return scoped lesson block for a canvas, or "" on any failure."""
+    try:
+        from core.request_scope import current_request_scope
+        from core.database import get_db_session
+        from core.models import AgentRegistry, User
+        from services.canvas_context_service import CanvasContextService
+        from core.student_learning_service import format_lessons_block, get_agent_lessons
+
+        scope = current_request_scope()
+        tenant_id = scope.get("tenant_id")
+        workspace_id = scope.get("workspace_id")
+        if not tenant_id or not workspace_id:
+            return ""
+
+        with get_db_session() as db:
+            user = db.get(User, user_id)
+            if user is None:
+                return ""
+            if user.tenant_id != tenant_id or user.workspace_id != workspace_id:
+                return ""
+
+            context = CanvasContextService(db, tenant_id).get_context(canvas_id, user_id)
+            if context is None or not getattr(context, "agent_id", None):
+                return ""
+
+            agent = db.get(AgentRegistry, context.agent_id)
+            if agent is None:
+                return ""
+            if agent.tenant_id != tenant_id or agent.workspace_id != workspace_id:
+                return ""
+
+            lessons = get_agent_lessons(
+                db,
+                agent.id,
+                query=query,
+                include_workspace=False,
+                task_context={"canvas_type": context.canvas_type},
+                workspace_id=workspace_id,
+                limit=5,
+            )
+
+            accepted = []
+            for lesson in lessons or []:
+                if not isinstance(lesson, dict):
+                    continue
+
+                # Explicit scope on the lesson must match when stated.
+                lesson_tenant = lesson.get("tenant_id")
+                if lesson_tenant is not None and lesson_tenant != tenant_id:
+                    continue
+                lesson_workspace = lesson.get("workspace_id")
+                if lesson_workspace is not None and lesson_workspace != workspace_id:
+                    continue
+
+                source = lesson.get("source")
+                if source == "teacher":
+                    pass
+                elif source == "observation":
+                    if lesson.get("observation_type") != "human_correction":
+                        continue
+                    details = lesson.get("details")
+                    if not isinstance(details, dict):
+                        continue
+                    if details.get("distilled") is not True:
+                        continue
+                else:
+                    continue
+
+                # Project only rule text/topic; never pass raw canvas or correction payloads.
+                accepted.append(
+                    {
+                        "lesson": lesson.get("lesson") or lesson.get("summary") or "",
+                        "topic": lesson.get("topic"),
+                    }
+                )
+
+            return format_lessons_block(accepted)
+    except Exception:
+        return ""
+
+
+# Words that carry no request intent on their own ("build it", "make an app").
+# Used only to decide whether a lesson lookup has a meaningful query.
+_QUERY_STOPWORDS = frozenset({
+    "a", "an", "the", "it", "me", "my", "please", "can", "you", "could",
+    "would", "build", "create", "make", "scaffold", "new", "one", "app",
+    "apps", "mini", "mini-app", "mini_app", "for", "of", "and", "with",
+    "to", "this", "that", "some",
+})
+
+
+def _meaningful_query(text: Optional[str]) -> str:
+    """Normalized request text when it says something beyond a bare
+    imperative; ``""`` when blank or when only action/filler words remain."""
+    query = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not query:
+        return ""
+    words = re.findall(r"[a-z0-9][a-z0-9_-]*", query.lower())
+    if not any(w not in _QUERY_STOPWORDS and len(w) >= 2 for w in words):
+        return ""
+    return query
+
+
+def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[str],
+                        lessons: Optional[str] = None) -> str:
     what = description or (
         f"{name}: track items and counts in state, bumping a counter each "
         "run, and exposing everything through state keys."
     )
-    return (
+    prompt = (
         "Write the Python controller for an Atom canvas mini-app.\n"
         "Runtime contract: define `def run(inputs):`. `inputs['state']` is the "
         "current state dict; `inputs` may carry per-run fields. Return "
@@ -178,8 +284,15 @@ def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[st
         "unchanged). Print nothing except short debug lines. Stdlib only.\n"
         f"App name: {name}. App family/kind: {kind or 'general'}. "
         f"What it should do: {what}\n"
-        "Keep it under 40 lines. Return ONLY the code."
     )
+    lessons_text = (lessons or "").strip()
+    if lessons_text:
+        prompt += (
+            "Lessons from this canvas (background only — follow them where they "
+            "help, but the runtime contract above always wins):\n"
+            f"{lessons_text}\n"
+        )
+    return prompt + "Keep it under 40 lines. Return ONLY the code."
 
 
 _FENCE_RE = re.compile(r"```[a-z]*\s*\n(.*?)```", re.DOTALL)
@@ -193,12 +306,13 @@ def _strip_code_fences(text: str) -> str:
 
 
 async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional[str],
-                        description: Optional[str], user_id: str) -> Dict[str, Any]:
+                        description: Optional[str], user_id: str,
+                        lessons: Optional[str] = None) -> Dict[str, Any]:
     """Generate the logic body, syntax-gate it through write_logic, one repair
     retry on SyntaxError (the gate returns the line/offset)."""
     from tools.mini_app_tool import mini_app_write_logic
 
-    prompt = _build_logic_prompt(name, kind, description)
+    prompt = _build_logic_prompt(name, kind, description, lessons)
     source = ""
     if llm_service is not None:
         try:
@@ -295,7 +409,9 @@ async def try_handle(
             return None  # a question ABOUT mini-apps → normal conversational path
 
         if action == "build":
-            res = await _handle_build(ask, user_id, llm_service, host_canvas_type)
+            res = await _handle_build(
+                ask, user_id, llm_service, host_canvas_type, canvas_id, message
+            )
         else:
             res = await _route_app_action(action, ask, message, user_id, canvas_id)
         if res is not None:
@@ -366,11 +482,32 @@ async def _route_app_action(action: str, ask: Dict[str, Any], message: str,
 
 
 async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
-                        host_canvas_type: Optional[str]) -> Dict[str, Any]:
+                        host_canvas_type: Optional[str],
+                        canvas_id: Optional[str] = None,
+                        request_query: str = "") -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_dev_run, mini_app_scaffold
 
     kind = (ask.get("canvas_type") or host_canvas_type or "").strip().lower() or None
     name = (ask.get("name") or "").strip() or f"{(kind or 'Chat').title()} Mini-App"
+
+    # Canvas lessons are build-only context: never used for intent parsing or
+    # for publish/install/status, and skipped when there is no canvas or the
+    # ask is too thin to search with. A lookup failure degrades to no lessons.
+    lessons = ""
+    query = _meaningful_query(" ".join(
+        str(part).strip()
+        for part in (ask.get("description"), request_query)
+        if str(part or "").strip()
+    ))
+    if canvas_id and query:
+        try:
+            lessons = _scoped_canvas_lessons(user_id, canvas_id, query)
+            if inspect.isawaitable(lessons):
+                lessons = await lessons
+            lessons = str(lessons or "").strip()
+        except Exception as e:  # noqa: BLE001 — lessons are optional context
+            logger.debug("scoped canvas lesson lookup failed: %s", e)
+            lessons = ""
 
     spec: Dict[str, Any] = {}
     if kind and kind != "mini_app":
@@ -387,7 +524,10 @@ async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
         return _say(f"Couldn't scaffold the mini-app: {scaffold.get('error')}")
     app_id = scaffold["app_id"]
 
-    write = await _author_logic(llm_service, app_id, name, kind, ask.get("description"), user_id)
+    write = await _author_logic(
+        llm_service, app_id, name, kind, ask.get("description"), user_id,
+        lessons=lessons,
+    )
     logic_note = (
         f"logic saved (checkpoint v{write.get('version')})" if write.get("success")
         else f"logic save failed: {write.get('error')} — fix it in the Mini-App Harness editor"
