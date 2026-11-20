@@ -11,6 +11,7 @@ Handles the execution of workflows with support for:
 import asyncio
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
+from collections.abc import Mapping
 from datetime import datetime, timezone
 import logging
 import os
@@ -70,6 +71,12 @@ AI_EXECUTION_SCOPE_KEY = "_atom_ai_execution_scope"
 # Durable writers (e.g. the goal write and notification services) bind the
 # exact principal, scope and operation to this context only.
 EXECUTION_IDENTITY_KEY = "_atom_execution_identity"
+
+# Deterministic namespace for the never-autonomous task review operation id.
+# The id is the durable primary key, so retries and concurrent processes share
+# one pending review instead of racing to insert separate rows.
+_TASK_ADMISSION_REVIEW_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_URL, "atom:never-autonomous-task-admission:review:v1")
 
 def _normalize_step_identity_context(value: Any) -> Dict[str, str]:
     """Normalize the internal step context, including execution/step ids.
@@ -152,6 +159,70 @@ def _stable_operation_id(prefix: str, execution_id: str, step_id: str) -> str:
     return operation_id
 
 
+def _canonical_task_review_value(value: Any) -> Any:
+    """Normalize review material into a stable, JSON-safe canonical value."""
+    if isinstance(value, Mapping):
+        return {
+            str(key): _canonical_task_review_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, (list, tuple, set, frozenset)):
+        items = [_canonical_task_review_value(item) for item in value]
+        return sorted(
+            items,
+            key=lambda item: json.dumps(
+                item, sort_keys=True, separators=(",", ":"), default=str),
+        )
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _task_admission_review_id(
+    *,
+    action_type: Any,
+    execution_id: Any,
+    owner_user_id: Any,
+    tenant_id: Any,
+    workspace_id: Any,
+    agent_id: Any,
+    decision: Mapping[str, Any],
+) -> str:
+    """Return the deterministic pending-review id for one admission binding.
+
+    The id covers exactly the execution, principal/scope, task fingerprint,
+    agent and canonical rule revisions.  Rule material is canonicalized before
+    hashing so independent processes that receive the same bindings (including
+    reordered rule lists) compute the same operation id.  ``HITLAction.id`` is
+    the database uniqueness guard: a concurrent insert either wins or collides
+    and is then read back instead of creating a second pending review.
+    """
+    rule_material = {
+        str(key): _canonical_task_review_value(value)
+        for key, value in decision.items()
+        if str(key) != "durable_admission"
+        and value is not None
+        and (
+            "rule" in str(key).lower()
+            or "revision" in str(key).lower()
+        )
+    }
+    payload = {
+        "version": 1,
+        "action_type": str(action_type or ""),
+        "execution_id": str(execution_id or ""),
+        "owner_user_id": str(owner_user_id or ""),
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "task_fingerprint": str(decision.get("task_fingerprint") or ""),
+        "agent_id": str(agent_id or ""),
+        "rule_material": rule_material,
+    }
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), default=str)
+    return str(uuid.uuid5(_TASK_ADMISSION_REVIEW_NAMESPACE, encoded))
+
+
 def _pending_task_admission_is_current(
     row: Any,
     decision: Any,
@@ -160,18 +231,29 @@ def _pending_task_admission_is_current(
     owner_user_id: Any,
     tenant_id: Any,
     workspace_id: Any,
+    agent_id: Any = None,
+    action_type: Any = None,
 ) -> bool:
     """Return whether a pending task admission matches the current decision.
 
     The durable review-binding contract is the same one used for an approved
     receipt: the persisted request must name this exact execution and task
     fingerprint, every rule id *and revision* the fresh decision was evaluated
-    against, and must not carry a different owner or scope.  A request filed
-    under an older rule revision is stale, so it must neither be reused nor
-    block the new current request.
+    against, and must not carry a different owner, agent or scope.  A request
+    filed under an older rule revision is stale, so it must neither be reused
+    nor block the new current request.
     """
     from core.autonomy_policy import decision_covers
 
+    if row is None:
+        return False
+    if (action_type is not None
+            and str(getattr(row, "action_type", "") or "")
+            != str(action_type or "")):
+        return False
+    if (agent_id is not None
+            and str(getattr(row, "agent_id", "") or "") != str(agent_id or "")):
+        return False
     params = row.params if isinstance(row.params, dict) else {}
     snapshot = (
         row.context_snapshot
@@ -1342,27 +1424,79 @@ class WorkflowEngine:
                         extra={"workflow_id": workflow.get("id")},
                     )
                     decision_params["task_input"] = str(task_material)[:2000]
-                    action_id = governance.request_approval(
-                        agent_id=agent_id,
-                        action_type=NEVER_TASK_ADMISSION_ACTION,
-                        params=decision_params,
-                        reason=decision.get("reason") or (
+                    approval_kwargs = {
+                        "agent_id": agent_id,
+                        "action_type": NEVER_TASK_ADMISSION_ACTION,
+                        "params": decision_params,
+                        "reason": decision.get("reason") or (
                             "A never-autonomous task rule matched this "
                             "workflow; a human must approve this execution."),
-                        execution_context={
+                        "execution_context": {
                             "execution_id": execution_id,
                             "workspace_id": workspace_id,
                             "tenant_id": tenant_id,
                             "user_id": owner_user_id,
                         },
-                        user_id=owner_user_id,
-                    )
+                        "user_id": owner_user_id,
+                    }
+                    idempotent_writer = getattr(
+                        governance, "request_task_admission_approval", None)
+                    if callable(idempotent_writer):
+                        # The deterministic id is the database uniqueness
+                        # guard for this exact execution/scope/fingerprint/
+                        # agent/rule-revision binding. A concurrent process
+                        # either inserts it or collides and reads it back.
+                        review_id = _task_admission_review_id(
+                            action_type=NEVER_TASK_ADMISSION_ACTION,
+                            execution_id=execution_id,
+                            owner_user_id=owner_user_id,
+                            tenant_id=tenant_id,
+                            workspace_id=workspace_id,
+                            agent_id=agent_id,
+                            decision=decision,
+                        )
+                        action_id = idempotent_writer(
+                            action_id=review_id, **approval_kwargs)
+                        # Verify the durable row really is this exact review,
+                        # not merely a colliding/legacy operation id.
+                        db.expire_all()
+                        review_row = (
+                            db.query(HITLAction)
+                            .filter(HITLAction.id == action_id)
+                            .first()
+                        )
+                        if not _pending_task_admission_is_current(
+                            review_row,
+                            decision,
+                            execution_id=execution_id,
+                            owner_user_id=owner_user_id,
+                            tenant_id=tenant_id,
+                            workspace_id=workspace_id,
+                            agent_id=agent_id,
+                            action_type=NEVER_TASK_ADMISSION_ACTION,
+                        ):
+                            raise RuntimeError(
+                                "durable task admission review did not match "
+                                "the current execution binding")
+                    else:
+                        # Legacy/injected governance doubles keep the existing
+                        # generic approval call unchanged.
+                        action_id = governance.request_approval(
+                            **approval_kwargs)
                 else:
                     action_id = analytics_task.id
             reason = decision.get("reason") or (
                 "A never-autonomous task rule matched this workflow.")
-            await self.state_manager.update_execution_status(
+            status_updated = await self.state_manager.update_execution_status(
                 execution_id, "PAUSED", error=reason)
+            if status_updated is False:
+                # A concurrent terminal transition (typically cancellation)
+                # already owns the row. Do not publish a pause that was not
+                # durably committed. ``None`` keeps legacy manager behavior.
+                logger.info(
+                    "workflow %s: PAUSED write rejected by durable terminal "
+                    "status; suppressing pause publication", execution_id)
+                return "paused"
             await get_connection_manager().notify_workflow_status(
                 user_id, execution_id, "PAUSED",
                 {"reason": "never_autonomous", "hitl_action_id": action_id,

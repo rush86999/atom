@@ -487,6 +487,33 @@ async def _execution_state(
     return state if isinstance(state, Mapping) else {}
 
 
+async def _paused_or_terminal_result(
+    state_manager: Any,
+    execution_id: str,
+    *,
+    created: bool,
+    admission: Any = None,
+    reason: str = "",
+) -> Dict[str, Any]:
+    """Return the durable terminal status when a pause raced a cancellation.
+
+    A gate may have reported a pause (or failed) while another request committed
+    a terminal status.  The reservation row is authoritative: report that exact
+    status and never attach a plan or create new work for it.
+    """
+    state = await _execution_state(state_manager, execution_id)
+    status = _status_text(state.get("status"))
+    if status in _TERMINAL_STATUSES:
+        return _terminal_result(
+            execution_id, created=created, status=status)
+    return _paused_result(
+        execution_id,
+        created=created,
+        admission=admission,
+        reason=reason,
+    )
+
+
 async def _restore_pending_for_attachment(
     state_manager: Any,
     execution_id: str,
@@ -624,8 +651,13 @@ async def _admit_stock_invoice_launch_locked(
             "Never-autonomous task policy could not be evaluated; "
             "human review is required.")
         await _mark_policy_paused(manager, execution_id, reason)
-        return _paused_result(
-            execution_id, created=created, admission=None, reason=reason)
+        return await _paused_or_terminal_result(
+            manager,
+            execution_id,
+            created=created,
+            admission=None,
+            reason=reason,
+        )
 
     if _gate_paused(admission):
         reason = ""
@@ -633,13 +665,15 @@ async def _admit_stock_invoice_launch_locked(
             reason = _text(
                 admission.get("reason") or admission.get("error"))
         state = await _execution_state(manager, execution_id)
-        if _status_text(state.get("status")) != _PAUSED:
+        if (_status_text(state.get("status")) != _PAUSED
+                and _status_text(state.get("status")) not in _TERMINAL_STATUSES):
             await _mark_policy_paused(
                 manager,
                 execution_id,
                 reason or "Human review is required.",
             )
-        return _paused_result(
+        return await _paused_or_terminal_result(
+            manager,
             execution_id,
             created=created,
             admission=admission,
