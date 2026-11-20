@@ -393,6 +393,13 @@ def _recover_agent_jobs(session: Session) -> int:
         if payload is None:
             continue
 
+        # Information-wait recovery owns jobs carrying a resume claim: the claim
+        # transaction settles both the linked job and execution and never resends.
+        # Skip them here so the generic dead-job sweep cannot terminalize them.
+        resume_claim = payload.get("resume_claim")
+        if isinstance(resume_claim, dict) and resume_claim:
+            continue
+
         if "dispatch_started" in payload:
             dispatched = bool(payload.get("dispatch_started"))
         else:
