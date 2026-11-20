@@ -84,9 +84,11 @@ class TestChatDrivenLoop:
         # 1. Build (no LLM → deterministic authoring; kind from message scan).
         res = await try_handle(self.BUILD, [], user, None, None)
         assert res is not None and res["success"] is True
-        assert "Built mini-app" in res["message"]
+        assert "Saved starter draft" in res["message"]
+        assert res["data"]["authoring_status"] == "starter_saved"
+        assert res["data"]["requested_behavior_verified"] is False
         assert "on a inventory canvas" in res["message"] or "inventory" in res["message"]
-        assert "publish it" in res["message"]  # never auto-ships
+        assert "Review or edit the draft" in res["message"]  # never auto-ships
 
         from tools.mini_app_tool import mini_app_list
         listing = await mini_app_list({}, {"user_id": user})
@@ -102,7 +104,12 @@ class TestChatDrivenLoop:
             assert bp.canvas_type == "inventory"
             from core.canvas_logic_service import CanvasLogicService
             logic = CanvasLogicService(db).load_logic(bp.id)
-            assert logic and "def run(inputs)" in logic["source"]
+            assert logic
+            from core.sandbox_runtime.firecracker_guest.agent import run_code
+
+            result = run_code(logic["source"], {"state": {"items": 3}})
+            assert result["exit_code"] == 0
+            assert result["state_envelope"]["state"] == {"items": 4}
 
         # A bare "publish it" with NO mini-app context must NOT hijack a turn.
         assert await try_handle("publish it", [], user, None, None) is None
@@ -147,3 +154,117 @@ class TestChatDrivenLoop:
             "publish my mini app", [], _uid(), None, None
         )
         assert res is not None and "No mini-app found" in res["message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("repair_allowed", [False, True])
+async def test_generated_logic_rejects_dynamic_execution_before_save(
+    monkeypatch, repair_allowed,
+):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _author_logic
+
+    rejected = "exec('pass')"
+    accepted = "state = {'total': sum(amounts)}"
+    model = SimpleNamespace(generate_completion=AsyncMock(side_effect=[
+        {"content": rejected},
+        {"content": accepted if repair_allowed else rejected},
+    ]))
+    save = AsyncMock(return_value={"success": True, "version": 1})
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_write_logic", save)
+
+    result = await _author_logic(model, "app", "Inventory", "inventory", "sum", "actor")
+
+    assert model.generate_completion.await_count == 2
+    assert result["success"] is repair_allowed
+    if repair_allowed:
+        save.assert_awaited_once()
+        assert save.await_args.args[0]["source"] == accepted
+    else:
+        save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_chat_repairs_against_same_owner_acceptance_cases(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from core.task_lifecycle import _approval_payload_hash
+
+    cases = [{"inputs": {"amounts": [4, 8, 15]}, "expect_state": {"total": 27}}]
+    case_hash = _approval_payload_hash(cases)
+    model = SimpleNamespace(generate_completion=AsyncMock(side_effect=[
+        {"content": "state = {'total': 0}"},
+        {"content": "state = {'total': sum(amounts)}"},
+    ]))
+    classify = AsyncMock(return_value=SimpleNamespace(
+        action="build", name="Inventory", canvas_type="inventory", description="Sum amounts",
+    ))
+    save = AsyncMock(side_effect=[
+        {"success": True, "source_sha256": "initial", "version": 1},
+        {"success": True, "source_sha256": "repaired", "version": 2},
+    ])
+    set_cases = AsyncMock(return_value={"success": True})
+    grade = AsyncMock(side_effect=[
+        {"success": True, "tests_sha256": case_hash, "total": 1, "passed": 0,
+         "all_passed": False, "results": [{"passed": False, "diff": {"total": 27}}]},
+        {"success": True, "tests_sha256": case_hash, "total": 1, "passed": 1,
+         "all_passed": True, "results": [{"passed": True}]},
+    ])
+    smoke = AsyncMock()
+    scaffold = AsyncMock(return_value={"success": True, "app_id": "app", "canvas_id": "canvas"})
+    monkeypatch.setattr("core.chat_tool_planner._structured_with_fallback", classify)
+    for name, stub in (
+        ("mini_app_scaffold", scaffold), ("mini_app_write_logic", save),
+        ("mini_app_set_tests", set_cases), ("mini_app_run_tests", grade),
+        ("mini_app_dev_run", smoke),
+    ):
+        monkeypatch.setattr(f"tools.mini_app_tool.{name}", stub)
+
+    result = await try_handle(
+        "Build an inventory mini app", [], "actor", model, acceptance_cases=cases,
+    )
+
+    assert result["data"]["acceptance"]["status"] == "passed"
+    set_cases.assert_awaited_once()
+    assert set_cases.await_args.args[0]["tests"] == cases
+    assert [call.args[0]["expected_tests_sha256"] for call in grade.await_args_list] == [
+        case_hash, case_hash,
+    ]
+    assert [call.args[0]["expected_source_sha256"] for call in grade.await_args_list] == [
+        "initial", "repaired",
+    ]
+    assert save.await_args.args[0]["expected_source_sha256"] == "initial"
+    assert "Previous draft failed" in str(model.generate_completion.await_args_list[1])
+    smoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_starter_draft_retains_owner_acceptance_cases(patched_db, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from core.database import get_db_session
+    from core.models import MiniApp
+
+    user_id = _uid()
+    _seed_actor(user_id)
+    run_cases = AsyncMock()
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_run_tests", run_cases)
+    cases = [{"name": "sum", "inputs": {"amounts": [4, 8]}, "expect_state": {"total": 12}}]
+
+    result = await try_handle(
+        "build a mini app inventory tracker", [], user_id, None, None,
+        acceptance_cases=cases,
+    )
+
+    assert result["data"]["acceptance"] == {
+        "status": "unverified",
+        "reason": "logic_not_saved",
+    }
+    run_cases.assert_not_awaited()
+    with get_db_session() as db:
+        draft = db.query(MiniApp).filter_by(created_by=user_id).one()
+        assert draft.status == "draft"
+        assert draft.manifest["tests"] == cases

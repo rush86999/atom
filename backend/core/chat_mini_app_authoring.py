@@ -28,6 +28,9 @@ canvas content.
 """
 from __future__ import annotations
 
+import ast
+import inspect
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -165,21 +168,136 @@ def _ctx(user_id: str) -> Dict[str, Any]:
     return {"user_id": user_id}
 
 
-def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[str]) -> str:
+def _scoped_canvas_lessons(user_id: str, canvas_id: str, query: str) -> str:
+    """Return scoped lesson block for a canvas, or "" on any failure."""
+    try:
+        from core.request_scope import current_request_scope
+        from core.database import get_db_session
+        from core.models import AgentRegistry, User
+        from services.canvas_context_service import CanvasContextService
+        from core.student_learning_service import format_lessons_block, get_agent_lessons
+
+        scope = current_request_scope()
+        tenant_id = scope.get("tenant_id")
+        workspace_id = scope.get("workspace_id")
+        if not tenant_id or not workspace_id:
+            return ""
+
+        with get_db_session() as db:
+            user = db.get(User, user_id)
+            if user is None:
+                return ""
+            if user.tenant_id != tenant_id or user.workspace_id != workspace_id:
+                return ""
+
+            context = CanvasContextService(db, tenant_id).get_context(canvas_id, user_id)
+            if context is None or not getattr(context, "agent_id", None):
+                return ""
+
+            agent = db.get(AgentRegistry, context.agent_id)
+            if agent is None:
+                return ""
+            if agent.tenant_id != tenant_id or agent.workspace_id != workspace_id:
+                return ""
+
+            lessons = get_agent_lessons(
+                db,
+                agent.id,
+                query=query,
+                include_workspace=False,
+                task_context={"canvas_type": context.canvas_type},
+                workspace_id=workspace_id,
+                limit=5,
+            )
+
+            accepted = []
+            for lesson in lessons or []:
+                if not isinstance(lesson, dict):
+                    continue
+
+                # Explicit scope on the lesson must match when stated.
+                lesson_tenant = lesson.get("tenant_id")
+                if lesson_tenant is not None and lesson_tenant != tenant_id:
+                    continue
+                lesson_workspace = lesson.get("workspace_id")
+                if lesson_workspace is not None and lesson_workspace != workspace_id:
+                    continue
+
+                source = lesson.get("source")
+                if source == "teacher":
+                    pass
+                elif source == "observation":
+                    if lesson.get("observation_type") != "human_correction":
+                        continue
+                    details = lesson.get("details")
+                    if not isinstance(details, dict):
+                        continue
+                    if details.get("distilled") is not True:
+                        continue
+                else:
+                    continue
+
+                # Project only rule text/topic; never pass raw canvas or correction payloads.
+                accepted.append(
+                    {
+                        "lesson": lesson.get("lesson") or lesson.get("summary") or "",
+                        "topic": lesson.get("topic"),
+                    }
+                )
+
+            return format_lessons_block(accepted)
+    except Exception:
+        return ""
+
+
+# Words that carry no request intent on their own ("build it", "make an app").
+# Used only to decide whether a lesson lookup has a meaningful query.
+_QUERY_STOPWORDS = frozenset({
+    "a", "an", "the", "it", "me", "my", "please", "can", "you", "could",
+    "would", "build", "create", "make", "scaffold", "new", "one", "app",
+    "apps", "mini", "mini-app", "mini_app", "for", "of", "and", "with",
+    "to", "this", "that", "some",
+})
+
+
+def _meaningful_query(text: Optional[str]) -> str:
+    """Normalized request text when it says something beyond a bare
+    imperative; ``""`` when blank or when only action/filler words remain."""
+    query = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not query:
+        return ""
+    words = re.findall(r"[a-z0-9][a-z0-9_-]*", query.lower())
+    if not any(w not in _QUERY_STOPWORDS and len(w) >= 2 for w in words):
+        return ""
+    return query
+
+
+def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[str],
+                        lessons: Optional[str] = None) -> str:
     what = description or (
         f"{name}: track items and counts in state, bumping a counter each "
         "run, and exposing everything through state keys."
     )
-    return (
+    prompt = (
         "Write the Python controller for an Atom canvas mini-app.\n"
-        "Runtime contract: define `def run(inputs):`. `inputs['state']` is the "
-        "current state dict; `inputs` may carry per-run fields. Return "
-        "`{'state': {...}}` with the NEW state (returning nothing keeps state "
-        "unchanged). Print nothing except short debug lines. Stdlib only.\n"
+        "Write executable top-level statements. The runtime supplies the state "
+        "dict and each per-run input field as a separate global. To persist "
+        "results, update or assign the global state dict using JSON-serializable "
+        "values. No function is called automatically. There is no inputs "
+        "dictionary. For example, if the run provides a field named rows, "
+        "read it directly as rows and save a count with state['count'] = len(rows). "
+        "Stdlib only.\n"
         f"App name: {name}. App family/kind: {kind or 'general'}. "
         f"What it should do: {what}\n"
-        "Keep it under 40 lines. Return ONLY the code."
     )
+    lessons_text = (lessons or "").strip()
+    if lessons_text:
+        prompt += (
+            "Lessons from this canvas (background only — follow them where they "
+            "help, but the runtime contract above always wins):\n"
+            f"{lessons_text}\n"
+        )
+    return prompt + "Keep it under 40 lines. Return ONLY the code."
 
 
 _FENCE_RE = re.compile(r"```[a-z]*\s*\n(.*?)```", re.DOTALL)
@@ -193,12 +311,43 @@ def _strip_code_fences(text: str) -> str:
 
 
 async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional[str],
-                        description: Optional[str], user_id: str) -> Dict[str, Any]:
+                        description: Optional[str], user_id: str,
+                        lessons: Optional[str] = None,
+                        acceptance_cases: Any = None,
+                        acceptance_failures: Any = None,
+                        expected_source_sha256: Optional[str] = None) -> Dict[str, Any]:
     """Generate the logic body, syntax-gate it through write_logic, one repair
     retry on SyntaxError (the gate returns the line/offset)."""
     from tools.mini_app_tool import mini_app_write_logic
 
-    prompt = _build_logic_prompt(name, kind, description)
+    async def save_candidate(code: str) -> Dict[str, Any]:
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as exc:
+            return {"success": False, "error": f"SyntaxError: {exc}"}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            target = node.func
+            name = target.id if isinstance(target, ast.Name) else (
+                target.attr if isinstance(target, ast.Attribute) else None
+            )
+            if name in {"exec", "eval", "system"}:
+                return {
+                    "success": False,
+                    "error": f"SyntaxError: generated code cannot call {name}()",
+                }
+        args = {"app_id": app_id, "source": code}
+        if expected_source_sha256 is not None:
+            args["expected_source_sha256"] = expected_source_sha256
+        return await mini_app_write_logic(args, _ctx(user_id))
+
+    prompt = _build_logic_prompt(name, kind, description, lessons)
+    if acceptance_cases:
+        prompt += "\nFixed acceptance cases: " + json.dumps(acceptance_cases, sort_keys=True)
+    if acceptance_failures:
+        prompt += "\nPrevious draft failed: " + json.dumps(acceptance_failures, sort_keys=True)
+
     source = ""
     if llm_service is not None:
         try:
@@ -209,15 +358,15 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
             source = _strip_code_fences((resp or {}).get("content") or "")
         except Exception as e:  # noqa: BLE001
             logger.debug("mini-app logic generation failed: %s", e)
-    if not source:
+    if not source and acceptance_failures:
+        return {"success": False, "error": "No repair generated"}
+    used_starter = not source
+    if used_starter:
         # Deterministic starter body (same contract the scaffold template uses).
         source = (
-            "def run(inputs):\n"
-            "    state = inputs.get('state', {}) or {}\n"
-            "    state['items'] = int(state.get('items', 0)) + 1\n"
-            "    return {'state': state}\n"
+            "state['items'] = int(state.get('items', 0)) + 1\n"
         )
-    res = await mini_app_write_logic({"app_id": app_id, "source": source}, _ctx(user_id))
+    res = await save_candidate(source)
     if not res.get("success") and "SyntaxError" in str(res.get("error", "")) and llm_service is not None:
         retry = await llm_service.generate_completion([
             {"role": "system", "content": "You fix Python code. Return only the corrected code."},
@@ -225,8 +374,8 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
         ])
         fixed = _strip_code_fences((retry or {}).get("content") or "")
         if fixed:
-            res = await mini_app_write_logic({"app_id": app_id, "source": fixed}, _ctx(user_id))
-    return res
+            res = await save_candidate(fixed)
+    return {**res, "used_starter": used_starter}
 
 
 async def _resolve_app(user_id: str, message: str, canvas_id: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -260,6 +409,8 @@ async def try_handle(
     llm_service: Any,
     canvas: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,
+    *,
+    acceptance_cases: Any = None,
 ) -> Optional[Dict[str, Any]]:
     """Entry point from the chat flow. Returns the chat response dict when the
     turn IS a mini-app request (handled here), or None to fall through.
@@ -295,7 +446,10 @@ async def try_handle(
             return None  # a question ABOUT mini-apps → normal conversational path
 
         if action == "build":
-            res = await _handle_build(ask, user_id, llm_service, host_canvas_type)
+            res = await _handle_build(
+                ask, user_id, llm_service, host_canvas_type, canvas_id, message,
+                acceptance_cases=acceptance_cases,
+            )
         else:
             res = await _route_app_action(action, ask, message, user_id, canvas_id)
         if res is not None:
@@ -365,12 +519,81 @@ async def _route_app_action(action: str, ask: Dict[str, Any], message: str,
     return None
 
 
+async def _verify_build(
+    app_id, context, cases, tests_sha256, source_sha256,
+    save_cases, run_cases, repair,
+):
+    if not cases:
+        return {"status": "not_run"}
+    saved = await save_cases({"app_id": app_id, "tests": cases}, context)
+    if not saved.get("success"):
+        return {"status": "unverified", "reason": "tests_not_saved"}
+    if not source_sha256:
+        return {"status": "unverified", "reason": "logic_not_saved"}
+
+    args = {
+        "app_id": app_id,
+        "expected_tests_sha256": tests_sha256,
+        "expected_source_sha256": source_sha256,
+    }
+    report = await run_cases(args, context)
+    for attempt in range(2):
+        if (not report.get("success")
+                or report.get("tests_sha256") != tests_sha256
+                or report.get("total") != len(cases)):
+            return {"status": "unverified", "reason": "test_run_incomplete"}
+        if report.get("all_passed") is True and report.get("passed") == len(cases):
+            return {"status": "passed", "report": report,
+                    "source_sha256": args["expected_source_sha256"]}
+        failures = [row for row in report.get("results", []) if row.get("passed") is False]
+        if attempt or not failures or any(row.get("error") for row in failures):
+            break
+        repaired_sha256 = await repair(failures)
+        if not repaired_sha256:
+            break
+        args = {**args, "expected_source_sha256": repaired_sha256}
+        report = await run_cases(args, context)
+    return {"status": "failed", "report": report,
+            "source_sha256": args["expected_source_sha256"]}
+
+
 async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
-                        host_canvas_type: Optional[str]) -> Dict[str, Any]:
+                        host_canvas_type: Optional[str],
+                        canvas_id: Optional[str] = None,
+                        request_query: str = "",
+                        acceptance_cases: Any = None) -> Dict[str, Any]:
+    from core.mini_app_service import validate_tests
     from tools.mini_app_tool import mini_app_dev_run, mini_app_scaffold
+
+    if acceptance_cases is not None:
+        try:
+            validate_tests(acceptance_cases)
+        except ValueError as exc:
+            result = _say(f"Check the supplied acceptance cases before building. {exc}")
+            result["data"]["acceptance_status"] = "invalid_cases"
+            return result
 
     kind = (ask.get("canvas_type") or host_canvas_type or "").strip().lower() or None
     name = (ask.get("name") or "").strip() or f"{(kind or 'Chat').title()} Mini-App"
+
+    # Canvas lessons are build-only context: never used for intent parsing or
+    # for publish/install/status, and skipped when there is no canvas or the
+    # ask is too thin to search with. A lookup failure degrades to no lessons.
+    lessons = ""
+    query = _meaningful_query(" ".join(
+        str(part).strip()
+        for part in (ask.get("description"), request_query)
+        if str(part or "").strip()
+    ))
+    if canvas_id and query:
+        try:
+            lessons = _scoped_canvas_lessons(user_id, canvas_id, query)
+            if inspect.isawaitable(lessons):
+                lessons = await lessons
+            lessons = str(lessons or "").strip()
+        except Exception as e:  # noqa: BLE001 — lessons are optional context
+            logger.debug("scoped canvas lesson lookup failed: %s", e)
+            lessons = ""
 
     spec: Dict[str, Any] = {}
     if kind and kind != "mini_app":
@@ -387,11 +610,44 @@ async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
         return _say(f"Couldn't scaffold the mini-app: {scaffold.get('error')}")
     app_id = scaffold["app_id"]
 
-    write = await _author_logic(llm_service, app_id, name, kind, ask.get("description"), user_id)
+    write = await _author_logic(
+        llm_service, app_id, name, kind, ask.get("description"), user_id,
+        lessons=lessons, acceptance_cases=acceptance_cases,
+    )
     logic_note = (
         f"logic saved (checkpoint v{write.get('version')})" if write.get("success")
         else f"logic save failed: {write.get('error')} — fix it in the Mini-App Harness editor"
     )
+
+    if acceptance_cases:
+        from core.task_lifecycle import _approval_payload_hash
+        from tools.mini_app_tool import mini_app_run_tests, mini_app_set_tests
+
+        async def repair(failures):
+            if llm_service is None:
+                return None
+            fixed = await _author_logic(
+                llm_service, app_id, name, kind, ask.get("description"), user_id,
+                lessons=lessons, acceptance_cases=acceptance_cases,
+                acceptance_failures=failures,
+                expected_source_sha256=write["source_sha256"],
+            )
+            return fixed.get("source_sha256") if fixed.get("success") else None
+
+        outcome = await _verify_build(
+            app_id, _ctx(user_id), acceptance_cases,
+            _approval_payload_hash(acceptance_cases),
+            write.get("source_sha256") if write.get("success") and not write.get("used_starter") else None,
+            mini_app_set_tests, mini_app_run_tests, repair,
+        )
+        report = outcome.get("report") or {}
+        result = _say(
+            f"Saved draft '{name}' — app {app_id}, blueprint canvas {scaffold.get('canvas_id')}. "
+            + (f"{report['passed']}/{report['total']} supplied acceptance cases passed."
+               if report else "The supplied acceptance cases could not be verified.")
+        )
+        result["data"]["acceptance"] = outcome
+        return result
 
     run = await mini_app_dev_run({"app_id": app_id, "inputs": {}}, _ctx(user_id))
     if run.get("success"):
@@ -402,6 +658,22 @@ async def _handle_build(ask: Dict[str, Any], user_id: str, llm_service: Any,
                     "syntax-checked and will run on a provisioned host")
     else:
         run_note = f"dev-run failed: {run.get('error')}"
+
+    if write.get("used_starter") and write.get("success"):
+        result = _say(
+            f"Saved starter draft '{name}'"
+            + (f" on a {kind} canvas" if kind and kind != "mini_app" else "")
+            + f" — app {app_id}, blueprint canvas {scaffold.get('canvas_id')}. "
+            + "The requested logic was not generated. "
+            + f"Starter smoke test: {run_note}. Requested behavior is unverified. "
+            "Review or edit the draft in the Mini-App Harness."
+        )
+        result["data"].update({
+            "authoring_status": "starter_saved",
+            "requested_logic_generated": False,
+            "requested_behavior_verified": False,
+        })
+        return result
 
     return _say(
         f"Built mini-app '{name}'"
