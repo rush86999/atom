@@ -86,27 +86,22 @@ shareable as a video/GIF for social media, documentation, or demos.
 
 ## 6. 🧩 Agent-Driven Mini-App Authoring
 
-**Setup:** Chat with an agent to build a stateful app (e.g., an expense tracker)
-from scratch — no hand-coding. The agent authors, tests, publishes, and installs it.
+Ask the agent to build a private draft, for example, “Build an inventory
+mini-app that sums the amounts list supplied to each run and stores the result
+as total.” Open the draft Canvas and expand **Mini-App Harness**.
 
-**What to show:**
-1. In the chat UI, type: "Build me an expense-tracker mini-app that stores
-   entries and shows a running total"
-2. Watch the agent call `mini_app_scaffold` → writes logic → `mini_app_dev_run`
-   (dry-run) → declares acceptance tests → `mini_app_run_tests` (green) →
-   `mini_app_publish` → `mini_app_install`
-3. Open the installed instance canvas — starter UI rendered
-4. Run it: add an expense; the canvas updates **live** over WebSocket
-   (state version bumps, `canvas:update` broadcast)
-5. Show the constraint probe (`mini_app_status`): syntax, effective scopes,
-   dep scan, rootfs, runtime availability
+1. Select **Show acceptance tests**. Name a case and add an input named
+   `amounts` with the value `[8, 5, 3, 2]` and an expected state field named
+   `total` with the value `18`. Select **Add case**.
+2. Select **Run saved tests**. If the case fails, correct and save the logic,
+   then rerun the same case. If another editor changed the saved cases,
+   reload the snapshot first. The form keeps your unsaved case during reload.
+3. When the draft is ready to share, request **Publish**. Request **Install**
+   to create an instance Canvas, then open the instance to exercise the app.
 
-**Verify a draft:** In the draft Canvas, open **Mini-App Harness** and select
-**Show acceptance tests**. Name a case, supply the input and expected state,
-and select **Add case**. Use **Run saved tests** to check the saved logic.
-If a case fails, correct and save the logic, then run the same case again.
-If an agent or another editor changes the saved cases, reload the snapshot
-before saving. The form keeps the unsaved case during reload.
+The grading step runs saved logic in a dry run. It requires a provisioned
+mini-app runtime. If the runtime is unavailable, check its setup before
+rerunning the cases.
 
 ---
 
