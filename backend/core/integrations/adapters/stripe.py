@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import httpx
+from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from urllib.parse import quote, urlencode
@@ -23,6 +24,21 @@ _STRIPE_INVOICE_PAYMENT_MAX_PAGES = 1000
 
 _STRIPE_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,255}$")
 _ISO_CURRENCY_RE = re.compile(r"^[A-Za-z]{3}$")
+
+
+@dataclass(frozen=True)
+class _StripeInvoicePaymentReference:
+    """Typed, private reference from one paid invoice-payment allocation.
+
+    This deliberately carries only the provider identifiers needed to walk the
+    allocation -> PaymentIntent/Charge -> balance-transaction lineage. It never
+    carries a raw Stripe payload, token, or customer/payment detail.
+    """
+
+    invoice_payment_id: str
+    amount_paid: int
+    payment_type: str
+    provider_reference_id: str
 
 
 class StripeAdapter:
@@ -769,7 +785,7 @@ class StripeAdapter:
 
         provider_reference = payment_reference.get(reference_key)
         if isinstance(provider_reference, str):
-            self._require_stripe_identifier(
+            provider_reference_id = self._require_stripe_identifier(
                 provider_reference,
                 f"invoice_payment.payment.{reference_key}",
             )
@@ -781,7 +797,7 @@ class StripeAdapter:
                 raise ValueError(
                     "Stripe invoice payment has an invalid payment reference object"
                 )
-            self._require_stripe_identifier(
+            provider_reference_id = self._require_stripe_identifier(
                 provider_reference.get("id"),
                 f"invoice_payment.payment.{reference_key}.id",
             )
@@ -803,7 +819,17 @@ class StripeAdapter:
             if amount_requested != amount_paid:
                 raise ValueError("Stripe invoice payment allocation is partial")
 
-        return {"id": payment_id, "amount_paid": amount_paid}
+        reference = _StripeInvoicePaymentReference(
+            invoice_payment_id=payment_id,
+            amount_paid=amount_paid,
+            payment_type=payment_type,
+            provider_reference_id=provider_reference_id,
+        )
+        return {
+            "id": payment_id,
+            "amount_paid": amount_paid,
+            "reference": reference,
+        }
 
     async def _collect_stripe_invoice_payments(
         self,
@@ -815,6 +841,7 @@ class StripeAdapter:
         page_limit: int,
     ) -> Dict[str, Any]:
         payment_ids: List[str] = []
+        payment_references: List[_StripeInvoicePaymentReference] = []
         seen_payment_ids = set()
         seen_cursors = set()
         paid_subtotal = 0
@@ -863,11 +890,13 @@ class StripeAdapter:
                     raise ValueError("Duplicate Stripe invoice payment ids")
                 seen_payment_ids.add(payment_id)
                 payment_ids.append(payment_id)
+                payment_references.append(validated["reference"])
                 paid_subtotal += validated["amount_paid"]
 
             if not has_more:
                 return {
                     "invoice_payment_ids": payment_ids,
+                    "payment_references": payment_references,
                     "paid_allocation_subtotal_minor_units": paid_subtotal,
                 }
 
@@ -886,6 +915,408 @@ class StripeAdapter:
             previous_page_had_more = True
 
         raise ValueError("Stripe invoice payments pagination exceeded the safety limit")
+
+    @staticmethod
+    def _stripe_charge_balance_transaction_id(
+        charge: Dict[str, Any],
+    ) -> str:
+        transaction = charge.get("balance_transaction")
+        if isinstance(transaction, str):
+            try:
+                return StripeAdapter._require_stripe_identifier(
+                    transaction, "charge.balance_transaction"
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    "Stripe charge balance transaction reference is malformed"
+                ) from exc
+        if isinstance(transaction, dict):
+            if (
+                "object" in transaction
+                and transaction.get("object") != "balance_transaction"
+            ):
+                raise ValueError(
+                    "Stripe charge balance transaction reference is malformed"
+                )
+            try:
+                return StripeAdapter._require_stripe_identifier(
+                    transaction.get("id"), "charge.balance_transaction.id"
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    "Stripe charge balance transaction reference is malformed"
+                ) from exc
+        if transaction is None:
+            raise ValueError("Stripe charge has no balance transaction")
+        raise ValueError("Stripe charge balance transaction reference is malformed")
+
+    def _validate_stripe_payment_intent_lineage(
+        self,
+        intent: Dict[str, Any],
+        payment_intent_id: str,
+        currency: str,
+        expected_livemode: bool,
+        allocation_amount_minor_units: int,
+    ) -> Dict[str, Any]:
+        if intent.get("id") != payment_intent_id:
+            raise ValueError(
+                "Stripe payment intent id does not match the expected payment intent"
+            )
+        if "object" in intent and intent.get("object") != "payment_intent":
+            raise ValueError("Stripe response is not a payment intent object")
+
+        if intent.get("status") != "succeeded":
+            raise ValueError("Stripe payment intent is not in succeeded status")
+
+        self._require_matching_currency(intent, currency)
+        self._require_matching_livemode(intent, expected_livemode)
+
+        amount = self._require_minor_units(
+            intent.get("amount"), "payment_intent.amount"
+        )
+        if amount == 0:
+            raise ValueError("Stripe payment intent has no amount")
+
+        if "amount_received" in intent:
+            amount_received = self._require_minor_units(
+                intent.get("amount_received"), "payment_intent.amount_received"
+            )
+            if amount_received > amount:
+                raise ValueError(
+                    "Stripe payment intent received amount exceeds its amount"
+                )
+        else:
+            # Stripe always includes amount_received, but synthetic fixtures
+            # may only provide the intent amount. In that case the intent
+            # amount is the upper bound of the money it can support.
+            amount_received = amount
+
+        if amount_received < allocation_amount_minor_units:
+            raise ValueError(
+                "Stripe payment intent amount does not support the invoice "
+                "payment allocation"
+            )
+
+        latest_charge = intent.get("latest_charge")
+        if isinstance(latest_charge, str):
+            try:
+                latest_charge_id = self._require_stripe_identifier(
+                    latest_charge, "payment_intent.latest_charge"
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    "Stripe payment intent latest charge reference is malformed"
+                ) from exc
+        elif isinstance(latest_charge, dict):
+            if (
+                "object" in latest_charge
+                and latest_charge.get("object") != "charge"
+            ):
+                raise ValueError(
+                    "Stripe payment intent latest charge reference is malformed"
+                )
+            try:
+                latest_charge_id = self._require_stripe_identifier(
+                    latest_charge.get("id"), "payment_intent.latest_charge.id"
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    "Stripe payment intent latest charge reference is malformed"
+                ) from exc
+        elif latest_charge is None:
+            raise ValueError("Stripe payment intent has no latest charge")
+        else:
+            raise ValueError(
+                "Stripe payment intent latest charge reference is malformed"
+            )
+
+        return {
+            "id": payment_intent_id,
+            "amount": amount,
+            "amount_received": amount_received,
+            "latest_charge_id": latest_charge_id,
+        }
+
+    def _validate_stripe_charge_lineage(
+        self,
+        charge: Dict[str, Any],
+        charge_id: str,
+        currency: str,
+        expected_livemode: bool,
+        allocation_amount_minor_units: int,
+        *,
+        shared_payment_intent: bool,
+        expected_payment_intent_id: Optional[str] = None,
+        expected_payment_intent_amount: Optional[int] = None,
+    ) -> str:
+        if charge.get("id") != charge_id:
+            raise ValueError("Stripe charge id does not match the expected charge")
+        if "object" in charge and charge.get("object") != "charge":
+            raise ValueError("Stripe response is not a charge object")
+
+        if charge.get("status") != "succeeded":
+            raise ValueError("Stripe charge is not in succeeded status")
+
+        if self._optional_bool(charge, "captured", "charge.captured") is not True:
+            raise ValueError("Stripe charge is not captured")
+        if self._optional_bool(charge, "paid", "charge.paid") is not True:
+            raise ValueError("Stripe charge is not paid")
+
+        refunded = self._require_bool(charge.get("refunded"), "charge.refunded")
+        if refunded:
+            raise ValueError("Stripe charge has been refunded")
+        amount_refunded = self._require_minor_units(
+            charge.get("amount_refunded"), "charge.amount_refunded"
+        )
+        if amount_refunded != 0:
+            raise ValueError("Stripe charge has been refunded")
+
+        disputed = self._require_bool(charge.get("disputed"), "charge.disputed")
+        if disputed:
+            raise ValueError("Stripe charge is disputed")
+
+        self._require_matching_currency(charge, currency)
+        self._require_matching_livemode(charge, expected_livemode)
+
+        amount = self._require_minor_units(charge.get("amount"), "charge.amount")
+        if amount == 0:
+            raise ValueError("Stripe charge has no amount")
+
+        if shared_payment_intent:
+            if amount < allocation_amount_minor_units:
+                raise ValueError(
+                    "Stripe charge amount does not support the invoice payment "
+                    "allocation"
+                )
+
+            if expected_payment_intent_id is not None:
+                reference = charge.get("payment_intent")
+                if isinstance(reference, str):
+                    referenced_payment_intent_id = reference
+                elif isinstance(reference, dict):
+                    if (
+                        "object" in reference
+                        and reference.get("object") != "payment_intent"
+                    ):
+                        raise ValueError(
+                            "Stripe charge has an invalid payment intent reference"
+                        )
+                    referenced_payment_intent_id = reference.get("id")
+                elif reference is None:
+                    referenced_payment_intent_id = None
+                else:
+                    raise ValueError(
+                        "Stripe charge has an invalid payment intent reference"
+                    )
+
+                if referenced_payment_intent_id != expected_payment_intent_id:
+                    raise ValueError(
+                        "Stripe charge does not reference the expected payment "
+                        "intent"
+                    )
+
+            if (
+                expected_payment_intent_amount is not None
+                and amount != expected_payment_intent_amount
+            ):
+                raise ValueError(
+                    "Stripe charge amount does not match the payment intent amount"
+                )
+        else:
+            if amount != allocation_amount_minor_units:
+                raise ValueError(
+                    "Stripe charge amount does not match the expected amount"
+                )
+
+        return self._stripe_charge_balance_transaction_id(charge)
+
+    async def _get_invoice_payment_allocation_lineage_evidence(
+        self,
+        *,
+        expected_account_id: str,
+        invoice_id: str,
+        currency: str,
+        expected_amount_minor_units: int,
+        expected_livemode: bool,
+    ) -> Dict[str, Any]:
+        """
+        Read private invoice-allocation -> charge -> balance-transaction lineage.
+
+        This is an opt-in, read-only helper built on the exact paid
+        invoice-payment allocation evidence. It follows the typed underlying
+        reference from each allocation to its PaymentIntent (plus exact
+        ``latest_charge``) or directly to a Charge, validates the full identity,
+        state, amount, currency, and account mode, and returns the exact
+        ``(charge_id, balance_transaction_id)`` pair suitable for the existing
+        payout-membership check.
+
+        A shared PaymentIntent can fund more than one invoice allocation, so an
+        allocation amount is never assumed to equal the entire charge amount.
+        The public allocation response is unchanged; no raw provider payload or
+        credential is returned. Raises ``ValueError`` when lineage cannot be
+        verified exactly.
+        """
+        if not self._access_token:
+            raise ValueError("Stripe access token not available")
+
+        account_id = self._require_stripe_identifier(
+            expected_account_id, "expected_account_id"
+        )
+        provider_invoice_id = self._require_stripe_identifier(
+            invoice_id, "invoice_id"
+        )
+        currency_code = self._require_iso_currency(currency, "currency")
+        amount_minor_units = self._require_minor_units(
+            expected_amount_minor_units, "expected_amount_minor_units"
+        )
+        if amount_minor_units == 0:
+            raise ValueError(
+                "expected_amount_minor_units must be a positive paid amount"
+            )
+        livemode = self._require_bool(expected_livemode, "expected_livemode")
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Stripe-Version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+        }
+
+        async with httpx.AsyncClient() as client:
+            account = await self._stripe_evidence_get(client, "/account", headers)
+            if account.get("id") != account_id:
+                raise ValueError(
+                    "Stripe account id does not match the expected account id"
+                )
+            if "object" in account and account.get("object") != "account":
+                raise ValueError("Stripe response is not an account object")
+
+            invoice_path = f"/invoices/{quote(provider_invoice_id, safe='')}"
+            invoice = await self._stripe_evidence_get(client, invoice_path, headers)
+            self._validate_stripe_invoice_allocation(
+                invoice,
+                provider_invoice_id,
+                currency_code,
+                amount_minor_units,
+                livemode,
+            )
+
+            allocation = await self._collect_stripe_invoice_payments(
+                client,
+                headers,
+                provider_invoice_id,
+                currency_code,
+                livemode,
+                _STRIPE_INVOICE_PAYMENT_PAGE_LIMIT,
+            )
+
+            payment_references = allocation.get("payment_references")
+            if not isinstance(payment_references, list) or not payment_references:
+                raise ValueError("Stripe invoice has no invoice payment allocations")
+
+            paid_subtotal = allocation["paid_allocation_subtotal_minor_units"]
+            if paid_subtotal != amount_minor_units:
+                raise ValueError(
+                    "Stripe paid invoice allocation subtotal does not match the "
+                    "expected amount"
+                )
+
+            pairs: List[Dict[str, str]] = []
+            payments: List[Dict[str, Any]] = []
+
+            for reference in payment_references:
+                if not isinstance(reference, _StripeInvoicePaymentReference):
+                    raise ValueError("Stripe invoice payment reference is malformed")
+
+                if reference.payment_type == "payment_intent":
+                    intent_path = (
+                        "/payment_intents/"
+                        f"{quote(reference.provider_reference_id, safe='')}"
+                    )
+                    intent = await self._stripe_evidence_get(
+                        client, intent_path, headers
+                    )
+                    intent_facts = self._validate_stripe_payment_intent_lineage(
+                        intent,
+                        reference.provider_reference_id,
+                        currency_code,
+                        livemode,
+                        reference.amount_paid,
+                    )
+
+                    charge_id = intent_facts["latest_charge_id"]
+                    charge_path = f"/charges/{quote(charge_id, safe='')}"
+                    charge = await self._stripe_evidence_get(
+                        client, charge_path, headers
+                    )
+                    balance_transaction_id = self._validate_stripe_charge_lineage(
+                        charge,
+                        charge_id,
+                        currency_code,
+                        livemode,
+                        reference.amount_paid,
+                        shared_payment_intent=True,
+                        expected_payment_intent_id=reference.provider_reference_id,
+                        expected_payment_intent_amount=intent_facts["amount"],
+                    )
+                    payment_intent_id: Optional[str] = (
+                        reference.provider_reference_id
+                    )
+                else:
+                    charge_id = reference.provider_reference_id
+                    charge_path = f"/charges/{quote(charge_id, safe='')}"
+                    charge = await self._stripe_evidence_get(
+                        client, charge_path, headers
+                    )
+                    balance_transaction_id = self._validate_stripe_charge_lineage(
+                        charge,
+                        charge_id,
+                        currency_code,
+                        livemode,
+                        reference.amount_paid,
+                        shared_payment_intent=False,
+                    )
+                    payment_intent_id = None
+
+                pairs.append(
+                    {
+                        "charge_id": charge_id,
+                        "balance_transaction_id": balance_transaction_id,
+                    }
+                )
+                payments.append(
+                    {
+                        "invoice_payment_id": reference.invoice_payment_id,
+                        "amount_paid_minor_units": reference.amount_paid,
+                        "payment_type": reference.payment_type,
+                        "payment_intent_id": payment_intent_id,
+                        "charge_id": charge_id,
+                        "balance_transaction_id": balance_transaction_id,
+                    }
+                )
+
+        return {
+            "evidence_type": "stripe_invoice_payment_allocation_lineage",
+            "account_id": account_id,
+            "invoice_id": provider_invoice_id,
+            "currency": currency_code,
+            "livemode": livemode,
+            "amount_minor_units": amount_minor_units,
+            "invoice_payment_ids": allocation["invoice_payment_ids"],
+            "invoice_payment_count": len(allocation["invoice_payment_ids"]),
+            "paid_allocation_subtotal": paid_subtotal,
+            "paid_allocation_subtotal_minor_units": paid_subtotal,
+            "paid_amount_minor_units": paid_subtotal,
+            "payments": payments,
+            "payment_count": len(payments),
+            "charge_balance_transaction_pairs": pairs,
+            "pairs": pairs,
+            "pair_count": len(pairs),
+            "charge_ids": [pair["charge_id"] for pair in pairs],
+            "balance_transaction_ids": [
+                pair["balance_transaction_id"] for pair in pairs
+            ],
+            "balance_transaction_count": len(pairs),
+            "stripe_api_version": _STRIPE_INVOICE_ALLOCATION_API_VERSION,
+        }
 
     async def get_invoice_payment_allocation_evidence(
         self,
