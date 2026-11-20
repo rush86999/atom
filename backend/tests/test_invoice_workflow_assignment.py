@@ -1198,3 +1198,309 @@ def test_owner_handoff_origin_actor_scope_loss_stays_pending(
     assert direct["notification_id"] is None
     assert direct["error"] == "actor_scope_unavailable"
     assert len(calls) == 1
+
+
+def _run_terminal_handoff_recovery(*, limit=None):
+    # Startup owns exactly one call to the public helper; generic assignment
+    # recovery must not duplicate or steal that work.
+    kwargs = {} if limit is None else {"limit": limit}
+    return _run(iwa.recover_pending_stock_invoice_owner_handoffs(**kwargs))
+
+
+def test_terminal_pending_handoff_recovers_original_operation_once(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-TERMINAL"
+    execution_id = "exec-handoff-terminal"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: {
+            "success": attempt > 1,
+            "notification_id": (
+                kwargs["operation_id"] if attempt > 1 else None),
+            "created": attempt > 1,
+            "emailed": False,
+            "error": None if attempt > 1 else "acknowledgement_lost",
+        },
+    )
+
+    first = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"},
+    )
+    assert first["status"] == "pending"
+    operation_id = first["operation_id"]
+
+    # The stock run is terminal, but its durable pending receipt remains.
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        row.status = "COMPLETED"
+        db.commit()
+
+    assert _run_terminal_handoff_recovery() == 1
+
+    stored = _read_stock_handoff_context(scratch, execution_id)
+    receipt = stored[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert receipt["status"] == "delivered"
+    assert receipt["delivered"] is True
+    assert receipt["operation_id"] == operation_id
+    assert receipt["notification_id"] == operation_id
+    assert receipt["attempts"] == 2
+    assert receipt["first_source_event"]["event"] == "invoice_reply_expired"
+    assert [call["operation_id"] for call in calls] == [
+        operation_id, operation_id]
+
+    # A delivered receipt is terminal and is never retried by a later scan.
+    assert _run_terminal_handoff_recovery() == 0
+    assert len(calls) == 2
+
+
+def test_terminal_pending_handoff_preserves_cancellation_and_actor_scope(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    invoice_number = "INV-HANDOFF-TERMINAL-GUARD"
+    execution_id = "exec-handoff-terminal-guard"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: {
+            "success": False,
+            "notification_id": None,
+            "created": False,
+            "emailed": False,
+            "error": "temporarily_unavailable",
+        },
+    )
+
+    first = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"},
+    )
+    assert first["status"] == "pending"
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        row.status = "COMPLETED"
+        db.commit()
+
+    # Only the actor loses scope; recovery must not deliver the notification.
+    with scratch() as db:
+        actor = db.get(User, USER_ID)
+        actor.is_active = False
+        db.commit()
+
+    assert _run_terminal_handoff_recovery() == 1
+    assert len(calls) == 1
+    stored = _read_stock_handoff_context(scratch, execution_id)
+    pending = stored[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert pending["status"] == "pending"
+    assert pending["delivered"] is False
+    assert pending["error"] == "actor_scope_unavailable"
+    assert pending["attempts"] == 2
+
+    # Cancellation is preserved: a later scan discovers and touches nothing.
+    with scratch() as db:
+        row = db.get(WorkflowExecution, execution_id)
+        row.status = "CANCELLED"
+        db.commit()
+
+    assert _run_terminal_handoff_recovery() == 0
+    assert len(calls) == 1
+    current = _read_stock_handoff_context(scratch, execution_id)
+    assert current[iwa._OWNER_HANDOFF_CONTEXT_KEY]["attempts"] == 2
+
+
+def _pending_for_scan(scratch, execution_id, invoice_number):
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+    receipt = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"})
+    assert receipt["status"] == "pending"
+    return attached
+
+
+def _failure_outcome():
+    return {
+        "success": False,
+        "notification_id": None,
+        "created": False,
+        "emailed": False,
+        "error": "temporarily_unavailable",
+    }
+
+
+def _success_outcome(kwargs):
+    return {
+        "success": True,
+        "notification_id": kwargs["operation_id"],
+        "created": True,
+        "emailed": False,
+        "error": None,
+    }
+
+
+def test_pending_handoff_scan_rotates_to_later_row_after_failed_retry(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    first_id = "exec-handoff-fair-a"
+    second_id = "exec-handoff-fair-b"
+    first_invoice = "INV-HANDOFF-FAIR-A"
+    second_invoice = "INV-HANDOFF-FAIR-B"
+
+    _install_notification_fake(
+        monkeypatch, factory=lambda kwargs, attempt: _failure_outcome())
+    attached = {
+        first_id: _pending_for_scan(
+            scratch, first_id, first_invoice),
+        second_id: _pending_for_scan(
+            scratch, second_id, second_invoice),
+    }
+
+    # A is the oldest pending row and also has the smallest execution id.
+    # Once its retry fails, its workflow update moves it behind B.
+    with scratch() as db:
+        db.get(WorkflowExecution, first_id).status = "COMPLETED"
+        db.get(WorkflowExecution, second_id).status = "COMPLETED"
+        db.get(WorkflowExecution, first_id).updated_at = datetime(
+            2024, 1, 1, tzinfo=timezone.utc)
+        db.get(WorkflowExecution, second_id).updated_at = datetime(
+            2024, 1, 2, tzinfo=timezone.utc)
+        db.commit()
+
+    first_operation = iwa._owner_handoff_operation_id(
+        first_id, attached[first_id]["run_id"])
+    second_operation = iwa._owner_handoff_operation_id(
+        second_id, attached[second_id]["run_id"])
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: (
+            _failure_outcome()
+            if kwargs["operation_id"] == first_operation
+            else _success_outcome(kwargs)
+        ),
+    )
+
+    assert _run_terminal_handoff_recovery(limit=1) == 1
+    assert [call["operation_id"] for call in calls] == [first_operation]
+
+    assert _run_terminal_handoff_recovery(limit=1) == 1
+    assert [call["operation_id"] for call in calls] == [
+        first_operation, second_operation]
+
+    first_receipt = _read_stock_handoff_context(
+        scratch, first_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    second_receipt = _read_stock_handoff_context(
+        scratch, second_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert first_receipt["status"] == "pending"
+    assert first_receipt["attempts"] == 2
+    assert second_receipt["status"] == "delivered"
+    assert second_receipt["attempts"] == 2
+
+
+def test_pending_handoff_scan_excludes_cancelled_before_limit(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    cancelled_id = "exec-handoff-cancel-before-a"
+    valid_id = "exec-handoff-cancel-before-b"
+    cancelled_invoice = "INV-HANDOFF-CANCEL-BEFORE-A"
+    valid_invoice = "INV-HANDOFF-CANCEL-BEFORE-B"
+
+    _install_notification_fake(
+        monkeypatch, factory=lambda kwargs, attempt: _failure_outcome())
+    attached = {
+        cancelled_id: _pending_for_scan(
+            scratch, cancelled_id, cancelled_invoice),
+        valid_id: _pending_for_scan(
+            scratch, valid_id, valid_invoice),
+    }
+
+    with scratch() as db:
+        db.get(WorkflowExecution, cancelled_id).status = "CANCELLED"
+        db.get(WorkflowExecution, cancelled_id).updated_at = datetime(
+            2024, 1, 1, tzinfo=timezone.utc)
+        db.get(WorkflowExecution, valid_id).status = "COMPLETED"
+        db.get(WorkflowExecution, valid_id).updated_at = datetime(
+            2024, 1, 2, tzinfo=timezone.utc)
+        db.commit()
+
+    valid_operation = iwa._owner_handoff_operation_id(
+        valid_id, attached[valid_id]["run_id"])
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: _success_outcome(kwargs),
+    )
+
+    assert _run_terminal_handoff_recovery(limit=1) == 1
+    assert [call["operation_id"] for call in calls] == [valid_operation]
+    assert _read_stock_handoff_context(
+        scratch, cancelled_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY][
+            "status"] == "pending"
+
+
+def test_pending_handoff_recovers_terminal_run_while_execution_pending(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    execution_id = "exec-handoff-terminal-run"
+    invoice_number = "INV-HANDOFF-TERMINAL-RUN"
+
+    _install_notification_fake(
+        monkeypatch, factory=lambda kwargs, attempt: _failure_outcome())
+    attached = _pending_for_scan(scratch, execution_id, invoice_number)
+
+    with scratch() as db:
+        execution = db.get(WorkflowExecution, execution_id)
+        assert getattr(execution.status, "value", execution.status) == (
+            "PENDING")
+        db.get(GoalRun, attached["run_id"]).status = "completed"
+        db.commit()
+
+    calls = _install_notification_fake(
+        monkeypatch,
+        factory=lambda kwargs, attempt: _success_outcome(kwargs),
+    )
+
+    assert _run_terminal_handoff_recovery(limit=1) == 1
+    assert len(calls) == 1
+    receipt = _read_stock_handoff_context(
+        scratch, execution_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert receipt["status"] == "delivered"
+    assert receipt["attempts"] == 2
+
+
+def test_pending_handoff_exception_does_not_persist_private_text(
+        scratch, monkeypatch):
+    _seed_scope(scratch)
+    _add_recipient(scratch)
+    execution_id = "exec-handoff-private-error"
+    invoice_number = "INV-HANDOFF-PRIVATE-ERROR"
+    _add_execution(scratch, execution_id, invoice_number)
+    attached = _attach(
+        execution_id, invoice_number, account_owner_user_id=OWNER_ID)
+
+    async def fail_delivery(**kwargs):
+        raise RuntimeError("private provider token value")
+
+    monkeypatch.setattr(
+        iwa, "deliver_stock_invoice_owner_handoff", fail_delivery)
+
+    receipt = _reconcile_stock_handoff_receipt(
+        execution_id, attached["run_id"], invoice_number,
+        {"event": "invoice_reply_expired", "step_id": "reply"})
+
+    assert receipt["status"] == "pending"
+    assert receipt["error"] == "notification_failed"
+    stored = _read_stock_handoff_context(
+        scratch, execution_id)[iwa._OWNER_HANDOFF_CONTEXT_KEY]
+    assert stored["error"] == "notification_failed"
+    assert "private provider token value" not in json.dumps(stored)

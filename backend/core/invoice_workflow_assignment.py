@@ -41,6 +41,19 @@ _OWNER_HANDOFF_MESSAGE = (
     "Invoice {invoice_number} has been handed off to you for review.")
 _ACTOR_SCOPE_UNAVAILABLE = "actor_scope_unavailable"
 
+#: Bounded periodic recovery for a terminal execution whose owner handoff was
+#: persisted as pending before the effect (or whose acknowledgement was lost).
+#: Only the exact stock workflow rows are considered, and each scan admits a
+#: small deterministic slice so discovery can never become an unbounded scan.
+_TERMINAL_EXECUTION_STATUSES = frozenset({
+    "completed", "failed", "cancelled", "canceled", "timed_out", "terminated",
+})
+_TERMINAL_RUN_STATUSES = frozenset({
+    "achieved", "completed", "failed", "cancelled", "canceled", "terminated",
+})
+_PENDING_HANDOFF_SCAN_LIMIT = 20
+_MAX_PENDING_HANDOFF_SCAN_LIMIT = 50
+
 # A stable namespace keeps the goal and run ids reproducible from the
 # execution id alone.
 _ASSIGNMENT_NAMESPACE = uuid.uuid5(
@@ -227,9 +240,12 @@ def _require_account_owner_recipient(
         raise PermissionError(str(scope_error))
 
 
+def _status_text(value: Any) -> str:
+    return _text(getattr(value, "value", value)).lower()
+
+
 def _is_pending(status: Any) -> bool:
-    value = getattr(status, "value", status)
-    return _text(value).lower() == "pending"
+    return _status_text(status) == "pending"
 
 
 def _extract_link(context: Dict[str, Any]) -> Optional[Dict[str, str]]:
@@ -915,7 +931,7 @@ def _receipt_trigger(receipt: Any) -> Optional[Dict[str, Any]]:
 
 
 def _is_cancelled_status(value: Any) -> bool:
-    return _text(getattr(value, "value", value)).lower() == "cancelled"
+    return _status_text(value) in ("cancelled", "canceled")
 
 
 def _cas_owner_handoff_receipt(
@@ -1088,8 +1104,10 @@ async def reconcile_stock_invoice_owner_handoff(
             invoice_number=invoice_number,
             identity=identity_values,
         )
-    except Exception as exc:  # noqa: BLE001 - durable retry state
-        error_text = _handoff_error_text(exc)
+    except Exception:  # noqa: BLE001 - durable retry state
+        # The exception text may contain provider/private detail.  Persist
+        # only the stable failure label; the receipt remains retryable.
+        error_text = _handoff_error_text(None)
 
         def mark_error(current: Optional[Dict[str, Any]]):
             receipt = dict(current or {})
@@ -1168,3 +1186,223 @@ async def reconcile_stock_invoice_owner_handoff(
 
     return _cas_owner_handoff_receipt(
         execution_key, mark_delivered)
+
+
+# ---------------------------------------------------------------------------
+# Bounded terminal-run discovery for pending owner handoffs
+# ---------------------------------------------------------------------------
+
+
+def _pending_handoff_invoice_number(assignment: Mapping[str, Any]) -> str:
+    """Read one exact invoice number from the persisted assignment plan."""
+    values = set()
+
+    def collect(holder: Any) -> None:
+        if not isinstance(holder, Mapping):
+            return
+        value = holder.get("invoice_number")
+        if isinstance(value, str) and value.strip():
+            values.add(value.strip())
+
+    for step in assignment.get("steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        collect(step.get("inputs"))
+        collect(step.get("waiting"))
+        result = step.get("result")
+        if isinstance(result, Mapping):
+            collect(result.get("data"))
+            collect(result)
+    if len(values) != 1:
+        return ""
+    return next(iter(values))
+
+
+def _pending_stock_invoice_owner_handoff_candidates(
+    *, limit: int = _PENDING_HANDOFF_SCAN_LIMIT,
+) -> list[Dict[str, Any]]:
+    """Return a small ordered slice of terminal stock pending handoffs.
+
+    Discovery is restricted to the exact stock workflow id and a persisted
+    pending handoff key.  The linked goal run is read only for the candidate's
+    exact deterministic run id; the candidate must then be terminal at the
+    execution or run level.  Every returned candidate has already passed the
+    same link/scope checks used by delivery.  No assignment step is advanced
+    or enumerated here.
+    """
+    from sqlalchemy import String, cast, func, or_
+
+    from core.models import GoalRun, WorkflowExecution
+
+    bounded = max(
+        1, min(int(limit), _MAX_PENDING_HANDOFF_SCAN_LIMIT))
+    with get_db_session() as session:
+        context_text = cast(WorkflowExecution.context, String)
+        status_text = func.lower(cast(WorkflowExecution.status, String))
+        rows = (
+            session.query(WorkflowExecution)
+            .filter(
+                WorkflowExecution.workflow_id == _WORKFLOW_ID,
+                # Cancelled executions are excluded before the bound so they
+                # cannot consume the whole scan slice.  A still-PENDING
+                # execution remains eligible because its GoalRun may be
+                # terminal.
+                status_text.notin_(("cancelled", "canceled")),
+                context_text.like(f"%{_OWNER_HANDOFF_CONTEXT_KEY}%"),
+                or_(
+                    context_text.like('%"status": "pending"%'),
+                    context_text.like('%"status":"pending"%'),
+                ),
+            )
+            # A retried receipt updates the execution row, moving it behind
+            # older pending work.  Fall back to created_at when updated_at is
+            # absent, then keep execution_id as the stable final tie-breaker.
+            .order_by(
+                func.coalesce(
+                    WorkflowExecution.updated_at,
+                    WorkflowExecution.created_at,
+                ).asc(),
+                WorkflowExecution.execution_id.asc(),
+            )
+            .limit(bounded)
+            .all()
+        )
+
+        candidates: list[Dict[str, Any]] = []
+        for row in rows:
+            try:
+                execution_key = _text(_field(row, "execution_id"))
+                if not execution_key:
+                    continue
+                execution_status = _status_text(_field(row, "status"))
+                if _is_cancelled_status(execution_status):
+                    continue
+                execution_terminal = (
+                    execution_status in _TERMINAL_EXECUTION_STATUSES)
+
+                context = _json_object(
+                    _field(row, "context"), "workflow execution context")
+                if _text(context.get("execution_id")) not in (
+                        "", execution_key):
+                    continue
+                if _text(context.get("workflow_id")) not in (
+                        "", _WORKFLOW_ID):
+                    continue
+
+                run_id = _text(context.get("run_id"))
+                if run_id != _run_id(execution_key):
+                    continue
+
+                receipt = context.get(_OWNER_HANDOFF_CONTEXT_KEY)
+                if _receipt_status(receipt) != "pending":
+                    continue
+
+                tenant_id = _text(context.get("tenant_id"))
+                workspace_id = _text(context.get("workspace_id"))
+                user_id = _text(context.get("user_id"))
+                if not tenant_id or not workspace_id or not user_id:
+                    continue
+                if _text(_field(row, "tenant_id")) not in (
+                        "", tenant_id):
+                    continue
+                if _text(_field(row, "workspace_id")) not in (
+                        "", workspace_id):
+                    continue
+                if _text(_field(row, "user_id")) not in ("", user_id):
+                    continue
+
+                run = session.query(GoalRun).filter(
+                    GoalRun.id == run_id,
+                    GoalRun.tenant_id == tenant_id,
+                    GoalRun.workspace_id == workspace_id,
+                ).first()
+                if run is None:
+                    continue
+                run_status = _status_text(_field(run, "status"))
+                if _is_cancelled_status(run_status):
+                    continue
+                if not execution_terminal and run_status not in (
+                        _TERMINAL_RUN_STATUSES):
+                    continue
+
+                parameters = _json_object(
+                    _field(run, "parameters"), "goal run parameters")
+                task_lifecycle = _field(parameters, "task_lifecycle")
+                if not isinstance(task_lifecycle, Mapping):
+                    continue
+                assignment = _field(task_lifecycle, "assignment")
+                if not isinstance(assignment, Mapping):
+                    continue
+                task_revision = _field(task_lifecycle, "task_revision")
+                if _text(_field(task_revision, "authorization")).lower() == (
+                        "cancelled"):
+                    continue
+                if _text(assignment.get("status")).lower() == "cancelled":
+                    continue
+
+                employee_id = _text(assignment.get("employee_id")) \
+                    or _text(_field(run, "agent_id"))
+                identity = {
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                    "user_id": user_id,
+                    "employee_id": employee_id,
+                }
+                link = _extract_link(context)
+                if link is None or not _link_matches(
+                        link,
+                        execution_key,
+                        identity,
+                        _goal_id(execution_key),
+                        run_id,
+                        run,
+                        parameters,
+                ):
+                    continue
+
+                first_trigger = _receipt_trigger(receipt) or {}
+                invoice_number = _text(
+                    first_trigger.get("invoice_number"))
+                if not invoice_number:
+                    invoice_number = _pending_handoff_invoice_number(
+                        assignment)
+                if not invoice_number:
+                    continue
+
+                candidates.append({
+                    "execution_id": execution_key,
+                    "run_id": run_id,
+                    "invoice_number": invoice_number,
+                    "identity": identity,
+                })
+            except Exception:  # noqa: BLE001 - one bad row cannot stop a scan
+                continue
+        return candidates
+
+
+async def recover_pending_stock_invoice_owner_handoffs(
+    *, limit: int = _PENDING_HANDOFF_SCAN_LIMIT,
+) -> int:
+    """Retry each discovered pending handoff at most once in this scan.
+
+    The exact original operation and first source event are retained by the
+    durable receipt.  Delivered receipts are excluded during discovery and are
+    also terminal inside reconciliation.  Cancelled executions, runs or task
+    revisions are skipped before any effect.  A failed retry leaves its
+    truthful pending receipt for the next periodic scan.
+    """
+    attempted = 0
+    for candidate in _pending_stock_invoice_owner_handoff_candidates(
+            limit=limit):
+        try:
+            await reconcile_stock_invoice_owner_handoff(
+                execution_id=candidate["execution_id"],
+                run_id=candidate["run_id"],
+                invoice_number=candidate["invoice_number"],
+                identity=candidate["identity"],
+                trigger=None,
+            )
+        except Exception:  # noqa: BLE001 - keep the scan bounded and alive
+            continue
+        attempted += 1
+    return attempted

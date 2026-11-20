@@ -833,6 +833,27 @@ def test_crash_after_wake_before_advance_recovers(env):
         env["lifecycle"].get_assignment(run_id), "wait")["status"] == "applied"
 
 
+def test_ordinary_recovery_leaves_stock_handoff_scan_to_startup(
+        env, monkeypatch):
+    from core import invoice_workflow_assignment as iwa
+
+    calls = []
+
+    async def fail_if_called(**kwargs):
+        calls.append(kwargs)
+        raise AssertionError(
+            "generic assignment recovery must not own stock handoffs")
+
+    monkeypatch.setattr(
+        iwa,
+        "recover_pending_stock_invoice_owner_handoffs",
+        fail_if_called,
+    )
+
+    assert _run(env["executor"].recover_ready_assignments()) == []
+    assert calls == []
+
+
 def test_approval_after_cancellation_is_refused(env, monkeypatch):
     (run_id, _), _, _ = _commercial_assignment(
         env, env["tmp"], monkeypatch)
