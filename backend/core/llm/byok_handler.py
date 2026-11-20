@@ -681,7 +681,71 @@ def _worker_executor() -> Any:
     return _WORKER_EXECUTOR
 
 
-async def _to_thread_safe(fn, *args, on_worker_done=None, **kwargs):
+class _CallerDeadlineExceeded(Exception):
+    """The caller's absolute monotonic deadline expired BEFORE dispatch.
+
+    Deliberately distinct from a provider failure: no transport request was
+    issued, so this must never be classified, bench, or billed as a provider
+    response. A caller deadline is an OPTIONAL request boundary; legacy
+    callers that do not supply one never see this exception.
+    """
+
+
+def _remaining_caller_deadline(
+    caller_deadline: Optional[float],
+) -> Optional[float]:
+    """Seconds left until an absolute ``time.monotonic()`` deadline.
+
+    ``None`` means "no deadline" (the unset path). A malformed value is
+    treated the same way rather than turning an additive option into a crash.
+    """
+    if caller_deadline is None:
+        return None
+    try:
+        return float(caller_deadline) - time.monotonic()
+    except (TypeError, ValueError):
+        return None
+
+
+def _raise_if_caller_deadline_expired(
+    caller_deadline: Optional[float],
+) -> Optional[float]:
+    """Return remaining seconds, or raise before any dispatch if exhausted."""
+    remaining = _remaining_caller_deadline(caller_deadline)
+    if remaining is not None and remaining <= 0:
+        raise _CallerDeadlineExceeded(
+            "caller deadline expired before provider dispatch")
+    return remaining
+
+
+def _deadline_completion_create(client: Any, caller_deadline: Optional[float]):
+    """Return the completion callable for ONE deadline-opted-in dispatch.
+
+    An SDK client can own an automatic retry budget; a hidden retry is a
+    second physical request outside the caller's remaining time. Opted-in
+    calls therefore clone the client with ``max_retries=0``. With no caller
+    deadline the ORIGINAL callable is returned unchanged, preserving the
+    unset path exactly.
+    """
+    create = client.chat.completions.create
+    if caller_deadline is None:
+        return create
+    with_options = getattr(client, "with_options", None)
+    if callable(with_options):
+        try:
+            return with_options(max_retries=0).chat.completions.create
+        except Exception as retry_clone_err:  # noqa: BLE001 — additive option
+            logger.warning(
+                "Could not clone completion client with SDK retries disabled "
+                "(%s); the configured client retry budget applies",
+                type(retry_clone_err).__name__)
+    return create
+
+
+async def _to_thread_safe(
+    fn, *args, on_worker_done=None, caller_deadline=None,
+    caller_timeout=None, on_worker_pre_dispatch_expiry=None, **kwargs
+):
     """await fn(*args, **kwargs) in a bounded worker pool.
 
     An escaped StopIteration becomes a normal RuntimeError (Python <=3.12
@@ -690,7 +754,44 @@ async def _to_thread_safe(fn, *args, on_worker_done=None, **kwargs):
     not when the awaiting coroutine is cancelled. That is the cleanup edge the
     structured dispatch uses to retain its endpoint reservation until provider
     work has actually stopped.
+
+    ``on_worker_pre_dispatch_expiry`` is an OPTIONAL cleanup for an admitted
+    physical attempt that never reached the transport. It runs exactly when the
+    worker future is cancelled BEFORE the worker starts (queued awaiter
+    cancellation propagates to the real concurrent future) or when the worker
+    itself raises the typed ``_CallerDeadlineExceeded`` from its pre-transport
+    deadline check. It is deliberately driven by the WORKER future's final
+    state, so it still runs when the awaiting coroutine has already been
+    cancelled. A future that ran the transport — success or any other
+    exception — never triggers it: entered transport is never zero-settled.
+
+    ``caller_deadline`` is an OPTIONAL absolute ``time.monotonic()`` instant.
+    When supplied, an already-expired deadline raises
+    ``_CallerDeadlineExceeded`` BEFORE any worker is submitted, and the
+    deadline is re-checked inside the worker JUST BEFORE the transport call so
+    a worker that waited in the queue cannot dispatch after the budget ran
+    out; the request timeout is capped to the time remaining at that point.
+    The unset path injects no timeout kwargs, but the same completion-driven
+    cleanup still applies to a queued worker cancelled before it starts.
     """
+    def _run_worker_cleanup(callback, label):
+        if callback is None:
+            return
+        try:
+            callback()
+        except Exception:  # noqa: BLE001 — cleanup must not be lost
+            logger.exception("%s cleanup failed", label)
+
+    try:
+        remaining = _raise_if_caller_deadline_expired(caller_deadline)
+    except _CallerDeadlineExceeded:
+        # No worker exists yet, so no transport could have been entered. The
+        # caller normally closes its own intent in the matching except; this
+        # is the shared one-shot cleanup that also covers the worker path.
+        _run_worker_cleanup(
+            on_worker_pre_dispatch_expiry,
+            "worker pre-dispatch settlement")
+        raise
     # Each submission gets its own COPY of the caller's context. This is the
     # same propagation asyncio.to_thread provided, without sharing one Context
     # across concurrent jobs (which would serialize Context.run and leak
@@ -698,14 +799,51 @@ async def _to_thread_safe(fn, *args, on_worker_done=None, **kwargs):
     # task, before submission, so tenant/workspace/trace scope is inherited
     # exactly and never re-read from another task later.
     caller_context = contextvars.copy_context()
-    submitted = _worker_executor().submit(
-        caller_context.run, _stop_iteration_safe, fn, *args, **kwargs)
-    if on_worker_done is not None:
-        def _finished(_future):
-            try:
-                on_worker_done()
-            except Exception:  # noqa: BLE001 — cleanup must not be lost
-                logger.exception("worker completion cleanup failed")
+    if remaining is None:
+        # No deadline: the original direct submission, byte-for-byte.
+        submitted = _worker_executor().submit(
+            caller_context.run, _stop_iteration_safe, fn, *args, **kwargs)
+    else:
+        # The pre-submit check above only covers time spent BEFORE the worker
+        # starts. A queued worker can start after the deadline expired (the
+        # 0.025s budget / 0.1s queue reproduction called the provider late),
+        # so re-check here and compute the timeout from the time left NOW.
+        # The worker is already submitted, so its completion callback still
+        # runs exactly once even when this check raises.
+        def _deadline_worker():
+            worker_remaining = _raise_if_caller_deadline_expired(
+                caller_deadline)
+            call_kwargs = kwargs
+            if caller_timeout is not None:
+                call_kwargs = dict(kwargs)
+                call_kwargs["timeout"] = min(
+                    float(caller_timeout), worker_remaining)
+            return _stop_iteration_safe(fn, *args, **call_kwargs)
+
+        submitted = _worker_executor().submit(
+            caller_context.run, _deadline_worker)
+    if on_worker_done is not None or on_worker_pre_dispatch_expiry is not None:
+        def _finished(future):
+            # Decide from the WORKER future, never from the awaiter: an
+            # already-cancelled awaiter still accepts this callback.
+            undispatched = False
+            if future.cancelled():
+                # Authoritative concurrent-future cancellation: the queued
+                # worker never started, so no transport was entered.
+                undispatched = True
+            else:
+                try:
+                    worker_error = future.exception()
+                except BaseException:  # noqa: BLE001 — cancelled race
+                    worker_error = None
+                undispatched = isinstance(
+                    worker_error, _CallerDeadlineExceeded)
+            if undispatched:
+                _run_worker_cleanup(
+                    on_worker_pre_dispatch_expiry,
+                    "worker pre-dispatch settlement")
+            _run_worker_cleanup(
+                on_worker_done, "worker completion")
         submitted.add_done_callback(_finished)
     return await asyncio.wrap_future(submitted)
 
@@ -773,6 +911,23 @@ def _llm_request_timeout() -> float:
                 LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS,
             )
     return LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS
+
+
+def _caller_deadline_timeout(
+    provider_id: str, caller_deadline: Optional[float],
+) -> Optional[float]:
+    """Configured request timeout, only for deadline-opted-in calls.
+
+    Returning ``None`` on the unset path keeps legacy behavior byte-for-byte:
+    no timeout value is read or injected when the caller supplies no deadline.
+    """
+    if caller_deadline is None:
+        return None
+    return (
+        _ollama_request_timeout()
+        if provider_id == "ollama"
+        else _llm_request_timeout()
+    )
 
 
 class QueryComplexity(Enum):
@@ -5542,6 +5697,86 @@ class BYOKHandler:
             ) from intent_err
         return bound
 
+    def _abandon_physical_attempt(
+        self,
+        *,
+        request_id: str,
+        attempt_id: str,
+        provider_id: str,
+        model: str,
+        agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+    ) -> None:
+        """Close an admitted attempt that expired BEFORE provider transport.
+
+        This is NOT a provider response and must never be billed as one: no
+        request left the process. The zero-token/zero-cost settlement closes
+        the reservation under the attempt's own identity so a pre-dispatch
+        caller-deadline expiry cannot be mistaken for paid work.
+        """
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=0.0,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                execution_id=execution_id,
+                chain_id=chain_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:  # noqa: BLE001 — best-effort close
+            logger.error(
+                "LLM pre-dispatch settlement failed (%s)",
+                type(settle_err).__name__)
+
+    def _pre_dispatch_abandon_once(
+        self,
+        *,
+        request_id: str,
+        attempt_id: str,
+        provider_id: str,
+        model: str,
+        agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+    ):
+        """Return the ONE-SHOT zero settlement for an undispatched attempt.
+
+        The worker's completion callback and the awaiting coroutine can both
+        observe the same pre-transport expiry (and an already-cancelled
+        awaiter never observes the worker's typed expiry at all). The closure
+        carries the attempt's ORIGINAL scoped identities and a lock so the
+        durable intent is closed exactly once, never twice and never with a
+        later attempt's identity.
+        """
+        state = {"settled": False}
+        lock = threading.Lock()
+
+        def _settle() -> None:
+            with lock:
+                if state["settled"]:
+                    return
+                state["settled"] = True
+            self._abandon_physical_attempt(
+                request_id=request_id,
+                attempt_id=attempt_id,
+                provider_id=provider_id,
+                model=model,
+                agent_id=agent_id,
+                execution_id=execution_id,
+                chain_id=chain_id,
+            )
+
+        return _settle
+
     def _settle_physical_response(
         self,
         *,
@@ -7821,6 +8056,13 @@ class BYOKHandler:
         # with ``success=True``. Optional and additive, so the legacy text
         # API keeps working unchanged.
         outcome_sink: Optional[Dict[str, Any]] = None,
+        # Caller-owned ABSOLUTE ``time.monotonic()`` deadline for this
+        # workflow step. ``None`` (every legacy caller) preserves the
+        # historical dispatch path unchanged. When set, each physical
+        # completion is refused before dispatch once the deadline has
+        # passed, and its existing SDK timeout is capped to the remaining
+        # budget with automatic SDK retries disabled for that call.
+        caller_deadline: Optional[float] = None,
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -8416,6 +8658,11 @@ class BYOKHandler:
                         provider_id, model, _cap)
                     if _reasoning_body:
                         _req_kwargs["extra_body"] = _reasoning_body
+                    # Expire BEFORE the single-flight claim and durable
+                    # admission: a pre-dispatch deadline violation must not
+                    # create a claim or a billable attempt intent.
+                    if caller_deadline is not None:
+                        _raise_if_caller_deadline_expired(caller_deadline)
                     _claim_holder = "completion:" + str(
                         task_type or "general")
                     _claim_token = self._claim_model_attempt(
@@ -8472,12 +8719,36 @@ class BYOKHandler:
                         _accounting_blocked = True
                         break
 
+                    _settle_undispatched = self._pre_dispatch_abandon_once(
+                        request_id=_settlement_request_id,
+                        attempt_id=_attempt_id,
+                        provider_id=provider_id,
+                        model=model,
+                        agent_id=agent_id,
+                        execution_id=execution_id,
+                        chain_id=chain_id,
+                    )
                     try:
                         response = await _to_thread_safe(
-                            client.chat.completions.create,
+                            _deadline_completion_create(
+                                client, caller_deadline),
                             on_worker_done=_release_once,
+                            on_worker_pre_dispatch_expiry=(
+                                _settle_undispatched),
+                            caller_deadline=caller_deadline,
+                            caller_timeout=_caller_deadline_timeout(
+                                provider_id, caller_deadline),
                             **_req_kwargs,
                         )
+                    except _CallerDeadlineExceeded:
+                        # Expired BEFORE the worker started. This is not a
+                        # provider response: release the claim and close the
+                        # admitted-but-undispatched attempt at $0. The worker
+                        # completion callback uses the SAME one-shot, so an
+                        # already-cancelled awaiter cannot double-settle.
+                        _release_once()
+                        _settle_undispatched()
+                        raise
                     except asyncio.CancelledError:
                         _worker_lease = max(
                             _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS,
@@ -8731,6 +9002,11 @@ class BYOKHandler:
                         effective_max_tokens=_cap)
 
                 except Exception as attempt_err:
+                    if isinstance(attempt_err, _CallerDeadlineExceeded):
+                        # The caller deadline is a REQUEST boundary, not a
+                        # provider failure: never bench, fall through, or bill
+                        # it as a provider response.
+                        raise
                     if isinstance(attempt_err, _AccountingBlockedError):
                         _accounting_blocked = True
                         break
@@ -8771,6 +9047,9 @@ class BYOKHandler:
                         try:
                             _t_kwargs = dict(_req_kwargs)
                             _t_kwargs["temperature"] = _locked_value
+                            if caller_deadline is not None:
+                                _raise_if_caller_deadline_expired(
+                                    caller_deadline)
                             _settlement_attempts[0] += 1
                             _t_attempt_id = (
                                 f"{_settlement_request_id}:"
@@ -8792,8 +9071,30 @@ class BYOKHandler:
                                     if k not in ("messages", "model")
                                 },
                             )
-                            response = await _to_thread_safe(
-                                client.chat.completions.create, **_t_kwargs)
+                            _t_settle_undispatched = (
+                                self._pre_dispatch_abandon_once(
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_t_attempt_id,
+                                    provider_id=provider_id,
+                                    model=model,
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                )
+                            )
+                            try:
+                                response = await _to_thread_safe(
+                                    _deadline_completion_create(
+                                        client, caller_deadline),
+                                    on_worker_pre_dispatch_expiry=(
+                                        _t_settle_undispatched),
+                                    caller_deadline=caller_deadline,
+                                    caller_timeout=_caller_deadline_timeout(
+                                        provider_id, caller_deadline),
+                                    **_t_kwargs)
+                            except _CallerDeadlineExceeded:
+                                _t_settle_undispatched()
+                                raise
                             self._capture_echoed_model(response)
                             self._stash_last_reasoning(response, finish_reason_sink)
                             result = response.choices[0].message.content
@@ -8819,6 +9120,8 @@ class BYOKHandler:
                                     requested_max_tokens=max_tokens,
                                     effective_max_tokens=_t_kwargs.get(
                                         "max_tokens"))
+                        except _CallerDeadlineExceeded:
+                            raise
                         except _AccountingBlockedError:
                             raise
                         except Exception as _temp_retry_err:
@@ -8857,6 +9160,9 @@ class BYOKHandler:
                                         temperature),
                                     "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
                                 }
+                                if caller_deadline is not None:
+                                    _raise_if_caller_deadline_expired(
+                                        caller_deadline)
                                 _settlement_attempts[0] += 1
                                 _fb_attempt_id = (
                                     f"{_settlement_request_id}:"
@@ -8877,9 +9183,30 @@ class BYOKHandler:
                                         if k not in ("messages", "model")
                                     },
                                 )
-                                response = await _to_thread_safe(
-                                    client.chat.completions.create,
-                                    **_fb_kwargs)
+                                _fb_settle_undispatched = (
+                                    self._pre_dispatch_abandon_once(
+                                        request_id=_settlement_request_id,
+                                        attempt_id=_fb_attempt_id,
+                                        provider_id=provider_id,
+                                        model=fallback_model,
+                                        agent_id=agent_id,
+                                        execution_id=execution_id,
+                                        chain_id=chain_id,
+                                    )
+                                )
+                                try:
+                                    response = await _to_thread_safe(
+                                        _deadline_completion_create(
+                                            client, caller_deadline),
+                                        on_worker_pre_dispatch_expiry=(
+                                            _fb_settle_undispatched),
+                                        caller_deadline=caller_deadline,
+                                        caller_timeout=_caller_deadline_timeout(
+                                            provider_id, caller_deadline),
+                                        **_fb_kwargs)
+                                except _CallerDeadlineExceeded:
+                                    _fb_settle_undispatched()
+                                    raise
                                 self._capture_echoed_model(response)
                                 self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
@@ -8912,6 +9239,8 @@ class BYOKHandler:
                                     requested_max_tokens=max_tokens,
                                     effective_max_tokens=_fb_kwargs.get(
                                         "max_tokens"))
+                            except _CallerDeadlineExceeded:
+                                raise
                             except _AccountingBlockedError:
                                 raise
                             except Exception as fb_err:
@@ -8993,6 +9322,9 @@ class BYOKHandler:
                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                 )
                                 try:
+                                    if caller_deadline is not None:
+                                        _raise_if_caller_deadline_expired(
+                                            caller_deadline)
                                     _settlement_attempts[0] += 1
                                     _heal_attempt_id = (
                                         f"{_settlement_request_id}:"
@@ -9016,10 +9348,31 @@ class BYOKHandler:
                                             if k not in ("messages", "model")
                                         },
                                     )
-                                    response = await _to_thread_safe(
-                                        client.chat.completions.create,
-                                        **heal_result.patched_kwargs
+                                    _heal_settle_undispatched = (
+                                        self._pre_dispatch_abandon_once(
+                                            request_id=_settlement_request_id,
+                                            attempt_id=_heal_attempt_id,
+                                            provider_id=provider_id,
+                                            model=model,
+                                            agent_id=agent_id,
+                                            execution_id=execution_id,
+                                            chain_id=chain_id,
+                                        )
                                     )
+                                    try:
+                                        response = await _to_thread_safe(
+                                            _deadline_completion_create(
+                                                client, caller_deadline),
+                                            on_worker_pre_dispatch_expiry=(
+                                                _heal_settle_undispatched),
+                                            caller_deadline=caller_deadline,
+                                            caller_timeout=_caller_deadline_timeout(
+                                                provider_id, caller_deadline),
+                                            **heal_result.patched_kwargs
+                                        )
+                                    except _CallerDeadlineExceeded:
+                                        _heal_settle_undispatched()
+                                        raise
                                     self._capture_echoed_model(response)
                                     self._stash_last_reasoning(response, finish_reason_sink)
                                     result = response.choices[0].message.content
@@ -9074,6 +9427,8 @@ class BYOKHandler:
                                         effective_max_tokens=(
                                             heal_result.patched_kwargs.get(
                                                 "max_tokens")))
+                                except _CallerDeadlineExceeded:
+                                    raise
                                 except _AccountingBlockedError:
                                     raise
                                 except Exception as retry_err:
@@ -9082,6 +9437,8 @@ class BYOKHandler:
                                         f"{retry_err} (rule={heal_result.rule})"
                                     )
                                     last_error = retry_err
+                        except _CallerDeadlineExceeded:
+                            raise
                         except _AccountingBlockedError:
                             raise
                         except Exception:
@@ -9110,6 +9467,9 @@ class BYOKHandler:
                                         provider_id, paid_model, temperature),
                                     "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
                                 }
+                                if caller_deadline is not None:
+                                    _raise_if_caller_deadline_expired(
+                                        caller_deadline)
                                 _settlement_attempts[0] += 1
                                 _paid_attempt_id = (
                                     f"{_settlement_request_id}:"
@@ -9130,9 +9490,30 @@ class BYOKHandler:
                                         if k not in ("messages", "model")
                                     },
                                 )
-                                response = await _to_thread_safe(
-                                    client.chat.completions.create,
-                                    **_paid_kwargs)
+                                _paid_settle_undispatched = (
+                                    self._pre_dispatch_abandon_once(
+                                        request_id=_settlement_request_id,
+                                        attempt_id=_paid_attempt_id,
+                                        provider_id=provider_id,
+                                        model=paid_model,
+                                        agent_id=agent_id,
+                                        execution_id=execution_id,
+                                        chain_id=chain_id,
+                                    )
+                                )
+                                try:
+                                    response = await _to_thread_safe(
+                                        _deadline_completion_create(
+                                            client, caller_deadline),
+                                        on_worker_pre_dispatch_expiry=(
+                                            _paid_settle_undispatched),
+                                        caller_deadline=caller_deadline,
+                                        caller_timeout=_caller_deadline_timeout(
+                                            provider_id, caller_deadline),
+                                        **_paid_kwargs)
+                                except _CallerDeadlineExceeded:
+                                    _paid_settle_undispatched()
+                                    raise
                                 self._capture_echoed_model(response)
                                 self._stash_last_reasoning(response, finish_reason_sink)
                                 result = response.choices[0].message.content
@@ -9185,6 +9566,8 @@ class BYOKHandler:
                                     requested_max_tokens=max_tokens,
                                     effective_max_tokens=_paid_kwargs.get(
                                         "max_tokens"))
+                            except _CallerDeadlineExceeded:
+                                raise
                             except _AccountingBlockedError:
                                 raise
                             except Exception as paid_err:
@@ -9285,6 +9668,9 @@ class BYOKHandler:
                             _sp, _sm, _sweep_kwargs["max_tokens"])
                         if _reasoning_body:
                             _sweep_kwargs["extra_body"] = _reasoning_body
+                        if caller_deadline is not None:
+                            _raise_if_caller_deadline_expired(
+                                caller_deadline)
                         _settlement_attempts[0] += 1
                         _sweep_attempt_id = (
                             f"{_settlement_request_id}:"
@@ -9304,8 +9690,30 @@ class BYOKHandler:
                                 if k not in ("messages", "model")
                             },
                         )
-                        response = await _to_thread_safe(
-                            _client.chat.completions.create, **_sweep_kwargs)
+                        _sweep_settle_undispatched = (
+                            self._pre_dispatch_abandon_once(
+                                request_id=_settlement_request_id,
+                                attempt_id=_sweep_attempt_id,
+                                provider_id=_sp,
+                                model=_sm,
+                                agent_id=agent_id,
+                                execution_id=execution_id,
+                                chain_id=chain_id,
+                            )
+                        )
+                        try:
+                            response = await _to_thread_safe(
+                                _deadline_completion_create(
+                                    _client, caller_deadline),
+                                on_worker_pre_dispatch_expiry=(
+                                    _sweep_settle_undispatched),
+                                caller_deadline=caller_deadline,
+                                caller_timeout=_caller_deadline_timeout(
+                                    _sp, caller_deadline),
+                                **_sweep_kwargs)
+                        except _CallerDeadlineExceeded:
+                            _sweep_settle_undispatched()
+                            raise
                         self._capture_echoed_model(response)
                         self._stash_last_reasoning(response, finish_reason_sink)
                         _sweep_result = response.choices[0].message.content
@@ -9336,6 +9744,8 @@ class BYOKHandler:
                             requested_max_tokens=max_tokens,
                             effective_max_tokens=_sweep_kwargs.get(
                                 "max_tokens"))
+                    except _CallerDeadlineExceeded:
+                        raise
                     except Exception as _sweep_attempt_err:
                         logger.warning(
                             f"completion ladder sweep attempt failed for "
@@ -9532,6 +9942,21 @@ class BYOKHandler:
                 diagnostics={
                     "last_error": str(accounting_err)[:500],
                     "last_error_type": type(accounting_err).__name__,
+                })
+        except _CallerDeadlineExceeded as deadline_err:
+            # PRE-DISPATCH expiry is not a provider response and not a billed
+            # attempt: report it as its own terminal outcome so callers cannot
+            # mistake it for a provider answer.
+            logger.warning(
+                "LLM generation stopped before dispatch: %s", deadline_err)
+            return _failed_text_return(
+                outcome_sink, "deadline_exceeded",
+                "I couldn't generate a response — the request deadline "
+                "expired before a provider could be dispatched.",
+                diagnostics={
+                    "last_error": str(deadline_err)[:500],
+                    "last_error_type": type(deadline_err).__name__,
+                    "routing": "caller_deadline_expired",
                 })
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
