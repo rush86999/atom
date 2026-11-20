@@ -64,6 +64,9 @@ services:
       # --- Database (SQLite — no external DB required) ---
       - DATABASE_URL=sqlite:///./data/atom.db
       - SQLITE_PATH=./data/atom.db
+      # --- Scheduler (APScheduler persistent job store — SQLite) ---
+      - SCHEDULER_JOB_STORE_URL=${SCHEDULER_JOB_STORE_URL:-sqlite:////app/backend/scheduler-data/jobs.sqlite}
+      - SCHEDULER_SQLITE_OWNERSHIP_LOCK=${SCHEDULER_SQLITE_OWNERSHIP_LOCK:-true}
       # Ensure both bare and backend.* imports resolve inside the container.
       # (The Dockerfile already sets PYTHONPATH=/app:/app/backend; this is a
       # belt-and-suspenders copy for env-file overrides.)
@@ -121,6 +124,7 @@ services:
 
     volumes:
       - atom-personal-data:/app/backend/data
+      - scheduler_data:/app/backend/scheduler-data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/alive')"]
@@ -181,4 +185,6 @@ networks:
 
 volumes:
   atom-personal-data:
+    driver: local
+  scheduler_data:
     driver: local
