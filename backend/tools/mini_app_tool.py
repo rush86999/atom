@@ -594,6 +594,16 @@ def _cas_set_tests_manifest(
     return int(result.rowcount or 0)
 
 
+def _saved_acceptance_cases(manifest: Any) -> list:
+    from core.mini_app_service import validate_tests
+
+    if manifest is not None and not isinstance(manifest, dict):
+        raise ValueError("Invalid mini-app manifest")
+    cases = (manifest or {}).get("tests", [])
+    validate_tests(cases)
+    return cases
+
+
 async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """Declare acceptance-test cases for an app (stored in the manifest)."""
     viewer = _require_actor(context)
@@ -620,6 +630,14 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
                 return {"success": False, "error": "Not the app owner"}
             validate_tests(tests)
             prior_manifest = app.manifest
+            expected_digest = args.get("expected_tests_sha256")
+            if expected_digest is not None:
+                try:
+                    prior_tests = _saved_acceptance_cases(prior_manifest)
+                except ValueError:
+                    return {"success": False, "error": "mini_app_saved_tests_invalid"}
+                if _approval_payload_hash(prior_tests) != expected_digest:
+                    return {"success": False, "error": "mini_app_acceptance_tests_changed"}
             prior_is_sql_null = bool(db.execute(
                 select(MiniApp.manifest.is_(None))
                 .where(MiniApp.id == app_id)
@@ -688,6 +706,7 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
             "success": True,
             "app_id": app_id,
             "tests": len(tests),
+            "tests_sha256": _approval_payload_hash(tests),
             "audit_id": audit_id,
             "operation_id": operation_id,
             "message": f"Saved {len(tests)} acceptance test case(s)",
@@ -872,6 +891,17 @@ async def mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
             probe = status_probe(app, db, viewer=viewer)
+            if args.get("include_acceptance_cases") is True:
+                from core.task_lifecycle import _approval_payload_hash
+
+                try:
+                    cases = _saved_acceptance_cases(app.manifest)
+                except ValueError:
+                    return {"success": False, "error": "mini_app_saved_tests_invalid"}
+                probe["acceptance"] = {
+                    "cases": cases,
+                    "tests_sha256": _approval_payload_hash(cases),
+                }
         return {"success": True, "status": probe}
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_status failed: %s", e)
