@@ -28,6 +28,7 @@ canvas content.
 """
 from __future__ import annotations
 
+import ast
 import inspect
 import logging
 import re
@@ -312,6 +313,27 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
     retry on SyntaxError (the gate returns the line/offset)."""
     from tools.mini_app_tool import mini_app_write_logic
 
+    async def save_candidate(code: str) -> Dict[str, Any]:
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as exc:
+            return {"success": False, "error": f"SyntaxError: {exc}"}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            target = node.func
+            name = target.id if isinstance(target, ast.Name) else (
+                target.attr if isinstance(target, ast.Attribute) else None
+            )
+            if name in {"exec", "eval", "system"}:
+                return {
+                    "success": False,
+                    "error": f"SyntaxError: generated code cannot call {name}()",
+                }
+        return await mini_app_write_logic(
+            {"app_id": app_id, "source": code}, _ctx(user_id)
+        )
+
     prompt = _build_logic_prompt(name, kind, description, lessons)
     source = ""
     if llm_service is not None:
@@ -329,7 +351,7 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
         source = (
             "state['items'] = int(state.get('items', 0)) + 1\n"
         )
-    res = await mini_app_write_logic({"app_id": app_id, "source": source}, _ctx(user_id))
+    res = await save_candidate(source)
     if not res.get("success") and "SyntaxError" in str(res.get("error", "")) and llm_service is not None:
         retry = await llm_service.generate_completion([
             {"role": "system", "content": "You fix Python code. Return only the corrected code."},
@@ -337,7 +359,7 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
         ])
         fixed = _strip_code_fences((retry or {}).get("content") or "")
         if fixed:
-            res = await mini_app_write_logic({"app_id": app_id, "source": fixed}, _ctx(user_id))
+            res = await save_candidate(fixed)
     return {**res, "used_starter": used_starter}
 
 

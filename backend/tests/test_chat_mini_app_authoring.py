@@ -154,3 +154,33 @@ class TestChatDrivenLoop:
             "publish my mini app", [], _uid(), None, None
         )
         assert res is not None and "No mini-app found" in res["message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("repair_allowed", [False, True])
+async def test_generated_logic_rejects_dynamic_execution_before_save(
+    monkeypatch, repair_allowed,
+):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _author_logic
+
+    rejected = "exec('pass')"
+    accepted = "state = {'total': sum(amounts)}"
+    model = SimpleNamespace(generate_completion=AsyncMock(side_effect=[
+        {"content": rejected},
+        {"content": accepted if repair_allowed else rejected},
+    ]))
+    save = AsyncMock(return_value={"success": True, "version": 1})
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_write_logic", save)
+
+    result = await _author_logic(model, "app", "Inventory", "inventory", "sum", "actor")
+
+    assert model.generate_completion.await_count == 2
+    assert result["success"] is repair_allowed
+    if repair_allowed:
+        save.assert_awaited_once()
+        assert save.await_args.args[0]["source"] == accepted
+    else:
+        save.assert_not_awaited()
