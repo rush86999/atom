@@ -196,6 +196,205 @@ def test_workflow_approval_resumes_execution(monkeypatch):
     assert calls["resume"][2]["approved"] is True
 
 
+def test_approved_stock_reservation_defers_generic_resume(monkeypatch):
+    """A stock invoice launch is continued only by the same-key launch retry.
+
+    The approval selector is mutable review material, so the persisted stock
+    execution must win: the generic catalog definition must not run here.
+    """
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    calls = {}
+
+    class FakeStateManager:
+        async def get_execution_state(self, execution_id):
+            calls["state"] = execution_id
+            return {
+                "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+                "status": "PAUSED",
+            }
+
+        async def update_execution_status(self, *args, **kwargs):
+            calls["status"] = (args, kwargs)
+
+    class FakeEngine:
+        async def resume_workflow(self, *args, **kwargs):
+            calls["resume"] = (args, kwargs)
+            return True
+
+    def fail_generic_lookup():
+        raise AssertionError("stock approval must not load the generic workflow")
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
+        action_type="execute_command",
+        params={
+            "execution_id": "exec-stock",
+            "workflow_id": "wf-mutated-selector",
+        },
+    ))
+    monkeypatch.setattr(
+        "core.execution_state_manager.get_state_manager",
+        lambda: FakeStateManager())
+    monkeypatch.setattr(
+        "core.workflow_endpoints.load_workflows", fail_generic_lookup)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=True, reviewer_id="lead-1"))
+
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["kind"] == "workflow"
+    assert result["status"] == "DEFERRED"
+    assert result["deferred"] is True
+    assert result["retry_required"] is True
+    assert result["retry_via"] == "stock_invoice_launch"
+    assert calls["state"] == "exec-stock"
+    assert "resume" not in calls
+    assert "status" not in calls
+
+
+def test_approved_stock_stale_or_attached_still_defers(monkeypatch):
+    """Every approved stock hit refuses generic resume, not just a live pause."""
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    calls = {}
+    current = {}
+
+    class FakeStateManager:
+        async def get_execution_state(self, execution_id):
+            return current["state"]
+
+        async def update_execution_status(self, *args, **kwargs):
+            calls["status"] = (args, kwargs)
+
+    class FakeEngine:
+        async def resume_workflow(self, *args, **kwargs):
+            calls["resume"] = (args, kwargs)
+            return True
+
+    def fail_generic_lookup():
+        raise AssertionError("stock approval must not load the generic workflow")
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
+        action_type="execute_command",
+        params={"execution_id": "exec-stock"},
+    ))
+    monkeypatch.setattr(
+        "core.execution_state_manager.get_state_manager",
+        lambda: FakeStateManager())
+    monkeypatch.setattr(
+        "core.workflow_endpoints.load_workflows", fail_generic_lookup)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    for state in (
+        {"workflow_id": STOCK_INVOICE_WORKFLOW_ID, "status": "FAILED"},
+        {
+            "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+            "status": "PENDING",
+            "context": {"run_id": "run-stock"},
+        },
+    ):
+        calls.clear()
+        current["state"] = state
+        result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+            "hitl-1", approved=True, reviewer_id="lead-1"))
+
+        assert result["handled"] is True
+        assert result["resumed"] is False
+        assert result["deferred"] is True
+        assert result["retry_required"] is True
+        assert "resume" not in calls
+        assert "status" not in calls
+
+
+def test_workflow_resume_uses_persisted_definition_over_selector(monkeypatch):
+    """A stock-looking approval selector cannot defer another execution."""
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    calls = {}
+
+    class FakeStateManager:
+        async def get_execution_state(self, execution_id):
+            return {"workflow_id": "wf-real", "status": "PAUSED"}
+
+    class FakeEngine:
+        async def resume_workflow(self, execution_id, workflow, inputs):
+            calls["resume"] = (execution_id, workflow.get("id"), inputs)
+            return True
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
+        action_type="execute_command",
+        params={
+            "execution_id": "exec-1",
+            "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+        },
+    ))
+    monkeypatch.setattr(
+        "core.execution_state_manager.get_state_manager",
+        lambda: FakeStateManager())
+    monkeypatch.setattr(
+        "core.workflow_endpoints.load_workflows",
+        lambda: [{"id": "wf-real"}, {"id": STOCK_INVOICE_WORKFLOW_ID}])
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=True, reviewer_id="lead-1"))
+
+    assert result["handled"] is True
+    assert result["resumed"] is True
+    assert result.get("deferred") is not True
+    assert calls["resume"][0:2] == ("exec-1", "wf-real")
+
+
+def test_stock_rejection_still_fails_execution(monkeypatch):
+    """Rejection keeps its safe terminal effect instead of becoming a resume."""
+    from core.workflow_endpoints import STOCK_INVOICE_WORKFLOW_ID
+
+    calls = {}
+
+    class FakeStateManager:
+        async def get_execution_state(self, execution_id):
+            return {
+                "workflow_id": STOCK_INVOICE_WORKFLOW_ID,
+                "status": "PAUSED",
+            }
+
+        async def update_execution_status(self, execution_id, status,
+                                          error=None):
+            calls["failed"] = (execution_id, status, error)
+
+    class FakeEngine:
+        async def resume_workflow(self, *args, **kwargs):  # pragma: no cover
+            calls["resume"] = (args, kwargs)
+            return True
+
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
+        action_type="execute_command",
+        params={"execution_id": "exec-stock"},
+    ))
+    monkeypatch.setattr(
+        "core.execution_state_manager.get_state_manager",
+        lambda: FakeStateManager())
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
+
+    result = asyncio.run(hitl_resume.resume_after_hitl_decision(
+        "hitl-1", approved=False, reviewer_id="lead-1",
+        guidance="do not launch"))
+
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result.get("deferred") is not True
+    assert result["status"] == "FAILED"
+    assert calls["failed"][0:2] == ("exec-stock", "FAILED")
+    assert "launch" in calls["failed"][2]
+    assert "resume" not in calls
+
+
 def test_workflow_rejection_fails_execution(monkeypatch):
     calls = {}
 

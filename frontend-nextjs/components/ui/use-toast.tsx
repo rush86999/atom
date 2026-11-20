@@ -6,6 +6,7 @@ type ToastProps = {
     id: string
     title?: string
     description?: string
+    action?: React.ReactNode
     variant?: "default" | "success" | "error" | "warning" | "destructive"
     duration?: number
 }
@@ -58,7 +59,7 @@ function ToastContainer({ toasts, dismiss }: { toasts: ToastProps[]; dismiss: (i
     )
 }
 
-function Toast({ title, description, variant = "default", onDismiss }: ToastProps & { onDismiss: () => void }) {
+function Toast({ title, description, action, variant = "default", onDismiss }: ToastProps & { onDismiss: () => void }) {
     const variantStyles = {
         default: "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100",
         success: "bg-green-50 border-green-200 text-green-900",
@@ -77,6 +78,7 @@ function Toast({ title, description, variant = "default", onDismiss }: ToastProp
             <div className="flex-1">
                 {title && <div className="font-semibold">{title}</div>}
                 {description && <div className="text-sm opacity-90 mt-1">{description}</div>}
+                {action && <div className="mt-2">{action}</div>}
             </div>
             <button
                 onClick={onDismiss}
