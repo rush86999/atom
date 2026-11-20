@@ -2991,6 +2991,13 @@ class WorkflowEngine:
                 action, "AI text completion failed", "provider_error")
 
         if not isinstance(completion, dict) or completion.get("success") is not True:
+            if (
+                caller_deadline is not None
+                and isinstance(completion, dict)
+                and isinstance((failure := completion.get("failure")), dict)
+                and failure.get("reason") == "deadline_exceeded"
+            ):
+                raise _CallerDeadlineExceeded("caller deadline expired before provider dispatch")
             failure = (
                 completion.get("failure")
                 if isinstance(completion, dict) else None)
@@ -3380,6 +3387,13 @@ Return your response in a clear, structured format."""
                 else None)
 
             if completion.get("success") is not True:
+                if (
+                    caller_deadline is not None
+                    and isinstance(completion, dict)
+                    and isinstance((failure := completion.get("failure")), dict)
+                    and failure.get("reason") == "deadline_exceeded"
+                ):
+                    raise _CallerDeadlineExceeded("caller deadline expired before provider dispatch")
                 failure = completion.get("failure")
                 failure = failure if isinstance(failure, dict) else {}
                 failure_reason = str(failure.get("reason") or "")

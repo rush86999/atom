@@ -544,3 +544,84 @@ async def test_ai_action_without_deadline_keeps_legacy_completion_call(engine):
     assert "caller_deadline" not in (
         llm_service.generate_completion.await_args.kwargs
     )
+
+
+@pytest.mark.asyncio
+async def test_ai_action_translates_structured_deadline_failure(
+    engine,
+):
+    """The ai executor forwards the boundary and keeps the caller's messages."""
+    llm_service = MagicMock()
+    llm_service.generate_completion = AsyncMock(
+        return_value={"success": False, "failure": {"reason": "deadline_exceeded"}}
+    )
+    step = {
+        "id": "deadline-7",
+        "service": "ai",
+        "action": "generate_content",
+        AI_EXECUTION_SCOPE_KEY: {
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+        },
+    }
+
+    with patch(
+        "core.database.get_db_session", return_value=_scoped_db_session()
+    ), patch(
+        "core.llm_service.get_llm_service", return_value=llm_service
+    ):
+        with pytest.raises(_CallerDeadlineExceeded):
+            await engine._execute_ai_action(
+                "generate_content",
+                {"prompt": "hello"},
+                step=step,
+                caller_deadline=321.0,
+            )
+
+    call_kwargs = llm_service.generate_completion.await_args.kwargs
+    assert call_kwargs["caller_deadline"] == 321.0
+    assert call_kwargs["messages"] == [{"role": "user", "content": "hello"}]
+
+
+@pytest.mark.asyncio
+async def test_main_agent_action_translates_structured_deadline_failure(
+    engine,
+):
+    """The scoped main_agent completion receives the same deadline and input."""
+    llm_service = MagicMock()
+    llm_service.generate_completion = AsyncMock(
+        return_value={"success": False, "failure": {"reason": "deadline_exceeded"}}
+    )
+    action = "run"
+    params = {"agent_id": "agent-1", "input_data": {"q": "hello"}}
+    step = {
+        "id": "deadline-8",
+        "service": "main_agent",
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+    }
+    expected_prompt = f"""You are executing action: {action}
+
+Input data:
+{str(params['input_data'])}
+
+Return your response in a clear, structured format."""
+
+    with patch(
+        "core.database.get_db_session", return_value=_scoped_db_session()
+    ), patch(
+        "core.llm_service.get_llm_service", return_value=llm_service
+    ):
+        with pytest.raises(_CallerDeadlineExceeded):
+            await engine._execute_main_agent_action(
+                action,
+                params,
+                step=step,
+                caller_deadline=654.0,
+            )
+
+    call_kwargs = llm_service.generate_completion.await_args.kwargs
+    assert call_kwargs["caller_deadline"] == 654.0
+    assert call_kwargs["messages"] == [
+        {"role": "user", "content": expected_prompt}
+    ]
