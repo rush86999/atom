@@ -257,7 +257,7 @@ def validate_tests(tests: Any) -> None:
             raise ValueError("test.expect_ops must be a list")
         if "name" in case and not isinstance(case["name"], str):
             raise ValueError("test.name must be a string")
-        if "expect_state" not in case and "expect_ops" not in case:
+        if not case.get("expect_state") and not case.get("expect_ops"):
             raise ValueError(
                 "each test case must declare expect_state and/or expect_ops"
             )
@@ -2660,7 +2660,13 @@ async def run_tests(
     results: List[Dict[str, Any]] = []
     passed = 0
     for i, case in enumerate(tests):
-        name = case.get("name") or f"case-{i}"
+        name = (case.get("name") if isinstance(case, dict) else None) or f"case-{i}"
+        try:
+            validate_tests([case])
+        except ValueError as exc:
+            results.append({"name": name, "passed": False, "error": str(exc)})
+            continue
+
         try:
             res = await run_stateful(
                 blueprint_canvas_id,
@@ -2687,9 +2693,13 @@ async def run_tests(
         actual = res.get("state") or {}
         expect = case.get("expect_state") or {}
         diff = {
-            k: {"expected": v, "actual": actual.get(k)}
+            k: (
+                {"expected": v, "actual": actual[k]}
+                if k in actual
+                else {"expected": v, "actual": None, "missing": True}
+            )
             for k, v in expect.items()
-            if actual.get(k) != v
+            if k not in actual or actual[k] != v
         }
         state_ok = not diff
 

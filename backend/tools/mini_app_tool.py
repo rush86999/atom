@@ -610,13 +610,13 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
         from core.task_lifecycle import _approval_payload_hash
         from sqlalchemy import select
 
-        validate_tests(tests)
         with get_db_session() as db:
             app = db.query(MiniApp).filter(MiniApp.id == app_id).first()
             if app is None:
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
+            validate_tests(tests)
             prior_manifest = app.manifest
             prior_is_sql_null = bool(db.execute(
                 select(MiniApp.manifest.is_(None))

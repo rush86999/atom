@@ -549,3 +549,31 @@ class TestAgentChatDispatch:
             "mini_app_run",
         ):
             assert required in names, f"{required} not exposed to the agent loop"
+
+
+@pytest.mark.asyncio
+async def test_acceptance_distinguishes_missing_null_and_empty_assertions(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from core.mini_app_service import run_tests, validate_tests
+
+    empty = {"expect_state": {}, "expect_ops": []}
+    with pytest.raises(ValueError, match="expect_state"):
+        validate_tests([empty])
+
+    guest = AsyncMock(side_effect=[
+        {"success": True, "state": {}},
+        {"success": True, "state": {"reviewed_at": None}},
+    ])
+    monkeypatch.setattr("core.mini_app_service.run_stateful", guest)
+    expect_null = {"expect_state": {"reviewed_at": None}}
+
+    report = await run_tests("app", "canvas", [empty, expect_null, expect_null])
+
+    assert report["passed"] == 1
+    assert report["results"][0]["passed"] is False
+    assert report["results"][1]["diff"]["reviewed_at"] == {
+        "expected": None, "actual": None, "missing": True,
+    }
+    assert report["results"][2]["passed"] is True
+    assert guest.await_count == 2
