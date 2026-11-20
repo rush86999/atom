@@ -64,6 +64,11 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code from builder stage
 COPY --from=builder --chown=atomuser:atomuser /app /app
 
+# Prepare the scheduler job store mount point so the named volume is writable
+# by the non-root runtime user when Docker initializes it from this image.
+RUN mkdir -p /app/backend/scheduler-data && \
+    chown atomuser:atomuser /app/backend/scheduler-data
+
 # Set working directory and user.
 # WORKDIR is /app/backend so uvicorn finds main_api_app:app there.
 # PYTHONPATH includes /app (for `backend.api.*` imports) and /app/backend

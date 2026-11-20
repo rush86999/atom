@@ -56,6 +56,14 @@ The Personal Edition compose file (`docker-compose-personal.yml`) runs the
 Dockerfile sets `WORKDIR /app/backend` and `PYTHONPATH=/app:/app/backend` so
 both bare and `backend.*` imports resolve.
 
+#### Scheduler storage and upgrades
+
+Personal, full, and production local Compose configurations now use a separate local `scheduler_data` volume mounted at `/app/backend/scheduler-data`, with the scheduler database at `/app/backend/scheduler-data/jobs.sqlite`. The same-host SQLite guard defaults on via `SCHEDULER_SQLITE_OWNERSHIP_LOCK=true`. This guard is local-only: it protects against multiple scheduler owners on one host, but it does not make SQLite safe across hosts, shared filesystems, or distributed deployments. See the [APScheduler 3.x FAQ on sharing a job store](https://apscheduler.readthedocs.io/en/3.x/faq.html#how-do-i-share-a-single-job-store-among-one-or-more-worker-processes).
+
+Existing default installations must stop all scheduler writers and retain the old backend container before recreating containers or running `down`. Back up `/app/backend/jobs.sqlite` using a SQLite WAL-aware backup so committed WAL content is included; do not rely on a plain copy of the main database file alone. Verify the backup, restore only into an empty target as the runtime user, and validate job IDs and next run times before resuming scheduling. Retain a rollback snapshot until the upgrade is confirmed. Do not delete the old or new volume; avoid any Compose option that removes volumes, including the volume-deleting form of `down`.
+
+Existing durable stores with an explicit scheduler URL should retain that URL. To use a non-SQLite store, disable the SQLite ownership flag and ensure exactly one scheduler owner.
+
 ### Method 2: Manual Clone & Virtual Environment (Local Dev)
 Ideal for contribution and running the latest changes from `main`:
 

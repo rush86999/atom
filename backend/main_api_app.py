@@ -770,6 +770,15 @@ async def lifespan(app: FastAPI):
             pass
 
         # 1. Start Workflow Scheduler
+        from os import environ as _sched_environ
+
+        _sched_ownership_owner = None
+        _sched_ownership_release = None
+        _sched_scheduler = None
+        _sched_started = False
+        _sched_ownership_lock_enabled = (
+            _sched_environ.get("SCHEDULER_SQLITE_OWNERSHIP_LOCK", "")
+            .strip().lower() in {"1", "true", "yes", "on"})
         try:
             from ai.workflow_scheduler import workflow_scheduler
 
@@ -787,9 +796,49 @@ async def lifespan(app: FastAPI):
                 # A Redis job store is authoritative; never reconcile the
                 # unused SQLite URL in that deployment. The helper publishes
                 # the shared ready/failed state for every other store.
-                if getattr(workflow_scheduler, "using_redis_jobstore", False):
+                _using_redis_jobstore = bool(
+                    getattr(workflow_scheduler, "using_redis_jobstore", False))
+                if _using_redis_jobstore:
                     mark_scheduler_store_ready()
                 else:
+                    _sched_scheduler = workflow_scheduler.scheduler
+
+                    if _sched_ownership_lock_enabled:
+                        from apscheduler.events import (
+                            EVENT_SCHEDULER_SHUTDOWN,
+                        )
+                        from core.scheduler_store import (
+                            acquire_scheduler_store_ownership_lock,
+                        )
+
+                        _sched_ownership_owner = (
+                            acquire_scheduler_store_ownership_lock(
+                                workflow_scheduler.job_store_url))
+
+                        def _release_sched_ownership(event=None):
+                            nonlocal _sched_ownership_owner
+                            owner = _sched_ownership_owner
+                            _sched_ownership_owner = None
+                            try:
+                                workflow_scheduler.scheduler.remove_listener(
+                                    _release_sched_ownership)
+                            except Exception:
+                                pass
+                            if owner is None:
+                                return
+                            try:
+                                owner.release()
+                            except Exception as release_exc:
+                                logger.warning(
+                                    "Failed to release scheduler store "
+                                    "ownership lock: "
+                                    f"{release_exc}")
+
+                        _sched_ownership_release = _release_sched_ownership
+                        workflow_scheduler.scheduler.add_listener(
+                            _release_sched_ownership,
+                            EVENT_SCHEDULER_SHUTDOWN)
+
                     _sched_recon = reconcile_and_mark_scheduler_store(
                         workflow_scheduler.job_store_url)
                     if _sched_recon.get("status") == "adopted":
@@ -800,7 +849,20 @@ async def lifespan(app: FastAPI):
                 # workflow_scheduler.start() is synchronous — awaiting None
                 # raises TypeError, which was silently swallowed. Call directly.
                 workflow_scheduler.start()
+                _sched_started = True
         except Exception as exc:
+            _sched_has_started = _sched_started
+            if not _sched_has_started and _sched_scheduler is not None:
+                try:
+                    _sched_has_started = bool(
+                        getattr(_sched_scheduler, "running", False))
+                except Exception:
+                    pass
+            if (_sched_ownership_owner is not None
+                    and not _sched_has_started
+                    and _sched_ownership_release is not None):
+                _sched_ownership_release()
+
             if not qstash_init_skip:
                 from core.scheduler_store import (
                     mark_scheduler_store_failed,
