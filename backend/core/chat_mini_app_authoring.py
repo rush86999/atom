@@ -284,9 +284,11 @@ def _build_logic_prompt(name: str, kind: Optional[str], description: Optional[st
         "dict and each per-run input field as a separate global. To persist "
         "results, update or assign the global state dict using JSON-serializable "
         "values. No function is called automatically. There is no inputs "
-        "dictionary. For example, if the run provides a field named rows, "
-        "read it directly as rows and save a count with state['count'] = len(rows). "
-        "Stdlib only.\n"
+        "dictionary. Controllers run unattended: every per-run input field is "
+        "already a global, so never call input() or wait for interactive input — "
+        "an interactive call makes grading wait until the runtime stops. For "
+        "example, if the run provides a field named rows, read it directly as "
+        "rows and save a count with state['count'] = len(rows). Stdlib only.\n"
         f"App name: {name}. App family/kind: {kind or 'general'}. "
         f"What it should do: {what}\n"
     )
@@ -336,6 +338,17 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
                 return {
                     "success": False,
                     "error": f"SyntaxError: generated code cannot call {name}()",
+                }
+            # Unattended runs supply input fields as globals; input() would
+            # block waiting on stdin. Only reject the builtin called directly,
+            # not an attribute method such as Reader().input(rows).
+            if isinstance(target, ast.Name) and target.id == "input":
+                return {
+                    "success": False,
+                    "error": (
+                        "SyntaxError: generated code cannot call input(); input "
+                        "fields are supplied as globals (read rows directly)"
+                    ),
                 }
         args = {"app_id": app_id, "source": code}
         if expected_source_sha256 is not None:
