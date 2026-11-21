@@ -140,6 +140,34 @@ interface ServiceInfo {
 
 import WorkflowBuilder from "./Automations/WorkflowBuilder";
 import { extractApiErrorMessage } from "@/lib/api-error";
+import {
+  isHtnInvoiceFollowupWorkflow,
+  parseWorkflowLaunchReceipt,
+  type WorkflowLaunchReceipt,
+} from "@/lib/workflow-launch-receipt";
+import {
+  StockInvoiceLaunchFields,
+  useStockInvoiceLaunch,
+  type PreparedStockLaunch,
+} from "@/components/StockInvoiceLaunchForm";
+
+const buildStockLaunchToast = (receipt: WorkflowLaunchReceipt) => ({
+  title: receipt.title,
+  description: receipt.description,
+  ...(receipt.assignmentHref
+    ? {
+        action: (
+          <a
+            href={receipt.assignmentHref}
+            data-testid="open-assignment"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Open assignment
+          </a>
+        ),
+      }
+    : {}),
+});
 
 
 const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) => {
@@ -178,6 +206,34 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
   // [Lesson 3] UX: Raw string state for editable text area
   const [forkVariablesJson, setForkVariablesJson] = useState<string>("{}");
   const { toast } = useToast();
+
+  const stockTemplateSelected =
+    !!selectedTemplate
+    && isHtnInvoiceFollowupWorkflow(
+      selectedTemplate.id,
+      selectedTemplate.template_id,
+    );
+  const stockWorkflowSelected =
+    !!selectedWorkflow
+    && isHtnInvoiceFollowupWorkflow(
+      selectedWorkflow.id,
+      selectedWorkflow.created_from_template,
+    );
+  const stockLaunch = useStockInvoiceLaunch({
+    enabled:
+      (isTemplateModalOpen && stockTemplateSelected)
+      || (isCreateModalOpen && stockWorkflowSelected),
+  });
+  const lastLaunchFormIdRef = useRef<string | null>(null);
+
+  const resetFormForLaunch = (workflowId: string, isStock: boolean) => {
+    // A stock draft (and therefore its digest) survives reopen/review and
+    // ambiguous failures. Ordinary workflows keep their existing reset.
+    if (!isStock || lastLaunchFormIdRef.current !== workflowId) {
+      setFormData({});
+    }
+    lastLaunchFormIdRef.current = workflowId;
+  };
 
   const handleGenerativeCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,37 +477,94 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const handleTemplateSelect = (template: WorkflowTemplate) => {
     setSelectedTemplate(template);
-    setFormData({});
+    resetFormForLaunch(
+      template.id,
+      isHtnInvoiceFollowupWorkflow(template.id, template.template_id),
+    );
     setIsTemplateModalOpen(true);
   };
 
   const handleWorkflowSelect = (workflow: WorkflowDefinition) => {
     setSelectedWorkflow(workflow);
-    setFormData({});
+    resetFormForLaunch(
+      workflow.id,
+      isHtnInvoiceFollowupWorkflow(
+        workflow.id,
+        workflow.created_from_template,
+      ),
+    );
     setIsCreateModalOpen(true);
   };
 
   const handleExecuteWorkflow = async (
     workflowId: string,
     inputData: Record<string, any> = {},
+    preparedStockLaunch?: PreparedStockLaunch,
   ) => {
     try {
       setExecuting(true);
-      const token = localStorage.getItem('auth_token');
+      if (preparedStockLaunch) {
+        // Refuse to POST with a credential context other than the one that
+        // loaded the identity/roster; the form then asks for revalidation.
+        stockLaunch.assertCurrentLaunchContext(preparedStockLaunch);
+      }
+      const token = preparedStockLaunch
+        ? (preparedStockLaunch.authToken ?? null)
+        : localStorage.getItem('auth_token');
+      const isStockRequest = !!preparedStockLaunch;
       const response = await fetch(
         `/api/v1/workflows/workflows/${workflowId}/execute`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(isStockRequest
+              ? { 'Idempotency-Key': preparedStockLaunch!.idempotencyKey }
+              : {}),
           },
-          body: JSON.stringify(inputData),
+          body: JSON.stringify(
+            isStockRequest
+              ? {
+                  ...inputData,
+                  invoice_number:
+                    preparedStockLaunch!.invoiceNumber
+                    ?? inputData.invoice_number,
+                  account_owner_user_id:
+                    preparedStockLaunch!.accountOwnerUserId,
+                }
+              : inputData,
+          ),
         }
       );
 
-      const data = await response.json();
-      if (data.execution_id) {
+      // Check the HTTP outcome before interpreting the body as a receipt.
+      if (!response.ok) {
+        const errorData = await response.json().catch((): null => null);
+        throw new Error(extractApiErrorMessage(errorData, "Failed to execute workflow", response.status));
+      }
+      const data = await response.json().catch((): null => null);
+
+      // Stock launch receipts are only authoritative for the stock
+      // invoice-followup workflow. Every other workflow keeps the existing
+      // execution-details behavior below.
+      const stockReceipt = (preparedStockLaunch || isHtnInvoiceFollowupWorkflow(workflowId))
+        ? parseWorkflowLaunchReceipt(data)
+        : null;
+
+      if (stockReceipt) {
+        toast(buildStockLaunchToast(stockReceipt) as any);
+        if (preparedStockLaunch) {
+          stockLaunch.noteReceipt(stockReceipt, preparedStockLaunch);
+        }
+        // Keep the executions list current without opening the details modal
+        // (which would restart generic polling) or guessing at missing state.
+        await fetchExecutions();
+        return;
+      }
+
+      if (data?.execution_id) {
         const status = String(data.status || "");
         const titles: Record<string, string> = {
           waiting_approval: "Waiting for Approval",
@@ -484,6 +597,29 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       });
     } finally {
       setExecuting(false);
+    }
+  };
+
+  const handleStockLaunch = async (
+    workflowId: string,
+    invoice: Record<string, any>,
+    closeDialog: () => void,
+  ) => {
+    try {
+      const prepared = await stockLaunch.prepareLaunch(invoice);
+      closeDialog();
+      await handleExecuteWorkflow(workflowId, invoice, prepared);
+    } catch (error) {
+      // The shared form shows the visible correction (scope/options/storage);
+      // do not submit while the launch is unconfirmed.
+      toast({
+        title: "Launch setup needs correction",
+        description:
+          error instanceof Error
+            ? error.message
+            : "The stock invoice launch could not be prepared.",
+        variant: "error",
+      });
     }
   };
 
@@ -1268,6 +1404,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
                         renderInputField(field, selectedTemplate.input_schema),
                     )}
                 </div>
+                {stockTemplateSelected && (
+                  <StockInvoiceLaunchFields
+                    controller={stockLaunch}
+                    disabled={executing}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -1280,12 +1422,24 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
             </Button>
             <Button
               onClick={() => {
-                if (selectedTemplate) {
-                  handleExecuteWorkflow(selectedTemplate.id, formData);
-                  setIsTemplateModalOpen(false);
+                if (!selectedTemplate) return;
+                if (stockTemplateSelected) {
+                  handleStockLaunch(
+                    selectedTemplate.id,
+                    formData,
+                    () => setIsTemplateModalOpen(false),
+                  );
+                  return;
                 }
+                handleExecuteWorkflow(selectedTemplate.id, formData);
+                setIsTemplateModalOpen(false);
               }}
-              disabled={executing}
+              disabled={
+                executing
+                || (stockTemplateSelected
+                  && (stockLaunch.status !== "ready"
+                    || stockLaunch.problems.length > 0))
+              }
             >
               {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Execute Workflow
@@ -1334,6 +1488,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
                         renderInputField(field, selectedWorkflow.input_schema),
                     )}
                 </div>
+                {stockWorkflowSelected && (
+                  <StockInvoiceLaunchFields
+                    controller={stockLaunch}
+                    disabled={executing}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -1346,12 +1506,24 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
             </Button>
             <Button
               onClick={() => {
-                if (selectedWorkflow) {
-                  handleExecuteWorkflow(selectedWorkflow.id, formData);
-                  setIsCreateModalOpen(false);
+                if (!selectedWorkflow) return;
+                if (stockWorkflowSelected) {
+                  handleStockLaunch(
+                    selectedWorkflow.id,
+                    formData,
+                    () => setIsCreateModalOpen(false),
+                  );
+                  return;
                 }
+                handleExecuteWorkflow(selectedWorkflow.id, formData);
+                setIsCreateModalOpen(false);
               }}
-              disabled={executing}
+              disabled={
+                executing
+                || (stockWorkflowSelected
+                  && (stockLaunch.status !== "ready"
+                    || stockLaunch.problems.length > 0))
+              }
             >
               {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Execute Workflow

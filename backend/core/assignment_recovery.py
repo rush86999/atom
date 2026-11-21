@@ -62,6 +62,20 @@ async def recover_active_assignments_at_startup(
             logger.warning(
                 "assignment startup recovery failed for %s/%s: %s",
                 workspace_id, tenant_id, exc)
+    try:
+        from core.invoice_workflow_assignment import (
+            recover_pending_stock_invoice_owner_handoffs,
+        )
+
+        stock_handoff_attempts = await recover_pending_stock_invoice_owner_handoffs(
+            limit=bound)
+        if stock_handoff_attempts:
+            logger.info(
+                "Assignment startup recovery: attempted %d stock handoff(s)",
+                stock_handoff_attempts)
+    except Exception:  # noqa: BLE001 — global pass isolation
+        logger.warning(
+            "stock handoff startup recovery failed")
     if results:
         logger.info(
             "Assignment startup recovery: resumed %d active assignment(s)",

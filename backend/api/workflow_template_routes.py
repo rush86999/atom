@@ -590,16 +590,20 @@ async def get_execution_status(
 
     row = (
         db.query(WorkflowExecution)
-        .filter(
-            (WorkflowExecution.execution_id == execution_id)
-            | (WorkflowExecution.workflow_id == execution_id)
-        )
+        .filter(_execution_lookup_filter(execution_id))
         .filter(_execution_access_filter(current_user))
         .order_by(WorkflowExecution.created_at.desc())
         .first()
     )
     if not row:
         raise router.not_found_error("Execution", execution_id)
+
+    handled, receipt = _stock_execution_receipt(
+        current_user, row, db, execution_id)
+    if handled:
+        if receipt is None:
+            raise router.not_found_error("Execution", execution_id)
+        return receipt
 
     return {
         "success": True,
@@ -921,6 +925,47 @@ def _project_normal_execution_results(row: Any):
     return steps, (outputs or None)
 
 
+def _execution_lookup_filter(execution_id: str):
+    """Build the bounded execution lookup predicate.
+
+    Ordinary ids keep the legacy execution_id/workflow_id alias resolution.
+    The stock workflow id itself is never an alias: only an exact persisted
+    execution_id may match it.
+    """
+    from core.models import WorkflowExecution
+    from core.workflow_endpoints import _is_stock_workflow_id
+
+    exact = WorkflowExecution.execution_id == execution_id
+    if _is_stock_workflow_id(execution_id):
+        return exact
+    return exact | (WorkflowExecution.workflow_id == execution_id)
+
+
+def _stock_execution_receipt(current_user, row, db, requested_execution_id):
+    """Project a stock row only for its exact persisted execution id.
+
+    Returns ``(handled, receipt)``. ``handled`` is true for every stock row so
+    callers never fall back to the generic execution projection; ``receipt``
+    is ``None`` when the row is not the requested exact id or the shared
+    owner-scoped projection refuses it.
+    """
+    from core.workflow_endpoints import (
+        _is_stock_workflow_id,
+        _stock_invoice_receipt_projection,
+    )
+
+    if not _is_stock_workflow_id(getattr(row, "workflow_id", None)):
+        return False, None
+    persisted_id = str(getattr(row, "execution_id", None) or "")
+    if persisted_id != str(requested_execution_id or ""):
+        return True, None
+    try:
+        receipt = _stock_invoice_receipt_projection(current_user, row, db)
+    except Exception:  # noqa: BLE001 - refusal is indistinguishable from 404
+        receipt = None
+    return True, receipt
+
+
 def _execution_access_filter(current_user: User):
     """R89: scope execution reads to their owner (or the caller's tenant for
     legacy unattributed rows).
@@ -979,16 +1024,20 @@ async def get_execution_results(
 
     row = (
         db.query(WorkflowExecution)
-        .filter(
-            (WorkflowExecution.execution_id == execution_id)
-            | (WorkflowExecution.workflow_id == execution_id)
-        )
+        .filter(_execution_lookup_filter(execution_id))
         .filter(_execution_access_filter(current_user))
         .order_by(WorkflowExecution.created_at.desc())
         .first()
     )
     if not row:
         raise router.not_found_error("Execution", execution_id)
+
+    handled, receipt = _stock_execution_receipt(
+        current_user, row, db, execution_id)
+    if handled:
+        if receipt is None:
+            raise router.not_found_error("Execution", execution_id)
+        return receipt
 
     context = _safe_json_loads(row.context)
     if not isinstance(context, dict):
@@ -1071,6 +1120,21 @@ async def execute_template(
         # record; the canonical path must not re-resolve the id in another
         # store (workflows.json / DB templates).
         template = manager.get_template(template_id)
+
+        # Stock invoice launch: the server-known catalog id takes the shared
+        # admission path. Visibility was already decided by the catalog
+        # lookup above and RBAC stays on the route dependency. Malformed stock
+        # input is refused here before any generic instantiation.
+        # (Matches core.workflow_endpoints.STOCK_INVOICE_LAUNCH_WORKFLOW_ID.)
+        if template and template_id == "htn_invoice_followup":
+            from core.workflow_endpoints import run_stock_invoice_launch
+
+            return await run_stock_invoice_launch(
+                current_user=current_user,
+                request=request,
+                body=parameters,
+                validate_executor=require_workflow_executor_definition,
+            )
 
         # 1. Instantiate the template (validates required inputs and keeps the
         # native editor contract). The generated id is only used by the

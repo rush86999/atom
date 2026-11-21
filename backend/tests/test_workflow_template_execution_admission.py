@@ -12,6 +12,10 @@ The same catalog template used to take two different paths:
 These tests pin the shared preflight: unavailable steps are identified from
 the template's own source before either engine creates a run, while real
 generic bindings and draft import keep working.
+
+The server-known stock invoice launch id is different: both authenticated
+execute routes now assert its small public input contract before shared
+admission, while scheduling deliberately stays on the catalog preflight path.
 """
 
 from __future__ import annotations
@@ -262,7 +266,7 @@ def test_generated_definition_preserves_declared_binding(tmp_path):
     assert step["action"] == "knowledge.query"
 
 
-def test_editor_route_refuses_before_orchestrator_dispatch(
+def test_editor_route_requires_stock_invoice_launch_contract(
         capability_sources, monkeypatch):
     try:
         import api.workflow_template_routes as routes
@@ -273,6 +277,11 @@ def test_editor_route_refuses_before_orchestrator_dispatch(
     if execute is None:
         pytest.skip("governance decorator does not expose the route body")
 
+    try:
+        import core.workflow_endpoints  # noqa: F401
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
     invoice_steps = _invoice_steps()
 
     class FakeManager:
@@ -281,35 +290,151 @@ def test_editor_route_refuses_before_orchestrator_dispatch(
 
         def create_workflow_from_template(
                 self, *args, **kwargs):
-            return {
-                "workflow_id": "workflow-should-not-run",
-                "workflow_definition": {
-                    "name": "Invoice Follow-up",
-                    "steps": [
-                        {
-                            **step,
-                            "step_id": step.get("step_id") or step.get("id"),
-                        }
-                        for step in invoice_steps
-                    ],
-                },
-            }
+            raise AssertionError(
+                "stock input must not reach generic template dispatch")
 
     async def allow_executor(*_args, **_kwargs):
         return None
+
+    started = []
+
+    class FakeEngine:
+        async def start_workflow(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "should-not-run"
 
     monkeypatch.setattr(
         routes, "get_template_manager", lambda: FakeManager())
     monkeypatch.setattr(
         routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        "core.workflow_engine.get_workflow_engine", lambda: FakeEngine())
 
     user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+
+    def invoke(parameters, request):
+        with pytest.raises(Exception) as raised:
+            asyncio.run(execute(
+                template_id="htn_invoice_followup",
+                parameters=parameters,
+                request=request,
+                current_user=user,
+                db=None,
+                agent_id=None,
+            ))
+        return raised.value
+
+    # Invoice number alone is not enough: the required idempotency key is
+    # absent, so the stock input contract is refused before generic dispatch.
+    error = invoke({"invoice_number": "INV-1"}, None)
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "idempotency_key"
+
+    request = SimpleNamespace(headers={"Idempotency-Key": "idem-1"})
+
+    # The account owner binding is explicit in the public contract (including
+    # the nullable form); absence is not "infer the caller".
+    error = invoke({"invoice_number": "INV-1"}, request)
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "account_owner_user_id"
+
+    # A blank invoice number is refused as a field error, not by the generic
+    # template engine.
+    error = invoke(
+        {"invoice_number": "   ", "account_owner_user_id": None}, request)
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "invoice_number"
+    assert started == [], "stock input refusal must not start a run"
+
+
+def test_editor_route_projects_stock_launch_admission(
+        capability_sources, monkeypatch):
+    try:
+        import api.workflow_template_routes as routes
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    execute = getattr(routes.execute_template, "__wrapped__", None)
+    if execute is None:
+        pytest.skip("governance decorator does not expose the route body")
+
+    try:
+        import core.workflow_endpoints  # noqa: F401
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    try:
+        import core.invoice_launch_admission as admission
+    except ModuleNotFoundError as exc:  # partial public-code packet
+        pytest.skip(f"full backend modules unavailable: {exc}")
+
+    class FakeManager:
+        def get_template(self, _template_id):
+            return SimpleNamespace(steps=[])
+
+    async def allow_executor(*_args, **_kwargs):
+        return None
+
+    async def fake_admit(*_args, **_kwargs):
+        return {
+            "execution_id": "exec-stock",
+            "run_id": "run-stock",
+            "status": "attached",
+            "attached": True,
+            "paused": False,
+            "review_required": False,
+            "requires_review": False,
+        }
+
+    monkeypatch.setattr(
+        routes, "get_template_manager", lambda: FakeManager())
+    monkeypatch.setattr(
+        routes, "require_workflow_executor_definition", allow_executor)
+    monkeypatch.setattr(
+        admission, "build_stock_invoice_launch_workflow",
+        lambda *args, **kwargs: {"steps": []})
+    monkeypatch.setattr(
+        admission, "admit_stock_invoice_launch", fake_admit)
+
+    user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
+    request = SimpleNamespace(headers={"Idempotency-Key": "idem-1"})
+
+    result = asyncio.run(execute(
+        template_id="htn_invoice_followup",
+        parameters={
+            "invoice_number": "INV-1",
+            "account_owner_user_id": None,
+        },
+        request=request,
+        current_user=user,
+        db=None,
+        agent_id=None,
+    ))
+
+    assert result == {
+        "execution_id": "exec-stock",
+        "state": "attached",
+        "next_action": "wait",
+        "run_id": "run-stock",
+    }
+
+    async def fake_invalid_owner(*_args, **_kwargs):
+        raise admission.InvalidStockInvoiceAccountOwner()
+
+    monkeypatch.setattr(
+        admission, "admit_stock_invoice_launch", fake_invalid_owner)
 
     with pytest.raises(Exception) as raised:
         asyncio.run(execute(
             template_id="htn_invoice_followup",
-            parameters={"invoice_number": "INV-1"},
-            request=None,
+            parameters={
+                "invoice_number": "INV-1",
+                "account_owner_user_id": "u2",
+            },
+            request=request,
             current_user=user,
             db=None,
             agent_id=None,
@@ -317,8 +442,12 @@ def test_editor_route_refuses_before_orchestrator_dispatch(
 
     error = raised.value
     assert getattr(error, "status_code", None) == 422
-    assert error.detail["error"] == "execution_blocked"
-    assert len(error.detail["blockers"]) == 6
+    assert error.detail == {
+        "error": "validation_error",
+        "field": "account_owner_user_id",
+        "message": "account_owner_user_id is not valid for this request",
+    }
+    assert "u2" not in json.dumps(error.detail)
 
 
 @pytest.mark.parametrize("step_type", ["action", "api_call"])
@@ -711,7 +840,7 @@ def test_editor_route_refuses_catalog_only_external_fallback(
     assert started == [], "no execution receipt may be created"
 
 
-def test_workflows_route_refuses_before_engine_creates_a_receipt(
+def test_workflows_route_requires_stock_invoice_launch_contract(
         capability_sources, monkeypatch):
     from fastapi import BackgroundTasks
 
@@ -752,6 +881,8 @@ def test_workflows_route_refuses_before_engine_creates_a_receipt(
 
     user = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="w1")
 
+    # Invoice number alone is not enough: the stock public contract also
+    # requires the idempotency key and an explicit account owner binding.
     with pytest.raises(Exception) as raised:
         asyncio.run(endpoints.execute_workflow(
             "htn_invoice_followup",
@@ -763,11 +894,42 @@ def test_workflows_route_refuses_before_engine_creates_a_receipt(
 
     error = raised.value
     assert getattr(error, "status_code", None) == 422
-    assert error.detail["error"] == "execution_blocked"
-    assert {item["step_id"] for item in error.detail["blockers"]} == {
-        "lookup_invoice", "check_status", "send_reminder",
-        "await_commitment", "escalate", "confirm_settled",
-    }
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "idempotency_key"
+    assert started == [], "no execution receipt may be created"
+
+    # The documented body fallback is accepted; with it present, the next
+    # missing contract field is the explicit owner binding.
+    with pytest.raises(Exception) as raised:
+        asyncio.run(endpoints.execute_workflow(
+            "htn_invoice_followup",
+            BackgroundTasks(),
+            {"invoice_number": "INV-1", "idempotency_key": "idem-body"},
+            user,
+            None,
+        ))
+
+    error = raised.value
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "account_owner_user_id"
+    assert started == [], "no execution receipt may be created"
+
+    request = SimpleNamespace(headers={"Idempotency-Key": "idem-1"})
+    with pytest.raises(Exception) as raised:
+        asyncio.run(endpoints.execute_workflow(
+            "htn_invoice_followup",
+            BackgroundTasks(),
+            {"invoice_number": "INV-1"},
+            user,
+            None,
+            request,
+        ))
+
+    error = raised.value
+    assert getattr(error, "status_code", None) == 422
+    assert error.detail["error"] == "validation_error"
+    assert error.detail["field"] == "account_owner_user_id"
     assert started == [], "no execution receipt may be created"
 
 

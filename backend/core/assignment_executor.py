@@ -324,6 +324,499 @@ _INVOICE_COMMITMENT_SOURCE_FIELDS = (
     "operation_id", "reply_operation_id", "reply_message_id",
 )
 
+#: The server-owned stock invoice workflow and the only plan shape that may
+#: produce an owner handoff.  Step ids and adapters are matched exactly so an
+#: unrelated assignment that happens to contain an invoice adapter cannot be
+#: mistaken for the stock workflow.
+_STOCK_INVOICE_WORKFLOW_ID = "htn_invoice_followup"
+_STOCK_INVOICE_SEND_ADAPTERS = frozenset({
+    "invoice.send_reminder",
+    "invoice.send_reminder_outlook",
+    "invoice.dispatch_reminder",
+})
+_STOCK_INVOICE_PLAN_ADAPTERS = {
+    "lookup": "invoice.lookup",
+    "prepare": "invoice.prepare_reminder",
+    "send": "invoice.send_reminder",
+    "reply": "invoice.wait_for_reply",
+    "commitment": "invoice.await_commitment",
+}
+_STOCK_INVOICE_REPLY_EXPIRED_EVENT = "invoice_reply_expired"
+_STOCK_INVOICE_COMMITMENT_EXPIRED_EVENT = (
+    "invoice_commitment_review_expired")
+_STOCK_INVOICE_OWNER_DECISION = "owner_decision"
+_STOCK_INVOICE_NO_COMMITMENT_RESOLUTIONS = frozenset({
+    "owner_attention", "no_commitment",
+})
+
+
+def _stock_text(value: Any) -> str:
+    return "" if value is None else str(value).strip()
+
+
+def _stock_mapping(value: Any) -> Dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _stock_plan_steps(
+    assignment: Optional[Mapping[str, Any]],
+) -> Optional[Dict[str, Dict[str, Any]]]:
+    """Return the exact stock plan steps, or ``None`` for any other plan."""
+    if not isinstance(assignment, Mapping):
+        return None
+    steps: Dict[str, Dict[str, Any]] = {}
+    for raw in assignment.get("steps") or []:
+        if not isinstance(raw, Mapping):
+            return None
+        step = dict(raw)
+        step_id = _stock_text(step.get("step_id"))
+        if not step_id or step_id in steps:
+            return None
+        steps[step_id] = step
+
+    for step_id, expected_adapter in _STOCK_INVOICE_PLAN_ADAPTERS.items():
+        step = steps.get(step_id)
+        if step is None:
+            return None
+        adapter = _stock_text(step.get("adapter"))
+        if step_id == "send":
+            if adapter not in _STOCK_INVOICE_SEND_ADAPTERS:
+                return None
+            if _stock_text(step.get("operation_type")).lower() != "outbound":
+                return None
+        elif adapter != expected_adapter:
+            return None
+        if step_id in ("reply", "commitment") and _stock_text(
+                step.get("operation_type")).lower() != "retrieve":
+            return None
+    return steps
+
+
+def _stock_operation(
+    record: Mapping[str, Any],
+    assignment_id: str,
+    operation_id: Any,
+    step_id: str,
+    adapters: Any,
+    statuses: Any,
+) -> Optional[Dict[str, Any]]:
+    """Resolve one exact operation, never the first lookalike."""
+    wanted_id = _stock_text(operation_id)
+    if not wanted_id:
+        return None
+    matches = [
+        dict(operation)
+        for operation in (record.get("operations") or [])
+        if isinstance(operation, Mapping)
+        and _stock_text(operation.get("operation_id")) == wanted_id
+    ]
+    if len(matches) != 1:
+        return None
+    operation = matches[0]
+    operation_assignment = _stock_text(operation.get("assignment_id"))
+    if operation_assignment and assignment_id \
+            and operation_assignment != assignment_id:
+        return None
+    if _stock_text(operation.get("step_id")) != step_id:
+        return None
+    if _stock_text(operation.get("adapter")) not in set(adapters):
+        return None
+    if _stock_text(operation.get("status")).lower() not in {
+            str(item).lower() for item in statuses}:
+        return None
+    return operation
+
+
+def _stock_send_source(
+    record: Mapping[str, Any],
+    assignment_id: str,
+    steps: Mapping[str, Mapping[str, Any]],
+    operation_id: Any,
+) -> Optional[Dict[str, str]]:
+    send_step = steps["send"]
+    operation = _stock_operation(
+        record, assignment_id, operation_id, "send",
+        _STOCK_INVOICE_SEND_ADAPTERS, {"applied"})
+    if operation is None:
+        return None
+    step_operation_id = _stock_text(send_step.get("operation_id"))
+    if step_operation_id and step_operation_id != _stock_text(
+            operation_id):
+        return None
+    if _stock_text(operation.get("adapter")) != _stock_text(
+            send_step.get("adapter")):
+        return None
+    if _stock_text(send_step.get("status")).lower() != "applied":
+        return None
+    return {"operation_id": _stock_text(operation_id)}
+
+
+def _stock_reply_proofs(
+    reply_step: Mapping[str, Any],
+    reply_operation: Mapping[str, Any],
+) -> Tuple[set, set, set]:
+    """Collect persisted reply-message/send-operation/reply-operation ids."""
+    reply_ids = set()
+    send_ids = set()
+    reply_operation_ids = set()
+
+    holders = []
+    result = reply_step.get("result")
+    if isinstance(result, Mapping):
+        holders.append(_stock_mapping(result.get("data")))
+        holders.append(result)
+    for item in reply_step.get("evidence_refs") or []:
+        if isinstance(item, Mapping):
+            holders.append(dict(item))
+    execution = reply_operation.get("execution")
+    if isinstance(execution, Mapping):
+        holders.append(_stock_mapping(execution.get("data")))
+        holders.append(execution)
+        receipt = execution.get("receipt")
+        if isinstance(receipt, Mapping):
+            holders.append(dict(receipt))
+
+    for holder in holders:
+        reply_message = _stock_text(holder.get("reply_message_id"))
+        if reply_message:
+            reply_ids.add(reply_message)
+        send_operation = _stock_text(holder.get("operation_id"))
+        if send_operation:
+            send_ids.add(send_operation)
+        reply_operation_id = _stock_text(holder.get("reply_operation_id"))
+        if reply_operation_id:
+            reply_operation_ids.add(reply_operation_id)
+    return reply_ids, send_ids, reply_operation_ids
+
+
+def _stock_typed_reply_matches(
+    reply_step: Mapping[str, Any],
+    *,
+    send_id: str,
+    reply_message_id: str,
+) -> bool:
+    """When typed reply evidence is present it must name the exact source."""
+    evidence_refs = reply_step.get("evidence_refs")
+    if evidence_refs is None:
+        return True
+    if not isinstance(evidence_refs, list):
+        return False
+    if not evidence_refs:
+        return True
+    if len(evidence_refs) != 1 or not isinstance(evidence_refs[0], Mapping):
+        return False
+    typed = dict(evidence_refs[0])
+    if _stock_text(typed.get("kind")) != "invoice_reply":
+        return False
+    if typed.get("verified") is not True \
+            or typed.get("reply_seen") is not True:
+        return False
+    if _stock_text(typed.get("operation_id")) != send_id:
+        return False
+    if _stock_text(typed.get("reply_message_id")) != reply_message_id:
+        return False
+    return True
+
+
+def _stock_reply_source(
+    record: Mapping[str, Any],
+    assignment_id: str,
+    steps: Mapping[str, Mapping[str, Any]],
+    raw_source: Any,
+) -> Optional[Dict[str, str]]:
+    source = _stock_mapping(raw_source)
+    send_id = _stock_text(source.get("operation_id"))
+    reply_id = _stock_text(source.get("reply_operation_id"))
+    reply_message_id = _stock_text(source.get("reply_message_id"))
+    if not send_id or not reply_id or not reply_message_id:
+        return None
+    message_id = _stock_text(source.get("message_id"))
+    if message_id and message_id == reply_message_id:
+        return None
+    if _stock_send_source(
+            record, assignment_id, steps, send_id) is None:
+        return None
+
+    reply_step = steps["reply"]
+    reply_operation = _stock_operation(
+        record, assignment_id, reply_id, "reply",
+        {"invoice.wait_for_reply"}, {"applied"})
+    if reply_operation is None:
+        return None
+    step_operation_id = _stock_text(reply_step.get("operation_id"))
+    if step_operation_id and step_operation_id != reply_id:
+        return None
+    if _stock_text(reply_step.get("status")).lower() != "applied":
+        return None
+
+    if not _stock_typed_reply_matches(
+            reply_step, send_id=send_id,
+            reply_message_id=reply_message_id):
+        return None
+
+    reply_ids, send_ids, reply_operation_ids = _stock_reply_proofs(
+        reply_step, reply_operation)
+    if reply_ids and reply_message_id not in reply_ids:
+        return None
+    if send_ids and send_id not in send_ids:
+        return None
+    if reply_operation_ids and reply_id not in reply_operation_ids:
+        return None
+    return {
+        "operation_id": send_id,
+        "reply_operation_id": reply_id,
+        "reply_message_id": reply_message_id,
+    }
+
+
+def _stock_step_waiting(
+    record: Mapping[str, Any],
+    step: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Read the step's own wait, falling back to its durable operation wait."""
+    waiting = _stock_mapping(step.get("waiting"))
+    if waiting:
+        return waiting
+    operation_id = _stock_text(
+        step.get("wait_operation_id") or step.get("operation_id"))
+    if not operation_id:
+        return {}
+    matches = [
+        dict(operation)
+        for operation in (record.get("operations") or [])
+        if isinstance(operation, Mapping)
+        and _stock_text(operation.get("operation_id")) == operation_id
+    ]
+    if len(matches) != 1:
+        return {}
+    return _stock_mapping(matches[0].get("waiting"))
+
+
+def _stock_commitment_source(waiting: Mapping[str, Any]) -> Dict[str, str]:
+    recorded = waiting.get("wait_source")
+    recorded = recorded if isinstance(recorded, Mapping) else {}
+    source: Dict[str, str] = {}
+    for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+        value = recorded.get(field)
+        if value in (None, ""):
+            value = waiting.get(field)
+        source[field] = _stock_text(value)
+    if not source.get("operation_id"):
+        source["operation_id"] = _stock_text(
+            waiting.get("source_operation_id")
+            or waiting.get("dispatch_operation_id")
+            or recorded.get("dispatch_operation_id"))
+    return source
+
+
+def _stock_invoice_number(
+    steps: Mapping[str, Mapping[str, Any]],
+    trigger: Optional[Mapping[str, Any]] = None,
+) -> str:
+    values = set()
+    for step_id in ("lookup", "send", "reply", "commitment"):
+        step = steps.get(step_id) or {}
+        inputs = step.get("inputs")
+        if isinstance(inputs, Mapping):
+            value = inputs.get("invoice_number")
+            if isinstance(value, str) and value.strip():
+                values.add(value.strip())
+        result = step.get("result")
+        if isinstance(result, Mapping):
+            data = result.get("data")
+            for holder in (data, result):
+                if not isinstance(holder, Mapping):
+                    continue
+                value = holder.get("invoice_number")
+                if isinstance(value, str) and value.strip():
+                    values.add(value.strip())
+        waiting = step.get("waiting")
+        if isinstance(waiting, Mapping):
+            value = waiting.get("invoice_number")
+            if isinstance(value, str) and value.strip():
+                values.add(value.strip())
+    if isinstance(trigger, Mapping):
+        value = trigger.get("invoice_number")
+        if isinstance(value, str) and value.strip():
+            values.add(value.strip())
+    if len(values) != 1:
+        return ""
+    return next(iter(values))
+
+
+def _stock_invoice_owner_handoff_trigger(
+    record: Mapping[str, Any],
+    assignment: Mapping[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Derive one owner-handoff trigger from persisted lifecycle facts.
+
+    Only the exact stock plan, exact step ids/adapters and exact published
+    source operation identities qualify.  Confirmed, unclear, cancelled and
+    unrelated runs deliberately produce no trigger.
+    """
+    steps = _stock_plan_steps(assignment)
+    if steps is None:
+        return None
+    if _stock_text(assignment.get("status")).lower() == "cancelled":
+        return None
+    task_revision = record.get("task_revision")
+    task_revision = task_revision if isinstance(
+        task_revision, Mapping) else {}
+    if _stock_text(task_revision.get("authorization")).lower() == (
+            "cancelled"):
+        return None
+
+    assignment_id = _stock_text(assignment.get("assignment_id"))
+    reply_step = steps["reply"]
+    commitment_step = steps["commitment"]
+
+    # Trigger 1: the reply wait itself expired into an owner decision.
+    if _stock_text(reply_step.get("status")).lower() == "waiting":
+        waiting = _stock_step_waiting(record, reply_step)
+        if _stock_text(waiting.get("event")) == (
+                _STOCK_INVOICE_REPLY_EXPIRED_EVENT) \
+                and _stock_text(waiting.get("resume_on")) == (
+                    _STOCK_INVOICE_OWNER_DECISION):
+            send_source = _stock_send_source(
+                record, assignment_id, steps,
+                waiting.get("operation_id")
+                or waiting.get("source_operation_id")
+                or waiting.get("dispatch_operation_id"))
+            if send_source is None:
+                return None
+            return {
+                "trigger": {
+                    "event": _STOCK_INVOICE_REPLY_EXPIRED_EVENT,
+                    "reason": _stock_text(waiting.get("reason"))
+                    or _STOCK_INVOICE_REPLY_EXPIRED_EVENT,
+                    "step_id": "reply",
+                    "correlation_id": _stock_text(
+                        waiting.get("correlation_id")),
+                    "expires_at": _stock_text(
+                        waiting.get("expires_at")),
+                    "operation_id": send_source["operation_id"],
+                    "source_operation_id": send_source["operation_id"],
+                    "reply_operation_id": "",
+                    "reply_message_id": "",
+                    "revision": 0,
+                    "observed_at": _utc_now_iso(),
+                },
+                "invoice_number": _stock_text(
+                    waiting.get("invoice_number")),
+            }
+
+    # Trigger 2: the commitment review expired into an owner decision.
+    if _stock_text(commitment_step.get("status")).lower() == "waiting":
+        waiting = _stock_step_waiting(record, commitment_step)
+        if _stock_text(waiting.get("event")) == (
+                _STOCK_INVOICE_COMMITMENT_EXPIRED_EVENT) \
+                and _stock_text(waiting.get("resume_on")) == (
+                    _STOCK_INVOICE_OWNER_DECISION):
+            source = _stock_reply_source(
+                record, assignment_id, steps,
+                _stock_commitment_source(waiting))
+            if source is None:
+                return None
+            revision = waiting.get("revision")
+            return {
+                "trigger": {
+                    "event": _STOCK_INVOICE_COMMITMENT_EXPIRED_EVENT,
+                    "reason": _stock_text(waiting.get("reason"))
+                    or _STOCK_INVOICE_COMMITMENT_EXPIRED_EVENT,
+                    "step_id": "commitment",
+                    "correlation_id": _stock_text(
+                        waiting.get("correlation_id")),
+                    "expires_at": _stock_text(
+                        waiting.get("expires_at")),
+                    "operation_id": source["operation_id"],
+                    "source_operation_id": source["operation_id"],
+                    "reply_operation_id": source["reply_operation_id"],
+                    "reply_message_id": source["reply_message_id"],
+                    "revision": revision if type(revision) is int else 0,
+                    "observed_at": _utc_now_iso(),
+                },
+                "invoice_number": _stock_text(
+                    waiting.get("invoice_number")),
+            }
+
+    # Trigger 3: an applied commitment that explicitly routes to the owner
+    # because the reply did not confirm a commitment.
+    if _stock_text(commitment_step.get("status")).lower() == "applied":
+        commitment_operation_id = _stock_text(
+            commitment_step.get("operation_id"))
+        if commitment_operation_id and _stock_operation(
+                record, assignment_id, commitment_operation_id,
+                "commitment", {"invoice.await_commitment"},
+                {"applied"}) is None:
+            return None
+        result = commitment_step.get("result")
+        result = result if isinstance(result, Mapping) else {}
+        data = _stock_mapping(result.get("data"))
+        resolution = _stock_text(
+            data.get("resolution") or result.get("resolution"))
+        verdict = _stock_text(
+            data.get("verdict") or result.get("verdict"))
+        if resolution not in _STOCK_INVOICE_NO_COMMITMENT_RESOLUTIONS:
+            if verdict != "no_commitment":
+                return None
+        if verdict in ("confirmed", "unclear"):
+            return None
+        if verdict and verdict != "no_commitment":
+            return None
+        requires_attention = data.get("requires_owner_attention")
+        if requires_attention is False:
+            return None
+
+        revision_values = []
+        for key in ("revision", "current_revision"):
+            if key in data:
+                revision_values.append(data.get(key))
+        if not revision_values:
+            return None
+        if any(type(item) is not int or item < 1
+               for item in revision_values):
+            return None
+        if len(set(revision_values)) != 1:
+            return None
+        revision = revision_values[0]
+
+        source_data = _stock_mapping(data.get("source"))
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            if not _stock_text(source_data.get(field)):
+                source_data[field] = data.get(field)
+        if not _stock_text(source_data.get("operation_id")):
+            source_data["operation_id"] = (
+                data.get("dispatch_operation_id")
+                or data.get("source_operation_id"))
+        source = _stock_reply_source(
+            record, assignment_id, steps, source_data)
+        if source is None:
+            return None
+        for field in _INVOICE_COMMITMENT_SOURCE_FIELDS:
+            if field in data and _stock_text(data.get(field)) != (
+                    source[field]):
+                return None
+        return {
+            "trigger": {
+                "event": "invoice_commitment_no_commitment",
+                "reason": "no_commitment",
+                "resolution": resolution or "no_commitment",
+                "step_id": "commitment",
+                "correlation_id": _stock_text(
+                    data.get("correlation_id")),
+                "operation_id": source["operation_id"],
+                "source_operation_id": source["operation_id"],
+                "reply_operation_id": source["reply_operation_id"],
+                "reply_message_id": source["reply_message_id"],
+                "revision": revision,
+                "observed_at": _utc_now_iso(),
+            },
+            "invoice_number": _stock_text(
+                data.get("invoice_number")
+                or _stock_mapping(data.get("source")).get("invoice_number")),
+        }
+    return None
+
 
 def _outlook_verification_available(
     operation: Dict[str, Any],
@@ -2857,6 +3350,147 @@ class AssignmentExecutor:
             ],
         }
 
+    # ------------------------------------------------ invoice owner handoff
+
+    @staticmethod
+    def _stock_invoice_identity(
+        assignment: Mapping[str, Any],
+        task_provenance: Optional[Mapping[str, Any]] = None,
+    ) -> Optional[Dict[str, str]]:
+        provenance = assignment.get("provenance")
+        provenance = provenance if isinstance(
+            provenance, Mapping) else {}
+        task_provenance = task_provenance if isinstance(
+            task_provenance, Mapping) else {}
+        tenant_id = _stock_text(
+            assignment.get("tenant_id")
+            or provenance.get("tenant_id")
+            or task_provenance.get("tenant_id"))
+        workspace_id = _stock_text(
+            assignment.get("workspace_id")
+            or provenance.get("workspace_id")
+            or task_provenance.get("workspace_id"))
+        employee_id = _stock_text(
+            assignment.get("employee_id")
+            or provenance.get("employee_id")
+            or provenance.get("agent_id")
+            or task_provenance.get("employee_id")
+            or task_provenance.get("agent_id"))
+        user_id = _stock_text(
+            task_provenance.get("user_id")
+            or task_provenance.get("actor_id")
+            or task_provenance.get("created_by")
+            or task_provenance.get("owner_id")
+            or provenance.get("user_id")
+            or provenance.get("actor_id")
+            or provenance.get("created_by")
+            or employee_id)
+        if not tenant_id or not workspace_id or not user_id:
+            return None
+        return {
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+            "user_id": user_id,
+            "employee_id": employee_id,
+        }
+
+    async def _reconcile_stock_invoice_owner_handoff(
+        self,
+        run_id: str,
+        record: Dict[str, Any],
+        assignment: Dict[str, Any],
+        state: Dict[str, Any],
+    ) -> None:
+        """Reconcile one persisted stock-invoice owner handoff.
+
+        The task revision provenance is only a candidate pointer.  The exact
+        scoped execution/run link, invoice intent and bound owner are re-read
+        from durable rows before any receipt or notification effect.  At most
+        one attempt is made per ``execute`` advance; a pending/error receipt is
+        left for the next authorized advance instead of looping here.
+        """
+        if state.get("attempted"):
+            return
+
+        record_revision = record.get("task_revision")
+        record_revision = record_revision if isinstance(
+            record_revision, Mapping) else {}
+        record_provenance = record_revision.get("provenance")
+        record_provenance = record_provenance if isinstance(
+            record_provenance, Mapping) else {}
+        if (
+            _stock_text(record_provenance.get("workflow_id"))
+            != _STOCK_INVOICE_WORKFLOW_ID
+            or not _stock_text(record_provenance.get("execution_id"))
+        ):
+            return
+
+        candidate = False
+        try:
+            fresh = self.lifecycle.get_task(run_id) or record
+            fresh_assignment = fresh.get("assignment") or assignment
+            task_revision = fresh.get("task_revision")
+            task_revision = task_revision if isinstance(
+                task_revision, Mapping) else {}
+            provenance = task_revision.get("provenance")
+            provenance = provenance if isinstance(
+                provenance, Mapping) else {}
+            workflow_id = _stock_text(provenance.get("workflow_id"))
+            execution_id = _stock_text(provenance.get("execution_id"))
+            if workflow_id != _STOCK_INVOICE_WORKFLOW_ID or not execution_id:
+                return
+            candidate = True
+
+            if _stock_text(task_revision.get("authorization")).lower() == (
+                    "cancelled"):
+                return
+            steps = _stock_plan_steps(fresh_assignment)
+            if steps is None:
+                return
+            if _stock_text(fresh_assignment.get("status")).lower() == (
+                    "cancelled"):
+                return
+
+            trigger_info = _stock_invoice_owner_handoff_trigger(
+                fresh, fresh_assignment)
+            trigger = trigger_info.get("trigger") if trigger_info else None
+            invoice_number = _stock_invoice_number(steps, trigger_info)
+            if not invoice_number and trigger_info:
+                invoice_number = _stock_text(
+                    trigger_info.get("invoice_number"))
+            if not invoice_number:
+                invoice_number = _stock_text(
+                    provenance.get("invoice_number")
+                    or provenance.get("invoice"))
+            if not invoice_number:
+                return
+
+            identity = self._stock_invoice_identity(
+                fresh_assignment, provenance)
+            if identity is None:
+                return
+
+            from core import invoice_workflow_assignment as iwa
+
+            receipt = await iwa.reconcile_stock_invoice_owner_handoff(
+                execution_id=execution_id,
+                run_id=_stock_text(fresh.get("run_id") or run_id),
+                invoice_number=invoice_number,
+                identity=identity,
+                trigger=trigger,
+            )
+            if receipt is not None:
+                state["attempted"] = True
+        except Exception as exc:  # noqa: BLE001 - execution must keep going
+            if candidate:
+                # Do not repeat the same failed reconciliation inside this
+                # advance; the durable pending receipt is retried by the next
+                # authorized advance.
+                state["attempted"] = True
+            logger.warning(
+                "assignment %s: stock invoice owner handoff reconcile "
+                "deferred: %s", run_id, exc)
+
     # ----------------------------------------------------------- execution
 
     @staticmethod
@@ -3329,6 +3963,7 @@ class AssignmentExecutor:
         limit = max(1, min(int(max_steps or 50), 200))
         steps_run = 0
         source_retry_checked = False
+        handoff_state: Dict[str, Any] = {}
         while steps_run < limit:
             record = self.lifecycle.get_task(run_id)
             if record is None:
@@ -3398,6 +4033,8 @@ class AssignmentExecutor:
                 assignment = self._attach_outcome(
                     record, assignment, state)
                 self._persist_assignment(run_id, assignment, "assignment terminal")
+                await self._reconcile_stock_invoice_owner_handoff(
+                    run_id, record, assignment, handoff_state)
                 self._set_run_status(run_id, state)
                 return self.status(run_id)
 
@@ -3420,6 +4057,8 @@ class AssignmentExecutor:
                 assignment = self._expire_assignment_deadline(assignment)
                 self._persist_assignment(
                     run_id, assignment, "assignment business deadline passed")
+                await self._reconcile_stock_invoice_owner_handoff(
+                    run_id, record, assignment, handoff_state)
                 self._set_run_status(run_id, "blocked")
                 return self.status(run_id)
 
@@ -3492,6 +4131,8 @@ class AssignmentExecutor:
                     self._persist_assignment(
                         run_id, assignment,
                         "assignment blocked: no ready step")
+                await self._reconcile_stock_invoice_owner_handoff(
+                    run_id, record, assignment, handoff_state)
                 return self.status(run_id)
 
             # Work can progress: any open idle interval ends now, before the
@@ -3509,6 +4150,8 @@ class AssignmentExecutor:
                         "remaining work explicitly."))
                 self._persist_assignment(
                     run_id, assignment, "assignment budget exhausted")
+                await self._reconcile_stock_invoice_owner_handoff(
+                    run_id, record, assignment, handoff_state)
                 return self.status(run_id)
 
             assignment = self._mark_step(assignment, step["step_id"], {
@@ -3525,12 +4168,20 @@ class AssignmentExecutor:
             record = self.lifecycle.get_task(run_id) or record
             if str((record.get("task_revision") or {}).get("authorization")
                    or "").lower() == "cancelled":
+                await self._reconcile_stock_invoice_owner_handoff(
+                    run_id, record, assignment, handoff_state)
                 return self._finish_cancelled(run_id, record)
 
             step = step_by_id(assignment, step["step_id"]) or step
             await self._run_step(run_id, record, assignment, step)
             steps_run += 1
+            # Reconcile the persisted post-step facts before the next loop
+            # decides whether to continue, wait or finish.
+            await self._reconcile_stock_invoice_owner_handoff(
+                run_id, record, assignment, handoff_state)
 
+        await self._reconcile_stock_invoice_owner_handoff(
+            run_id, record, assignment, handoff_state)
         return self.status(run_id)
 
     async def resume(self, run_id: str, *, max_steps: Optional[int] = None) -> Dict[str, Any]:

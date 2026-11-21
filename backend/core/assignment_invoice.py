@@ -258,6 +258,162 @@ def _persisted_execution_authority(
     return actor_id, tenant_id, workspace_id
 
 
+_INVOICE_LOOKUP_ADAPTER = "invoice.lookup"
+# Bounded ledger facts published by one lookup.  Everything else, including
+# any customer join key, is deliberately not part of the adapter result.
+_INVOICE_LOOKUP_FACTS = (
+    "invoice_id",
+    "invoice_number",
+    "status",
+    "amount",
+    "currency",
+    "due_date",
+    "as_of",
+    "workspace_id",
+    "tenant_id",
+    "workspace_name",
+    "source",
+    "source_table",
+    "recorded_paid",
+    "is_overdue",
+    "days_overdue",
+    "days_until_due",
+    "aging_bucket",
+)
+
+
+def _invoice_lookup_gap(
+    concept: str, reason: str, question: str, *, checked: Any = None,
+) -> None:
+    gap = {
+        "concept": concept,
+        "reason": reason,
+        "question": question,
+        "next_retrieval": "read the authoritative invoice record",
+        "kind": "missing_evidence",
+    }
+    if checked:
+        gap["checked_evidence"] = list(checked)
+    raise NeedsContext(gap)
+
+
+async def _invoice_lookup(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Read one recorded invoice by its exact number in the persisted scope.
+
+    Read-only: caller-supplied scope and operation ids are never consulted.
+    The exact invoice number is passed through unchanged to the existing
+    ledger read, which owns all business decisions.  A known evidence refusal
+    becomes a safe missing-evidence question; infrastructure faults propagate.
+    """
+    invoice_number = inputs.get("invoice_number")
+    if type(invoice_number) is not str or invoice_number == "":
+        _invoice_lookup_gap(
+            "invoice_identity",
+            "the lookup step has no exact nonempty invoice number",
+            "Which recorded invoice should this lookup use?",
+            checked=["invoice_number=missing"],
+        )
+
+    actor_id, tenant_id, workspace_id = _persisted_execution_authority(
+        context)
+    missing = [
+        name for name, value in (
+            ("actor_id", actor_id),
+            ("tenant_id", tenant_id),
+            ("workspace_id", workspace_id),
+        ) if not value
+    ]
+    if missing:
+        _invoice_lookup_gap(
+            "authenticated_scope",
+            "the persisted execution context has no " + ", ".join(missing),
+            "Which authenticated actor, tenant and workspace authorize this "
+            "invoice lookup?",
+            checked=[f"missing={name}" for name in missing],
+        )
+
+    operation_id = _persisted_step_operation_id(context)
+    if not operation_id:
+        _invoice_lookup_gap(
+            "execution_identity",
+            "the persisted lookup step has no operation id",
+            "Which persisted assignment operation authorizes this invoice "
+            "lookup?",
+            checked=["operation_id=missing"],
+        )
+
+    from accounting.invoice_evidence import (
+        InvoiceEvidenceError,
+        read_invoice_evidence,
+    )
+    from core.database import get_db_session
+
+    try:
+        with get_db_session() as db:
+            recorded = read_invoice_evidence(
+                db,
+                actor_id=actor_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                invoice_number=invoice_number,
+            )
+    except InvoiceEvidenceError as exc:
+        # Only the helper's stable refusal type becomes missing evidence.
+        # Transaction, connection and other infrastructure faults propagate.
+        reason = _text(getattr(exc, "reason", "")) or (
+            "invoice_evidence_refused")
+        _invoice_lookup_gap(
+            "invoice_evidence",
+            f"the scoped invoice lookup was refused: {reason}",
+            "Which recorded invoice should this lookup use?",
+            checked=[f"refused={reason}"],
+        )
+
+    facts = {
+        key: recorded.get(key) for key in _INVOICE_LOOKUP_FACTS
+        if key in recorded
+    }
+    invoice_ref = {
+        "kind": "invoice",
+        "resource_id": facts.get("invoice_id"),
+        "invoice_number": facts.get("invoice_number"),
+        "workspace_id": facts.get("workspace_id"),
+        "tenant_id": facts.get("tenant_id"),
+        "source": facts.get("source"),
+        "source_table": facts.get("source_table"),
+        "status": facts.get("status"),
+        "recorded_paid": facts.get("recorded_paid"),
+    }
+    return {
+        "status": "applied",
+        "action_result": "applied",
+        "summary": (
+            f"read invoice {facts.get('invoice_number')} with recorded status "
+            f"{facts.get('status')}"),
+        "operation_id": operation_id,
+        "invoice": dict(facts),
+        "invoice_id": facts.get("invoice_id"),
+        "invoice_number": facts.get("invoice_number"),
+        "invoice_status": facts.get("status"),
+        "recorded_paid": facts.get("recorded_paid"),
+        "data": dict(facts),
+        "provider_state": "read_only",
+        "send_performed": False,
+        "payment": False,
+        "settled": False,
+        "evidence": [invoice_ref],
+        "evidence_refs": [invoice_ref],
+        "verification": {
+            "status": "verified",
+            "resource_id": facts.get("invoice_id"),
+            "version": facts.get("as_of"),
+            "coverage": {"complete": True, "truncated": False},
+        },
+    }
+
+
 _INVOICE_PREPARE_ADAPTER = "invoice.prepare_reminder"
 _INVOICE_SEND_ADAPTER = "invoice.send_reminder"
 _INVOICE_REPLY_ADAPTER = "invoice.wait_for_reply"
@@ -1274,11 +1430,36 @@ def _native_canvas_mismatches(
     return mismatches
 
 
+def _invoice_identity_gap(reason: str, checked: str) -> None:
+    raise NeedsContext({
+        "concept": "invoice_identity",
+        "reason": reason,
+        "question": "Which invoice should the payment reminder reference?",
+        "next_retrieval": "resume the persisted invoice lookup",
+        "checked_evidence": [checked],
+        "kind": "missing_evidence",
+    })
+
+
 async def _invoice_prepare_reminder(
     inputs: Dict[str, Any], context: Dict[str, Any],
 ) -> Dict[str, Any]:
-    invoice_number = _text(inputs.get("invoice_number"))
-    if not invoice_number:
+    # A stock plan may bind the invoice id resolved from its durable lookup.
+    # The id is only a constraint; the scoped ledger lookup below remains the
+    # authority.  Callers without the constraint keep historical behaviour.
+    expected_invoice = "expected_invoice_id" in inputs
+    expected_invoice_id = inputs.get("expected_invoice_id")
+    if expected_invoice and (
+            type(expected_invoice_id) is not str
+            or not expected_invoice_id.strip()):
+        _invoice_identity_gap(
+            "the expected invoice id is not a nonblank exact string",
+            "expected_invoice_id=invalid")
+
+    invoice_number = (
+        _raw_text(inputs.get("invoice_number")) if expected_invoice
+        else _text(inputs.get("invoice_number")))
+    if not invoice_number.strip():
         raise NeedsContext({
             "concept": "invoice_identity",
             "reason": "the reminder step has no invoice number",
@@ -1334,6 +1515,15 @@ async def _invoice_prepare_reminder(
             invoice_number=invoice_number,
         )
 
+    if expected_invoice:
+        evidence = reminder.get("evidence")
+        evidence = evidence if isinstance(evidence, Mapping) else {}
+        if evidence.get("invoice_id") != expected_invoice_id:
+            _invoice_identity_gap(
+                "the resolved invoice id does not match the expected "
+                "invoice id",
+                "expected_invoice_id=mismatch")
+
     # Compose through the executor's canonical local draft assembly so the
     # revision, teaching protocol, and draft-only flags match email.draft.
     from core.assignment_executor import _email_draft
@@ -1353,7 +1543,10 @@ async def _invoice_prepare_reminder(
     invoice_ref = {
         "kind": "invoice",
         "resource_id": _text(invoice.get("invoice_id")) or invoice_number,
-        "invoice_number": _text(invoice.get("invoice_number")) or invoice_number,
+        "invoice_number": (
+            _raw_text(invoice.get("invoice_number")) if expected_invoice
+            else _text(invoice.get("invoice_number"))
+        ) or invoice_number,
         "source": _text(invoice.get("source")),
         "source_table": _text(invoice.get("source_table")),
         "workspace_id": _text(invoice.get("workspace_id")) or workspace_id,
@@ -1816,6 +2009,15 @@ register_assignment_adapter(
               "required_inputs": ["invoice_number"],
               "allow_standing_authorization": False},
 )(_invoice_prepare_reminder)
+
+
+register_assignment_adapter(
+    _INVOICE_LOOKUP_ADAPTER,
+    description="Read one recorded invoice by its exact number and scope",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "required_inputs": ["invoice_number"],
+              "allow_standing_authorization": False},
+)(_invoice_lookup)
 
 
 _INVOICE_SEND_METADATA = {
