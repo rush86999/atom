@@ -232,10 +232,10 @@ async def create_user_template(
         )
 
         db.add(template)
-        db.commit()
-        db.refresh(template)
 
-        # Create initial version record (real TemplateVersion columns)
+        # Create initial version record (real TemplateVersion columns). The
+        # template and its initial history row are committed together so a
+        # partially-created template can never be observed.
         version = TemplateVersion(
             template_id=template_id,
             version_number=1,
@@ -247,7 +247,9 @@ async def create_user_template(
             created_at=datetime.now()
         )
         db.add(version)
+
         db.commit()
+        db.refresh(template)
 
         logger.info(f"Created template {template_id} by user {current_user.id}")
         return _template_to_response(template)
@@ -435,23 +437,6 @@ async def update_template(
     Only the template owner can update.
     """
     try:
-        template = db.query(WorkflowTemplate).filter(
-            WorkflowTemplate.id == template_id
-        ).first()
-
-        if not template:
-            raise router.not_found_error("Template", template_id)
-
-        # Check ownership against the AUTHENTICATED user (previously the
-        # client-supplied user_id query param let anyone pass the victim's
-        # id to modify their templates).
-        if template.author_id != current_user.id:
-            raise router.permission_denied_error(
-                action="update_template",
-                resource="WorkflowTemplate",
-                details={"template_id": template_id, "user_id": current_user.id}
-            )
-
         # MASS ASSIGNMENT FIX: only fields that exist on the real model may be
         # set (complexity/tags/template_json/... were dropped in the Hive model
         # port 36ed0f548 — setattr on them raises AttributeError).
@@ -459,43 +444,104 @@ async def update_template(
 
         # Update fields
         update_data = request.dict(exclude_unset=True, exclude={'change_description'})
-        for field, value in update_data.items():
-            if field not in ALLOWED_UPDATE_FIELDS:
-                logger.info(f"Skipping update of unsupported field '{field}' (not on model)")
-                continue
-            if value is not None:
-                setattr(template, field, value)
-
-        template.updated_at = datetime.now()
 
         # Create version entry if there are substantive changes (real
         # TemplateVersion columns — version_number/created_by/change_summary).
-        if request.change_description or any(key in request.dict() for key in
-                                              ['template_json', 'steps_schema', 'inputs_schema']):
-            # Increment version (simplified semver)
-            current_version = template.version.split('.')
-            current_version[2] = str(int(current_version[2]) + 1)
-            new_version = ".".join(current_version)
+        # Keep the historical condition exactly as before.
+        creates_revision = bool(
+            request.change_description or any(key in request.dict() for key in
+                                              ['template_json', 'steps_schema', 'inputs_schema'])
+        )
 
-            template.version = new_version
+        # Bounded optimistic-concurrency retry. The revision write is
+        # serialized by a conditional UPDATE on the *previous* parent
+        # WorkflowTemplate.version, which behaves identically on PostgreSQL and
+        # SQLite (no SELECT ... FOR UPDATE). The parent edit and its history
+        # row are only ever committed together.
+        MAX_WRITE_ATTEMPTS = 3
 
-            version = TemplateVersion(
-                template_id=template_id,
-                version_number=int(current_version[2]),
-                name=template.name,
-                description=template.description,
-                steps=template.steps or None,
-                created_by=current_user.id,
-                change_summary=request.change_description or "Updated template",
-                created_at=datetime.now()
-            )
-            db.add(version)
+        for attempt in range(MAX_WRITE_ATTEMPTS):
+            template = db.query(WorkflowTemplate).filter(
+                WorkflowTemplate.id == template_id
+            ).first()
 
-        db.commit()
-        db.refresh(template)
+            if not template:
+                raise router.not_found_error("Template", template_id)
 
-        logger.info(f"Updated template {template_id} to version {template.version}")
-        return _template_to_response(template)
+            # Check ownership against the AUTHENTICATED user (previously the
+            # client-supplied user_id query param let anyone pass the victim's
+            # id to modify their templates).
+            if template.author_id != current_user.id:
+                raise router.permission_denied_error(
+                    action="update_template",
+                    resource="WorkflowTemplate",
+                    details={"template_id": template_id, "user_id": current_user.id}
+                )
+
+            previous_version = template.version
+
+            # Build the parent update without mutating the ORM instance before
+            # the conditional UPDATE (a dirty instance could autoflush and
+            # bypass the version guard).
+            values = {"updated_at": datetime.now()}
+            for field, value in update_data.items():
+                if field not in ALLOWED_UPDATE_FIELDS:
+                    logger.info(f"Skipping update of unsupported field '{field}' (not on model)")
+                    continue
+                if value is not None:
+                    values[field] = value
+
+            new_version_number = None
+            if creates_revision:
+                # Increment ONLY the parent's current semver patch component.
+                # Historical rows are never consulted: an older template at
+                # 1.0.5 with sparse history (2, 3) must still store revision
+                # number 6 on the next successful edit.
+                version_parts = previous_version.split('.')
+                version_parts[2] = str(int(version_parts[2]) + 1)
+                new_version = ".".join(version_parts)
+                new_version_number = int(version_parts[2])
+                values["version"] = new_version
+
+            # Small conditional update: if another writer changed the parent
+            # version since we read it, this matches zero rows and we retry
+            # against fresh state (or return 409 after the bounded attempts).
+            updated_rows = db.query(WorkflowTemplate).filter(
+                WorkflowTemplate.id == template_id,
+                WorkflowTemplate.version == previous_version
+            ).update(values, synchronize_session=False)
+
+            if updated_rows != 1:
+                db.rollback()
+                logger.info(
+                    f"Concurrent revision detected for template {template_id} "
+                    f"(attempt {attempt + 1}/{MAX_WRITE_ATTEMPTS}); retrying"
+                )
+                continue
+
+            if creates_revision:
+                version = TemplateVersion(
+                    template_id=template_id,
+                    version_number=new_version_number,
+                    name=values.get("name", template.name),
+                    description=values.get("description", template.description),
+                    steps=template.steps or None,
+                    created_by=current_user.id,
+                    change_summary=request.change_description or "Updated template",
+                    created_at=datetime.now()
+                )
+                db.add(version)
+
+            db.commit()
+            db.refresh(template)
+
+            logger.info(f"Updated template {template_id} to version {template.version}")
+            return _template_to_response(template)
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Template was modified concurrently; please retry",
+        )
 
     except HTTPException:
         raise
