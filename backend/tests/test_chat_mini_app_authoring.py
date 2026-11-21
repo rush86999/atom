@@ -187,6 +187,51 @@ async def test_generated_logic_rejects_dynamic_execution_before_save(
 
 
 @pytest.mark.asyncio
+async def test_direct_input_call_is_repaired_before_save(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _author_logic
+
+    rejected = "rows = input('rows')"
+    accepted = "state = {'count': len(rows)}"
+    model = SimpleNamespace(generate_completion=AsyncMock(side_effect=[
+        {"content": rejected},
+        {"content": accepted},
+    ]))
+    save = AsyncMock(return_value={"success": True, "version": 1})
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_write_logic", save)
+
+    result = await _author_logic(model, "app", "Inventory", "inventory", "count rows", "actor")
+
+    assert result["success"] is True
+    assert model.generate_completion.await_count == 2
+    assert "input()" in str(model.generate_completion.await_args_list[1])
+    save.assert_awaited_once()
+    assert save.await_args.args[0]["source"] == accepted
+
+
+@pytest.mark.asyncio
+async def test_attribute_input_method_is_allowed_with_global_rows(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _author_logic
+
+    source = "state = {'count': len(Reader().input(rows))}"
+    model = SimpleNamespace(generate_completion=AsyncMock(return_value={"content": source}))
+    save = AsyncMock(return_value={"success": True, "version": 1})
+    monkeypatch.setattr("tools.mini_app_tool.mini_app_write_logic", save)
+
+    result = await _author_logic(model, "app", "Inventory", "inventory", "read rows", "actor")
+
+    assert result["success"] is True
+    assert model.generate_completion.await_count == 1
+    save.assert_awaited_once()
+    assert save.await_args.args[0]["source"] == source
+
+
+@pytest.mark.asyncio
 async def test_chat_repairs_against_same_owner_acceptance_cases(monkeypatch):
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
