@@ -99,6 +99,36 @@ def _request_sha256(args: Dict[str, Any]) -> str:
         return ""
 
 
+def _logic_baseline_args(args: Dict[str, Any], canvas_id: str) -> Dict[str, Any]:
+    """Translate flat readback baseline fields into ``save_logic`` CAS kwargs.
+
+    Absent keys mean a legacy caller (no baseline). An explicitly present
+    ``expected_source_sha256: null`` means the readback found NO logic row;
+    that must not be confused with a request that supplied no baseline.
+    """
+    supplied = (
+        "expected_source_sha256" in args
+        or args.get("expected_source_present") is not None
+    )
+    if not supplied:
+        return {}
+
+    expected_sha256 = args.get("expected_source_sha256")
+    expected_present = args.get("expected_source_present")
+    if expected_present is None:
+        expected_present = expected_sha256 is not None
+    if expected_present is True and expected_sha256 is None:
+        raise ValueError("a present source baseline requires a source digest")
+    if expected_present is False and expected_sha256 is not None:
+        raise ValueError("a no-source baseline cannot carry a source digest")
+    out: Dict[str, Any] = {
+        "expected_source_present": bool(expected_present),
+    }
+    if expected_sha256 is not None:
+        out["expected_source_sha256"] = expected_sha256
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Authoring loop (the harness)
 # ---------------------------------------------------------------------------
@@ -200,14 +230,15 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
             except SyntaxError as e:
                 return {"success": False, "error": f"SyntaxError: {e}"}
             try:
+                baseline_kwargs = _logic_baseline_args(
+                    args, app.blueprint_canvas_id)
                 CanvasLogicService(db).save_logic(
                     canvas_id=app.blueprint_canvas_id,
                     source=source,
                     created_by=viewer.id,
                     commit=False,
                     require_cas=True,
-                    **({"expected_source_sha256": args["expected_source_sha256"]}
-                       if args.get("expected_source_sha256") is not None else {}),
+                    **baseline_kwargs,
                 )
             except LogicConflict:
                 return {
@@ -244,6 +275,7 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
             "canvas_id": app.blueprint_canvas_id,
             "version": snapshot["version"],
             "source_sha256": logic_source_sha256(source),
+            "source_present": True,
             "audit_id": snapshot.get("audit_id"),
             "operation_id": str(context.get("operation_id") or ""),
             "message": f"Logic saved (syntax OK, checkpoint v{snapshot['version']})",
@@ -834,10 +866,13 @@ async def mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
             try:
+                baseline_kwargs = _logic_baseline_args(
+                    args, app.blueprint_canvas_id)
                 result = revert_logic(
                     app, db, int(version), actor_id=viewer.id,
                     operation_id=str(context.get("operation_id") or ""),
                     request_sha256=request_sha256,
+                    **baseline_kwargs,
                 )
             except LogicConflict:
                 return {
@@ -860,6 +895,7 @@ async def mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -
             "reverted_to": result.get("reverted_to"),
             "target_audit_id": result.get("target_audit_id"),
             "source_sha256": result.get("source_sha256"),
+            "source_present": result.get("source_present", True),
             "audit_id": result.get("audit_id"),
             "operation_id": str(context.get("operation_id") or ""),
             "message": f"Reverted logic to checkpoint v{result['version']}",
