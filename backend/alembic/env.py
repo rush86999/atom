@@ -22,7 +22,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 # Alembic's default VARCHAR(32) version column, so fresh PostgreSQL installs
 # use the supported version_table_impl hook to create a wider column.
 from core.alembic_version_table import WideVersionTablePostgresqlImpl  # noqa: F401,E402
-from core.models import Base
+from core.models import Base, TURN_FACT_ACTIVE_INDEX_MARKER
 
 target_metadata = Base.metadata
 
@@ -62,6 +62,28 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _make_include_object(dialect_name):
+    """Keep autogenerate aligned with ``Index.ddl_if`` dialect gating.
+
+    Alembic's ``compare_metadata`` does not evaluate ``ddl_if``. Indexes
+    carrying ``TURN_FACT_ACTIVE_INDEX_MARKER`` are PostgreSQL-only, so hide
+    them from metadata during non-PostgreSQL comparisons. Unmarked objects
+    and reflected indexes (including the historical PostgreSQL partial index)
+    are included exactly as before.
+    """
+    def include_object(object, name, type_, reflected, compare_to):
+        if (
+            dialect_name != "postgresql"
+            and type_ == "index"
+            and not reflected
+            and getattr(object, "info", {}).get(TURN_FACT_ACTIVE_INDEX_MARKER)
+        ):
+            return False
+        return True
+
+    return include_object
+
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
@@ -79,7 +101,8 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True  # Enable batch mode for SQLite ALTER TABLE support
+            render_as_batch=True,  # Enable batch mode for SQLite ALTER TABLE support
+            include_object=_make_include_object(connection.dialect.name),
         )
 
         with context.begin_transaction():
