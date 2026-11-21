@@ -32,6 +32,7 @@ from core.database import get_db
 from core.models import Canvas, User
 from core.models_board import Board, BoardColumn, BoardTask
 from core.auth import get_current_user
+from core.personal_scope import is_bootstrap_identity, resolve_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,20 @@ def _serialize_column(column: BoardColumn, task_count: int = 0) -> ColumnRead:
     )
 
 
+def _task_workspace_tenant_id(current_user: User) -> Union[str, None]:
+    """Resolve the tenant used for a task's Canvas workspace.
+
+    Explicit bindings pass through unchanged. Only the server-owned bootstrap
+    identity — intentionally created with NULL tenant/workspace scope — may use
+    the Personal-Edition tenant resolver. Every other unbound account stays
+    ``None`` so ``BoardService`` keeps rejecting the workspace request.
+    """
+    tenant_id = getattr(current_user, "tenant_id", None)
+    if not tenant_id and is_bootstrap_identity(current_user):
+        return resolve_tenant_id(current_user)
+    return tenant_id
+
+
 # --------------------------------------------------------------------------- #
 # Board CRUD
 # --------------------------------------------------------------------------- #
@@ -213,7 +228,7 @@ async def create_task(
         board_id=board_id,
         created_by_user_id=str(current_user.id),
         payload=payload,
-        tenant_id=current_user.tenant_id,
+        tenant_id=_task_workspace_tenant_id(current_user),
     )
     await _emitter.emit_task_created(task)
     return _serialize_task(db, task)
@@ -232,7 +247,7 @@ async def patch_task(
         board_id=board_id,
         task_id=task_id,
         payload=payload,
-        tenant_id=current_user.tenant_id,
+        tenant_id=_task_workspace_tenant_id(current_user),
     )
 
     if change_meta["from_column_id"] is not None:
