@@ -2644,6 +2644,67 @@ def _job_read_scope_allows(user: User, namespace: Dict[str, Any]) -> bool:
     return True
 
 
+def _has_pending_action_approval(
+    *,
+    bind,
+    job_id: str,
+    agent_id: str,
+    execution_id: str,
+    namespace: Dict[str, Any],
+    actor_id: str,
+) -> bool:
+    """Return whether this running job has one verified pending approval.
+
+    Only a durable ``HITLAction`` scoped to the exact job, execution, agent,
+    persisted actor and admitted tenant/workspace, in a pending state and not
+    an information request, is reported. No row material is read: the scoped
+    query returns an existence scalar only.
+    """
+    if not bind or not str(execution_id or "").strip() or not str(
+            actor_id or "").strip():
+        return False
+    workspace = namespace.get("workspace_id")
+    if workspace is None:
+        return False
+    tenant = namespace.get("tenant_id")
+    snapshot = HITLAction.context_snapshot
+    conditions = [
+        HITLAction.status.in_((
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.PENDING_2FA.value,
+        )),
+        HITLAction.agent_id == str(agent_id),
+        HITLAction.user_id == str(actor_id),
+        HITLAction.workspace_id == str(workspace),
+        (
+            HITLAction.tenant_id.is_(None)
+            if tenant is None
+            else HITLAction.tenant_id == str(tenant)
+        ),
+        HITLAction.action_type.isnot(None),
+        HITLAction.action_type != "",
+        ~HITLAction.action_type.in_(tuple(_INFORMATION_WAIT_ACTIONS)),
+        snapshot["job_id"].as_string() == str(job_id),
+        snapshot["execution_id"].as_string() == str(execution_id),
+    ]
+    session = Session(bind=bind)
+    try:
+        found = (
+            session.query(HITLAction.id)
+            .filter(*conditions)
+            .limit(1)
+            .scalar()
+        )
+    except Exception as exc:  # noqa: BLE001 — read failure is not an approval
+        logger.warning(
+            "Pending approval read unavailable: stage=query error_class=%s",
+            type(exc).__name__)
+        return False
+    finally:
+        session.close()
+    return found is not None
+
+
 def _public_information_wait(
     payload: Dict[str, Any],
     *,
@@ -5061,8 +5122,8 @@ async def read_agent_job(
     continuation or invokes a model.  The exact admitted actor, job, agent,
     execution and frozen workspace/tenant are re-verified from durable rows;
     a peer, a wrong scope or a forged/legacy identity resolves as not found.
-    Only status/outcome/next action, the exact currently-open question and the
-    public result are projected.
+    Only status/outcome/next action, the exact currently-open question, a
+    pending action-approval presence flag and the public result are projected.
     """
     bind = db.get_bind()
     job = db.get(AgentJob, str(job_id))
@@ -5172,6 +5233,22 @@ async def read_agent_job(
         )
         if result is not None:
             data["result"] = result
+    elif job_status == AgentJobStatus.RUNNING.value:
+        # A running job may also have one durable human decision pending.
+        # This is a read-only presence flag; the job status and lifecycle
+        # ownership stay unchanged.
+        if _has_pending_action_approval(
+            bind=bind,
+            job_id=str(job_id),
+            agent_id=str(agent_id),
+            execution_id=execution_id,
+            namespace=namespace,
+            actor_id=actor_id,
+        ):
+            data["pending_action_approval"] = True
+            data["can_review_pending_action_approval"] = (
+                RBACService.check_permission(
+                    persisted, Permission.AGENT_MANAGE))
     return router.success_response(
         data=data,
         message="Agent job state retrieved",

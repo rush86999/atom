@@ -86,6 +86,162 @@ def _assert_same_execution(env, job_id, execution_id):
     return job, payload
 
 
+def _start_durable_wait(env, monkeypatch, operation_id):
+    """Create a real pending HITLAction through the GenericAgent wait path."""
+
+    def first(task_input, history, context):
+        return ReActStep(
+            thought="Need one fact.",
+            information_wait=InformationWaitRequest(
+                question="Which document?",
+                missing_fact="document",
+            ),
+        )
+
+    _install_model(monkeypatch, [first])
+    response = _run(
+        env, operation_id=operation_id,
+        parameters={"sync": True, "task_input": "read the document"})
+    assert response.status_code == 202, response.text
+    return response.json()["data"]
+
+
+def _set_running(env, data, *, action_type=None):
+    """Test setup only: keep the durable rows, expose the running window."""
+    with env.SessionLocal() as db:
+        job = db.get(AgentJob, data["job_id"])
+        job.status = "running"
+        if action_type is not None:
+            action = db.get(
+                HITLAction, data["wait_receipt"]["hitl_action_id"])
+            action.action_type = action_type
+            # Sensitive business input must never be re-projected by the read.
+            action.params = {
+                "path": "/private/secret/input.txt",
+                "input": "sensitive payload",
+            }
+        db.commit()
+
+
+def _read_job(env, job_id):
+    return _client(env).get(f"/api/agents/a1/jobs/{job_id}")
+
+
+def test_running_job_shows_only_verified_pending_action_approval(
+    real_env, monkeypatch,
+):
+    data = _start_durable_wait(
+        real_env, monkeypatch, "running-pending-approval")
+    job_id = data["job_id"]
+    action_id = data["wait_receipt"]["hitl_action_id"]
+    _set_running(real_env, data, action_type="documents.cat")
+    with real_env.SessionLocal() as db:
+        db.get(User, "member-1").role = "admin"
+        db.commit()
+
+    response = _read_job(real_env, job_id)
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    assert payload["job_status"] == "running"
+    assert payload["pending_action_approval"] is True
+    assert payload["can_review_pending_action_approval"] is True
+    # A pending action approval is not an information wait and its input is
+    # not copied into the public read.
+    assert payload.get("wait") is None
+    assert payload.get("wait_unavailable") is None
+    assert "secret" not in response.text
+    assert "sensitive payload" not in response.text
+    with real_env.SessionLocal() as db:
+        assert db.get(AgentJob, job_id).status == "running"
+        assert db.get(HITLAction, action_id).status == "pending"
+
+
+def test_pending_action_approval_reports_team_lead_cannot_review(
+    real_env, monkeypatch,
+):
+    data = _start_durable_wait(
+        real_env, monkeypatch, "running-team-lead-pending-approval")
+    _set_running(real_env, data, action_type="documents.cat")
+    with real_env.SessionLocal() as db:
+        db.get(User, "member-1").role = "team_lead"
+        db.commit()
+
+    response = _read_job(real_env, data["job_id"])
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    assert payload["pending_action_approval"] is True
+    assert payload["can_review_pending_action_approval"] is False
+
+
+def test_running_job_does_not_present_information_wait_as_action_approval(
+    real_env, monkeypatch,
+):
+    data = _start_durable_wait(
+        real_env, monkeypatch, "running-information-not-approval")
+    _set_running(real_env, data)
+
+    response = _read_job(real_env, data["job_id"])
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    assert payload["job_status"] == "running"
+    assert "pending_action_approval" not in payload
+    assert "can_review_pending_action_approval" not in payload
+    assert payload.get("wait") is None
+
+
+def test_settled_or_foreign_pending_action_is_not_shown(
+    real_env, monkeypatch,
+):
+    data = _start_durable_wait(
+        real_env, monkeypatch, "running-stale-pending-approval")
+    job_id = data["job_id"]
+    action_id = data["wait_receipt"]["hitl_action_id"]
+    _set_running(real_env, data, action_type="documents.cat")
+
+    # Settled rows are not an open approval.
+    with real_env.SessionLocal() as db:
+        action = db.get(HITLAction, action_id)
+        action.status = "approved"
+        db.commit()
+    settled = _read_job(real_env, job_id)
+    assert settled.status_code == 200, settled.text
+    assert "pending_action_approval" not in settled.json()["data"]
+
+    # A row bound to another job/execution/actor is not this job's approval.
+    with real_env.SessionLocal() as db:
+        action = db.get(HITLAction, action_id)
+        action.status = "pending"
+        snapshot = dict(action.context_snapshot or {})
+        snapshot["job_id"] = "other-job"
+        action.context_snapshot = snapshot
+        db.commit()
+    foreign = _read_job(real_env, job_id)
+    assert foreign.status_code == 200, foreign.text
+    assert "pending_action_approval" not in foreign.json()["data"]
+
+    with real_env.SessionLocal() as db:
+        action = db.get(HITLAction, action_id)
+        snapshot = dict(action.context_snapshot or {})
+        snapshot["job_id"] = job_id
+        snapshot["execution_id"] = "other-execution"
+        action.context_snapshot = snapshot
+        db.commit()
+    foreign_execution = _read_job(real_env, job_id)
+    assert foreign_execution.status_code == 200, foreign_execution.text
+    assert "pending_action_approval" not in foreign_execution.json()["data"]
+
+    with real_env.SessionLocal() as db:
+        action = db.get(HITLAction, action_id)
+        snapshot = dict(action.context_snapshot or {})
+        snapshot["execution_id"] = data["execution_id"]
+        action.context_snapshot = snapshot
+        action.user_id = None
+        db.commit()
+    foreign_actor = _read_job(real_env, job_id)
+    assert foreign_actor.status_code == 200, foreign_actor.text
+    assert "pending_action_approval" not in foreign_actor.json()["data"]
+
+
 def test_generic_info_wait_resumes_same_job_to_verified_result(
     real_env, monkeypatch,
 ):
