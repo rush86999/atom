@@ -16,11 +16,14 @@ const MAX_POLLS = 40;
 // ignored. Reads are coalesced, never lifetime-capped — the same job may ask
 // several facts over its life.
 const EVENT_REFRESH_COALESCE_MS = 1000;
-const DURABLE_NON_ACTIVE_JOB_STATUSES = new Set([
+const WAITING_JOB_STATUSES = new Set([
   "waiting",
   "awaiting_information",
   "awaiting_input",
   "awaiting_approval",
+]);
+const DURABLE_NON_ACTIVE_JOB_STATUSES = new Set([
+  ...WAITING_JOB_STATUSES,
   "success",
   "failed",
   "cancelled",
@@ -93,7 +96,11 @@ type Props = {
 const statusLabel = (status?: string | null): string => {
   switch (status) {
     case "waiting":
+    case "awaiting_information":
+    case "awaiting_input":
       return "Waiting for your answer";
+    case "awaiting_approval":
+      return "Waiting for approval";
     case "pending":
     case "running":
       return "Working";
@@ -166,9 +173,9 @@ const formatDeadline = (value?: string | null): string | null => {
 
 /**
  * Shows the current state of one admitted agent job: the exact open question
- * (an information request, never an effect approval), its blocking fact, and
- * the durable public result. Everything rendered here comes from an authorized
- * server read; cached job ids are locators only.
+ * (an information request), a durable action approval reviewed elsewhere, its
+ * blocking fact, and the durable public result. Everything rendered here comes
+ * from an authorized server read; cached job ids are locators only.
  */
 export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage }: Props) {
   const [job, setJob] = useState<AgentJobReadback | null>(null);
@@ -556,29 +563,36 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
 
   if (!agentId || !jobId) return null;
 
-  const openWait =
-    job?.job_status === "waiting" && job.wait ? job.wait : null;
+  const waitingStatus = Boolean(
+    job && WAITING_JOB_STATUSES.has(job.job_status),
+  );
+  const openWait = waitingStatus && job?.wait ? job.wait : null;
   const waitUnavailable =
-    job?.job_status === "waiting" && !job.wait && Boolean(job.wait_unavailable);
+    waitingStatus && !job?.wait && Boolean(job?.wait_unavailable);
   const deadlinePassed = Boolean(
     job?.deadline_passed || openWait?.deadline_passed,
   );
   const completed = job?.job_status === "success";
   const active = job?.job_status === "pending" || job?.job_status === "running";
   const hasPendingApproval =
-    job?.job_status === "running" && job?.pending_action_approval === true;
+    job?.pending_action_approval === true &&
+    ["running", "waiting", "awaiting_approval"].includes(
+      job?.job_status || "",
+    );
   const failed =
     Boolean(job) &&
     !completed &&
     !active &&
     !openWait &&
     !waitUnavailable &&
-    !["waiting", "pending", "running"].includes(job?.job_status || "");
+    !waitingStatus;
   const statusText = waitUnavailable
     ? "Waiting · question unavailable"
-    : deadlinePassed && job?.job_status === "waiting"
-      ? "Deadline passed"
-      : statusLabel(job?.job_status);
+    : hasPendingApproval && waitingStatus
+      ? "Waiting for approval"
+      : deadlinePassed && waitingStatus
+        ? "Deadline passed"
+        : statusLabel(job?.job_status);
   const waitAge = formatWaitAge(
     openWait?.waiting_age_seconds ?? job?.waiting_age_seconds,
   );

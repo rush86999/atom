@@ -831,3 +831,57 @@ def test_real_react_step_consumer_answers_wait_and_verifies_effect(
         task = db.query(BoardTask).filter(
             BoardTask.board_id == board_id).one()
         assert task.title == "Quarterly close checklist"
+
+
+def test_never_autonomous_run_and_replay_show_pending_action_approval(
+    real_env, monkeypatch,
+):
+    from unittest.mock import AsyncMock
+
+    from core.autonomy_policy import create_never_rule
+
+    with real_env.SessionLocal() as db:
+        create_never_rule(
+            db, "member-1", name="Enterprise support review",
+            match={
+                "difficulty": ["advanced"],
+                "category": ["prose"],
+                "domain": ["support"],
+            },
+            tenant_id="t1", workspace_id="ws1",
+        )
+    model = AsyncMock(side_effect=AssertionError("Unexpected model call"))
+    monkeypatch.setattr(real_generic.GenericAgent, "_react_step", model)
+    monkeypatch.setattr(real_generic.GenericAgent, "_wait_for_approval", AsyncMock(return_value=False))
+    parameters = {
+        "sync": True,
+        "task_input": (
+            "Draft an enterprise customer support email explaining the "
+            "helpdesk ticket escalation and service desk response."
+        ),
+    }
+    run = _run(real_env, operation_id="autonomy-matched-job", parameters=parameters)
+    assert run.status_code == 202
+    job = run.json()["data"]
+    fetched = _read_job(real_env, job["job_id"])
+    assert fetched.status_code == 200
+    assert model.await_count == 0
+    repeat = _run(real_env, operation_id="autonomy-matched-job", parameters=parameters)
+    assert repeat.status_code == 202
+    for status in [run.json()["data"], repeat.json()["data"], fetched.json()["data"]]:
+        assert status["job_id"] == job["job_id"]
+        assert status["execution_id"] == job["execution_id"]
+        assert status["outcome"] == "awaiting_approval"
+        assert status["next_action"] == "await_approval"
+        assert not status.get("wait_unavailable")
+        assert not status.get("wait")
+    assert fetched.json()["data"]["pending_action_approval"] is True
+    assert fetched.json()["data"]["can_review_pending_action_approval"] is False
+    assert model.await_count == 0
+    with real_env.SessionLocal() as db:
+        receipts = db.query(HITLAction).filter_by(
+            action_type="never_autonomous_task", status="pending",
+        ).all()
+        assert len(receipts) == 1
+        assert receipts[0].context_snapshot["job_id"] == job["job_id"]
+        assert receipts[0].context_snapshot["execution_id"] == job["execution_id"]
