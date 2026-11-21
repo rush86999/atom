@@ -82,13 +82,13 @@ pytest tests/ --cov --cov-report=term-missing
 
 ### Step 2: Run Database Migrations
 
-**Empty PostgreSQL databases.** A full `alembic upgrade heads` on an
-empty PostgreSQL 16 schema fails at revision `b78e9c2f1a3d`, which
-alters `agent_registry` before the migration history creates it. The
-application can bootstrap tables at startup, but that bootstrap does not
-record Alembic history. Verify a fresh-install path for your release before
-deploying a new PostgreSQL database. The procedure below applies to an
-existing Alembic-managed schema after a staging rehearsal.
+**Empty PostgreSQL databases.** Raw `alembic upgrade heads` still cannot
+bootstrap an empty database. On an empty PostgreSQL 16 schema it fails at
+revision `b78e9c2f1a3d`, which alters `agent_registry` before the migration
+history creates it. The application can bootstrap tables at startup, but that
+bootstrap does not record Alembic history. The transactional initializer
+below provides the fresh-install path; verify it for your release before
+deploying a new PostgreSQL database.
 
 For a fresh-install rehearsal, verify the target PostgreSQL database uses UTF-8
 before provisioning it:
@@ -107,16 +107,44 @@ the read after an orderly restart and compare the template IDs. Run the check
 with a fresh rehearsal database so pre-existing seed rows cannot mask a failed
 startup.
 
+**Fresh UTF-8 target.** From `backend`, run the transactional initializer
+against the empty database, then verify all migration heads with ordinary
+Alembic:
+
 ```bash
+cd backend
+
+# Create the schema transactionally and record the initial Alembic state.
+python -m scripts.initialize_postgres
+
+# Verify every head is satisfied.
+alembic heads
+alembic current
+```
+
+`alembic current` must report every revision returned by `alembic heads`. The
+initializer must succeed before the application starts. If it fails, leave the
+database empty, correct the cause, and retry; do not fall back to raw
+`alembic upgrade heads` on an empty database.
+
+**Existing Alembic-managed target.** Confirm the database uses `UTF8`, take a
+backup, and rehearse the upgrade on a staging copy. Then run the read-only
+compatibility check from `backend` before applying anything:
+
+```bash
+cd backend
+
+# Read-only: verify the target's exact Alembic history and upgrade path.
+python -m scripts.initialize_postgres --check-upgrade
+
 # Check current migration version
 alembic current
 
 # Review migration plan
 alembic history | head -20
 
-# Inspect the migration heads and preview SQL
+# Inspect the migration heads
 alembic heads
-alembic upgrade heads --sql
 
 # Execute migrations
 alembic upgrade heads
@@ -125,10 +153,21 @@ alembic upgrade heads
 alembic current
 ```
 
+The `--check-upgrade` check is read-only. An existing target with exact legacy
+Alembic history needs no fresh bootstrap marker; after the check passes, run
+the ordinary `alembic upgrade heads` shown above. If the target history is
+unknown, stop. Do not bootstrap, stamp, or upgrade an unknown target; follow
+the current release guidance and resolve the history before retrying.
+
 Compare the applied revisions with `alembic heads`. Atom has parallel
 migration branches. Rehearse the upgrade against a staging copy before
 applying it to production. An offline SQL preview cannot test database
 state or migrations that read data.
+
+The draft initializer has been verified in PostgreSQL 15 (PG15) and PostgreSQL
+16 (PG16) core database rehearsals. These rehearsals cover core database
+bootstrap only; they are not a claim that a full Docker Compose deployment has
+been verified.
 
 **Migration Verification:**
 ```sql
