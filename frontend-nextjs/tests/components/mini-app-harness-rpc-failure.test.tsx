@@ -43,6 +43,19 @@ const rpcMock = rpc as unknown as { call: jest.Mock; listActions: jest.Mock };
 const renderHarness = () => render(<MiniAppHarness canvasId="canvas-1" />);
 const expand = () => fireEvent.click(screen.getByText('Mini-App Harness'));
 
+/**
+ * Dev-Run remains disabled until the saved-logic GET settles. Wait for that
+ * readiness before any click whose RPC call would otherwise be discarded.
+ */
+async function clickWhenReady(label: string) {
+  await waitFor(() => {
+    const devRun = screen.getByText('Dev-Run (dry)').closest('button');
+    expect(devRun).not.toBeNull();
+    expect(devRun).toBeEnabled();
+  });
+  fireEvent.click(screen.getByText(label));
+}
+
 /** Scaffold a draft so Dev-Run / Publish / Install are enabled. */
 async function scaffoldDraft() {
   rpcMock.call.mockImplementation(async (action: string) => {
@@ -85,7 +98,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Dev-Run (dry)'));
+    await clickWhenReady('Dev-Run (dry)');
 
     await waitFor(() =>
       expect(
@@ -110,7 +123,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Dev-Run (dry)'));
+    await clickWhenReady('Dev-Run (dry)');
 
     await waitFor(() => expect(screen.getByText(unavailable)).toBeInTheDocument());
   });
@@ -127,7 +140,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Install'));
+    await clickWhenReady('Install');
 
     await waitFor(() =>
       expect(
@@ -149,7 +162,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Dev-Run (dry)'));
+    await clickWhenReady('Dev-Run (dry)');
 
     await waitFor(() => expect(screen.getByText('RPC call failed')).toBeInTheDocument());
     expect(screen.queryByText(/internal-store-path/)).not.toBeInTheDocument();
@@ -168,7 +181,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Publish'));
+    await clickWhenReady('Publish');
 
     await waitFor(() =>
       expect(screen.getByText("Action 'mini_app_publish' failed")).toBeInTheDocument()
@@ -194,7 +207,7 @@ describe('MiniAppHarness RPC failure consumer', () => {
       throw new Error(`unexpected action: ${action}`);
     });
 
-    fireEvent.click(screen.getByText('Dev-Run (dry)'));
+    await clickWhenReady('Dev-Run (dry)');
 
     await waitFor(() => expect(screen.getByText('hello from run')).toBeInTheDocument());
     expect(screen.getByText(/exit code: 0 · state_changed: true/)).toBeInTheDocument();
