@@ -1,11 +1,12 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 jest.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},
     listeners: {},
     setNodeRef: () => {},
+    setActivatorNodeRef: () => {},
     transform: null,
     transition: null,
     isDragging: false,
@@ -45,8 +46,69 @@ const baseTask: BoardTask = {
 describe('KanbanCard', () => {
   it('renders the task title', () => {
     render(<KanbanCard task={baseTask} />);
-    expect(screen.getByLabelText('Task: Sample task')).toBeDefined();
+    expect(screen.getByLabelText('Open task: Sample task')).toBeDefined();
     expect(screen.getByText('Sample task')).toBeDefined();
+  });
+
+  it('opens the task from a normal click on the card row', () => {
+    const onClick = jest.fn();
+    render(<KanbanCard task={baseTask} onClick={onClick} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open task: Sample task' }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onClick).toHaveBeenCalledWith(baseTask);
+  });
+
+  it('does not open the task when the drag handle is clicked', () => {
+    const onClick = jest.fn();
+    render(<KanbanCard task={baseTask} onClick={onClick} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drag task' }));
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('keeps open and drag affordances as separate non-nested controls', () => {
+    render(<KanbanCard task={baseTask} onClick={() => {}} />);
+
+    const openTarget = screen.getByRole('button', { name: 'Open task: Sample task' });
+    const dragTarget = screen.getByRole('button', { name: 'Drag task' });
+
+    expect(openTarget).not.toBe(dragTarget);
+    expect(openTarget.contains(dragTarget)).toBe(false);
+    expect(dragTarget.contains(openTarget)).toBe(false);
+    expect(openTarget.querySelector('button')).toBeNull();
+    expect(dragTarget.querySelector('button')).toBeNull();
+
+    // The drag affordance is a small bounded target, not a full-card overlay.
+    expect(dragTarget.className).toContain('absolute');
+    expect(dragTarget.className).toContain('h-7');
+    expect(dragTarget.className).toContain('w-7');
+    expect(dragTarget.className).not.toContain('inset-0');
+
+    // Both affordances are native buttons, so Enter/Space activation works.
+    expect(openTarget.tagName).toBe('BUTTON');
+    expect(dragTarget.tagName).toBe('BUTTON');
+    expect(dragTarget.tabIndex).toBe(0);
+  });
+
+  it('uses only phrasing elements inside the native open button', () => {
+    render(<KanbanCard task={baseTask} />);
+
+    const openTarget = screen.getByRole('button', { name: 'Open task: Sample task' });
+
+    expect(openTarget.querySelector('div, p, h1, h2, h3, h4, h5, h6')).toBeNull();
+    expect(openTarget.querySelectorAll('span').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the drag grip discoverable on touch without hover', () => {
+    render(<KanbanCard task={baseTask} />);
+
+    const dragTarget = screen.getByRole('button', { name: 'Drag task' });
+
+    expect(dragTarget.className).toContain('[@media(hover:none)]:opacity-100');
+    expect(dragTarget.className).toContain('[@media(pointer:coarse)]:opacity-100');
   });
 
   it('renders the description when present', () => {
