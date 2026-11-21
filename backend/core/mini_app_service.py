@@ -2577,6 +2577,8 @@ def revert_logic(
     *,
     operation_id: str = "",
     request_sha256: str = "",
+    expected_source_sha256: Optional[str] = None,
+    expected_source_present: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Restore a previously checkpointed logic version onto the blueprint canvas.
 
@@ -2584,6 +2586,12 @@ def revert_logic(
     visible in history (never silently loses the reverted-from state). The
     logic write and the new checkpoint/receipt commit together, and the write
     is a compare-and-swap on the prior controller source.
+
+    ``expected_source_sha256`` / ``expected_source_present`` are the reader's
+    baseline (from GET /api/canvas/{id}/logic). Supplying them makes the CAS
+    bind to the source the caller actually read, so a peer save between that
+    read and this restore fails before any logic row or checkpoint changes.
+    Omitting both preserves the legacy restore contract.
     """
     from core.canvas_logic_service import CanvasLogicService
     from core.models import CanvasAudit
@@ -2607,12 +2615,22 @@ def revert_logic(
 
     source = (target.details_json or {}).get("source") or ""
     target_source_sha256 = logic_source_sha256(source)
+    baseline_kwargs: Dict[str, Any] = {}
+    if expected_source_present is not None:
+        baseline_kwargs["expected_source_present"] = expected_source_present
+        if expected_source_sha256 is not None:
+            baseline_kwargs["expected_source_sha256"] = expected_source_sha256
+    elif expected_source_sha256 is not None:
+        # Legacy callers pass only the digest; that still means "a source row
+        # existed and had this exact body".
+        baseline_kwargs["expected_source_sha256"] = expected_source_sha256
     CanvasLogicService(db).save_logic(
         canvas_id=app.blueprint_canvas_id,
         source=source,
         created_by=actor_id,
         commit=False,
         require_cas=True,
+        **baseline_kwargs,
     )
     snapshot = record_logic_snapshot(
         db,
@@ -2640,6 +2658,7 @@ def revert_logic(
         "source": source,
         "target_audit_id": str(target.id or ""),
         "source_sha256": target_source_sha256,
+        "source_present": True,
         "audit_id": snapshot.get("audit_id"),
     }
 

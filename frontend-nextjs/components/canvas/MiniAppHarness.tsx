@@ -15,9 +15,10 @@
  * Talks to the backend via the unified RPC client (POST /api/rpc/{action})
  * and a direct PUT for save (logic is canvas-scoped).
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import AcceptanceCaseEditor from "./AcceptanceCaseEditor";
+import LogicRevisionHistory from "./LogicRevisionHistory";
 import {
   Play,
   Save,
@@ -85,6 +86,135 @@ interface DevRunResult extends LogicRunResult {
   state_changed?: boolean;
 }
 
+/**
+ * The exact logic revision this editor read. Bound to the target canvas so a
+ * baseline can never be sent to a different target after a late readback.
+ */
+interface LogicBaseline {
+  canvasId: string;
+  sourcePresent: boolean;
+  sourceSha256: string | null;
+}
+
+interface LogicReadData {
+  source?: string;
+  source_present?: boolean;
+  source_sha256?: string | null;
+  baseline?: {
+    canvas_id?: string;
+    source_present?: boolean;
+    source_sha256?: string | null;
+  };
+}
+
+interface LogicSaveResponse {
+  success: boolean;
+  data?: LogicReadData & {
+    source_present?: boolean;
+    source_sha256?: string | null;
+    baseline?: { canvas_id?: string; source_present?: boolean; source_sha256?: string | null };
+  };
+}
+
+/** One entry from the existing mini_app_logic_history audit trail. */
+interface LogicRevision {
+  version: number;
+  created_at: string;
+  created_by: string;
+  preview: string;
+}
+
+interface LogicBaselineLoad {
+  canvasId: string;
+  status: "pending" | "ready" | "failed";
+}
+
+interface RestoreRecovery {
+  canvasId: string;
+  message: string;
+}
+
+/**
+ * The history action returns one exact envelope:
+ * { success, app_id, history: [{ version, created_at, created_by, preview }] }.
+ * Reject anything else (including speculative aliases) rather than rendering
+ * a malformed response as an empty revision list. Null audit fields map to the
+ * display strings the revision-list component already expects.
+ */
+function parseLogicHistory(result: unknown, requestedApp: string): LogicRevision[] | null {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+  const body = result as Record<string, unknown>;
+  if (body.success !== true) return null;
+  if (typeof body.app_id !== "string" || body.app_id !== requestedApp) return null;
+  if (!Array.isArray(body.history)) return null;
+  const revisions: LogicRevision[] = [];
+  for (const row of body.history) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+    const entry = row as Record<string, unknown>;
+    const version = entry.version;
+    if (typeof version !== "number" || !Number.isInteger(version) || version <= 0) {
+      return null;
+    }
+    const createdAt = entry.created_at;
+    const createdBy = entry.created_by;
+    const preview = entry.preview;
+    if (createdAt !== null && typeof createdAt !== "string") return null;
+    if (createdBy !== null && typeof createdBy !== "string") return null;
+    if (typeof preview !== "string") return null;
+    revisions.push({
+      version,
+      created_at: typeof createdAt === "string" ? createdAt : "",
+      created_by: typeof createdBy === "string" ? createdBy : "",
+      preview,
+    });
+  }
+  return revisions;
+}
+
+/**
+ * The revert action's exact success result is
+ * { success: true, version, reverted_to, app_id }. Confirm only a positive
+ * integer `version`, `reverted_to` equal to the requested target version, and
+ * the requested `app_id`; anything incomplete or unexpected returns null and
+ * is treated as an unknown outcome (never guessed).
+ */
+function confirmedRevertVersion(
+  result: unknown,
+  requestedApp: string,
+  targetVersion: number
+): number | null {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+  const body = result as Record<string, unknown>;
+  if (body.success !== true) return null;
+  const version = body.version;
+  if (typeof version !== "number" || !Number.isInteger(version) || version <= 0) {
+    return null;
+  }
+  if (body.reverted_to !== targetVersion) return null;
+  if (typeof body.app_id !== "string" || body.app_id !== requestedApp) return null;
+  return version;
+}
+
+/**
+ * A 4xx response is a definitive rejection (including the baseline 409), so
+ * the restore was not applied. Network/timeout/5xx failures leave the outcome
+ * unknown — never replay those automatically.
+ */
+function restoreOutcomeUncertain(err: unknown): boolean {
+  const error = err as {
+    status?: number;
+    response?: { status?: number };
+    actionResult?: unknown;
+  };
+  const result = error?.actionResult;
+  if (result && typeof result === "object" && (result as { success?: boolean }).success === false) {
+    return false;
+  }
+  const status = error?.status ?? error?.response?.status;
+  if (typeof status === "number") return status <= 0 || status === 408 || status >= 500;
+  return true;
+}
+
 /** The known mini-app action result schema for a semantic failure. */
 interface MiniAppHandlerFailure {
   success?: boolean;
@@ -139,29 +269,373 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
   // Live instance state previewed from the WS mini_app_state broadcast.
   const [liveState, setLiveState] = useState<{ version: number; data: Record<string, unknown> } | null>(null);
 
-  const targetCanvasId = blueprintCanvasId ?? canvasId;
+  // The revision this editor read back. null = no baseline (legacy save).
+  const [baseline, setBaseline] = useState<LogicBaseline | null>(null);
+  // Whether the baseline readback for a target succeeded. A failed blueprint
+  // readback must block writes instead of silently degrading to a legacy save.
+  const [baselineLoad, setBaselineLoad] = useState<LogicBaselineLoad>({
+    canvasId,
+    status: "pending",
+  });
+  // Revision history visibility, reload epoch (bumped after confirmed writes),
+  // and the restore/readback lock.
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyEpoch, setHistoryEpoch] = useState(0);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [restoreRecovery, setRestoreRecovery] = useState<RestoreRecovery | null>(null);
+  // Monotonic token: a slow readback for an old target must never overwrite
+  // the source/baseline of the current target.
+  const loadSeq = useRef(0);
+  const refreshSeq = useRef(0);
+  // Set as soon as the user has an explicit authoring target (scaffold/install
+  // result). A late mini_app_list readback must not steal that target.
+  const explicitTarget = useRef(false);
 
-  // Load existing logic for the target canvas.
+  const targetCanvasId = blueprintCanvasId ?? canvasId;
+  // Latest target for async continuations (a save that finishes after the
+  // target moved must not adopt its response as the new target's baseline).
+  const targetRef = useRef(targetCanvasId);
+  targetRef.current = targetCanvasId;
+
+  // Current values for async continuations/guards. A restore that resolves
+  // after the target moved must not adopt a baseline or refresh source for the
+  // new target.
+  const appIdRef = useRef(appId);
+  appIdRef.current = appId;
+  const blueprintRef = useRef(blueprintCanvasId);
+  blueprintRef.current = blueprintCanvasId;
+  const baselineRef = useRef(baseline);
+  baselineRef.current = baseline;
+  const baselineLoadRef = useRef(baselineLoad);
+  baselineLoadRef.current = baselineLoad;
+  const operationStateRef = useRef({ loading, saving, running });
+  operationStateRef.current = { loading, saving, running };
+  // Synchronous guard: a restore must not start in the same tick a save/run
+  // begins, before React has rendered the disabled button state.
+  const saveRunBusyRef = useRef(false);
+
+  // Restore and its readback share one lock. Counting makes nested refreshes
+  // safe without releasing the editor between the two operations.
+  const historyBusyCount = useRef(0);
+  const historyBusyRef = useRef(false);
+  const beginHistoryBusy = useCallback(() => {
+    historyBusyCount.current += 1;
+    historyBusyRef.current = true;
+    setHistoryBusy(true);
+  }, []);
+  const endHistoryBusy = useCallback(() => {
+    historyBusyCount.current = Math.max(0, historyBusyCount.current - 1);
+    if (historyBusyCount.current === 0) {
+      historyBusyRef.current = false;
+      setHistoryBusy(false);
+    }
+  }, []);
+
+  const applyLogicRead = useCallback((target: string, data?: LogicReadData): boolean => {
+    const readBaseline = data?.baseline;
+    // Never relabel another canvas's baseline as this target's baseline.
+    if (readBaseline?.canvas_id && readBaseline.canvas_id !== target) {
+      setBaseline(null);
+      setBaselineLoad({ canvasId: target, status: "failed" });
+      return false;
+    }
+    const sourcePresent =
+      readBaseline?.source_present ??
+      data?.source_present ??
+      (data?.source_sha256 != null);
+    const sourceSha256 =
+      readBaseline?.source_sha256 ?? data?.source_sha256 ?? null;
+    setSource(data?.source ?? "");
+    setBaseline({
+      canvasId: target,
+      sourcePresent,
+      sourceSha256,
+    });
+    setBaselineLoad({ canvasId: target, status: "ready" });
+    setRestoreRecovery((current) => (current?.canvasId === target ? null : current));
+    // A successful readback resolves the "outcome uncertain" warning.
+    setError(null);
+    return true;
+  }, []);
+
+  const applyMissingLogic = useCallback((target: string) => {
+    setSource("");
+    setBaseline({
+      canvasId: target,
+      sourcePresent: false,
+      sourceSha256: null,
+    });
+    setBaselineLoad({ canvasId: target, status: "ready" });
+  }, []);
+
+  /**
+   * A blueprint may only be written when this editor's baseline was read from
+   * that exact target. Ordinary canvases keep the legacy no-baseline save path.
+   */
+  const blueprintWriteBlockMessage = useCallback((target: string): string | null => {
+    if (blueprintRef.current !== target) return null;
+    const load = baselineLoadRef.current;
+    const current = baselineRef.current;
+    if (!load || load.canvasId !== target || load.status !== "ready") {
+      return "The blueprint logic baseline could not be loaded; refusing to write. Reload before saving or restoring.";
+    }
+    if (!current || current.canvasId !== target) {
+      return "The blueprint logic baseline does not match this target; refusing to write. Reload before saving or restoring.";
+    }
+    return null;
+  }, []);
+
+  // Load existing logic + its readback baseline for the target canvas.
   useEffect(() => {
+    const seq = ++loadSeq.current;
+    // Invalidate any restore readback started for the previous target.
+    refreshSeq.current += 1;
+    const loadedTarget = targetCanvasId;
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setRestoreRecovery(null);
+    // Do not carry a previous target's baseline across the switch.
+    setBaseline(null);
+    setBaselineLoad({ canvasId: loadedTarget, status: "pending" });
     apiClient
-      .get<{ success: boolean; data?: { source: string } }>(`/api/canvas/${targetCanvasId}/logic`)
+      .get<{ success: boolean; data?: LogicReadData }>(`/api/canvas/${loadedTarget}/logic`)
       .then((resp) => {
-        if (cancelled) return;
-        setSource(resp.data?.data?.source ?? "");
+        if (cancelled || seq !== loadSeq.current) return;
+        if (!resp.data?.data) {
+          // A success envelope without a readback is not a usable baseline.
+          setBaselineLoad({ canvasId: loadedTarget, status: "failed" });
+          return;
+        }
+        applyLogicRead(loadedTarget, resp.data.data);
       })
       .catch((err) => {
+        if (cancelled || seq !== loadSeq.current) return;
         // 404 = no logic yet on this canvas; any other failure must not wipe
         // the source the user is editing (transient errors are not "no logic").
-        if (!cancelled && (err as { response?: { status?: number } })?.response?.status === 404) setSource("");
+        if ((err as { response?: { status?: number } })?.response?.status === 404) {
+          applyMissingLogic(loadedTarget);
+        } else {
+          // A blueprint write must not fall back to a legacy save when its
+          // baseline readback failed. Keep the user's source intact.
+          setBaselineLoad({ canvasId: loadedTarget, status: "failed" });
+        }
       })
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => {
+        if (!cancelled && seq === loadSeq.current) setLoading(false);
+      });
     return () => {
       cancelled = true;
+      if (loadSeq.current === seq) loadSeq.current += 1;
     };
-  }, [targetCanvasId]);
+  }, [targetCanvasId, applyLogicRead, applyMissingLogic]);
+
+  /** Baseline fields for a save of `target`, or {} for a legacy save. */
+  const baselineFields = useCallback((target: string): Record<string, unknown> => {
+    if (!baseline || baseline.canvasId !== target) return {};
+    if (!baseline.sourcePresent) {
+      // Explicit null is meaningful: the readback saw no logic row. It must
+      // not be confused with omitting the baseline entirely.
+      return {
+        expected_source_present: false,
+        expected_source_sha256: null,
+      };
+    }
+    return {
+      expected_source_present: true,
+      ...(baseline.sourceSha256 ? { expected_source_sha256: baseline.sourceSha256 } : {}),
+    };
+  }, [baseline]);
+
+  /** Adopt the baseline the server reports for a successful save. */
+  const adoptSavedBaseline = useCallback((target: string, data: LogicSaveResponse["data"]) => {
+    if (!data) return;
+    const savedBaseline = data.baseline;
+    const sourcePresent = savedBaseline?.source_present ?? data.source_present ?? true;
+    const sourceSha256 = savedBaseline?.source_sha256 ?? data.source_sha256 ?? null;
+    setBaseline({
+      canvasId: savedBaseline?.canvas_id ?? target,
+      sourcePresent,
+      sourceSha256,
+    });
+    setBaselineLoad({ canvasId: target, status: "ready" });
+  }, []);
+
+  /**
+   * Read the blueprint logic back and adopt its source + baseline. Never
+   * applies an old readback to a target that has since moved.
+   */
+  const refreshEditorFor = useCallback(async (target: string): Promise<boolean> => {
+    if (blueprintRef.current !== target) return false;
+    beginHistoryBusy();
+    const seq = ++refreshSeq.current;
+    try {
+      const resp = await apiClient.get<{ success: boolean; data?: LogicReadData }>(
+        `/api/canvas/${target}/logic`
+      );
+      if (
+        targetRef.current !== target ||
+        blueprintRef.current !== target ||
+        seq !== refreshSeq.current
+      ) {
+        return false;
+      }
+      if (!applyLogicRead(target, resp.data?.data)) {
+        throw new Error("The readback baseline does not match this blueprint target.");
+      }
+      return true;
+    } catch (e) {
+      if (targetRef.current === target && blueprintRef.current === target) {
+        // The restore may have committed even though the readback failed.
+        // Drop the now-possibly-stale baseline so nothing can write blindly;
+        // the recovery affordance below only re-reads.
+        setBaseline(null);
+        setBaselineLoad({ canvasId: target, status: "failed" });
+        setRestoreRecovery({
+          canvasId: target,
+          message:
+            "The editor could not be refreshed after the restore. Re-check the editor below (read-only); the restore will not be replayed.",
+        });
+      }
+      throw e;
+    } finally {
+      endHistoryBusy();
+    }
+  }, [applyLogicRead, beginHistoryBusy, endHistoryBusy]);
+
+  const refreshEditor = useCallback(async (): Promise<void> => {
+    const target = targetRef.current;
+    if (!target || blueprintRef.current !== target) return;
+    await refreshEditorFor(target);
+  }, [refreshEditorFor]);
+
+  /** Load the app's audit trail for the revision-list component. */
+  const loadRevisions = useCallback(async (): Promise<LogicRevision[]> => {
+    const requestedApp = appIdRef.current;
+    if (!requestedApp) return [];
+    const result = await rpc.call<unknown>("mini_app_logic_history", {
+      app_id: requestedApp,
+    });
+    // An async app switch must not paint the old app's history.
+    if (appIdRef.current !== requestedApp) return [];
+    const revisions = parseLogicHistory(result, requestedApp);
+    if (!revisions) {
+      throw new Error("Logic history returned an unexpected response.");
+    }
+    return revisions;
+  }, []);
+
+  /**
+   * Restore an audited revision. The resource is guarded by the exact baseline
+   * this editor read, so a 409 reaches the user instead of being replayed.
+   */
+  const restoreRevision = useCallback(async (version: number): Promise<number> => {
+    if (!Number.isInteger(version) || version <= 0) {
+      throw new Error("Invalid revision version.");
+    }
+    const requestedApp = appIdRef.current;
+    const target = targetRef.current;
+    if (!requestedApp) throw new Error("Scaffold the mini-app first.");
+    if (!target || blueprintRef.current !== target) {
+      throw new Error("Revision restore is only available for a mini-app blueprint.");
+    }
+    if (historyBusyRef.current) {
+      throw new Error("A revision restore or readback is already in progress.");
+    }
+    const operations = operationStateRef.current;
+    if (operations.loading || operations.saving || operations.running || saveRunBusyRef.current) {
+      throw new Error("Wait for the current load, save, or run to finish before restoring.");
+    }
+    const blocked = blueprintWriteBlockMessage(target);
+    if (blocked) throw new Error(blocked);
+
+    // Established baseline fields (expected_source_present/_sha256). A
+    // baseline-checked mutation must not be replayed by transport retry.
+    const fields = baselineFields(target);
+    if (!Object.prototype.hasOwnProperty.call(fields, "expected_source_present")) {
+      throw new Error("The blueprint logic baseline is unavailable; refusing to restore.");
+    }
+    beginHistoryBusy();
+    setError(null);
+    setNotice(null);
+    setRestoreRecovery(null);
+    try {
+      const result = await rpc.call<unknown>(
+        "mini_app_revert_logic",
+        {
+          app_id: requestedApp,
+          version,
+          ...fields,
+        },
+        { retry: false }
+      );
+      // Only the exact success envelope confirms the revert. A partial or
+      // unfamiliar response leaves the outcome unknown; never infer a version.
+      const newVersion = confirmedRevertVersion(result, requestedApp, version);
+      if (newVersion === null) {
+        throw new Error("The revert response could not be confirmed.");
+      }
+
+      // A target/app switch while the restore was in flight: the write belongs
+      // to the old blueprint. Do not refresh or adopt anything for the new one.
+      if (
+        targetRef.current !== target ||
+        blueprintRef.current !== target ||
+        appIdRef.current !== requestedApp
+      ) {
+        return newVersion;
+      }
+
+      // A confirmed restore is another committed logic revision.
+      setHistoryEpoch((epoch) => epoch + 1);
+      let refreshed = false;
+      try {
+        refreshed = await refreshEditorFor(target);
+      } catch {
+        // refreshEditorFor already recorded the read-only recovery.
+        refreshed = false;
+      }
+      if (
+        targetRef.current !== target ||
+        blueprintRef.current !== target ||
+        appIdRef.current !== requestedApp
+      ) {
+        return newVersion;
+      }
+      if (refreshed) {
+        setNotice(`Restored revision ${newVersion}. Editor refreshed from the blueprint.`);
+      } else {
+        setNotice(`Restore returned revision ${newVersion}; editor recovery is available below.`);
+      }
+      return newVersion;
+    } catch (e) {
+      if (targetRef.current === target) {
+        if (restoreOutcomeUncertain(e)) {
+          // The request may have committed. Do not replay it; block writes
+          // until the user performs the read-only re-check.
+          setBaseline(null);
+          setBaselineLoad({ canvasId: target, status: "failed" });
+          setRestoreRecovery({
+            canvasId: target,
+            message:
+              "The restore outcome is uncertain. Re-check the editor below (read-only); the restore was not replayed.",
+          });
+          setError("Restore outcome uncertain — re-check the editor before editing or saving.");
+        } else {
+          setError(handlerFailureMessage(e) ?? saveFailureMessage(e));
+        }
+      }
+      throw e;
+    } finally {
+      endHistoryBusy();
+    }
+  }, [
+    baselineFields,
+    blueprintWriteBlockMessage,
+    beginHistoryBusy,
+    endHistoryBusy,
+    refreshEditorFor,
+  ]);
 
   // Consume live mini-app state broadcasts from the WS stream.
   const applyLiveState = useCallback((msg: any) => {
@@ -198,9 +672,13 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
     let cancelled = false;
     Promise.resolve(rpc.call("mini_app_list", {}))
       .then((res: any) => {
-        if (cancelled || !res?.apps?.length) return;
+        if (cancelled || explicitTarget.current || !res?.apps?.length) return;
         const mine = res.apps.find((a: any) => a.blueprint_canvas_id === canvasId);
         if (mine?.id) {
+          // The matched blueprint is the host canvas itself, whose logic the
+          // existing load already read. Keep that baseline/source valid rather
+          // than parking the panel in a reload that the unchanged target would
+          // never trigger.
           setAppId(mine.id);
           setBlueprintCanvasId(mine.blueprint_canvas_id);
         }
@@ -220,6 +698,21 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
     [dependencies]
   );
 
+  const isBlueprintTarget = blueprintCanvasId != null && blueprintCanvasId === targetCanvasId;
+  const baselineReady =
+    baselineLoad.canvasId === targetCanvasId && baselineLoad.status === "ready";
+  const baselineMatches = baseline?.canvasId === targetCanvasId;
+  const blueprintWriteBlocked = isBlueprintTarget && (!baselineReady || !baselineMatches);
+  const canRestore =
+    !!appId &&
+    isBlueprintTarget &&
+    baselineReady &&
+    baselineMatches &&
+    !loading &&
+    !saving &&
+    !running &&
+    !historyBusy;
+
   async function handleScaffold() {
     setScaffolding(true);
     setError(null);
@@ -236,6 +729,11 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
         setError(res.error ?? "Scaffold failed");
         return;
       }
+      explicitTarget.current = true;
+      // The target is changing: disable mutations and drop the old target's
+      // baseline until the new logic readback supplies one.
+      setLoading(true);
+      setBaseline(null);
       setAppId(res.app_id ?? null);
       setBlueprintCanvasId(res.canvas_id ?? null);
       if (res.logic_source) setSource(res.logic_source);
@@ -252,44 +750,109 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
     }
   }
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    try {
-      await apiClient.put(`/api/canvas/${targetCanvasId}/logic`, {
+  function saveFailureMessage(e: unknown): string {
+    const err = e as {
+      status?: number;
+      response?: { status?: number; data?: { detail?: unknown } };
+      message?: string;
+    };
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    const status = err?.response?.status ?? err?.status;
+    if (status === 409) {
+      // Deliberately keep `source` untouched: the user's unsaved draft is the
+      // only copy if a peer committed v2 after this editor read v1.
+      return "Logic changed after it was loaded. Your draft is preserved; reload to reconcile before saving.";
+    }
+    return "Failed to save logic";
+  }
+
+  async function saveDraft(target: string): Promise<LogicSaveResponse["data"]> {
+    // Blueprint writes require a baseline read from this exact target. Legacy
+    // (non-blueprint) canvas saves keep their ordinary no-baseline path.
+    const blocked = blueprintWriteBlockMessage(target);
+    if (blocked) throw new Error(blocked);
+    // A baseline-checked mutation must never be replayed automatically: a
+    // 409 has to reach the editor with its unsaved text intact.
+    const noRetry = { retry: false } as Record<string, unknown>;
+    const resp = await apiClient.put<LogicSaveResponse>(
+      `/api/canvas/${target}/logic`,
+      {
         source,
         language: "python",
         agent_id: agentId,
-      });
+        // Only sends a baseline when this editor's read was for THIS target.
+        ...baselineFields(target),
+      },
+      noRetry as unknown as Parameters<typeof apiClient.put>[2]
+    );
+    if (targetRef.current === target) {
+      adoptSavedBaseline(target, resp.data?.data);
+      // Confirmed save: revision history must reload for this app.
+      setHistoryEpoch((epoch) => epoch + 1);
+    }
+    return resp.data?.data;
+  }
+
+  async function handleSave() {
+    if (historyBusyRef.current) {
+      setError("Wait for the revision restore/readback to finish before saving.");
+      return;
+    }
+    if (saveRunBusyRef.current) {
+      setError("A save or run is already in progress.");
+      return;
+    }
+    saveRunBusyRef.current = true;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveDraft(targetCanvasId);
       setNotice("Logic saved (checkpointed to the audit trail).");
     } catch (e) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      setError(err?.response?.data?.detail ?? "Failed to save logic");
+      setError(saveFailureMessage(e));
     } finally {
+      saveRunBusyRef.current = false;
       setSaving(false);
     }
   }
 
   async function handleDevRun() {
+    if (historyBusyRef.current) {
+      setError("Wait for the revision restore/readback to finish before running.");
+      return;
+    }
+    if (saveRunBusyRef.current) {
+      setError("A save or run is already in progress.");
+      return;
+    }
     if (!appId) {
       setError("Scaffold the mini-app first (creates the draft app + source canvas).");
       return;
     }
+    saveRunBusyRef.current = true;
     setRunning(true);
     setError(null);
     setResult(null);
+    const runTarget = targetCanvasId;
     try {
-      // Save first so the run executes the latest source.
-      await apiClient.put(`/api/canvas/${targetCanvasId}/logic`, {
-        source,
-        language: "python",
-        agent_id: agentId,
-      });
+      // Autosave must also carry the readback baseline. If a peer changed the
+      // logic after this editor loaded it, the 409 is surfaced and the run is
+      // NOT attempted (and the unsaved source remains in the editor).
+      try {
+        await saveDraft(runTarget);
+      } catch (e) {
+        setError(saveFailureMessage(e));
+        return;
+      }
       // Backend derives the run canvas from app.blueprint_canvas_id — only app_id (+ optional inputs) is accepted.
       const res = (await rpc.call("mini_app_dev_run", {
         app_id: appId,
         inputs: {},
       })) as DevRunResult;
+      // A target switch while the dry run was in flight makes this readback
+      // stale; do not paint it over the new target.
+      if (targetRef.current !== runTarget) return;
       setResult(res);
       if (res?.success && res.state) {
         setLiveState({ version: res.version ?? 0, data: res.state });
@@ -298,6 +861,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
       const err = e as { message?: string };
       setError(handlerFailureMessage(e) ?? (err?.message || "Dev-run failed"));
     } finally {
+      saveRunBusyRef.current = false;
       setRunning(false);
     }
   }
@@ -453,7 +1017,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || loading}
+              disabled={saving || loading || historyBusy || blueprintWriteBlocked}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -461,7 +1025,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
             </button>
             <button
               onClick={handleDevRun}
-              disabled={running || !appId}
+              disabled={running || loading || historyBusy || blueprintWriteBlocked || !appId}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
@@ -496,6 +1060,24 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
               {error}
             </div>
           )}
+          {restoreRecovery && restoreRecovery.canvasId === targetCanvasId && (
+            <div className="px-2 py-1.5 text-xs text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300 rounded space-y-1">
+              <div>{restoreRecovery.message}</div>
+              <button
+                type="button"
+                disabled={historyBusy}
+                onClick={() => {
+                  // Read-only recovery: re-read the blueprint. Never replay the
+                  // restore request whose outcome is uncertain.
+                  void refreshEditor().catch(() => {});
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-amber-300 dark:border-amber-700 disabled:opacity-50"
+              >
+                {historyBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                {historyBusy ? "Re-checking…" : "Re-check editor (read-only)"}
+              </button>
+            </div>
+          )}
 
           {/* Logic editor */}
           <div className="flex items-center gap-1 text-[10px] text-zinc-500">
@@ -512,22 +1094,47 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
               theme="vs-dark"
               value={source}
               onChange={(val) => setSource(val ?? "")}
-              options={{ minimap: { enabled: false }, fontSize: 12, scrollBeyondLastLine: false }}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 12,
+                scrollBeyondLastLine: false,
+                readOnly: historyBusy,
+              }}
             />
           )}
 
           {appId && (
             <div className="space-y-2">
-              <button
-                type="button"
-                aria-expanded={showAcceptance}
-                className="rounded border border-zinc-200 px-2 py-1 text-xs dark:border-zinc-700"
-                onClick={() => setShowAcceptance((visible) => !visible)}
-              >
-                {showAcceptance ? "Hide acceptance tests" : "Show acceptance tests"}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-expanded={showAcceptance}
+                  className="rounded border border-zinc-200 px-2 py-1 text-xs dark:border-zinc-700"
+                  onClick={() => setShowAcceptance((visible) => !visible)}
+                >
+                  {showAcceptance ? "Hide acceptance tests" : "Show acceptance tests"}
+                </button>
+                <button
+                  type="button"
+                  aria-expanded={showHistory}
+                  className="rounded border border-zinc-200 px-2 py-1 text-xs dark:border-zinc-700"
+                  onClick={() => setShowHistory((visible) => !visible)}
+                >
+                  {showHistory ? "Hide revision history" : "Show revision history"}
+                </button>
+              </div>
               {showAcceptance && (
                 <AcceptanceCaseEditor key={appId} appId={appId} rpc={rpc.call.bind(rpc)} sourceRevision={source} />
+              )}
+              {showHistory && (
+                <LogicRevisionHistory
+                  key={appId}
+                  load={loadRevisions}
+                  restore={restoreRevision}
+                  refreshEditor={refreshEditor}
+                  canRestore={canRestore}
+                  epoch={historyEpoch}
+                />
               )}
             </div>
           )}

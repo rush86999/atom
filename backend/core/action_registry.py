@@ -1453,6 +1453,21 @@ _MINI_APP_WRITE_LOGIC_SCHEMA = {
     "properties": {
         "app_id": {"type": "string", "description": "Mini-app id (from mini_app_scaffold)"},
         "source": {"type": "string", "description": "Python logic source (syntax-gated)"},
+        "expected_source_sha256": {
+            "type": ["string", "null"],
+            "description": (
+                "Baseline digest read back before this edit. Explicit null "
+                "means the readback found no logic; omit to keep legacy "
+                "callers on the old save path."
+            ),
+        },
+        "expected_source_present": {
+            "type": "boolean",
+            "description": (
+                "Whether the readback contained a logic row (true requires "
+                "expected_source_sha256)"
+            ),
+        },
     },
     "required": ["app_id", "source"],
 }
@@ -1683,6 +1698,21 @@ _MINI_APP_VERSION_SCHEMA = {
         "version": {
             "type": "integer",
             "description": "Logic checkpoint version to revert to",
+        },
+        "expected_source_sha256": {
+            "type": ["string", "null"],
+            "description": (
+                "Baseline digest read back before the restore. The restore "
+                "fails without mutating source/audit if another save "
+                "intervened. Explicit null means the readback found no logic."
+            ),
+        },
+        "expected_source_present": {
+            "type": "boolean",
+            "description": (
+                "Whether the readback contained a logic row (true requires "
+                "expected_source_sha256)"
+            ),
         },
     },
     "required": ["app_id", "version"],

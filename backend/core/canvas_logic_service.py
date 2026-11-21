@@ -138,6 +138,7 @@ class CanvasLogicService:
         commit: bool = True,
         require_cas: bool = False,
         expected_source_sha256: Optional[str] = None,
+        expected_source_present: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Upsert the logic row for ``canvas_id``.
 
@@ -146,6 +147,13 @@ class CanvasLogicService:
         are still current. A zero-row match raises :class:`LogicConflict` and
         leaves the peer's row untouched. ``commit=False`` lets a caller add its
         receipt in the same transaction as the write.
+
+        ``expected_source_present`` distinguishes a caller that read a canvas
+        with NO logic row (``False``, with ``expected_source_sha256`` left
+        ``None``) from a legacy caller that supplied no baseline at all
+        (``None``). ``True`` requires a row to exist and its exact source
+        digest to match. Any mismatch raises before a row is created or
+        updated, so no receipt/checkpoint can be appended.
         """
         from core.models import CanvasLogic
 
@@ -154,12 +162,33 @@ class CanvasLogicService:
             .filter(CanvasLogic.canvas_id == canvas_id)
             .first()
         )
-        if expected_source_sha256 is not None:
+        baseline_supplied = (
+            expected_source_present is not None
+            or expected_source_sha256 is not None
+        )
+        if baseline_supplied:
             from core.mini_app_service import logic_source_sha256
 
-            if row is None or logic_source_sha256(row.source) != expected_source_sha256:
-                raise LogicConflict("The draft changed after it was graded")
-            require_cas = True
+            if expected_source_present is False:
+                if expected_source_sha256 is not None:
+                    raise LogicConflict(
+                        "A no-source baseline cannot carry a source digest")
+                if row is not None:
+                    raise LogicConflict(
+                        "mini-app logic was created after it was read")
+                require_cas = True
+            else:
+                if expected_source_present is True and expected_source_sha256 is None:
+                    raise LogicConflict(
+                        "A present source baseline requires a source digest")
+                if row is None:
+                    raise LogicConflict("The draft changed after it was graded")
+                if (
+                    expected_source_sha256 is not None
+                    and logic_source_sha256(row.source) != expected_source_sha256
+                ):
+                    raise LogicConflict("The draft changed after it was graded")
+                require_cas = True
         if row is None:
             if require_cas:
                 # A CAS save found no row. Serialize on the parent canvas row

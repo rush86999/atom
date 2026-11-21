@@ -32,6 +32,21 @@ export interface RpcActionSummary {
   parameters: Record<string, unknown>;
 }
 
+export interface RpcCallOptions {
+  /**
+   * Disable any transport-level retry for this call.
+   *
+   * Mutations that carry a source baseline must fail on a conflict; silently
+   * replaying them after a peer write would defeat the optimistic check.
+   * Omitting the option preserves the client's existing retry behavior.
+   */
+  retry?: boolean;
+  /** Aliases for callers that name the concern "mutation retry". */
+  mutationRetry?: boolean;
+  retryMutation?: boolean;
+  noRetry?: boolean;
+}
+
 export interface RpcError extends Error {
   status?: number;
   action?: string;
@@ -79,10 +94,25 @@ export const rpc = {
    * Call a registered action by name.
    * @param name  Dotted action name, e.g. "documents.search"
    * @param params Action arguments (validated against the action's parameter schema server-side)
+   * @param options Optional transport behavior (e.g. `{ retry: false }` for a baseline-checked mutation)
    */
-  async call<T = unknown>(name: string, params: Record<string, unknown> = {}): Promise<T> {
+  async call<T = unknown>(
+    name: string,
+    params: Record<string, unknown> = {},
+    options: RpcCallOptions = {}
+  ): Promise<T> {
     try {
-      const resp = await apiClient.post<RpcResponse<T>>(`/api/rpc/${name}`, { params });
+      const retry = options.noRetry
+        ? false
+        : options.retry ?? options.mutationRetry ?? options.retryMutation;
+      // Pass retry:false through the axios config so an interceptor-level
+      // retry policy (if installed) cannot replay a baseline-checked mutation.
+      const config = retry === false ? ({ retry: false } as Record<string, unknown>) : undefined;
+      const resp = await apiClient.post<RpcResponse<T>>(
+        `/api/rpc/${name}`,
+        { params },
+        config as unknown as Parameters<typeof apiClient.post>[2]
+      );
       const body = resp.data;
       if (!body.success) {
         const e: RpcError = new Error(body.message || `Action '${name}' failed`) as RpcError;

@@ -2461,11 +2461,109 @@ class CanvasLogicRequest(BaseModel):
     source: str = Field("", description="Python source to save")
     language: str = Field("python")
     agent_id: Optional[str] = Field(None, description="Agent saving the logic (AUTONOMOUS required)")
+    # Optional optimistic-concurrency baseline from GET /{canvas_id}/logic.
+    # Explicit ``null`` means "I read a canvas with no logic row"; omitting
+    # the field keeps legacy callers on the old save path.
+    expected_source_sha256: Optional[str] = Field(
+        None, description="Source digest read back before this edit")
+    expected_source_present: Optional[bool] = Field(
+        None,
+        description=(
+            "Whether the readback contained a logic row (true requires "
+            "expected_source_sha256)"
+        ),
+    )
 
 
 class CanvasLogicRunRequest(BaseModel):
     inputs: Dict[str, Any] = Field(default_factory=dict)
     agent_id: Optional[str] = Field(None, description="Agent running the logic (AUTONOMOUS required)")
+
+
+def _logic_baseline_payload(logic: Optional[Dict[str, Any]], canvas_id: str) -> Dict[str, Any]:
+    """The exact readback baseline carried by GET/PUT logic responses."""
+    from core.mini_app_service import logic_source_sha256
+
+    present = logic is not None
+    return {
+        "canvas_id": canvas_id,
+        "source_present": present,
+        "source_sha256": (
+            logic_source_sha256(logic.get("source")) if present else None),
+    }
+
+
+def _logic_payload_with_baseline(
+    logic: Optional[Dict[str, Any]], canvas_id: str,
+) -> Dict[str, Any]:
+    baseline = _logic_baseline_payload(logic, canvas_id)
+    payload = dict(logic or {})
+    payload.update({
+        "source_present": baseline["source_present"],
+        "source_sha256": baseline["source_sha256"],
+        "baseline": baseline,
+    })
+    return payload
+
+
+def _logic_model_field_was_set(body: CanvasLogicRequest, field: str) -> bool:
+    """Whether JSON supplied ``field`` (so explicit null differs from omitted)."""
+    fields = getattr(body, "model_fields_set", None)
+    if fields is None:  # Pydantic v1
+        fields = getattr(body, "__fields_set__", set())
+    return field in fields
+
+
+def _resolve_logic_baseline(
+    body: CanvasLogicRequest, canvas_id: str,
+) -> tuple:
+    """Return ``(expected_present, expected_sha256)``, or ``(None, None)``.
+
+    A missing baseline is the legacy path. A supplied baseline with a null
+    digest means the readback saw NO logic row; that is deliberately different
+    from a request that never supplied a baseline.
+    """
+    supplied = (
+        _logic_model_field_was_set(body, "expected_source_sha256")
+        or body.expected_source_present is not None
+    )
+    if not supplied:
+        return None, None
+
+    expected_sha256 = body.expected_source_sha256
+    expected_present = body.expected_source_present
+    if expected_present is None:
+        expected_present = expected_sha256 is not None
+    if expected_present is True and expected_sha256 is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Canvas logic baseline has a source but no digest",
+        )
+    if expected_present is False and expected_sha256 is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Canvas logic baseline has no source but carries a digest",
+        )
+    return expected_present, expected_sha256
+
+
+def _logic_baseline_mismatch(
+    prior: Optional[Dict[str, Any]],
+    expected_present: Optional[bool],
+    expected_sha256: Optional[str],
+) -> bool:
+    """True when the current row no longer matches the client's readback."""
+    if expected_present is None:
+        return False
+    if expected_present is False:
+        return prior is not None
+    if prior is None:
+        return True
+    if expected_sha256 is None:
+        return False
+    from core.mini_app_service import logic_source_sha256
+
+    return logic_source_sha256(prior.get("source")) != expected_sha256
 
 
 @router.put("/{canvas_id}/logic")
@@ -2509,17 +2607,28 @@ async def put_canvas_logic(
                 detail="Only the MiniApp owner can edit blueprint logic",
             )
 
-        # Plain canvases keep the original save path unchanged.
+        expected_present, expected_sha256 = _resolve_logic_baseline(
+            body, canvas_id)
+        baseline_kwargs: Dict[str, Any] = {}
+        if expected_present is not None:
+            baseline_kwargs["expected_source_present"] = expected_present
+            if expected_sha256 is not None:
+                baseline_kwargs["expected_source_sha256"] = expected_sha256
+
+        # Plain canvases keep the original save path unchanged for legacy
+        # callers (no baseline supplied). A supplied baseline still uses the
+        # same expected-source CAS.
         if app is None:
             saved = svc.save_logic(
                 canvas_id=canvas_id,
                 source=body.source,
                 language=body.language,
                 created_by=str(current_user.id),
+                **baseline_kwargs,
             )
             return {
                 "success": True,
-                "data": saved,
+                "data": _logic_payload_with_baseline(saved, canvas_id),
                 "message": "Canvas logic saved",
             }
 
@@ -2540,6 +2649,18 @@ async def put_canvas_logic(
         # the commit so a concurrent replacement cannot slip in after the read.
         svc.lock_canvas_for_logic_write(canvas_id)
         prior = svc.load_logic(canvas_id)  # dict or None
+        # The baseline check MUST precede the no-op: a stale request whose
+        # body happens to equal the current source is still stale, and must
+        # fail without appending a checkpoint.
+        if _logic_baseline_mismatch(prior, expected_present, expected_sha256):
+            db.rollback()  # stale read: drop the lock, write nothing
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Canvas logic changed after it was read; "
+                    "nothing was written"
+                ),
+            )
         if (
             prior is not None
             and prior.get("source") == body.source
@@ -2548,7 +2669,7 @@ async def put_canvas_logic(
             db.rollback()  # read-only no-op: drop the lock, write nothing
             return {
                 "success": True,
-                "data": prior,
+                "data": _logic_payload_with_baseline(prior, canvas_id),
                 "message": "Canvas logic unchanged",
             }
 
@@ -2562,6 +2683,7 @@ async def put_canvas_logic(
             created_by=str(current_user.id),
             commit=False,
             require_cas=True,
+            **baseline_kwargs,
         )
         if app is not None:
             # Checkpoint/receipt in the SAME transaction as the controller write.
@@ -2589,7 +2711,11 @@ async def put_canvas_logic(
         db.rollback()
         raise
 
-    return {"success": True, "data": saved, "message": "Canvas logic saved"}
+    return {
+        "success": True,
+        "data": _logic_payload_with_baseline(saved, canvas_id),
+        "message": "Canvas logic saved",
+    }
 
 
 @router.get("/{canvas_id}/logic")
@@ -2605,6 +2731,12 @@ async def get_canvas_logic(
     the tab look broken on every fresh canvas (observed live — the only
     right-panel route 404ing). The empty payload matches save_logic's shape
     so the panel's editor just starts empty.
+
+    The response also carries the exact readback baseline
+    (``source_present`` / ``source_sha256`` / ``baseline``). Clients echo it
+    on the next save so an intervening revision fails instead of being
+    overwritten; ``source_present=false`` is a real baseline (no row yet),
+    distinct from a client that supplied no baseline at all.
     """
     from core.canvas_logic_service import CanvasLogicService
 
@@ -2612,6 +2744,10 @@ async def get_canvas_logic(
     _require_canvas_access(db, canvas_id, current_user)
 
     logic = CanvasLogicService(db).load_logic(canvas_id)
+    # Capture presence BEFORE substituting the legacy empty default: a fresh
+    # canvas has no source row, which is a valid baseline distinct from a
+    # caller that supplied no baseline at all.
+    baseline = _logic_baseline_payload(logic, canvas_id)
     if logic is None:
         logic = {
             "id": None,
@@ -2620,7 +2756,13 @@ async def get_canvas_logic(
             "source": "",
             "created_by": None,
         }
-    return {"success": True, "data": logic}
+    data = dict(logic)
+    data.update({
+        "source_present": baseline["source_present"],
+        "source_sha256": baseline["source_sha256"],
+        "baseline": baseline,
+    })
+    return {"success": True, "data": data}
 
 
 @router.post("/{canvas_id}/logic/run")

@@ -50,7 +50,7 @@ describe("MiniAppHarness", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Mount effect loads existing logic (404 → empty source).
-    apiClientMock.get.mockResolvedValue({ data: { success: true, data: { source: "" } } });
+    apiClientMock.get.mockResolvedValue({ data: { success: true, data: { source: "", baseline: { source_present: false, source_sha256: null } } } });
   });
 
   it("collapses by default and expands to the authoring actions", async () => {
@@ -121,7 +121,7 @@ describe("MiniAppHarness", () => {
     );
     fireEvent.click(screen.getByText("Save Logic"));
     await waitFor(() => {
-      expect(apiClientMock.put).toHaveBeenCalledWith("/api/canvas/canvas-1/logic", expect.objectContaining({ source: "" }));
+      expect(apiClientMock.put).toHaveBeenCalledWith("/api/canvas/canvas-1/logic", expect.objectContaining({ source: "" }), { retry: false });
       expect(screen.getByText(/Logic saved/)).toBeInTheDocument();
     });
   });
@@ -310,7 +310,7 @@ describe("MiniAppHarness", () => {
     await waitFor(() =>
       expect(apiClientMock.put).toHaveBeenCalledWith(
         "/api/canvas/canvas-1/logic",
-        expect.objectContaining({ source: "state = {'x': 2}", language: "python" })
+        expect.objectContaining({ source: "state = {'x': 2}", language: "python" }), { retry: false }
       )
     );
     expect(screen.getByText(/Logic saved/)).toBeInTheDocument();
@@ -327,7 +327,7 @@ describe("MiniAppHarness", () => {
     await waitFor(() =>
       expect(apiClientMock.put).toHaveBeenCalledWith(
         "/api/canvas/canvas-1/logic",
-        expect.objectContaining({ agent_id: "agent-autonomous-1" })
+        expect.objectContaining({ agent_id: "agent-autonomous-1" }), { retry: false }
       )
     );
   });
@@ -372,7 +372,7 @@ describe("MiniAppHarness", () => {
     // Dev-run saves to the blueprint canvas first, then calls the RPC action.
     expect(apiClientMock.put).toHaveBeenCalledWith(
       "/api/canvas/blueprint-456/logic",
-      expect.objectContaining({ source: "state = {}" })
+      expect.objectContaining({ source: "state = {}" }), { retry: false }
     );
     expect(rpcMock.call).toHaveBeenCalledWith("mini_app_dev_run", { app_id: "app-1234abcd", inputs: {} });
     expect(screen.getByText(/exit code: 0 · state_changed: true/)).toBeInTheDocument();
@@ -565,4 +565,52 @@ describe("MiniAppHarness", () => {
     fireEvent.click(screen.getByText("Install"));
     await waitFor(() => expect(screen.getByText("Install failed")).toBeInTheDocument());
   });
+});
+
+it.each([true, false])("uses the restore receipt to confirm success (receipt present: %s)", async (confirmed) => {
+  jest.clearAllMocks();
+  apiClientMock.get.mockResolvedValue({
+    data: { success: true, data: {
+      source: "total = 18",
+      baseline: { canvas_id: "canvas-1", source_present: true, source_sha256: "a".repeat(64) },
+    } },
+  });
+  rpcMock.call.mockImplementation(async (action: string) => {
+    if (action === "mini_app_list") {
+      return { success: true, apps: [{ id: "app-1", blueprint_canvas_id: "canvas-1" }] };
+    }
+    if (action === "mini_app_logic_history") {
+      return { success: true, app_id: "app-1", history: [
+        { version: 1, created_at: "2026-11-20T12:00:00Z", created_by: "Owner", preview: "total = 1" },
+      ] };
+    }
+    if (action === "mini_app_revert_logic" && confirmed) {
+      apiClientMock.get.mockResolvedValue({ data: { success: true, data: {
+        source: "total = 1",
+        baseline: { canvas_id: "canvas-1", source_present: true, source_sha256: "b".repeat(64) },
+      } } });
+      return { success: true, version: 3, reverted_to: 1, app_id: "app-1" };
+    }
+    return { success: true };
+  });
+  renderHarness();
+  expand();
+  fireEvent.click(await screen.findByRole("button", { name: "Show revision history" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Restore version 1" }));
+  const confirm = screen.getByRole("button", { name: "Confirm restore" });
+  expect(confirm).toBeEnabled();
+  fireEvent.click(confirm);
+  await waitFor(() => expect(rpcMock.call.mock.calls.some(([action]) => action === "mini_app_revert_logic")).toBe(true));
+  expect(rpcMock.call).toHaveBeenCalledWith(
+    "mini_app_revert_logic",
+    expect.objectContaining({ app_id: "app-1", version: 1, expected_source_sha256: "a".repeat(64) }),
+    { retry: false },
+  );
+  if (confirmed) {
+    await screen.findByText(/restored as version 3/i);
+    await waitFor(() => expect(screen.getByTestId("logic-editor")).toHaveValue("total = 1"));
+  } else {
+    await screen.findByText(/restore could not be confirmed/i);
+    expect(screen.queryByText(/restored as version/i)).not.toBeInTheDocument();
+  }
 });
