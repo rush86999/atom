@@ -756,6 +756,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 — lifespan must not fail
         logger.error(f"Failed to start WorkDrive background recovery: {e}")
 
+    # 5g. DURABLE CANVAS GRADING WORKER. Grade admissions are persisted by the
+    # RPC surface before it responds; this worker turns pending rows into
+    # executions using the same grading path as mini_app_run_tests. It is an
+    # integrity/worker lane, NOT a scheduler job: start it outside the scheduler
+    # gate so API-only/test processes also drain grades. The start call only
+    # schedules a task; interrupted-run recovery (marks orphans interrupted)
+    # happens inside the loop, so startup is never blocked by a poll or a run.
+    try:
+        from core.canvas_grade_worker import start_canvas_grade_worker
+
+        if start_canvas_grade_worker(spawn=_spawn_background_task):
+            logger.info(
+                "Canvas grading worker started (outside the scheduler gate)")
+    except Exception as e:  # noqa: BLE001 — lifespan must not fail
+        logger.error(f"Failed to start Canvas grading worker: {e}")
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False
@@ -1408,6 +1424,17 @@ async def lifespan(app: FastAPI):
         await stop_terminal_delivery_recovery()
     except Exception as e:
         logger.error(f"terminal-delivery recovery shutdown: {e}")
+
+    # Stop the durable Canvas grading worker (it may be between polls or in a
+    # dry grading run). A graceful cancel fences an in-flight run failed with
+    # worker_shutdown; a crash leaves it for startup recovery to mark interrupted.
+    try:
+        from core.canvas_grade_worker import stop_canvas_grade_worker
+
+        await stop_canvas_grade_worker()
+        logger.info("✓ Canvas grading worker stopped")
+    except Exception as e:
+        logger.debug(f"Canvas grading worker shutdown: {e}")
 
     logger.info("Shutting down ATOM Platform...")
 

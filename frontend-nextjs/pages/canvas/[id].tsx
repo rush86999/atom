@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,6 +63,9 @@ interface CanvasMessage {
 
 export default function CanvasDetailPage() {
     const router = useRouter();
+    // Consulted for authenticated grading identity only — never the legacy
+    // browser-local userId below.
+    const { data: session, status: sessionStatus } = useSession();
     // Direct URL loads in dev can serve the route shell with an EMPTY
     // router.query (observed live 2026-08-31: __NEXT_DATA__.query:{} →
     // canvasId undefined → loadCanvas bails before clearing `loading` → the
@@ -78,7 +82,29 @@ export default function CanvasDetailPage() {
     useEffect(() => setMounted(true), []);
     const canvasId = (Array.isArray(routerId) ? routerId[0] : routerId)
         || (mounted ? window.location.pathname.split("/")[2] : undefined);
+    // Legacy identity for the existing chat/history/WS callers below. It is
+    // NOT grading authority: grading identity comes only from the canonical
+    // projected backend session (lib/backend-current-session.ts).
     const userId = typeof window !== "undefined" ? (localStorage.getItem("user_id") || getCurrentUserId()) : getCurrentUserId();
+    // Authenticated grading owner, taken from the projected backend session
+    // user. The projection explicitly allows null tenant/workspace scope and
+    // neither it nor the canvas conventions agree a page-local "default", so
+    // withhold the principal rather than fabricate one.
+    const gradingPrincipal =
+        sessionStatus === "authenticated" &&
+        session?.user?.id &&
+        session.user.tenant_id &&
+        session.user.workspace_id
+            ? {
+                tenantId: session.user.tenant_id,
+                workspaceId: session.user.workspace_id,
+                userId: session.user.id,
+            }
+            : undefined;
+    // Editor state belongs to one grading owner on one canvas. Key only the
+    // mini-app harness so an owner/app change remounts the editor without
+    // disturbing the canvas document, chat, or other panels.
+    const miniAppEditorKey = `${gradingPrincipal?.tenantId ?? ""}:${gradingPrincipal?.workspaceId ?? ""}:${gradingPrincipal?.userId ?? ""}:${canvasId ?? ""}`;
 
     // Canvas state
     const [canvasData, setCanvasData] = useState<any>(null);
@@ -1449,6 +1475,8 @@ export default function CanvasDetailPage() {
                         </div>
                         {canvasData && (
                             <MiniAppHarness
+                                key={miniAppEditorKey}
+                                principal={gradingPrincipal}
                                 canvasId={canvasId as string}
                                 lastMessage={lastMessage}
                                 // Lossless — see the note on CanvasPanel above.

@@ -1751,6 +1751,67 @@ async def _mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> 
 
 
 @register_action(
+    "mini_app_start_grade",
+    description="Admit a durable Canvas grading submission for a mini-app. Persists before responding; identical submission/digest retries return the existing run, while divergent pins conflict. The background worker executes the same acceptance-test grading as mini_app_run_tests.",
+    parameters_schema={
+        "type": "object",
+        "properties": {
+            "app_id": {"type": "string", "description": "Mini-app id"},
+            "submission_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Client-generated idempotency/submission UUID",
+            },
+            "expected_source_digest": {
+                "type": "string",
+                "description": "Digest of the saved logic source the submitter observed",
+            },
+            "expected_tests_digest": {
+                "type": "string",
+                "description": "Digest of the saved acceptance tests the submitter observed",
+            },
+        },
+        "required": [
+            "app_id", "submission_id",
+            "expected_source_digest", "expected_tests_digest",
+        ],
+    },
+    effects=[{"effect": "write", "scope": "local"}],
+)
+async def _mini_app_start_grade(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_start_grade
+
+    return await mini_app_start_grade(args, context)
+
+
+@register_action(
+    "mini_app_grade_status",
+    description="Read a durable mini-app grading run by submission_id or run_id. Returns the persisted status/report/failure; an exact-scope miss returns null, distinct from a typed failure.",
+    parameters_schema={
+        "type": "object",
+        "properties": {
+            "app_id": {"type": "string", "description": "Mini-app id"},
+            "submission_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Submission UUID (exactly one of submission_id/run_id)",
+            },
+            "run_id": {
+                "type": "string",
+                "description": "Durable run id (exactly one of submission_id/run_id)",
+            },
+        },
+        "required": ["app_id"],
+    },
+    effects=[{"effect": "read"}],
+)
+async def _mini_app_grade_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.mini_app_tool import mini_app_grade_status
+
+    return await mini_app_grade_status(args, context)
+
+
+@register_action(
     "mini_app_logic_history",
     description="List a mini-app's logic checkpoints (oldest → newest). Every write_logic records a versioned snapshot; the agent can revert to a known-good version on failure.",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,

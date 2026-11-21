@@ -15,6 +15,10 @@ from core.database import Base
 # 2. Import all models to ensure they are registered with the Base
 import core.models
 import core.auto_dev.models
+# Durable Canvas grading run store (the startup worker imports this module).
+# Imported here so the shared Base.metadata sees canvas_grade_runs before the
+# application's startup create_all / metadata consumers run.
+import core.canvas_grade_runs  # noqa: F401
 
 # 3. Optional model modules - only import in production (NOT during tests)
 # This prevents recursion during test initialization
