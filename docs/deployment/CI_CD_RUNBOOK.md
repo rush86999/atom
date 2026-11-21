@@ -680,6 +680,10 @@ kubectl exec -it <pod-name> -- /bin/bash
 
 ## Database Migration Procedures
 
+These procedures assume an existing Alembic-managed schema. See the
+[deployment runbook](DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
+for the empty PostgreSQL database limitation.
+
 ### Pre-Migration Checks
 
 ```bash

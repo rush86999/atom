@@ -82,6 +82,14 @@ pytest tests/ --cov --cov-report=term-missing
 
 ### Step 2: Run Database Migrations
 
+**Empty PostgreSQL databases.** A full `alembic upgrade heads` on an
+empty PostgreSQL 16 schema fails at revision `b78e9c2f1a3d`, which
+alters `agent_registry` before the migration history creates it. The
+application can bootstrap tables at startup, but that bootstrap does not
+record Alembic history. Verify a fresh-install path for your release before
+deploying a new PostgreSQL database. The procedure below applies to an
+existing Alembic-managed schema after a staging rehearsal.
+
 ```bash
 # Check current migration version
 alembic current
