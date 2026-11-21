@@ -359,17 +359,6 @@ class TestListAndState:
 
 
 class TestTestsHistoryRevertStatus:
-    async def test_set_tests_success(self, patched_db):
-        app = _make_app(manifest={"name": "my-app", "version": "1.0.0"})
-        with patched_db(MiniApp, app):
-            with patch("core.mini_app_service.validate_tests", return_value=None):
-                result = await mat.mini_app_set_tests(
-                    {"app_id": "app-1", "tests": [{"given": {}, "expected": {}}]},
-                    _viewer_context(),
-                )
-        assert result["success"] is True
-        assert result["tests"] == 1
-
     async def test_set_tests_invalid(self, patched_db):
         with patched_db(MiniApp, _make_app()):
             with patch("core.mini_app_service.validate_tests", side_effect=ValueError("bad test")):

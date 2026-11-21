@@ -306,6 +306,8 @@ class TestAgentRun:
 class TestAgentHarness:
     @pytest.mark.asyncio
     async def test_set_tests_persists_and_validates(self, patched_db):
+        from core.models import MiniApp
+
         SessionLocal = patched_db[1]
         user_id = _uid()
         sc = await _scaffold(user_id)
@@ -318,16 +320,19 @@ class TestAgentHarness:
             },
             {"name": "op case", "expect_ops": [{"op": "put", "key": "out.txt"}]},
         ]
+        with SessionLocal() as s:
+            app = s.query(MiniApp).filter(MiniApp.id == sc["app_id"]).first()
+            assert app is not None
+            manifest_before = dict(app.manifest or {})
         res = await action_registry.execute_action(
             "mini_app_set_tests", {"app_id": sc["app_id"], "tests": tests}, _ctx(user_id)
         )
         assert res["success"] is True
         assert res["tests"] == 2
         with SessionLocal() as s:
-            from core.models import MiniApp
-
             app = s.query(MiniApp).filter(MiniApp.id == sc["app_id"]).first()
-            assert (app.manifest or {}).get("tests") == tests
+            assert app is not None
+            assert app.manifest == {**manifest_before, "tests": tests}
 
     @pytest.mark.asyncio
     async def test_set_tests_rejects_case_without_assertions(self, patched_db):
@@ -637,8 +642,7 @@ async def test_acceptance_stops_after_concurrent_draft_edit(patched_db, patch_ru
     report = await mini_app_run_tests({
         "app_id": app_id, "expected_source_sha256": original["source_sha256"],
     }, context)
-    assert report["passed"] == 1 and report["total"] == 2
-    assert report["results"][1]["error"] == "mini_app_logic_changed"
+    assert report == {"success": False, "error": "mini_app_logic_changed"}
     execute.assert_awaited_once()
 
 
